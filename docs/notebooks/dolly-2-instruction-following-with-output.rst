@@ -81,38 +81,48 @@ dataset can be found in `Databricks blog
 post <https://www.databricks.com/blog/2023/04/12/dolly-first-open-commercially-viable-instruction-tuned-llm>`__
 and `repo <https://github.com/databrickslabs/dolly>`__
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Prerequisites <#prerequisites>`__
+-  `Prerequisites <#Prerequisites>`__
 -  `Convert model using Optimum-CLI
-   tool <#convert-model-using-optimum-cli-tool>`__
--  `Compress model weights <#compress-model-weights>`__
+   tool <#Convert-model-using-Optimum-CLI-tool>`__
+-  `Compress model weights <#Compress-model-weights>`__
 
    -  `Weights Compression using
-      Optimum-CLI <#weights-compression-using-optimum-cli>`__
+      Optimum-CLI <#Weights-Compression-using-Optimum-CLI>`__
 
 -  `Select model variant and inference
-   device <#select-model-variant-and-inference-device>`__
+   device <#Select-model-variant-and-inference-device>`__
 -  `Instantiate Model using Optimum
-   Intel <#instantiate-model-using-optimum-intel>`__
+   Intel <#Instantiate-Model-using-Optimum-Intel>`__
 -  `Create an instruction-following inference
-   pipeline <#create-an-instruction-following-inference-pipeline>`__
+   pipeline <#Create-an-instruction-following-inference-pipeline>`__
 
-   -  `Setup imports <#setup-imports>`__
+   -  `Setup imports <#Setup-imports>`__
    -  `Prepare template for user
-      prompt <#prepare-template-for-user-prompt>`__
-   -  `Helpers for output parsing <#helpers-for-output-parsing>`__
-   -  `Main generation function <#main-generation-function>`__
-   -  `Helpers for application <#helpers-for-application>`__
+      prompt <#Prepare-template-for-user-prompt>`__
+   -  `Helpers for output parsing <#Helpers-for-output-parsing>`__
+   -  `Main generation function <#Main-generation-function>`__
+   -  `Helpers for application <#Helpers-for-application>`__
 
 -  `Run instruction-following
-   pipeline <#run-instruction-following-pipeline>`__
+   pipeline <#Run-instruction-following-pipeline>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 First, we should install the `Hugging Face
 Optimum <https://huggingface.co/docs/optimum/installation>`__ library
@@ -125,21 +135,21 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 .. code:: ipython3
 
     import os
-
+    
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
-
+    
     %pip uninstall -q -y optimum optimum-intel
-    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install -q "diffusers>=0.16.1" "transformers>=4.33.0" "torch>=2.1" "nncf>=2.10.0" onnx "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
 
 Convert model using Optimum-CLI tool
 ------------------------------------
 
+`back to top ⬆️ <#Table-of-contents:>`__
 
-
-`Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the
+🤗 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
+the interface between the 🤗
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -166,7 +176,7 @@ remote code, ``--trust-remote-code`` flag additionally should be passed.
 Compress model weights
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The `Weights
 Compression <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__
@@ -180,7 +190,7 @@ introduces a minor drop in prediction quality.
 Weights Compression using Optimum-CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 You can also apply fp16, 8-bit or 4-bit weight compression on the
 Linear, Convolutional and Embedding layers when exporting your model
@@ -193,13 +203,12 @@ to make it
 `symmetric <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md#symmetric-quantization>`__
 you can add ``--sym``.
 
-For INT4 quantization you can also specify the following arguments :
-
-- The ``--group-size`` parameter will define the group size to use for
-  quantization, -1 it will results in per-column quantization.
-- The ``--ratio`` parameter controls the ratio between 4-bit and 8-bit
-  quantization. If set to 0.9, it means that 90% of the layers will be
-  quantized to int4 while 10% will be quantized to int8.
+For INT4 quantization you can also specify the following arguments : -
+The ``--group-size`` parameter will define the group size to use for
+quantization, -1 it will results in per-column quantization. - The
+``--ratio`` parameter controls the ratio between 4-bit and 8-bit
+quantization. If set to 0.9, it means that 90% of the layers will be
+quantized to int4 while 10% will be quantized to int8.
 
 Smaller group_size and ratio values usually improve accuracy at the
 sacrifice of the model size and inference latency.
@@ -211,7 +220,7 @@ sacrifice of the model size and inference latency.
 
     from IPython.display import Markdown, display
     import ipywidgets as widgets
-
+    
     prepare_int4_model = widgets.Checkbox(
         value=True,
         description="Prepare INT4 model",
@@ -227,7 +236,7 @@ sacrifice of the model size and inference latency.
         description="Prepare FP16 model",
         disabled=False,
     )
-
+    
     display(prepare_int4_model)
     display(prepare_int8_model)
     display(prepare_fp16_model)
@@ -254,15 +263,15 @@ sacrifice of the model size and inference latency.
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     model_id = "databricks/dolly-v2-3b"
     model_path = Path("dolly-v2-3b")
-
+    
     fp16_model_dir = model_path / "FP16"
     int8_model_dir = model_path / "INT8_compressed_weights"
     int4_model_dir = model_path / "INT4_compressed_weights"
-
-
+    
+    
     def convert_to_fp16():
         if (fp16_model_dir / "openvino_model.xml").exists():
             return
@@ -272,8 +281,8 @@ sacrifice of the model size and inference latency.
         display(Markdown("**Export command:**"))
         display(Markdown(f"`{export_command}`"))
         ! $export_command
-
-
+    
+    
     def convert_to_int8():
         if (int8_model_dir / "openvino_model.xml").exists():
             return
@@ -283,19 +292,21 @@ sacrifice of the model size and inference latency.
         display(Markdown("**Export command:**"))
         display(Markdown(f"`{export_command}`"))
         ! $export_command
-
-
+    
+    
     def convert_to_int4():
         if (int4_model_dir / "openvino_model.xml").exists():
             return
         int4_model_dir.mkdir(parents=True, exist_ok=True)
-        export_command_base = "optimum-cli export openvino --model {} --task text-generation-with-past --weight-format int4".format(model_id)
+        export_command_base = "optimum-cli export openvino --model {} --task text-generation-with-past --weight-format int4 --ratio 1.0 --group-size 128".format(
+            model_id
+        )
         export_command = export_command_base + " " + str(int4_model_dir)
         display(Markdown("**Export command:**"))
         display(Markdown(f"`{export_command}`"))
         ! $export_command
-
-
+    
+    
     if prepare_fp16_model.value:
         convert_to_fp16()
     if prepare_int8_model.value:
@@ -303,12 +314,73 @@ sacrifice of the model size and inference latency.
     if prepare_int4_model.value:
         convert_to_int4()
 
+
+
+**Export command:**
+
+
+
+``optimum-cli export openvino --model databricks/dolly-v2-3b --task text-generation-with-past --weight-format int4 --ratio 1.0 --group-size 128 dolly-v2-3b/INT4_compressed_weights``
+
+
+.. parsed-literal::
+
+    2024-07-24 11:40:56.083018: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-07-24 11:40:56.084962: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-07-24 11:40:56.121994: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-07-24 11:40:56.122347: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2024-07-24 11:40:56.845683: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/torchvision/io/image.py:13: UserWarning: Failed to load image Python extension: '/home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/torchvision/image.so: undefined symbol: _ZN3c1017RegisterOperatorsD1Ev'If you don't plan on using image functionality from `torchvision.io`, you can ignore this warning. Otherwise, there might be something wrong with your environment. Did you have `libjpeg` or `libpng` installed before building `torchvision` from source?
+      warn(
+    WARNING[XFORMERS]: xFormers can't load C++/CUDA extensions. xFormers was built for:
+        PyTorch 2.0.1+cu118 with CUDA 1108 (you have 2.3.1+cpu)
+        Python  3.8.18 (you have 3.8.10)
+      Please reinstall xformers (see https://github.com/facebookresearch/xformers#installing-xformers)
+      Memory-efficient attention, SwiGLU, sparse and more won't be available.
+      Set XFORMERS_MORE_DETAILS=1 for more details
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/cextension.py:34: UserWarning: The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+      warn("The installed version of bitsandbytes was compiled without GPU support. "
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/libbitsandbytes_cpu.so: undefined symbol: cadam32bit_grad_fp32
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
+    Framework not specified. Using pt to export the model.
+    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+    Using framework PyTorch: 2.3.1+cpu
+    Overriding 1 configuration item(s)
+    	- use_cache -> True
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/gpt_neox/modeling_gpt_neox.py:934: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert batch_size > 0, "batch_size has to be defined and > 0"
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:114: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if (input_shape[-1] > 1 or self.sliding_window is not None) and self.is_causal:
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/optimum/exporters/onnx/model_patcher.py:304: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if past_key_values_length > 0:
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/gpt_neox/modeling_gpt_neox.py:617: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if seq_len > self.max_seq_len_cached:
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 9% (2 / 130)                │ 0% (0 / 128)                           │
+    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │              4 │ 91% (128 / 130)             │ 100% (128 / 128)                       │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━ 100% 130/130 • 0:01:38 • 0:00:00;0;104;181m0:00:01181m0:00:04
+    
+
 .. code:: ipython3
 
     fp16_weights = fp16_model_dir / "openvino_model.bin"
     int8_weights = int8_model_dir / "openvino_model.bin"
     int4_weights = int4_model_dir / "openvino_model.bin"
-
+    
     if fp16_weights.exists():
         print(f"Size of FP16 model is {fp16_weights.stat().st_size / 1024 / 1024:.2f} MB")
     for precision, compressed_weights in zip([8, 4], [int8_weights, int4_weights]):
@@ -320,13 +392,13 @@ sacrifice of the model size and inference latency.
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 2154.54 MB
+    Size of model with INT4 compressed weights is 1497.06 MB
 
 
 Select model variant and inference device
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -339,14 +411,14 @@ select device from dropdown list for running inference using OpenVINO
         available_models.append("INT8")
     if fp16_model_dir.exists():
         available_models.append("FP16")
-
+    
     model_to_run = widgets.Dropdown(
         options=available_models,
         value=available_models[0],
         description="Model to run:",
         disabled=False,
     )
-
+    
     model_to_run
 
 
@@ -362,16 +434,16 @@ select device from dropdown list for running inference using OpenVINO
 
     import ipywidgets as widgets
     import openvino as ov
-
+    
     core = ov.Core()
-
+    
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -379,14 +451,14 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
 
 
 
 Instantiate Model using Optimum Intel
 -------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -424,7 +496,7 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
     from pathlib import Path
     from transformers import AutoTokenizer
     from optimum.intel.openvino import OVModelForCausalLM
-
+    
     if model_to_run.value == "INT4":
         model_dir = int4_model_dir
     elif model_to_run.value == "INT8":
@@ -432,30 +504,36 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
     else:
         model_dir = fp16_model_dir
     print(f"Loading model from {model_dir}")
-
+    
     tokenizer = AutoTokenizer.from_pretrained(model_dir)
-
+    
     current_device = device.value
-
+    
     ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
-
+    
     ov_model = OVModelForCausalLM.from_pretrained(model_dir, device=current_device, ov_config=ov_config)
 
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
-
-.. parsed-literal::
-
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    2024-05-01 10:43:29.010748: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-01 10:43:29.012724: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-05-01 10:43:29.047558: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-05-01 10:43:29.048434: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-07-24 11:43:17.404362: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-07-24 11:43:17.406313: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-07-24 11:43:17.443348: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-07-24 11:43:17.444995: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-01 10:43:29.742257: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-07-24 11:43:18.193758: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/torchvision/io/image.py:13: UserWarning: Failed to load image Python extension: '/home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/torchvision/image.so: undefined symbol: _ZN3c1017RegisterOperatorsD1Ev'If you don't plan on using image functionality from `torchvision.io`, you can ignore this warning. Otherwise, there might be something wrong with your environment. Did you have `libjpeg` or `libpng` installed before building `torchvision` from source?
+      warn(
+    WARNING[XFORMERS]: xFormers can't load C++/CUDA extensions. xFormers was built for:
+        PyTorch 2.0.1+cu118 with CUDA 1108 (you have 2.3.1+cpu)
+        Python  3.8.18 (you have 3.8.10)
+      Please reinstall xformers (see https://github.com/facebookresearch/xformers#installing-xformers)
+      Memory-efficient attention, SwiGLU, sparse and more won't be available.
+      Set XFORMERS_MORE_DETAILS=1 for more details
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
     /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/cextension.py:34: UserWarning: The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
       warn("The installed version of bitsandbytes was compiled without GPU support. "
 
@@ -463,33 +541,19 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
 .. parsed-literal::
 
     /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/libbitsandbytes_cpu.so: undefined symbol: cadam32bit_grad_fp32
-
-
-.. parsed-literal::
-
-    WARNING[XFORMERS]: xFormers can't load C++/CUDA extensions. xFormers was built for:
-        PyTorch 2.0.1+cu118 with CUDA 1108 (you have 2.1.2+cpu)
-        Python  3.8.18 (you have 3.8.10)
-      Please reinstall xformers (see https://github.com/facebookresearch/xformers#installing-xformers)
-      Memory-efficient attention, SwiGLU, sparse and more won't be available.
-      Set XFORMERS_MORE_DETAILS=1 for more details
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-
-
-.. parsed-literal::
-
     Loading model from dolly-v2-3b/INT4_compressed_weights
 
 
 .. parsed-literal::
 
+    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
     Compiling the model to CPU ...
 
 
 Create an instruction-following inference pipeline
 --------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The ``run_generation`` function accepts user-provided text input,
 tokenizes it, and runs the generation process. Text generation is an
@@ -497,7 +561,7 @@ iterative process, where each next token depends on previously generated
 until a maximum number of tokens or stop generation condition is not
 reached. To obtain intermediate generation results without waiting until
 when generation is finished, we will use
-`TextIteratorStreamer <https://huggingface.co/docs/transformers/main/en/internal/generation_utils#transformers.TextIteratorStreamer>`__,
+```TextIteratorStreamer`` <https://huggingface.co/docs/transformers/main/en/internal/generation_utils#transformers.TextIteratorStreamer>`__,
 provided as part of HuggingFace `Streaming
 API <https://huggingface.co/docs/transformers/main/en/generation_strategies#streaming>`__.
 
@@ -595,7 +659,7 @@ and then prints them when they are ready.
 Setup imports
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -609,7 +673,7 @@ Setup imports
 Prepare template for user prompt
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For effective generation, model expects to have input in specific
 format. The code below prepare template for passing user instruction
@@ -621,14 +685,14 @@ into model with providing additional context.
     RESPONSE_KEY = "### Response:"
     END_KEY = "### End"
     INTRO_BLURB = "Below is an instruction that describes a task. Write a response that appropriately completes the request."
-
+    
     # This is the prompt that is used for generating responses using an already trained model.  It ends with the response
     # key, where the job of the model is to provide the completion that follows it (i.e. the response itself).
     PROMPT_FOR_GENERATION_FORMAT = """{intro}
-
+    
     {instruction_key}
     {instruction}
-
+    
     {response_key}
     """.format(
         intro=INTRO_BLURB,
@@ -640,7 +704,7 @@ into model with providing additional context.
 Helpers for output parsing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Model was retrained to finish generation using special token ``### End``
 the code below find its id for using it as generation stop-criteria.
@@ -650,17 +714,17 @@ the code below find its id for using it as generation stop-criteria.
     def get_special_token_id(tokenizer: AutoTokenizer, key: str) -> int:
         """
         Gets the token ID for a given string that has been added to the tokenizer as a special token.
-
+    
         When training, we configure the tokenizer so that the sequences like "### Instruction:" and "### End" are
         treated specially and converted to a single, new token.  This retrieves the token ID each of these keys map to.
-
+    
         Args:
             tokenizer (PreTrainedTokenizer): the tokenizer
             key (str): the key to convert to a single token
-
+    
         Raises:
             RuntimeError: if more than one ID was generated
-
+    
         Returns:
             int: the token ID for the given key
         """
@@ -668,13 +732,13 @@ the code below find its id for using it as generation stop-criteria.
         if len(token_ids) > 1:
             raise ValueError(f"Expected only a single token for '{key}' but found {token_ids}")
         return token_ids[0]
-
-
+    
+    
     tokenizer_response_key = next(
         (token for token in tokenizer.additional_special_tokens if token.startswith(RESPONSE_KEY)),
         None,
     )
-
+    
     end_key_token_id = None
     if tokenizer_response_key:
         try:
@@ -686,7 +750,7 @@ the code below find its id for using it as generation stop-criteria.
 Main generation function
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 As it was discussed above, ``run_generation`` function is the entry
 point for starting generation. It gets provided input instruction as
@@ -704,7 +768,7 @@ parameter and returns model response.
     ):
         """
         Text generation function
-
+    
         Parameters:
           user_text (str): User-provided instruction for a generation.
           top_p (float):  Nucleus sampling. If set to < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for a generation.
@@ -716,13 +780,13 @@ parameter and returns model response.
           model_output (str) - model-generated text
           perf_text (str) - updated perf text filed content
         """
-
+    
         # Prepare input prompt according to model expected template
         prompt_text = PROMPT_FOR_GENERATION_FORMAT.format(instruction=user_text)
-
+    
         # Tokenize the user text.
         model_inputs = tokenizer(prompt_text, return_tensors="pt")
-
+    
         # Start generation on a separate thread, so that we don't block the UI. The text is pulled from the streamer
         # in the main thread. Adds timeout to the streamer to handle exceptions in the generation thread.
         streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
@@ -738,7 +802,7 @@ parameter and returns model response.
         )
         t = Thread(target=ov_model.generate, kwargs=generate_kwargs)
         t.start()
-
+    
         # Pull the generated text from the streamer, and update the model output.
         model_output = ""
         per_token_time = []
@@ -755,7 +819,7 @@ parameter and returns model response.
 Helpers for application
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For making interactive user interface we will use Gradio library. The
 code bellow provides useful functions used for communication with UI
@@ -772,14 +836,14 @@ elements.
     ):
         """
         Helper function for performance estimation
-
+    
         Parameters:
           current_time (float): This step time in seconds.
           current_perf_text (str): Current content of performance UI field.
           new_gen_text (str): New generated text.
           per_token_time (List[float]): history of performance from previous steps.
           num_tokens (int): Total number of generated tokens.
-
+    
         Returns:
           update for performance text field
           update for a total number of tokens
@@ -794,27 +858,27 @@ elements.
                 num_tokens,
             )
         return current_perf_text, num_tokens
-
-
+    
+    
     def reset_textbox(instruction: str, response: str, perf: str):
         """
         Helper function for resetting content of all text fields
-
+    
         Parameters:
           instruction (str): Content of user instruction field.
           response (str): Content of model response field.
           perf (str): Content of performance info filed
-
+    
         Returns:
           empty string for each placeholder
         """
         return "", "", ""
-
-
+    
+    
     def select_device(device_str: str, current_text: str = "", progress: gr.Progress = gr.Progress()):
         """
         Helper function for uploading model on the device.
-
+    
         Parameters:
           device_str (str): Device name.
           current_text (str): Current content of user instruction field (used only for backup purposes, temporally replacing it on the progress bar during model loading).
@@ -825,7 +889,7 @@ elements.
         if device_str != ov_model._device:
             ov_model.request = None
             ov_model._device = device_str
-
+    
             for i in progress.tqdm(range(1), desc=f"Model loading on {device_str}"):
                 ov_model.compile()
         return current_text
@@ -833,7 +897,7 @@ elements.
 Run instruction-following pipeline
 ----------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, we are ready to explore model capabilities. This demo provides a
 simple interface that allows communication with a model using text
@@ -856,7 +920,7 @@ generation parameters:
 .. code:: ipython3
 
     available_devices = ov.Core().available_devices + ["AUTO"]
-
+    
     examples = [
         "Give me recipe for pizza with pineapple",
         "Write me a tweet about new OpenVINO release",
@@ -869,13 +933,13 @@ generation parameters:
         "Write instructions on how to become a good AI engineer",
         "Write a love letter to my best friend",
     ]
-
+    
     with gr.Blocks() as demo:
         gr.Markdown(
             "# Instruction following using Databricks Dolly 2.0 and OpenVINO.\n"
             "Provide insturction which describes a task below or select among predefined examples and model writes response that performs requested task."
         )
-
+    
         with gr.Row():
             with gr.Column(scale=4):
                 user_text = gr.Textbox(
@@ -922,7 +986,7 @@ generation parameters:
                     interactive=True,
                     label="Temperature",
                 )
-
+    
         user_text.submit(
             run_generation,
             [user_text, top_p, temperature, top_k, max_new_tokens, performance],
@@ -940,13 +1004,13 @@ generation parameters:
             [user_text, model_output, performance],
         )
         device.change(select_device, [device, user_text], [user_text])
-
+    
     if __name__ == "__main__":
         try:
             demo.queue().launch(debug=False, height=800)
         except Exception:
             demo.queue().launch(debug=False, share=True, height=800)
-
+    
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
