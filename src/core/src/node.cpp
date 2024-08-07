@@ -222,9 +222,8 @@ ov::descriptor::Input& ov::Node::get_input_descriptor(size_t position) {
 
 ov::descriptor::Output& ov::Node::get_output_descriptor(size_t position) {
     while (m_outputs.size() <= position) {
-        size_t i = m_outputs.size();
-        auto tensor_descriptor = make_shared<descriptor::Tensor>(element::dynamic, PartialShape::dynamic(), this, i);
-        m_outputs.emplace_back(this, i, tensor_descriptor);
+        const auto i = m_outputs.size();
+        m_outputs.emplace_back(this, i, make_shared<descriptor::Tensor>(element::dynamic, PartialShape::dynamic()));
     }
     return m_outputs[position];
 }
