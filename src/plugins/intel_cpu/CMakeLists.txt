@@ -34,6 +34,16 @@ elseif(CMAKE_COMPILER_IS_GNUCXX)
     endif()
 endif()
 
+if(NOT BUILD_SHARED_LIBS)
+    set(onednn_symbols_file "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn_symbols.txt")
+    file(STRINGS "${onednn_symbols_file}" onednn_symbols)
+    foreach(onednn_symbol IN LISTS onednn_symbols)
+        if(NOT onednn_symbol MATCHES "^#.+")
+            add_compile_definitions(${onednn_symbol}=ov_cpu_${onednn_symbol})
+        endif()
+    endforeach()
+endif()
+
 if (AARCH64 AND NOT APPLE AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10.2)
     # according to https://github.com/ARM-software/ComputeLibrary/issues/1053#issuecomment-1846903707 comment
     # the 'multi_isa=1' below enables FP32, FP16 and SVE / SVE2 kernels
