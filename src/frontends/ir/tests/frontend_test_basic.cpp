@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_assertions.hpp"
 #include "frontend_test.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset6.hpp"
+#include "utils.hpp"
 
 class IRFrontendTests : public ::testing::Test, public IRFrontendTestsImpl {
 protected:
@@ -61,10 +63,10 @@ TEST_F(IRFrontendTests, elementary_model_reading_v11) {
     ov::RTMap rtInfo;
     uint64_t version = 0;
 
-    ASSERT_NO_THROW(model = getWithIRFrontend(testModelV11));
+    OV_ASSERT_NO_THROW(model = getWithIRFrontend(testModelV11));
     ASSERT_TRUE(!!model);
-    ASSERT_NO_THROW(rtInfo = model->get_rt_info());
-    ASSERT_NO_THROW(version = rtInfo["version"].as<int64_t>());
+    OV_ASSERT_NO_THROW(rtInfo = model->get_rt_info());
+    OV_ASSERT_NO_THROW(version = rtInfo["version"].as<int64_t>());
     ASSERT_EQ(11, version);
 
     std::shared_ptr<ov::Model> modelRef;
@@ -122,10 +124,10 @@ TEST_F(IRFrontendTests, elementary_model_reading_v10) {
     ov::RTMap rtInfoV10;
     uint64_t version = 0;
 
-    ASSERT_NO_THROW(modelv10 = getWithIRFrontend(testModelV10));
+    OV_ASSERT_NO_THROW(modelv10 = getWithIRFrontend(testModelV10));
     ASSERT_TRUE(!!modelv10);
-    ASSERT_NO_THROW(rtInfoV10 = modelv10->get_rt_info());
-    ASSERT_NO_THROW(version = rtInfoV10["version"].as<int64_t>());
+    OV_ASSERT_NO_THROW(rtInfoV10 = modelv10->get_rt_info());
+    OV_ASSERT_NO_THROW(version = rtInfoV10["version"].as<int64_t>());
     ASSERT_EQ(10, version);
 
     std::shared_ptr<ov::Model> modelRef;
@@ -327,7 +329,7 @@ TEST_P(IRFrontendMMapTests, model_with_weights_reading_from_disk) {
 
     ov::Core new_core;
     new_core.set_property(ov::enable_mmap(GetParam()));
-    ASSERT_NO_THROW(model = new_core.read_model(xmlFileName, binFileName));
+    OV_ASSERT_NO_THROW(model = new_core.read_model(xmlFileName, binFileName));
     ASSERT_TRUE(!!model);
 
     std::shared_ptr<ov::Model> modelRef;
@@ -393,7 +395,7 @@ TEST_F(IRFrontendTests, model_without_weights_reading_from_disk) {
 
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(xmlFileName));
+    OV_ASSERT_NO_THROW(model = core.read_model(xmlFileName));
     ASSERT_TRUE(!!model);
 
     std::shared_ptr<ov::Model> modelRef;
@@ -910,7 +912,7 @@ TEST_F(IRFrontendTests, not_opset1) {
 
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = getWithIRFrontend(testModel));
+    OV_ASSERT_NO_THROW(model = getWithIRFrontend(testModel));
     ASSERT_TRUE(!!model);
 
     std::shared_ptr<ov::Model> modelRef;
@@ -1064,7 +1066,7 @@ TEST_F(IRFrontendTests, extension_proposal_network) {
     createTemporalModelFile(xmlModel, buffer);
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
+    OV_ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
     ASSERT_TRUE(!!model);
 
     for (auto op : model->get_ordered_ops()) {
@@ -1142,7 +1144,7 @@ TEST_F(IRFrontendTests, model_with_tensor_names_with_spaces) {
 
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
+    OV_ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
     ASSERT_TRUE(!!model);
 
     auto outputs = model->outputs();
@@ -1239,7 +1241,7 @@ TEST_F(IRFrontendTests, model_with_tensor_names_add_output) {
     std::shared_ptr<ov::Model> model;
     std::string tensor_name = "output add";
 
-    ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
+    OV_ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
     ASSERT_TRUE(!!model);
 
     model->add_output(tensor_name);
@@ -1305,7 +1307,7 @@ TEST_F(IRFrontendTests, name_with_comma) {
     std::shared_ptr<ov::Model> model;
     std::string tensor_name = "relu,t";
 
-    ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
+    OV_ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
     ASSERT_TRUE(!!model);
 
     model->add_output(tensor_name);
@@ -1397,6 +1399,41 @@ TEST_F(IRFrontendTests, DetectionOutput) {
 
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = getWithIRFrontend(testModel));
+    OV_ASSERT_NO_THROW(model = getWithIRFrontend(testModel));
     ASSERT_TRUE(!!model);
+}
+
+TEST_F(IRFrontendTests, load_model_not_exists_at_path) {
+    const auto model_name = "not_existing_model";
+    auto error_msg = std::string("Could not open the file: ");
+    auto model_file_path = FrontEndTestUtils::make_model_path(model_name);
+    error_msg += '"' + model_file_path + '"';
+
+    auto fem = ov::frontend::FrontEndManager();
+    auto fe = fem.load_by_framework("ir");
+
+    OV_EXPECT_THROW(fe->supported({model_file_path}), ov::Exception, testing::HasSubstr(error_msg));
+    OV_EXPECT_THROW(fe->load(model_file_path), ov::Exception, testing::HasSubstr(error_msg));
+}
+
+TEST_F(IRFrontendTests, load_model_weights_not_exist_at_path) {
+    const auto error_msg = std::string(" cannot be opened");
+    const auto name_prefix = ov::test::utils::generateTestFilePrefix();
+    const auto model_file_path = name_prefix + "existing_model.xml";
+    const auto weights_file_path = name_prefix + "not_existing_weights.bin";
+
+    {
+        std::ofstream model_file;
+        model_file.open(model_file_path);
+        model_file.close();
+    }
+
+    auto fem = ov::frontend::FrontEndManager();
+    auto fe = fem.load_by_framework("ir");
+
+    OV_EXPECT_THROW(fe->load(model_file_path, weights_file_path),
+                    ov::Exception,
+                    testing::HasSubstr(weights_file_path + error_msg));
+
+    std::remove(model_file_path.c_str());
 }

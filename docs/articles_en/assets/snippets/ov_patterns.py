@@ -111,7 +111,7 @@ def wrap_type_predicate():
     pattern_relu = WrapType("opset13.Relu", pattern_abs)
 # ! [ov:any_input_predicate]
 
-# ! [ov::pattern_or]
+# ! [ov:pattern_or]
 def pattern_or():
     model_param1 = ops.parameter(PartialShape([2, 2]))
     model_param2 = ops.parameter(PartialShape([2, 2]))
@@ -140,7 +140,7 @@ def pattern_or():
 
     # The same pattern perfectly matches 2 different nodes
     assert matcher.match(model_relu)
-# ! [ov::pattern_or]
+# ! [ov:pattern_or]
 
 # ! [ov:pattern_optional_middle]
 def pattern_optional_middle():

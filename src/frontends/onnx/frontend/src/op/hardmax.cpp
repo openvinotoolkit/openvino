@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/hardmax.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
@@ -15,22 +14,21 @@
 #include "openvino/op/topk.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
     const auto input = node.get_ov_inputs().at(0);
     const auto& input_shape = input.get_partial_shape();
 
     auto axis = node.get_attribute_value<std::int64_t>("axis", 1);
     if (input_shape.rank().is_static()) {
-        axis = ov::util::normalize_axis(node.get_description(), axis, input_shape.rank());
+        axis = common::normalize_axis(node.get_description(), axis, input_shape.rank());
     }
 
     // reshape to 2D - "batch size" x "input feature dimensions" (NxD)
@@ -60,14 +58,17 @@ ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Reshape>(converted_results, output_shape, false)};
 }
 
-}  // namespace set_1
-namespace set_13 {
+ONNX_OP("Hardmax", OPSET_RANGE(1, 12), ai_onnx::opset_1::hardmax);
+}  // namespace opset_1
+namespace opset_13 {
 ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
     const auto input = node.get_ov_inputs().at(0);
     const auto& input_shape = input.get_partial_shape();
 
     auto axis = node.get_attribute_value<std::int64_t>("axis", -1);
-    axis = ov::util::normalize_axis(node.get_description(), axis, input_shape.rank());
+    if (input_shape.rank().is_static()) {
+        axis = common::normalize_axis(node.get_description(), axis, input_shape.rank());
+    }
 
     const auto input_runtime_shape = std::make_shared<ov::op::v0::ShapeOf>(input);
     ov::Output<ov::Node> row_size =
@@ -92,8 +93,9 @@ ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Reshape>(converted_results, output_shape, false)};
 }
 
-}  // namespace set_13
-}  // namespace op
+ONNX_OP("Hardmax", OPSET_SINCE(13), ai_onnx::opset_13::hardmax);
+}  // namespace opset_13
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

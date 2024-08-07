@@ -50,9 +50,9 @@ protected:
 TEST_F(Paddle_Places, check_tensor_names) {
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
-    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    OV_ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
     InputModel::Ptr input_model;
-    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
+    OV_ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     for (const auto& tensor_name : tensor_names) {
         auto place = input_model->get_place_by_tensor_name(tensor_name);
@@ -63,9 +63,9 @@ TEST_F(Paddle_Places, check_tensor_names) {
 TEST_F(Paddle_Places, check_input_outputs) {
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
-    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    OV_ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
     InputModel::Ptr input_model;
-    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
+    OV_ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     auto inputs = input_model->get_inputs();
     auto outputs = input_model->get_outputs();
@@ -89,9 +89,9 @@ TEST_F(Paddle_Places, check_input_outputs) {
 TEST_F(Paddle_Places, check_out_port_of_all_ops) {
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
-    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    OV_ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
     InputModel::Ptr input_model;
-    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
+    OV_ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     for (const auto& tensor_name : tensor_names) {
         auto place = input_model->get_place_by_tensor_name(tensor_name);
@@ -111,9 +111,9 @@ TEST_F(Paddle_Places, check_out_port_of_all_ops) {
 TEST_F(Paddle_Places, check_in_out_ports_of_model_outputs) {
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
-    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    OV_ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
     InputModel::Ptr input_model;
-    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
+    OV_ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     auto outputs = input_model->get_outputs();
     for (const auto& output : outputs) {
@@ -145,9 +145,9 @@ TEST_F(Paddle_Places, check_in_out_ports_of_model_outputs) {
 TEST_F(Paddle_Places, check_source_target_tensors_of_model_outputs) {
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
-    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    OV_ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
     InputModel::Ptr input_model;
-    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
+    OV_ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     auto outputs = input_model->get_outputs();
     for (const auto& output : outputs) {
@@ -179,9 +179,9 @@ TEST_F(Paddle_Places, check_source_target_tensors_of_model_outputs) {
 TEST_F(Paddle_Places, check_producing_consuming_ops_of_model_outputs) {
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
-    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    OV_ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
     InputModel::Ptr input_model;
-    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
+    OV_ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     auto outputs = input_model->get_outputs();
     for (const auto& output : outputs) {
@@ -214,9 +214,9 @@ TEST_F(Paddle_Places, check_producing_consuming_ops_of_model_outputs) {
 TEST_F(Paddle_Places, check_data_flow) {
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
-    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    OV_ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
     InputModel::Ptr input_model;
-    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
+    OV_ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     for (const auto& tensor_name : tensor_names) {
         auto tensor_place = input_model->get_place_by_tensor_name(tensor_name);
@@ -253,9 +253,9 @@ TEST_F(Paddle_Places, check_data_flow) {
 TEST_F(Paddle_Places, check_tensor_to_multiple_ports) {
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
-    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    OV_ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
     InputModel::Ptr input_model;
-    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
+    OV_ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     for (const auto& tensor_name : tensor_names) {
         auto tensor_place = input_model->get_place_by_tensor_name(tensor_name);
@@ -279,9 +279,9 @@ TEST_F(Paddle_Places, check_tensor_to_multiple_ports) {
 TEST_F(Paddle_Places, check_consuming_ops) {
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
-    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    OV_ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
     InputModel::Ptr input_model;
-    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
+    OV_ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     for (const auto& tensor_name : tensor_names) {
         auto tensor_place = input_model->get_place_by_tensor_name(tensor_name);
@@ -320,9 +320,9 @@ TEST_F(Paddle_Places, check_consuming_ops) {
 TEST_F(Paddle_Places, check_consuming_ops_2) {
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
-    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    OV_ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
     InputModel::Ptr input_model;
-    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
+    OV_ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     auto it = find(tensor_names.begin(), tensor_names.end(), "lstm_0.tmp_2");
     EXPECT_NE(it, tensor_names.end());
@@ -359,9 +359,9 @@ TEST_F(Paddle_Places, check_consuming_ops_2) {
 TEST_F(Paddle_Places, check_producing_ops) {
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
-    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    OV_ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
     InputModel::Ptr input_model;
-    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
+    OV_ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     for (const auto& tensor_name : tensor_names) {
         auto tensor_place = input_model->get_place_by_tensor_name(tensor_name);
@@ -381,9 +381,9 @@ TEST_F(Paddle_Places, check_producing_ops) {
 TEST_F(Paddle_Places, check_input_output_ports_dy_idx) {
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
-    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    OV_ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
     InputModel::Ptr input_model;
-    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
+    OV_ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     for (const auto& tensor_name : output_names) {
         auto tensor_place = input_model->get_place_by_tensor_name(tensor_name);
@@ -400,9 +400,9 @@ TEST_F(Paddle_Places, check_input_output_ports_dy_idx) {
 TEST_F(Paddle_Places, check_ops_tensors_by_idx) {
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
-    ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
+    OV_ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
     InputModel::Ptr input_model;
-    ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
+    OV_ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
     for (const auto& tensor_name : output_names) {
         auto tensor_place = input_model->get_place_by_tensor_name(tensor_name);

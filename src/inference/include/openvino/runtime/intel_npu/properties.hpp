@@ -53,5 +53,24 @@ static constexpr ov::Property<uint64_t, ov::PropertyMutability::RO> device_total
  */
 static constexpr ov::Property<uint32_t, ov::PropertyMutability::RO> driver_version{"NPU_DRIVER_VERSION"};
 
+/**
+ * @brief [Only for NPU compiler]
+ * Type: std::string
+ * Set various parameters supported by the NPU compiler.
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<std::string> compilation_mode_params{"NPU_COMPILATION_MODE_PARAMS"};
+
+/**
+ * @brief [Only for NPU plugin]
+ * Type: std::bool
+ * Set turbo on or off. The turbo mode, where available, provides a hint to the system to maintain the
+ * maximum NPU frequency and memory throughput within the platform TDP limits.
+ * Turbo mode is not recommended for sustainable workloads due to higher power consumption and potential impact on other
+ * compute resources.
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<bool> turbo{"NPU_TURBO"};
+
 }  // namespace intel_npu
 }  // namespace ov

@@ -31,7 +31,7 @@ from openvino.runtime.utils.types import (
     get_element_type_str,
     make_constant_node,
 )
-
+from openvino.utils import deprecated
 
 _get_node_factory_opset1 = partial(_get_node_factory, "opset1")
 
@@ -1532,6 +1532,7 @@ def lstm_cell(
     return _get_node_factory_opset1().create("LSTMCell", node_inputs, attributes)
 
 
+@deprecated(version="2025.0", message="Use lstm_sequence from opset 5")
 @nameable_op
 def lstm_sequence(
     X: NodeInput,

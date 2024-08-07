@@ -1,12 +1,10 @@
-.. {#tokenizers}
-
 OpenVINO Tokenizers
 ===============================
 
-Tokenization is a necessary step in text processing using various models, including text generation with LLMs.
-Tokenizers convert the input text into a sequence of tokens with corresponding IDs, so that
-the model can understand and process it during inference. The transformation of a sequence of numbers into a
-string is called detokenization.
+Tokenization is a necessary step in text processing using various models, including text
+generation with LLMs. Tokenizers convert the input text into a sequence of tokens with
+corresponding IDs, so that the model can understand and process it during inference. The
+transformation of a sequence of numbers into a string is called detokenization.
 
 .. image:: ../../assets/images/tokenization.svg
    :align: center

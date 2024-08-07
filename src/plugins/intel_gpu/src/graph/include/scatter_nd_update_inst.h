@@ -9,6 +9,18 @@
 
 namespace cldnn {
 
+template <>
+struct typed_program_node<scatter_nd_update> : public typed_program_node_base<scatter_nd_update> {
+private:
+    using parent = typed_program_node_base<scatter_nd_update>;
+
+public:
+    using parent::parent;
+    program_node& input(std::size_t i = 0) const { return get_dependency(i); }
+
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+};
+
 using scatter_nd_update_node = typed_program_node<scatter_nd_update>;
 
 template <>

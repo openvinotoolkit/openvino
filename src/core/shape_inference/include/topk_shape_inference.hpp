@@ -68,7 +68,7 @@ std::vector<TRShape> shape_infer(const util::TopKBase* op,
 
     TRShape output_shape = input_shape;
     if (input_shape.rank().is_static()) {
-        const auto normalized_axis = ov::util::normalize_axis(op, op->get_provided_axis(), input_shape.rank());
+        const auto normalized_axis = ov::util::try_normalize_axis(op->get_provided_axis(), input_shape.rank(), *op);
         auto& dim_axis = output_shape[normalized_axis];
 
         if (auto k_as_shape =

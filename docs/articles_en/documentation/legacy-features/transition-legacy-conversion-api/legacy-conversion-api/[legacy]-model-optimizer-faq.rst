@@ -53,7 +53,7 @@ For example, to add the description of the ``CustomReshape`` layer, which is an 
       python3 generate_caffe_pb2.py --input_proto <PATH_TO_CUSTOM_CAFFE>/src/caffe/proto/caffe.proto
 
 
-   where ``PATH_TO_CUSTOM_CAFFE` is the path to the root directory of custom Caffe.
+   where ``PATH_TO_CUSTOM_CAFFE`` is the path to the root directory of custom Caffe.
 
 3. Now, Model Optimizer is able to load the model into memory and start working with your extensions if there are any.
 
@@ -927,7 +927,7 @@ Q102. What does the message "Operation _contrib_box_nms is not supported ..." me
 
 .. _question-103:
 
-Q103. What does the message "ModelOptimizer is not able to parse *.caffemodel" mean?
+Q103. What does the message "ModelOptimizer is not able to parse "\*.caffemodel" mean?
 #####################################################################################################################################################
 
 **A:** If a ``*.caffemodel`` file exists and is correct, the error occurred possibly because of the use of Python protobuf implementation. In some cases, error messages may appear during model parsing, for example: "``utf-8`` codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can either use a newer Python version (3.8 - 3.11) or build the ``cpp`` implementation of ``protobuf`` yourself for your version of Python. For the complete instructions about building ``protobuf`` from sources, see the appropriate section in the :doc:`Converting Models with Model Optimizer <../legacy-conversion-api>` guide.

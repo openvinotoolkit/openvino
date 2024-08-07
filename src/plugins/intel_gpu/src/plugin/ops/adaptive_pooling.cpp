@@ -43,13 +43,6 @@ static void CreateAdaptiveMaxPoolOp(ProgramBuilder& p, const std::shared_ptr<ov:
     if (p.use_new_shape_infer()) {
         size_t num_outputs = op->get_output_size();
 
-        auto get_output_paddings = [&]() {
-            std::vector<cldnn::padding> output_paddings;
-            for (size_t i = 0; i < num_outputs; i++)
-                output_paddings.push_back(cldnn::padding());
-            return output_paddings;
-        };
-
         auto get_output_data_types = [&]() {
             std::vector<cldnn::optional_data_type> output_data_types;
             for (size_t i = 0; i < num_outputs; i++) {
@@ -63,10 +56,8 @@ static void CreateAdaptiveMaxPoolOp(ProgramBuilder& p, const std::shared_ptr<ov:
                                          inputs[0],
                                          inputs[1],
                                          cldnn::element_type_to_data_type(op->get_index_element_type()),
-                                         cldnn::padding({0, 0, 0, 0}, 0),
                                          cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                          num_outputs};
-        poolPrim.output_paddings = get_output_paddings();
         poolPrim.output_data_types = get_output_data_types();
         p.add_primitive(*op, poolPrim);
 

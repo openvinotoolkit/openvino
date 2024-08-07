@@ -228,8 +228,7 @@ To restore the model from checkpoint you should use the following API:
          :language: python
          :fragment: [load_checkpoint]
 
-For more details on saving/loading checkpoints in the NNCF, see the following
-`documentation <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#saving-and-loading-compressed-models>`__.
+For more details, see the following `documentation <https://github.com/openvinotoolkit/nncf/blob/develop/docs/usage/training_time_compression/other_algorithms/Pruning.md>`__.
 
 Deploying pruned model
 ######################

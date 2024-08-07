@@ -20,7 +20,7 @@ bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
     const auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node_out.get_node_shared_ptr());
     if (!const_node) {
         // Lower bound of the value
-        auto lb = ov::evaluate_lower_bound(node_out);
+        auto lb = ov::util::evaluate_lower_bound(node_out);
         if (!lb)
             return false;
         const auto lb_const_node =
@@ -36,7 +36,7 @@ bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
             return true;
 
         // Upper bound of the value
-        auto ub = ov::evaluate_upper_bound(node_out);
+        auto ub = ov::util::evaluate_upper_bound(node_out);
         if (!ub)
             return false;
 

@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 #include <tuple>
-#include <array>
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -23,6 +22,17 @@ namespace cldnn {
 enum class device_type {
     integrated_gpu = 0,
     discrete_gpu = 1
+};
+
+enum class gpu_arch {
+    unknown = 0,
+    gen9 = 1,
+    gen11 = 2,
+    xe_lp = 3,
+    xe_hp = 4,
+    xe_hpg = 5,
+    xe_hpc = 6,
+    xe2 = 7,
 };
 
 /// @brief Defines version of GFX IP
@@ -77,6 +87,8 @@ struct device_info {
     device_type dev_type;                       ///< Defines type of current GPU device (integrated or discrete)
 
     gfx_version gfx_ver;                        ///< Defines GFX IP version
+    gpu_arch arch;                              ///< Defines arch human readable name
+    uint32_t ip_version;                        ///< Defines raw GFX IP version
     uint32_t device_id;                         ///< ID of current GPU
     uint32_t num_slices;                        ///< Number of slices
     uint32_t num_sub_slices_per_slice;          ///< Number of subslices in a slice
