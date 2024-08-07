@@ -199,8 +199,8 @@ void FullyConnected::execute(dnnl::stream strm) {
                     });
                     size_t tail = count & ~(unloop - 1);
                     for (size_t i = tail; i < count; ++i) {
-                        int dst_offset = i * dims[dim] * prec.size() + idx * strideSize;
-                        int src_offset = i * copySize;
+                        size_t dst_offset = i * channel_size + idx * strideSize;
+                        size_t src_offset = i * copySize;
                         cpu_parallel_memcpy(dst_ptr + dst_offset, new_ptr + src_offset, copySize);
                     }
                     wait_list[idx] = 0;
