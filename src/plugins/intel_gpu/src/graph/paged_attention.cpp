@@ -25,7 +25,8 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
     return {out_layout};
 }
 
-template std::vector<layout> paged_attention_inst::calc_output_layouts<ov::PartialShape>(paged_attention_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> paged_attention_inst::calc_output_layouts<ov::PartialShape>(paged_attention_node const& node,
+                                                                                         const kernel_impl_params& impl_param);
 
 std::string paged_attention_inst::to_string(const paged_attention_node& node) {
     auto desc = node.get_primitive();
@@ -54,7 +55,8 @@ void paged_attention_inst::on_execute() {
 
 
     for (size_t i = 0; i < ibuf_layouts.size(); i++) {
-        GPU_DEBUG_TRACE_DETAIL << "Layout " << ibuf_layouts[i].to_short_string() << " mem = " << _intermediates_memory[i]->buffer_ptr() << ", " << _intermediates_memory[i]->get_layout().to_short_string() << "\n";
+        GPU_DEBUG_TRACE_DETAIL << "Layout " << ibuf_layouts[i].to_short_string() << " mem = " << _intermediates_memory[i]->buffer_ptr() << ", "
+                               << _intermediates_memory[i]->get_layout().to_short_string() << "\n";
     }
 
     auto print_arr = [&](cldnn::mem_lock<int32_t, cldnn::mem_lock_type::read>& vec, size_t max_len) {
@@ -113,7 +115,6 @@ void paged_attention_inst::on_execute() {
     std::memcpy(blocks_indexes_start_lock.data(), blocks_indexes_start.data(), buf_size);
     std::memcpy(blocks_indexes_end_lock.data(), blocks_indexes_end.data(), buf_size);
     std::memcpy(gws_seq_indexes_correspondence_lock.data(), gws_seq_indexes_correspondence.data(), buf_size);
-
 }
 
 void paged_attention_inst::update_shape_info_tensor(const kernel_impl_params& params) {

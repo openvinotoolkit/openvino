@@ -140,7 +140,6 @@ CommonDispatchData SDPAKernelOpt::SetDefault(const sdpa_params& params, size_t k
     const auto& query_input = params.inputs[0];
 
     if (!query_input.is_dynamic()) {
-
         if (params.is_paged_attention) {
             OPENVINO_ASSERT(kernel_idx == KernelsTypes::MULTI_TOKENS);
 

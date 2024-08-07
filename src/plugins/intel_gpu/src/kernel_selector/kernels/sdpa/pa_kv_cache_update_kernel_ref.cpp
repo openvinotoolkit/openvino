@@ -19,7 +19,8 @@ void KVCacheUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
         GPU_DEBUG_TRACE_DETAIL << "key data shape : " << kv_cache_params.inputs[0].Batch().v  << " " << kv_cache_params.inputs[0].Feature().v << "\n";
         GPU_DEBUG_TRACE_DETAIL << "value data shape : " << kv_cache_params.inputs[1].Batch().v  << " " << kv_cache_params.inputs[1].Feature().v << "\n";
-        GPU_DEBUG_TRACE_DETAIL << "subsequence_begins data shape : " << kv_cache_params.inputs[2].Batch().v  << " " << kv_cache_params.inputs[2].Feature().v << "\n";
+        GPU_DEBUG_TRACE_DETAIL << "subsequence_begins data shape : " << kv_cache_params.inputs[2].Batch().v
+                               << " " << kv_cache_params.inputs[2].Feature().v << "\n";
         GPU_DEBUG_TRACE_DETAIL << "block_indices shape : " << kv_cache_params.inputs[3].Batch().v  << " " << kv_cache_params.inputs[3].Feature().v << "\n";
 
         const auto& prim_params = dynamic_cast<const kv_cache_update_params&>(params);

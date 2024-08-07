@@ -243,7 +243,8 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                 for (size_t i = 0; i < subsequence_begins.size() - 1; i++) {
                     auto prompt_length = subsequence_begins[i + 1] - subsequence_begins[i];
                     aligned_seq_len += align_to(prompt_length, target_seq_len_block_size);
-                    GPU_DEBUG_TRACE_DETAIL << "Res: " << i << ", " << prompt_length << " " << target_seq_len_block_size << " " << align_to(prompt_length, target_seq_len_block_size) << "\n";
+                    GPU_DEBUG_TRACE_DETAIL << "Res: " << i << ", " << prompt_length << " " << target_seq_len_block_size << " "
+                                           << align_to(prompt_length, target_seq_len_block_size) << "\n";
                 }
 
                 GPU_DEBUG_TRACE_DETAIL << "Aligned seq_len = " << aligned_seq_len << " size=" << subsequence_begins.size() << "\n";
@@ -379,7 +380,8 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         auto past_lens_shape = impl_param.get_input_layout(5).get_partial_shape();
 
         if (query_shape.is_static() && past_lens_shape.is_static()) {
-            GPU_DEBUG_TRACE_DETAIL << "Prefill stage: " << (query_shape[0].get_length() != past_lens_shape[0].get_length()) << " " << query_shape[0].get_length() << " " << past_lens_shape[0].get_length() << "\n";
+            GPU_DEBUG_TRACE_DETAIL << "Prefill stage: " << (query_shape[0].get_length() != past_lens_shape[0].get_length()) << " "
+                                   << query_shape[0].get_length() << " " << past_lens_shape[0].get_length() << "\n";
             return query_shape[0].get_length() != past_lens_shape[0].get_length();
         }
 

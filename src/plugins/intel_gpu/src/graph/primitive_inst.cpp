@@ -1918,7 +1918,8 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     auto alloc_type = allocation_type::unknown;
     const auto& lockable_buffers_indexes = _impl->get_lockable_internal_buffers();
     auto need_lockable_allocation = lockable_buffers_indexes.find(idx) != lockable_buffers_indexes.end();
-    GPU_DEBUG_LOG << "[" << _node->id() << ": internal buf " << idx << "] " << layout.to_short_string() << " " << need_lockable_allocation << " lockable_buffers_size=" << lockable_buffers_indexes.size() << std::endl;
+    GPU_DEBUG_LOG << "[" << _node->id() << ": internal buf " << idx << "] " << layout.to_short_string() << " " << need_lockable_allocation
+                  << " lockable_buffers_size=" << lockable_buffers_indexes.size() << std::endl;
     if ((int64_t)available_device_mem_size - (int64_t)layout.bytes_count() >= 0 &&
         (input_device_mem || _node->get_preferred_impl_type() == impl_types::onednn) && !need_lockable_allocation) {
         // scratchpad memory type enforces to device mem.

@@ -214,7 +214,8 @@ void CreatePagedAttention(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op
     // Input #5:  Array (len=2) content: 0, 0,
     // Input #6:  Array (len=3) content: 0, 81, 87,
     // Input #7:  Array (len=4) content: 3639, 3638, 3637, 3636,
-    // Input #8:  Array (len=3) content: 0, 3, 4,  <= ranges of block_indices: 1st prompt uses: block_indices[0], block_indices[1], block_indices[2] blocks; 2nd block_indices[3]
+    // Input #8:  Array (len=3) content: 0, 3, 4,  <= ranges of block_indices: 1st prompt uses: block_indices[0],
+    // block_indices[1], block_indices[2] blocks; 2nd block_indices[3]
     // Input #12: Array (len=1) content: 81,
     // GWS should be: (96 + 16) / 16 = 7
     // Additional input for Q:  i32:bfyx:7:nopad with content {0, 16, 32, 48, 64, 80, 81, 87}
