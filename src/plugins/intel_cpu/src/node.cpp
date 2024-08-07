@@ -396,9 +396,10 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
 MemoryDescPtr Node::getBaseMemDescAtInputPort(size_t portNum) const {
     if (auto primDesc = getSelectedPrimitiveDescriptor()) {
         const auto& inConfs = primDesc->getConfig().inConfs;
-        if (portNum >= inConfs.size()) {
-            OPENVINO_THROW("Can't get input memory desc at port: ", portNum, ", incorrect port number");
-        }
+        OPENVINO_ASSERT(portNum < inConfs.size(),
+                        "Can't get input memory desc at port: ",
+                        portNum,
+                        ", incorrect port number");
         return inConfs[portNum].getMemDesc();
     }
     OPENVINO_THROW("Can't get input memory desc, primitive descriptor is not selected");
@@ -407,9 +408,10 @@ MemoryDescPtr Node::getBaseMemDescAtInputPort(size_t portNum) const {
 MemoryDescPtr Node::getBaseMemDescAtOutputPort(size_t portNum) const {
     if (auto primDesc = getSelectedPrimitiveDescriptor()) {
         const auto& outConfs = primDesc->getConfig().outConfs;
-        if (portNum >= outConfs.size()) {
-            OPENVINO_THROW("Can't get output memory desc at port: ", portNum, ", incorrect port number");
-        }
+        OPENVINO_ASSERT(portNum < outConfs.size(),
+                        "Can't get output memory desc at port: ",
+                        portNum,
+                        ", incorrect port number");
         return outConfs[portNum].getMemDesc();
     }
     OPENVINO_THROW("Can't get output memory desc, primitive descriptor is not selected");
