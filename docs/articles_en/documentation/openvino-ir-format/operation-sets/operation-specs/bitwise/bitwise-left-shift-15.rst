@@ -1,7 +1,7 @@
 .. {#openvino_docs_ops_bitwise_BitwiseLeftShift_15}
 
 BitwiseLeftShift
-==========
+================
 
 
 .. meta::
