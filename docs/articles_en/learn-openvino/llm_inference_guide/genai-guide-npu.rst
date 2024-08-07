@@ -9,23 +9,46 @@ flavor. Please refer to
 :doc:`install OpenVINO GenAI <../../get-started/install-openvino/install-openvino-genai>`
 for more information on OpenVINO GenAI.
 
-1. Export an LLM model via Hugging Face Optimum-Intel. First, make sure the component versions are correct:
+Export an LLM model via Hugging Face Optimum-Intel
+###################
 
-   .. code-block::
+1. Install the correct components for exporting model:
+   .. code-block:: text
+   
+   # requirements.txt
+   transformers==4.42.4
+   openvino==2024.2.0
+   openvino-tokenizers==2024.2.0
+   nncf==2.11.0
+   optimum-intel @ git+https://github.com/huggingface/optimum-intel.git@439d61f79cf55d5d0b28334f577b6ac3c5ced28f
+   ```
 
-      transformers==4.42.4
-      openvino==2024.2.0
-      openvino-tokenizers==2024.2.0
-      nncf==2.11.0
-      optimum-intel @ git+https://github.com/huggingface/optimum-intel.git@439d61f79cf55d5d0b28334f577b6ac3c5ced28f
+   .. code-block:: console
 
-   A chat-tuned TinyLlama model is used in this example. The following conversion & optimization settings are recommended when using NPU:
+      pip install -r requirements.txt
+
+2. A chat-tuned TinyLlama model is used in this example. The following conversion & optimization settings are recommended when using NPU:
 
    .. code-block:: python
 
-      optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4_sym_g128 --ratio 1.0 TinyLlama
+      optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --group-size 128 --ratio 1.0 TinyLlama
 
-2. Perform generation using the new GenAI API:
+Run the generation by using OpenVINO GenAI
+###################
+
+1. Install the correct components for running the model on NPU via OpenVINO GenAI:
+   .. code-block:: text
+
+   # requirements.txt
+   openvino==2024.3.1
+   openvino-tokenizers==2024.3.1
+   openvino-genai==2024.3.1
+   transformers==4.42.4
+   torch==2.4.0+cpu
+   diffusers==0.29.2
+   optimum-intel @ git+https://github.com/huggingface/optimum-intel.git@439d61f79cf55d5d0b28334f577b6ac3c5ced28f
+
+2. Perform generation using the new GenAI API
 
    .. tab-set::
 
@@ -64,7 +87,10 @@ Compiling models for NPU may take a while. By default, LLMPipeline for NPU is co
 
       .. code-block:: python
 
-         plugin_config = { "PREFILL_CONFIG": { "USE_NPUW": "NO" }, "GENERATE_CONFIG": { "USE_NPUW": "NO" } }
+         plugin_config = { 
+                             "PREFILL_CONFIG":  { "NPU_COMPILATION_MODE_PARAMS": "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm" },
+                             "GENERATE_CONFIG": { "NPU_COMPILATION_MODE_PARAMS": "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm" }
+                         }
          pipe = ov_genai.LLMPipeline(model_path, "NPU", plugin_config)
 
    .. tab-item:: C++
@@ -72,12 +98,16 @@ Compiling models for NPU may take a while. By default, LLMPipeline for NPU is co
 
       .. code-block:: cpp
 
-         std::map<std::string, std::string> cfg = { { "NPU_USE_NPUW", "NO" } };
-         ov::AnyMap plugin_config = { { "PREFILL_CONFIG", cfg }, { "GENERATE_CONFIG", cfg } };
+        ov::AnyMap plugin_config = { 
+                                       { "PREFILL_CONFIG",  ov::AnyMap{ {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm"} } },
+                                       { "GENERATE_CONFIG", ov::AnyMap{ {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm"} } }
+                                   };
          ov::genai::LLMPipeline pipe(model_path, "NPU", plugin_config);
 
 
 Additional Resources
 ####################
 
-...
+* :doc:`NPU Device <../../openvino-workflow/running-inference/inference-devices-and-modes/npu-device.rst>`
+* `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
+* `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf>`__
