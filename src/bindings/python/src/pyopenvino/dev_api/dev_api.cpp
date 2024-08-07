@@ -15,7 +15,7 @@ void regmodule_dev_api(py::module m) {
     m_dev.def("evaluate_as_partial_shape",
               &ov::util::evaluate_as_partial_shape,
               py::arg("output"),
-              py::arg("pshape"),
+              py::arg("partial_shape"),
               R"(
                     Evaluates lower and upper value estimations for the output tensor. 
                     The estimation will be represented as a partial shape object, 
