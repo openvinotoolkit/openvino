@@ -1395,6 +1395,7 @@ void setupOVCore(ov::Core& core) {
 
     if (FLAGS_device == "CPU") {
         core.set_property(flagDevice, {{"LP_TRANSFORMS_MODE", "NO"}});
+        core.set_property(flagDevice, {{"DYNAMIC_QUANTIZATION_GROUP_SIZE", "0"}});
     }
 
     if (FLAGS_pc) {
