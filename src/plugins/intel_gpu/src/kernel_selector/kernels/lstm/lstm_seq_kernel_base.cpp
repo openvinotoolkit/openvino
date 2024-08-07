@@ -6,6 +6,7 @@
 #include "kernel_selector_utils.h"
 #include "common_tools.h"
 #include <string>
+#include <algorithm>
 
 namespace kernel_selector {
 
@@ -26,7 +27,12 @@ JitConstants LSTMSeqKernelBase::GetJitConstants(const lstm_seq_params& params) c
     jit.AddConstants({MakeJitConstant("BATCH_SIZE", params.inputs[1].Batch().v)});
     jit.AddConstants({MakeJitConstant("MAX_SEQ_LENGTH", params.inputs[0].Feature().v)});
     jit.AddConstants({MakeJitConstant("INPUT_SIZE", params.inputs[0].Y().v)});
-    jit.AddConstants({MakeJitConstant("HIDDEN_SIZE", params.inputs[1].Y().v)});
+    const int hidden_size = params.inputs[1].Y().v;
+    jit.AddConstants({MakeJitConstant("HIDDEN_SIZE", hidden_size)});
+    auto out =  params.outputs[0];
+    auto num_hidden_kernels = static_cast<unsigned int>(std::min({params.engineInfo.maxWorkGroupSize, out.X().v}));
+    const unsigned int num_hidden_to_do = hidden_size/num_hidden_kernels + (hidden_size % num_hidden_kernels  ? 1 : 0);
+    jit.AddConstant({MakeJitConstant("NUM_HIDDEN_TO_DO", num_hidden_to_do)});
     auto ftype = params.inputs[0].GetDType();
     // if ReLU activation present, we have to reset accumulator type for the kernel to FP32
     // to avoid possible overflows on FP16, since ReLU doesn't limit upper border of its result
@@ -79,9 +85,9 @@ KernelsData LSTMSeqKernelBase::GetCommonKernelsData(const Params& params) const 
     auto cldnnJit = GetJitConstants(orgParams);
     auto entryPoint = GetEntryPoint(kernelName, orgParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
-
-    kernel.params.workGroups.global = {out.X().v, out.Batch().v, 1};
-    kernel.params.workGroups.local = {out.X().v, 1, 1};
+    auto num_hidden_kernels = static_cast<unsigned int>(std::min({params.engineInfo.maxWorkGroupSize, out.X().v}));
+    kernel.params.workGroups.global = {num_hidden_kernels, out.Batch().v, 1};
+    kernel.params.workGroups.local = {num_hidden_kernels, 1, 1};
     kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
 
     return {kd};
