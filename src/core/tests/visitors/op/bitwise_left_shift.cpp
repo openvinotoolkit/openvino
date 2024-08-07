@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "binary_ops.hpp"
 #include "openvino/op/bitwise_left_shift.hpp"
+
+#include "binary_ops.hpp"
 
 using Type = ::testing::Types<BinaryOperatorType<ov::op::v15::BitwiseLeftShift, ov::element::i32>>;
 
