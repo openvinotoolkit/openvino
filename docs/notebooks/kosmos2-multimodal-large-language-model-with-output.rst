@@ -33,32 +33,32 @@ more accurate, informational, and comprehensive answers.
 
    image
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Install requirements <#Install-requirements>`__
--  `Original model inference <#Original-model-inference>`__
+
+-  `Install requirements <#install-requirements>`__
+-  `Original model inference <#original-model-inference>`__
 -  `Convert models to OpenVINO Intermediate representation (IR)
-   format <#Convert-models-to-OpenVINO-Intermediate-representation-(IR)-format>`__
+   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
 
-   -  `Convert the vision model <#Convert-the-vision-model>`__
+   -  `Convert the vision model <#convert-the-vision-model>`__
    -  `Convert Image To Text Projection
-      model <#Convert-Image-To-Text-Projection-model>`__
-   -  `Convert Text model <#Convert-Text-model>`__
+      model <#convert-image-to-text-projection-model>`__
+   -  `Convert Text model <#convert-text-model>`__
 
 -  `Compiling models and prepare
-   pipeline <#Compiling-models-and-prepare-pipeline>`__
--  `Inference <#Inference>`__
--  `Quantization <#Quantization>`__
+   pipeline <#compiling-models-and-prepare-pipeline>`__
+-  `Inference <#inference>`__
+-  `Quantization <#quantization>`__
 
-   -  `Prepare calibration datasets <#Prepare-calibration-datasets>`__
-   -  `Run quantization <#Run-quantization>`__
-   -  `Run Weights Compression <#Run-Weights-Compression>`__
-   -  `Compare model file sizes <#Compare-model-file-sizes>`__
+   -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
+   -  `Run quantization <#run-quantization>`__
+   -  `Run Weights Compression <#run-weights-compression>`__
+   -  `Compare model file sizes <#compare-model-file-sizes>`__
    -  `Compare inference time of the FP32 and optimized
-      pipelines <#Compare-inference-time-of-the-FP32-and-optimized-pipelines>`__
+      pipelines <#compare-inference-time-of-the-fp32-and-optimized-pipelines>`__
 
--  `Interactive inference <#Interactive-inference>`__ ### Installation
+-  `Interactive inference <#interactive-inference>`__ ### Installation
    Instructions
 
 This is a self-contained example that relies solely on its own code.
@@ -71,7 +71,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Install requirements
 --------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -93,7 +93,7 @@ Install requirements
 Original model inference
 ------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s take the `original
 example <https://huggingface.co/microsoft/kosmos-2-patch14-224>`__
@@ -101,26 +101,26 @@ example <https://huggingface.co/microsoft/kosmos-2-patch14-224>`__
 .. code:: ipython3
 
     import requests
-    
+
     from PIL import Image
     from transformers import AutoProcessor, AutoModelForVision2Seq
-    
-    
+
+
     model = AutoModelForVision2Seq.from_pretrained("microsoft/kosmos-2-patch14-224")
     processor = AutoProcessor.from_pretrained("microsoft/kosmos-2-patch14-224")
-    
+
     prompt = "<grounding>An image of"  # <grounding> is used to prompt the model to generate locations tokens
-    
-    
+
+
     url = "https://huggingface.co/microsoft/kosmos-2-patch14-224/resolve/main/snowman.png"
     image = Image.open(requests.get(url, stream=True).raw)
-    
+
     # The original Kosmos-2 demo saves the image first then reload it. For some images, this will give slightly different image input and change the generation outputs.
     image.save("new_image.jpg")
     image = Image.open("new_image.jpg")
-    
+
     inputs = processor(text=prompt, images=image, return_tensors="pt")
-    
+
     generated_ids = model.generate(
         pixel_values=inputs["pixel_values"],
         input_ids=inputs["input_ids"],
@@ -130,20 +130,20 @@ example <https://huggingface.co/microsoft/kosmos-2-patch14-224>`__
         use_cache=True,
         max_new_tokens=128,
     )
-    
+
     generated_text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
-    
+
     # Specify `cleanup_and_extract=False` in order to see the raw model generation.
     processed_text = processor.post_process_generation(generated_text, cleanup_and_extract=False)
     print(f"Raw model generation: {processed_text}")
     # `<grounding> An image of<phrase> a snowman</phrase><object><patch_index_0044><patch_index_0863></object> warming himself by<phrase> a fire</phrase><object><patch_index_0005><patch_index_0911></object>.`
-    
+
     # By default, the generated  text is cleanup and the entities are extracted.
     processed_text, entities = processor.post_process_generation(generated_text)
-    
+
     print(f"Cleaned up generated text: {processed_text=}")
     # `An image of a snowman warming himself by a fire.`
-    
+
     print(f"Extracted entities: {entities}")
     # `[('a snowman', (12, 21), [(0.390625, 0.046875, 0.984375, 0.828125)]), ('a fire', (41, 47), [(0.171875, 0.015625, 0.484375, 0.890625)])]`
 
@@ -170,16 +170,16 @@ draw their bounding bboxes on the image:
 
     import cv2
     import numpy as np
-    
+
     from PIL import Image
-    
-    
+
+
     def is_overlapping(rect1, rect2):
         x1, y1, x2, y2 = rect1
         x3, y3, x4, y4 = rect2
         return not (x2 < x3 or x1 > x4 or y2 < y3 or y1 > y4)
-    
-    
+
+
     def draw_entity_boxes_on_image(image, entities):
         """_summary_
         Args:
@@ -192,10 +192,10 @@ draw their bounding bboxes on the image:
             image = np.array(image)[:, :, [2, 1, 0]]
         else:
             raise ValueError(f"invaild image format, {type(image)} for {image}")
-    
+
         if len(entities) == 0:
             return image
-    
+
         new_image = image.copy()
         previous_bboxes = []
         # size of text
@@ -207,7 +207,7 @@ draw their bounding bboxes on the image:
         base_height = int(text_height * 0.675)
         text_offset_original = text_height - base_height
         text_spaces = 3
-    
+
         for entity_name, (start, end), bboxes in entities:
             for x1_norm, y1_norm, x2_norm, y2_norm in bboxes:
                 orig_x1, orig_y1, orig_x2, orig_y2 = (
@@ -220,16 +220,16 @@ draw their bounding bboxes on the image:
                 # random color
                 color = tuple(np.random.randint(0, 255, size=3).tolist())
                 new_image = cv2.rectangle(new_image, (orig_x1, orig_y1), (orig_x2, orig_y2), color, box_line)
-    
+
                 l_o, r_o = box_line // 2 + box_line % 2, box_line // 2 + box_line % 2 + 1
-    
+
                 x1 = orig_x1 - l_o
                 y1 = orig_y1 - l_o
-    
+
                 if y1 < text_height + text_offset_original + 2 * text_spaces:
                     y1 = orig_y1 + r_o + text_height + text_offset_original + 2 * text_spaces
                     x1 = orig_x1 + r_o
-    
+
                 # add text background
                 (text_width, text_height), _ = cv2.getTextSize(f"  {entity_name}", cv2.FONT_HERSHEY_COMPLEX, text_size, text_line)
                 text_bg_x1, text_bg_y1, text_bg_x2, text_bg_y2 = (
@@ -238,13 +238,13 @@ draw their bounding bboxes on the image:
                     x1 + text_width,
                     y1,
                 )
-    
+
                 for prev_bbox in previous_bboxes:
                     while is_overlapping((text_bg_x1, text_bg_y1, text_bg_x2, text_bg_y2), prev_bbox):
                         text_bg_y1 += text_height + text_offset_original + 2 * text_spaces
                         text_bg_y2 += text_height + text_offset_original + 2 * text_spaces
                         y1 += text_height + text_offset_original + 2 * text_spaces
-    
+
                         if text_bg_y2 >= image_h:
                             text_bg_y1 = max(
                                 0,
@@ -253,7 +253,7 @@ draw their bounding bboxes on the image:
                             text_bg_y2 = image_h
                             y1 = image_h
                             break
-    
+
                 alpha = 0.5
                 for i in range(text_bg_y1, text_bg_y2):
                     for j in range(text_bg_x1, text_bg_x2):
@@ -265,7 +265,7 @@ draw their bounding bboxes on the image:
                                 # white
                                 bg_color = [255, 255, 255]
                             new_image[i, j] = (alpha * new_image[i, j] + (1 - alpha) * np.array(bg_color)).astype(np.uint8)
-    
+
                 cv2.putText(
                     new_image,
                     f"  {entity_name}",
@@ -278,9 +278,9 @@ draw their bounding bboxes on the image:
                 )
                 # previous_locations.append((x1, y1))
                 previous_bboxes.append((text_bg_x1, text_bg_y1, text_bg_x2, text_bg_y2))
-    
+
         pil_image = Image.fromarray(new_image[:, :, [2, 1, 0]])
-    
+
         return pil_image
 
 .. code:: ipython3
@@ -297,7 +297,7 @@ draw their bounding bboxes on the image:
 Convert models to OpenVINO Intermediate representation (IR) format
 ------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The original model includes 3 models: vision model
 ``Kosmos2VisionModel``, ``Kosmos2ImageToTextProjection`` that is the
@@ -311,8 +311,8 @@ Define paths for converted models:
 .. code:: ipython3
 
     from pathlib import Path
-    
-    
+
+
     models_base_folder = Path("models")
     VISION_MODEL_IR_PATH = models_base_folder / "vision_model.xml"
     IMAGE_TO_TEXT_PROJECTION_MODEL_IR_PATH = models_base_folder / "image_to_text_projection_model.xml"
@@ -327,21 +327,21 @@ file.
 .. code:: ipython3
 
     import gc
-    
+
     import torch
-    
+
     import openvino as ov
-    
-    
+
+
     def cleanup_torchscript_cache():
         # cleanup memory
         torch._C._jit_clear_class_registry()
         torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
         torch.jit._state._clear_class_state()
-    
+
         gc.collect()
-    
-    
+
+
     def convert(model: torch.nn.Module, xml_path: str, example_input):
         xml_path = Path(xml_path)
         if not xml_path.exists():
@@ -349,13 +349,13 @@ file.
             with torch.no_grad():
                 converted_model = ov.convert_model(model, example_input=example_input)
             ov.save_model(converted_model, xml_path, compress_to_fp16=False)
-    
+
             cleanup_torchscript_cache()
 
 Convert the vision model
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Vision model accept ``pixel_values`` and returns ``image_embeds``.
 
@@ -383,21 +383,21 @@ Vision model accept ``pixel_values`` and returns ``image_embeds``.
 Convert Image To Text Projection model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from torch import nn
-    
-    
+
+
     def get_image_embeds(pixel_values):
         vision_model_output = model.vision_model(pixel_values)
         image_embeds = model.vision_model.model.post_layernorm(vision_model_output[0])
         image_embeds = nn.functional.normalize(image_embeds, dim=-1)
-    
+
         return image_embeds
-    
-    
+
+
     image_embeds = get_image_embeds(inputs["pixel_values"])
     convert(model.image_to_text_projection, IMAGE_TO_TEXT_PROJECTION_MODEL_IR_PATH, image_embeds)
 
@@ -411,7 +411,7 @@ Convert Image To Text Projection model
 Convert Text model
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The Text Model performs in generation pipeline and we can separate it
 into two stage. In the first stage the model transforms ``image_embeds``
@@ -422,21 +422,21 @@ generated text by ``AutoProcessor``.
 .. code:: ipython3
 
     from typing import Optional, List
-    
+
     from transformers.models.kosmos2.modeling_kosmos2 import (
         create_position_ids_from_input_ids,
     )
-    
-    
+
+
     def get_projecton_image_embeds(pixel_values):
         vision_model_output = model.vision_model(pixel_values)
         image_embeds = model.vision_model.model.post_layernorm(vision_model_output[0])
         image_embeds = nn.functional.normalize(image_embeds, dim=-1)
         image_embeds, _ = model.image_to_text_projection(image_embeds)
-    
+
         return image_embeds
-    
-    
+
+
     def flattenize_inputs(inputs):
         """
         Helper function for making nested inputs flattens
@@ -450,8 +450,8 @@ generated text by ``AutoProcessor``.
             else:
                 flatten_inputs.append(input_data)
         return flatten_inputs
-    
-    
+
+
     def postprocess_converted_model(
         ov_model,
         example_input=None,
@@ -463,19 +463,19 @@ generated text by ``AutoProcessor``.
         Helper function for appling postprocessing on converted model with updating input names, shapes and output names
         acording to requested specification
         """
-    
+
         flatten_example_inputs = flattenize_inputs(example_input) if example_input else []
         if input_names:
             for inp_name, m_input, input_data in zip(input_names, ov_model.inputs, flatten_example_inputs):
                 m_input.get_tensor().set_names({inp_name})
-    
+
         if output_names:
             for out, out_name in zip(ov_model.outputs, output_names):
                 out.get_tensor().set_names({out_name})
-    
+
         return ov_model
-    
-    
+
+
     def convert_text_model():
         model.text_model.model.config.torchscript = True
         model.text_model.config.torchscript = True
@@ -499,28 +499,28 @@ generated text by ``AutoProcessor``.
             dynamic_shapes[inputs_[-1]] = {2: "past_sequence + sequence"}
             dynamic_shapes[inputs_[-2]] = {2: "past_sequence + sequence"}
             outputs.extend([f"present.{idx}.key", f"present.{idx}.value"])
-    
+
         if not FIRST_STAGE_MODEL_PATH.exists():
             ov_model = ov.convert_model(model.text_model.model, example_input=conv_inputs)
             ov_model = postprocess_converted_model(ov_model, output_names=outputs)
             ov.save_model(ov_model, FIRST_STAGE_MODEL_PATH)
             del ov_model
             cleanup_torchscript_cache()
-    
+
         if not SECOND_STAGE_MODEL_PATH.exists():
             position_ids = create_position_ids_from_input_ids(
                 inputs["input_ids"],
                 padding_idx=model.text_model.config.pad_token_id,
                 past_key_values_length=0,
             )[:, -1:]
-    
+
             example_input_second_stage = {
                 "input_ids": inputs["input_ids"][:, -1:],
                 "attention_mask": inputs["input_ids"].new_ones(1, inputs["input_ids"].shape[1] + 1),
                 "position_ids": position_ids,
                 "past_key_values": outs[1],
             }
-    
+
             ov_model = ov.convert_model(model.text_model.model, example_input=example_input_second_stage)
             ov_model = postprocess_converted_model(
                 ov_model,
@@ -532,8 +532,8 @@ generated text by ``AutoProcessor``.
             ov.save_model(ov_model, SECOND_STAGE_MODEL_PATH)
             del ov_model
             cleanup_torchscript_cache()
-    
-    
+
+
     convert_text_model()
 
 
@@ -552,7 +552,7 @@ generated text by ``AutoProcessor``.
 Compiling models and prepare pipeline
 -------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device that will be used to do models inference using OpenVINO
 from the dropdown list:
@@ -560,8 +560,8 @@ from the dropdown list:
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
-    
+
+
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -569,7 +569,7 @@ from the dropdown list:
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -589,25 +589,25 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
 
     class WraperInternalVisionModel:
         post_layernorm = model.vision_model.model.post_layernorm
-    
-    
+
+
     class VisionModelWrapper(torch.nn.Module):
         def __init__(self, model_ir_path):
             super().__init__()
             self.model = WraperInternalVisionModel()
             self.vision_model = core.compile_model(model_ir_path, device.value)
-    
+
         def forward(self, pixel_values, **kwargs):
             vision_model_output = self.vision_model(pixel_values)[0]
-    
+
             return [torch.from_numpy(vision_model_output)]
-    
-    
+
+
     class ImageToTextProjectionModelWrapper(torch.nn.Module):
         def __init__(self, model_ir_path):
             super().__init__()
             self.image_to_text_projection = core.compile_model(model_ir_path, device.value)
-    
+
         def forward(self, image_embeds):
             output = self.image_to_text_projection(image_embeds)
             image_embeds = output[0]
@@ -620,8 +620,8 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
     from transformers.models.kosmos2.modeling_kosmos2 import (
         Kosmos2ForConditionalGenerationModelOutput,
     )
-    
-    
+
+
     class KosmosForCausalLMWrapper(GenerationMixin):
         def __init__(self, first_stage_model_path, second_stage_model_path, device):
             self.model_stage_1 = core.compile_model(first_stage_model_path, device.value)
@@ -631,7 +631,7 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
             self.key_value_input_names = [key for key in self.input_names if "key_values" in key]
             self.key_value_output_names = [key for key in self.output_names if "present" in key]
             self.model_stage_2 = core.compile_model(self.model_stage_2, device.value)
-    
+
             self.request = self.model_stage_2.create_infer_request()
             self.config = model.config
             self.generation_config = GenerationConfig.from_model_config(model.config)
@@ -644,23 +644,23 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
                 bias=False,
             )
             self._supports_cache_class = False
-    
+
         def get_input_embeddings(self) -> nn.Module:
             return self.model.embed_tokens
-    
+
         def set_input_embeddings(self, value):
             self.model.embed_tokens = value
-    
+
         def get_output_embeddings(self) -> nn.Module:
             return self.lm_head
-    
+
         def set_output_embeddings(self, new_embeddings):
             self.lm_head = new_embeddings
-    
+
         def can_generate(self):
             """Returns True to validate the check that the model using `GenerationMixin.generate()` can indeed generate."""
             return True
-    
+
         def __call__(
             self,
             input_ids,
@@ -679,7 +679,7 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
                 position_ids,
                 past_key_values,
             )
-    
+
         def forward(
             self,
             input_ids,
@@ -700,12 +700,12 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
                     }
                 )
                 lm_logits = model.text_model.lm_head(torch.from_numpy(outs[0]))
-    
+
                 pkv = list(outs.values())[1:]
                 pkv = tuple(pkv[i : i + 2] for i in range(0, len(pkv), 2))
-    
+
                 return Kosmos2ForConditionalGenerationModelOutput(logits=lm_logits, past_key_values=pkv)
-    
+
             if past_key_values is not None:
                 past_key_values = tuple(past_key_value for pkv_per_layer in past_key_values for past_key_value in pkv_per_layer)
                 inputs_ = {
@@ -714,22 +714,22 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
                     "position_ids": position_ids,
                 }
                 inputs_.update(dict(zip(self.key_value_input_names, past_key_values)))
-    
+
             # Run inference
             self.request.start_async(inputs_, share_inputs=True)
             self.request.wait()
-    
+
             logits = torch.from_numpy(self.request.get_tensor("logits").data)
             logits = model.text_model.lm_head(logits)
-    
+
             # Tuple of length equal to : number of layer * number of past_key_value per decoder layer (2 corresponds to the self-attention layer)
             past_key_values = tuple(self.request.get_tensor(key).data for key in self.key_value_output_names)
             # Tuple of tuple of length `n_layers`, with each tuple of length equal to 2 (k/v of self-attention)
-    
+
             past_key_values = tuple(past_key_values[i : i + self.num_pkv] for i in range(0, len(past_key_values), self.num_pkv))
-    
+
             return Kosmos2ForConditionalGenerationModelOutput(logits=logits, past_key_values=past_key_values)
-    
+
         def prepare_inputs_for_generation(
             self,
             input_ids,
@@ -744,9 +744,9 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
             # if model is used as a decoder in encoder-decoder model, the decoder attention mask is created on the fly
             if attention_mask is None:
                 attention_mask = input_ids.new_ones(input_shape)
-    
+
             position_ids = None
-    
+
             # cut input_ids if past_key_values is used
             if past_key_values is not None:
                 position_ids = create_position_ids_from_input_ids(
@@ -754,7 +754,7 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
                     padding_idx=model.text_model.config.pad_token_id,
                     past_key_values_length=0,
                 )[:, -1:]
-    
+
                 input_ids = input_ids[:, -1:]
                 image_embeds = None
                 image_embeds_position_mask = None
@@ -772,7 +772,7 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
                     ),
                     dim=1,
                 )
-    
+
             return {
                 "input_ids": input_ids,
                 "image_embeds": image_embeds,
@@ -781,7 +781,7 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
                 "past_key_values": past_key_values,
                 "attention_mask": attention_mask,
             }
-    
+
         @staticmethod
         # Copied from transformers.models.umt5.modeling_umt5.UMT5ForConditionalGeneration._reorder_cache
         def _reorder_cache(past_key_values, beam_idx):
@@ -789,8 +789,8 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
             for layer_past in past_key_values:
                 reordered_past += (tuple(past_state.index_select(0, beam_idx.to(past_state.device)) for past_state in layer_past),)
             return reordered_past
-    
-    
+
+
     class Kosmos2ForConditionalGenerationWrapper:
         def __init__(
             self,
@@ -803,7 +803,7 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
             self.vision_model = VisionModelWrapper(vision_model_path)
             self.image_to_text_projection = ImageToTextProjectionModelWrapper(image_to_text_projection_model_path)
             self.text_model = KosmosForCausalLMWrapper(first_stage_model_path, second_stage_model_path, device)
-    
+
         def generate(
             self,
             pixel_values=None,
@@ -818,7 +818,7 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
             # normalized features
             image_embeds = nn.functional.normalize(image_embeds, dim=-1)
             image_embeds, projection_attentions = self.image_to_text_projection(image_embeds.detach().numpy())
-    
+
             output = self.text_model.generate(
                 input_ids,
                 attention_mask=attention_mask,
@@ -826,7 +826,7 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
                 image_embeds_position_mask=image_embeds_position_mask,
                 **kwargs,
             )
-    
+
             return output
 
 .. code:: ipython3
@@ -842,7 +842,7 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
 Inference
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -855,20 +855,20 @@ Inference
             image_embeds_position_mask=inputs["image_embeds_position_mask"],
             max_new_tokens=128,
         )
-    
+
         generated_text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
-    
+
         # Specify `cleanup_and_extract=False` in order to see the raw model generation.
         processed_text = processor.post_process_generation(generated_text, cleanup_and_extract=False)
         print(f"Raw model generation: {processed_text}")
         # `<grounding> An image of<phrase> a snowman</phrase><object><patch_index_0044><patch_index_0863></object> warming himself by<phrase> a fire</phrase><object><patch_index_0005><patch_index_0911></object>.`
-    
+
         # By default, the generated  text is cleanup and the entities are extracted.
         processed_text, entities = processor.post_process_generation(generated_text)
-    
+
         print(f"Cleaned up generated text: {processed_text=}")
         # `An image of a snowman warming himself by a fire.`
-    
+
         print(f"Extracted entities: {entities}")
         # `[('a snowman', (12, 21), [(0.390625, 0.046875, 0.984375, 0.828125)]), ('a fire', (41, 47), [(0.171875, 0.015625, 0.484375, 0.890625)])]`
         return entities
@@ -894,7 +894,7 @@ Inference
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -930,29 +930,29 @@ Let’s load ``skip magic`` extension to skip quantization if
 
     # Fetch `skip_kernel_extension` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-    
+
     ov_optimized_model = None
-    
+
     %load_ext skip_kernel_extension
 
 Prepare calibration datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use a portion of
-```KoalaAI/StockImages-CC0`` <https://huggingface.co/datasets/KoalaAI/StockImages-CC0>`__
+`KoalaAI/StockImages-CC0 <https://huggingface.co/datasets/KoalaAI/StockImages-CC0>`__
 dataset from Hugging Face as calibration data.
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     INT8_VISION_MODEL_IR_PATH = models_base_folder / "vision_model_int8.xml"
     INT8_IMAGE_TO_TEXT_PROJECTION_MODEL_IR_PATH = models_base_folder / "image_to_text_projection_model_int8.xml"
     INT4_FIRST_STAGE_MODEL_PATH = models_base_folder / "kosmos_input_embed_int4.xml"
@@ -961,12 +961,12 @@ dataset from Hugging Face as calibration data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import datasets
-    
+
     prompt = "<grounding>An image of"
     subset_size = 200
-    
+
     dataset = datasets.load_dataset("KoalaAI/StockImages-CC0", split="train", streaming=True, trust_remote_code=True)
     dataset = dataset.shuffle(seed=42).take(subset_size).select_columns(["image"])
 
@@ -976,12 +976,12 @@ To collect intermediate model inputs for calibration we should customize
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from tqdm.notebook import tqdm
     from transformers import set_seed
-    
+
     set_seed(42)
-    
+
     def collect_calibration_data(pipeline, dataset, subset_size):
         calibration_dataset = {
             "vision_model": [],
@@ -992,7 +992,7 @@ To collect intermediate model inputs for calibration we should customize
             pixel_values = processor(text=prompt, images=img, return_tensors="pt")["pixel_values"]
             vision_model_output = pipeline.vision_model(pixel_values)
             image_embeds = model.vision_model.model.post_layernorm(vision_model_output[0])
-    
+
             image_embeds = nn.functional.normalize(image_embeds, dim=-1)
             calibration_dataset["vision_model"].append(pixel_values)
             calibration_dataset["image_to_text_proj"].append(image_embeds.detach().numpy())
@@ -1001,7 +1001,7 @@ To collect intermediate model inputs for calibration we should customize
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     if not (INT8_VISION_MODEL_IR_PATH.exists() and INT8_IMAGE_TO_TEXT_PROJECTION_MODEL_IR_PATH.exists()):
         calibration_dataset = collect_calibration_data(ov_model, dataset, subset_size)
 
@@ -1015,14 +1015,14 @@ To collect intermediate model inputs for calibration we should customize
 Run Quantization
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import nncf
-    
+
     if not INT8_VISION_MODEL_IR_PATH.exists():
         vision_model = core.read_model(VISION_MODEL_IR_PATH)
         quantized_model = nncf.quantize(
@@ -1046,17 +1046,17 @@ Run Quantization
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1067,17 +1067,17 @@ Run Quantization
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1094,17 +1094,17 @@ Run Quantization
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1115,24 +1115,24 @@ Run Quantization
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     if not INT8_IMAGE_TO_TEXT_PROJECTION_MODEL_IR_PATH.exists():
         image_to_text_proj_model = core.read_model(IMAGE_TO_TEXT_PROJECTION_MODEL_IR_PATH)
         quantized_model = nncf.quantize(
@@ -1151,17 +1151,17 @@ Run Quantization
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1172,17 +1172,17 @@ Run Quantization
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1199,17 +1199,17 @@ Run Quantization
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1220,24 +1220,24 @@ Run Quantization
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 Run Weights Compression
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Quantizing of the Text Model does not significantly improve inference
 performance but can lead to a substantial degradation of accuracy. The
@@ -1246,14 +1246,14 @@ weight compression will be applied to footprint reduction.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import nncf
-    
+
     if not INT4_FIRST_STAGE_MODEL_PATH.exists():
         model_stage_1 = core.read_model(FIRST_STAGE_MODEL_PATH)
         quantized_model = nncf.compress_weights(model_stage_1, nncf.CompressWeightsMode.INT4_ASYM)
         ov.save_model(quantized_model, INT4_FIRST_STAGE_MODEL_PATH)
-    
+
     if not INT4_SECOND_STAGE_MODEL_PATH.exists():
         model_stage_2 = core.read_model(SECOND_STAGE_MODEL_PATH)
         quantized_model = nncf.compress_weights(model_stage_2, nncf.CompressWeightsMode.INT4_ASYM)
@@ -1279,17 +1279,17 @@ weight compression will be applied to footprint reduction.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1312,17 +1312,17 @@ weight compression will be applied to footprint reduction.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1332,7 +1332,7 @@ pipelines.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     ov_optimized_model = Kosmos2ForConditionalGenerationWrapper(
         INT8_VISION_MODEL_IR_PATH,
         INT8_IMAGE_TO_TEXT_PROJECTION_MODEL_IR_PATH,
@@ -1344,14 +1344,14 @@ pipelines.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import matplotlib.pyplot as plt
-    
-    
+
+
     def visualize_results(orig_img: Image, optimized_img: Image):
         """
         Helper function for results visualization
-    
+
         Parameters:
            orig_img (Image.Image): generated image using FP16 models
            optimized_img (Image.Image): generated image using quantized models
@@ -1373,14 +1373,14 @@ pipelines.
         list_axes[1].imshow(np.array(optimized_img))
         list_axes[0].set_title(orig_title, fontsize=15)
         list_axes[1].set_title(control_title, fontsize=15)
-    
+
         fig.subplots_adjust(wspace=0.01, hspace=0.01)
         fig.tight_layout()
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     int_entities = generate_entities(ov_optimized_model)
     int_image = draw_entity_boxes_on_image(image, int_entities)
     visualize_results(new_image, int_image)
@@ -1400,15 +1400,15 @@ pipelines.
 Compare model file sizes
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     fp32_model_paths = [VISION_MODEL_IR_PATH, IMAGE_TO_TEXT_PROJECTION_MODEL_IR_PATH, FIRST_STAGE_MODEL_PATH, SECOND_STAGE_MODEL_PATH]
     int8_model_paths = [INT8_VISION_MODEL_IR_PATH, INT8_IMAGE_TO_TEXT_PROJECTION_MODEL_IR_PATH, INT4_FIRST_STAGE_MODEL_PATH, INT4_SECOND_STAGE_MODEL_PATH]
-    
+
     for fp32_path, int8_path in zip(fp32_model_paths, int8_model_paths):
         fp32_ir_model_size = fp32_path.with_suffix(".bin").stat().st_size
         int8_model_size = int8_path.with_suffix(".bin").stat().st_size
@@ -1426,7 +1426,7 @@ Compare model file sizes
 Compare inference time of the FP32 and optimized pipelines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP32`` and optimized
 pipelines, we use mean inference time on 7 samples.
@@ -1438,15 +1438,15 @@ pipelines, we use mean inference time on 7 samples.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import time
-    
+
     def calculate_inference_time(pipeline, dataset):
         inference_time = []
         for data in dataset.take(7):
             img = data["image"]
             inputs = processor(text=prompt, images=img, return_tensors="pt")
-    
+
             start = time.perf_counter()
             _ = pipeline.generate(
                 pixel_values=inputs["pixel_values"],
@@ -1456,7 +1456,7 @@ pipelines, we use mean inference time on 7 samples.
                 image_embeds_position_mask=inputs["image_embeds_position_mask"],
                 max_new_tokens=128,
             )
-    
+
             end = time.perf_counter()
             delta = end - start
             inference_time.append(delta)
@@ -1465,7 +1465,7 @@ pipelines, we use mean inference time on 7 samples.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     fp_latency = calculate_inference_time(ov_model, dataset)
     print(f"FP32 pipeline: {fp_latency:.3f} seconds")
     int_latency = calculate_inference_time(ov_optimized_model, dataset)
@@ -1483,7 +1483,7 @@ pipelines, we use mean inference time on 7 samples.
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Please select below whether you would like to use the quantized models
 to launch the interactive demo.
@@ -1491,13 +1491,13 @@ to launch the interactive demo.
 .. code:: ipython3
 
     quantized_models_present = ov_optimized_model is not None
-    
+
     use_quantized_models = widgets.Checkbox(
         value=quantized_models_present,
         description="Use quantized models",
         disabled=not quantized_models_present,
     )
-    
+
     use_quantized_models
 
 
@@ -1512,10 +1512,10 @@ to launch the interactive demo.
 .. code:: ipython3
 
     import gradio as gr
-    
-    
+
+
     pipeline = ov_optimized_model if use_quantized_models.value else ov_model
-    
+
     images = {
         "snowman.png": "https://huggingface.co/microsoft/kosmos-2-patch14-224/resolve/main/snowman.png",
         "two_dogs.jpg": "https://huggingface.co/microsoft/kosmos-2-patch14-224/resolve/main/two_dogs.jpg",
@@ -1524,8 +1524,8 @@ to launch the interactive demo.
     for image_name, url in images.items():
         image = Image.open(requests.get(url, stream=True).raw)
         image.save(image_name)
-    
-    
+
+
     def generate(image, prompt, use_bbox, _=gr.Progress(track_tqdm=True)):
         if use_bbox:
             prompt = "<grounding> " + prompt
@@ -1540,12 +1540,12 @@ to launch the interactive demo.
         )
         generated_text = processor.batch_decode(generated_ids_, skip_special_tokens=True)[0]
         processed_text, entities = processor.post_process_generation(generated_text)
-    
+
         new_image = draw_entity_boxes_on_image(Image.fromarray(image), entities)
-    
+
         return new_image, processed_text
-    
-    
+
+
     demo = gr.Interface(
         generate,
         [
@@ -1573,12 +1573,12 @@ to launch the interactive demo.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

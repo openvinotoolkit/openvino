@@ -43,22 +43,22 @@ manner.
 This example will demonstrate using RAG engines as a tool in an agent
 with OpenVINO and LlamaIndex.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Download models <#Download-models>`__
 
-   -  `Download LLM <#Download-LLM>`__
-   -  `Download Embedding model <#Download-Embedding-model>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Download models <#download-models>`__
 
--  `Create models <#Create-models>`__
+   -  `Download LLM <#download-llm>`__
+   -  `Download Embedding model <#download-embedding-model>`__
 
-   -  `Create OpenVINO LLM <#Create-OpenVINO-LLM>`__
-   -  `Create OpenVINO Embedding <#Create-OpenVINO-Embedding>`__
+-  `Create models <#create-models>`__
 
--  `Create tools <#Create-tools>`__
--  `Run Agentic RAG <#Run-Agentic-RAG>`__
+   -  `Create OpenVINO LLM <#create-openvino-llm>`__
+   -  `Create OpenVINO Embedding <#create-openvino-embedding>`__
+
+-  `Create tools <#create-tools>`__
+-  `Run Agentic RAG <#run-agentic-rag>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -73,20 +73,20 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install required dependencies
 
 .. code:: ipython3
 
     import os
-    
+
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
-    
+
     %pip uninstall -q -y optimum optimum-intel
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
     "llama-index" "pymupdf" "llama-index-readers-file" "llama-index-llms-openvino>=0.2.0" "llama-index-embeddings-openvino>=0.2.0" "transformers>=4.40"
-    
+
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git" \
     "git+https://github.com/openvinotoolkit/nncf.git" \
     "datasets" \
@@ -98,10 +98,10 @@ Install required dependencies
     from pathlib import Path
     import requests
     import io
-    
+
     text_example_en_path = Path("text_example_en.pdf")
     text_example_en = "https://github.com/user-attachments/files/16171326/xeon6-e-cores-network-and-edge-brief.pdf"
-    
+
     if not text_example_en_path.exists():
         r = requests.get(url=text_example_en)
         content = io.BytesIO(r.content)
@@ -111,12 +111,12 @@ Install required dependencies
 Download models
 ---------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Download LLM
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To run LLM locally, we have to download the model in the first step. It
 is possible to `export your
@@ -141,7 +141,7 @@ for interacting with many different LLMs. In this example, we select
    website <https://llama.meta.com/llama3>`__ and `model
    card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+   agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__,
    carefully read terms of usage and click accept button. You will need
@@ -153,7 +153,7 @@ for interacting with many different LLMs. In this example, we select
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model 
+       ## login to huggingfacehub to get access to pretrained model
 
        from huggingface_hub import notebook_login, whoami
 
@@ -166,17 +166,17 @@ for interacting with many different LLMs. In this example, we select
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     llm_model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
     llm_model_path = "Meta-Llama-3-8B-Instruct-ov"
-    
+
     if not Path(llm_model_path).exists():
         !optimum-cli export openvino --model {llm_model_id} --task text-generation-with-past --trust-remote-code --weight-format int4 {llm_model_path}
 
 Download Embedding model
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Embedding model is another key component in RAG pipeline. It takes text
 as input, and return a long list of numbers used to capture the
@@ -190,19 +190,19 @@ example.
 
     embedding_model_id = "BAAI/bge-small-en-v1.5"
     embedding_model_path = "bge-small-en-v1.5-ov"
-    
+
     if not Path(embedding_model_path).exists():
         !optimum-cli export openvino --model {embedding_model_id} --task feature-extraction {embedding_model_path}
 
 Create models
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Create OpenVINO LLM
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device for LLM model inference
 
@@ -210,18 +210,18 @@ Select device for LLM model inference
 
     import ipywidgets as widgets
     import openvino as ov
-    
+
     core = ov.Core()
-    
+
     support_devices = core.available_devices
-    
+
     llm_device = widgets.Dropdown(
         options=support_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
     )
-    
+
     llm_device
 
 
@@ -241,14 +241,14 @@ inference on it.
 .. code:: ipython3
 
     from llama_index.llms.openvino import OpenVINOLLM
-    
+
     ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
-    
-    
+
+
     def completion_to_prompt(completion):
         return f"<|begin_of_text|><|start_header_id|>system<|end_header_id|><|eot_id|><|start_header_id|>user<|end_header_id|>{completion}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"
-    
-    
+
+
     llm = OpenVINOLLM(
         model_id_or_path=str(llm_model_path),
         context_window=3900,
@@ -268,21 +268,21 @@ inference on it.
 Create OpenVINO Embedding
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device for embedding model inference
 
 .. code:: ipython3
 
     support_devices = core.available_devices
-    
+
     embedding_device = widgets.Dropdown(
         options=support_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
     )
-    
+
     embedding_device
 
 
@@ -295,13 +295,13 @@ Select device for embedding model inference
 
 
 A Hugging Face embedding model can be supported by OpenVINO through
-```OpenVINOEmbeddings`` <https://docs.llamaindex.ai/en/stable/examples/embeddings/openvino/>`__
+`OpenVINOEmbeddings <https://docs.llamaindex.ai/en/stable/examples/embeddings/openvino/>`__
 class of LlamaIndex.
 
 .. code:: ipython3
 
     from llama_index.embeddings.huggingface_openvino import OpenVINOEmbedding
-    
+
     embedding = OpenVINOEmbedding(model_id_or_path=embedding_model_path, device=embedding_device.value)
 
 
@@ -313,7 +313,7 @@ class of LlamaIndex.
 Create tools
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In this examples, we will create 2 customized tools for ``multiply`` and
 ``add``.
@@ -322,21 +322,21 @@ In this examples, we will create 2 customized tools for ``multiply`` and
 
     from llama_index.core.agent import ReActAgent
     from llama_index.core.tools import FunctionTool
-    
-    
+
+
     def multiply(a: float, b: float) -> float:
         """Multiply two numbers and returns the product"""
         return a * b
-    
-    
+
+
     multiply_tool = FunctionTool.from_defaults(fn=multiply)
-    
-    
+
+
     def add(a: float, b: float) -> float:
         """Add two numbers and returns the sum"""
         return a + b
-    
-    
+
+
     add_tool = FunctionTool.from_defaults(fn=add)
 
 To demonstrate using RAG engines as a tool in an agent, we’re going to
@@ -349,7 +349,7 @@ create a very simple RAG query engine as one of the tools.
 
     from llama_index.readers.file import PyMuPDFReader
     from llama_index.core import VectorStoreIndex, Settings
-    
+
     Settings.embed_model = embedding
     Settings.llm = llm
     loader = PyMuPDFReader()
@@ -364,7 +364,7 @@ extracted so we didn’t need to add it):
 .. code:: ipython3
 
     from llama_index.core.tools import QueryEngineTool
-    
+
     rag_tool = QueryEngineTool.from_defaults(
         query_engine,
         name="Xeon6",
@@ -374,7 +374,7 @@ extracted so we didn’t need to add it):
 Run Agentic RAG
 ---------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We modify our agent by adding this engine to our array of tools (we also
 remove the llm parameter, since it’s now provided by settings):
@@ -401,7 +401,7 @@ Ask a question using multiple tools.
     Thought: The current language of the user is English. I need to use a tool to help me answer the question.
     Action: Xeon6
     Action Input: {'input': 'maximum cores in a single socket'}
-    
+
 
 .. parsed-literal::
 
@@ -410,10 +410,10 @@ Ask a question using multiple tools.
 
 .. parsed-literal::
 
-    Observation: 
-    
+    Observation:
+
     According to the provided context information, the maximum cores in a single socket is 144.
-    
+
 
 .. parsed-literal::
 
@@ -428,4 +428,4 @@ Ask a question using multiple tools.
     Observation: 576
     Thought: The current language of the user is English. I can answer without using any more tools. I'll use the user's language to answer
     Answer: The maximum number of cores in an Intel Xeon 6 processor server with 4 sockets is 576.
-    
+

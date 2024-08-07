@@ -7,21 +7,21 @@ identify, extract, quantify, and study affective states and subjective
 information. This notebook demonstrates how to convert and run a
 sequence classification model using OpenVINO.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Imports <#Imports>`__
--  `Initializing the Model <#Initializing-the-Model>`__
--  `Initializing the Tokenizer <#Initializing-the-Tokenizer>`__
+
+-  `Imports <#imports>`__
+-  `Initializing the Model <#initializing-the-model>`__
+-  `Initializing the Tokenizer <#initializing-the-tokenizer>`__
 -  `Convert Model to OpenVINO Intermediate Representation
-   format <#Convert-Model-to-OpenVINO-Intermediate-Representation-format>`__
+   format <#convert-model-to-openvino-intermediate-representation-format>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
--  `Inference <#Inference>`__
+-  `Inference <#inference>`__
 
-   -  `For a single input sentence <#For-a-single-input-sentence>`__
-   -  `Read from a text file <#Read-from-a-text-file>`__
+   -  `For a single input sentence <#for-a-single-input-sentence>`__
+   -  `Read from a text file <#read-from-a-text-file>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -36,7 +36,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -86,7 +86,7 @@ Imports
 Initializing the Model
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We will use the transformer-based `DistilBERT base uncased finetuned
 SST-2 <https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english>`__
@@ -100,7 +100,7 @@ model from Hugging Face.
 Initializing the Tokenizer
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Text Preprocessing cleans the text-based input data so it can be fed
 into the model.
@@ -110,7 +110,7 @@ easily assigned meaning. It involves cleaning the data and assigning
 tokens or IDs to the words, so they are represented in a vector space
 where similar words have similar vectors. This helps the model
 understand the context of a sentence. Here, we will use
-```AutoTokenizer`` <https://huggingface.co/docs/transformers/main_classes/tokenizer>`__
+`AutoTokenizer <https://huggingface.co/docs/transformers/main_classes/tokenizer>`__
 - a pre-trained tokenizer from Hugging Face:
 
 .. code:: ipython3
@@ -127,7 +127,7 @@ understand the context of a sentence. Here, we will use
 Convert Model to OpenVINO Intermediate Representation format
 ------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `Model conversion
 API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
@@ -138,11 +138,11 @@ optimal execution on end-point target devices.
 .. code:: ipython3
 
     import torch
-    
+
     ir_xml_name = checkpoint + ".xml"
     MODEL_DIR = "model/"
     ir_xml_path = Path(MODEL_DIR) / ir_xml_name
-    
+
     MAX_SEQ_LENGTH = 128
     input_info = [
         (ov.PartialShape([1, -1]), ov.Type.i64),
@@ -153,7 +153,7 @@ optimal execution on end-point target devices.
         "input_ids": default_input,
         "attention_mask": default_input,
     }
-    
+
     ov_model = ov.convert_model(model, input=input_info, example_input=inputs)
     ov.save_model(ov_model, ir_xml_path)
 
@@ -183,21 +183,21 @@ documentation. <https://docs.openvino.ai/2024/openvino-workflow/running-inferenc
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -224,14 +224,14 @@ select device from dropdown list for running inference using OpenVINO
         Parameters: Logits array
         Returns: Probabilities
         """
-    
+
         e_x = np.exp(x - np.max(x))
         return e_x / e_x.sum()
 
 Inference
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -243,7 +243,7 @@ Inference
         Parameters: Text to be processed
         Returns: Label: Positive or Negative.
         """
-    
+
         input_text = tokenizer(
             input_text,
             truncation=True,
@@ -259,7 +259,7 @@ Inference
 For a single input sentence
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -281,20 +281,20 @@ For a single input sentence
 Read from a text file
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file
-    
+
     # Download the text from the openvino_notebooks storage
     vocab_file_path = download_file(
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/food_reviews.txt",
@@ -325,11 +325,11 @@ Read from a text file
 .. parsed-literal::
 
     User Input:  The food was horrible.
-    
-    Label:  NEGATIVE 
-    
+
+    Label:  NEGATIVE
+
     User Input:  We went because the restaurant had good reviews.
-    Label:  POSITIVE 
-    
+    Label:  POSITIVE
+
     Total Time:  0.03  seconds
 

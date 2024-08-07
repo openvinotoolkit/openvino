@@ -29,31 +29,31 @@ with NNCF. 6. Check quantized model result for the demo video. 7.
 Compare model size, performance and accuracy of FP32 and quantized INT8
 models. 8. Launch Interactive demo for video subtitles generation.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Instantiate model <#Instantiate-model>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Instantiate model <#instantiate-model>`__
 
    -  `Convert model to OpenVINO Intermediate Representation (IR)
-      format. <#Convert-model-to-OpenVINO-Intermediate-Representation-(IR)-format.>`__
+      format. <#convert-model-to-openvino-intermediate-representation-ir-format->`__
 
--  `Prepare inference pipeline <#Prepare-inference-pipeline>`__
+-  `Prepare inference pipeline <#prepare-inference-pipeline>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
 -  `Run video transcription
-   pipeline <#Run-video-transcription-pipeline>`__
--  `Quantization <#Quantization>`__
+   pipeline <#run-video-transcription-pipeline>`__
+-  `Quantization <#quantization>`__
 
-   -  `Prepare calibration datasets <#Prepare-calibration-datasets>`__
+   -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
    -  `Quantize Whisper encoder and decoder
-      models <#Quantize-Whisper-encoder-and-decoder-models>`__
-   -  `Run quantized model inference <#Run-quantized-model-inference>`__
+      models <#quantize-whisper-encoder-and-decoder-models>`__
+   -  `Run quantized model inference <#run-quantized-model-inference>`__
    -  `Compare performance and accuracy of the original and quantized
-      models <#Compare-performance-and-accuracy-of-the-original-and-quantized-models>`__
+      models <#compare-performance-and-accuracy-of-the-original-and-quantized-models>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -68,7 +68,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install dependencies.
 
@@ -82,7 +82,7 @@ Install dependencies.
 Instantiate model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Whisper is a Transformer based encoder-decoder model, also referred to
 as a sequence-to-sequence model. It maps a sequence of audio spectrogram
@@ -108,7 +108,7 @@ Whisper family.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     MODELS = [
         "openai/whisper-large-v3",
         "openai/whisper-large-v2",
@@ -118,14 +118,14 @@ Whisper family.
         "openai/whisper-base",
         "openai/whisper-tiny",
     ]
-    
+
     model_id = widgets.Dropdown(
         options=list(MODELS),
         value="openai/whisper-tiny",
         description="Model:",
         disabled=False,
     )
-    
+
     model_id
 
 
@@ -140,7 +140,7 @@ Whisper family.
 Convert model to OpenVINO Intermediate Representation (IR) format using Optimum-Intel.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The Hugging Face Optimum API is a high-level API that enables us to
 convert and quantize models from the Hugging Face Transformers library
@@ -180,16 +180,16 @@ The command bellow illustrates how to convert whisper using optimum cli.
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     model_dir = model_id.value.split("/")[-1]
-    
+
     if not Path(model_dir).exists():
         !optimum-cli export openvino -m {model_id.value} {model_dir} --weight-format fp16
 
 Prepare inference pipeline
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The image below illustrates the pipeline of video transcribing using the
 Whisper model.
@@ -221,27 +221,27 @@ seconds is optimal. To activate batching, pass the argument batch_size.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -257,11 +257,11 @@ select device from dropdown list for running inference using OpenVINO
 
     from optimum.intel.openvino import OVModelForSpeechSeq2Seq
     from transformers import AutoProcessor, pipeline
-    
+
     ov_model = OVModelForSpeechSeq2Seq.from_pretrained(model_dir, device=device.value)
-    
+
     processor = AutoProcessor.from_pretrained(model_dir)
-    
+
     pipe = pipeline(
         "automatic-speech-recognition",
         model=ov_model,
@@ -273,7 +273,7 @@ select device from dropdown list for running inference using OpenVINO
 Run video transcription pipeline
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, we are ready to start transcription. We select a video from YouTube
 that we want to transcribe. Be patient, as downloading the video may
@@ -282,7 +282,7 @@ take some time.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     VIDEO_LINK = "https://youtu.be/kgL5LBM-hFI"
     link = widgets.Text(
         value=VIDEO_LINK,
@@ -290,7 +290,7 @@ take some time.
         description="Video:",
         disabled=False,
     )
-    
+
     link
 
 
@@ -306,9 +306,9 @@ take some time.
 
     from pathlib import Path
     from pytube import YouTube
-    
+
     print(f"Downloading video {link.value} started")
-    
+
     output_file = Path("downloaded_video.mp4")
     yt = YouTube(link.value)
     yt.streams.get_highest_resolution().download(filename=output_file)
@@ -351,13 +351,13 @@ Select the task for the model:
 
     from moviepy.editor import VideoFileClip
     from transformers.pipelines.audio_utils import ffmpeg_read
-    
-    
+
+
     def get_audio(video_file):
         """
         Extract audio signal from a given video file, then convert it to float,
         then mono-channel format and resample it to the expected sample rate
-    
+
         Parameters:
             video_file: path to input video file
         Returns:
@@ -377,33 +377,33 @@ Select the task for the model:
 .. code:: ipython3
 
     inputs, duration = get_audio(output_file)
-    
+
     transcription = pipe(inputs, generate_kwargs={"task": task.value}, return_timestamps=True)["chunks"]
 
 .. code:: ipython3
 
     import math
-    
-    
+
+
     def format_timestamp(seconds: float):
         """
         format time in srt-file expected format
         """
         assert seconds >= 0, "non-negative timestamp expected"
         milliseconds = round(seconds * 1000.0)
-    
+
         hours = milliseconds // 3_600_000
         milliseconds -= hours * 3_600_000
-    
+
         minutes = milliseconds // 60_000
         milliseconds -= minutes * 60_000
-    
+
         seconds = milliseconds // 1_000
         milliseconds -= seconds * 1_000
-    
+
         return (f"{hours}:" if hours > 0 else "00:") + f"{minutes:02d}:{seconds:02d},{milliseconds:03d}"
-    
-    
+
+
     def prepare_srt(transcription, filter_duration=None):
         """
         Format transcription into srt file format
@@ -413,7 +413,7 @@ Select the task for the model:
             # for the case where the model could not predict an ending timestamp, which can happen if audio is cut off in the middle of a word.
             if segment["timestamp"][1] is None:
                 segment["timestamp"] = (segment["timestamp"][0], filter_duration)
-    
+
             if filter_duration is not None and (segment["timestamp"][0] >= math.floor(filter_duration) or segment["timestamp"][1] > math.ceil(filter_duration) + 1):
                 break
             segment_lines.append(str(idx + 1) + "\n")
@@ -462,46 +462,46 @@ Now let us see the results.
     1
     00:00:00,000 --> 00:00:05,000
      Oh, what's that?
-    
+
     2
     00:00:05,000 --> 00:00:08,000
      Oh, wow.
-    
+
     3
     00:00:08,000 --> 00:00:10,000
      Hello, humans.
-    
+
     4
     00:00:13,000 --> 00:00:15,000
      Focus on me.
-    
+
     5
     00:00:15,000 --> 00:00:17,000
      Focus on the guard.
-    
+
     6
     00:00:17,000 --> 00:00:20,000
      Don't tell anyone what you're seeing in here.
-    
+
     7
     00:00:22,000 --> 00:00:24,000
      Have you seen what's in there?
-    
+
     8
     00:00:24,000 --> 00:00:25,000
      They have intel.
-    
+
     9
     00:00:25,000 --> 00:00:27,000
      This is where it all changes.
-    
-    
+
+
 
 
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -530,7 +530,7 @@ Please select below whether you would like to run Whisper quantization.
         description="Quantization",
         disabled=False,
     )
-    
+
     to_quantize
 
 
@@ -546,20 +546,20 @@ Please select below whether you would like to run Whisper quantization.
 
     # Fetch `skip_kernel_extension` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-    
+
     ov_quantized_model = None
-    
+
     %load_ext skip_kernel_extension
 
 Prepare calibration datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 First step is to prepare calibration datasets for quantization. Since we
 quantize whisper encoder and decoder separately, we need to prepare a
@@ -572,11 +572,11 @@ improves quantization quality.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from itertools import islice
     from optimum.intel.openvino.quantization import InferRequestWrapper
-    
-    
+
+
     def collect_calibration_dataset(ov_model: OVModelForSpeechSeq2Seq, calibration_dataset_size: int):
         # Overwrite model request properties, saving the original ones for restoring later
         encoder_calibration_data = []
@@ -585,7 +585,7 @@ improves quantization quality.
         ov_model.decoder_with_past.request = InferRequestWrapper(ov_model.decoder_with_past.request,
                                                                  decoder_calibration_data,
                                                                  apply_caching=True)
-    
+
         pipe = pipeline(
           "automatic-speech-recognition",
           model=ov_model,
@@ -600,13 +600,13 @@ improves quantization quality.
         finally:
             ov_model.encoder.request = ov_model.encoder.request.request
             ov_model.decoder_with_past.request = ov_model.decoder_with_past.request.request
-    
+
         return encoder_calibration_data, decoder_calibration_data
 
 Quantize Whisper encoder and decoder models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Below we run the ``quantize`` function which calls ``nncf.quantize`` on
 Whisper encoder and decoder-with-past models. We don’t quantize
@@ -616,13 +616,13 @@ negligible.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import gc
     import shutil
     import nncf
     from datasets import load_dataset
     from tqdm.notebook import tqdm
-    
+
     def extract_input_features(sample):
         input_features = processor(
             sample["audio"]["array"],
@@ -630,13 +630,13 @@ negligible.
             return_tensors="pt",
         ).input_features
         return input_features
-    
-    
-    
+
+
+
     CALIBRATION_DATASET_SIZE = 50
     quantized_model_path = Path(f"{model_dir}_quantized")
-    
-    
+
+
     def quantize(ov_model: OVModelForSpeechSeq2Seq, calibration_dataset_size: int):
         if not quantized_model_path.exists():
             encoder_calibration_data, decoder_calibration_data = collect_calibration_dataset(
@@ -655,7 +655,7 @@ negligible.
             del quantized_encoder
             del encoder_calibration_data
             gc.collect()
-    
+
             print("Quantizing decoder with past")
             quantized_decoder_with_past = nncf.quantize(
                 ov_model.decoder_with_past.model,
@@ -669,20 +669,20 @@ negligible.
             del quantized_decoder_with_past
             del decoder_calibration_data
             gc.collect()
-    
+
             # Copy the config file and the first-step-decoder manually
             model_path = Path(model_dir)
             shutil.copy(model_path / "config.json", quantized_model_path / "config.json")
             shutil.copy(model_path / "generation_config.json", quantized_model_path / "generation_config.json")
             shutil.copy(model_path / "openvino_decoder_model.xml", quantized_model_path / "openvino_decoder_model.xml")
             shutil.copy(model_path / "openvino_decoder_model.bin", quantized_model_path / "openvino_decoder_model.bin")
-    
+
         quantized_ov_model = OVModelForSpeechSeq2Seq.from_pretrained(quantized_model_path, compile=False)
         quantized_ov_model.to(device.value)
         quantized_ov_model.compile()
         return quantized_ov_model
-    
-    
+
+
     ov_quantized_model = quantize(ov_model, CALIBRATION_DATASET_SIZE)
 
 
@@ -704,17 +704,17 @@ negligible.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -725,17 +725,17 @@ negligible.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -752,17 +752,17 @@ negligible.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -773,17 +773,17 @@ negligible.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -799,17 +799,17 @@ negligible.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -820,17 +820,17 @@ negligible.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -847,17 +847,17 @@ negligible.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -868,17 +868,17 @@ negligible.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -892,7 +892,7 @@ negligible.
 Run quantized model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s compare the transcription results for original and quantized
 models.
@@ -919,46 +919,46 @@ models.
     1
     00:00:00,000 --> 00:00:05,000
      What's that?
-    
+
     2
     00:00:05,000 --> 00:00:07,000
      Oh, wow.
-    
+
     3
     00:00:09,000 --> 00:00:11,000
      Hello humans.
-    
+
     4
     00:00:14,000 --> 00:00:15,000
      Focus on me.
-    
+
     5
     00:00:15,000 --> 00:00:16,000
      Focus on the guard.
-    
+
     6
     00:00:18,000 --> 00:00:20,000
      Don't tell anyone what you're seen in here.
-    
+
     7
     00:00:22,000 --> 00:00:24,000
      Have you seen what's in there?
-    
+
     8
     00:00:24,000 --> 00:00:25,000
      They have intel.
-    
+
     9
     00:00:25,000 --> 00:00:27,000
      This is where it all changes.
-    
-    
+
+
 
 
 Compare performance and accuracy of the original and quantized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Finally, we compare original and quantized Whisper models from accuracy
 and performance stand-points.
@@ -972,15 +972,15 @@ decoder-with-past model forwards, and for the whole model inference too.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import time
     from contextlib import contextmanager
     from jiwer import wer, wer_standardize
-    
-    
+
+
     TEST_DATASET_SIZE = 50
     MEASURE_TIME = False
-    
+
     @contextmanager
     def time_measurement():
         global MEASURE_TIME
@@ -989,21 +989,21 @@ decoder-with-past model forwards, and for the whole model inference too.
             yield
         finally:
             MEASURE_TIME = False
-    
+
     def time_fn(obj, fn_name, time_list):
         original_fn = getattr(obj, fn_name)
-    
+
         def wrapper(*args, **kwargs):
             if not MEASURE_TIME:
-                return original_fn(*args, **kwargs)
+                return original_fn(\*args, \*\*kwargs)
             start_time = time.perf_counter()
-            result = original_fn(*args, **kwargs)
+            result = original_fn(\*args, \*\*kwargs)
             end_time = time.perf_counter()
             time_list.append(end_time - start_time)
             return result
-    
+
         setattr(obj, fn_name, wrapper)
-    
+
     def calculate_transcription_time_and_accuracy(ov_model, test_samples):
         encoder_infer_times = []
         decoder_with_past_infer_times = []
@@ -1011,30 +1011,30 @@ decoder-with-past model forwards, and for the whole model inference too.
         time_fn(ov_model, "generate", whole_infer_times)
         time_fn(ov_model.encoder, "forward", encoder_infer_times)
         time_fn(ov_model.decoder_with_past, "forward", decoder_with_past_infer_times)
-    
+
         ground_truths = []
         predictions = []
         for data_item in tqdm(test_samples, desc="Measuring performance and accuracy"):
             input_features = extract_input_features(data_item)
-    
+
             with time_measurement():
                 predicted_ids = ov_model.generate(input_features)
             transcription = processor.batch_decode(predicted_ids, skip_special_tokens=True)
-    
+
             ground_truths.append(data_item["text"])
             predictions.append(transcription[0])
-    
+
         word_accuracy = (1 - wer(ground_truths, predictions, reference_transform=wer_standardize,
                                  hypothesis_transform=wer_standardize)) * 100
         mean_whole_infer_time = sum(whole_infer_times)
         mean_encoder_infer_time = sum(encoder_infer_times)
         mean_decoder_with_time_infer_time = sum(decoder_with_past_infer_times)
         return word_accuracy, (mean_whole_infer_time, mean_encoder_infer_time, mean_decoder_with_time_infer_time)
-    
+
     test_dataset = load_dataset("openslr/librispeech_asr", "clean", split="validation", streaming=True, trust_remote_code=True)
     test_dataset = test_dataset.shuffle(seed=42).take(TEST_DATASET_SIZE)
     test_samples = [sample for sample in test_dataset]
-    
+
     accuracy_original, times_original = calculate_transcription_time_and_accuracy(ov_model, test_samples)
     accuracy_quantized, times_quantized = calculate_transcription_time_and_accuracy(ov_quantized_model, test_samples)
     print(f"Encoder performance speedup: {times_original[1] / times_quantized[1]:.3f}")
@@ -1068,13 +1068,13 @@ decoder-with-past model forwards, and for the whole model inference too.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import gradio as gr
-    
-    
+
+
     def transcribe(url, task, use_int8):
         output_file = Path("downloaded_video.mp4")
         yt = YouTube(url)
@@ -1086,8 +1086,8 @@ Interactive demo
         with output_file.with_suffix(".srt").open("w") as f:
             f.writelines(srt_lines)
         return [str(output_file), str(output_file.with_suffix(".srt"))]
-    
-    
+
+
     demo = gr.Interface(
         transcribe,
         [
