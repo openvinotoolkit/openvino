@@ -24,7 +24,7 @@ After broadcasting input tensors *a* and *b*, *BitwiseRightShift* performs a bit
 
 .. note::
 
-    If the number of shifts is negative or exceeds the total number of bits in the type **T**, the behaviour can be undefined or implementation defined (depends on the hardware).
+    If the number of shifts is negative, or if it equals or exceeds the total number of bits in the type **T**, the behavior can be undefined or implementation-defined (depends on the hardware).
 
 
 **Attributes**:
