@@ -5,24 +5,16 @@
 
 set(TARGET_NAME "npu_tools_utils")
 
-#
-# Define the target
-#
+file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp")
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
-ov_add_target(ADD_CPPLINT
-              TYPE STATIC
-              NAME ${TARGET_NAME}
-              ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-              INCLUDES
-                  PUBLIC
-                      "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-              LINK_LIBRARIES
-                  PRIVATE
-                      openvino::runtime)
-
+add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL ${SOURCES})
 set_target_properties(${TARGET_NAME} PROPERTIES
                           FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
                           CXX_STANDARD 17)
+
+target_include_directories(${TARGET_NAME} PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>")
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime)
 
 if (CMAKE_COMPILER_IS_GNUCXX)
     target_compile_options(${TARGET_NAME} PRIVATE -Wall)

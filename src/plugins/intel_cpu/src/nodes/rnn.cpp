@@ -1170,6 +1170,11 @@ void RNN::prepareParams() {
         OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
     }
 
+#ifdef CPU_DEBUG_CAPS
+    auto pd = execPtr->getPrimitiveDesc();
+    DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+#endif
+
     if (!primArgs.count(DNNL_ARG_WEIGHTS_LAYER) || !prevExecPtr ||
         !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
         prepareMemory(execPtr->getWeightDesc(), 0);

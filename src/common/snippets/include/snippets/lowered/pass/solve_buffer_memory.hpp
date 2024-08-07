@@ -45,14 +45,16 @@ private:
     /**
      * @brief Initializes boxes for MemorySolver
      * @param buffer_expressions buffer expressions
+     * @param linear_ir linear ir
      * @return vector of boxes for MemorySolver
      */
-    std::vector<ov::MemorySolver::Box> init_boxes(const LinearIR::container& buffer_expressions);
+    std::vector<ov::MemorySolver::Box> init_boxes(const LinearIR::container& buffer_expressions, const LinearIR& linear_ir);
     /**
      * @brief Calculate memory size and set offset to buffer with defined allocation size
      * @param static_buffer_expressions static buffer expressions
+     * @param linear_ir linear ir
      */
-    void solve_static_buffer_memory(const LinearIR::container& static_buffer_expressions);
+    void solve_static_buffer_memory(const LinearIR::container& static_buffer_expressions, const LinearIR& linear_ir);
     /**
      * @brief Initialize offset for Buffer with undefined allocation size
      *        Note: should be called after `solve_static_buffer_memory`

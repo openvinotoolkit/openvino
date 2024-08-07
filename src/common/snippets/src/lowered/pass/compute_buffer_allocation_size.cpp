@@ -36,7 +36,7 @@ size_t ComputeBufferAllocationSize::get_allocation_size(const LoopManagerPtr& lo
     const size_t rank = allocation_rank >= 0 ? std::min(static_cast<size_t>(allocation_rank), planar_shape.size())
                                              : planar_shape.size();
 
-    const auto& subtensor =  parent_port.get_descriptor_ptr()->get_subtensor();
+    const auto& subtensor =  ov::snippets::utils::get_projected_subtensor(parent_port);
 
     size_t allocation_size = 1;
     std::set<size_t> processed_dim_idxs;
@@ -60,10 +60,8 @@ size_t ComputeBufferAllocationSize::get_allocation_size(const LoopManagerPtr& lo
     const auto processing_rank = !processed_dim_idxs.empty() ? std::max(*processed_dim_idxs.rbegin(), subtensor.size()) : subtensor.size();
     for (size_t i = 0; i < std::min(processing_rank, rank); ++i) {
         if (processed_dim_idxs.count(i) == 0) {
-            if (i < subtensor.size())
-                allocation_size = utils::dynamic_safe_mul(allocation_size, std::min(*(planar_shape.rbegin() + i), *(subtensor.rbegin() + i)));
-            else
-                allocation_size = utils::dynamic_safe_mul(allocation_size, *(planar_shape.rbegin() + i));
+            const auto multiplier = i < subtensor.size() ? *(subtensor.rbegin() + i) : *(planar_shape.rbegin() + i);
+            allocation_size = utils::dynamic_safe_mul(allocation_size, multiplier);
         }
     }
 
