@@ -96,6 +96,8 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
         const auto& r_weights    = pattern_map.at(R_m);
         const auto& bias         = pattern_map.at(B_m);
 
+        // At the moment there is no optimal primitive for i8 LSTM in the plugin,
+        // thus it's better to leave such cases in f32.
         if (hidden_state.get_element_type() == element::i8) {
             const auto& w_convert = pattern_map.at(convert_W);
             const auto& w_mul = pattern_map.at(deq_W);
