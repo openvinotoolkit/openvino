@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/shape.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -17,7 +16,6 @@
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/placeholder.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/util/pp.hpp"
 
 #ifdef __linux__
@@ -28,18 +26,6 @@
 #include <malloc.h>
 #endif
 
-namespace {
-bool requires_large_allocations(const std::shared_ptr<ov::Node>& op, size_t max_alloc_size) {
-    for (size_t i = 0; i < op->get_output_size(); i++) {
-        const auto& out_pshape = op->get_output_partial_shape(i);
-        if (out_pshape.is_static() && ov::shape_size(out_pshape.to_shape()) * op->get_output_element_type(i).size() >= max_alloc_size) {
-            return true;
-        }
-    }
-
-    return false;
-}
-}  // namespace
 
 namespace ov {
 namespace intel_gpu {
@@ -168,14 +154,6 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
         }
     }
 
-    bool enable_large_allocations = false;
-    for (const auto& op : ops) {
-        if (requires_large_allocations(op, m_engine.get_device_info().max_alloc_mem_size)) {
-            enable_large_allocations = true;
-            break;
-        }
-    }
-
     if (is_inner_program) {
         allow_new_shape_infer = (m_config.get_property(ov::intel_gpu::allow_new_shape_infer) || allow_new_shape_infer);
     }
@@ -183,7 +161,6 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
     m_config.set_property(ov::intel_gpu::partial_build_program(partial_build));
     m_config.set_property(ov::intel_gpu::optimize_data(true));
     m_config.set_property(ov::intel_gpu::allow_new_shape_infer(allow_new_shape_infer));
-    m_config.set_property(ov::intel_gpu::hint::enable_large_allocations(enable_large_allocations));
 
     prepare_build();
     {
