@@ -47,8 +47,11 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
                 }
             }
         }
-
-        std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, std::shared_ptr<ov::descriptor::Tensor>> tensor_map;
+        std::unordered_map<std::shared_ptr<descriptor::Tensor>,
+                           std::shared_ptr<descriptor::Tensor>,
+                           descriptor::TensorExtension::Hasher,
+                           descriptor::TensorExtension::Equal>
+            tensor_map;
         for (const auto& param : model->get_parameters()) {
             const auto& param_name = param->get_friendly_name();
             auto new_param = ov::as_type_ptr<ov::op::v0::Parameter>(param->copy_with_new_inputs({}));
