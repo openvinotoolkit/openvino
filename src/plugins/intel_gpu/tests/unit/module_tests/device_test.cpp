@@ -21,7 +21,7 @@ public:
         _info.device_id = static_cast<uint32_t>(device_id);
     }
 
-    device_info get_info() const override { return _info; }
+    const device_info& get_info() const override { return _info; }
     memory_capabilities get_mem_caps() const override { return _mem_caps; }
     bool is_same(const device::ptr other) override {
         return this == other.get();
