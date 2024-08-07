@@ -17,7 +17,7 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
                                  const std::vector<TShape>& input_shapes,
                                  const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3);
-
+    std::cout << "\n\nCOL2IM SHAPE INFER;\n\n";
     const auto& data_shape = input_shapes[0];
     const auto& output_size_shape = input_shapes[1];
     const auto& kernel_shape = input_shapes[2];
@@ -67,6 +67,7 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
         const size_t C_idx = is_batched ? 1 : 0;
         const auto kernel_val = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 2, tensor_accessor);
         if (kernel_val && data_shape.rank().is_static() && data_shape[C_idx].is_static()) {
+            std::cout << "\n\nconst auto& dividend = data_shape[C_idx].get_length();\n\n";
             const auto& dividend = data_shape[C_idx].get_length();
             const auto divisor = ((*kernel_val)[0] * (*kernel_val)[1]);
             output_shape[idx] = dividend / divisor;
@@ -99,11 +100,13 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
                     using TVal = typename TShape::value_type::value_type;
                     TVal L_calculated = 1;
                     for (size_t d = 0; d < spatial_dims; ++d) {
+                        std::cout << "\n\n(*output_size_val)[d].get_length()\n\n";
                         L_calculated *= (((*output_size_val)[d].get_length() + pads_begin[d] + pads_end[d] -
                                           dilations[d] * ((*kernel_val)[d] - 1) - 1) /
                                          strides[d]) +
                                         1;
                     }
+                    std::cout << "\n\nconst auto L = data_shape[L_idx].get_length()\n\n";
                     const auto L = data_shape[L_idx].get_length();
                     NODE_SHAPE_INFER_CHECK(
                         op,
