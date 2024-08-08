@@ -12,6 +12,7 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/manager.hpp"
+#include "openvino/util/file_util.hpp"
 #include "pyopenvino/graph/model.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
@@ -42,6 +43,16 @@ void regclass_frontend_FrontEnd(py::module m) {
                 py::isinstance<py::str>(py_obj) || py::isinstance<py::bytes>(py_obj)) {
                 // check if model path is either a string/pathlib.Path/bytes
                 std::string model_path = Common::utils::convert_path_to_string(py_obj);
+                if (py::isinstance(py_obj, py::module_::import("pathlib").attr("Path")) ||
+                    py::isinstance<py::str>(py_obj)) {
+
+                // Fix unicode path
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+                    return self.load(ov::util::string_to_wstring(model_path.c_str()));
+#else
+                    return self.load(model_path.c_str());
+#endif
+                }
                 return self.load(model_path, enable_mmap);
             } else if (py::isinstance(py_obj, pybind11::module::import("io").attr("BytesIO"))) {
                 // support of BytesIO
@@ -70,6 +81,21 @@ void regclass_frontend_FrontEnd(py::module m) {
     fem.def(
         "supported",
         [](FrontEnd& self, const py::object& model) {
+            if (py::isinstance(model, py::module_::import("pathlib").attr("Path")) || py::isinstance<py::str>(model) ||
+                py::isinstance<py::bytes>(model)) {
+                // check if model path is either a string/pathlib.Path/bytes
+                std::string model_path = Common::utils::convert_path_to_string(model);
+                if (py::isinstance(model, py::module_::import("pathlib").attr("Path")) ||
+                    py::isinstance<py::str>(model)) {
+
+                // Fix unicode path
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+                    return self.supported(ov::util::string_to_wstring(model_path.c_str()));
+#else
+                    return self.supported(model_path.c_str());
+#endif
+                }
+            }
             return self.supported({Common::utils::py_object_to_any(model)});
         },
         py::arg("model"),
@@ -157,7 +183,7 @@ void regclass_frontend_FrontEnd(py::module m) {
     fem.def("add_extension",
             static_cast<void (FrontEnd::*)(const std::shared_ptr<ov::Extension>& extension)>(&FrontEnd::add_extension),
             R"(
-                Add extension defined by an object inheriting from Extension 
+                Add extension defined by an object inheriting from Extension
                 used in order to extend capabilities of Frontend.
 
                 :param extension: Provided extension object.
@@ -168,7 +194,7 @@ void regclass_frontend_FrontEnd(py::module m) {
             static_cast<void (FrontEnd::*)(const std::vector<std::shared_ptr<ov::Extension>>& extension)>(
                 &FrontEnd::add_extension),
             R"(
-                Add extensions defined by objects inheriting from Extension 
+                Add extensions defined by objects inheriting from Extension
                 used in order to extend capabilities of Frontend.
 
                 :param extension: Provided extension objects.
@@ -181,7 +207,7 @@ void regclass_frontend_FrontEnd(py::module m) {
             return self.add_extension(Common::utils::convert_path_to_string(extension_path));
         },
         R"(
-                Add extension defined in external library indicated by a extension_path 
+                Add extension defined in external library indicated by a extension_path
                 used in order to extend capabilities of Frontend.
 
                 :param extension_path: A path to extension.

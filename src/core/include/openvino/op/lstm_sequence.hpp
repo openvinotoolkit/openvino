@@ -29,7 +29,9 @@ namespace v0 {
 ///
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API LSTMSequence : public util::RNNCellBase {
+class OPENVINO_API OPENVINO_DEPRECATED(
+    "The class ov::op::v0::LSTMSequence is deprecated. It will be removed in 2025.0 release. Use "
+    "ov::op::v5::LSTMSequence instead.") LSTMSequence : public util::RNNCellBase {
 public:
     OPENVINO_OP("LSTMSequence", "opset1", util::RNNCellBase);
     LSTMSequence() = default;

@@ -16,6 +16,7 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
+#include "openvino/util/file_util.hpp"
 #include "ov_tensorflow/graph.pb.h"
 
 namespace ov {
@@ -141,6 +142,10 @@ public:
     /// \brief Check if the input file is supported
     template <typename T>
     static bool is_supported(const std::basic_string<T>& path) {
+        FRONT_END_GENERAL_CHECK(util::directory_exists(path) || util::file_exists(path),
+                                "Could not open the file: \"",
+                                util::path_to_string(path),
+                                '"');
         try {
 #if defined(__MINGW32__) || defined(__MINGW64__)
             std::ifstream pb_stream(std::filesystem::path(path), std::ios::in | std::ifstream::binary);

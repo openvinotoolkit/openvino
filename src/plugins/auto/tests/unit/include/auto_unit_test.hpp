@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <common_test_utils/test_constants.hpp>
+#include <common_test_utils/test_assertions.hpp>
 #include <memory>
 
 #include "gmock_plugin.hpp"

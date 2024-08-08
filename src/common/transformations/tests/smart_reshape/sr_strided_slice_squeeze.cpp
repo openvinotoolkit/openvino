@@ -59,7 +59,7 @@ TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end_mask) {
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     auto inputname = f->get_parameters()[0]->get_friendly_name();
-    ASSERT_NO_THROW(f->reshape({{2, 128, 768}}));
+    OV_ASSERT_NO_THROW(f->reshape({{2, 128, 768}}));
     check_unique_names(f, unh);
 
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({2, 768}))
@@ -93,7 +93,7 @@ TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end) {
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     auto inputname = f->get_parameters()[0]->get_friendly_name();
-    ASSERT_NO_THROW(f->reshape({{2, 1, 768}}));
+    OV_ASSERT_NO_THROW(f->reshape({{2, 1, 768}}));
     check_unique_names(f, unh);
 
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({2, 768}))

@@ -5,7 +5,7 @@
 #include "snippets/pass/canonicalization.hpp"
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 
 namespace ov {

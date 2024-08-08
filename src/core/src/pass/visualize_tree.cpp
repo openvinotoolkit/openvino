@@ -458,6 +458,7 @@ static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& consta
     case ov::element::Type_t::f8e4m3:
     case ov::element::Type_t::f8e5m2:
     case ov::element::Type_t::f4e2m1:
+    case ov::element::Type_t::f8e8m0:
         ss << constant->get_output_element_type(0).get_type_name() << " value";
         break;
     case ov::element::Type_t::bf16:
@@ -539,15 +540,7 @@ std::string ov::pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> no
     ss << pretty_partial_shape(node->get_output_partial_shape(0), m_symbol_to_name);
 
     if (const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
-        std::string value;
-        try {
-            value = get_value(constant, max_elements);
-        } catch (ov::AssertFailure& ex) {
-            value = std::string("ov::AssertFailure: ") + ex.what();
-        } catch (std::exception& ex) {
-            value = ex.what();
-        }
-        ss << "\nvalue: " << value;
+        ss << "\nvalue: " << get_value(constant, max_elements);
     }
     return ss.str();
 }

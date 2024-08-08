@@ -34,6 +34,7 @@ protected:
     bool Validate(const Params& p) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 
     struct AutoTuneOption {
         size_t blockWidth;
@@ -48,7 +49,7 @@ protected:
     };
 
     std::vector<AutoTuneOption> autoTuneOptions;
-    AutoTuneOption GetAutoTuneOptions(const Params& arg, int autoTuneIndex) const;
+    AutoTuneOption GetAutoTuneOptions(const convolution_params& arg, int autoTuneIndex) const;
     ConvolutionTuningData GetTuningParams(const convolution_params& params) const;
     float EstimateOccupancy(const convolution_params& params, const ConvolutionTuningData& tuning_data) const;
 };

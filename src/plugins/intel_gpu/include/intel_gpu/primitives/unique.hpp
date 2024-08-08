@@ -59,7 +59,7 @@ struct unique_gather : primitive_base<unique_gather> {
                   data_types elem_type,
                   data_types index_type,
                   data_types count_type)
-        : primitive_base(id, inputs, decltype(output_paddings)(4), {elem_type, index_type, index_type, count_type}, 4),
+        : primitive_base(id, inputs, 4, {elem_type, index_type, index_type, count_type}),
           flattened(flattened),
           axis(axis),
           sorted(sorted) {}

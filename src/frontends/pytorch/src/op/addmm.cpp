@@ -4,9 +4,14 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -56,6 +61,29 @@ OutputVector translate_addmm_fx(const NodeContext& context) {
         alpha = context.get_input("alpha");
     }
     return {translate_addmm_common(context, beta, alpha)};
+};
+
+OutputVector translate_conv1d_ext(const NodeContext& context) {
+    // not really a convolution, implemented based on
+    // https://github.com/huggingface/transformers/blob/0ed3ffcb4461a244b87781a24e5ebd0a78f98142/src/transformers/pytorch_utils.py#L84
+    num_inputs_check(context, 3, 3);
+    auto x = context.get_input(0);
+    auto weight = context.get_input(1);
+    weight = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(weight, x));
+    auto bias = context.get_input(2);
+    bias = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(bias, x));
+
+    auto neg_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
+    auto shape_x = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i32));
+    auto x_last_dim = context.mark_node(std::make_shared<v8::Gather>(shape_x, neg_one, zero));
+    auto x_new_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{neg_one, x_last_dim}, 0));
+
+    auto x_new = context.mark_node(std::make_shared<v1::Reshape>(x, x_new_shape, false));
+    auto mm = context.mark_node(std::make_shared<v0::MatMul>(x_new, weight));
+    auto addmm = context.mark_node(std::make_shared<v1::Add>(bias, mm));
+    auto size_out = context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(shape_x, neg_one, neg_one, zero));
+    return {context.mark_node(std::make_shared<v1::Reshape>(addmm, size_out, false))};
 };
 
 }  // namespace op

@@ -105,7 +105,7 @@ public:
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
         ASSERT_EQ(primitive_hash, 8439414674502129643UL);
-        ASSERT_EQ(params_hash, 9235751886952244871UL);
+        ASSERT_EQ(params_hash, 18030913546439900045UL);
     }
 
     void test_gemm_basic(bool is_caching_test) {
@@ -176,7 +176,7 @@ public:
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
         ASSERT_EQ(primitive_hash, 16293979194373117693UL);
-        ASSERT_EQ(params_hash, 4712165546063627148UL);
+        ASSERT_EQ(params_hash, 3339057685641907457UL);
     }
 
     void test_reshape_basic(bool is_caching_test) {
@@ -190,7 +190,9 @@ public:
         auto padded_input_layout = input->get_layout();
         padded_input_layout.data_padding = padding();
         topology.add(reorder("reorder", input_info("input"), padded_input_layout));
-        topology.add(reshape(key_prim_id, input_info("reorder"), tensor( 1, 1, 4, 1 ), cldnn::reshape::reshape_mode::base, padding({0, 0, 2, 2})));
+        auto reshape_prim = reshape(key_prim_id, input_info("reorder"), tensor( 1, 1, 4, 1 ), cldnn::reshape::reshape_mode::base);
+        reshape_prim.output_paddings = {padding({0, 0, 2, 2})};
+        topology.add(reshape_prim);
 
         cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         const auto  prim_inst = net->get_primitive(key_prim_id);
@@ -225,7 +227,7 @@ public:
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
         ASSERT_EQ(primitive_hash, 13549661972131371304UL);
-        ASSERT_EQ(params_hash, 7127098854451559675UL);
+        ASSERT_EQ(params_hash, 17196242702975187963UL);
     }
 
     void test_quantize_basic(bool is_caching_test) {

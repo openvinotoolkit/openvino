@@ -17,9 +17,10 @@ std::vector<TRShape> shape_infer(const Select* op, const std::vector<TShape>& in
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3);
 
     const auto& broadcast_spec = op->get_auto_broadcast();
-    TRShape result_shape;
+    auto output_shapes = std::vector<TRShape>();
     if (broadcast_spec.m_type == op::AutoBroadcastType::PDPD) {
-        result_shape = input_shapes[1];  // 'then' tensor
+        output_shapes.push_back(input_shapes[1]);
+        auto& result_shape = output_shapes[0];
         // in PDPD type, Broadcast-merging 'else' into 'then' one way not each other.
         NODE_VALIDATION_CHECK(op,
                               TRShape::broadcast_merge_into(result_shape, input_shapes[2], broadcast_spec),
@@ -28,7 +29,8 @@ std::vector<TRShape> shape_infer(const Select* op, const std::vector<TShape>& in
                               TRShape::broadcast_merge_into(result_shape, input_shapes[0], broadcast_spec),
                               "'Cond' tensor shape is not broadcastable.");
     } else {
-        result_shape = input_shapes[2];
+        output_shapes.push_back(input_shapes[2]);
+        auto& result_shape = output_shapes[0];
         for (int input_port = 1; input_port >= 0; input_port--) {
             if (broadcast_spec.m_type == op::AutoBroadcastType::NONE) {
                 NODE_VALIDATION_CHECK(op,
@@ -45,7 +47,7 @@ std::vector<TRShape> shape_infer(const Select* op, const std::vector<TShape>& in
         }
     }
 
-    return {result_shape};
+    return output_shapes;
 }
 
 }  // namespace v1

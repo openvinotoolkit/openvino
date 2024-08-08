@@ -48,7 +48,7 @@ For OpenVINO installed via channels other than pip, such as conda, and versions 
 
 
 .. image:: ../assets/images/torch_compile_backend_openvino.svg
-   :alt: torch.compile execution diagram 
+   :alt: torch.compile execution diagram
    :width: 992px
    :height: 720px
    :scale: 60%
@@ -196,7 +196,7 @@ The ``torch.compile`` feature is part of PyTorch 2.0, and is based on:
   (PEP 523) to dynamically modify Python bytecode right before it is executed (PyTorch operators
   that cannot be extracted to FX graph are executed in the native Python environment).
   It maintains the eager-mode capabilities using
-  `Guards <https://pytorch.org/docs/stable/dynamo/guards-overview.html>`__ to ensure the
+  `Guards <https://pytorch.org/docs/stable/torch.compiler_guards_overview.html>`__ to ensure the
   generated graphs are valid.
 
 * **AOTAutograd** - generates the backward graph corresponding to the forward graph captured by TorchDynamo.

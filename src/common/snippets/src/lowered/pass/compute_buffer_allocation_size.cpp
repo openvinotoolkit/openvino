@@ -5,7 +5,7 @@
 #include "snippets/lowered/pass/compute_buffer_allocation_size.hpp"
 
 #include "snippets/op/buffer.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
 
@@ -27,14 +27,16 @@ std::vector<size_t> get_parent_inner_loops(const std::vector<size_t>& parent_loo
 // Ticket: 113744
 // TODO: This logic covers only several specific cases so it should be generalized.
 size_t ComputeBufferAllocationSize::get_allocation_size(const LoopManagerPtr& loop_manager, const ExpressionPtr& buffer_expr, size_t allocation_rank) {
-    const auto& parent_port = buffer_expr->get_input_port_connector(0)->get_source();
+    // Note: Buffer expressions can have more than one parent after the loops splitting transformation, but only the last parent
+    // can be used to access valid loop ports. More info in the ticket: 146646
+    const auto& parent_port = buffer_expr->get_input_port_connector(buffer_expr->get_input_count() - 1)->get_source();
     const auto& parent_loop_ids = get_parent_inner_loops(parent_port.get_expr()->get_loop_ids(), buffer_expr->get_loop_ids());
     const auto planar_shape = utils::get_preordered_vdims(parent_port);
 
     const size_t rank = allocation_rank >= 0 ? std::min(static_cast<size_t>(allocation_rank), planar_shape.size())
                                              : planar_shape.size();
 
-    const auto& subtensor =  parent_port.get_descriptor_ptr()->get_subtensor();
+    const auto& subtensor =  ov::snippets::utils::get_projected_subtensor(parent_port);
 
     size_t allocation_size = 1;
     std::set<size_t> processed_dim_idxs;
@@ -58,10 +60,8 @@ size_t ComputeBufferAllocationSize::get_allocation_size(const LoopManagerPtr& lo
     const auto processing_rank = !processed_dim_idxs.empty() ? std::max(*processed_dim_idxs.rbegin(), subtensor.size()) : subtensor.size();
     for (size_t i = 0; i < std::min(processing_rank, rank); ++i) {
         if (processed_dim_idxs.count(i) == 0) {
-            if (i < subtensor.size())
-                allocation_size = utils::dynamic_safe_mul(allocation_size, std::min(*(planar_shape.rbegin() + i), *(subtensor.rbegin() + i)));
-            else
-                allocation_size = utils::dynamic_safe_mul(allocation_size, *(planar_shape.rbegin() + i));
+            const auto multiplier = i < subtensor.size() ? *(subtensor.rbegin() + i) : *(planar_shape.rbegin() + i);
+            allocation_size = utils::dynamic_safe_mul(allocation_size, multiplier);
         }
     }
 
