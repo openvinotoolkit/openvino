@@ -24,7 +24,7 @@ bool evaluate_node<ov::op::v15::StringTensorUnpack>(std::shared_ptr<ov::Node> no
             ++outputs_it;
         }
         const auto& data_shape = node->get_input_shape(0);
-        int64_t element_count = std::accumulate(data_shape.begin(), data_shape.end(), 1, std::multiplies<int64_t>());
+        const auto element_count = shape_size(data_shape);
         ov::reference::string_tensor_unpack(inputs[0].data<const std::string>(),
                                             outputs[0].data<int32_t>(),
                                             outputs[1].data<int32_t>(),
