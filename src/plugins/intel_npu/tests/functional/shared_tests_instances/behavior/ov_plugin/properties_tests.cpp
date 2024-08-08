@@ -283,7 +283,6 @@ const std::vector<ov::AnyMap> configsDevicePropertiesDouble = {
     {ov::device::properties(
         ov::AnyMap{{ov::test::utils::DEVICE_NPU, ov::AnyMap{ov::num_streams(ov::streams::AUTO)}}})}};
 
-// IE Class load and check network with ov::device::properties
 INSTANTIATE_TEST_SUITE_P(
     smoke_NPU_BehaviorTests_OVClassCompileModelAndCheckSecondaryPropertiesTest,
     OVClassCompileModelAndCheckSecondaryPropertiesTest,
@@ -297,16 +296,11 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(configsDevicePropertiesDouble)),
     (ov::test::utils::appendPlatformTypeTestName<OVClassCompileModelAndCheckSecondaryPropertiesTest>));
 
-// IE Class load and check network with ov::device::properties
 // OVClassCompileModelAndCheckSecondaryPropertiesTest only works with property num_streams of type int32_t
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_BehaviorTests_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest,
                          OVClassCompileModelAndCheckSecondaryPropertiesTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU, "AUTO:NPU", "MULTI:NPU"),
                                             ::testing::ValuesIn(configsDeviceProperties)));
-
-//
-// IE Class GetConfig
-//
 
 INSTANTIATE_TEST_SUITE_P(BehaviorTests_OVGetConfigTest_nightly,
                          OVGetConfigTest,

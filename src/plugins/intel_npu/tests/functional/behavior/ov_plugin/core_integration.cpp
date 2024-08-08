@@ -38,10 +38,6 @@ static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
 }
 }  // namespace OVClassNetworkTestName
 
-//
-// IE Class Common tests with <pluginName, deviceName params>
-//
-
 const std::vector<ov::AnyMap> configs = {{}};
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -55,10 +51,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVClassNetworkTestP,
                          OVClassNetworkTestPNPU,
                          ::testing::Combine(::testing::ValuesIn(devices), ::testing::ValuesIn(configs)),
                          OVClassNetworkTestPNPU::getTestCaseName);
-
-//
-// IE Class GetConfig
-//
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVClassLoadNetworkTest,
                          OVClassLoadNetworkTestNPU,
