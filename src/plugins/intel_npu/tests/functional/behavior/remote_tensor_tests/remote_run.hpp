@@ -109,7 +109,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBuf) {
     tensor = {};
 
     ov::Tensor check_remote_tensor;
-    ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
+    OV_ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
     ASSERT_THROW(check_remote_tensor.data(), ov::Exception);
 
     OV_ASSERT_NO_THROW(inference_request.set_input_tensor(check_remote_tensor));
@@ -137,7 +137,7 @@ TEST_P(RemoteRunTests, CheckImportModelPath) {
     tensor = {};
 
     ov::Tensor check_remote_tensor;
-    ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
+    OV_ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
     ASSERT_THROW(check_remote_tensor.data(), ov::Exception);
 
     OV_ASSERT_NO_THROW(inference_request.set_input_tensor(check_remote_tensor));
@@ -159,7 +159,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufChangingTensors) {
         context.create_l0_host_tensor(ov::element::f32, tensor.get_shape(), ov::intel_npu::TensorType::INPUT);
 
     ov::Tensor check_remote_tensor;
-    ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
+    OV_ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
     ASSERT_THROW(check_remote_tensor.data(), ov::Exception);
 
     OV_ASSERT_NO_THROW(inference_request.set_input_tensor(check_remote_tensor));
