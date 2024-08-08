@@ -2,7 +2,7 @@ Neural Network Compression Framework
 =======================================
 
 Neural Networks Compression Framework (NNCF) is a set of compression algorithms and tools
-for optimizing inference of neural networks in :doc:`OpenVINO™ <../../../../home>` resulting
+for optimizing inference of neural networks in `OpenVINO™ <https://docs.openvino.ai/2024/index.html>`__ resulting
 in smaller and faster models.
 
 Features
