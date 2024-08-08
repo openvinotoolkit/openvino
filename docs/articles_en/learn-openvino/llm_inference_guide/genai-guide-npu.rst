@@ -12,17 +12,16 @@ for more information on OpenVINO GenAI.
 Export an LLM model via Hugging Face Optimum-Intel
 ##################################################
 
-1. Create clean python virtual environment and install the correct components for exporting model:
+1. Create python virtual environment and install the correct components for exporting model:
 
    .. code-block:: text
-   
-   # requirements.txt
-   transformers>=4.42.4
-   openvino==2024.2.0
-   openvino-tokenizers==2024.2.0
-   nncf==2.11.0
-   optimum-intel @ git+https://github.com/huggingface/optimum-intel.git
-   ```
+
+      # requirements.txt
+      transformers>=4.42.4
+      openvino==2024.2.0
+      openvino-tokenizers==2024.2.0
+      nncf==2.11.0
+      optimum-intel @ git+https://github.com/huggingface/optimum-intel.git
 
    .. code-block:: console
 
@@ -39,17 +38,18 @@ Export an LLM model via Hugging Face Optimum-Intel
 Run the generation by using OpenVINO GenAI
 ##########################################
 
-1. Create clean python virtual environment and install the correct components for running the model on NPU via OpenVINO GenAI:
+1. Create python virtual environment and install the correct components for running the model on NPU via OpenVINO GenAI:
+
    .. code-block:: text
 
-   # requirements.txt
-   openvino>=2024.3.1
-   openvino-tokenizers>=2024.3.1
-   openvino-genai>=2024.3.1
-   transformers>=4.42.4
-   torch>=2.4.0+cpu
-   diffusers>=0.29.2
-   optimum-intel @ git+https://github.com/huggingface/optimum-intel.git
+      # requirements.txt
+      openvino>=2024.3.1
+      openvino-tokenizers>=2024.3.1
+      openvino-genai>=2024.3.1
+      transformers>=4.42.4
+      torch>=2.4.0+cpu
+      diffusers>=0.29.2
+      optimum-intel @ git+https://github.com/huggingface/optimum-intel.git
 
    .. code-block:: console
 
@@ -107,7 +107,7 @@ To achieve better performance at the expense of compilation time, you may try th
 
       .. code-block:: cpp
 
-         ov::AnyMap plugin_config = { {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm"} };
+         ov::AnyMap plugin_config = { { "NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm" } };
          ov::AnyMap pipeline_config = { { "PREFILL_CONFIG",  plugin_config }, { "GENERATE_CONFIG", plugin_config } };
          ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
 
