@@ -27,7 +27,7 @@ JitConstants LSTMSeqKernelBase::GetJitConstants(const lstm_seq_params& params) c
     jit.AddConstants({MakeJitConstant("BATCH_SIZE", params.inputs[1].Batch().v)});
     jit.AddConstants({MakeJitConstant("MAX_SEQ_LENGTH", params.inputs[0].Feature().v)});
     jit.AddConstants({MakeJitConstant("INPUT_SIZE", params.inputs[0].Y().v)});
-    const int hidden_size = params.inputs[1].Y().v;
+    auto hidden_size = static_cast<const int>(params.inputs[1].Y().v);
     jit.AddConstants({MakeJitConstant("HIDDEN_SIZE", hidden_size)});
     auto out =  params.outputs[0];
     auto num_hidden_kernels = static_cast<unsigned int>(std::min({params.engineInfo.maxWorkGroupSize, out.X().v}));

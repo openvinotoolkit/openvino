@@ -8,7 +8,7 @@
 #include <vector>
 #include <algorithm>
 #include "intel_gpu/graph/serialization/activation_serializer.hpp"
-#include "rnn_seq.hpp"
+#include "rnn.hpp"
 
 
 namespace cldnn {

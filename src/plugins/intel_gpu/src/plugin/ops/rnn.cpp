@@ -236,13 +236,13 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     float clip = op->get_clip();
     cldnn::primitive_id lstm_seq_id = layerName;
     auto mutable_precision_firstsecond = op->get_output_element_type(1);
+    unsigned int direction = op->get_direction() == ov::op::RecurrentSequenceDirection::REVERSE ? 1 : 0;
 
     if (p.use_new_shape_infer()) {
-        int direction = op->get_direction() == ov::op::RecurrentSequenceDirection::REVERSE ? 1 : 0;
-        cldnn::rnn_seq prim(layerName, inputs[0], inputs[1], \
+        cldnn::rnn prim({layerName, inputs[0], inputs[1], \
             inputs[2], inputs[3], inputs[4], inputs[5], inputs[6], "", "", \
             clip, activations, activation_params, cldnn::lstm_weights_order::fizo, direction, cldnn::padding(), \
-            static_cast<int>(op->get_output_size()) );
+            static_cast<int>(op->get_output_size())});
         prim.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, prim);
         return;
@@ -262,10 +262,9 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     const cldnn::primitive_id mutable_id_2 = layerName + "_md_write2";
     const cldnn::mutable_data mutable_prim_2{mutable_id_2, shared_memories.back()};
     p.add_primitive(*op, mutable_prim_2);
-    int direction = op->get_direction() == ov::op::RecurrentSequenceDirection::REVERSE ? 1 : 0;
-    cldnn::rnn_seq prim(lstm_seq_id + ".out0", inputs[0], inputs[1], \
+    cldnn::rnn prim({lstm_seq_id + ".out0", inputs[0], inputs[1], \
         inputs[2], inputs[3], inputs[4], inputs[5], inputs[6], mutable_id_1, mutable_id_2, \
-        clip, activations, activation_params, cldnn::lstm_weights_order::fizo, direction);
+        clip, activations, activation_params, cldnn::lstm_weights_order::fizo, direction});
     p.add_primitive(*op, prim);
     p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out1", {cldnn::input_info(lstm_seq_id + ".out0")}, shared_memories.front()));
     p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out2", {cldnn::input_info(lstm_seq_id + ".out0")}, shared_memories.back()));

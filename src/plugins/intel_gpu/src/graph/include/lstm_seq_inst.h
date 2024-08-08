@@ -3,35 +3,35 @@
 //
 
 #pragma once
-#include "intel_gpu/primitives/rnn_seq.hpp"
+#include "intel_gpu/primitives/rnn.hpp"
 #include "primitive_inst.h"
 
 #include <string>
 
 namespace cldnn {
 template <>
-struct typed_program_node<rnn_seq> : public typed_program_node_base<rnn_seq> {
-    using parent = typed_program_node_base<rnn_seq>;
+struct typed_program_node<rnn> : public typed_program_node_base<rnn> {
+    using parent = typed_program_node_base<rnn>;
 
 public:
     using parent::parent;
 
     program_node& input() const { return get_dependency(0); }
-    lstm_weights_order offset_order() const { return get_primitive()->offset_order; }
+    lstm_weights_order offset_order() const { return get_primitive()->params.offset_order; }
     float clip() const {
-        float clip_val = get_primitive()->clip;
+        float clip_val = get_primitive()->params.clip;
         if (clip_val < 0)
             throw std::range_error("Clip value < 0");
         return clip_val;
     }
-    int32_t direction() const { return get_primitive()->direction; }
+    int32_t direction() const { return get_primitive()->params.direction; }
 };
 
-using lstm_seq_node = typed_program_node<rnn_seq>;
+using lstm_seq_node = typed_program_node<rnn>;
 
 template <>
-class typed_primitive_inst<rnn_seq> : public typed_primitive_inst_base<rnn_seq> {
-    using parent = typed_primitive_inst_base<rnn_seq>;
+class typed_primitive_inst<rnn> : public typed_primitive_inst_base<rnn> {
+    using parent = typed_primitive_inst_base<rnn>;
     using parent::parent;
 
 public:
@@ -42,15 +42,16 @@ public:
 
 public:
     typed_primitive_inst(network& network, lstm_seq_node const& node);
-    lstm_weights_order offset_order() const { return get_typed_desc<rnn_seq>()->offset_order; }
+    lstm_weights_order offset_order() const { return get_typed_desc<rnn>()->params.offset_order; }
     float clip() const {
-        float clip_val = get_typed_desc<rnn_seq>()->clip;
+        float clip_val = get_typed_desc<rnn>()->params.clip;
         if (clip_val < 0)
             throw std::range_error("Clip value < 0");
         return clip_val;
     }
-    uint32_t direction() const { return get_typed_desc<rnn_seq>()->direction; }
+    uint32_t direction() const { return get_typed_desc<rnn>()->params.direction; }
+    bool has_cell() const { return !get_typed_desc<rnn>()->params.initial_cell_state.pid.empty(); }
 };
 
-using lstm_seq_inst = typed_primitive_inst<rnn_seq>;
+using lstm_seq_inst = typed_primitive_inst<rnn>;
 }  // namespace cldnn
