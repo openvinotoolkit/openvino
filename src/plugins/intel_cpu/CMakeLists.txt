@@ -46,38 +46,30 @@ if(NOT BUILD_SHARED_LIBS)
         "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.h"
         "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.hpp")
 
-    # API symbols using pattern 'DNNL_API[\n *]+dnnl[a-zA-Z0-9_]*' represent API functions
+    # parse API symbols
     foreach(onednn_file IN LISTS onednn_files)
-        file(STRINGS "${onednn_file}" onednn_lines_with_symbols
-             REGEX "DNNL_API[\n \*]*dnnl[a-zA-Z0-9_]*"
-             NEWLINE_CONSUME)
-        if(onednn_lines_with_symbols)
-            # parse concrete symbols from read line
-            string(REGEX MATCHALL "dnnl[a-zA-Z0-9_]+\\(" onednn_parsed_symbols ${onednn_lines_with_symbols})
-            foreach(symbol ${onednn_parsed_symbols})
-                # replace '(' with nothing, because we use '(' in detection pattern
-                string(REPLACE "(" "" symbol "${symbol}")
-                list(APPEND onednn_symbols ${symbol})
-            endforeach()
-        endif()
-    endforeach()
-
-    # replace also classes, which are used as typedefs in public API
-    # such classes are derived from c_compatible interface
-    # lines with such symbols can be found using pattern '^typedef struct dnnl_.*'
-    foreach(onednn_file IN LISTS onednn_files)
-        file(STRINGS "${onednn_file}" onednn_lines_with_symbols
+        # symbols in form:
+        # dnnl_status_t DNNL_API dnnl_engine_get_kind
+        file(STRINGS "${onednn_file}" onednn_symbols_defined_on_single_line
+             REGEX "DNNL_API[ \*]*dnnl[a-zA-Z0-9_]*")
+        # symbols in form (cmake has issue with symbols defined on multiple lines and we have to use new pattern):
+        # dnnl_status_t DNNL_API
+        # dnnl_engine_get_kind
+        file(STRINGS "${onednn_file}" onednn_symbols_defined_on_multiple_lines
+             REGEX "^dnnl[a-zA-Z0-9_]*\\(")
+        # symbols in form:
+        # typedef struct dnnl_graph_graph *dnnl_graph_graph_t;
+        file(STRINGS "${onednn_file}" onednn_symbols_typedef
              REGEX "^typedef struct dnnl_.*")
-        if(onednn_lines_with_symbols)
-            # parse concrete symbols from read line
-            string(REGEX MATCHALL "dnnl[a-zA-Z0-9_]+" onednn_parsed_symbols ${onednn_lines_with_symbols})
-            foreach(symbol ${onednn_parsed_symbols})
-                # ignore typedefs itself like dnnl_XX_t and keep only XXX
-                if(NOT ${symbol} MATCHES "^.*_t$")
-                    list(APPEND onednn_symbols ${symbol})
-                endif()
-            endforeach()
-        endif()
+
+        # parse concrete symbols from read line
+        string(REGEX MATCHALL "dnnl[a-zA-Z0-9_]+" onednn_parsed_symbols
+            ${onednn_symbols_defined_on_single_line}
+            ${onednn_symbols_defined_on_multiple_lines}
+            ${onednn_symbols_typedef})
+        foreach(symbol IN LISTS onednn_parsed_symbols)
+            list(APPEND onednn_symbols ${symbol})
+        endforeach()
     endforeach()
 
     # remove all duplicates
