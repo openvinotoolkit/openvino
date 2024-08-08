@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - '.github/workflows/dev_linux_cpu_riscv.yml'
+      - '.github/workflows/dev_cpu_linux_riscv.yml'
 
 concurrency:
   # github.ref is not unique in post-commit
