@@ -12,6 +12,7 @@ from openvino.runtime.utils.types import make_constant_node
 import openvino.runtime.opset1 as ov_opset1
 import openvino.runtime.opset5 as ov_opset5
 import openvino.runtime.opset10 as ov_opset10
+import openvino.runtime.opset15 as ov_opset15
 import openvino.runtime.opset11 as ov
 from openvino.runtime.op.util import VariableInfo, Variable
 
@@ -880,6 +881,37 @@ def test_roi_align(data_shape, rois, batch_indices, pooled_h, pooled_w, sampling
     )
 
     assert node.get_type_name() == "ROIAlign"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == Type.f32
+    assert list(node.get_output_shape(0)) == expected_shape
+
+
+@pytest.mark.parametrize(
+    ("data_shape", "rois", "batch_indices", "pooled_h", "pooled_w", "sampling_ratio", "spatial_scale", "clockwise_mode", "expected_shape"),
+    [
+        ([2, 3, 5, 6], [7, 5], [7], 2, 2, 1, 1.0, True, [7, 3, 2, 2]),
+        ([10, 3, 5, 5], [7, 5], [7], 3, 4, 1, 1.0, True, [7, 3, 3, 4]),
+        ([10, 3, 5, 5], [3, 5], [3], 3, 4, 1, 1.0, False, [3, 3, 3, 4]),
+        ([10, 3, 5, 5], [3, 5], [3], 3, 4, 1, float(1), False, [3, 3, 3, 4]),
+    ],
+)
+def test_roi_align_rotated(data_shape, rois, batch_indices, pooled_h, pooled_w, sampling_ratio, spatial_scale, clockwise_mode, expected_shape):
+    data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
+    rois_parameter = ov.parameter(rois, name="Rois", dtype=np.float32)
+    batch_indices_parameter = ov.parameter(batch_indices, name="Batch_indices", dtype=np.int32)
+
+    node = ov_opset15.roi_align_rotated(
+        data_parameter,
+        rois_parameter,
+        batch_indices_parameter,
+        pooled_h,
+        pooled_w,
+        sampling_ratio,
+        spatial_scale,
+        clockwise_mode,
+    )
+
+    assert node.get_type_name() == "ROIAlignRotated"
     assert node.get_output_size() == 1
     assert node.get_output_element_type(0) == Type.f32
     assert list(node.get_output_shape(0)) == expected_shape
