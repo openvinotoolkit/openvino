@@ -54,6 +54,12 @@ FullyConnectedSplitInput::FullyConnectedSplitInput(size_t world_size, size_t ran
         } else {
             m_fc = pattern_map.at(fully_connected_compressed_with_zp).get_node_shared_ptr();
         }
+        auto compressed_fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(m_fc);
+        if (compressed_fc && (compressed_fc->get_input_node_shared_ptr(3)->get_shape()[1] % 2 != 0)) {
+            auto scale_node_dims = compressed_fc->get_input_node_shared_ptr(3)->get_shape()[1];
+            if (scale_node_dims != 1 && scale_node_dims % 2 != 0)
+                return true;
+        }
 
         std::map<int, std::shared_ptr<ov::Node>> org_users;
         for (auto u : m_fc->get_users()) {
@@ -85,7 +91,6 @@ FullyConnectedSplitInput::FullyConnectedSplitInput(size_t world_size, size_t ran
             }
 
             std::shared_ptr<Node> new_fc = nullptr;
-            auto compressed_fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(m_fc);
             if (compressed_fc) {
                 auto scale_node = compressed_fc->get_input_node_shared_ptr(3);
                 if (scale_node->get_shape()[1] > 1)
