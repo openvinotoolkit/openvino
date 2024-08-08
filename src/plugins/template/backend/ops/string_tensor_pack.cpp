@@ -12,16 +12,13 @@ bool evaluate_node<ov::op::v15::StringTensorPack>(std::shared_ptr<ov::Node> node
                                                   ov::TensorVector& outputs,
                                                   const ov::TensorVector& inputs) {
     auto string_tensor_pack = std::dynamic_pointer_cast<ov::op::v15::StringTensorPack>(node);
+    OPENVINO_ASSERT(string_tensor_pack, "Node passed to StringTensorPack evaluate function is invalid.");
     ov::Shape output_shape;
-    if (string_tensor_pack) {
-        output_shape = ov::op::v15::shape_infer(string_tensor_pack.get(),
-                                                ov::util::get_tensors_partial_shapes(inputs),
-                                                make_tensor_accessor(inputs))
-                           .front()
-                           .to_shape();
-    } else {
-        OPENVINO_THROW("Node passed to StringTensorPack evaluate function is invalid.");
-    }
+    output_shape = ov::op::v15::shape_infer(string_tensor_pack.get(),
+                                            ov::util::get_tensors_partial_shapes(inputs),
+                                            make_tensor_accessor(inputs))
+                       .front()
+                       .to_shape();
     outputs.front().set_shape(output_shape);
     const auto indices_type = node->get_input_element_type(0);
     const auto& symbol_shape = node->get_input_shape(2);
