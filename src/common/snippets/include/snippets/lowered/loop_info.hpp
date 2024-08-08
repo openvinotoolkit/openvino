@@ -29,13 +29,6 @@ public:
     virtual ~LoopInfo() = default;
 
     /**
-     * @brief Clone LoopInfo with new expressions
-     * @param expr_map map of new and old expressions
-     * @return the copy
-     */
-    virtual std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map) const = 0;
-
-    /**
      * @brief Check if some parameters of Loop are dynamic (undefined)
      * @return True if some parameters of Loop are unknown, False if all parameters are static
      */
@@ -110,7 +103,7 @@ public:
      */
     void set_work_amount_const(bool value);
 
-/**
+    /**
      * @brief Replace the current LoopPort `actual_port` with new `target_ports`
      * @param actual_port actual port
      * @param target_ports new ports. The ports order is important. Can contain `actual_port`
@@ -240,7 +233,7 @@ public:
      * @param expr_map map of new and old expressions
      * @return the copy
      */
-    std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map) const override;
+    std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map) const;
 
     /**
      * @brief Check if some parameters of Loop are dynamic (undefined)
@@ -390,14 +383,15 @@ public:
     ExpandedLoopInfo(size_t work_amount, size_t increment,
                      const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
                      std::vector<int64_t> ptr_increments, std::vector<int64_t> final_offsets, std::vector<int64_t> data_sizes,
-                     SpecificLoopIterType type, std::shared_ptr<UnifiedLoopInfo> unified_loop_info, bool is_wa_const = false,
+                     SpecificLoopIterType type, UnifiedLoopInfoPtr unified_loop_info, bool is_wa_const = false,
                      bool evaluate_once = false);
     /**
      * @brief Clone LoopInfo with new expressions
      * @param expr_map map of new and old expressions
+     * @param new_unified_loop_info new unified loop info
      * @return the copy
      */
-    std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map) const override;
+    std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map, UnifiedLoopInfoPtr new_unified_loop_info) const;
 
     /**
      * @brief Check if some parameters of Loop are dynamic (undefined)

@@ -375,13 +375,14 @@ ExpandedLoopInfo::ExpandedLoopInfo(size_t work_amount, size_t increment,
     sort_ports();
 }
 
-std::shared_ptr<LoopInfo> ExpandedLoopInfo::clone_with_new_expr(const ExpressionMap& expr_map) const {
+std::shared_ptr<LoopInfo> ExpandedLoopInfo::clone_with_new_expr(const ExpressionMap& expr_map, UnifiedLoopInfoPtr new_unified_loop_info) const {
     const auto& new_input_ports = clone_loop_ports(expr_map, m_input_ports);
     const auto& new_output_ports = clone_loop_ports(expr_map, m_output_ports);
 
+    OPENVINO_ASSERT(new_unified_loop_info, "Failed to copy ExpandedLoopInfo: new unified loop info is nullptr!");
     return std::make_shared<ExpandedLoopInfo>(m_work_amount, m_increment, new_input_ports, new_output_ports,
                                               m_ptr_increments, m_finalization_offsets, m_data_sizes, m_type,
-                                              m_unified_loop_info, m_is_work_amount_const, m_evaluate_once);
+                                              std::move(new_unified_loop_info), m_is_work_amount_const, m_evaluate_once);
 }
 
 bool ExpandedLoopInfo::is_dynamic() const {
