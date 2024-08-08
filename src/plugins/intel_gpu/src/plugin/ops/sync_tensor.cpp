@@ -25,10 +25,8 @@ void CreateSyncTensorOp(ProgramBuilder& p, const std::shared_ptr<ov::op::interna
     validate_inputs_count(op, {0, 1});
     auto inputs = p.GetInputInfo(op);
     auto prim = cldnn::sync_tensor(layer_type_name_ID(op), inputs[0]);
-
     prim.num_outputs = op->get_output_size();
     prim.output_data_types = get_output_data_types(op);
-
     p.add_primitive(*op, prim);
 }
 

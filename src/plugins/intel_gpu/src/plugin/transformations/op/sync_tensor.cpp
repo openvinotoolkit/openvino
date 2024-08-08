@@ -48,19 +48,26 @@ bool SyncTensor::visit_attributes(ov::AttributeVisitor& visitor) {
 
 void SyncTensor::validate_and_infer_types() {
     if (get_input_size() > 0) {
-        auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
-        auto original_fc_out = get_input_source_output(0).get_partial_shape();
-        auto fc_out_dim_vec = split_parts(m_split_dimension, m_world_size);
-        std::vector<ov::PartialShape> p_shapes(fc_out_dim_vec.size(), original_fc_out);
-        const int64_t axis = ov::util::normalize_axis("get aplit axis", -1, original_fc_out.rank());
-        const auto& dimension_at_axis = original_fc_out[axis];
-        if (dimension_at_axis.is_static()) {
-            for (size_t i =0 ; i< fc_out_dim_vec.size(); i++) {
-                p_shapes[i][axis] = ov::Dimension(fc_out_dim_vec[i]);
+        if (m_tp_mode == TP_MODE::ALL_REDUCE) {
+            auto original_fc_out = get_input_source_output(0).get_partial_shape();
+            std::vector<ov::PartialShape> p_shapes(m_world_size, original_fc_out);
+            for (size_t i = 0; i < p_shapes.size(); i++)
+                set_output_type(i, m_output_type, p_shapes[i]);
+        } else if (m_tp_mode == TP_MODE::ALL_GATHERH) {
+            auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
+            auto original_fc_out = get_input_source_output(0).get_partial_shape();
+            auto fc_out_dim_vec = split_parts(m_split_dimension, m_world_size);
+            std::vector<ov::PartialShape> p_shapes(fc_out_dim_vec.size(), original_fc_out);
+            const int64_t axis = ov::util::normalize_axis("get aplit axis", -1, original_fc_out.rank());
+            const auto& dimension_at_axis = original_fc_out[axis];
+            if (dimension_at_axis.is_static()) {
+                for (size_t i = 0; i < fc_out_dim_vec.size(); i++) {
+                    p_shapes[i][axis] = ov::Dimension(fc_out_dim_vec[i]);
+                }
             }
+            for (size_t i = 0; i < p_shapes.size(); i++)
+                set_output_type(i, output_type, p_shapes[i]);
         }
-        for (size_t i = 0; i < p_shapes.size(); i++)
-            set_output_type(i, output_type, p_shapes[i]);
     } else {
         set_output_type(0, m_output_type, ov::PartialShape());
     }
@@ -84,9 +91,8 @@ std::shared_ptr<Node> SyncTensor::clone_with_new_inputs(const ov::OutputVector& 
 std::vector<ov::PartialShape> shape_infer(const SyncTensor* op, std::vector<ov::PartialShape> input_shapes) {
     std::vector<ov::PartialShape> out_shapes;
     if (op->get_tp_mode() == TP_MODE::ALL_REDUCE) {
-        auto out_shape = op->get_input_partial_shape(0);
         for (size_t i = 0; i < op->get_output_size(); i++)
-            out_shapes.push_back(out_shape);
+            out_shapes.push_back(input_shapes[0]);
     } else if (op->get_tp_mode() == TP_MODE::ALL_GATHERH) {
         auto input_shape_0 = input_shapes[0];
         if (input_shape_0.is_dynamic()) {

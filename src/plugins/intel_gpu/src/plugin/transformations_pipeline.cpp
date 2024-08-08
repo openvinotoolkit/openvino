@@ -66,7 +66,7 @@
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/swiglu_fusion.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
-#include "plugin/transformations/tensor_parallel.hpp"
+// #include "plugin/transformations/tensor_parallel.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
@@ -851,13 +851,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // GPU plugin stops using friendly names for program creation
         manager.register_pass<ov::pass::ResolveNameCollisions>(true);
 
-        manager.run_passes(func);
-    }
-    {
-        ov::pass::Manager manager;
-        // tp related
-        if (config.get_context_for_tp().size() > 1)
-            manager.register_pass<ov::intel_gpu::TensorParallelFusion>(config.get_context_for_tp().size());
+    //     manager.run_passes(func);
+    // }
+    // {
+    //     ov::pass::Manager manager;
+    //     // tp related
+    //     if (config.get_context_for_tp().size() > 1)
+    //         manager.register_pass<ov::intel_gpu::TensorParallelFusion>(config.get_context_for_tp().size());
         GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->verbose >= 1) {
             manager.register_pass<ov::intel_gpu::PrintModelStatistics>();
         }

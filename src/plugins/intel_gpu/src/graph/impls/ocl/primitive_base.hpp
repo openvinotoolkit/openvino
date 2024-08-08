@@ -94,38 +94,8 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
                impl_param.is_type<crop>()) && impl_param.is_dynamic())) {
             return make_unique<ImplType>(kernel_selector::kernel_data{});
         }
-        auto update_impl_param = impl_param;
-        if (update_impl_param.is_type<fully_connected>()) {
-            // weights is static, we need update here, because weight layout has not been updated yet
-            auto weights_layout = update_impl_param.get_input_layout(1);
-            auto weights_pshape = weights_layout.get_partial_shape().to_shape();
-            auto dim = weights_pshape.size() - 1; // to be finalized
-            weights_pshape[dim] /= update_impl_param.w_size;
-            auto new_weight_layout = layout(ov::PartialShape(weights_pshape),
-                                                weights_layout.data_type,
-                                                weights_layout.format,
-                                                weights_layout.data_padding);
-            update_impl_param.input_layouts[1] = new_weight_layout;
-
-            /*auto input_layout = update_impl_param.get_input_layout(0);
-            auto input_shape = input_layout.get_partial_shape();
-            auto rank_size = input_layout.get_rank();
-            ov::PartialShape new_input_shape;
-            new_input_shape.reserve(rank_size);
-            auto last_dim = input_shape.end() - 1;
-            for (auto iter = input_shape.begin(); iter != input_shape.end() - 1; iter++) {
-                new_input_shape.push_back(*iter);
-            }
-            new_input_shape.push_back(ov::Dimension(*last_dim/update_impl_param.w_size));
-            //input_pshape[dim] /= update_impl_param.w_size;
-            auto new_input_layout = layout(ov::PartialShape(new_input_shape),
-                                                input_layout.data_type,
-                                                input_layout.format,
-                                                input_layout.data_padding);
-            update_impl_param.input_layouts[0] = new_input_layout;*/
-        }
-        auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(update_impl_param));
-        kernel_params.is_shape_agnostic = update_impl_param.is_dynamic();
+        auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
+        kernel_params.is_shape_agnostic = impl_param.is_dynamic();
         kernel_params.set_dynamic_shape_offsets();
         auto& kernel_selector = ImplType::kernel_selector_t::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(kernel_params);

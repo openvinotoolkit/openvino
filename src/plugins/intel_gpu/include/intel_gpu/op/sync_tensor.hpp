@@ -25,7 +25,7 @@ public:
             const size_t world_size,
             int split_dimension,
             const ov::element::Type output_type = ov::element::undefined,
-            const TP_MODE tp_mode = TP_MODE::ALL_GATHERH);
+            const TP_MODE tp_mode = TP_MODE::ALL_REDUCE);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -35,7 +35,7 @@ public:
 protected:
     ov::element::Type m_output_type;
     int m_split_dimension;
-    TP_MODE m_tp_mode = TP_MODE::ALL_GATHERH;
+    TP_MODE m_tp_mode = TP_MODE::ALL_REDUCE;
 };
 
 std::vector<ov::PartialShape> shape_infer(const SyncTensor* op, std::vector<ov::PartialShape> input_shapes);

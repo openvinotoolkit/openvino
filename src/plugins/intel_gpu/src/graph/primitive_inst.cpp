@@ -278,14 +278,6 @@ void primitive_inst::update_shape() {
     }
     bool input_shape_changed = false;
     // update weight shape for impl params
-    if (_node->is_type<fully_connected>()) {
-        const auto weights_idx = _node->get_primitive()->input.size();
-        const auto original_weights_memory = dep_memory_ptr(weights_idx);
-        if (_impl_params->input_layouts[1] != original_weights_memory->get_layout())
-            _impl_params->input_layouts[1] = original_weights_memory->get_layout();
-        GPU_DEBUG_TRACE_DETAIL << id() << ": update weight shape to "
-                               <<  _impl_params->input_layouts[1].to_short_string() << std::endl;
-    }
 
     for (size_t i = 0; i < _deps.size(); i++) {
         auto idx = _deps[i].second;
@@ -2198,14 +2190,7 @@ std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* up
     auto& out_layouts = impl_params.output_layouts;
     for (size_t i = 0; i < get_node().get_outputs_count() ; ++i) {
         // skip mem alloc for current rank, as it will share in on_execute
-        auto skip_alloc = [&](int index) {
-            if (out_layouts[index].is_dynamic() && !out_layouts[index].has_upper_bound())
-                return true;
-            else if (_node->is_type<sync_tensor>() && static_cast<int>(index) == updated_params->w_rank)
-                return true;
-            return false;
-        };
-        if (skip_alloc(i)) {
+        if (out_layouts[i].is_dynamic() && !out_layouts[i].has_upper_bound()) {
             outputs.push_back(memory::ptr());
         } else {
             auto current_memory_ptr = _outputs.size() > i ? output_memory_ptr(i).get() : nullptr;

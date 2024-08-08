@@ -12,6 +12,8 @@
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
+#include <openvino/pass/manager.hpp>
+#include <plugin/transformations/fc_all_reduce.hpp>
 
 #include <sys/types.h>
 
@@ -96,8 +98,13 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                                                                  {},
                                                                  configs_for_tp[i].streamsRankTable[i]};
                 configs_for_tp[i].subStreamExecConfig = std::move(streamExecutorConfig);
+                auto clone_model = model->clone();
+                ov::pass::Manager manager;
+                manager.register_pass<FullyConnectedSplitInput>(m_config.get_context_for_tp().size(), i);
+                manager.run_passes(clone_model);
+                ov::serialize(clone_model, "./model_fc_test_qw_allreduce.xml", "./model_fc_test_qw_allreduce.bin");
                 m_sub_compiled_models.push_back(std::make_shared<CompiledModel>(
-                    model, plugin, m_config.get_context_for_tp()[i].as<RemoteContextImpl::Ptr>(), configs_for_tp[i], m_sub_memory_manager));
+                    clone_model, plugin, m_config.get_context_for_tp()[i].as<RemoteContextImpl::Ptr>(), configs_for_tp[i], m_sub_memory_manager));
                 GPU_DEBUG_TRACE_DETAIL << "sub models for TP created, rank " << configs_for_tp[i].streamsRankTable[i][0] << std::endl;
             };
             sub_tasks.push_back(std::bind(compile_tp_model, i));
