@@ -343,28 +343,6 @@ void Input::cloneBlobIfRequired() {
         return false;
     };
 
-    // WA for CVS-46304
-    auto isWA = [&, this] () {
-        auto outputs = constOp->outputs();
-        for (const auto& output : outputs) {
-            auto node = output.get_node();
-            if (!node
-                || TypeFromName(node->get_type_name()) != Type::FullyConnected)
-                continue;
-            if (mayiuse(cpu_isa_t::avx512_core)) {
-                if (size % 16)
-                    return true;
-            } else if (mayiuse(cpu_isa_t::avx)) {
-                if (size % 8)
-                    return true;
-            } else if (mayiuse(cpu_isa_t::sse41)) {
-                if (size % 4)
-                    return true;
-            }
-        }
-        return false;
-    };
-
     auto blobKey = [&, this] () {
         char ptr[32];
         snprintf(ptr, sizeof ptr, "%p", constOp->get_data_ptr());
@@ -375,7 +353,7 @@ void Input::cloneBlobIfRequired() {
 
     const auto weightCache = context->getWeightsCache();
     const bool clone_is_not_needed =
-        prec != element::string && !isWA() &&
+        prec != element::string &&
         // IRs already have all subnormals flushed to zero, but in
         // read_model scenario with directly loaded original model still can have subnormals
         isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) &&
