@@ -186,19 +186,19 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         auto id = sub_mem_mgr->get_memory_id(w_rank);
         // printf("[sync_tensor_impl:%d] memory id: %d\n", w_rank, id);
         sub_mem_mgr->set_memory_used(id, w_rank);
-        // while (true) {
-        //     std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
-        //     if (sub_mem_mgr->_use_count[id] == w_size) {
-        //         sub_mem_mgr->_use_count[id] = 0;
-        //         for (size_t i = 0; i < w_size; i++) {
-        //             sub_mem_mgr->_memorys_table[id][i].flag = false;
-        //             sub_mem_mgr->_memorys_table[id][i].flag_written = false;
-        //         }
-        //     }
-        //     if (sub_mem_mgr->_use_count[id] == 0) {
-        //         break;
-        //     }
-        // }
+        while (true) {
+            std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
+            if (sub_mem_mgr->_use_count[id] == w_size) {
+                sub_mem_mgr->_use_count[id] = 0;
+                for (size_t i = 0; i < w_size; i++) {
+                    sub_mem_mgr->_memorys_table[id][i].flag = false;
+                    sub_mem_mgr->_memorys_table[id][i].flag_written = false;
+                }
+            }
+            if (sub_mem_mgr->_use_count[id] == 0) {
+                break;
+            }
+        }
 
         oclContext oclctx;
         // oclContext& oclctx = oclContext::getInstance();
@@ -215,35 +215,21 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         size_t copy_len = instance.output_memory(copy_rank).size();
         printf("[sync_tensor_impl:%d] copy_len: %ld \n", w_rank, copy_len);
 
-        bool reuse_buf = false;
-        if (sub_mem_mgr->_memorys_table[id][w_rank].MAX_COPY_LEN < copy_len) {
-            sub_mem_mgr->_memorys_table[id][w_rank].MAX_COPY_LEN = copy_len;
-            reuse_buf = false;
+        // std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
+        // sub_mem_mgr->_memorys_table[id][w_rank].flag = false;
 
-            // std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
-            // sub_mem_mgr->_memorys_table[id][w_rank].flag = false;
+        void *send_buf = ocl_to_lz(instance, stream, w_rank, oclctx, lzctx, copy_len, w_rank);
+        printf("[sync_tensor_impl:%d] send_buf: %p\n", w_rank, send_buf);
+        void *receive_buf = ocl_to_lz(instance, stream, copy_rank, oclctx, lzctx, copy_len, w_rank);
+        printf("[sync_tensor_impl:%d] receive_buf: %p\n", w_rank, receive_buf);
 
-            printf("[sync_tensor_impl:%d] MAX_COPY_LEN: %ld, reuse_buf: %d, create send_buf and receive_buf \n",
-                w_rank, sub_mem_mgr->_memorys_table[id][w_rank].MAX_COPY_LEN, reuse_buf);
-            void *send_buf = ocl_to_lz(instance, stream, w_rank, oclctx, lzctx, copy_len, w_rank);
-            printf("[sync_tensor_impl:%d] send_buf: %p\n", w_rank, send_buf);
-            void *receive_buf = ocl_to_lz(instance, stream, copy_rank, oclctx, lzctx, copy_len, w_rank);
-            printf("[sync_tensor_impl:%d] receive_buf: %p\n", w_rank, receive_buf);
+        // sub_mem_mgr->_memorys_table[id][w_rank].send_buf = send_buf;
+        // sub_mem_mgr->_memorys_table[id][w_rank].send_buf = receive_buf;
 
-            // sub_mem_mgr->_memorys_table[id][w_rank].send_buf = send_buf;
-            // sub_mem_mgr->_memorys_table[id][w_rank].send_buf = receive_buf;
-
+        {
             std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
             sub_mem_mgr->_memorys_table[id][w_rank].send_buf = send_buf;
             sub_mem_mgr->_memorys_table[id][w_rank].receive_buf = receive_buf;
-
-            sub_mem_mgr->_memorys_table[id][w_rank].flag = true;
-        } else {
-            reuse_buf = true;
-
-            printf("[sync_tensor_impl:%d] MAX_COPY_LEN: %ld, reuse_buf: %d, no create \n",
-                w_rank, sub_mem_mgr->_memorys_table[id][w_rank].MAX_COPY_LEN, reuse_buf);
-            std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
             sub_mem_mgr->_memorys_table[id][w_rank].flag = true;
         }
         end_sendbuf = std::chrono::high_resolution_clock::now();
@@ -253,38 +239,35 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         while (true) {
             int wait_size = 0;
             for (int idx = 0; idx < static_cast<int>(w_size); idx++) {
-                // if (idx != w_rank && wait_list[idx] > 0 && sub_mem_mgr->_memorys_table[id][idx].flag) {
-                if (idx != w_rank && wait_list[idx] > 0) {
-                    if (reuse_buf || sub_mem_mgr->_memorys_table[id][idx].flag) {
-                        // auto src_ptr = static_cast<uint8_t*>(sub_mem_mgr->_memorys_table[id][idx].send_buf);
-                        // auto dst_ptr = instance.output_memory(idx).buffer_ptr();
-                        // std::memcpy(dst_ptr, src_ptr, instance.output_memory(idx).size());
+                if (idx != w_rank && wait_list[idx] > 0 && sub_mem_mgr->_memorys_table[id][idx].flag) {
+                    // auto src_ptr = static_cast<uint8_t*>(sub_mem_mgr->_memorys_table[id][idx].send_buf);
+                    // auto dst_ptr = instance.output_memory(idx).buffer_ptr();
+                    // std::memcpy(dst_ptr, src_ptr, instance.output_memory(idx).size());
 
-                        void* local_send_buf = sub_mem_mgr->_memorys_table[id][w_rank].send_buf;
-                        void* remote_receive_buf = sub_mem_mgr->_memorys_table[id][idx].receive_buf;
-                        printf("[sync_tensor_impl:%d] remote_receive_buf: %p \n", w_rank, remote_receive_buf);
+                    void* local_send_buf = sub_mem_mgr->_memorys_table[id][w_rank].send_buf;
+                    void* remote_receive_buf = sub_mem_mgr->_memorys_table[id][idx].receive_buf;
+                    printf("[sync_tensor_impl:%d] remote_receive_buf: %p \n", w_rank, remote_receive_buf);
 
-                        end_prepare = std::chrono::high_resolution_clock::now();
+                    end_prepare = std::chrono::high_resolution_clock::now();
 
-                        // write level_zero buff to remote
-                        int srcOffsetX = 0;
-                        int srcOffsetY = 0;
-                        int strideX = 1;
-                        int strideY = 1;
-                        int groud_width = 256;
-                        // elemCount -> size
-                        printf("[sync_tensor_impl:%d] runKernel \n", w_rank);
-                        lzctx.runKernel("./test_kernel_dg2.spv", "local_write_to_remote", remote_receive_buf, local_send_buf,
-                            copy_len, srcOffsetX, srcOffsetY, strideX, strideY, groud_width);
+                    // write level_zero buff to remote
+                    int srcOffsetX = 0;
+                    int srcOffsetY = 0;
+                    int strideX = 1;
+                    int strideY = 1;
+                    int groud_width = 256;
+                    // elemCount -> size
+                    printf("[sync_tensor_impl:%d] runKernel \n", w_rank);
+                    lzctx.runKernel("./test_kernel_dg2.spv", "local_write_to_remote", remote_receive_buf, local_send_buf,
+                        copy_len, srcOffsetX, srcOffsetY, strideX, strideY, groud_width);
 
-                        end_kernel = std::chrono::high_resolution_clock::now();
+                    end_kernel = std::chrono::high_resolution_clock::now();
 
-                        wait_list[idx] = 0;
+                    wait_list[idx] = 0;
 
-                        std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
-                        sub_mem_mgr->_memorys_table[id][w_rank].flag_written = true;
-                        printf("[sync_tensor_impl:%d] set flag_written true \n", w_rank);
-                    }
+                    std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
+                    sub_mem_mgr->_memorys_table[id][w_rank].flag_written = true;
+                    printf("[sync_tensor_impl:%d] set flag_written true \n", w_rank);
                 }
                 wait_size += wait_list[idx];
             }
@@ -301,9 +284,9 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
             if (wait_list_remote[copy_rank] > 0 && sub_mem_mgr->_memorys_table[id][copy_rank].flag_written) {
                 printf("[sync_tensor_impl:%d] remote write is done \n", w_rank);
 
-                std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
-                sub_mem_mgr->_memorys_table[id][copy_rank].flag_written = false;
-                sub_mem_mgr->_memorys_table[id][copy_rank].flag = false;
+                // std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
+                // sub_mem_mgr->_memorys_table[id][copy_rank].flag_written = false;
+                // sub_mem_mgr->_memorys_table[id][copy_rank].flag = false;
                 printf("[sync_tensor_impl:%d] check kernel receive_buf, copy_len: %ld \n", w_rank, copy_len);
                 // printLZBuff(lzctx, receive_buf, copy_len);
 
