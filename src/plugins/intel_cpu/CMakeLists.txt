@@ -62,14 +62,16 @@ if(NOT BUILD_SHARED_LIBS)
         file(STRINGS "${onednn_file}" onednn_symbols_typedef
              REGEX "^typedef struct dnnl_.*")
 
-        # parse concrete symbols from read line
-        string(REGEX MATCHALL "dnnl[a-zA-Z0-9_]+" onednn_parsed_symbols
-            ${onednn_symbols_defined_on_single_line}
-            ${onednn_symbols_defined_on_multiple_lines}
-            ${onednn_symbols_typedef})
-        foreach(symbol IN LISTS onednn_parsed_symbols)
-            list(APPEND onednn_symbols ${symbol})
-        endforeach()
+        if(onednn_symbols_defined_on_single_line OR
+           onednn_symbols_defined_on_multiple_lines OR
+           onednn_symbols_typedef)
+            # parse concrete symbols from read line
+            string(REGEX MATCHALL "dnnl[a-zA-Z0-9_]+" onednn_parsed_symbols
+                ${onednn_symbols_defined_on_single_line}
+                ${onednn_symbols_defined_on_multiple_lines}
+                ${onednn_symbols_typedef})
+            list(APPEND onednn_symbols ${onednn_parsed_symbols})
+        endif()
     endforeach()
 
     # remove all duplicates
