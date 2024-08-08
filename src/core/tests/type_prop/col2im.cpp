@@ -258,7 +258,6 @@ TEST_F(TypePropCol2ImTest, dynamic_output_size_from_shape_of) {
     const auto pads_end = Shape{3, 3};
 
     const auto op = make_op(data, output_size, kernel_size, strides, dilations, pads_begin, pads_end);
-    op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_strides(), (Strides{2, 2}));
     EXPECT_EQ(op->get_dilations(), (Strides{2, 2}));
@@ -280,7 +279,6 @@ TEST_F(TypePropCol2ImTest, dynamic_kernel_size_from_shape_of) {
     const auto pads_end = Shape{3, 3};
 
     const auto op = make_op(data, output_size, kernel_size, strides, dilations, pads_begin, pads_end);
-    op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_strides(), (Strides{2, 2}));
     EXPECT_EQ(op->get_dilations(), (Strides{2, 2}));
