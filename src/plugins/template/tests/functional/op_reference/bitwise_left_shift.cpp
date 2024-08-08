@@ -14,6 +14,9 @@ namespace reference_tests {
 namespace BitwiseOpsRefTestDefinitions {
 namespace {
 
+// Off clang format to avoid long single column vectors
+
+// clang-format off
 std::vector<RefBitwiseParams> generateBitwiseParams() {
     std::vector<RefBitwiseParams> bitwiseParams{
         Builder{}
@@ -57,9 +60,8 @@ std::vector<RefBitwiseParams> generateBitwiseParams() {
                                             -24,         16,         -16,         512,          -512,
                                             0,           0,          256,         -256,         768,
                                             -768,        512,        -512,        16384,        -16384,
-                                            0,           0,          2147483648,  -2147483648,  6442450944,
-                                            -6442450944, 4294967296, -4294967296, 137438953472, -137438953472}}),
-
+                                            0,           0,          2147483648L,  -2147483648L,  6442450944L,
+                                            -6442450944L, 4294967296L, -4294967296L, 137438953472L, -137438953472L}}),
         Builder{}
             .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
             .inputs({{{2, 5}, element::i32, std::vector<int32_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
@@ -72,7 +74,7 @@ std::vector<RefBitwiseParams> generateBitwiseParams() {
                      2,     -2,     6,   -6,   4,           -4,          128,         -128,        0,   0,    4,   -4,
                      12,    -12,    8,   -8,   256,         -256,        0,           0,           8,   -8,   24,  -24,
                      16,    -16,    512, -512, 0,           0,           256,         -256,        768, -768, 512, -512,
-                     16384, -16384, 0,   0,    -2147483648, -2147483648, -2147483648, -2147483648, 0,   0,    0,   0}}),
+                     16384, -16384, 0,   0,    -2147483648L, -2147483648L, -2147483648L, -2147483648L, 0,   0,    0,   0}}),
         Builder{}
             .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
             .inputs({{{2, 5}, element::i16, std::vector<int16_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
@@ -136,81 +138,17 @@ std::vector<RefBitwiseParams> generateBitwiseParams() {
                      {{6, 1, 1}, element::u64, std::vector<uint64_t>{0, 1, 2, 3, 8, 63}}})
             .expected({{6, 2, 6},
                        element::u64,
-                       std::vector<uint64_t>{0,
-                                             1,
-                                             2,
-                                             3,
-                                             4,
-                                             5,
-                                             6,
-                                             7,
-                                             8,
-                                             9,
-                                             51,
-                                             64,
-                                             0,
-                                             2,
-                                             4,
-                                             6,
-                                             8,
-                                             10,
-                                             12,
-                                             14,
-                                             16,
-                                             18,
-                                             102,
-                                             128,
-                                             0,
-                                             4,
-                                             8,
-                                             12,
-                                             16,
-                                             20,
-                                             24,
-                                             28,
-                                             32,
-                                             36,
-                                             204,
-                                             256,
-                                             0,
-                                             8,
-                                             16,
-                                             24,
-                                             32,
-                                             40,
-                                             48,
-                                             56,
-                                             64,
-                                             72,
-                                             408,
-                                             512,
-                                             0,
-                                             256,
-                                             512,
-                                             768,
-                                             1024,
-                                             1280,
-                                             1536,
-                                             1792,
-                                             2048,
-                                             2304,
-                                             13056,
-                                             16384,
-                                             0,
-                                             9223372036854775808ul,
-                                             0,
-                                             9223372036854775808ul,
-                                             0,
-                                             9223372036854775808ul,
-                                             0,
-                                             9223372036854775808ul,
-                                             0,
-                                             9223372036854775808ul,
-                                             9223372036854775808ul,
-                                             0}}),
+                       std::vector<uint64_t>{
+                           0,  1,   2,   3,   4,    5,    6,    7,    8,    9,    51,    64,    0,  2,  4,   6,
+                           8,  10,  12,  14,  16,   18,   102,  128,  0,    4,    8,     12,    16, 20, 24,  28,
+                           32, 36,  204, 256, 0,    8,    16,   24,   32,   40,   48,    56,    64, 72, 408, 512,
+                           0,  256, 512, 768, 1024, 1280, 1536, 1792, 2048, 2304, 13056, 16384, 0, 9223372036854775808ul,
+                           0, 9223372036854775808ul, 0, 9223372036854775808ul, 0, 9223372036854775808ul, 0, 9223372036854775808ul,
+                           9223372036854775808ul,  0}}),
     };
     return bitwiseParams;
 }
+// clang-format on
 
 INSTANTIATE_TEST_SUITE_P(smoke_BitwiseLeftShift_With_Hardcoded_Refs,
                          ReferenceBitwiseLayerTest,
