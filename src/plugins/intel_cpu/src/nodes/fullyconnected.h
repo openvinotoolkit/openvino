@@ -16,6 +16,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "post_ops.hpp"
+#include "openvino/runtime/threading/cpu_message.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -79,6 +80,22 @@ private:
     ExecutorFactoryPtr<FCAttrs, node::FullyConnected> factory;
     ExecutorPtr executor = nullptr;
     std::string errorPrefix;
+
+    // tensor parallel
+    int w_rank = -1;
+    int w_size = -1;
+    int id = 0;
+    std::shared_ptr<SubMemoryManager> sub_memory = nullptr;
+    bool enable_tensor_parallel = false;
+    MemoryPtr cached_splited_weight = nullptr;
+    MemoryPtr cached_splited_bias = nullptr;
+    MemoryPtr cached_scale = nullptr;
+    MemoryPtr cached_zeropoint = nullptr;
+    MemoryPtr cached_dst = nullptr;
+    // cache sub_dst
+    // std::vector<MemoryPtr> cur_dst_vec;
+    Shape dst_shape;
+    MemoryDescPtr memory_desc;
 };
 
 }  // namespace node
