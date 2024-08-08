@@ -231,7 +231,7 @@ void InputModel::InputModelTFImpl::load_places() {
                 type = dtype_any.as<ov::element::Type>();
             }
             std::vector<std::string> names = {op_name + ":0"};
-            auto tensor_place = std::make_shared<TensorPlace>(m_input_model, pshape, type, names);
+            auto tensor_place = std::make_shared<TensorPlace>(m_input_model, pshape, type, names, op_name);
 
             m_default_places[op_name + ":0"] = tensor_place;
 
@@ -257,7 +257,8 @@ void InputModel::InputModelTFImpl::load_places() {
             auto tensor_place = std::make_shared<TensorPlace>(m_input_model,
                                                               ov::PartialShape::dynamic(),
                                                               type,
-                                                              std::vector<std::string>{op_name});
+                                                              std::vector<std::string>{op_name},
+                                                              op_name);
             m_inputs.push_back(tensor_place);
         }
     }
