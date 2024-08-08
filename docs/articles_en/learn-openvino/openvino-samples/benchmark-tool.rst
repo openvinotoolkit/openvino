@@ -223,12 +223,12 @@ should be used purposefully. For more information, see the
 
 .. note::
 
-   * If the latency or throughput hint is set, it will automatically configure streams
-     batch sizes, and number of parallel infer requests for optimal performance based on the specified device.
+   * If either the latency or throughput hint is set, it will automatically configure streams,
+     batch sizes, and the number of parallel infer requests for optimal performance, based on the specified device.
 
    * Optionally, you can specify the number of parallel infer requests with the ``-nireq``
-     option. Setting a high value may result in better throughput at the expense
-     of latency, for which a low value is recommended.
+     option. Setting a high value may improve throughput at the expense
+     of latency, while a low value may give the opposite result.
 
 Number of iterations
 ++++++++++++++++++++
