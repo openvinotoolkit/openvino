@@ -27,19 +27,6 @@ struct Evaluate : ov::element::NoAction<bool> {
         return true;
     }
 };
-
-namespace {
-bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
-    using namespace ov::element;
-    return IF_TYPE_OF(bitshift_evaluate,
-                      OV_PP_ET_LIST(u8, i32, i64),
-                      right_shift::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      inputs[1],
-                      outputs[0]);
-}
-}  // namespace
 }  // namespace right_shift
 
 BitwiseRightShift::BitwiseRightShift(const Output<Node>& arg0,
@@ -58,10 +45,15 @@ std::shared_ptr<Node> BitwiseRightShift::clone_with_new_inputs(const OutputVecto
 bool BitwiseRightShift::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v15_BitwiseRightShift_evaluate);
     OPENVINO_ASSERT(outputs.size() == 1);
-    OPENVINO_ASSERT(inputs.size() == 2);
-
     outputs[0].set_shape(infer_broadcast_shape(this, inputs));
-    return right_shift::evaluate(outputs, inputs);
+    using namespace ov::element;
+    return IF_TYPE_OF(v15_BitwiseRightShift_evaluate,
+                      OV_PP_ET_LIST(u8, i32, i64),
+                      right_shift::Evaluate,
+                      inputs[0].get_element_type(),
+                      inputs[0],
+                      inputs[1],
+                      outputs[0]);
 }
 
 void BitwiseRightShift::validate_and_infer_types() {

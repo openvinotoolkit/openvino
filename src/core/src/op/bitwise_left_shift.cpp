@@ -28,19 +28,6 @@ struct Evaluate : ov::element::NoAction<bool> {
         return true;
     }
 };
-
-namespace {
-bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
-    using namespace ov::element;
-    return IF_TYPE_OF(bitshift_evaluate,
-                      OV_PP_ET_LIST(u8, i32, i64),
-                      left_shift::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      inputs[1],
-                      outputs[0]);
-}
-}  // namespace
 }  // namespace left_shift
 
 BitwiseLeftShift::BitwiseLeftShift(const Output<Node>& arg0,
@@ -72,10 +59,17 @@ void BitwiseLeftShift::validate_and_infer_types() {
 bool BitwiseLeftShift::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v15_BitwiseLeftShift_evaluate);
     OPENVINO_ASSERT(outputs.size() == 1);
-    OPENVINO_ASSERT(inputs.size() == 2);
 
     outputs[0].set_shape(infer_broadcast_shape(this, inputs));
-    return left_shift::evaluate(outputs, inputs);
+
+    using namespace ov::element;
+    return IF_TYPE_OF(v15_BitwiseLeftShift_evaluate,
+                      OV_PP_ET_LIST(u8, i32, i64),
+                      left_shift::Evaluate,
+                      inputs[0].get_element_type(),
+                      inputs[0],
+                      inputs[1],
+                      outputs[0]);
 }
 
 bool BitwiseLeftShift::has_evaluate() const {
