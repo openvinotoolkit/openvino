@@ -5,7 +5,7 @@
 #include "dynamic_quantize_fully_connected.hpp"
 
 #include "intel_gpu/op/fully_connected_compressed.hpp"
-#include <intel_gpu/op/placeholder.hpp>
+#include "intel_gpu/op/placeholder.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 
 #include "openvino/core/rt_info.hpp"
