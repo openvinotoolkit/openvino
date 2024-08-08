@@ -56,8 +56,10 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         parent::load(ib);
     }
 
-    void get_contexts(sync_tensor_inst& instance, oclContext& oclctx, lzContext& lzctx) {
+    void get_contexts(sync_tensor_inst& instance, oclContext& oclctx, lzContext& lzctx, int rank) {
         // printf("[get_contexts] enter \n");
+
+        auto start = std::chrono::high_resolution_clock::now();
 
         int device_idx = oclctx.device_idx();
         if (device_idx == -1) {
@@ -71,9 +73,12 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
             std::cout << "[get_contexts] init oclctx " << std::endl;
             oclctx.init(device_idx);
         }
+        auto end_ocl = std::chrono::high_resolution_clock::now();
+
         printf("[get_contexts] device_idx: %d \n", device_idx);
         std::cout << "[get_contexts] init lzContext " << std::endl;
         lzctx.initZe(device_idx);
+        auto end_lz = std::chrono::high_resolution_clock::now();
 
         char cwd[256];
         getcwd(cwd, 256);
@@ -81,6 +86,15 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         printf("[get_contexts] file_path: %s \n", file_path.c_str());
         lzContext::readKernel(file_path.data(), "local_write_to_remote");
         lzctx.initKernel();
+        auto end_lz_kernel = std::chrono::high_resolution_clock::now();
+
+        double duration_ms_ctx_ocl = std::chrono::duration<double, std::milli>(end_ocl - start).count();
+        double duration_ms_ctx_lz = std::chrono::duration<double, std::milli>(end_lz - end_ocl).count();
+        double duration_ms_ctx_lz_kernel = std::chrono::duration<double, std::milli>(end_lz_kernel - end_lz).count();
+        // statistics.push_back({"impl": duration_ms})
+        printf("[sync_tensor_impl:%d] duration_ms_ctx_ocl: %f ms\n", rank, duration_ms_ctx_ocl);
+        printf("[sync_tensor_impl:%d] duration_ms_ctx_lz: %f ms\n", rank, duration_ms_ctx_lz);
+        printf("[sync_tensor_impl:%d] duration_ms_ctx_lz_kernel: %f ms\n", rank, duration_ms_ctx_lz_kernel);
     }
 
     void printCLBuff(cl_command_queue& cl_queue, cl_mem& clbuf, size_t size, oclContext& oclctx, std::vector<uint32_t>& resBuf) {
@@ -149,8 +163,10 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
     event::ptr execute_impl(const std::vector<event::ptr>& events, sync_tensor_inst& instance) override {
         // static std::vector<std::string, double> statistics;
         auto end_impl = std::chrono::high_resolution_clock::now();
-        auto end_kernel = std::chrono::high_resolution_clock::now();
+        auto end_contexts = std::chrono::high_resolution_clock::now();
+        auto end_sendbuf = std::chrono::high_resolution_clock::now();
         auto end_prepare = std::chrono::high_resolution_clock::now();
+        auto end_kernel = std::chrono::high_resolution_clock::now();
         auto start_impl = std::chrono::high_resolution_clock::now();
 
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "sync_tensor::execute_impl");
@@ -189,7 +205,8 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         lzContext lzctx;
         // lzContext& lzctx = lzContext::getInstance();
         // const size_t elemCount = 8 * 1024;
-        get_contexts(instance, oclctx, lzctx);
+        get_contexts(instance, oclctx, lzctx, w_rank);
+        end_contexts = std::chrono::high_resolution_clock::now();
 
         size_t input_len = instance.input_memory(0).size();
         printf("[sync_tensor_impl:%d] input_len: %ld \n", w_rank, input_len);
@@ -229,6 +246,7 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
             std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
             sub_mem_mgr->_memorys_table[id][w_rank].flag = true;
         }
+        end_sendbuf = std::chrono::high_resolution_clock::now();
 
         std::vector<int> wait_list(w_size, 1);
         wait_list[w_rank] = 0; // no need to wait for itself
@@ -308,11 +326,15 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
 
         end_impl = std::chrono::high_resolution_clock::now();
 
-        double duration_ms_prepare = std::chrono::duration<double, std::milli>(end_prepare - start_impl).count();
+        double duration_ms_contexts = std::chrono::duration<double, std::milli>(end_contexts - start_impl).count();
+        double duration_ms_sendbuf = std::chrono::duration<double, std::milli>(end_sendbuf - end_contexts).count();
+        double duration_ms_prepare = std::chrono::duration<double, std::milli>(end_prepare - end_sendbuf).count();
         double duration_ms_kernel = std::chrono::duration<double, std::milli>(end_kernel - end_prepare).count();
         double duration_ms_post = std::chrono::duration<double, std::milli>(end_impl - end_kernel).count();
         double duration_ms_impl = std::chrono::duration<double, std::milli>(end_impl - start_impl).count();
         // statistics.push_back({"impl": duration_ms})
+        printf("[sync_tensor_impl:%d] duration_ms_contexts: %f ms\n", w_rank, duration_ms_contexts);
+        printf("[sync_tensor_impl:%d] duration_ms_sendbuf: %f ms\n", w_rank, duration_ms_sendbuf);
         printf("[sync_tensor_impl:%d] duration_ms_prepare: %f ms\n", w_rank, duration_ms_prepare);
         printf("[sync_tensor_impl:%d] duration_ms_kernel: %f ms\n", w_rank, duration_ms_kernel);
         printf("[sync_tensor_impl:%d] duration_ms_post: %f ms\n", w_rank, duration_ms_post);
