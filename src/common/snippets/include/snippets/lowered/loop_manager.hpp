@@ -101,10 +101,11 @@ public:
                      bool set_default_handlers = true,
                      bool is_work_amount_const = false) {
         const auto normalized_increment = utils::is_dynamic_value(work_amount) || work_amount == 0 ? increment : std::min(increment, work_amount);
-        const auto& handlers = set_default_handlers
-                                  ? SpecificIterationHandlers(work_amount, normalized_increment)
-                                  : SpecificIterationHandlers();
-        const auto loop_info = std::make_shared<UnifiedLoopInfo>(work_amount, normalized_increment, entries, exits, handlers, is_work_amount_const);
+        const auto loop_info = std::make_shared<UnifiedLoopInfo>(work_amount, normalized_increment, entries, exits);
+        loop_info->set_work_amount_const(is_work_amount_const);
+        if (set_default_handlers)
+            loop_info->set_handlers(SpecificIterationHandlers(work_amount, normalized_increment, loop_info->get_dim_idx()));
+
         const auto loop_id = this->add_loop_info(loop_info);
         for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
             insert_loop_id(*expr_it, loop_id);
