@@ -46,7 +46,7 @@ std::vector<TRShape> shape_infer(const StringTensorPack* op,
     NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes.size() == 3);
     util::validate_indices(0, tensor_accessor, op, input_shapes);
     util::validate_indices(1, tensor_accessor, op, input_shapes);
-    auto begins_shape = input_shapes[0];
+    const auto& begins_shape = input_shapes[0];
     const auto& ends_shape = input_shapes[1];
     const auto& symbols_shape = input_shapes[2];
     NODE_SHAPE_INFER_CHECK(op, input_shapes, symbols_shape.rank().compatible(1), "Symbols input must be 1D.");
