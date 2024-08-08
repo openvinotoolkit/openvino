@@ -7,75 +7,75 @@
 
 using namespace ov::intel_cpu;
 
-void ProxyMemoryMngr::setMemMngr(std::shared_ptr<IMemoryMngr> pMngr) {
-    OPENVINO_ASSERT(pMngr, "Attempt to set null memory manager to a ProxyMemoryMngr object");
-    if (m_pMngr == pMngr) {
+void ProxyMemoryBlock::setMemBlock(std::shared_ptr<IMemoryBlock> pBlock) {
+    OPENVINO_ASSERT(pBlock, "Attempt to set null memory block to a ProxyMemoryBlock object");
+    if (m_pMemBlock == pBlock) {
         return;
     }
 
-    m_pMngr = pMngr;
+    m_pMemBlock = pBlock;
     notifyUpdate();
 }
 
-void ProxyMemoryMngr::setMemMngrResize(std::shared_ptr<IMemoryMngr> pMngr) {
-    OPENVINO_ASSERT(pMngr, "Attempt to set null memory manager to a ProxyMemoryMngr object");
-    if (m_pMngr == pMngr) {
+void ProxyMemoryBlock::setMemBlockResize(std::shared_ptr<IMemoryBlock> pBlock) {
+    OPENVINO_ASSERT(pBlock, "Attempt to set null memory block to a ProxyMemoryBlock object");
+    if (m_pMemBlock == pBlock) {
         return;
     }
 
-    m_pMngr = pMngr;
-    m_pMngr->resize(m_size);
+    m_pMemBlock = pBlock;
+    m_pMemBlock->resize(m_size);
     notifyUpdate();
 }
 
-void ProxyMemoryMngr::reset() {
-    if (!m_pOrigMngr) {
-        m_pOrigMngr = std::make_shared<MemoryMngrWithReuse>();
+void ProxyMemoryBlock::reset() {
+    if (!m_pOrigBlock) {
+        m_pOrigBlock = std::make_shared<MemoryBlockWithReuse>();
     }
 
-    if (m_pMngr == m_pOrigMngr) {
+    if (m_pMemBlock == m_pOrigBlock) {
         return;
     }
 
-    m_pMngr = m_pOrigMngr;
-    m_pMngr->resize(m_size);
+    m_pMemBlock = m_pOrigBlock;
+    m_pMemBlock->resize(m_size);
     notifyUpdate();
 }
 
-void* ProxyMemoryMngr::getRawPtr() const noexcept {
-    return m_pMngr->getRawPtr();
+void* ProxyMemoryBlock::getRawPtr() const noexcept {
+    return m_pMemBlock->getRawPtr();
 }
 
-void ProxyMemoryMngr::setExtBuff(void* ptr, size_t size) {
-    m_pMngr->setExtBuff(ptr, size);
+void ProxyMemoryBlock::setExtBuff(void* ptr, size_t size) {
+    m_pMemBlock->setExtBuff(ptr, size);
     notifyUpdate();
 }
 
-bool ProxyMemoryMngr::resize(size_t size) {
-    auto res = m_pMngr->resize(size);
-    DEBUG_LOG(this, ", ", m_pMngr, " size ", m_size, " -> ", size, " resized? ", res, " RawPtr ", getRawPtr());
+bool ProxyMemoryBlock::resize(size_t size) {
+    auto res = m_pMemBlock->resize(size);
+    DEBUG_LOG(this, ", ", m_pMemBlock, " size ", m_size, " -> ", size, " resized? ", res, " RawPtr ", getRawPtr());
     m_size = size;
     notifyUpdate();
     return res;
 }
 
-bool ProxyMemoryMngr::hasExtBuffer() const noexcept {
-    return m_pMngr->hasExtBuffer();
+bool ProxyMemoryBlock::hasExtBuffer() const noexcept {
+    return m_pMemBlock->hasExtBuffer();
 }
 
-void ProxyMemoryMngr::registerMemory(Memory* memPtr) {
+void ProxyMemoryBlock::registerMemory(Memory* memPtr) {
     if (memPtr) {
         m_setMemPtrs.insert(memPtr);
     }
 }
 
-void ProxyMemoryMngr::unregisterMemory(Memory* memPtr) {
+void ProxyMemoryBlock::unregisterMemory(Memory* memPtr) {
     if (memPtr) {
         m_setMemPtrs.erase(memPtr);
     }
 }
 
-void ProxyMemoryMngr::notifyUpdate() {
+void ProxyMemoryBlock::notifyUpdate() {
     for (auto& item : m_setMemPtrs) {
         if (item) {
             item->update();

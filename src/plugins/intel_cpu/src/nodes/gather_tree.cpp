@@ -98,14 +98,14 @@ void GatherTree::prepareParams() {
     const auto& maxSeqLenMemPtr = getSrcMemoryAtPort(GATHER_TREE_MAX_SEQ_LEN);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
 
-    if (!stepIdxMemPtr || !stepIdxMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " has not allocated input memory of 'step_ids'.");
-    if (!parentIdxMemPtr || !parentIdxMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " has not allocated input memory of 'parent_ids'.");
-    if (!maxSeqLenMemPtr || !maxSeqLenMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " has not allocated input memory of 'max_seq_len'.");
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " has not allocated output memory.");
+    if (!stepIdxMemPtr || !stepIdxMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined input memory of 'step_ids'.");
+    if (!parentIdxMemPtr || !parentIdxMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined input memory of 'parent_ids'.");
+    if (!maxSeqLenMemPtr || !maxSeqLenMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined input memory of 'max_seq_len'.");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined output memory.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         OPENVINO_THROW(errorPrefix, " has unidentified preferable primitive descriptor.");
 

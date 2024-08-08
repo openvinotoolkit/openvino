@@ -365,9 +365,9 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
                             " Could not find an allocated edge to resolve in-place for node: ",
                             getName());
 
-            auto baseMemMngr = (*itr)->getMemory().getMemoryMngr();
-            auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr);
-            auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().inConfs[i].getMemDesc(), memMngr);
+            auto baseMemBlock = (*itr)->getMemory().getMemoryBlock();
+            auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock);
+            auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().inConfs[i].getMemDesc(), memBlock);
             parentEdge->reuse(newMem);
         }
     }
@@ -378,15 +378,15 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
             if (inplaceInpIndx < 0)
                 continue;
 
-            auto baseMemMngr = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryMngr();
-            auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr);
+            auto baseMemBlock = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryBlock();
+            auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock);
             const auto& childEdges = getChildEdgesAtPort(i);
 
             for (auto& childEdge : childEdges) {
                 OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
                                 " Unexpected inplace resolve call to an allocated edge: ",
                                 childEdge->name());
-                auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().outConfs[i].getMemDesc(), memMngr);
+                auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().outConfs[i].getMemDesc(), memBlock);
                 childEdge->reuse(newMem);
             }
         }
@@ -1496,7 +1496,7 @@ bool Node::isInputTensorAtPortEmpty(size_t port) const {
     auto edge = getParentEdgeAt(port);
     if (one_of(edge->getStatus(), Edge::Status::Allocated, Edge::Status::Validated)) {
         auto&& mem = edge->getMemory();
-        if (mem.isAllocated()) {
+        if (mem.isDefined()) {
             return mem.getShape().hasZeroDims();
         }
     }
@@ -1511,7 +1511,7 @@ bool Node::isOutputTensorAtPortEmpty(size_t port) const {
         return outputShapes[port].hasZeroDims();
     }
     auto&& mem = getChildEdgeAt(port)->getMemory();
-    if (mem.isAllocated()) {
+    if (mem.isDefined()) {
         return mem.getShape().hasZeroDims();
     }
     return false;

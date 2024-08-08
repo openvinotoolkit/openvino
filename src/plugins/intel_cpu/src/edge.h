@@ -52,7 +52,7 @@ public:
 
     void init();
     void allocate(const void* mem_ptr = nullptr);
-    void allocate(MemoryMngrPtr memMngr);
+    void allocate(MemoryBlockPtr memBlock);
     void externalAllocate(WeightsSharing::Ptr weightsCache);
     void reuse(MemoryPtr ptr);
     void validate();
