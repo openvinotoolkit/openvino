@@ -100,7 +100,7 @@ public:
     }
 
     /**
-     * @brief This function is used to obtain remote tensor object from user-supplied Direct3D 12 Core object
+     * @brief This function is used to obtain remote tensor object from user-supplied NT handle object
      * @param type Tensor element type
      * @param shape Tensor shape
      * @param buffer A void* object that should be wrapped by a remote tensor
