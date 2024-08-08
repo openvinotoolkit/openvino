@@ -14,10 +14,7 @@ This page demonstrates how to use the Benchmark Tool to estimate deep learning i
 
 .. note::
 
-   The Python version is recommended for benchmarking models that will be used
-   in Python applications, and the C++ version is recommended for benchmarking
-   models that will be used in C++ applications. Both tools have a similar
-   command interface and backend.
+   Use either Python or C++ version, depending on the language of your application.
 
 
 Basic Usage
@@ -226,8 +223,12 @@ should be used purposefully. For more information, see the
 
 .. note::
 
-   If the latency or throughput hint is set, it will automatically configure streams
-   and batch sizes for optimal performance based on the specified device.)
+   * If the latency or throughput hint is set, it will automatically configure streams
+     batch sizes, and number of parallel infer requests for optimal performance based on the specified device.
+
+   * Optionally, you can specify the number of parallel infer requests with the ``-nireq``
+     option. Setting a high value may result in better throughput at the expense
+     of latency, for which a low value is recommended.
 
 Number of iterations
 ++++++++++++++++++++
