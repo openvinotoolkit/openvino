@@ -14,6 +14,7 @@ namespace Extensions {
 namespace Cpu {
 namespace XARCH {
 
+#if defined(OPENVINO_ARCH_ARM64)
 void attn_softmax(ov::float16* a,
                   void* a_dst,
                   float scale,
@@ -25,6 +26,7 @@ void attn_softmax(ov::float16* a,
                   size_t total_size,
                   ov::element::Type attn_mask_prec,
                   ov::element::Type dst_precision);
+#endif
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions

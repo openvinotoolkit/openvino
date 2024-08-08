@@ -27,9 +27,12 @@
 #     include "kernels/acl/gemm_kernel.hpp"
 #endif
 
+#ifdef OPENVINO_ARCH_ARM64
+#     include "kernels/scaled_attn/softmax_f16.hpp"
+#endif
+
 #include "utils/plain_tensor.hpp"
 #include "kernels/scaled_attn/softmax.hpp"
-#include "kernels/scaled_attn/softmax_f16.hpp"
 #include "kernels/scaled_attn/mha_single_token.hpp"
 #include "kernels/scaled_attn/attn_memcpy.hpp"
 #include "kernels/scaled_attn/attn_quant.hpp"

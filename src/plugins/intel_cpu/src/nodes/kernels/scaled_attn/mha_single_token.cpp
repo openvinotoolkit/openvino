@@ -1172,10 +1172,12 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                            past_k_scale_zp,
                                                                            past_v_scale_zp,
                                                                            head_sum);
-#else
+        } else {
             OPENVINO_THROW("Unsupported precision: ", query.get_precision());
-#endif
         }
+#else
+        OPENVINO_THROW("Unsupported precision: ", query.get_precision());
+#endif
     } else {
         OPENVINO_THROW("Unsupported precision: ", query.get_precision());
     }
