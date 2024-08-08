@@ -135,7 +135,7 @@ function(ov_download_tbb)
                 ARCHIVE_MAC "oneapi-tbb-2021.13.0-mac.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "6346e64872b6b6a0d5c7e8e6855b680d6c7cb9ee28fc5d2552461ce2c7c14303"
+                SHA256 "3f128e0bcd5496a5eba62cfaa1fbc664e991df79a4b557a32d314d13fa8726d1"
                 USE_NEW_LOCATION TRUE)
     elseif(WIN32 AND AARCH64)
         # build oneTBB 2021.2.1 with Visual Studio 2022 (MSVC 14.35)
@@ -159,7 +159,7 @@ function(ov_download_tbb)
                 ARCHIVE_MAC "oneapi-tbb-2021.13.0-mac-arm64-release.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "feeb237698f79a6e2c76e81b2c83417c432e515238e8cb051fa9652ef919febb"
+                SHA256 "f91ce4636355abdfed7cb382e53d483b6295701ea6c1eccac34c107be63a0d81"
                 USE_NEW_LOCATION TRUE)
     else()
         message(WARNING "Prebuilt TBB is not available on current platform")
