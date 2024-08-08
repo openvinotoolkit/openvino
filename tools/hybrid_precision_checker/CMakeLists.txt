@@ -4,7 +4,7 @@
 
 cmake_minimum_required (VERSION 3.13)
 
-project(OpenVINOHyperChecker)
+project(OpenVINOHybridChecker)
 
 #
 # Packages & settings
@@ -26,19 +26,19 @@ endif()
 #
 
 ov_get_pyversion(pyversion)
-ov_cpack_add_component(${OV_CPACK_COMP_HYPERCHECKER}
+ov_cpack_add_component(${OV_CPACK_COMP_HYBRID_PRECISION_CHECKER}
                         HIDDEN)
 
-install(DIRECTORY ${OpenVINOHyperChecker_SOURCE_DIR}/openvino
+install(DIRECTORY ${OpenVINOHybridChecker_SOURCE_DIR}/openvino
         DESTINATION ${OV_CPACK_PYTHONDIR}
-	COMPONENT ${OV_CPACK_COMP_HYPERCHECKER}
-	${OV_CPACK_COMP_HYPERCHECKER_EXCLUDE_ALL}
+	    COMPONENT ${OV_CPACK_COMP_HYBRID_PRECISION_CHECKER}
+	    ${OV_CPACK_COMP_HYBRID_PRECISION_CHECKER_EXCLUDE_ALL}
         USE_SOURCE_PERMISSIONS)
 
 #
 # Cpack
 #
 
-if(CMAKE_SOURCE_DIR STREQUAL OpenVINOHyperChecker_SOURCE_DIR)
+if(CMAKE_SOURCE_DIR STREQUAL OpenVINOHybridChecker_SOURCE_DIR)
     ov_cpack(${OV_CPACK_COMPONENTS_ALL})
 endif()

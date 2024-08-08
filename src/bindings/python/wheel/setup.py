@@ -185,6 +185,18 @@ PY_INSTALL_CFG = {
         "install_dir": PY_PACKAGES_DIR,
         "binary_dir": "ovc",
     },
+    "hybrid_precision_checker": {
+        "entry_point": {
+            "console_scripts": [
+                "hybrid_precision_checker = openvino.tools.hybrid_precision_checker.main:main",
+            ],
+        },
+        "name": "hybrid_precision_checker",
+        "prefix": f"{BUILD_BASE}/site-packages",
+        "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/hybrid_precision_checker",
+        "install_dir": PY_PACKAGES_DIR,
+        "binary_dir": "hybrid_precision_checker",
+    },
     "benchmark_app": {
         "entry_point": {
             "console_scripts": [

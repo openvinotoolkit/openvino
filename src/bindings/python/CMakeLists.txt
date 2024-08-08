@@ -132,6 +132,7 @@ endfunction()
 
 set(INIT_FILES_RUNTIME "${OpenVINOPython_SOURCE_DIR}/src/openvino/__init__.py"
                        "${OpenVINO_SOURCE_DIR}/tools/ovc/openvino/__init__.py"
+                       "${OpenVINO_SOURCE_DIR}/tools/hybrid_precision_checker/openvino/__init__.py"
                        "${OpenVINO_SOURCE_DIR}/tools/benchmark_tool/openvino/__init__.py")
 
 ov_check_init_files_alignment("${INIT_FILES_RUNTIME}")

@@ -7,13 +7,13 @@ from datetime import datetime
 
 # from openvino.runtime import Dimension,properties
 
-from openvino.tools.hyper_precision_checker.hyper_precision_checker import ModelRunner, ModelCreator
-from openvino.tools.hyper_precision_checker.search_strategy import FP32FallbackSearcher
-from openvino.tools.hyper_precision_checker.results_process import ResultChecker
-from openvino.tools.hyper_precision_checker.inputs_filling import get_input_data
-from openvino.tools.hyper_precision_checker.logging import logger
-from openvino.tools.hyper_precision_checker.utils import parse_args, parser_perf_counters, get_inputs_info
-from openvino.tools.hyper_precision_checker.constants import BIN_EXTENSION, XML_EXTENSION
+from openvino.tools.hybrid_precision_checker.hybrid_precision_checker import ModelRunner, ModelCreator
+from openvino.tools.hybrid_precision_checker.search_strategy import FP32FallbackSearcher
+from openvino.tools.hybrid_precision_checker.results_process import ResultChecker
+from openvino.tools.hybrid_precision_checker.inputs_filling import get_input_data
+from openvino.tools.hybrid_precision_checker.logging import logger
+from openvino.tools.hybrid_precision_checker.utils import parse_args, parser_perf_counters, get_inputs_info
+from openvino.tools.hybrid_precision_checker.constants import BIN_EXTENSION, XML_EXTENSION
 
 
 def parse_and_check_command_line():

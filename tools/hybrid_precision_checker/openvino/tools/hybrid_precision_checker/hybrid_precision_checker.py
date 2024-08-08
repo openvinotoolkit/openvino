@@ -6,7 +6,7 @@ from datetime import datetime
 from openvino.runtime import Core, get_version, AsyncInferQueue, serialize
 import xml.etree.ElementTree as ET
 
-from openvino.tools.hyper_precision_checker.results_process import OV_Result
+from openvino.tools.hybrid_precision_checker.results_process import OV_Result
 
 from .constants import XML_EXTENSION, BIN_EXTENSION
 from .logging import logger
@@ -160,9 +160,9 @@ class ModelRunner:
             self.requests.start_async(userdata=index)
             iteration += 1
 
-        exec_time = (datetime.utcnow() - start_time).total_seconds()
+        exec_time = (datetime.now() - start_time).total_seconds()
         self.requests.wait_all()
-        total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
+        total_duration_sec = (datetime.now() - start_time).total_seconds()
 
         for infer_request_id in in_fly:
             times.append(self.requests[infer_request_id].latency)

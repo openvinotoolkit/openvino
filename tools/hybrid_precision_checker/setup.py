@@ -93,7 +93,7 @@ def read_requirements(path: str) -> List[str]:
 
 
 setup(
-    name='hyper_precison_checker',
+    name='hybrid_precison_checker',
     version='0.0.0',
     author='Intel® Corporation',
     license='OSI Approved :: Apache Software License',
@@ -104,7 +104,7 @@ setup(
     long_description_content_type='text/markdown',
     entry_points={
         'console_scripts': [
-            'hyper_precison_checker = openvino.tools.hyper_precison_checker.main:main'],
+            'hybrid_precison_checker = openvino.tools.hybrid_precison_checker.main:main'],
     },
     classifiers=[
         'Programming Language :: Python :: 3',

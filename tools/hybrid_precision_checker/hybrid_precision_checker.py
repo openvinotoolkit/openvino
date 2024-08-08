@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
-from openvino.tools.hyper_precision_checker.main import main
+from openvino.tools.hybrid_precision_checker.main import main
 
 
 if __name__ == "__main__":
