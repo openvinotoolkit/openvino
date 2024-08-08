@@ -48,23 +48,6 @@ private:
 };
 
 /**
- * @interface TransformInnerSplitLoop
- * @brief The pass updates finalization offsets, work amount and increment of inner Loop basing on tail_size of the current Loop
- * @param m_tail_size - tail_size of the current Loop
- * @ingroup snippets
- */
-class TransformInnerSplitLoop : public pass::RangedPass {
-public:
-    TransformInnerSplitLoop(size_t tail_size);
-    OPENVINO_RTTI("TransformInnerSplitLoop", "RangedPass")
-    bool run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) override;
-    std::shared_ptr<pass::PassBase> merge(const std::shared_ptr<pass::PassBase>& other) override;
-
-private:
-    size_t m_tail_size;
-};
-
-/**
  * @interface SetLoopIncrementOne
  * @brief The pass set `increment = 1` to ExpandedLoopInfo which is mapped on LoopEnd in the passed iterator `end` and to this LoopEnd.
  * @ingroup snippets
