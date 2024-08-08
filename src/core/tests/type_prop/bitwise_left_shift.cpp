@@ -6,7 +6,7 @@
 
 #include "bitwise_ops.hpp"
 
-using Type = ::testing::Types<ov::op::v15::BitwiseLeftShift>;
+using OpType = ::testing::Types<ov::op::v15::BitwiseLeftShift>;
 
-INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_bitwise_left_shift, BitwiseOperator, Type);
-INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_bitwise_left_shift, BitwiseOperatorNotBoolean, Type);
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_bitwise_left_shift, BitwiseOperator, OpType);
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_bitwise_left_shift, BitwiseOperatorNotBoolean, OpType);
