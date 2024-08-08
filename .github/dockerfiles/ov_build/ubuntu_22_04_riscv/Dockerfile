@@ -62,10 +62,16 @@ RUN echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy main restricte
 
 RUN dpkg --add-architecture riscv64 && \
     apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list && \
-    apt-get install -y --no-install-recommends libpython3-dev:riscv64
+    apt-get install -y --no-install-recommends libpython3-dev:riscv64 && \
+    apt-get install -y --no-install-recommends apt-utils && \
+    apt-get -y install  curl && apt-get install libgomp1:riscv64 && \
+    apt-get install libatomic.so.1:riscv64
+
+RUN echo 'libgomp installed'
 
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
+
