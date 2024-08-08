@@ -70,7 +70,6 @@ from tests import (
     skip_issue_125489,
     xfail_issue_125491,
     xfail_issue_125492,
-    xfail_issue_125493,
     xfail_issue_122775,
     xfail_issue_122776,
     skip_misalignment,
@@ -439,12 +438,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reduce_log_sum_asc_axes_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_desc_axes_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_desc_axes_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_do_not_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_do_not_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_negative_axes_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_negative_axes_keepdims_random_cpu",
     ),
     (
         xfail_issue_99969,
@@ -628,10 +621,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_dft_axis_opset19_cpu",
         "OnnxBackendNodeModelTest.test_dft_inverse_opset19_cpu",
         "OnnxBackendNodeModelTest.test_dft_opset19_cpu",
-    ),
-    (
-        xfail_issue_125493,
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_empty_set_cpu",
     ),
     (
         skip_misalignment,
