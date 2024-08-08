@@ -1084,8 +1084,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1_18_axes_as_input) {
     test_case.add_input<float>(Shape{1, 1, 4, 4}, {2, 1, 4, 2, 3, 1, 3, 2, 4, 2, 4, 2, 2, 2, 1, 4});
     test_case.add_input<int64_t>({3});
 
-    test_case.add_expected_output(Shape{1, 1, 4, 1},
-                                  std::vector<float>{2.19722458f, 2.19722458f, 2.48490665f, 2.19722458f});
+    test_case.add_expected_output(Shape{1, 1, 4, 1}, std::vector<float>{9, 9, 12, 9});
 
     test_case.run();
 }
