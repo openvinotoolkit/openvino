@@ -38,35 +38,35 @@ public:
         const auto& primitive = impl_param.typed_desc<lstm_elt>();
         auto params = get_default_params<kernel_selector::lstm_elt_params>(impl_param);
 
-        if (!primitive->cell.empty()) {
+        if (!primitive->params.initial_cell_state.pid.empty()) {
             const auto& cell_idx = 1;
             const auto& cell_layout = impl_param.input_layouts[cell_idx];
             params.SetCell(convert_data_tensor(cell_layout));
             // TODO: make a generic function to get the direction
             if (cell_layout.spatial(1) > 1) {
-                params.cell_direction = primitive->direction;
+                params.cell_direction = primitive->params.direction;
             }
         }
 
-        if (!primitive->activations.empty()) {
-            auto a_sz = primitive->activations.size();
-            auto param_sz = primitive->activation_params.size();
+        if (!primitive->params.activations.empty()) {
+            auto a_sz = primitive->params.activations.size();
+            auto param_sz = primitive->params.activation_params.size();
             OPENVINO_ASSERT(param_sz == 0|| a_sz == param_sz, "[GPU] Unexpected activation params count in lstm_elt impl: ", param_sz);
             for (size_t i = 0; i < a_sz; i++) {
-                params.activations.emplace_back(get_kernel_selector_activation_param(primitive->activations[i]),
-                                                         param_sz ? primitive->activation_params[i].a : 0.0f,
-                                                         param_sz ? primitive->activation_params[i].b : 0.0f);
+                params.activations.emplace_back(get_kernel_selector_activation_param(primitive->params.activations[i]),
+                                                         param_sz ? primitive->params.activation_params[i].a : 0.0f,
+                                                         param_sz ? primitive->params.activation_params[i].b : 0.0f);
             }
         }
 
-        if (primitive->clip > 0.0f) {
-            params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp), -primitive->clip, primitive->clip);
+        if (primitive->params.clip > 0.0f) {
+            params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp), -primitive->params.clip, primitive->params.clip);
         }
 
-        params.SetOffsetOrder(static_cast<int32_t>(primitive->offset_order));
-        params.clip = primitive->clip;
+        params.SetOffsetOrder(static_cast<int32_t>(primitive->params.offset_order));
+        params.clip = primitive->params.clip;
         params.input_forget = primitive->input_forget;
-        params.direction = primitive->direction;
+        params.direction = primitive->params.direction;
 
         return params;
     }

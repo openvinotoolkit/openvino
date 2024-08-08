@@ -54,7 +54,7 @@ struct RNNParams{
     primitive_id id;
     input_info x;
     input_info initial_hidden_state;
-    input_info initial_cell_state;
+    input_info initial_cell_state;/// @brief for lstm_elt primitive field for cell input_info
     input_info seq_lenghts;
     input_info W;
     input_info R;
@@ -199,7 +199,7 @@ struct rnn : public primitive_base<rnn> {
 
     bool operator==(const primitive& rhs) const override {
         auto rhs_casted = downcast<const rnn>(rhs);
-        return params == rhs_casted.params;
+        return params == rhs_casted.params && output_data_types == rhs_casted.output_data_types;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

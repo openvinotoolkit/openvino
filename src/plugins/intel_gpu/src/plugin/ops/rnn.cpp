@@ -108,8 +108,9 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
         cldnn::primitive_id wr_concat_id = layerName + "_WRconcat";
         p.add_primitive(*op, cldnn::concatenation(wr_concat_id, { inputs[3], inputs[4] }, 1));
         p.add_primitive(*op, cldnn::fully_connected(lstm_fc_id, cldnn::input_info(input_concatID), wr_concat_id, bias.pid));
-        p.add_primitive(*op, cldnn::lstm_elt(lstm_elt_id, cldnn::input_info(lstm_fc_id), inputs[2].pid, clip, 0, activations,
-                                            activation_params, cldnn::lstm_weights_order::fizo, 0));
+        p.add_primitive(*op, cldnn::lstm_elt({lstm_elt_id, cldnn::input_info(lstm_fc_id), cldnn::input_info(inputs[2]), cldnn::input_info(), \
+        cldnn::input_info(), cldnn::input_info(), cldnn::input_info(), cldnn::input_info(), "", "", clip, activations,
+                                            activation_params, cldnn::lstm_weights_order::fizo}, 0));
 
         auto outSz = op->get_output_partial_shape(0);
         std::vector<int64_t> outSzPt;
@@ -206,9 +207,10 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
         p.add_primitive(*op, cldnn::fully_connected(lstm_fc_id, cldnn::input_info(FCInputReshapeID), WRconcatID, bias.pid));
         p.add_primitive(*op, cldnn::reshape(gemmReshapeID, cldnn::input_info(lstm_fc_id), gemmSz));
         p.add_primitive(*op, cldnn::reorder(gemmReorderID, cldnn::input_info(gemmReshapeID), gemmLayout));
-        p.add_primitive(*op, cldnn::lstm_elt(lstm_elt_id, cldnn::input_info(gemmReorderID), cellInStr, clip, 0, activations,
-                                            activation_params, cldnn::lstm_weights_order::fizo, 0));
 
+        p.add_primitive(*op, cldnn::lstm_elt({lstm_elt_id, cldnn::input_info(gemmReorderID), cldnn::input_info(), cldnn::input_info(cellInStr), \
+        cldnn::input_info(), cldnn::input_info(), cldnn::input_info(), cldnn::input_info(), "", "", clip, activations, \
+                                            activation_params, cldnn::lstm_weights_order::fizo}, 0));
 
         cldnn::tensor outSz = cldnn::tensor{ lstm_batch_size, lstm_hidden_size, 1, 1 };
         cldnn::primitive_id outputHiddenCropID = layerName + "_hc";
