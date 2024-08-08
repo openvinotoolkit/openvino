@@ -160,6 +160,8 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
 struct non_max_suppression_gather : primitive_base<non_max_suppression_gather> {
     CLDNN_DECLARE_PRIMITIVE(non_max_suppression_gather)
 
+    non_max_suppression_gather() : primitive_base("", {}) {}
+
     /// @brief Constructs non_max_suppression_gather primitive.
     /// @param id This primitive id.
     /// @param inputs Input primitives ids.
