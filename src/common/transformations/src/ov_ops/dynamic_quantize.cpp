@@ -40,8 +40,8 @@ std::shared_ptr<Node> DynamicQuantize::clone_with_new_inputs(const ov::OutputVec
 }
 
 std::vector<ov::PartialShape> DynamicQuantize::shape_infer(const DynamicQuantize* op,
-                                                           const std::vector<ov::PartialShape> &input_shapes,
-                                                           const std::vector<size_t> &group_sizes) {
+                                                           const std::vector<ov::PartialShape>& input_shapes,
+                                                           const std::vector<size_t>& group_sizes) {
     std::vector<ov::PartialShape> out_shapes;
     out_shapes.push_back(input_shapes[0]);
 
