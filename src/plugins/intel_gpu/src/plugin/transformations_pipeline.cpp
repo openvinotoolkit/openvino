@@ -70,6 +70,7 @@
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/group_norm_composition.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
@@ -848,6 +849,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
+
+        manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
 
         auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
         if (device_info.supports_immad) { // XXX: 1048576 is considered per-token
