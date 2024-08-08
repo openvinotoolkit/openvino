@@ -147,7 +147,15 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
     std::map<instrumentation::profiling_stage, std::vector<std::pair<unsigned long long, unsigned long long>>> all_durations;
 
     for (size_t i = 0; i < _events.size(); i++) {
-        auto be = downcast<ocl_event>(_events[i].get());
+        ocl_event *be = nullptr;
+
+        try {
+            be = downcast<ocl_event>(_events[i].get());
+        } catch (const ov::Exception &err) {
+            GPU_DEBUG_LOG << "WARNING: failed to downcast event to ocl_event - " << err.what() << std::endl;
+            continue;
+        }
+
         if (!is_event_profiled(be->_event))
             continue;
 
