@@ -326,7 +326,6 @@ INSTANTIATE_TEST_SUITE_P(MatmulConversions_basic_2,
 class MatmulConversionsOtherTypeSibling : public MatmulConversions,
             virtual public ov::test::SubgraphBaseTest {
 public:
-
 protected:
     std::shared_ptr<ov::Model> init_subgraph(std::vector<ov::PartialShape>& input_shapes,
                                              const ov::element::Type input_precision,
