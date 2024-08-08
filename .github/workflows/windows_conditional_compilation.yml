@@ -62,6 +62,7 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_MAXSIZE: 3G
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
+      ONECORE_TOOLCHAIN: "${{ github.workspace }}\\openvino\\cmake\\toolchains\\onecoreuap.toolchain.cmake"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
@@ -170,6 +171,7 @@ jobs:
             -DENABLE_PROFILING_ITT=ON `
             -DSELECTIVE_BUILD=COLLECT `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
+            -DCMAKE_TOOLCHAIN_FILE=${{ env.ONECORE_TOOLCHAIN }} `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
@@ -190,7 +192,7 @@ jobs:
 
       - name: Build C++ samples - OpenVINO build tree
         run: |
-          cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
+          cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples -DCMAKE_TOOLCHAIN_FILE=${{ env.ONECORE_TOOLCHAIN }}
           cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
 
       - name: Build C samples - OpenVINO install tree
