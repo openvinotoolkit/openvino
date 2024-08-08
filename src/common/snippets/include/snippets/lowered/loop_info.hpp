@@ -23,17 +23,9 @@ public:
     enum {UNDEFINED_DIM_IDX = std::numeric_limits<size_t>::max()};
 
     LoopInfo() = default;
-    LoopInfo(size_t work_amount, size_t increment, const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits, bool is_wa_const = false);
-    LoopInfo(size_t work_amount, size_t increment, const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits,
-             bool is_wa_const = false);
+    LoopInfo(size_t work_amount, size_t increment, const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits);
+    LoopInfo(size_t work_amount, size_t increment, const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits);
     virtual ~LoopInfo() = default;
-
-    /**
-     * @brief Clone LoopInfo with new expressions
-     * @param expr_map map of new and old expressions
-     * @return the copy
-     */
-    virtual std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map) const = 0;
 
     /**
      * @brief Check if some parameters of Loop are dynamic (undefined)
@@ -62,7 +54,7 @@ public:
      * @brief Returns work amount of the Loop.
      * @return m_work_amount
      */
-    size_t get_work_amount() const;
+    virtual size_t get_work_amount() const;
     /**
      * @brief Returns step of loop counter increment.
      * @return m_increment
@@ -83,17 +75,12 @@ public:
      * @return m_output_ports
      */
     const std::vector<LoopPort>& get_output_ports() const;
-    /**
-     * @brief Returns True if `work_amount` cannot be rewritten/updated by passes.
-     * @return m_is_work_amount_const
-     */
-    bool is_work_amount_const() const;
 
     /**
      * @brief Set m_work_amount value
      * @param work_amount - work amount of the loop
      */
-    void set_work_amount(size_t work_amount);
+    virtual void set_work_amount(size_t work_amount);
     /**
      * @brief Set m_increment value
      * @param increment - step of loop counter increment
@@ -104,13 +91,8 @@ public:
      * @param dim_idx - index
      */
     void set_dim_idx(size_t dim_idx);
-    /**
-     * @brief Sets `value` to `m_is_work_amount_const`
-     * @param value - value of the attribute
-     */
-    void set_work_amount_const(bool value);
 
-/**
+    /**
      * @brief Replace the current LoopPort `actual_port` with new `target_ports`
      * @param actual_port actual port
      * @param target_ports new ports. The ports order is important. Can contain `actual_port`
@@ -188,10 +170,6 @@ protected:
     // Note: Scalars aren't input expressions but can be before first input expr in Linear IR
     std::vector<LoopPort> m_input_ports = {};
     std::vector<LoopPort> m_output_ports = {};
-
-    // TODO [143394] : All static values in compilation stage should be `is_const=True` (not only `work_amount`)
-    // If True, no one pass can rewrite the value of `m_work_amount`
-    bool m_is_work_amount_const = false;
 };
 using LoopInfoPtr = std::shared_ptr<LoopInfo>;
 
@@ -227,20 +205,20 @@ public:
     UnifiedLoopInfo(size_t work_amount, size_t increment,
                     const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
                     const std::vector<LoopPortDesc>& in_descs, const std::vector<LoopPortDesc>& out_descs,
-                    const SpecificIterationHandlers& handlers = SpecificIterationHandlers(), bool is_wa_const = false);
+                    const SpecificIterationHandlers& handlers = SpecificIterationHandlers());
     UnifiedLoopInfo(size_t work_amount, size_t increment,
                     const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
-                    const SpecificIterationHandlers& handlers = SpecificIterationHandlers(), bool is_wa_const = false);
+                    const SpecificIterationHandlers& handlers = SpecificIterationHandlers());
     UnifiedLoopInfo(size_t work_amount, size_t increment,
                     const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits,
-                    const SpecificIterationHandlers& handlers = SpecificIterationHandlers(), bool is_wa_const = false);
+                    const SpecificIterationHandlers& handlers = SpecificIterationHandlers());
 
     /**
      * @brief Clone LoopInfo with new expressions
      * @param expr_map map of new and old expressions
      * @return the copy
      */
-    std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map) const override;
+    std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map) const;
 
     /**
      * @brief Check if some parameters of Loop are dynamic (undefined)
@@ -362,7 +340,7 @@ public:
             caller(m_output_ports[i], m_output_port_descs[i]);
     }
 
-private:
+protected:
     /**
      * @brief Clone LoopPortDesc[actual_port_idx] `new_count` times and insert on the place of current desc
      * @param actual_port_idx index of the current descriptor/port
@@ -378,6 +356,56 @@ private:
 using UnifiedLoopInfoPtr = std::shared_ptr<UnifiedLoopInfo>;
 
 /**
+ * @interface InnerSplittedUnifiedLoopInfo
+ * @brief The structure describes inner splitted Loop after `SplitLoops`.
+ *        Contains pointer to outer splitted loop info. WorkAmount is equal to increment of outer splitted loop info.
+ * @ingroup snippets
+ */
+class InnerSplittedUnifiedLoopInfo : public UnifiedLoopInfo {
+public:
+    OPENVINO_RTTI("InnerSplittedUnifiedLoopInfo", "0", UnifiedLoopInfo)
+
+    InnerSplittedUnifiedLoopInfo() = default;
+    InnerSplittedUnifiedLoopInfo(size_t increment, const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
+                                 const std::vector<LoopPortDesc>& in_descs, const std::vector<LoopPortDesc>& out_descs,
+                                 const SpecificIterationHandlers& handlers, LoopInfoPtr outer_splitted_loop_info);
+
+    /**
+     * @brief Clone LoopInfo with new expressions
+     * @param expr_map map of new and old expressions
+     * @param new_outer_splitted_loop_info new outer splitted loop info
+     * @return the copy
+     */
+    std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map, LoopInfoPtr new_outer_splitted_loop_info) const;
+
+    /**
+     * @brief Returns work amount of the Loop.
+     * @return m_work_amount
+     */
+    size_t get_work_amount() const override;
+    /**
+     * @brief Returns OuterSplittedLoopInfo
+     * @return m_outer_splitted_loop_info
+     */
+    LoopInfoPtr get_outer_splitted_loop_info() const;
+
+    /**
+     * @brief Set m_work_amount value
+     * @param work_amount - work amount of the loop
+     */
+    void set_work_amount(size_t work_amount) override;
+    /**
+     * @brief Set m_outer_splitted_loop_info value
+     * @param outer - OuterSplittedLoopInfo
+     */
+    void set_outer_splitted_loop_info(LoopInfoPtr outer);
+
+private:
+    LoopInfoPtr m_outer_splitted_loop_info = nullptr;
+};
+using InnerSplittedUnifiedLoopInfoPtr = std::shared_ptr<InnerSplittedUnifiedLoopInfo>;
+
+/**
  * @interface ExpandedLoopInfo
  * @brief The structure describes expanded Loop (specific iterations) after unified loop decomposition into specific loop iterations.
  *        Contains type of specific iteration, pointer to the original unified loop and data pointer shifts for quick recalculation.
@@ -390,14 +418,14 @@ public:
     ExpandedLoopInfo(size_t work_amount, size_t increment,
                      const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
                      std::vector<int64_t> ptr_increments, std::vector<int64_t> final_offsets, std::vector<int64_t> data_sizes,
-                     SpecificLoopIterType type, std::shared_ptr<UnifiedLoopInfo> unified_loop_info, bool is_wa_const = false,
-                     bool evaluate_once = false);
+                     SpecificLoopIterType type, UnifiedLoopInfoPtr unified_loop_info, bool evaluate_once = false);
     /**
      * @brief Clone LoopInfo with new expressions
      * @param expr_map map of new and old expressions
+     * @param new_unified_loop_info new unified loop info
      * @return the copy
      */
-    std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map) const override;
+    std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map, UnifiedLoopInfoPtr new_unified_loop_info) const;
 
     /**
      * @brief Check if some parameters of Loop are dynamic (undefined)

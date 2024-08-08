@@ -7,6 +7,7 @@
 #include "openvino/opsets/opset10.hpp"
 #include "snippets/lowered/pass/extract_loop_invariants.hpp"
 #include "snippets/lowered/pass/normalize_loop_ids.hpp"
+#include "snippets/lowered/pass/split_loops.hpp"
 #include "snippets/op/broadcastmove.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/vector_buffer.hpp"
@@ -289,6 +290,63 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsFromInnermostToLoopOuts
                                                      std::vector<LoopPort>{LoopPort((*add.first)->get_input_port(0), true, 1),
                                                                            LoopPort((*add.first)->get_input_port(1), true, 1)},
                                                      std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0), true, 1)});
+    }
+}
+
+TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsSplitLoops) {
+    size_t vector_size = 16;
+    size_t block_size = 32;
+    const auto input_precision = ov::element::f32;
+    const ov::Shape input_shape_0{128, 512};
+    const ov::Shape input_shape_1{1, 1};
+    const ov::snippets::VectorDims layout{0, 1};
+    const ov::snippets::VectorDims subtensor{1, vector_size};
+    /*
+     *      Param0(128,512)    Param1(1,1)
+     *              \         /
+     *               \    Broadcast
+     *                \     /
+     *                  Add
+     *                   |
+     *                 Result
+    */
+    {
+        auto param_0 = linear_ir->push_node<ov::opset10::Parameter>(input_precision, input_shape_0);
+        auto param_1 = linear_ir->push_node<ov::opset10::Parameter>(input_precision, input_shape_1);
+        auto broadcastmove = linear_ir->push_node<ov::snippets::op::BroadcastMove>(param_1.second, 512);
+        init_expr_descriptors(*broadcastmove.first, {{1, 1}, subtensor}, {layout, layout});
+        auto add = linear_ir->push_node<ov::opset10::Add>(param_0.second, broadcastmove.second);
+        init_expr_descriptors(*add.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
+        auto result = linear_ir->push_node<ov::opset10::Result>(add.second);
+        const auto& loop_manager = linear_ir->get_loop_manager();
+        loop_manager->mark_loop(broadcastmove.first, result.first, 512, vector_size,
+                                std::vector<LoopPort>{LoopPort((*broadcastmove.first)->get_input_port(0), true, 0),
+                                                      LoopPort((*add.first)->get_input_port(0), true, 0)},
+                                std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0), true, 0)});
+        const auto inner_loop_id = loop_manager->mark_loop(broadcastmove.first, result.first, 3, 1,
+                                std::vector<LoopPort>{LoopPort((*broadcastmove.first)->get_input_port(0), true, 1),
+                                                      LoopPort((*add.first)->get_input_port(0), true, 1)},
+                                std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0), true, 1)});
+        ov::snippets::lowered::pass::SplitLoops::split(*linear_ir, inner_loop_id, block_size);
+    }
+    {
+        auto param_0 = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape_0);
+        auto param_1 = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape_1);
+        auto broadcastmove = linear_ir_ref->push_node<ov::snippets::op::BroadcastMove>(param_1.second, 512);
+        init_expr_descriptors(*broadcastmove.first, {{1, 1}, subtensor}, {layout, layout});
+        auto add = linear_ir_ref->push_node<ov::opset10::Add>(param_0.second, broadcastmove.second);
+        init_expr_descriptors(*add.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
+        auto result = linear_ir_ref->push_node<ov::opset10::Result>(add.second);
+        const auto& loop_manager = linear_ir_ref->get_loop_manager();
+        loop_manager->mark_loop(add.first, result.first, 512, vector_size,
+                                std::vector<LoopPort>{LoopPort((*add.first)->get_input_port(0), true, 0),
+                                                      LoopPort((*add.first)->get_input_port(1), true, 0)},
+                                std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0), true, 0)});
+        const auto inner_loop_id = loop_manager->mark_loop(add.first, result.first, 3, 1,
+                                std::vector<LoopPort>{LoopPort((*add.first)->get_input_port(0), true, 1),
+                                                      LoopPort((*add.first)->get_input_port(1), true, 1)},
+                                std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0), true, 1)});
+        ov::snippets::lowered::pass::SplitLoops::split(*linear_ir_ref, inner_loop_id, block_size);
     }
 }
 
