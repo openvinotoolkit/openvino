@@ -19,6 +19,15 @@ public:
     BitwiseLeftShift() = default;
     /// \brief Constructs a bitwise BitwiseLeftShift operation.
     ///
+    /// \param arg0 Node with data to be shifted.
+    /// `[d0, ...]`
+    /// \param arg1 Node with number of shifts.
+    /// `[d0, ...]`
+    /// \param auto_broadcast Auto broadcast specification. Default is Numpy-style
+    ///                       implicit broadcasting.
+    ///
+    /// Output `[d0, ...]`
+    ///
     BitwiseLeftShift(const Output<Node>& arg0,
                      const Output<Node>& arg1,
                      const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec(AutoBroadcastType::NUMPY));
