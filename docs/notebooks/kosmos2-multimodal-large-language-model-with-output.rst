@@ -58,8 +58,7 @@ more accurate, informational, and comprehensive answers.
    -  `Compare inference time of the FP32 and optimized
       pipelines <#compare-inference-time-of-the-fp32-and-optimized-pipelines>`__
 
--  `Interactive inference <#interactive-inference>`__ ### Installation
-   Instructions
+-  `Interactive inference <#interactive-inference>`__
 
 This is a self-contained example that relies solely on its own code.
 

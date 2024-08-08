@@ -816,7 +816,7 @@ Prepare Inference pipeline
 
 We already deeply discussed how the ControlNet-guided pipeline works on
 example pose-controlled generation in `controlnet
-notebook <../controlnet-stable-diffusion>`__. In our current example,
+notebook <controlnet-stable-diffusion-with-output.html>`__. In our current example,
 the pipeline remains without changes. Similarly to Diffusers
 ``StableDiffusionControlNetPipeline``, we define our own
 ``OVControlNetStableDiffusionPipeline`` inference pipeline based on

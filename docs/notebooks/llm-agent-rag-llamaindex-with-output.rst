@@ -343,7 +343,7 @@ To demonstrate using RAG engines as a tool in an agent, we’re going to
 create a very simple RAG query engine as one of the tools.
 
    **Note**: For a full RAG pipeline with OpenVINO, you can check the
-   `RAG notebooks <../llm-rag-llamaindex>`__
+   `RAG notebooks <llm-rag-llamaindex-with-output.html>`__
 
 .. code:: ipython3
 

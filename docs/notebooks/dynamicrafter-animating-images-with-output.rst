@@ -129,8 +129,7 @@ additional part demonstrates how to run optimization with
    -  `Compare inference time of the FP32 and INT8
       pipelines <#compare-inference-time-of-the-fp32-and-int8-pipelines>`__
 
--  `Interactive inference <#interactive-inference>`__ ### Installation
-   Instructions
+-  `Interactive inference <#interactive-inference>`__
 
 This is a self-contained example that relies solely on its own code.
 

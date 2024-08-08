@@ -11,12 +11,9 @@ This is the **second notebook** in series of exploring `OpenVINO™
 Explainable AI
 (XAI) <https://github.com/openvinotoolkit/openvino_xai/>`__:
 
-1. `OpenVINO™ Explainable AI Toolkit (1/3):
-   Basic <../explainable-ai-1-basic/README.md>`__
-2. `OpenVINO™ Explainable AI Toolkit (2/3): Deep
-   Dive <../explainable-ai-2-deep-dive/README.md>`__
-3. `OpenVINO™ Explainable AI Toolkit (3/3): Saliency map
-   interpretation <../explainable-ai-3-map-interpretation/README.md>`__
+1. `OpenVINO™ Explainable AI Toolkit (1/3): Basic <explainable-ai-1-basic-with-output.html>`__
+2. `OpenVINO™ Explainable AI Toolkit (2/3): Deep Dive <explainable-ai-2-deep-dive-with-output.html>`__
+3. `OpenVINO™ Explainable AI Toolkit (3/3): Saliency map interpretation <explainable-ai-3-map-interpretation-with-output.html>`__
 
 `OpenVINO™ Explainable AI
 (XAI) <https://github.com/openvinotoolkit/openvino_xai/>`__ provides a
