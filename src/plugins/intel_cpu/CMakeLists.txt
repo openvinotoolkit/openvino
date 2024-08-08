@@ -34,6 +34,60 @@ elseif(CMAKE_COMPILER_IS_GNUCXX)
     endif()
 endif()
 
+if(NOT BUILD_SHARED_LIBS)
+    # Symbols are located in both src and include folders
+    file(GLOB_RECURSE onednn_files
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.hpp")
+
+    # parse API symbols
+    foreach(onednn_file IN LISTS onednn_files)
+        # symbols in form:
+        # dnnl_status_t DNNL_API dnnl_engine_get_kind
+        file(STRINGS "${onednn_file}" onednn_symbols_defined_on_single_line
+             REGEX "DNNL_API[ \*]*dnnl[a-zA-Z0-9_]*")
+        # symbols in form (cmake has issue with symbols defined on multiple lines and we have to use new pattern):
+        # dnnl_status_t DNNL_API
+        # dnnl_engine_get_kind
+        file(STRINGS "${onednn_file}" onednn_symbols_defined_on_multiple_lines
+             REGEX "^dnnl[a-zA-Z0-9_]*\\(")
+        # symbols in form:
+        # typedef struct dnnl_graph_graph *dnnl_graph_graph_t;
+        file(STRINGS "${onednn_file}" onednn_symbols_typedef
+             REGEX "^typedef struct dnnl_.*")
+
+        if(onednn_symbols_defined_on_single_line OR
+           onednn_symbols_defined_on_multiple_lines OR
+           onednn_symbols_typedef)
+            # parse concrete symbols from read line
+            string(REGEX MATCHALL "dnnl[a-zA-Z0-9_]+" onednn_parsed_symbols
+                ${onednn_symbols_defined_on_single_line}
+                ${onednn_symbols_defined_on_multiple_lines}
+                ${onednn_symbols_typedef})
+            list(APPEND onednn_symbols ${onednn_parsed_symbols})
+        endif()
+    endforeach()
+
+    # remove all duplicates
+    list(REMOVE_DUPLICATES onednn_symbols)
+
+    # also override namespaces
+    list(APPEND onednn_symbols dnnl oneapi)
+
+    # redefine all collected symbols
+    foreach(onednn_symbol IN LISTS onednn_symbols)
+        if(NOT onednn_symbol MATCHES "^#.+")
+            add_compile_definitions(${onednn_symbol}=ov_cpu_${onednn_symbol})
+        endif()
+    endforeach()
+endif()
+
 if (AARCH64 AND NOT APPLE AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10.2)
     # according to https://github.com/ARM-software/ComputeLibrary/issues/1053#issuecomment-1846903707 comment
     # the 'multi_isa=1' below enables FP32, FP16 and SVE / SVE2 kernels
