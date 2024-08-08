@@ -73,22 +73,28 @@ jobs:
       volumes:
         - /mount:/mount
     env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
-      CMAKE_GENERATOR: 'Ninja'
+      CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
-      OPENVINO_REPO: /__w/openvino/openvino/openvino
-      BUILD_DIR: /__w/openvino/openvino/openvino_build
-      INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      XUANTIE_DIR: /__w/openvino/xuantie
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
       SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
-      # CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
+      SCCACHE_LOG: warn
+      GITHUB_WORKSPACE: '/__w/openvino/openvino'
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
+      INSTALL_DIR: /__w/openvino/openvino/openvino_install
+      INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
+      BUILD_DIR: /__w/openvino/openvino/openvino_build
+      SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
+      XUANTIE_DIR: /__w/openvino/xuantie
       CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/${{ github.base_ref || github.ref_name }}
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 2G
+    if: "!needs.smart_ci.outputs.skip_workflow"
 
-    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -117,19 +123,6 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-ccache
-
-      # - name: Init submodules for non-Conan dependencies
-      #   run: |
-      #     pushd ${OPENVINO_REPO}
-      #       git submodule update --init -- ${OPENVINO_REPO}/thirdparty/zlib
-      #       git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
-      #       git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
-      #       git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
-      #       git submodule update --init -- ${OPENVINO_REPO}/thirdparty/telemetry
-      #       git submodule update --init -- ${OPENVINO_REPO}/src/plugins/intel_cpu
-      #       git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
-      #       git submodule update --init -- ${OPENVINO_REPO}/thirdparty/flatbuffers/flatbuffers
-      #     popd
 
       - name: Init XUANTIE
         run: |
