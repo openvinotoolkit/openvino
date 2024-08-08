@@ -1,5 +1,3 @@
-.. {#openvino_docs_model_optimization_guide}
-
 Model Optimization Guide
 ========================
 
@@ -16,7 +14,7 @@ Model Optimization Guide
 Model optimization is an optional offline step of improving the final model performance
 and reducing the model size by applying special optimization methods, such as 8-bit
 quantization, pruning, etc. OpenVINO offers three optimization paths implemented in
-`Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__:
+:doc:`Neural Network Compression Framework (NNCF) <model-optimization-guide/quantizing-models-post-training/nncf>`:
 
 - :doc:`Post-training Quantization <model-optimization-guide/quantizing-models-post-training>`
   is designed to optimize the inference of deep learning models by applying the
