@@ -392,7 +392,7 @@ second time, with an increased number of inputs.
 The audio decoder which is a part of the EnCodec model is used to
 recover the audio waveform from the audio tokens predicted by the
 MusicGen decoder. To learn more about the model please refer to the
-corresponding `OpenVINO example <../encodec-audio-compression>`__.
+corresponding `OpenVINO example <encodec-audio-compression-with-output.html>`__.
 
 .. code:: ipython3
 

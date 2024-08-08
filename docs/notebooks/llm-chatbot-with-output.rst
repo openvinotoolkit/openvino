@@ -18,7 +18,7 @@ accuracy.
 
 Previously, we already discussed how to build an instruction-following
 pipeline using OpenVINO and Optimum Intel, please check out `Dolly
-example <../dolly-2-instruction-following>`__ for reference. In this
+example <dolly-2-instruction-following-with-output.html>`__ for reference. In this
 tutorial, we consider how to use the power of OpenVINO for running Large
 Language Models for chat. We will use a pre-trained model from the
 `Hugging Face
@@ -1464,4 +1464,4 @@ Besides chatbot, we can use LangChain to augmenting LLM knowledge with
 additional data, which allow you to build AI applications that can
 reason about private data or data introduced after a model’s cutoff
 date. You can find this solution in `Retrieval-augmented generation
-(RAG) example <../llm-rag-langchain/>`__.
+(RAG) example <llm-rag-langchain-with-output.html>`__.

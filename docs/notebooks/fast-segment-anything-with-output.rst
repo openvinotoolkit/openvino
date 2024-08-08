@@ -395,7 +395,7 @@ The quantization algorithm is based on `The YOLOv8 quantization
 example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/post_training_quantization/openvino/yolov8>`__
 in the NNCF repo, refer there for more details. Moreover, you can check
 out other quantization tutorials in the `OV notebooks
-repo <../yolov8-optimization/>`__.
+repo <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/yolov8-optimization>`__.
 
    **Note**: Model post-training quantization is time-consuming process.
    Be patient, it can take several minutes depending on your hardware.

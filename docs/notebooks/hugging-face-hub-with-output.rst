@@ -232,11 +232,11 @@ original model.
 
 This is a rather simple example as the pipeline includes just one
 encoder model. Contemporary state of the art pipelines often consist of
-several model, feel free to explore other OpenVINO tutorials: 1. `Stable
-Diffusion v2 <../stable-diffusion-v2>`__ 2. `Zero-shot Image
-Classification with OpenAI
-CLIP <../clip-zero-shot-image-classification>`__ 3. `Controllable Music
-Generation with MusicGen <../music-generation>`__
+several model, feel free to explore other OpenVINO tutorials:
+
+1. `Stable Diffusion v2 <stable-diffusion-v2-with-output.html>`__
+2. `Zero-shot Image Classification with OpenAI CLIP <clip-zero-shot-image-classification-with-output.html>`__
+3. `Controllable Music Generation with MusicGen <music-generation-with-output.html>`__
 
 The workflow for the ``diffusers`` package is exactly the same. The
 first example in the list above relies on the ``diffusers``.
@@ -538,17 +538,13 @@ Model inference is exactly the same as for the original model!
     3) negative 0.0031
 
 
-You can find more examples of using Optimum Intel here: 1. `Accelerate
-Inference of Sparse Transformer
-Models <../sparsity-optimization/sparsity-optimization.ipynb>`__ 2.
-`Grammatical Error Correction with
-OpenVINO <../grammar-correction/grammar-correction.ipynb>`__ 3. `Stable
-Diffusion v2.1 using Optimum-Intel
-OpenVINO <../stable-diffusion-v2/stable-diffusion-v2-optimum-demo.ipynb>`__
-4. `Image generation with Stable Diffusion
-XL <../stable-diffusion-xl>`__ 5. `Instruction following using
-Databricks Dolly 2.0 <../dolly-2-instruction-following>`__ 6. `Create
-LLM-powered Chatbot using OpenVINO <../llm-chatbot>`__ 7. `Document
-Visual Question Answering Using Pix2Struct and
-OpenVINO <../pix2struct-docvqa>`__ 8. `Automatic speech recognition
-using Distil-Whisper and OpenVINO <../distil-whisper-asr>`__
+You can find more examples of using Optimum Intel here:
+
+1. `Accelerate Inference of Sparse Transformer Models <sparsity-optimization-with-output.html>`__
+2. `Grammatical Error Correction with OpenVINO <grammar-correction-with-output.html>`__
+3. `Stable Diffusion v2.1 using Optimum-Intel OpenVINO <stable-diffusion-v2-optimum-demo-with-output.html>`__
+4. `Image generation with Stable Diffusion XL <stable-diffusion-xl-with-output.html>`__
+5. `Instruction following using Databricks Dolly 2.0 <dolly-2-instruction-following-with-output.html>`__
+6. `Create LLM-powered Chatbot using OpenVINO <llm-chatbot-with-output.html>`__
+7. `Document Visual Question Answering Using Pix2Struct and OpenVINO <pix2struct-docvqa-with-output.html>`__
+8. `Automatic speech recognition using Distil-Whisper and OpenVINO <distil-whisper-asr-with-output.html>`__

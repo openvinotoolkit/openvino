@@ -277,7 +277,7 @@ Optimum Intel supports weight compression via NNCF out of the box. For
 command line. For 4 bit compression we provide ``--weight-format int4``
 and some other options containing number of bits and other compression
 parameters. An example of this approach usage you can find in
-`llm-chatbot notebook <../llm-chatbot>`__
+`llm-chatbot notebook <llm-chatbot-with-output.html>`__
 
 Weights Compression using NNCF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

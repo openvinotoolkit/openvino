@@ -81,7 +81,7 @@ Some tasks only need a tokenizer, like text classification, named entity
 recognition, question answering, and feature extraction. On the other
 hand, for tasks such as text generation, chat, translation, and
 abstractive summarization, both a tokenizer and a detokenizer are
-required. ### Installation Instructions
+required.
 
 This is a self-contained example that relies solely on its own code.
 

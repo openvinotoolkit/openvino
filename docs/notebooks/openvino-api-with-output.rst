@@ -428,7 +428,7 @@ PyTorch Model
 `PyTorch <https://pytorch.org/>`__ models can not be directly passed to
 ``core.read_model``. ``ov.Model`` for model objects from this framework
 can be obtained using ``ov.convert_model`` API. You can find more
-details in `pytorch-to-openvino <../pytorch-to-openvino>`__ notebook. In
+details in `pytorch-to-openvino <pytorch-to-openvino-with-output.html>`__ notebook. In
 this tutorial we will use
 `resnet18 <https://pytorch.org/vision/main/models/generated/torchvision.models.resnet18.html>`__
 model form torchvision library. After conversion model using

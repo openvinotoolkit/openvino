@@ -208,7 +208,7 @@ bi-encoder) but more time-consuming than embedding model. Therefore, it
 can be used to re-rank the top-k documents returned by embedding model.
 
 You can also find available LLM model options in
-`llm-chatbot <../llm-chatbot/README.md>`__ notebook.
+`llm-chatbot <llm-chatbot-with-output.html>`__ notebook.
 
 .. code:: ipython3
 

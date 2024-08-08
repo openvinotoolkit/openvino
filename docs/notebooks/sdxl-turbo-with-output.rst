@@ -16,7 +16,7 @@ More details about model can be found in `Stability AI blog
 post <https://stability.ai/news/stability-ai-sdxl-turbo>`__.
 
 Previously, we already discussed how to launch Stable Diffusion XL model
-using OpenVINO in the following `notebook <../stable-diffusion-xl>`__,
+using OpenVINO in the following `notebook <stable-diffusion-xl-with-output.html>`__,
 in this tutorial we will focus on the
 `SDXL-turbo <https://huggingface.co/stabilityai/sdxl-turbo>`__ version.
 Additionally, to improve image decoding speed, we will use `Tiny

@@ -41,8 +41,7 @@ entirely on found data.
 -  `Convert the model to OpenVINO
    IR <#convert-the-model-to-openvino-ir>`__
 -  `Compiling models and inference <#compiling-models-and-inference>`__
--  `Interactive inference <#interactive-inference>`__ ### Installation
-   Instructions
+-  `Interactive inference <#interactive-inference>`__
 
 This is a self-contained example that relies solely on its own code.
 

@@ -26,13 +26,13 @@ optimization with `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to
 speed up pipeline. If you want to run previous Stable Diffusion
 versions, please check our other notebooks:
 
--  `Stable Diffusion <../stable-diffusion-text-to-image>`__
--  `Stable Diffusion v2 <../stable-diffusion-v2>`__
--  `Stable Diffusion XL <../stable-diffusion-xl>`__
+-  `Stable Diffusion <stable-diffusion-text-to-image-with-output.html>`__
+-  `Stable Diffusion v2 <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/stable-diffusion-v2>`__
+-  `Stable Diffusion XL <stable-diffusion-xl-with-output.html>`__
 -  `LCM Stable
-   Diffusion <../latent-consistency-models-image-generation>`__
--  `Turbo SDXL <../sdxl-turbo>`__
--  `Turbo SD <../sketch-to-image-pix2pix-turbo>`__
+   Diffusion <latent-consistency-models-image-generation-with-output.html>`__
+-  `Turbo SDXL <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/sdxl-turbo>`__
+-  `Turbo SD <sketch-to-image-pix2pix-turbo-with-output.html>`__
 
 **Table of contents:**
 

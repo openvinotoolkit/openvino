@@ -927,5 +927,4 @@ can explore the CLIP capabilities further. For example:
 -  Optimize models with
    `NNCF <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training/basic-quantization-flow.html>`__
    to get further acceleration. You can find example how to quantize
-   CLIP model in `this
-   notebook <../clip-zero-shot-image-classification>`__
+   CLIP model in `this notebook <clip-zero-shot-image-classification-with-output.html>`__
