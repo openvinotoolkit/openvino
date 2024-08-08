@@ -31,6 +31,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Arith/Transforms/Passes.h"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
+#include "mlir/Dialect/DLTI/DLTI.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/Linalg/Passes.h"
@@ -132,6 +133,16 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
     const auto funcType = mlir::FunctionType::get(context, ArrayRef(memref_args), ArrayRef(SmallVector<mlir::Type>()));
     auto func = moduleBuilder.create<mlir::func::FuncOp>(funcLoc, "entry", funcType);
     auto block_builder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock() /* TODO: Add logger here */);
+
+    // Affix target information attribute to the module to be used, at its discretion,
+    // by the MLIR-compiler that consumes this module.
+    auto tileSize = IntegerAttr::get(IntegerType::get(context, 32), 32);
+    auto key = StringAttr::get(context, "tile_size");
+    DataLayoutEntryInterface entry = DataLayoutEntryAttr::get(context, key, tileSize);
+    TargetDeviceSpecInterface deviceSpec = TargetDeviceSpecAttr::get(context, ArrayRef(entry));
+    auto deviceStr = StringAttr::get(context, "CPU");
+    auto sysSpec = TargetSystemSpecAttr::get(context, ArrayRef(std::pair(deviceStr, deviceSpec)));
+    module.getOperation()->setAttr("#dlti.sys_spec", sysSpec);
 
     ConversionContext conversion_context(context, &block_builder);
 
@@ -299,6 +310,7 @@ void injectMLIR(std::shared_ptr<ov::Model> model, MLIRContext* context, MlirMode
 }
 
 void loadDialects(MLIRContext* context) {
+    context->loadDialect<mlir::DLTIDialect>();
     context->loadDialect<mlir::func::FuncDialect>();
     context->loadDialect<mlir::linalg::LinalgDialect>();
     context->loadDialect<mlir::bufferization::BufferizationDialect>();
