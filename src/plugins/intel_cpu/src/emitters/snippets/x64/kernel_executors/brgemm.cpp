@@ -45,7 +45,7 @@ BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const ele
 }
 
 bool BrgemmKernelConfig::is_completed() const {
-    return !utils::one_of(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC) || is_empty();
+    return utils::one_of(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC) || is_empty();
 }
 
 bool BrgemmKernelConfig::operator==(const BrgemmKernelConfig& rhs) const {
@@ -253,6 +253,8 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
         input_pds[1]->set_subtensor_dim(0, N);
         output_pds[0]->set_subtensor_dim(0, N);
     }
+    const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
+    OV_CPU_JIT_EMITTER_ASSERT(brgemm_node, "Got invalid node type in update_config");
 
     /* ------- Dimension K ----------*/
     // 1. If Brgemm block processes full dimension K -> `beta = 0`
@@ -282,8 +284,6 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
     const auto LDA = DIM_CAST(snippets::utils::get_dim_stride(expr->get_input_port(0)));
     const auto LDC = DIM_CAST(snippets::utils::get_dim_stride(expr->get_output_port(0)));
     auto LDB = DIM_CAST(snippets::utils::get_dim_stride(expr->get_input_port(1)));
-    const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
-    OV_CPU_JIT_EMITTER_ASSERT(brgemm_node, "Got invalid node type in update_config");
     // In case of data repacking LDB is chosen in accordance with repacking buffer size
     if (with_repacking(brgemm_node->get_type()))
         LDB = brgemm_utils::repacking::compute_out_leading_dim(N, brgemm_node->get_input_element_type(1));
