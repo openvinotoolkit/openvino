@@ -11,6 +11,12 @@ namespace ov {
 namespace intel_cpu {
 namespace aarch64 {
 
+// Arithmetic modes for data type conversion in store_emitter
+enum arithmetic_mode {
+    saturation,
+    truncation
+};
+
 class jit_load_emitter : public jit_emitter {
 public:
     jit_load_emitter(dnnl::impl::cpu::aarch64::jit_generator *host, dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -44,7 +50,7 @@ class jit_store_emitter : public jit_emitter {
 public:
     jit_store_emitter(dnnl::impl::cpu::aarch64::jit_generator *host, dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                       ov::element::Type src_prc, ov::element::Type dst_prc, int store_num, int byte_offset_,
-                      bool is_saturated = true, ov::element::Type exec_prc = ov::element::f32,
+                      arithmetic_mode mode = arithmetic_mode::saturation, ov::element::Type exec_prc = ov::element::f32,
                       emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_gpr);
 
     void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const override;
@@ -67,7 +73,7 @@ private:
     int byte_offset_;
     ov::element::Type src_prc_;
     ov::element::Type dst_prc_;
-    bool is_saturated_;  // true: saturated; false: truncated
+    arithmetic_mode mode_ = arithmetic_mode::saturation;
 };
 
 }   // namespace aarch64

@@ -109,9 +109,9 @@ jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t i
                               "Unsupported output type: ", dst_prc.get_type_name());
 
     if (ov::is_type<ov::intel_cpu::StoreConvertTruncation>(expr->get_node())) {
-        store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, byte_offset, false));
+        store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, byte_offset, arithmetic_mode::truncation));
     } else if (ov::is_type<ov::intel_cpu::StoreConvertSaturation>(expr->get_node())) {
-        store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, byte_offset, true));
+        store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, byte_offset, arithmetic_mode::saturation));
     } else if (ov::is_type<ov::snippets::op::Store>(expr->get_node())) {
         store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, byte_offset));
     } else {
