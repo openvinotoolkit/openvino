@@ -44,11 +44,6 @@ static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
 
 const std::vector<ov::AnyMap> configs = {{}};
 
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVBasicPropertiesTestsP,
-                         OVBasicPropertiesTestsP,
-                         ::testing::ValuesIn(plugins),
-                         OVClassBasicTestName::getTestCaseName);
-
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVClassBasicTestP,
                          OVClassBasicTestPNPU,
@@ -62,35 +57,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVClassNetworkTestP,
                          OVClassNetworkTestPNPU::getTestCaseName);
 
 //
-// IE Class GetMetric
-//
-
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVGetMetricPropsTest_nightly,
-                         OVGetMetricPropsTest,
-                         ::testing::ValuesIn(devices),
-                         OVClassNetworkTestName::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVGetMetricPropsTest_nightly,
-                         OVGetMetricPropsOptionalTest,
-                         ::testing::ValuesIn(devices),
-                         OVClassNetworkTestName::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_BehaviorTests_OVCheckSetSupportedRWMandatoryMetricsPropsTests,
-    OVCheckSetSupportedRWMetricsPropsTests,
-    ::testing::Combine(::testing::Values("MULTI", "AUTO"),
-                       ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWOptionalPropertiesValues(
-                           {ov::log::level.name()}))),
-    ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTests>);
-
-//
 // IE Class GetConfig
 //
-
-INSTANTIATE_TEST_SUITE_P(BehaviorTests_OVGetConfigTest_nightly,
-                         OVGetConfigTest,
-                         ::testing::ValuesIn(devices),
-                         OVClassNetworkTestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVClassLoadNetworkTest,
                          OVClassLoadNetworkTestNPU,
