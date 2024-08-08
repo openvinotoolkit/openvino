@@ -5,6 +5,7 @@
 #include "snippets/generator.hpp"
 
 #include "snippets/itt.hpp"
+#include "snippets/runtime_configurator.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/kernel.hpp"
@@ -46,6 +47,7 @@ LoweringResult Generator::generate(lowered::LinearIR& linear_ir, const void* com
             result.m_saved_emitters.emplace_back(emitter);
     }
     result.compiled_snippet = target->get_snippet();
+    result.kernel_executor_table = target->get_runtime_configurator()->get_kernel_executor_table();
 
     return result;
 }
