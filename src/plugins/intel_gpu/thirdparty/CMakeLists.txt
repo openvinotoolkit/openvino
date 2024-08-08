@@ -42,7 +42,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
             endif()
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
             # see https://github.com/oneapi-src/oneDNN/issues/2028
-            list(APPEND CMAKE_CXX_FLAGS "/Zc:__cplusplus")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus")
         endif()
         if(SUGGEST_OVERRIDE_SUPPORTED)
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")

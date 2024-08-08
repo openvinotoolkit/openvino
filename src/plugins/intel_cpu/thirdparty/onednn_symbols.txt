@@ -1,13 +1,17 @@
 # namespaces
 dnnl
 oneapi
-# classes w/o namespace
+# classes w/o namespace, wich are derived from dnnl:impl::c_compatible
 dnnl_memory
 dnnl_stream
+dnnl_engine
 dnnl_post_ops
 dnnl_primitive
+dnnl_memory_desc
 dnnl_primitive_desc
 dnnl_primitive_attr
+dnnl_brgemm
+dnnl_brgemm_pack_B
 # C API functions returning pointers
 dnnl_version
 dnnl_status2str
@@ -31,6 +35,11 @@ dnnl_fmt_kind2str
 dnnl_runtime2str
 dnnl_fmt_kind2str
 # C API functions
+dnnl_engine_get_count
+dnnl_engine_create
+dnnl_engine_get_kind
+dnnl_engine_destroy
+dnnl_set_verbose
 dnnl_stream_create
 dnnl_stream_get_engine
 dnnl_stream_wait
@@ -195,12 +204,6 @@ dnnl_query_profiling_data
 dnnl_sgemm
 dnnl_gemm_u8s8s32
 dnnl_gemm_s8s8s32
-dnnl_graph_ocl_interop_allocator_create
-dnnl_ocl_interop_engine_create
-dnnl_graph_ocl_interop_make_engine_from_cache_blob_with_allocator
-dnnl_graph_ocl_interop_make_engine_with_allocator
-dnnl_ocl_interop_engine_create_from_cache_blob
-dnnl_graph_ocl_interop_compiled_partition_execute
 dnnl_brgemm_create
 dnnl_brgemm_get_scratchpad_size
 dnnl_brgemm_set_hw_context
@@ -341,15 +344,12 @@ dnnl_graph_partition_get_engine_kind
 dnnl_graph_partition_get_kind
 dnnl_graph_compiled_partition_create
 dnnl_graph_compiled_partition_execute
-dnnl_graph_sycl_interop_compiled_partition_execute
 dnnl_graph_ocl_interop_compiled_partition_execute
+dnnl_graph_ocl_interop_make_engine_from_cache_blob_with_allocator
 dnnl_graph_compiled_partition_destroy
 dnnl_graph_compiled_partition_query_logical_tensor
 dnnl_graph_compiled_partition_get_inplace_ports
-dnnl_graph_allocator_create
 dnnl_graph_sycl_interop_allocator_create
-dnnl_graph_allocator_destroy
-dnnl_graph_make_engine_with_allocator
 dnnl_graph_sycl_interop_make_engine_with_allocator
 dnnl_graph_ocl_interop_allocator_create
 dnnl_graph_ocl_interop_make_engine_with_allocator
