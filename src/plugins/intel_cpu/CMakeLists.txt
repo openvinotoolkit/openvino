@@ -35,9 +35,39 @@ elseif(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 if(NOT BUILD_SHARED_LIBS)
-    set(onednn_symbols_file "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn_symbols.txt")
-    file(STRINGS "${onednn_symbols_file}" onednn_symbols)
-    foreach(onednn_symbol IN LISTS onednn_symbols)
+    # API symbols using pattern DNNL_API[\n *]+dnnl[a-zA-Z0-9_]* within include and src folders
+    file(GLOB_RECURSE onednn_files
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.hpp")
+
+    foreach(onednn_file IN LISTS onednn_files)
+        file(STRINGS "${onednn_file}" onednn_lines_with_symbols
+             REGEX "DNNL_API[\n *]+dnnl[a-zA-Z0-9_]*")
+        if(onednn_lines_with_symbols)
+            # parse concrete symbols from read line
+            string(REGEX MATCHALL "dnnl[a-zA-Z0-9_]+" onednn_parsed_symbols ${onednn_lines_with_symbols})
+            foreach(symbol ${onednn_parsed_symbols})
+                # ignore typedefs like dnnl_status_t
+                if(NOT ${symbol} MATCHES "^.*_t$")
+                    list(APPEND onednn_symbols ${onednn_parsed_symbols})
+                endif()
+            endforeach()
+        endif()
+    endforeach()
+    list(REMOVE_DUPLICATES onednn_symbols)
+
+    # symbols, which are explicitly found during debugging process
+    set(onednn_explicit_symbols_file "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn_explicit_symbols.txt")
+    file(STRINGS "${onednn_explicit_symbols}" onednn_explicit_symbols_file)
+
+    # redefine all symbols
+    foreach(onednn_symbol IN LISTS onednn_symbols onednn_explicit_symbols)
         if(NOT onednn_symbol MATCHES "^#.+")
             add_compile_definitions(${onednn_symbol}=ov_cpu_${onednn_symbol})
         endif()
