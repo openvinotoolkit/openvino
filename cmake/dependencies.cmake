@@ -120,7 +120,7 @@ function(ov_download_tbb)
                 ARCHIVE_LIN "oneapi-tbb-2021.13.0-lin-release.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "5a2e783d777be9c57b43463338b0526d93897f674870744a96773dbe0e4ebdf5"
+                SHA256 "fd2e889323cd5458be750eefdc026ce6791c723fae60b146c2511a5caeaf01c5"
                 USE_NEW_LOCATION TRUE)
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
