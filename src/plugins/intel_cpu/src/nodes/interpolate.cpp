@@ -2023,7 +2023,8 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
     ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
 
 #if defined(OV_CPU_WITH_ACL)
-    bool isInputPrecisionSupported = one_of(inputPrecision, ov::element::i8, ov::element::u8, ov::element::i16, ov::element::f16);
+    //TODO: add f16 to the list as soon as ACL NEScale f16 perf issue is solved (#1134)
+    bool isInputPrecisionSupported = one_of(inputPrecision, ov::element::i8, ov::element::u8, ov::element::i16);
 #else
     bool isInputPrecisionSupported = one_of(inputPrecision, ov::element::i8, ov::element::u8, ov::element::bf16);
 #endif
