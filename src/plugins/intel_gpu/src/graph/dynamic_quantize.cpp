@@ -22,7 +22,7 @@ layout dynamic_quantize_inst::calc_output_layout(dynamic_quantize_node const& no
 }
 
 template<typename ShapeType>
-std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(const layout &act_layout, size_t group_size) {
+std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(const layout &act_layout, uint64_t group_size) {
     ov::op::internal::DynamicQuantize op;
     auto output_format = act_layout.format;
 
@@ -38,7 +38,7 @@ std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(const layout &a
     return { layout(output_shapes[0], data_types::i8, output_format), layout(output_shapes[1], data_types::f16, output_format) };
 }
 
-template std::vector<layout> dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(const layout &act_layout, size_t group_size);
+template std::vector<layout> dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(const layout &act_layout, uint64_t group_size);
 
 template<typename ShapeType>
 std::vector<layout> dynamic_quantize_inst::calc_output_layouts(dynamic_quantize_node const& /*node*/, const kernel_impl_params& impl_param) {

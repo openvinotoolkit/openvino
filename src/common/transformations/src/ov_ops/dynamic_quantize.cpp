@@ -13,7 +13,7 @@ namespace ov {
 namespace op {
 namespace internal {
 
-DynamicQuantize::DynamicQuantize(const Output<Node>& data, std::vector<size_t> group_sizes, element::Type dt_scale)
+DynamicQuantize::DynamicQuantize(const Output<Node>& data, std::vector<uint64_t> group_sizes, element::Type dt_scale)
     : Op({data}),
       m_group_sizes(std::move(group_sizes)),
       m_dt_scale(dt_scale) {
@@ -41,7 +41,7 @@ std::shared_ptr<Node> DynamicQuantize::clone_with_new_inputs(const ov::OutputVec
 
 std::vector<ov::PartialShape> DynamicQuantize::shape_infer(const DynamicQuantize* op,
                                                            const std::vector<ov::PartialShape>& input_shapes,
-                                                           const std::vector<size_t>& group_sizes) {
+                                                           const std::vector<uint64_t>& group_sizes) {
     std::vector<ov::PartialShape> out_shapes;
     out_shapes.push_back(input_shapes[0]);
 
