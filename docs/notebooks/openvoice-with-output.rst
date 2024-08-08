@@ -655,7 +655,7 @@ Load speaker embeddings
 .. parsed-literal::
 
     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/modules/module.py:1541: UserWarning: A window was not provided. A rectangular window will be applied,which is known to cause spectral leakage. Other windows such as torch.hann_window or torch.hamming_window can are recommended to reduce spectral leakage.To suppress this warning and use a rectangular window, explicitly set `window=torch.ones(n_fft, device=<device>)`. (Triggered internally at ../aten/src/ATen/native/SpectralOps.cpp:836.)
-      return forward_call(*args, **kwargs)
+      return forward_call(\*args, \*\*kwargs)
 
 
 .. parsed-literal::
