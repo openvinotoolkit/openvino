@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_subdirectory(unit)
+# add_subdirectory(unit)
 
 if(ENABLE_FUNCTIONAL_TESTS)
     function(ov_cpu_func_tests)

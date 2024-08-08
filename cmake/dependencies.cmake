@@ -117,10 +117,10 @@ function(ov_download_tbb)
     elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.13.0-rc1-lin-trim.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.13.0-lin-release.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "e4a27abef370d484da275a2fe6b1e2f671e628747e0aa9a6ecbfc2fef6fefb29"
+                SHA256 "5a2e783d777be9c57b43463338b0526d93897f674870744a96773dbe0e4ebdf5"
                 USE_NEW_LOCATION TRUE)
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
