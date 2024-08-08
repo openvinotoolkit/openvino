@@ -49,15 +49,15 @@ if(NOT BUILD_SHARED_LIBS)
     # API symbols using pattern 'DNNL_API[\n *]+dnnl[a-zA-Z0-9_]*' represent API functions
     foreach(onednn_file IN LISTS onednn_files)
         file(STRINGS "${onednn_file}" onednn_lines_with_symbols
-             REGEX "DNNL_API[\n *]+dnnl[a-zA-Z0-9_]*")
+             REGEX "DNNL_API[\n \*]*dnnl[a-zA-Z0-9_]*"
+             NEWLINE_CONSUME)
         if(onednn_lines_with_symbols)
             # parse concrete symbols from read line
-            string(REGEX MATCHALL "dnnl[a-zA-Z0-9_]+" onednn_parsed_symbols ${onednn_lines_with_symbols})
+            string(REGEX MATCHALL "dnnl[a-zA-Z0-9_]+\\(" onednn_parsed_symbols ${onednn_lines_with_symbols})
             foreach(symbol ${onednn_parsed_symbols})
-                # ignore typedefs like dnnl_status_t
-                if(NOT ${symbol} MATCHES "^.*_t$")
-                    list(APPEND onednn_symbols ${onednn_parsed_symbols})
-                endif()
+                # replace '(' with nothing, because we use '(' in detection pattern
+                string(REPLACE "(" "" symbol "${symbol}")
+                list(APPEND onednn_symbols ${symbol})
             endforeach()
         endif()
     endforeach()
@@ -74,7 +74,7 @@ if(NOT BUILD_SHARED_LIBS)
             foreach(symbol ${onednn_parsed_symbols})
                 # ignore typedefs itself like dnnl_XX_t and keep only XXX
                 if(NOT ${symbol} MATCHES "^.*_t$")
-                    list(APPEND onednn_symbols ${onednn_parsed_symbols})
+                    list(APPEND onednn_symbols ${symbol})
                 endif()
             endforeach()
         endif()
