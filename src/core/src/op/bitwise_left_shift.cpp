@@ -64,7 +64,7 @@ bool BitwiseLeftShift::evaluate(TensorVector& outputs, const TensorVector& input
 
     using namespace ov::element;
     return IF_TYPE_OF(v15_BitwiseLeftShift_evaluate,
-                      OV_PP_ET_LIST(u8, i32, i64),
+                      OV_PP_ET_LIST(i32),
                       left_shift::Evaluate,
                       inputs[0].get_element_type(),
                       inputs[0],
@@ -75,14 +75,11 @@ bool BitwiseLeftShift::evaluate(TensorVector& outputs, const TensorVector& input
 bool BitwiseLeftShift::has_evaluate() const {
     OV_OP_SCOPE(v15_BitwiseLeftShift_has_evaluate);
     switch (get_input_element_type(0)) {
-    case element::u8:
     case element::i32:
-    case element::i64:
         return true;
     default:
         return false;
     }
-    return false;
 }
 }  // namespace v15
 }  // namespace op
