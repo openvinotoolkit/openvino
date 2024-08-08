@@ -4,8 +4,8 @@
 
 #include "pyopenvino/experimental/experimental.hpp"
 
-#include "../dev_api/openvino/core/bound_evaluation_util.hpp"
-#include "../dev_api/openvino/core/validation_util.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace py = pybind11;
 
