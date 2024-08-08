@@ -76,7 +76,6 @@ struct Config {
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
     int streamsRankLevel = 1;
     int numSubStreams = 0;
-    bool enableSubStreams = false;
     bool enableNodeSplit = false;
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;

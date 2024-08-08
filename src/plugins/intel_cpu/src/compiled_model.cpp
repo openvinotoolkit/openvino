@@ -63,13 +63,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         // special case when all InferRequests are muxed into a single queue
         m_task_executor = m_plugin->get_executor_manager()->get_executor("CPU");
     } else {
-        executor_confg = m_cfg.enableSubStreams ? IStreamsExecutor::Config{"CPUMainStreamExecutor",
-                                                                           1,
-                                                                           1,
-                                                                           ov::hint::SchedulingCoreType::ANY_CORE,
-                                                                           false,
-                                                                           true}
-                                                : m_cfg.streamExecutorConfig;
+        executor_confg = m_cfg.numSubStreams > 0 ? IStreamsExecutor::Config{"CPUMainStreamExecutor",
+                                                                            1,
+                                                                            1,
+                                                                            ov::hint::SchedulingCoreType::ANY_CORE,
+                                                                            false,
+                                                                            true}
+                                                 : m_cfg.streamExecutorConfig;
         m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(executor_confg);
     }
     if (0 != m_cfg.streamExecutorConfig.get_streams()) {
@@ -112,16 +112,16 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     } else {
         CompiledModel::get_graph();
     }
-    if (m_cfg.enableSubStreams) {
+    if (m_cfg.numSubStreams > 0) {
         m_has_sub_compiled_models = true;
         auto sub_cfg = m_cfg;
-        sub_cfg.enableSubStreams = false;
+        sub_cfg.numSubStreams = 0;
         sub_cfg.enableNodeSplit = true;
         auto streams_info_table = m_cfg.streamExecutorConfig.get_streams_info_table();
         auto message = message_manager();
-        m_sub_memory_manager = std::make_shared<SubMemoryManager>(m_cfg.streamExecutorConfig.get_sub_streams());
-        message->set_num_sub_streams(m_cfg.streamExecutorConfig.get_sub_streams());
-        for (int i = 0; i < m_cfg.streamExecutorConfig.get_sub_streams(); i++) {
+        m_sub_memory_manager = std::make_shared<SubMemoryManager>(m_cfg.numSubStreams);
+        message->set_num_sub_streams(m_cfg.numSubStreams);
+        for (int i = 0; i < m_cfg.numSubStreams; i++) {
             std::vector<std::vector<int>> sub_streams_table;
             sub_streams_table.push_back(streams_info_table[i + 1]);
             sub_streams_table[0][NUMBER_OF_STREAMS] = 1;

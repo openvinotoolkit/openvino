@@ -665,7 +665,6 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
         config.modelDistributionPolicy.end()) {
         config.streamsRankTable =
             get_streams_rank_table(streams_info_table, config.streamsRankLevel, config.numSubStreams);
-        config.enableSubStreams = true;
     }
 
     auto cpu_pinning =
