@@ -57,6 +57,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::internal::query_model_ratio, 1.0f),
         std::make_tuple(ov::cache_mode, ov::CacheMode::OPTIMIZE_SPEED),
         std::make_tuple(ov::hint::dynamic_quantization_group_size, 0),
+        std::make_tuple(ov::intel_gpu::hint::enable_kernels_reuse, false),
 
         // Legacy API properties
         std::make_tuple(ov::intel_gpu::nv12_two_inputs, false),
@@ -191,6 +192,15 @@ void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
 
     GPU_DEBUG_IF(debug_config->disable_dynamic_impl == 1) {
         set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
+    }
+
+    int DISABLE_KERNELS_CLONING = 0;
+    if (const auto env_var = std::getenv("DISABLE_KERNELS_CLONING")) {
+        std::istringstream ss(env_var);
+        ss >> DISABLE_KERNELS_CLONING;
+        if (DISABLE_KERNELS_CLONING) {
+            set_property(ov::intel_gpu::hint::enable_kernels_reuse(true));
+        }
     }
 }
 
