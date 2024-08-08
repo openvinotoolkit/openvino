@@ -35,7 +35,7 @@ elseif(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 if(NOT BUILD_SHARED_LIBS)
-    # API symbols using pattern DNNL_API[\n *]+dnnl[a-zA-Z0-9_]* within include and src folders
+    # Symbols are located in both src and include folders
     file(GLOB_RECURSE onednn_files
         "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.hpp"
@@ -46,6 +46,7 @@ if(NOT BUILD_SHARED_LIBS)
         "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.h"
         "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.hpp")
 
+    # API symbols using pattern 'DNNL_API[\n *]+dnnl[a-zA-Z0-9_]*' represent API functions
     foreach(onednn_file IN LISTS onednn_files)
         file(STRINGS "${onednn_file}" onednn_lines_with_symbols
              REGEX "DNNL_API[\n *]+dnnl[a-zA-Z0-9_]*")
@@ -60,14 +61,33 @@ if(NOT BUILD_SHARED_LIBS)
             endforeach()
         endif()
     endforeach()
+
+    # replace also classes, which are used as typedefs in public API
+    # such classes are derived from c_compatible interface
+    # lines with such symbols can be found using pattern '^typedef struct dnnl_.*'
+    foreach(onednn_file IN LISTS onednn_files)
+        file(STRINGS "${onednn_file}" onednn_lines_with_symbols
+             REGEX "^typedef struct dnnl_.*")
+        if(onednn_lines_with_symbols)
+            # parse concrete symbols from read line
+            string(REGEX MATCHALL "dnnl[a-zA-Z0-9_]+" onednn_parsed_symbols ${onednn_lines_with_symbols})
+            foreach(symbol ${onednn_parsed_symbols})
+                # ignore typedefs itself like dnnl_XX_t and keep only XXX
+                if(NOT ${symbol} MATCHES "^.*_t$")
+                    list(APPEND onednn_symbols ${onednn_parsed_symbols})
+                endif()
+            endforeach()
+        endif()
+    endforeach()
+
+    # remove all duplicates
     list(REMOVE_DUPLICATES onednn_symbols)
 
-    # symbols, which are explicitly found during debugging process
-    set(onednn_explicit_symbols_file "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn_explicit_symbols.txt")
-    file(STRINGS "${onednn_explicit_symbols}" onednn_explicit_symbols_file)
+    # also override namespaces
+    list(APPEND onednn_symbols dnnl oneapi)
 
-    # redefine all symbols
-    foreach(onednn_symbol IN LISTS onednn_symbols onednn_explicit_symbols)
+    # redefine all collected symbols
+    foreach(onednn_symbol IN LISTS onednn_symbols)
         if(NOT onednn_symbol MATCHES "^#.+")
             add_compile_definitions(${onednn_symbol}=ov_cpu_${onednn_symbol})
         endif()
