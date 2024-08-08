@@ -78,9 +78,10 @@ jobs:
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
       OPENVINO_REPO: /__w/openvino/openvino/openvino
-      OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
+      BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       XUANTIE_DIR: /__w/openvino/xuantie
+      SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
       # CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
       CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/${{ github.base_ref || github.ref_name }}
       CCACHE_DIR: /__w/openvino/openvino/ccache
@@ -101,6 +102,7 @@ jobs:
       - name: System info
         uses: ./openvino/.github/actions/system_info
 
+# remove ?
       - name: Setup ccache
         id: ccache_restore
         uses: ./openvino/.github/actions/cache
@@ -132,111 +134,96 @@ jobs:
         run: |
           mkdir ${XUANTIE_DIR}
           pushd ${XUANTIE_DIR}
-            # git clone https://github.com/XUANTIE-RV/xuantie-gnu-toolchain && cd xuantie-gnu-toolchain
             apt-get install gawk
             apt-get install sudo -y
-            # sudo apt-get update
             sudo apt-get install texinfo
             sudo apt-get install dos2unix
             sudo apt-get install wget
             sudo apt-get install bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev
-            # sudo sed -i s+http://de.archive.ubuntu.com/ubuntu/+http://archive.ubuntu.com/ubuntu/+g /etc/apt/sources.list
-            # find . -type f -print0 | xargs -0 dos2unix -f
-            # ./configure --prefix=/opt/riscv
-            # make linux build-qemu
             wget https://occ-oss-prod.oss-cn-hangzhou.aliyuncs.com/resource//1663142514282/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1-20220906.tar.gz
             tar xf Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1-20220906.tar.gz
           popd
 
-      # #
-      # # Dependencies
-      # #
+      - name: CMake configure - OpenVINO
+        run: |
+          cmake \
+            -G "${{ env.CMAKE_GENERATOR }}" \
+            -DENABLE_CPPLINT=OFF \
+            -DENABLE_NCC_STYLE=OFF \
+            -DENABLE_TESTS=ON \
+            -DENABLE_INTEL_CPU=ON \
+            -DENABLE_INTEL_GPU=OFF \
+            -DENABLE_INTEL_NPU=OFF \
+            -DENABLE_SAMPLES=ON \
+            -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64-071-thead-gnu.toolchain.cmake \
+            -DRISCV_TOOLCHAIN_ROOT=${XUANTIE_DIR}/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1 \
+            -DENABLE_PYTHON=ON \
+            -DENABLE_PYTHON_PACKAGING=ON \
+            -DENABLE_WHEEL=ON \
 
-      # - name: Install Python dependencies
-      #   run: |
-      #     # create build directory
-      #     mkdir -p ${OPENVINO_BUILD_DIR}
+            -DENABLE_STRICT_DEPENDENCIES=OFF \
+            # -DENABLE_SYSTEM_OPENCL=ON \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DCPACK_GENERATOR=TGZ \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
+            -S ${OPENVINO_REPO} \
+            -B ${BUILD_DIR}
 
-      #     python3 -m venv ${OPENVINO_BUILD_DIR}/env
-      #     source ${OPENVINO_BUILD_DIR}/env/bin/activate
-      #     python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
-      #     python3 -m pip install conan
+      - name: Clean sccache stats
+        run: ${SCCACHE_PATH} --zero-stats
 
-      # - name: Create conan_toolchain.cmake file
-      #   run: |
-      #     source ${OPENVINO_BUILD_DIR}/env/bin/activate
-      #     # generate build profile
-      #     conan profile detect
-      #     # patch settings.yml to contain riscv64 architecture
-      #     sed -i 's/sparcv9/riscv64/g' ~/.conan2/settings.yml
-      #     # generate host profile for linux_riscv64
-      #     echo "include(default)" > ${CONAN_LINUX_RISCV64_PROFILE}
-      #     echo "[buildenv]" >> ${CONAN_LINUX_RISCV64_PROFILE}
-      #     echo "CC=riscv64-linux-gnu-gcc" >> ${CONAN_LINUX_RISCV64_PROFILE}
-      #     echo "CXX=riscv64-linux-gnu-g++" >> ${CONAN_LINUX_RISCV64_PROFILE}
-      #     # install OpenVINO dependencies
-      #     conan install ${OPENVINO_REPO}/conanfile.txt \
-      #       -pr:h ${CONAN_LINUX_RISCV64_PROFILE} \
-      #       -s:h arch=riscv64 \
-      #       -s:h build_type=${CMAKE_BUILD_TYPE} \
-      #       -o:h onetbb/*:tbbbind=False \
-      #       -of ${OPENVINO_BUILD_DIR}/dependencies \
-      #       -b missing
-      #   env:
-      #     CONAN_LINUX_RISCV64_PROFILE: ${{ env.OPENVINO_BUILD_DIR }}/linux_riscv64
+      - name: Cmake build - OpenVINO
+        run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
-      # #
-      # # Build
-      # #
-      # - name: Clean ccache stats
-      #   run: ccache --zero-stats
+      - name: Show sccache stats
+        run: ${SCCACHE_PATH} --show-stats
 
-      # - name: CMake - Configure
-      #   run: |
-      #     source ${OPENVINO_BUILD_DIR}/env/bin/activate
-      #     source ${OPENVINO_BUILD_DIR}/dependencies/conanbuild.sh
-      #     cmake \
-      #       -G 'Ninja' \
-      #       -DENABLE_CPPLINT=OFF \
-      #       -DENABLE_INTEL_GPU=ON \
-      #       -DENABLE_PYTHON=ON \
-      #       -DENABLE_WHEEL=ON \
-      #       -DENABLE_TESTS=ON \
-      #       -DENABLE_PYTHON_PACKAGING=ON \
-      #       -DENABLE_SYSTEM_PROTOBUF=ON \
-      #       -DENABLE_SYSTEM_SNAPPY=ON \
-      #       -DENABLE_SYSTEM_PUGIXML=ON \
-      #       -DBUILD_SHARED_LIBS=OFF \
-      #       -DCMAKE_CXX_FLAGS="-Wno-deprecated-declarations" \
-      #       -DCMAKE_C_FLAGS="-Wno-deprecated-declarations" \
-      #       -DCMAKE_VERBOSE_MAKEFILE=ON \
-      #       -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
-      #       -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_BUILD_DIR}/dependencies/conan_toolchain.cmake \
-      #       -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-      #       -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-      #       -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
-      #       -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
-      #       -S ${OPENVINO_REPO} \
-      #       -B ${OPENVINO_BUILD_DIR}
-      #     source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
+      - name: Cmake install - OpenVINO
+        run: |
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_TEST_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DCOMPONENT=python_wheels -P ${BUILD_DIR}/cmake_install.cmake
 
-      # - name: Cmake - Build
-      #   run: cmake --build ${OPENVINO_BUILD_DIR} --parallel
+      - name: Pack Artifacts
+        run: |
 
-      # - name: Show ccache stats
-      #   run: ccache --show-stats
+          pushd ${INSTALL_DIR}
+            tar -czvf ${BUILD_DIR}/openvino_package.tar.gz *
+          popd
 
-      # - name: Cmake - Install
-      #   run: cmake --build ${OPENVINO_BUILD_DIR} --parallel --target install
+          pushd ${INSTALL_TEST_DIR}
+            tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz *
+          popd
 
-      # - name: Build OpenVINO C++ samples
-      #   run: |
-      #     source ${OPENVINO_BUILD_DIR}/dependencies/conanbuild.sh
-      #     ${INSTALL_DIR}/samples/cpp/build_samples.sh
-      #     source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
-      #   env:
-      #     CMAKE_TOOLCHAIN_FILE: ${{ env.OPENVINO_BUILD_DIR }}/dependencies/conan_toolchain.cmake
+      #
+      # Upload build artifacts and logs
+      #
+      - name: Upload build logs
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        if: always()
+        with:
+          name: build_logs
+          path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'ignore'
 
+      - name: Upload openvino package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        with:
+          name: openvino_package
+          path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+          if-no-files-found: 'error'
+
+      - name: Upload openvino tests package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        with:
+          name: openvino_tests
+          path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+          if-no-files-found: 'error'
+    
       - name: Clean ccache
         run: ccache --cleanup
 
