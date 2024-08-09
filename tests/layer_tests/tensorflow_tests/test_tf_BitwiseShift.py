@@ -69,7 +69,7 @@ class TestBitwise(CommonTFLayerTest):
     def test_bitwise(self, x_shape, y_shape, is_y_const, input_type, op_type, ie_device, precision, ir_version,
                      temp_dir, use_legacy_frontend):
         if ie_device == 'GPU':
-            pytest.skip("148540: Bitwise ops are not supported on GPU")
+            pytest.skip("149424: Bitwise ops are not supported on GPU")
         if use_legacy_frontend:
             pytest.skip("BitwiseShift ops are supported only by new TF FE")
         self._test(*self.create_bitwise_net(x_shape=x_shape, y_shape=y_shape, is_y_const=is_y_const,
