@@ -122,6 +122,10 @@ protected:
     descriptor::Input& get_input_descriptor(size_t position);
     descriptor::Output& get_output_descriptor(size_t position);
 
+    /// @brief  \brief Factory function to make output descriptor.
+    using OutputDescriptorFactory = std::unique_ptr<descriptor::Output> (*)(Node*,
+                                                                            const size_t,
+                                                                            std::shared_ptr<descriptor::Tensor>);
     /// \brief Construct an uninitialized Node
     Node();
     /// \brief Copying a node
@@ -137,6 +141,13 @@ protected:
     /// \param arguments Output i will connect to input i
     /// \param output_size Number of outputs for this node
     Node(const OutputVector& arguments, size_t output_size = 1);
+
+    /// \brief Constructor for Node subclasses that have metaclasses.
+    /// \param arguments Output i will connect to input i.
+    /// \param descriptor_factory Creates output descriptor for this node.
+    /// \param output_size Number of outputs for this node (default 1).
+    Node(const OutputVector& arguments, Node::OutputDescriptorFactory descriptor_factory, size_t output_size = 1);
+
     /// \brief Moves nodes that would be deleted from inputs to nodes to avoid stack overflows
     /// on deep networks.
     void safe_delete(NodeVector& nodes, bool recurse);
@@ -437,7 +448,7 @@ private:
     mutable std::atomic_bool m_name_changing{false};
     static std::atomic<size_t> m_next_instance_id;
     std::deque<descriptor::Input> m_inputs;
-    std::deque<descriptor::Output> m_outputs;
+    std::deque<std::unique_ptr<descriptor::Output>> m_outputs;
     RTMap m_rt_info;
 
     // The vector of SharedRTInfo attributes associated to Functions
@@ -452,6 +463,19 @@ private:
     // update of this field by having specific method with mutex.
     void insert_info(std::shared_ptr<SharedRTInfo> info);
     std::mutex m_insert_mutex;
+
+    /// brief Makes default ov::descriptor::Output for Node at port index.
+    ///
+    /// \param node   Node to
+    /// \param i      Output port index.
+    /// \param tensor Shared tensor descriptor connected to this output descriptor.
+    ///
+    /// \return std::unique_ptr<descriptor::Output>
+    static std::unique_ptr<descriptor::Output> make_output_descriptor(Node* node,
+                                                                      const size_t i,
+                                                                      std::shared_ptr<descriptor::Tensor> tensor);
+    /// \brief Holds function factory for output descriptor.
+    OutputDescriptorFactory m_output_descriptor_factory = make_output_descriptor;
 };
 
 using NodeTypeInfo = Node::type_info_t;

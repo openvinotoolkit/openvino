@@ -86,6 +86,7 @@ ov::Node& ov::Node::operator=(const Node& node) {
         input = descriptor::Input(this, input.get_index(), input.get_output());
         input.get_output().add_input(&input);
     }
+    this->m_output_descriptor_factory = node.m_output_descriptor_factory;
     return *this;
 }
 
@@ -99,6 +100,13 @@ ov::Node::Node(size_t output_size) : Node() {
 }
 
 ov::Node::Node(const OutputVector& arguments, size_t output_size) : Node() {
+    set_arguments(arguments);
+    set_output_size(output_size);
+}
+
+ov::Node::Node(const OutputVector& arguments, Node::OutputDescriptorFactory output_factory, size_t output_size)
+    : Node() {
+    m_output_descriptor_factory = output_factory;
     set_arguments(arguments);
     set_output_size(output_size);
 }
@@ -224,15 +232,16 @@ ov::descriptor::Output& ov::Node::get_output_descriptor(size_t position) {
     while (m_outputs.size() <= position) {
         size_t i = m_outputs.size();
         auto tensor_descriptor = make_shared<descriptor::Tensor>(element::dynamic, PartialShape::dynamic(), this, i);
-        m_outputs.emplace_back(this, i, tensor_descriptor);
+        m_outputs.emplace_back(m_output_descriptor_factory(this, i, std::move(tensor_descriptor)));
     }
-    return m_outputs[position];
+
+    return *(m_outputs[position]);
 }
 
 void ov::Node::set_argument(size_t position, const Output<Node>& argument) {
     auto output_node = argument.get_node();
     auto& output_descriptor = output_node->m_outputs.size() > argument.get_index()
-                                  ? output_node->m_outputs.at(argument.get_index())
+                                  ? *(output_node->m_outputs.at(argument.get_index()))
                                   : output_node->get_output_descriptor(argument.get_index());
     if (position < m_inputs.size()) {
         get_input_descriptor(position).replace_output(output_descriptor);
@@ -430,7 +439,7 @@ size_t ov::Node::get_output_size() const {
 
 const ov::element::Type& ov::Node::get_output_element_type(size_t i) const {
     OPENVINO_ASSERT(i < m_outputs.size(), idx_txt, i, out_of_range_txt);
-    return m_outputs[i].get_element_type();
+    return m_outputs[i]->get_element_type();
 }
 
 const ov::element::Type& ov::Node::get_element_type() const {
@@ -442,12 +451,12 @@ const ov::element::Type& ov::Node::get_element_type() const {
 
 const ov::Shape& ov::Node::get_output_shape(size_t i) const {
     OPENVINO_ASSERT(i < m_outputs.size(), idx_txt, i, out_of_range_txt);
-    return m_outputs[i].get_shape();
+    return m_outputs[i]->get_shape();
 }
 
 const ov::PartialShape& ov::Node::get_output_partial_shape(size_t i) const {
     OPENVINO_ASSERT(i < m_outputs.size(), idx_txt, i, out_of_range_txt);
-    return m_outputs[i].get_partial_shape();
+    return m_outputs[i]->get_partial_shape();
 }
 
 const ov::Shape& ov::Node::get_shape() const {
@@ -458,7 +467,7 @@ const ov::Shape& ov::Node::get_shape() const {
 std::set<ov::Input<ov::Node>> ov::Node::get_output_target_inputs(size_t i) const {
     std::set<Input<Node>> result;
 
-    for (auto& input : m_outputs.at(i).get_inputs()) {
+    for (auto& input : m_outputs.at(i)->get_inputs()) {
         result.emplace(input->get_raw_pointer_node(), input->get_index());
     }
 
@@ -467,7 +476,7 @@ std::set<ov::Input<ov::Node>> ov::Node::get_output_target_inputs(size_t i) const
 
 ov::descriptor::Tensor& ov::Node::get_output_tensor(size_t i) const {
     OPENVINO_ASSERT(i < m_outputs.size(), idx_txt, i, out_of_range_txt);
-    return m_outputs[i].get_tensor();
+    return m_outputs[i]->get_tensor();
 }
 
 ov::descriptor::Tensor& ov::Node::get_input_tensor(size_t i) const {
@@ -749,6 +758,12 @@ bool ov::Node::visit_attributes(AttributeVisitor&) {
 }
 
 namespace ov {
+std::unique_ptr<descriptor::Output> Node::make_output_descriptor(Node* node,
+                                                                 const size_t i,
+                                                                 std::shared_ptr<descriptor::Tensor> tensor) {
+    return std::unique_ptr<descriptor::Output>(new descriptor::Output(node, i, tensor));
+}
+
 void check_new_args_count(const Node* const node, const OutputVector& new_args) {
     NODE_VALIDATION_CHECK(node,
                           new_args.size() == node->input_values().size(),

@@ -8,6 +8,7 @@
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
 
 ov::descriptor::Tensor::Tensor(const element::Type& element_type,
@@ -70,9 +71,7 @@ const ov::Shape& ov::descriptor::Tensor::get_shape() const {
 }
 
 size_t ov::descriptor::Tensor::size() const {
-    const bool bitwidth_less_than_byte = m_element_type.bitwidth() < 8;
-    return bitwidth_less_than_byte ? (shape_size(get_shape()) * m_element_type.bitwidth() + 7) >> 3
-                                   : (shape_size(get_shape()) * m_element_type.size());
+    return element::get_memory_size(get_element_type(), shape_size(get_shape()));
 }
 
 const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const {
@@ -106,13 +105,8 @@ void ov::descriptor::Tensor::add_names(const std::unordered_set<std::string>& na
 }
 
 void ov::descriptor::Tensor::clone_from(const ov::descriptor::Tensor& old) {
-    {
-        AtomicGuard lock(m_shape_changing);
-        m_partial_shape = old.get_partial_shape();
-        m_shape_changed = true;
-    }
+    set_tensor_type(*this, old.get_element_type(), old.get_partial_shape());
     set_names(old.get_names());
-    m_element_type = old.get_element_type();
     m_lower_value = old.get_lower_value();
     m_upper_value = old.get_upper_value();
     m_value_symbol = old.get_value_symbol();

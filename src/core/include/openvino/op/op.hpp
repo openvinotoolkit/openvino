@@ -36,6 +36,7 @@ class OPENVINO_API Op : public Node {
 protected:
     Op() : Node() {}
     Op(const OutputVector& arguments);
+    Op(const OutputVector& arguments, Node::OutputDescriptorFactory desriptor_factory);
 
 public:
     _OPENVINO_HIDDEN_METHOD static const ::ov::Node::type_info_t& get_type_info_static() {
