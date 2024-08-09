@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-
 set(TARGET_NAME ov_inference_unit_tests)
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
