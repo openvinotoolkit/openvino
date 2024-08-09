@@ -52,7 +52,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-32-cores-128gb
+    runs-on: aks-win-32-cores-128gb-staging
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
@@ -267,7 +267,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-32-cores-128gb
+    runs-on: aks-win-32-cores-128gb-staging
     env:
       CMAKE_BUILD_TYPE: 'Release'
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
@@ -345,7 +345,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-8-cores-16gb
+    runs-on: aks-win-8-cores-16gb-staging
     env:
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"

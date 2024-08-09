@@ -9,7 +9,7 @@ permissions: read-all
 
 jobs:
   Cleanup_PIP:
-    runs-on: aks-linux-2-cores-8gb
+    runs-on: aks-linux-2-cores-8gb-staging
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
@@ -34,7 +34,7 @@ jobs:
           du -h -d2 ${PIP_CACHE_PATH}
 
   Cleanup_CCACHE:
-    runs-on: aks-linux-2-cores-8gb
+    runs-on: aks-linux-2-cores-8gb-staging
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:

@@ -26,7 +26,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-32gb-staging
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     env:
