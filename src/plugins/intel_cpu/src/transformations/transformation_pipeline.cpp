@@ -319,15 +319,15 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::ConvertGatherToGatherCompressed);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
-    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::TransposeMatMul);
     ov::element::TypeVector decompression_precisions{ov::element::u8,
                                                      ov::element::i8,
                                                      ov::element::u4,
                                                      ov::element::i4,
                                                      ov::element::nf4,
                                                      ov::element::f4e2m1};
-    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, false, false);
-    CPU_SET_CALLBACK_X64(decompression_handling_manager, [&](const_node_ptr &node) -> bool {
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, false, false);
+    CPU_SET_CALLBACK_COMMON(decompression_handling_manager, [&](const_node_ptr &node) -> bool {
         return !is_decompression_multiply(node);
     }, ov::pass::MarkDequantizationSubgraph);
 
