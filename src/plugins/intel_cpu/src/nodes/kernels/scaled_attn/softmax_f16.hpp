@@ -14,7 +14,7 @@ namespace Extensions {
 namespace Cpu {
 namespace XARCH {
 
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 void attn_softmax(ov::float16* a,
                   void* a_dst,
                   float scale,

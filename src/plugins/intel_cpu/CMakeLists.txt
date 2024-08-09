@@ -295,13 +295,6 @@ cross_compiled_file(${TARGET_NAME}
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
-                    src/nodes/kernels/scaled_attn/softmax_f16.cpp
-        API         src/nodes/kernels/scaled_attn/softmax_f16.hpp
-        NAME        attn_softmax
-        NAMESPACE   ov::Extensions::Cpu::XARCH
-)
-cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/mha_single_token.cpp
         API         src/nodes/kernels/scaled_attn/mha_single_token.hpp
         NAME        mha_single_token

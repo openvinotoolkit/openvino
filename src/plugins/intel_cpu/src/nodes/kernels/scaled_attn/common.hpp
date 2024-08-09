@@ -253,21 +253,23 @@ static constexpr size_t vec_len_f16_neon = vec_len_neon / sizeof(ov::float16);
     inline float32x4_t __vld1q_f32(const float* a) {
         return vld1q_f32(a);
     }
-    inline float16x8_t exp_ps_neon_f16(float16x8_t x) {
-        const float32x4_t x_high = vcvt_f32_f16(vget_high_f16(x));
-        const float32x4_t x_low  = vcvt_f32_f16(vget_low_f16(x));
-
-        const float16x8_t res = vcombine_f16(vcvt_f16_f32(exp_ps_neon_f32(x_low)), vcvt_f16_f32(exp_ps_neon_f32(x_high)));
-        return res;
-    }
-    inline float16_t hsum(float16x8_t vec) {
-        float16x4_t sum1 = vpadd_f16(vget_low_f16(vec), vget_high_f16(vec));
-        float16x4_t sum2 = vpadd_f16(sum1, sum1);
-        float16x4_t sum3 = vpadd_f16(sum2, sum2);
-        return vget_lane_f16(sum3, 0);
-    }
 #endif
 
+#if defined(OPENVINO_ARCH_ARM64) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+        inline float16x8_t exp_ps_neon_f16(float16x8_t x) {
+            const float32x4_t x_high = vcvt_f32_f16(vget_high_f16(x));
+            const float32x4_t x_low  = vcvt_f32_f16(vget_low_f16(x));
+
+            const float16x8_t res = vcombine_f16(vcvt_f16_f32(exp_ps_neon_f32(x_low)), vcvt_f16_f32(exp_ps_neon_f32(x_high)));
+            return res;
+        }
+        inline float16_t hsum(float16x8_t vec) {
+            float16x4_t sum1 = vpadd_f16(vget_low_f16(vec), vget_high_f16(vec));
+            float16x4_t sum2 = vpadd_f16(sum1, sum1);
+            float16x4_t sum3 = vpadd_f16(sum2, sum2);
+            return vget_lane_f16(sum3, 0);
+        }
+#endif
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions

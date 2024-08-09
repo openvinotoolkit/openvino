@@ -71,7 +71,7 @@ void cvt_copy(TA* dst, TB* src, size_t n) {
     }
 }
 
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 void cvt_copy(ov::float16* dst, ov::float16* src, size_t n) {
     size_t i = 0;
     for (; i + vec_len_f16_neon <= n; i += vec_len_f16_neon) {
@@ -118,7 +118,7 @@ static void attn_acc_value(float* out, float weight, T* v, size_t S, float* scal
     }
 }
 
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 template<typename T>
 static void attn_acc_value(ov::float16* out, ov::float16 weight, T* v, size_t S, float* scale, float* zp) {
     size_t i = 0;
@@ -560,7 +560,7 @@ static float dot_product(TA* a, TB* b, size_t n, float* scale, float* zp, float*
     return sum;
 }
 
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 static ov::float16 dot_product(ov::float16* a, ov::float16* b, size_t n, float* scale, float* zp, float* head_sum) {
     size_t i = 0;
     ov::float16 sum = 0.0f;
@@ -823,7 +823,7 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
     }
 }
 
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 static void attn_reduce(ov::float16* dst, ov::float16* temp, size_t M, size_t S, size_t temp_stride) {
     size_t i = 0;
     for (; i + vec_len_f16_neon <= S; i += vec_len_f16_neon) {
@@ -1155,7 +1155,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                 head_sum);
         }
     } else if (query.get_precision() == ov::element::f16) {
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
         if (present_key.get_precision() == ov::element::f16) {
             mha_single_token_kernel<ov::float16, ov::float16, ov::float16>(query,
                                                                            present_key,
