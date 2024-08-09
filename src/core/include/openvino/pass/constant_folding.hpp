@@ -19,6 +19,7 @@ namespace pass {
 class OPENVINO_API ConstantFolding : public ModelPass {
 public:
     OPENVINO_RTTI("ConstantFolding");
+    explicit ConstantFolding(int64_t byte_threshold = -1) : m_byte_threshold(byte_threshold) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 protected:
@@ -26,6 +27,11 @@ protected:
     /// \brief Folds pre-calculated output tensor values to constants in case lower and
     /// upper estimations are equal. Traverses graph backwards starting from the results.
     bool pre_calculated_values_folding(const std::shared_ptr<ov::Model>& model);
+
+private:
+    // this variable controls the threshold by which it is allowed to increase
+    // the size of the binary file during one step of the ConstantFolding execution.
+    int64_t m_byte_threshold;
 };
 
 /**
