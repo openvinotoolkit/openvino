@@ -1,5 +1,5 @@
 Model Optimization Guide
-========================
+=========================================================================================
 
 
 .. toctree::
@@ -11,50 +11,58 @@ Model Optimization Guide
    model-optimization-guide/weight-compression
 
 
-Model optimization is an optional offline step of improving the final model performance
-and reducing the model size by applying special optimization methods, such as 8-bit
-quantization, pruning, etc. OpenVINO offers three optimization paths implemented in
-:doc:`Neural Network Compression Framework (NNCF) <model-optimization-guide/quantizing-models-post-training/nncf>`:
+Model optimization means altering the model itself to improve the inference performance.
+It may be done by reducing the model size, applying methods such as 8-bit quantization or
+pruning. It is an optional step and should be performed outside of the final software
+application.
+
+:doc:`Neural Network Compression Framework (NNCF) <model-optimization-guide/quantizing-models-post-training/nncf>`
+Is the the OpenVINO toolkit's optimisation tool, offering three ways to get more
+streamlined models:
 
 - :doc:`Post-training Quantization <model-optimization-guide/quantizing-models-post-training>`
-  is designed to optimize the inference of deep learning models by applying the
-  post-training 8-bit integer quantization that does not require model retraining
-  or fine-tuning.
+  is designed to optimize inference of deep learning models by applying 8-bit integer
+  quantization, which is done post-training and does not require model retraining or
+  fine-tuning.
 
 - :doc:`Training-time Optimization <model-optimization-guide/compressing-models-during-training>`
-  , a suite of advanced methods for training-time model optimization within the DL
-  framework, such as PyTorch and TensorFlow 2.x. It supports methods like
-  Quantization-aware Training, Structured and Unstructured Pruning, etc.
+  involves a suite of advanced methods such as Quantization-aware Training, Structured,
+  and Unstructured Pruning They are used within the model's deep learning framework, such
+  as PyTorch and TensorFlow.
 
-- :doc:`Weight Compression <model-optimization-guide/weight-compression>`,
-  an easy-to-use method for Large Language Models footprint reduction and inference acceleration.
+- :doc:`Weight Compression <model-optimization-guide/weight-compression>`
+  is an easy-to-use method for Large Language Model footprint reduction and inference
+  acceleration.
 
-.. note::
+.. image:: ../assets/images/WHAT_TO_USE.svg
 
-   OpenVINO also supports optimized models (for example, quantized) from source
-   frameworks such as PyTorch, TensorFlow, and ONNX (in Q/DQ; Quantize/DeQuantize format).
-   No special steps are required in this case and optimized models can be converted to
-   the OpenVINO Intermediate Representation format (IR) right away.
+Post-training Quantization is the fastest way to optimize an arbitrary deep learning model
+and should be applied first. But it is limited in terms of how much you can increase
+performance without significantly impacting the accuracy.
 
-Post-training Quantization is the fastest way to optimize an arbitrary DL model and should
-be applied first, but it is limited in terms of achievable accuracy-performance trade-off.
-The recommended approach to obtain OpenVINO quantized model is to convert
-`a model from original framework <https://huggingface.co/models>`__ to ``ov.Model``
-and ensure that the model works correctly in OpenVINO, for example, by calculating the
-model metrics. Then, ``ov.Model`` can be used as input for the ``nncf.quantize()``
-method to get the quantized model or as input for the ``nncf.compress_weights()``
-method to compress weights of Large Language Models (see the diagram below).
+The recommended approach to obtain an OpenVINO quantized model is to convert
+`a model from its original framework <https://huggingface.co/models>`__ to ``ov.Model``
+and ensure that it works correctly in OpenVINO. You can calculate the model metrics
+to do so. Then, ``ov.Model`` can be used as input for the ``nncf.quantize()`` method
+to get the quantized model or as input for the ``nncf.compress_weights()`` method to
+compress weights, in the case of Large Language Models (see the diagram below).
 
-In case of unsatisfactory accuracy or performance after Post-training Quantization,
-Training-time Optimization can be used as an option.
+If Post-training Quantization produces unsatisfactory accuracy or performance results,
+Training-time Optimization may prove a better option.
 
 .. image:: ../assets/images/DEVELOPMENT_FLOW_V3_crunch.svg
 
-Once the model is optimized using the aforementioned methods, it can be used for
-inference using the regular OpenVINO inference workflow. No changes to the inference
-code are required.
 
-.. image:: ../assets/images/WHAT_TO_USE.svg
+.. note::
+
+   Once optimized, models may be executed with the typical OpenVINO inference workflow,
+   no additional changes to the inference code are required.
+   
+   This is true for models optimized using NNCF, as well as those pre-optimized from
+   their source frameworks (e.g., quantized), such as PyTorch, TensorFlow, and ONNX
+   (in Q/DQ; Quantize/DeQuantize format). The latter may be easily converted to the
+   :doc:`OpenVINO Intermediate Representation format (IR) <../../documentation/openvino-ir-format>`
+   right away.
 
 Additional Resources
 ####################
