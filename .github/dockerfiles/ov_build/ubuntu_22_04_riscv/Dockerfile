@@ -1,4 +1,4 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
+FROM openvinogithubactionsstaging.azurecr.io/dockerhub/ubuntu:22.04
 
 USER root
 

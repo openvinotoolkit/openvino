@@ -1,4 +1,4 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu22.04
+FROM openvinogithubactionsstaging.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu22.04
 
 USER root
 

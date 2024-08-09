@@ -54,9 +54,9 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-linux-4-cores-16gb-docker-build-staging
     container:
-      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      image: openvinogithubactionsstaging.azurecr.io/docker_build:0.2
       volumes:
         - /mount:/mount
     outputs:
@@ -71,7 +71,7 @@ jobs:
           images: |
             ov_build/ubuntu_20_04_x64
             ov_test/ubuntu_20_04_x64
-          registry: 'openvinogithubactions.azurecr.io'
+          registry: 'openvinogithubactionsstaging.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
 
@@ -81,7 +81,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-32gb-staging
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
       volumes:
@@ -196,7 +196,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch'}}
     needs: [ Docker, Build, Smart_CI ]
     timeout-minutes: 30
-    runs-on: aks-linux-8-cores-32gb
+    runs-on: aks-linux-8-cores-32gb-staging
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
     defaults:

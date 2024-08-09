@@ -57,7 +57,7 @@ jobs:
     needs: Smart_CI
     runs-on: aks-linux-4-cores-16gb-docker-build-staging
     container:
-      image: openvinogithubactionsstaging.privatelink.azurecr.io/docker_build:0.2
+      image: openvinogithubactionsstaging.azurecr.io/docker_build:0.2
       volumes:
         - /mount:/mount
     outputs:
@@ -73,7 +73,7 @@ jobs:
             ov_build/ubuntu_20_04_x64
             ov_build/ubuntu_20_04_x64_nvidia
             ov_test/ubuntu_20_04_x64
-          registry: 'openvinogithubactionsstaging.privatelink.azurecr.io'
+          registry: 'openvinogithubactionsstaging.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
 
@@ -94,7 +94,7 @@ jobs:
     uses: ./.github/workflows/job_debian_packages.yml
     with:
       runner: 'aks-linux-4-cores-16gb-staging'
-      image: 'openvinogithubactionsstaging.privatelink.azurecr.io/dockerhub/ubuntu:20.04'
+      image: 'openvinogithubactionsstaging.azurecr.io/dockerhub/ubuntu:20.04'
 
   Samples:
     needs: [ Docker, Build, Smart_CI ]
@@ -335,7 +335,7 @@ jobs:
 
   # TODO: Switch back to self-hosted runners
   # container:
-  #   image: openvinogithubactionsstaging.privatelink.azurecr.io/dockerhub/ubuntu:20.04
+  #   image: openvinogithubactionsstaging.azurecr.io/dockerhub/ubuntu:20.04
   #   volumes:
   #     - /mount:/mount
   PyTorch_Models_Tests:
