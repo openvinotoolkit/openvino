@@ -495,7 +495,7 @@ bool crop_in_place_optimization::match(const program_node& node,
         }
         if (user->is_type<experimental_detectron_roi_feature_extractor>() && user->get_dependency_index(node) == 0)
             return false;
-        if (user->is_type<rnn>())
+        if (user->is_type<lstm_seq>())
             return false;
     }
 

@@ -182,13 +182,13 @@ protected:
     }
 };
 
-struct rnn : public primitive_base<rnn> {
-    CLDNN_DECLARE_PRIMITIVE(rnn)
-    rnn() : primitive_base("", {}) {}
+struct lstm_seq : public primitive_base<lstm_seq> {
+    CLDNN_DECLARE_PRIMITIVE(lstm_seq)
+    lstm_seq() : primitive_base("", {}) {}
 
     using vec_activation = std::vector<activation_func>;
     using vec_activation_param = std::vector<activation_additional_params>;
-    rnn(const RNNParams& p): primitive_base(p.id, p.get_inputs(), p.num_outputs, \
+    lstm_seq(const RNNParams& p): primitive_base(p.id, p.get_inputs(), p.num_outputs, \
     {optional_data_type()}, {p.output_padding}), params(p) {}
     RNNParams params;
     size_t hash() const override {
@@ -198,17 +198,17 @@ struct rnn : public primitive_base<rnn> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        auto rhs_casted = downcast<const rnn>(rhs);
+        auto rhs_casted = downcast<const lstm_seq>(rhs);
         return params == rhs_casted.params && output_data_types == rhs_casted.output_data_types;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
-        primitive_base<rnn>::save(ob);
+        primitive_base<lstm_seq>::save(ob);
         params.save(ob);
     }
 
     void load(BinaryInputBuffer& ib) override {
-        primitive_base<rnn>::load(ib);
+        primitive_base<lstm_seq>::load(ib);
         params.load(ib);
     }
 
