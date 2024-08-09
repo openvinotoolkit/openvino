@@ -7,7 +7,6 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/op.hpp"
-#include "openvino/op/scaled_dot_product_attention.hpp"
 
 #include "util.hpp"
 

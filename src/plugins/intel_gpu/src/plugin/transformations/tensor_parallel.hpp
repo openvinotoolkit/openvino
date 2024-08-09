@@ -53,7 +53,7 @@ namespace intel_gpu {
 class TensorParallelFusion: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TensorParallelFusion", "0");
-    TensorParallelFusion(size_t world_size);
+    TensorParallelFusion(size_t world_size, size_t world_rank);
 };
 
 }   // namespace intel_gpu

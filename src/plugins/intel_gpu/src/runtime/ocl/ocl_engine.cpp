@@ -234,30 +234,6 @@ memory::ptr ocl_engine::reinterpret_buffer(const memory& memory, const layout& n
     }
 }
 
-memory::ptr ocl_engine::reinterpret_buffer_with_offset(const memory& memory, const layout& new_layout, int64_t offset) {
-    OPENVINO_ASSERT(memory.get_engine() == this, "[GPU] trying to reinterpret buffer allocated by a different engine");
-    OPENVINO_ASSERT(new_layout.format.is_image() == memory.get_layout().format.is_image(),
-                    "[GPU] trying to reinterpret between image and non-image layouts. Current: ",
-                    memory.get_layout().format.to_string(), " Target: ", new_layout.format.to_string());
-
-    try {
-        if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
-            auto& usm_memory = reinterpret_cast<const ocl::gpu_usm&>(memory);
-            auto buffer_ptr = reinterpret_cast<uint8_t*>(usm_memory.buffer_ptr()) + offset;
-            auto usm_memory_with_offset = std::make_shared<cl::UsmMemory>(get_usm_helper(), buffer_ptr);
-            return std::make_shared<ocl::gpu_usm>(this,
-                                     new_layout,
-                                     *usm_memory_with_offset,
-                                     memory.get_allocation_type(),
-                                     memory.get_mem_tracker());
-        } else {
-           OPENVINO_THROW("reinterpret buffer with offset implemented for usm memory only");
-        }
-    } catch (cl::Error const& err) {
-        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
-    }
-}
-
 memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_params params) {
    try {
         if (new_layout.format.is_image_2d() && params.mem_type == shared_mem_type::shared_mem_image) {

@@ -59,8 +59,6 @@ public:
     /// Created memory object from the other @p memory and reinterpred the data using specified @p new_layout
     virtual memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) = 0;
 
-    virtual memory_ptr reinterpret_buffer_with_offset(const memory& memory, const layout& new_layout, int64_t offset = 0) = 0;
-
     /// Create shared memory object using user-supplied memory buffer @p buf using specified @p layout
     memory_ptr share_buffer(const layout& layout, shared_handle buf);
 
