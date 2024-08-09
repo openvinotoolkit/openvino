@@ -43,6 +43,26 @@ void regclass_graph_PartialShape(py::module m) {
                        :return: A PartialShape with the given rank (or undefined rank if not provided), and all dimensions are dynamic.
                     )");
 
+    auto check_shape_equality = [](const ov::PartialShape& self, const auto& container) {
+        if (self.rank().is_static() && self.rank().get_length() != container.size()) {
+            return false;
+        }
+        for (size_t i = 0; i < self.rank().get_length(); ++i) {
+            if (self[i].is_static() && self[i].get_length() != container[i].cast<int64_t>()) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    shape.def("__eq__", [check_shape_equality](const ov::PartialShape& self, const py::list& lst) {
+        return check_shape_equality(self, lst);
+    });
+
+    shape.def("__eq__", [check_shape_equality](const ov::PartialShape& self, const py::tuple& tpl) {
+        return check_shape_equality(self, tpl);
+    });
+
     shape.def_static(
         "dynamic",
         [](int64_t rank) {

@@ -41,11 +41,39 @@ void regclass_graph_Shape(py::module m) {
         self[key] = d.get_length();
     });
     shape.def("__getitem__", [](const ov::Shape& v, int64_t key) {
+        // Normalize the key to support Python-style negative indexing
         if (key < 0) {
             key += v.size();
         }
-        return v[key];
+        // Use at() for bounds checking to throw std::out_of_range if key is out of range
+        try {
+            return v.at(key);  // This will automatically check the range
+        } catch (const std::out_of_range&) {
+            throw py::index_error("Index out of range");
+        }
     });
+
+    auto compareShape = [](const ov::Shape& self, const auto& container) {
+        if (self.size() != container.size()) {
+            return false;
+        }
+        for (size_t i = 0; i < self.size(); ++i) {
+            if (self[i] != container[i].cast<size_t>()) {
+                return false;
+            }
+        }
+        return true;
+    };
+    shape.def("__eq__", [compareShape](const ov::Shape& self, const py::list& lst) {
+        return compareShape(self, lst);
+    });
+
+    shape.def("__eq__", [compareShape](const ov::Shape& self, const py::tuple& tpl) {
+        return compareShape(self, tpl);
+    });
+
+    // Common function to compare shape with list or tuple
+    
 
     shape.def("__getitem__", [](const ov::Shape& v, py::slice& slice) {
         size_t start, stop, step, slicelength;

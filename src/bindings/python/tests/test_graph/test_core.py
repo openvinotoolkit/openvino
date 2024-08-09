@@ -393,6 +393,17 @@ def test_discrete_type_info():
     assert n3.get_type_info().name <= n1.get_type_info().name
 
 
+@pytest.mark.parametrize("input_data", [
+    [1, 2, 3],
+    (1, 2, 3),
+])
+@pytest.mark.parametrize("shape_type", [Shape, PartialShape])
+def test_shape_equality(input_data, shape_type):
+    data = input_data
+    shape = shape_type(data)
+    assert data == shape
+
+
 @pytest.mark.parametrize("shape_type", [Shape, PartialShape])
 def test_shape_negative_index(shape_type):
     shape = shape_type([1, 2, 3, 4, 5])
