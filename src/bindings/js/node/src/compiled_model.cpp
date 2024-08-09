@@ -8,6 +8,7 @@
 #include "node/include/helper.hpp"
 #include "node/include/infer_request.hpp"
 #include "node/include/node_output.hpp"
+#include "node/include/type_validation.hpp"
 
 CompiledModelWrap::CompiledModelWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<CompiledModelWrap>(info),
@@ -126,30 +127,33 @@ Napi::Value CompiledModelWrap::export_model(const Napi::CallbackInfo& info) {
     return Napi::Buffer<const char>::Copy(info.Env(), exported.c_str(), exported.size());
 }
 
-Napi::Value CompiledModelWrap::set_property(const Napi::CallbackInfo &info) {
+Napi::Value CompiledModelWrap::set_property(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
-    try{
-        if (info.Length() != 1 || !info[0].IsObject()) {
-            OPENVINO_THROW("Expected a single object argument for setting properties");
+    std::vector<std::string> allowed_signatures;
+    try {
+        if (ov::js::validate<Napi::Object>(info, allowed_signatures)) {
+            const auto properties = to_anyMap(env, info[0]);
+            _compiled_model.set_property(properties);
+        } else {
+            OPENVINO_THROW("'setProperty'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
-        const auto properties = to_anyMap(env, info[0]);
-        _compiled_model.set_property(properties);
     } catch (const std::exception& e) {
-            reportError(env, e.what());
+        reportError(env, e.what());
     }
     return env.Undefined();
 }
 
-Napi::Value CompiledModelWrap::get_property(const Napi::CallbackInfo &info) {
+Napi::Value CompiledModelWrap::get_property(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
+    std::vector<std::string> allowed_signatures;
     try {
-        if (info.Length() != 1 || !info[0].IsString()) {
-            reportError(env, "Expected a single string argument to retrieve property value");
-            return env.Undefined();
+        if (ov::js::validate<Napi::String>(info, allowed_signatures)) {
+            const auto property_name = info[0].As<Napi::String>().Utf8Value();
+            const auto property = _compiled_model.get_property(property_name);
+            return any_to_js(info, property);
+        } else {
+            OPENVINO_THROW("'getProperty'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
-        const auto property_name = info[0].As<Napi::String>().Utf8Value();
-        const auto property = _compiled_model.get_property(property_name);
-        return any_to_js(info, property);
     } catch (const std::exception& e) {
         reportError(env, e.what());
     }
