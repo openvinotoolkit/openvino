@@ -690,7 +690,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                           const ov::AnyMap& properties,
                                                           const ov::SoPtr<ov::IRemoteContext>& context) const {
     auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
-    OPENVINO_ASSERT(casted, "Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
+    if (casted == nullptr) {
+        OPENVINO_THROW("Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
+    }
 
     return compile_model(model, properties);
 }
@@ -770,7 +772,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const {
     auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
-    OPENVINO_ASSERT(casted, "Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
+    if (casted == nullptr) {
+        OPENVINO_THROW("Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
+    }
 
     return import_model(stream, properties);
 }
