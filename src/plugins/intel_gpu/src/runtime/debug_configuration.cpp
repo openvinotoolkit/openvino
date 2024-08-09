@@ -310,8 +310,8 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("MemPreallocationOptions", mem_preallocation_params_str);
     std::string load_dump_raw_bin_str;
     get_gpu_debug_env_var("LoadDumpRawBinary", load_dump_raw_bin_str);
-    std::string fc_dynamic_quantize_layers_str;
-    get_gpu_debug_env_var("DynamicQuantizeLayers", fc_dynamic_quantize_layers_str);
+    std::string dynamic_quantize_layers_str;
+    get_gpu_debug_env_var("DynamicQuantizeLayers", dynamic_quantize_layers_str);
 
     if (help > 0) {
         print_help_messages();
@@ -350,13 +350,13 @@ debug_configuration::debug_configuration()
         }
     }
 
-    if (fc_dynamic_quantize_layers_str.length() > 0) {
+    if (dynamic_quantize_layers_str.length() > 0) {
         // Insert delimiter for easier parsing when used
-        fc_dynamic_quantize_layers_str = " " + fc_dynamic_quantize_layers_str + " ";
-        std::stringstream ss(fc_dynamic_quantize_layers_str);
+        dynamic_quantize_layers_str = " " + dynamic_quantize_layers_str + " ";
+        std::stringstream ss(dynamic_quantize_layers_str);
         std::string layer;
         while (ss >> layer) {
-            fc_dynamic_quantize_layers.push_back(layer);
+            dynamic_quantize_layers.push_back(layer);
         }
     }
 
@@ -516,7 +516,7 @@ std::string debug_configuration::get_name_for_dump(const std::string& file_name)
     return filename;
 }
 
-bool debug_configuration::is_matched_layer(const std::string& layer_name, const std::string& pattern) const {
+bool debug_configuration::is_layer_name_matched(const std::string& layer_name, const std::string& pattern) const {
 #ifdef GPU_DEBUG_CONFIG
     auto upper_layer_name = std::string(layer_name.length(), '\0');
     std::transform(layer_name.begin(), layer_name.end(), upper_layer_name.begin(), ::toupper);
@@ -555,7 +555,7 @@ bool debug_configuration::is_layer_for_dumping(const std::string& layer_name, bo
         return true;
 
     auto iter = std::find_if(dump_layers.begin(), dump_layers.end(), [&](const std::string& dl){
-        return is_matched_layer(layer_name, dl);
+        return is_layer_name_matched(layer_name, dl);
     });
     return (iter != dump_layers.end());
 #else

@@ -141,7 +141,7 @@ public:
     int disable_primitive_fusing;                               // Disable primitive fusing
     int disable_fake_alignment;                                 // Disable fake alignment
     int enable_dynamic_quantize;                                // Enable Dynamic quantization for Fully-connected primitive
-    std::vector<std::string> fc_dynamic_quantize_layers;        // Specify Fully-connected layers which enable Dynamic quantization
+    std::vector<std::string> dynamic_quantize_layers;           // Specify Fully-connected layers which enable Dynamic quantization
     int disable_horizontal_fc_fusion;                           // Disable fc horizontal fusion
     std::set<int64_t> dump_iteration;                           // Dump n-th execution of network.
     std::vector<std::string> load_layers_raw_dump;              // List of layers to load dumped raw binary and filenames
@@ -152,7 +152,7 @@ public:
     bool is_layer_for_dumping(const std::string& layerName, bool is_output = false, bool is_input = false) const;
     bool is_target_iteration(int64_t iteration) const;
     std::string get_matched_from_filelist(const std::vector<std::string>& file_names, std::string pattern) const;
-    bool is_matched_layer(const std::string& layer_name, const std::string& pattern) const;
+    bool is_layer_name_matched(const std::string& layer_name, const std::string& pattern) const;
 
     struct memory_preallocation_params {
         bool is_initialized = false;
