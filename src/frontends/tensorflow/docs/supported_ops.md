@@ -561,7 +561,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | LeakyRelu                                               | YES                           |                               |
 | LeakyReluGrad                                           | NO                            |                               |
 | LearnedUnigramCandidateSampler                          | NO                            |                               |
-| LeftShift                                               | NO                            |                               |
+| LeftShift                                               | YES                           |                               |
 | LegacyParallelInterleaveDatasetV2                       | NO                            |                               |
 | Less                                                    | YES                           |                               |
 | LessEqual                                               | YES                           |                               |
@@ -987,7 +987,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | ReverseSequence                                         | YES                           |                               |
 | ReverseV2                                               | YES                           |                               |
 | RewriteDataset                                          | NO                            |                               |
-| RightShift                                              | NO                            |                               |
+| RightShift                                              | YES                           |                               |
 | Rint                                                    | YES                           |                               |
 | RngReadAndSkip                                          | NO                            |                               |
 | RngSkip                                                 | NO                            |                               |
