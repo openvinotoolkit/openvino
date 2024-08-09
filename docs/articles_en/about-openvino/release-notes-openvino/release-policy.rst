@@ -1,12 +1,12 @@
 Release Policy
 =============================================================================
 
-OpenVINO offers releases of three different types, each targeting a different use case:
+OpenVINO™ offers releases of three different types, each targeting a different use case:
 
+* `Pre-release releases <#pre-release-releases>`__
 * `Regular releases <#regular-releases>`__
 * `Long-Term Support <#long-term-support-releases>`__
 * `Nightly <#nightly-releases>`__
-
 
 Regular releases
 ####################
@@ -60,6 +60,16 @@ The following elements are not guaranteed to receive updates:
 * OpenVINO tools, such as NNCF and OVMS.
 * Code samples used in component testing.
 
+Pre-release releases
+######################
+
+OpenVINO pre-release is the version of the software that has not undergone full release validation
+or qualification. No support is offered on pre-release software. The scope, functionality,
+and APIs/behavior are subject to change in the future. It **should NOT** be incorporated into
+any production software/solution, instead it should be used only for:
+
+* Performing early testing and integration.
+* Getting early feedback from the community.
 
 Nightly releases
 ###########################
