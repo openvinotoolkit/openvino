@@ -47,7 +47,7 @@ void regclass_graph_Shape(py::module m) {
         }
         // Use at() for bounds checking to throw std::out_of_range if key is out of range
         try {
-            return v.at(key); // This will automatically check the range
+            return v.at(key);  // This will automatically check the range
         } catch (const std::out_of_range&) {
             throw py::index_error("Index out of range");
         }
