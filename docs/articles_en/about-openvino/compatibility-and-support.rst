@@ -8,7 +8,6 @@ Compatibility and Support
 
    compatibility-and-support/supported-devices
    compatibility-and-support/supported-models
-   compatibility-and-support/supported-operations-inference-devices
    compatibility-and-support/supported-operations-framework-frontend
 
 
@@ -16,9 +15,7 @@ Compatibility and Support
 
 :doc:`Supported Models <compatibility-and-support/supported-models>` - a list of selected models confirmed to work with given hardware.
 
-:doc:`Supported Operations <compatibility-and-support/supported-operations-inference-devices>` - a listing of framework layers supported by OpenVINO.
-
-:doc:`Supported Operations <compatibility-and-support/supported-operations-framework-frontend>` - a listing of layers supported by OpenVINO inference devices.
+:doc:`Supported Operations <compatibility-and-support/supported-operations-framework-frontend>` - a listing of layers supported by OpenVINO.
 
 
 
