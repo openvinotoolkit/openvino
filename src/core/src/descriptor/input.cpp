@@ -71,14 +71,6 @@ ov::descriptor::Tensor& ov::descriptor::Input::get_tensor() {
     return m_output->get_tensor();
 }
 
-std::shared_ptr<const ov::descriptor::Tensor> ov::descriptor::Input::get_tensor_ptr() const {
-    return m_output->get_tensor_ptr();
-}
-
-std::shared_ptr<ov::descriptor::Tensor> ov::descriptor::Input::get_tensor_ptr() {
-    return m_output->get_tensor_ptr();
-}
-
 const ov::Shape& ov::descriptor::Input::get_shape() const {
     return m_output->get_shape();
 }
