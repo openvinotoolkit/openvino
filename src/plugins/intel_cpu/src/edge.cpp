@@ -266,6 +266,7 @@ void Edge::allocateCommon(const std::function<MemoryPtr(const MemoryDesc&)>& all
 
 void Edge::allocate(const void* mem_ptr) {
     auto allocateFunc = [OV_CAPTURE_CPY_AND_THIS](const MemoryDesc& inputDesc) -> MemoryPtr {
+        // std::cout << "Allocating memory for edge: " << name() << "\n";
         auto parentPtr = getParent();
         return std::make_shared<Memory>(parentPtr->getEngine(), inputDesc, mem_ptr, false);  // no pads zeroing
     };

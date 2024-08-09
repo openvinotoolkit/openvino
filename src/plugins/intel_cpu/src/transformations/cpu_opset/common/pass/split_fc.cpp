@@ -20,6 +20,11 @@
 
 #include "itt.hpp"
 
+static int weightsThreshold() {
+    static int result = std::getenv("SPLIT_THRESHOLD") ? std::stoi(std::getenv("SPLIT_THRESHOLD")) : 6600000;
+    return result;
+}
+
 ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
     MATCHER_SCOPE(SplitFC);
     auto fc_m = ov::pass::pattern::wrap_type<ov::intel_cpu::FullyConnectedNode>();
@@ -43,12 +48,12 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
         // needn't to split fc when the dim is 0.
         const auto& wgt_shape = fc_weight_node->get_shape();
         // weight shape size 660000 is a trade-off value, which is summarized and verified by LLMs.
-        if (wgt_shape[split_dim] <= 1 || ov::shape_size(wgt_shape) < 6600000) {
+        if (wgt_shape[split_dim] <= 1 || static_cast<int>(ov::shape_size(wgt_shape)) < weightsThreshold()) {
             return false;
         }
-
         // parts will be splited according the sub stream num.
         int split_num = sub_stream_num + 1;
+        // std::cout << "SplitFC transformation. Heuristic met:" << ov::shape_size(wgt_shape) << "! split into parts = " << split_num << "\n";
 
         auto split_parts = [](int len, int n) {
             int average = len / n;
