@@ -118,10 +118,17 @@ ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::
 }
 
 ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element::Type& type, const ov::Shape& shape, const ov::AnyMap& params) {
+    std::cout << "********* create remote tensor ******* " << this->get_device_name() << std::endl;
     if (params.empty()) {
+        std::cout << "params.empty()\n";
         // user wants plugin to allocate tensor by itself and return handle
+        if (this->get_device_name() == "GPU.-1") {
+            std::cout << "virtual device create tensor\n";
+            return { create_buffer(type, shape, true), nullptr };
+        }
         return { create_buffer(type, shape), nullptr };
     } else {
+        std::cout << "params not empty()\n";
         // user will supply shared object handle
         auto mem_type = extract_object(params, ov::intel_gpu::shared_mem_type);
 
@@ -216,8 +223,8 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory(const ov::ele
     return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, tensor_type, mem);
 }
 
-std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::create_buffer(const ov::element::Type type, const ov::Shape& shape) {
-    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, TensorType::BT_BUF_INTERNAL);
+std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::create_buffer(const ov::element::Type type, const ov::Shape& shape, bool is_virtual) {
+    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, TensorType::BT_BUF_INTERNAL, nullptr, 0, 0, is_virtual);
 }
 
 std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::create_usm(const ov::element::Type type, const ov::Shape& shape, TensorType alloc_type) {

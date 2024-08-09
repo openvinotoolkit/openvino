@@ -5,6 +5,7 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
+#include "intel_gpu/plugin/tuple_remote_tensor.hpp"
 #include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
@@ -14,7 +15,7 @@
 namespace ov {
 namespace intel_gpu {
 
-TensorType RemoteTensorImpl::allocation_type_to_tensor_type(cldnn::allocation_type t) {
+TensorType TupleRemoteTensorImpl::allocation_type_to_tensor_type(cldnn::allocation_type t) {
     switch (t) {
     case cldnn::allocation_type::cl_mem: return TensorType::BT_BUF_INTERNAL;
     case cldnn::allocation_type::usm_host: return TensorType::BT_USM_HOST_INTERNAL;
@@ -25,41 +26,35 @@ TensorType RemoteTensorImpl::allocation_type_to_tensor_type(cldnn::allocation_ty
     return TensorType::BT_EMPTY;
 }
 
-RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
-                                   const ov::Shape& shape,
-                                   const ov::element::Type& element_type,
-                                   TensorType mem_type,
-                                   cldnn::shared_handle mem,
-                                   cldnn::shared_surface surf,
-                                   uint32_t plane,
-                                   bool is_virtual)
+TupleRemoteTensorImpl::TupleRemoteTensorImpl(std::shared_ptr<TupleRemoteContextImpl> context, std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors)
     : m_context(context)
-    , m_element_type(element_type)
-    , m_shape(shape)
-    , m_layout(cldnn::layout{ov::PartialShape{shape}, element_type, cldnn::format::get_default_format(shape.size())})
-    , m_mem_type(mem_type)
-    , m_mem(mem)
-    , m_surf(surf)
-    , m_plane(plane) {
-    if (!is_virtual) {
-        update_hash();
-        allocate();
-    }
+    , m_element_type(tensors[0]->get_element_type()) {
+    // , m_shape(shape)
+    // , m_layout(cldnn::layout{ov::PartialShape{shape}, element_type, cldnn::format::get_default_format(shape.size())})
+    // , m_mem_type(mem_type)
+    // , m_mem(mem)
+    // , m_surf(surf)
+    // , m_plane(plane)
+    m_tensors = tensors;
 }
 
-RemoteTensorImpl::~RemoteTensorImpl() {
+TupleRemoteTensorImpl::~TupleRemoteTensorImpl() {
     deallocate();
 }
 
-const ov::element::Type& RemoteTensorImpl::get_element_type() const {
+ov::SoPtr<ov::IRemoteTensor> TupleRemoteTensorImpl::get_tensor(int index) const {
+    return m_tensors[index];
+}
+
+const ov::element::Type& TupleRemoteTensorImpl::get_element_type() const {
     return m_element_type;
 }
 
-const ov::Shape& RemoteTensorImpl::get_shape() const {
+const ov::Shape& TupleRemoteTensorImpl::get_shape() const {
     return m_shape;
 }
 
-void RemoteTensorImpl::update_strides() {
+void TupleRemoteTensorImpl::update_strides() {
     if (m_element_type.bitwidth() < 8)
         return;
     auto& shape = get_shape();
@@ -72,15 +67,15 @@ void RemoteTensorImpl::update_strides() {
     }
 }
 
-const ov::Strides& RemoteTensorImpl::get_strides() const {
+const ov::Strides& TupleRemoteTensorImpl::get_strides() const {
     return m_strides;
 }
 
-const AnyMap& RemoteTensorImpl::get_properties() const {
+const AnyMap& TupleRemoteTensorImpl::get_properties() const {
     return m_properties;
 }
 
- void RemoteTensorImpl::set_shape(ov::Shape shape) {
+ void TupleRemoteTensorImpl::set_shape(ov::Shape shape) {
     m_layout.set_partial_shape(ov::PartialShape{shape});
     m_shape = shape;
 
@@ -97,16 +92,16 @@ const AnyMap& RemoteTensorImpl::get_properties() const {
     }
 }
 
-bool RemoteTensorImpl::deallocate() noexcept {
+bool TupleRemoteTensorImpl::deallocate() noexcept {
     m_memory_object.reset();
     return m_memory_object == nullptr;
 }
 
-bool RemoteTensorImpl::is_allocated() const noexcept {
+bool TupleRemoteTensorImpl::is_allocated() const noexcept {
     return m_memory_object != nullptr;
 }
 
-void RemoteTensorImpl::allocate() {
+void TupleRemoteTensorImpl::allocate() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "RemoteTensorImpl::Allocate");
 
     auto context = std::dynamic_pointer_cast<RemoteContextImpl>(m_context);
@@ -191,11 +186,11 @@ void RemoteTensorImpl::allocate() {
         context->add_to_cache(m_hash, m_memory_object);
 }
 
-const std::string& RemoteTensorImpl::get_device_name() const {
+const std::string& TupleRemoteTensorImpl::get_device_name() const {
     return m_context->get_device_name();
 }
 
-bool RemoteTensorImpl::is_shared() const noexcept {
+bool TupleRemoteTensorImpl::is_shared() const noexcept {
     return m_mem_type == TensorType::BT_BUF_SHARED ||
            m_mem_type == TensorType::BT_USM_SHARED ||
            m_mem_type == TensorType::BT_IMG_SHARED ||
@@ -203,11 +198,11 @@ bool RemoteTensorImpl::is_shared() const noexcept {
            m_mem_type == TensorType::BT_DX_BUF_SHARED;
 }
 
-bool RemoteTensorImpl::supports_caching() const {
+bool TupleRemoteTensorImpl::supports_caching() const {
     return is_shared();
 }
 
-void RemoteTensorImpl::update_hash() {
+void TupleRemoteTensorImpl::update_hash() {
     if (supports_caching()) {
         m_hash = cldnn::hash_combine(0, m_mem);
         m_hash = cldnn::hash_combine(m_hash, m_surf);
@@ -220,21 +215,21 @@ void RemoteTensorImpl::update_hash() {
     }
 }
 
-bool RemoteTensorImpl::is_surface() const noexcept {
+bool TupleRemoteTensorImpl::is_surface() const noexcept {
     return m_mem_type == TensorType::BT_SURF_SHARED ||
            m_mem_type == TensorType::BT_IMG_SHARED;
 }
 
-cldnn::memory::ptr RemoteTensorImpl::get_memory() const {
+cldnn::memory::ptr TupleRemoteTensorImpl::get_memory() const {
     auto engine = m_memory_object->get_engine();
     return engine->reinterpret_buffer(*m_memory_object, m_layout);
 }
 
-cldnn::memory::ptr RemoteTensorImpl::get_original_memory() const {
+cldnn::memory::ptr TupleRemoteTensorImpl::get_original_memory() const {
     return m_memory_object;
 }
 
-void RemoteTensorImpl::set_memory(cldnn::memory::ptr memory, size_t actual_size) {
+void TupleRemoteTensorImpl::set_memory(cldnn::memory::ptr memory, size_t actual_size) {
     auto engine = m_memory_object->get_engine();
     m_layout = memory->get_layout();
     m_shape = m_layout.get_shape();
@@ -247,11 +242,11 @@ void RemoteTensorImpl::set_memory(cldnn::memory::ptr memory, size_t actual_size)
     update_strides();
 }
 
-std::shared_ptr<RemoteContextImpl> RemoteTensorImpl::get_context() const {
+std::shared_ptr<TupleRemoteContextImpl> TupleRemoteTensorImpl::get_context() const {
     return m_context;
 }
 
-void RemoteTensorImpl::update_properties() {
+void TupleRemoteTensorImpl::update_properties() {
     OPENVINO_ASSERT(is_allocated(), "[GPU] Can't initialize RemoteTensorImpl parameters as memory was not allocated");
     auto params = m_memory_object->get_internal_params();
 

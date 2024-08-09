@@ -15,6 +15,7 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
 
 #include <string>
 #include <map>
@@ -23,13 +24,13 @@
 
 namespace ov {
 namespace intel_gpu {
-
-class RemoteContextImpl : public ov::IRemoteContext {
+class RemoteContextImpl;
+class TupleRemoteContextImpl : public ov::IRemoteContext {
 public:
-    using Ptr = std::shared_ptr<RemoteContextImpl>;
+    using Ptr = std::shared_ptr<TupleRemoteContextImpl>;
 
-    RemoteContextImpl(const std::string& device_name, std::vector<cldnn::device::ptr> devices);
-    RemoteContextImpl(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts, const ov::AnyMap& params);
+    TupleRemoteContextImpl(const std::string& device_name, std::vector<cldnn::device::ptr> devices);
+    TupleRemoteContextImpl(std::map<std::string, RemoteContextImpl::Ptr> contexts);
 
     const std::string& get_device_name() const override;
 
@@ -45,7 +46,7 @@ public:
     void add_to_cache(size_t hash, cldnn::memory::ptr memory);
 
 private:
-    std::shared_ptr<RemoteContextImpl> get_this_shared_ptr();
+    std::shared_ptr<TupleRemoteContextImpl> get_this_shared_ptr();
 
     std::string get_device_name(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts, const cldnn::device::ptr current_device) const;
     std::shared_ptr<ov::IRemoteTensor> reuse_surface(const ov::element::Type type, const ov::Shape& shape, const ov::AnyMap& params);
@@ -67,13 +68,14 @@ private:
     std::mutex m_cache_mutex;
 
     ov::AnyMap properties;
+    std::map<std::string, RemoteContextImpl::Ptr> m_contexts;
 };
 
-inline RemoteContextImpl::Ptr get_context_impl(ov::SoPtr<ov::IRemoteContext> ptr) {
-    auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(ptr._ptr);
-    OPENVINO_ASSERT(casted, "[GPU] Invalid remote context type. Can't cast to ov::intel_gpu::RemoteContext type");
-    return casted;
-}
+// inline TupleRemoteContextImpl::Ptr get_context_impl(ov::SoPtr<ov::IRemoteContext> ptr) {
+//     auto casted = std::dynamic_pointer_cast<TupleRemoteContextImpl>(ptr._ptr);
+//     OPENVINO_ASSERT(casted, "[GPU] Invalid remote context type. Can't cast to ov::intel_gpu::RemoteContext type");
+//     return casted;
+// }
 
 }  // namespace intel_gpu
 }  // namespace ov

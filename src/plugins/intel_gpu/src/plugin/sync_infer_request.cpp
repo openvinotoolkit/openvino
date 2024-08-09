@@ -12,6 +12,7 @@
 #include "intel_gpu/plugin/sync_infer_request.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
+#include "intel_gpu/plugin/tuple_remote_tensor.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
 #include "intel_gpu/plugin/multi_tensor_variable_state.hpp"
@@ -154,7 +155,11 @@ void SyncInferRequest::sub_streams_infer() {
         for (size_t i = 0; i < requests_num; i++) {
             for (auto& input : inputs) {
                 auto tensor = get_tensor(input);
-                requests[i]->set_tensor(input, tensor);
+                if (auto remote = std::dynamic_pointer_cast<ov::intel_gpu::TupleRemoteTensorImpl>(tensor._ptr)) {
+                    requests[i]->set_tensor(input, remote->get_tensor(i));
+                } else {
+                    requests[i]->set_tensor(input, tensor);
+                }
             }
 
             requests[i]->set_callback([message](const std::exception_ptr& ptr) {
@@ -199,6 +204,7 @@ void SyncInferRequest::set_async_request(ov::intel_gpu::AsyncInferRequest* async
 }
 
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
+    std::cout << "c++ log: " << port.get_node()->get_friendly_name() << std::endl;
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::set_tensor");
     const auto& port_info = find_port(port);
     size_t port_index = port_info.idx;

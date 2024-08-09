@@ -19,7 +19,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     paged_attention(const primitive_id& id,
                     const std::vector<input_info>& inputs,
                     const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}) {
+        : primitive_base(id, inputs) {
         OPENVINO_ASSERT(inputs.size() == 13, "[GPU] Unexpected inputs number for PagedAttention primitive: ", inputs.size());
     }
 

@@ -6,8 +6,11 @@
 
 #include "openvino/runtime/iplugin.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/tuple_remote_context.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
+#include "intel_gpu/plugin/remote_tensor.hpp"
+#include "intel_gpu/plugin/tuple_remote_tensor.hpp"
 #include <map>
 #include <string>
 #include <memory>
@@ -47,6 +50,9 @@ private:
     ov::Any get_metric(const std::string& name, const ov::AnyMap& arguments) const;
 
     std::shared_ptr<ov::threading::MessageManager> m_msg_manager;
+
+    ov::SoPtr<ov::intel_gpu::TupleRemoteTensorImpl> make_tuple_tensor(std::shared_ptr<ov::intel_gpu::RemoteTensorImpl> tensor1,
+                                                   std::shared_ptr<ov::intel_gpu::RemoteTensorImpl> tensor2) const;
 
 public:
     Plugin();

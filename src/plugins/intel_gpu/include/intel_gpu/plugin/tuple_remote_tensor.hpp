@@ -19,6 +19,8 @@
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/tuple_remote_context.hpp"
 
 #include <string>
 #include <map>
@@ -27,20 +29,14 @@
 namespace ov {
 namespace intel_gpu {
 class RemoteContextImpl;
+class RemoteTensorImpl;
 
-class RemoteTensorImpl : public ov::IRemoteTensor {
+class TupleRemoteTensorImpl : public ov::IRemoteTensor {
     friend class RemoteAllocator;
 public:
-    RemoteTensorImpl(std::shared_ptr<RemoteContextImpl> context,
-                     const ov::Shape& shape,
-                     const ov::element::Type& element_type,
-                     TensorType mem_type = TensorType::BT_BUF_INTERNAL,
-                     cldnn::shared_handle mem = nullptr,
-                     cldnn::shared_surface surf = 0,
-                     uint32_t plane = 0,
-                     bool is_virtual = false);
+    TupleRemoteTensorImpl(std::shared_ptr<TupleRemoteContextImpl> context, std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors);
 
-    ~RemoteTensorImpl() override;
+    ~TupleRemoteTensorImpl() override;
     const AnyMap& get_properties() const override;
     const std::string& get_device_name() const override;
 
@@ -60,13 +56,19 @@ public:
 
     void set_memory(cldnn::memory::ptr memory, size_t actual_size);
 
-    std::shared_ptr<RemoteContextImpl> get_context() const;
+    std::shared_ptr<TupleRemoteContextImpl> get_context() const;
+    ov::SoPtr<ov::IRemoteTensor> get_tensor(int index) const;
 
 private:
-    std::shared_ptr<RemoteContextImpl> m_context;
+    std::shared_ptr<TupleRemoteContextImpl> m_context;
 
     ov::element::Type m_element_type;
     ov::Shape m_shape;
+    // std::vector<std::shared_ptr<RemoteContextImpl>> m_contexts;
+
+    // std::vector<ov::element::Type> m_element_types;
+
+    std::vector<ov::Shape> m_shapes;
     ov::Strides m_strides{};
     ov::AnyMap m_properties;
 
@@ -78,6 +80,7 @@ private:
     cldnn::shared_surface m_surf;
     uint32_t m_plane;
     size_t m_hash = 0;
+    std::vector<ov::SoPtr<ov::IRemoteTensor>> m_tensors;
 
     bool supports_caching() const;
     void update_hash();

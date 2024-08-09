@@ -25,6 +25,7 @@
 #include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/plugin/tuple_remote_tensor.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
@@ -136,6 +137,8 @@ std::map<std::string, RemoteContextImpl::Ptr> Plugin::get_default_contexts() con
             auto ctx = std::make_shared<RemoteContextImpl>(get_device_name() + "." + device.first, std::vector<cldnn::device::ptr>{ device.second });
             m_default_contexts.insert({device.first, ctx});
         }
+        // auto ctx = std::make_shared<RemoteContextImpl>(get_device_name() + ".-1", std::vector<cldnn::device::ptr>{ nullptr });
+        // m_default_contexts.insert({"-1", ctx});
     });
     return m_default_contexts;
 }
@@ -147,7 +150,16 @@ Plugin::Plugin() {
     // Set OCL runtime which should be always available
     cldnn::device_query device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl);
     m_device_map = device_query.get_available_devices();
-
+    
+    // std::cout << "****************************\n";
+    // for (const auto& device : m_device_map) {
+    //      std::cout << "device.first: " << device.first << std::endl;
+    //      m_device_map["-1"] = m_device_map[device.first];
+    //      break;
+    // }
+    // for (const auto& device : m_device_map) {
+    //      std::cout << "device.first: " << device.first << std::endl;
+    // }
     // Set default configs for each device
     for (const auto& device : m_device_map) {
         m_configs_map.insert({device.first, ExecutionConfig(ov::device::id(device.first))});
@@ -191,6 +203,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 config.register_device_context_for_tp(get_default_context(iter.first));
         }
         if (config.get_context_for_tp().size() > 1) {
+            std::cout << "***************************** enable tp *****************************\n";
             config.enableSubStreams = true;
             config.streamsRankTable = get_rank_table();
         }
@@ -225,7 +238,15 @@ ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_pr
     return std::make_shared<RemoteContextImpl>(get_default_contexts(), remote_properties);
 }
 
+// ov::SoPtr<ov::intel_gpu::TupleRemoteTensorImpl> Plugin::make_tuple_tensor(std::shared_ptr<ov::intel_gpu::RemoteTensorImpl> tensor1, std::shared_ptr<ov::intel_gpu::RemoteTensorImpl> tensor2) const {
+//     auto a = std::make_shared<ov::intel_gpu::TupleRemoteTensorImpl>(tensor1, tensor2);
+//     // return std::make_shared<ov::IRemoteTensor>(a);
+//     return a;
+// }
+
+
 std::shared_ptr<RemoteContextImpl> Plugin::get_default_context(const std::string& device_id) const {
+    std::cout << "c++ get_default_context: " << device_id << std::endl;
     auto contexts = get_default_contexts();
     OPENVINO_ASSERT(contexts.count(device_id), "[GPU] Context was not initialized for ", device_id, " device");
     return contexts.at(device_id);
@@ -236,6 +257,12 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) 
 
     if (params.find(ov::device::id.name()) != params.end())
         device_id = params.at(ov::device::id.name()).as<std::string>();
+    if (device_id == "-1") {
+        auto contexts = get_default_contexts();
+        auto tuple_context = std::make_shared<ov::intel_gpu::TupleRemoteContextImpl>(contexts);
+        std::cout << "call tuple contedxt\n";
+        return tuple_context;
+    }
 
     return get_default_context(device_id);
 }

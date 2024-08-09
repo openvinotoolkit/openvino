@@ -117,5 +117,5 @@ TEST(CoreBaseTest, LoadOVFolderOverCWPathPluginXML) {
 //     ASSERT_FALSE(ov::util::directory_exists("test_link"));
 // }
 // #    endif
-// #endif
+#endif
 // >>>>>>> paged_attention_1st_and_2nd_tokens_wip

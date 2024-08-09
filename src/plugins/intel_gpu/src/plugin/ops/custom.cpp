@@ -236,7 +236,7 @@ void CreatePagedAttention(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op
 
     prim.num_outputs = op->get_output_size();
     prim.output_data_types = get_output_data_types(op);
-    prim.output_paddings = get_output_paddings(op);
+    // prim.output_paddings = get_output_paddings(op);
 
     GPU_DEBUG_TRACE_DETAIL << "PA op->get_output_size(): " << op->get_output_size() << "\n";
     GPU_DEBUG_TRACE_DETAIL << "PA op->get_input_size(): " << op->get_input_size() << "\n";
