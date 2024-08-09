@@ -27,6 +27,7 @@
 #include "input_layout_inst.h"
 #include "fully_connected_inst.h"
 #include "convolution_inst.h"
+#include "concatenation_inst.h"
 #include "deconvolution_inst.h"
 #include "mutable_data_inst.h"
 #include "condition_inst.h"
@@ -34,6 +35,7 @@
 #include "assign_inst.h"
 #include "read_value_inst.h"
 #include "reshape_inst.h"
+#include "sync_tensor_inst.h"
 #include "kv_cache_inst.h"
 #include "program_helpers.h"
 #include "to_string_utils.h"
@@ -372,7 +374,8 @@ static std::string get_file_path_for_binary_dump(cldnn::layout layout, std::stri
 Network will always have net_id = 0 when it will be cldnn internal micronetwork (created i.e by propagate_constants
 opt pass).
 */
-network::network(program::ptr program, const ExecutionConfig& config, stream::ptr stream, bool is_internal, bool is_primary_stream)
+network::network(program::ptr program, const ExecutionConfig& config, stream::ptr stream, bool is_internal, bool is_primary_stream,
+    ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager)
     : _program(program)
     , _config(config)
     , _engine(program->get_engine())
@@ -382,7 +385,8 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
     , _is_primary_stream(is_primary_stream)
     , _enable_profiling(config.get_property(ov::enable_profiling))
     , _reset_arguments(true)
-    , _shape_predictor(new ShapePredictor(&program->get_engine(), config.get_property(ov::intel_gpu::buffers_preallocation_ratio))) {
+    , _shape_predictor(new ShapePredictor(&program->get_engine(), config.get_property(ov::intel_gpu::buffers_preallocation_ratio)))
+    , _sub_memory_manager(sub_memory_manager) {
     if (!_internal) {
         net_id = get_unique_net_id();
     }
@@ -416,23 +420,57 @@ network::network(engine& engine,
                  const topology& topo,
                  const ExecutionConfig& config,
                  bool is_internal,
-                 std::shared_ptr<ov::threading::IStreamsExecutor> task_executor)
-    : network(program::build_program(engine, topo, config, task_executor, is_internal), config, engine.create_stream(config), is_internal) {}
+                 std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
+                 ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager)
+    : network(program::build_program(engine, topo, config, task_executor, is_internal), config, engine.create_stream(config), is_internal, true,
+            sub_memory_manager) {}
 
 network::network(engine& engine,
                  const std::set<std::shared_ptr<program_node>>& nodes,
                  const ExecutionConfig& config,
                  std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                 bool is_internal)
-    : network(program::build_program(engine, nodes, config, task_executor, is_internal), config, engine.create_stream(config), is_internal) {}
+                 bool is_internal,
+                 ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager)
+    : network(program::build_program(engine, nodes, config, task_executor, is_internal), config, engine.create_stream(config), is_internal, true,
+            sub_memory_manager) {}
 
-network::network(program::ptr program, uint16_t stream_id)
-    : network(program, program->get_config(), program->get_engine().create_stream(program->get_config()), false, stream_id == 0) {}
+network::network(program::ptr program, uint16_t stream_id, ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager)
+    : network(program, program->get_config(), program->get_engine().create_stream(program->get_config()), false, stream_id == 0, sub_memory_manager) {}
 
-network::network(program::ptr program, stream::ptr stream, uint16_t stream_id)
-    : network(program, program->get_config(), stream, false, stream_id == 0) {}
+network::network(program::ptr program, stream::ptr stream, uint16_t stream_id, ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager)
+    : network(program, program->get_config(), stream, false, stream_id == 0, sub_memory_manager) {}
 
 network::~network() {
+    GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
+        if (tp_host_times["sync_tensor"].size() >= 2) {
+            double first = static_cast<double>(tp_host_times["sync_tensor"][0]);
+            double avg = static_cast<double>(
+                std::accumulate(tp_host_times["sync_tensor"].begin() + 1, tp_host_times["sync_tensor"].end(), (size_t)0, std::plus<size_t>()));
+            avg /= (tp_host_times["sync_tensor"].size() - 1);
+            std::string resolution = " us";
+            if (avg > 1000.0) {
+                resolution = " ms";
+                avg /= 1000.0;
+                first /= 1000.0;
+            }
+            GPU_DEBUG_COUT << "Network[" << net_id << "] First infer total sync tensor host time: " << first << resolution << std::endl;
+            GPU_DEBUG_COUT << "Network[" << net_id << "] total sync tensor avg host time: " << avg << resolution << std::endl;
+        }
+        if (tp_host_times["concat"].size() >= 2) {
+            double first = static_cast<double>(tp_host_times["concat"][0]);
+            double avg = static_cast<double>(
+                std::accumulate(tp_host_times["concat"].begin() + 1, tp_host_times["concat"].end(), (size_t)0, std::plus<size_t>()));
+            avg /= (tp_host_times["concat"].size() - 1);
+            std::string resolution = " us";
+            if (avg > 1000.0) {
+                resolution = " ms";
+                avg /= 1000.0;
+                first /= 1000.0;
+            }
+            GPU_DEBUG_COUT << "Network[" << net_id << "] First infer total concat host time: " << first << resolution << std::endl;
+            GPU_DEBUG_COUT << "Network[" << net_id << "] total concat avg host time: " << avg << resolution << std::endl;
+        }
+    }
     if (_program != nullptr)
         _program->cancel_compilation_context();
     _memory_pool->clear_pool_for_network(net_id);
@@ -978,7 +1016,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // with empty memory vector and do nothing inside this function for saving performance
     // in some cases.
     auto surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
-
     set_arguments();
     GPU_DEBUG_IF(debug_config->list_layers == 1) {
         for (auto& inst : _exec_order) {
@@ -1015,8 +1052,16 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     const bool needs_flushing = _is_dynamic;
     const size_t flush_frequency = needs_flushing ? 16 : 0;
     size_t executed_prims = 0;
-
+    std::map<std::string, std::vector<int64_t>> tp_host_times_each_iter;
+    tp_host_times["sync_tensor"];
+    tp_host_times["concat"];
+    tp_host_times_each_iter["sync_tensor"];
+    tp_host_times_each_iter["concat"];
     for (auto& inst : _exec_order) {
+        auto start = std::chrono::high_resolution_clock::now();
+        if (inst->get_node().is_type<sync_tensor>() || inst->get_node().is_type<concatenation>()) {
+            start = std::chrono::high_resolution_clock::now();
+        }
         // Load binary dump for input layers
         GPU_DEBUG_IF(!debug_config->load_layers_raw_dump.empty()) {
             const std::string layer_name = inst->id();
@@ -1165,8 +1210,30 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                 }
             }
         }
+        if (inst->get_node().is_type<sync_tensor>() || inst->get_node().is_type<concatenation>()) {
+            auto end = std::chrono::high_resolution_clock::now();
+            GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
+                if (inst->get_node().is_type<sync_tensor>()) {
+                    tp_host_times_each_iter["sync_tensor"].push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+                } else {
+                    tp_host_times_each_iter["concat"].push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+                }
+            }
+        }
     }
-
+    // statistic for each iter
+    GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
+        if (tp_host_times_each_iter["sync_tensor"].size() >= 1) {
+            const auto begin = std::begin(tp_host_times_each_iter["sync_tensor"]);
+            const auto end = std::end(tp_host_times_each_iter["sync_tensor"]);
+            tp_host_times["sync_tensor"].push_back(std::accumulate(begin, end, (size_t)0, std::plus<size_t>()));
+        }
+        if (tp_host_times_each_iter["concat"].size() >= 1) {
+            const auto begin = std::begin(tp_host_times_each_iter["concat"]);
+            const auto end = std::end(tp_host_times_each_iter["concat"]);
+            tp_host_times["concat"].push_back(std::accumulate(begin, end, (size_t)0, std::plus<size_t>()));
+        }
+    }
     // print '-data_shape' option for benchmark_app
     GPU_DEBUG_IF(debug_config->print_input_data_shapes == 1) {
         std::stringstream data_shape_str;

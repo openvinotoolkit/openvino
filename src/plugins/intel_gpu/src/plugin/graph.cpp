@@ -35,21 +35,24 @@
 namespace ov {
 namespace intel_gpu {
 
-Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)
+Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id,
+            const std::shared_ptr<SubMemoryManager> sub_memory_manager)
     : m_context(context)
     , m_config(config)
     , m_stream_id(stream_id) {
-    auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config, false);
-    m_config = program_builder->get_config();
+    if (!m_config.enableSubStreams) {
+        auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config, false);
+        m_config = program_builder->get_config();
+        m_sub_memory_manager = sub_memory_manager;
+        build(program_builder->get_compiled_program());
 
-    build(program_builder->get_compiled_program());
-
-    primitiveIDs = program_builder->primitive_ids;
-    inputPrimitiveIDs = program_builder->inputPrimitiveIDs;
-    prevPrimitiveIDs = program_builder->prevPrimitiveIDs;
-    profilingIDs = program_builder->profiling_ids;
-    perfMap = program_builder->perfMap;
-    m_input_layouts = program_builder->get_input_layouts();
+        primitiveIDs = program_builder->primitive_ids;
+        inputPrimitiveIDs = program_builder->inputPrimitiveIDs;
+        prevPrimitiveIDs = program_builder->prevPrimitiveIDs;
+        profilingIDs = program_builder->profiling_ids;
+        perfMap = program_builder->perfMap;
+        m_input_layouts = program_builder->get_input_layouts();
+    }
 }
 
 Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)
@@ -180,9 +183,9 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
     if (external_queue) {
         OPENVINO_ASSERT(m_config.get_property(ov::num_streams) == 1, "[GPU] Throughput streams can't be used with shared queue!");
         const auto &engine = program->get_engine();
-        m_network = std::make_shared<cldnn::network>(program, engine.create_stream(m_config, external_queue), m_stream_id);
+        m_network = std::make_shared<cldnn::network>(program, engine.create_stream(m_config, external_queue), m_stream_id, m_sub_memory_manager);
     } else {
-        m_network = std::make_shared<cldnn::network>(program, m_stream_id);
+        m_network = std::make_shared<cldnn::network>(program, m_stream_id, m_sub_memory_manager);
     }
 
     GPU_DEBUG_GET_INSTANCE(debug_config);

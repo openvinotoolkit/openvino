@@ -20,6 +20,7 @@
 #include "eltwise_inst.h"
 #include "loop_inst.h"
 #include "deconvolution_inst.h"
+#include "sync_tensor_inst.h"
 #include "shape_of_inst.h"
 #include "softmax_inst.h"
 #include "strided_slice_inst.h"
@@ -276,14 +277,16 @@ void primitive_inst::update_shape() {
         return;
     }
     bool input_shape_changed = false;
+    // update weight shape for impl params
+
     for (size_t i = 0; i < _deps.size(); i++) {
         auto idx = _deps[i].second;
-        auto new_shape = _deps[i].first->_impl_params->get_output_layout(idx);
-        if (_impl_params->get_input_layout(i) != new_shape) {
+        auto new_layout = _deps[i].first->_impl_params->get_output_layout(idx);
+        if (_impl_params->get_input_layout(i) != new_layout) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": update shape dep [" << i << "] : " << _deps[i].first->id()
                                    << " was: " << _impl_params->get_input_layout(i).to_short_string()
-                                   << " now: " << new_shape.to_short_string() << std::endl;
-            _impl_params->input_layouts[i] = new_shape;
+                                   << " now: " << new_layout.to_short_string() << std::endl;
+            _impl_params->input_layouts[i] = new_layout;
             input_shape_changed = true;
         }
     }
@@ -2123,7 +2126,9 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
         is_output_buffer || is_cpu ||
         has_any_cpu_user_not_shape_of(_node.get_users()) ||
         !_engine.supports_allocation(allocation_type::usm_device) ||
-        (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu);
+        (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu) ||
+        // lockable memory for FC is TP enabled, as we need to do allreduce/allgather for outputs, to be optimized further
+        (_node.is_type<fully_connected>() && _node.as<fully_connected>().w_size != 1);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
 
     auto alloc_type = use_lockable_memory ? lockable_mem_type

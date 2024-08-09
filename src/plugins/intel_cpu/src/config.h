@@ -66,13 +66,17 @@ struct Config {
     int threadsPerStream = 0;
     ov::threading::IStreamsExecutor::ThreadBindingType threadBindingType = ov::threading::IStreamsExecutor::ThreadBindingType::NONE;
     ov::hint::PerformanceMode hintPerfMode = ov::hint::PerformanceMode::LATENCY;
+    std::vector<std::vector<int>> streamsRankTable;
     bool changedHintPerfMode = false;
     ov::log::Level logLevel = ov::log::Level::NO;
     uint32_t hintNumRequests = 0;
     bool enableCpuPinning = true;
     bool changedCpuPinning = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
-    std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
+    std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
+    int streamsRankLevel = 1;
+    int numSubStreams = 0;
+    bool enableSubStreams = false;
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)

@@ -6,6 +6,7 @@
 
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/device.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -137,8 +138,12 @@ public:
     }
 
     void apply_user_properties(const cldnn::device_info& info);
-
+    void register_device_context_for_tp(const ov::Any context) { device_world_contexts.push_back(context);}
+    ov::AnyVector get_context_for_tp() const { return device_world_contexts; }
     std::string to_string() const;
+    bool enableSubStreams;
+    ov::threading::IStreamsExecutor::Config subStreamExecConfig;
+    std::vector<std::vector<int>> streamsRankTable;
 
 protected:
     void apply_hints(const cldnn::device_info& info);
@@ -151,8 +156,10 @@ private:
     ov::AnyMap internal_properties;
     ov::AnyMap user_properties;
 
+
     std::map<std::string, PropertyVisibility> supported_properties;
     std::map<std::string, BaseValidator::Ptr> property_validators;
+    ov::AnyVector device_world_contexts;
 };
 
 }  // namespace intel_gpu

@@ -156,10 +156,12 @@ Plugin::Plugin() {
     // Set common info for compiled_model_runtime_properties
     auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
+    m_msg_manager = ov::threading::message_manager();
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
+
     std::string device_id = get_device_id(orig_config);
 
     auto context = get_default_context(device_id);
@@ -169,7 +171,30 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
     config.apply_user_properties(context->get_engine().get_device_info());
-
+    std::set<ov::hint::ModelDistributionPolicy> model_distribution_policy =
+        config.get_property(ov::hint::model_distribution_policy.name())
+            .as<std::set<ov::hint::ModelDistributionPolicy>>();
+    if (1) {
+        auto get_rank_table = [&]() {
+            std::vector<std::vector<int>> rank_table = {};
+            for (size_t i = 0; i < config.get_context_for_tp().size(); i++) {
+                std::vector<int> init_rank = {};
+                init_rank.emplace_back(i);
+                rank_table.emplace_back(init_rank);
+            }
+            return rank_table;
+        };
+        config.register_device_context_for_tp(context);
+        auto device_ptr = context->get_engine().get_device();
+        for (auto& iter : m_device_map) {
+            if (iter.first != device_id && iter.second->get_info().dev_type == device_ptr->get_info().dev_type) 
+                config.register_device_context_for_tp(get_default_context(iter.first));
+        }
+        if (config.get_context_for_tp().size() > 1) {
+            config.enableSubStreams = true;
+            config.streamsRankTable = get_rank_table();
+        }
+    }
     auto transformed_model = clone_and_transform_model(model, config, context);
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
@@ -556,6 +581,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::enable_cpu_pinning.name(), PropertyMutability::RW},
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::model_distribution_policy.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW}
     };
 

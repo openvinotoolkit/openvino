@@ -312,7 +312,7 @@ private:
     std::shared_ptr<ICompilationContext> _compilation_context;
     bool _loaded_from_cache = false;
 
-    bool new_shape_infer = false;
+    bool new_shape_infer = true;
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;
     std::list<primitive_id> optimized_out;
