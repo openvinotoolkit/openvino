@@ -307,6 +307,15 @@ void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::
 
     m_map[to] = std::make_shared<UnifiedLoopInfo>(work_amount, increment, new_entries, new_exits, handlers);
 
+    // Need to handle InsserSplittedLoopInfo - update outer splitted loop info if it was fused
+    for (const auto& p : m_map) {
+        if (const auto inner_splitted_loop_info = ov::as_type_ptr<InnerSplittedUnifiedLoopInfo>(p.second)) {
+            const auto outer = inner_splitted_loop_info->get_outer_splitted_loop_info();
+            if (utils::one_of(outer, loop_info_upper, loop_info_lower))
+                inner_splitted_loop_info->set_outer_splitted_loop_info(m_map[to]);
+        }
+    }
+
     for (auto it = loop_begin_target; it != loop_end_target; ++it) {
         const auto& expr = *it;
         replace_loop_id(expr, from, to);

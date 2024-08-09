@@ -69,22 +69,8 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
             const auto& loop_to_fuse = !split_parent ? parent_loop : loop;
             // We don't split loop which are not compatible with parent loop because such loops will not be fused
             if (FuseLoops::can_be_fused(upper_loop, lower_loop) && can_be_split(loop_to_split, loop_to_fuse)) {
+                split(linear_ir, split_parent ? parent_loop_id : loop_id, loop_to_fuse->get_increment());
                 loop_was_split = true;
-                loop_to_split->set_work_amount(loop_to_fuse->get_increment());
-
-                const auto loop_to_split_id = split_parent ? parent_loop_id : loop_id;
-                const auto loop_bounds = LoopManager::get_loop_bounds(linear_ir, loop_to_split_id,
-                                                                      loop_to_split->get_input_ports(),
-                                                                      loop_to_split->get_output_ports());
-                const auto outer_loop_id = loop_manager->mark_loop(loop_bounds.first, loop_bounds.second, loop_to_fuse->get_work_amount(),
-                                                                   loop_to_fuse->get_increment(), loop_to_split->get_dim_idx(),
-                                                                   loop_to_split->get_input_ports(), loop_to_split->get_output_ports(), false);
-                const auto& outer_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(outer_loop_id);
-                if (!outer_loop_info->get_handlers().get_passes<SpecificLoopIterType::FIRST_ITER>().empty()) {
-                    outer_loop_info->register_pass_to_handler<SpecificLoopIterType::FIRST_ITER, TransformInnerSplitLoop>();
-                }
-                outer_loop_info->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, TransformInnerSplitLoop>();
-                outer_loop_info->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, TransformInnerSplitLoop>();
                 break;
             }
         }
@@ -95,6 +81,32 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
     if (loop_was_split)
         FuseLoops().run(linear_ir, begin, end);
     return loop_was_split;
+}
+
+void SplitLoops::split(LinearIR& linear_ir, size_t loop_to_split_id, size_t outer_increment) {
+    const auto& loop_manager = linear_ir.get_loop_manager();
+
+    const auto& inner_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_to_split_id);
+    const auto loop_bounds = LoopManager::get_loop_bounds(linear_ir, loop_to_split_id,
+                                                          inner_loop_info->get_input_ports(),
+                                                          inner_loop_info->get_output_ports());
+    const auto outer_loop_id = loop_manager->mark_loop(loop_bounds.first, loop_bounds.second, inner_loop_info->get_work_amount(),
+                                                       outer_increment, inner_loop_info->get_dim_idx(),
+                                                       inner_loop_info->get_input_ports(), inner_loop_info->get_output_ports(), false);
+    const auto& outer_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(outer_loop_id);
+
+    const auto& inner_splitted_loop_info =
+        std::make_shared<InnerSplittedUnifiedLoopInfo>(inner_loop_info->get_increment(), inner_loop_info->get_input_ports(),
+                                                       inner_loop_info->get_output_ports(), inner_loop_info->get_input_port_descs(),
+                                                       inner_loop_info->get_output_port_descs(), inner_loop_info->get_handlers(),
+                                                       outer_loop_info);
+    loop_manager->replace_with_new_loop(linear_ir, loop_bounds.first, loop_bounds.second, inner_splitted_loop_info, loop_to_split_id);
+
+    if (!outer_loop_info->get_handlers().get_passes<SpecificLoopIterType::FIRST_ITER>().empty()) {
+        outer_loop_info->register_pass_to_handler<SpecificLoopIterType::FIRST_ITER, TransformInnerSplitLoop>();
+    }
+    outer_loop_info->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, TransformInnerSplitLoop>();
+    outer_loop_info->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, TransformInnerSplitLoop>();
 }
 
 bool SplitLoops::TransformInnerSplitLoop::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
@@ -119,17 +131,19 @@ bool SplitLoops::TransformInnerSplitLoop::run(LinearIR& linear_ir, LinearIR::con
 
         // There is already ExpandedLoopInfo
         const auto& inner_expanded_loop_info = loop_manager->get_loop_info<ExpandedLoopInfo>(inner_loop_end->get_id());
-        const auto inner_loop_info = inner_expanded_loop_info->get_unified_loop_info();
-        const auto inner_dim_idx = inner_loop_info->get_dim_idx();
-        if (inner_dim_idx != current_dim_idx)
+        const auto inner_unified_loop_info = ov::as_type_ptr<InnerSplittedUnifiedLoopInfo>(inner_expanded_loop_info->get_unified_loop_info());
+        if (!inner_unified_loop_info)
             continue;
 
+        OPENVINO_ASSERT(current_dim_idx == inner_unified_loop_info->get_dim_idx(), "Incorrect processing dim index of splitted loops");
         OPENVINO_ASSERT(inner_expanded_loop_info->get_type() == SpecificLoopIterType::MAIN_BODY, "InnerSplittedLoop must be Main Body of loop");
+
+        // We have to make a new UnifiedLoopInfo to distinguish with from MainBody Loop
         const auto& inner_splitted_unified_loop_info =
-                    std::make_shared<InnerSplittedUnifiedLoopInfo>(inner_loop_info->get_increment(), inner_loop_info->get_input_ports(),
-                                                                   inner_loop_info->get_output_ports(), inner_loop_info->get_input_port_descs(),
-                                                                   inner_loop_info->get_output_port_descs(), inner_loop_info->get_handlers(),
-                                                                   outer_loop_info);
+            std::make_shared<InnerSplittedUnifiedLoopInfo>(inner_expanded_loop_info->get_increment(), inner_expanded_loop_info->get_input_ports(),
+                                                           inner_expanded_loop_info->get_output_ports(), inner_unified_loop_info->get_input_port_descs(),
+                                                           inner_unified_loop_info->get_output_port_descs(), inner_unified_loop_info->get_handlers(),
+                                                           outer_loop_info);
         InitLoops::update_runtime_parameters(inner_splitted_unified_loop_info);
 
         const auto new_expanded_inner_loop_info =

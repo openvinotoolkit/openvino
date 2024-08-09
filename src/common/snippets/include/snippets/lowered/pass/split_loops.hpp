@@ -35,6 +35,8 @@ public:
     SplitLoops();
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
+    static void split(LinearIR& linear_ir, size_t loop_to_split_id, size_t outer_increment);
+
     /**
      * @interface TransformInnerSplitLoop
      * @brief The pass replace existing inner splitted LoopInfo with new InnerSplittedUnifiedLoopInfo and
