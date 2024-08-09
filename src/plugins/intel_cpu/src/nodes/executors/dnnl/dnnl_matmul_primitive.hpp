@@ -5,10 +5,8 @@
 #pragma once
 
 #include <cstddef>
-#include <cstdint>
 #include <oneapi/dnnl/dnnl.hpp>
 
-#include "cpu_memory.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/executor.hpp"

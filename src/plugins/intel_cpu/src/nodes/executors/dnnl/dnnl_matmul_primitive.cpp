@@ -10,12 +10,10 @@
 #include <common/primitive_attr.hpp>
 #include <common/primitive_desc_iface.hpp>
 #include <common/primitive_iface.hpp>
-#include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -150,8 +148,7 @@ static dnnl::matmul::primitive_desc createDescriptorInternal(const dnnl::memory:
                                                              const dnnl::primitive_attr& attr,
                                                              const dnnl::engine& engine,
                                                              const bool useSparseWeights,
-                                                             const bool useWeightsDecompression,
-                                                             const bool weightsNonTransposed) {
+                                                             const bool useWeightsDecompression) {
     auto normalizeToRank = [](const dnnl::memory::dims& vec, size_t rank) -> dnnl::memory::dims {
         if (vec.size() == rank || vec.empty())
             return vec;
@@ -169,9 +166,7 @@ static dnnl::matmul::primitive_desc createDescriptorInternal(const dnnl::memory:
     };
 
     auto weiDims = weightDesc.get_dims();
-    if (!weightsNonTransposed) {
-        std::swap(weiDims[weiDims.size() - 1], weiDims[weiDims.size() - 2]);
-    }
+    std::swap(weiDims[weiDims.size() - 1], weiDims[weiDims.size() - 2]);
 
     const auto maxRank =
         std::max({inputDesc.get_ndims(), weightDesc.get_ndims(), biasDesc.get_ndims(), outputDesc.get_ndims()});
@@ -204,8 +199,7 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                           const dnnl::engine& engine,
                                           const std::vector<impl_desc_type>& implPriorities,
                                           const bool useSparseWeights,
-                                          const bool useWeightsDecompression,
-                                          const bool weightsNonTransposed) {
+                                          const bool useWeightsDecompression) {
     auto prim_desc = createDescriptorInternal(inputDesc,
                                               weightDesc,
                                               biasDesc,
@@ -213,8 +207,7 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                               attr,
                                               engine,
                                               useSparseWeights,
-                                              useWeightsDecompression,
-                                              weightsNonTransposed);
+                                              useWeightsDecompression);
     OPENVINO_ASSERT(prim_desc, "Failed to create matmul primitive descriptor");
     auto first_desc = dnnl::matmul::primitive_desc(prim_desc.get());
 
@@ -299,8 +292,7 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const FCAt
                                               context->getEngine(),
                                               context->getImplPriorities(),
                                               false,
-                                              false,
-                                              attrs.weightsNonTransposed);
+                                              false);
 
     const auto weightsDesc = DnnlExtensionUtils::makeDescriptor(primDesc.weights_desc());
     auto originalWeightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);
@@ -334,7 +326,6 @@ DnnlMatMulPrimitive::DnnlMatMulPrimitive(const Key& key,
                                      engine,
                                      implPriorities,
                                      false,
-                                     false,
                                      false)),
       m_implType(implTypeFromPrimDesc(m_primDesc)),
       m_srcDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.src_desc())),
@@ -344,6 +335,7 @@ DnnlMatMulPrimitive::DnnlMatMulPrimitive(const Key& key,
       m_prim(primitive(m_primDesc)) {}
 
 void DnnlMatMulPrimitive::execute(const dnnl_primitive_args& primArgs) const {
+    std::cout << "Executing MM primitive" << "\n";
     m_prim.execute(m_stream, primArgs);
 }
 
