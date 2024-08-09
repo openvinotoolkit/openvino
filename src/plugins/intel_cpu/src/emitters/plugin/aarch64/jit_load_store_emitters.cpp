@@ -43,13 +43,13 @@ void jit_load_emitter::load_qbyte(const std::vector<size_t> &in_idxs, const std:
         case 0:
             break;
         case 1:
-            h->ldr(dst_s, post_ptr(src, byte_offset_));
+            h->ldr(dst_s, ptr(src, byte_offset_));
             break;
         case 2:
-            h->ldr(dst_d, post_ptr(src, byte_offset_));
+            h->ldr(dst_d, ptr(src, byte_offset_));
             break;
         case 3:
-            h->ldr(dst_d, post_ptr(src, byte_offset_));
+            h->ldr(dst_d, ptr(src, byte_offset_));
             h->add_imm(prc, src, byte_offset_ + 2 * sizeof(float), h->X_DEFAULT_ADDR);
             h->ld1(dst.s[2], ptr(prc));
             break;
@@ -75,18 +75,18 @@ void jit_load_emitter::load_dbyte(const std::vector<size_t> &in_idxs, const std:
         case 0:
             break;
         case 1:
-            h->ldr(dst_h, post_ptr(src, byte_offset_));
+            h->ldr(dst_h, ptr(src, byte_offset_));
             break;
         case 2:
-            h->ldr(dst_s, post_ptr(src, byte_offset_));
+            h->ldr(dst_s, ptr(src, byte_offset_));
             break;
         case 3:
-            h->ldr(dst_s, post_ptr(src, byte_offset_));
+            h->ldr(dst_s, ptr(src, byte_offset_));
             h->add_imm(prc, src, byte_offset_ + 2 * sizeof(uint16_t), h->X_DEFAULT_ADDR);
             h->ld1(dst.h[2], ptr(prc));
             break;
         case 4:
-            h->ldr(dst_d, post_ptr(src, byte_offset_));
+            h->ldr(dst_d, ptr(src, byte_offset_));
             break;
         default:
             OV_CPU_JIT_EMITTER_THROW("Unexpected number of elements to load.");
@@ -107,18 +107,18 @@ void jit_load_emitter::load_byte(const std::vector<size_t> &in_idxs, const std::
         case 0:
             break;
         case 1:
-            h->ldr(dst_b, post_ptr(src, byte_offset_));
+            h->ldr(dst_b, ptr(src, byte_offset_));
             break;
         case 2:
-            h->ldr(dst_h, post_ptr(src, byte_offset_));
+            h->ldr(dst_h, ptr(src, byte_offset_));
             break;
         case 3:
-            h->ldr(dst_h, post_ptr(src, byte_offset_));
+            h->ldr(dst_h, ptr(src, byte_offset_));
             h->add_imm(prc, src, byte_offset_ + 2 * sizeof(int8_t), h->X_DEFAULT_ADDR);
             h->ld1(dst.b[2], ptr(prc));
             break;
         case 4:
-            h->ldr(dst_s, post_ptr(src, byte_offset_));
+            h->ldr(dst_s, ptr(src, byte_offset_));
             break;
         default:
             OV_CPU_JIT_EMITTER_THROW("Unexpected number of elements to load.");
@@ -241,18 +241,18 @@ void jit_store_emitter::store_qbyte(const std::vector<size_t> &in_idxs, const st
         case 0:
             break;
         case 1:
-            h->str(src_s, post_ptr(dst, byte_offset_));
+            h->str(src_s, ptr(dst, byte_offset_));
             break;
         case 2:
-            h->str(src_d, post_ptr(dst, byte_offset_));
+            h->str(src_d, ptr(dst, byte_offset_));
             break;
         case 3:
-            h->str(src_d, post_ptr(dst, byte_offset_));
+            h->str(src_d, ptr(dst, byte_offset_));
             h->add_imm(prc, dst, byte_offset_ + 2 * sizeof(float), h->X_DEFAULT_ADDR);
             h->st1(src.s[2], ptr(prc));
             break;
         case 4:
-            h->str(src_q, post_ptr(dst, byte_offset_));
+            h->str(src_q, ptr(dst, byte_offset_));
             break;
         default:
             OV_CPU_JIT_EMITTER_THROW("Unexpected number of elements to store.");
@@ -273,18 +273,18 @@ void jit_store_emitter::store_dbyte(const std::vector<size_t> &in_idxs, const st
         case 0:
             break;
         case 1:
-            h->str(src_h, post_ptr(dst, byte_offset_));
+            h->str(src_h, ptr(dst, byte_offset_));
             break;
         case 2:
-            h->str(src_s, post_ptr(dst, byte_offset_));
+            h->str(src_s, ptr(dst, byte_offset_));
             break;
         case 3:
-            h->str(src_s, post_ptr(dst, byte_offset_));
+            h->str(src_s, ptr(dst, byte_offset_));
             h->add_imm(prc, dst, byte_offset_ + 2 * sizeof(uint16_t), h->X_DEFAULT_ADDR);
             h->st1(src.h[2], ptr(prc));
             break;
         case 4:
-            h->str(src_d, post_ptr(dst, byte_offset_));
+            h->str(src_d, ptr(dst, byte_offset_));
             break;
         default:
             OV_CPU_JIT_EMITTER_THROW("Unexpected number of elements to store.");
@@ -305,18 +305,18 @@ void jit_store_emitter::store_byte(const std::vector<size_t> &in_idxs, const std
         case 0:
             break;
         case 1:
-            h->str(src_b, post_ptr(dst, byte_offset_));
+            h->str(src_b, ptr(dst, byte_offset_));
             break;
         case 2:
-            h->str(src_h, post_ptr(dst, byte_offset_));
+            h->str(src_h, ptr(dst, byte_offset_));
             break;
         case 3:
-            h->str(src_h, post_ptr(dst, byte_offset_));
+            h->str(src_h, ptr(dst, byte_offset_));
             h->add_imm(prc, dst, byte_offset_ + 2 * sizeof(int8_t), h->X_DEFAULT_ADDR);
             h->st1(src.b[2], ptr(prc));
             break;
         case 4:
-            h->str(src_s, post_ptr(dst, byte_offset_));
+            h->str(src_s, ptr(dst, byte_offset_));
             break;
         default:
             OV_CPU_JIT_EMITTER_THROW("Unexpected number of elements to store.");
