@@ -15,7 +15,7 @@ namespace intel_npu {
 // register
 //
 
-void registerCommonOptions(OptionsDesc& desc);
+void registerCommonOptions(OptionsDesc& desc, compilerVersion compilerVer = {0, 0, 0});
 
 //
 // PERFORMANCE_HINT

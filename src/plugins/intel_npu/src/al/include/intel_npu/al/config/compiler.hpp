@@ -28,7 +28,7 @@ namespace intel_npu {
 // register
 //
 
-void registerCompilerOptions(OptionsDesc& desc);
+void registerCompilerOptions(OptionsDesc& desc, compilerVersion compilerVer = {0, 0, 0});
 
 //
 // COMPILER_TYPE
@@ -111,6 +111,10 @@ struct EXECUTION_MODE_HINT final : OptionBase<EXECUTION_MODE_HINT, ov::hint::Exe
 
     static bool isPublic() {
         return true;
+    }
+
+    static compilerVersion compilerSupportVersion() {
+        return {1, 1, 1};
     }
 };
 
@@ -246,7 +250,7 @@ struct STEPPING final : OptionBase<STEPPING, int64_t> {
     }
 
     static bool isPublic() {
-        return false;
+        return true;
     }
 };
 

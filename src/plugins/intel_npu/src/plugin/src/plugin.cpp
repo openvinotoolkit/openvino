@@ -183,8 +183,8 @@ Plugin::Plugin()
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
 
-    registerCommonOptions(*_options);
-    registerCompilerOptions(*_options);
+    registerCommonOptions(*_options, {1, 2, 3});
+    registerCompilerOptions(*_options, {1, 2, 3});
     registerRunTimeOptions(*_options);
 
     // parse env_variables to get LOG_LEVEL if needed
@@ -471,10 +471,10 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [&](const Config& config) {
               if (!config.has<STEPPING>()) {
-                const auto specifiedDeviceName = get_specified_device_name(config);
-                return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
+                  const auto specifiedDeviceName = get_specified_device_name(config);
+                  return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
               } else {
-                return config.get<STEPPING>();
+                  return config.get<STEPPING>();
               }
           }}},
         {ov::intel_npu::max_tiles.name(),
@@ -482,10 +482,10 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [&](const Config& config) {
               if (!config.has<MAX_TILES>()) {
-                const auto specifiedDeviceName = get_specified_device_name(config);
-                return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
+                  const auto specifiedDeviceName = get_specified_device_name(config);
+                  return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
               } else {
-                return config.get<MAX_TILES>();
+                  return config.get<MAX_TILES>();
               }
           }}},
         {ov::intel_npu::compilation_mode.name(),
@@ -545,6 +545,39 @@ Plugin::Plugin()
         {ov::intel_npu::batch_mode.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
                                                 return config.getString<BATCH_MODE>();
                                             }}}};
+
+    // std::vector<std::string> supportedOptions = _options->getSupported();
+    // std::cout << "[CSOKADBG] SUPPORTED OPTIONS: ";
+    // for (std::vector<std::string>::iterator it = supportedOptions.begin(); it != supportedOptions.end(); ++it) {
+    //     std::cout << *it << " ";
+    // }
+    // std::cout << std::endl;
+
+    // auto compvers = _options->get(ov::hint::execution_mode.name(), OptionMode::Both).isPublic();
+    //  auto compvers = option.compilerSupportVersion();
+    //  std::cout << "[CSOKADBG] " << ov::hint::execution_mode.name() << " compiler support version: " <<
+    //  compvers.vclMajor
+    //           << "." << compvers.vclMinor << " \n\n";
+    /*
+    std::cout << "[CSOKADBG/pluginInit] " << ov::hint::execution_mode.name()
+              << " IsRegistered: " << _options->has(ov::hint::execution_mode.name())
+              << " isPublic: " << _options->has(ov::hint::execution_mode.name())
+        ? _options->get(ov::hint::execution_mode.name(), OptionMode::Both).isPublic()
+        : false;
+    std::cout << "\n\n" << std::flush;
+*/
+    bool hasTurbo = _options->has(ov::intel_npu::turbo.name());
+    if (hasTurbo) {
+        bool isTurboPublic = _options->get(ov::intel_npu::turbo.name(), OptionMode::Both).isPublic();
+        std::cout << "[CSOKADBG/pluginInit] " << ov::intel_npu::turbo.name() << " isregistered: " << hasTurbo
+                  << " ispublic: " << isTurboPublic << "\n\n";
+    } else {
+        std::cout << "[CSOKADBG/plugInit] Turbo not registered!" << std::endl;
+    }
+    bool isexecmodepub = _options->has(ov::hint::execution_mode.name())
+                             ? _options->get(ov::hint::execution_mode.name(), OptionMode::Both).isPublic()
+                             : false;
+    std::cout << "[CSOKADBG/pluginit] Isexecmodepub? " << isexecmodepub << "\n\n";
 
     for (auto& property : _properties) {
         if (std::get<0>(property.second)) {

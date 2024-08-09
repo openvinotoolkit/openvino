@@ -167,6 +167,19 @@ details::OptionConcept OptionsDesc::get(std::string_view key, OptionMode mode) c
     return desc;
 }
 
+bool OptionsDesc::has(std::string_view key) {
+    std::string searchKey{key};
+    const auto itDeprecated = _deprecated.find(std::string(key));
+    if (itDeprecated != _deprecated.end()) {
+        return true;
+    }
+    const auto itMain = _impl.find(searchKey);
+    if (itMain != _impl.end()) {
+        return true;
+    }
+    return false;
+}
+
 std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
     std::vector<std::string> res;
     res.reserve(_impl.size());

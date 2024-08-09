@@ -11,17 +11,17 @@ using namespace ov::intel_npu;
 // register
 //
 
-void intel_npu::registerCommonOptions(OptionsDesc& desc) {
-    desc.add<PERFORMANCE_HINT>();
-    desc.add<PERFORMANCE_HINT_NUM_REQUESTS>();
-    desc.add<INFERENCE_PRECISION_HINT>();
-    desc.add<PERF_COUNT>();
-    desc.add<LOG_LEVEL>();
-    desc.add<PLATFORM>();
-    desc.add<DEVICE_ID>();
-    desc.add<CACHE_DIR>();
-    desc.add<LOADED_FROM_CACHE>();
-    desc.add<BATCH_MODE>();
+void intel_npu::registerCommonOptions(OptionsDesc& desc, compilerVersion compilerVer) {
+    desc.add<PERFORMANCE_HINT>(compilerVer);
+    desc.add<PERFORMANCE_HINT_NUM_REQUESTS>(compilerVer);
+    desc.add<INFERENCE_PRECISION_HINT>(compilerVer);
+    desc.add<PERF_COUNT>(compilerVer);
+    desc.add<LOG_LEVEL>(compilerVer);
+    desc.add<PLATFORM>(compilerVer);
+    desc.add<DEVICE_ID>(compilerVer);
+    desc.add<CACHE_DIR>(compilerVer);
+    desc.add<LOADED_FROM_CACHE>(compilerVer);
+    desc.add<BATCH_MODE>(compilerVer);
 }
 
 //

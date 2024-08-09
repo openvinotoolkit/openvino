@@ -11,20 +11,20 @@ using namespace ov::intel_npu;
 // register
 //
 
-void intel_npu::registerCompilerOptions(OptionsDesc& desc) {
-    desc.add<COMPILER_TYPE>();
-    desc.add<COMPILATION_MODE>();
-    desc.add<COMPILATION_MODE_PARAMS>();
-    desc.add<BACKEND_COMPILATION_PARAMS>();
-    desc.add<COMPILATION_NUM_THREADS>();
-    desc.add<DPU_GROUPS>();
-    desc.add<TILES>();
-    desc.add<STEPPING>();
-    desc.add<MAX_TILES>();
-    desc.add<DMA_ENGINES>();
-    desc.add<USE_ELF_COMPILER_BACKEND>();
-    desc.add<DYNAMIC_SHAPE_TO_STATIC>();
-    desc.add<EXECUTION_MODE_HINT>();
+void intel_npu::registerCompilerOptions(OptionsDesc& desc, compilerVersion compilerVer) {
+    desc.add<COMPILER_TYPE>(compilerVer);
+    desc.add<COMPILATION_MODE>(compilerVer);
+    desc.add<COMPILATION_MODE_PARAMS>(compilerVer);
+    desc.add<BACKEND_COMPILATION_PARAMS>(compilerVer);
+    desc.add<COMPILATION_NUM_THREADS>(compilerVer);
+    desc.add<DPU_GROUPS>(compilerVer);
+    desc.add<TILES>(compilerVer);
+    desc.add<STEPPING>(compilerVer);
+    desc.add<MAX_TILES>(compilerVer);
+    desc.add<DMA_ENGINES>(compilerVer);
+    desc.add<USE_ELF_COMPILER_BACKEND>(compilerVer);
+    desc.add<DYNAMIC_SHAPE_TO_STATIC>(compilerVer);
+    // desc.add<EXECUTION_MODE_HINT>(compilerVer);
 }
 
 //

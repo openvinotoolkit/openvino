@@ -33,11 +33,15 @@ struct TypePrinter {
     static constexpr const char* name();
 };
 
-#define TYPE_PRINTER(type)                                    \
-    template <>                                               \
-    struct TypePrinter<type> {                                \
-        static constexpr bool hasName() { return true; }      \
-        static constexpr const char* name() { return #type; } \
+#define TYPE_PRINTER(type)                    \
+    template <>                               \
+    struct TypePrinter<type> {                \
+        static constexpr bool hasName() {     \
+            return true;                      \
+        }                                     \
+        static constexpr const char* name() { \
+            return #type;                     \
+        }                                     \
     };
 
 TYPE_PRINTER(bool)
@@ -202,6 +206,16 @@ enum class OptionMode {
 
 std::string_view stringifyEnum(OptionMode val);
 
+///
+/// CompilerVersion
+///
+
+struct compilerVersion {
+    uint32_t compilerVersion;
+    uint32_t vclMajor;
+    uint32_t vclMinor;
+};
+
 //
 // OptionBase
 //
@@ -253,6 +267,11 @@ struct OptionBase {
     // Overload this for private options.
     static bool isPublic() {
         return true;
+    }
+
+    /// Overload this for options conditioned by compiler version
+    static compilerVersion compilerSupportVersion() {
+        return {0, 0, 0};
     }
 
     static std::string toString(const ValueType& val) {
@@ -317,6 +336,7 @@ struct OptionConcept final {
     std::string_view (*envVar)() = nullptr;
     OptionMode (*mode)() = nullptr;
     bool (*isPublic)() = nullptr;
+    compilerVersion (*compilerSupportVersion)() = nullptr;
     std::shared_ptr<OptionValue> (*validateAndParse)(std::string_view val) = nullptr;
 };
 
@@ -335,7 +355,7 @@ std::shared_ptr<OptionValue> validateAndParse(std::string_view val) {
 
 template <class Opt>
 OptionConcept makeOptionModel() {
-    return {&Opt::key, &Opt::envVar, &Opt::mode, &Opt::isPublic, &validateAndParse<Opt>};
+    return {&Opt::key, &Opt::envVar, &Opt::mode, &Opt::isPublic, &Opt::compilerSupportVersion, &validateAndParse<Opt>};
 }
 
 }  // namespace details
@@ -348,6 +368,11 @@ class OptionsDesc final {
 public:
     template <class Opt>
     void add();
+
+    template <class Opt>
+    void add(compilerVersion compilerVersionRequirement);
+
+    bool has(std::string_view key);
 
     std::vector<std::string> getSupported(bool includePrivate = false) const;
 
@@ -370,6 +395,33 @@ void OptionsDesc::add() {
                         deprecatedKey.data(),
                         "' was already registered");
         _deprecated.insert({deprecatedKey.data(), Opt::key().data()});
+    }
+}
+
+template <class Opt>
+void OptionsDesc::add(compilerVersion compilerVersionRequirement) {
+    std::cout << "[CSOKADBG/registerOption] Compiler requirement " << compilerVersionRequirement.vclMajor << "."
+              << compilerVersionRequirement.vclMinor << " " << "Key: " << Opt::key().data()
+              << " Support version: " << Opt::compilerSupportVersion().vclMajor << "."
+              << Opt::compilerSupportVersion().vclMinor << std::endl;
+
+    if (compilerVersionRequirement.vclMajor >= Opt::compilerSupportVersion().vclMajor &&
+        compilerVersionRequirement.vclMinor >= Opt::compilerSupportVersion().vclMinor) {
+        OPENVINO_ASSERT(_impl.count(Opt::key().data()) == 0, "Option '", Opt::key().data(), "' was already registered");
+        _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>()});
+
+        std::cout << "[CSOKADBG/registerOptions] " << Opt::key().data() << " registered!\n";
+
+        for (const auto& deprecatedKey : Opt::deprecatedKeys()) {
+            OPENVINO_ASSERT(_deprecated.count(deprecatedKey.data()) == 0,
+                            "Option '",
+                            deprecatedKey.data(),
+                            "' was already registered");
+            _deprecated.insert({deprecatedKey.data(), Opt::key().data()});
+        }
+    } else {
+        std::cout << "[CSOKADBG/registeroption] " << Opt::key().data() << " not supported by current compiler"
+                  << std::endl;
     }
 }
 
