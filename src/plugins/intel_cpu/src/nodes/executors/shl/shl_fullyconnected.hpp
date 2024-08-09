@@ -36,6 +36,8 @@ private:
     ShlSession sess = {};
     ShlFCParams params = {};
 
+    const MemoryCPtr packedWeights;
+
     bool with_bias = false;
 };
 using ShlFCExecutorPtr = std::shared_ptr<ShlFCExecutor>;
