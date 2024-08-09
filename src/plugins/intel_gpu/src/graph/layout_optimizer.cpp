@@ -2047,9 +2047,13 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->disable_onednn_permute_fusion == 1)
             disable_permute_fuse_onednn_gemm = true;
+
         // Optimized out permute from permute-gemm pattern. i.e. permute -> gemm
-        if (node.is_type<gemm>() && !disable_permute_fuse_onednn_gemm && node.get_program().get_config().get_property(ov::intel_gpu::optimize_data)) {
-            // Only the formats below support permute opt out in gemm and permute pattern. For other formats, need to check the gemm performance.
+        if (node.is_type<gemm>() && !disable_permute_fuse_onednn_gemm &&
+            node.get_program().get_config().get_property(ov::intel_gpu::optimize_data) &&
+            node.get_preferred_impl_type() != impl_types::any) {
+            // Only the formats below support permute opt out in gemm and permute pattern. For other formats, need to
+            // check the gemm performance.
             for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
                 if (node.get_dependency(idx).is_type<permute>()) {
                     auto& pnode = node.get_dependency(idx);
