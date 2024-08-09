@@ -256,9 +256,9 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
     // Pattern detected, weights_u8 is target u8 packed constant with weights
 
     // Part 2: Form u4 constant by repacking of the original weights_u8
-    // Repacking transformes half of lanes to interleaved representation.
+    // Repacking transforms half of lanes to interleaved representation.
 
-    auto u8_shape = weights_u8->get_shape();
+    const auto& u8_shape = weights_u8->get_shape();
     size_t full_size = shape_size(u8_shape);
     auto src = weights_u8->get_data_ptr<uint8_t>();
 
@@ -268,7 +268,7 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
     auto dst = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(new_const->get_data_ptr()));
 
     std::copy(src, src + full_size, dst);  // TODO: Avoid copying, reuse the same constant
-    copy_runtime_info_and_name(weights_u8, {new_const}, {weights_u8, bitwise_and, bitwise_shift});
+    copy_runtime_info_and_name(weights_u8, {new_const}, {weights_u8, std::move(bitwise_and), bitwise_shift});
     return new_const;
 }
 

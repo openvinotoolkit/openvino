@@ -15,6 +15,7 @@ from openvino.frontend.pytorch.module_extension import ModuleExtension
 
 import typing
 import torch
+import inspect
 
 
 class TorchScriptPythonDecoder (Decoder):
@@ -28,18 +29,20 @@ class TorchScriptPythonDecoder (Decoder):
             skip_freeze=False,
             constant_cache=None,
             module_extensions=None):
-        Decoder.__init__(self)
+        super().__init__()
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
         self.m_decoders = []
         self._input_signature = None
         self._shared_memory = shared_memory
         self._input_is_list = False
-        self.constant_cache = constant_cache if constant_cache is not None else dict()
+        self.constant_cache = constant_cache or {}
         self.module_extensions = module_extensions
         self.config = None
-        if hasattr(pt_module, "config"):
-            self.config = pt_module.config.to_dict() if not isinstance(pt_module.config, dict) else pt_module.config
+        self.out_debug_name_overwrites = {}
         if graph_element is None:
+            if hasattr(pt_module, "config"):
+                self.config = pt_module.config.to_dict() if not isinstance(
+                    pt_module.config, dict) else pt_module.config
             try:
                 pt_module = self._get_scripted_model(
                     pt_module, example_input, skip_freeze)
@@ -80,7 +83,6 @@ class TorchScriptPythonDecoder (Decoder):
             self._transform_tensor_list_constants_to_listconstruct(
                 self.graph_element)
             self._transform_optional_constants(self.graph_element)
-        self.out_debug_name_overwrites = {}
 
     @staticmethod
     def _get_preserved_attributes(model) -> list:
@@ -92,9 +94,6 @@ class TorchScriptPythonDecoder (Decoder):
         return preserved_attributes
 
     def _get_scripted_model(self, pt_module, example_inputs=None, skip_freeze=False):
-        import torch
-        import inspect
-
         freeze_by_default = False
         if isinstance(pt_module, torch.nn.Module):
             pt_module.eval()
@@ -108,7 +107,8 @@ class TorchScriptPythonDecoder (Decoder):
 
             if example_inputs is None:
                 if self.module_extensions:
-                    raise RuntimeError("ModuleExtension is not supported for scripting. Please provide valid example_input argument to run tracing.")
+                    raise RuntimeError(
+                        "ModuleExtension is not supported for scripting. Please provide valid example_input argument to run tracing.")
                 scripted = torch.jit.script(pt_module)
                 freeze_by_default = True
             else:
@@ -118,7 +118,8 @@ class TorchScriptPythonDecoder (Decoder):
                 # name of attribute in a patched module where the original forward method is kept
                 orig_forward_name = '_openvino_module_extension_patch_orig_forward'
                 if self.module_extensions:
-                    patch_model.patch_model(pt_module, self.module_extensions, orig_forward_name)
+                    patch_model.patch_model(
+                        pt_module, self.module_extensions, orig_forward_name)
 
                 gptq_patched = False
                 if gptq.detect_gptq_model(pt_module):
@@ -496,7 +497,8 @@ class TorchScriptPythonDecoder (Decoder):
     def get_rt_info(self):
         rt_info = {}
         if self.config is not None and "quantization_config" in self.config and "sym" in self.config["quantization_config"]:
-            rt_info["symmetric_quantization"] = OVAny(self.config["quantization_config"]["sym"])
+            rt_info["symmetric_quantization"] = OVAny(
+                self.config["quantization_config"]["sym"])
         return rt_info
 
     @staticmethod

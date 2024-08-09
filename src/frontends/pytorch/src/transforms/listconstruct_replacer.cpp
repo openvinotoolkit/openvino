@@ -38,48 +38,48 @@ using namespace ov::op;
 
 ListConstructReplacer::ListConstructReplacer() {
     // Transformation for torch operators for cases where prim::ListConstruct can be replaced with Concat.
-    auto list = pattern::wrap_type<ov::op::util::FrameworkNode>();
+    const auto& list = pattern::wrap_type<ov::op::util::FrameworkNode>();
 
     // Both aten::view and aten::reshape are using same translation returning Reshape operator.
-    auto reshape_op = pattern::wrap_type<v1::Reshape>({pattern::any_input(), list});
-    auto roll_op = pattern::wrap_type<v7::Roll>({pattern::any_input(), list, pattern::any_input()});
-    auto broadcast_op = pattern::wrap_type<v3::Broadcast>({pattern::any_input(), list});
-    auto adapool_op = pattern::wrap_type<v8::AdaptiveAvgPool>({pattern::any_input(), list});
+    const auto& reshape_op = pattern::wrap_type<v1::Reshape>({pattern::any_input(), list});
+    const auto& roll_op = pattern::wrap_type<v7::Roll>({pattern::any_input(), list, pattern::any_input()});
+    const auto& broadcast_op = pattern::wrap_type<v3::Broadcast>({pattern::any_input(), list});
+    const auto& adapool_op = pattern::wrap_type<v8::AdaptiveAvgPool>({pattern::any_input(), list});
     // replace list construct for aten::expand(tensor, prim::ListConstruct(shapes)) old decomposition
-    //  shape_of + broadcast + equal + select
-    auto shape_of_op = pattern::wrap_type<v3::ShapeOf>({list});
-    auto equal_op = pattern::wrap_type<v1::Equal>({list, pattern::any_input()});
-    auto select_op = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), list});
+    // shape_of + broadcast + equal + select
+    const auto& shape_of_op = pattern::wrap_type<v3::ShapeOf>({list});
+    const auto& equal_op = pattern::wrap_type<v1::Equal>({list, pattern::any_input()});
+    const auto& select_op = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), list});
     // replace list construct for aten::expand(tensor, prim::ListConstruct(shapes)) new decomposition
-    auto abs_op = pattern::wrap_type<v0::Abs>({list});
-    auto expand_op = pattern::wrap_type<v3::Broadcast>({pattern::any_input(), abs_op});
+    const auto& abs_op = pattern::wrap_type<v0::Abs>({list});
+    const auto& expand_op = pattern::wrap_type<v3::Broadcast>({pattern::any_input(), abs_op});
     // replace list construct for aten::repeat(tensor,  prim::ListConstruct(shapes)))
     // shape_of + broadcast + tile
-    auto tile_op = pattern::wrap_type<v0::Tile>({pattern::any_input(), list});
+    const auto& tile_op = pattern::wrap_type<v0::Tile>({pattern::any_input(), list});
     // replace aten::permute(tensor, prim::ListConstruct)
-    auto transpose_op = pattern::wrap_type<v1::Transpose>({pattern::any_input(), list});
+    const auto& transpose_op = pattern::wrap_type<v1::Transpose>({pattern::any_input(), list});
     // aten::split_with_sizes case
-    auto vsplit_op = pattern::wrap_type<v1::VariadicSplit>({pattern::any_input(), pattern::any_input(), list});
+    const auto& vsplit_op = pattern::wrap_type<v1::VariadicSplit>({pattern::any_input(), pattern::any_input(), list});
     // aten::upsample... case inside the body when body was removed
-    auto interpolate_convert_op = pattern::wrap_type<v0::Convert>({list});
-    auto interpolate_mul_op = pattern::wrap_type<v1::Multiply>({interpolate_convert_op, pattern::any_input()});
-    auto interpolate_op =
+    const auto& interpolate_convert_op = pattern::wrap_type<v0::Convert>({list});
+    const auto& interpolate_mul_op = pattern::wrap_type<v1::Multiply>({interpolate_convert_op, pattern::any_input()});
+    const auto& interpolate_op =
         pattern::wrap_type<v11::Interpolate>({pattern::any_input(), interpolate_mul_op, pattern::any_input()});
     // aten::randint case
-    auto rand_op = pattern::wrap_type<v8::RandomUniform>({list, pattern::any_input(), pattern::any_input()});
-    auto lc_pattern = std::make_shared<pattern::op::Or>(OutputVector{reshape_op,
-                                                                     roll_op,
-                                                                     broadcast_op,
-                                                                     adapool_op,
-                                                                     shape_of_op,
-                                                                     equal_op,
-                                                                     select_op,
-                                                                     expand_op,
-                                                                     tile_op,
-                                                                     transpose_op,
-                                                                     vsplit_op,
-                                                                     interpolate_op,
-                                                                     rand_op});
+    const auto& rand_op = pattern::wrap_type<v8::RandomUniform>({list, pattern::any_input(), pattern::any_input()});
+    const auto& lc_pattern = std::make_shared<pattern::op::Or>(OutputVector{reshape_op,
+                                                                            roll_op,
+                                                                            broadcast_op,
+                                                                            adapool_op,
+                                                                            shape_of_op,
+                                                                            equal_op,
+                                                                            select_op,
+                                                                            expand_op,
+                                                                            tile_op,
+                                                                            transpose_op,
+                                                                            vsplit_op,
+                                                                            interpolate_op,
+                                                                            rand_op});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();

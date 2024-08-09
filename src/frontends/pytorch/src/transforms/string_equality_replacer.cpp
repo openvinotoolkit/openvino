@@ -24,12 +24,12 @@ using namespace ov::pass;
 using namespace ov::op;
 
 StringEqualityReplacer::StringEqualityReplacer() {
-    auto framework_node_lhs = pattern::wrap_type<PtFrameworkNode>();
-    auto framework_node_rhs = pattern::wrap_type<PtFrameworkNode>();
-    auto equal_op = pattern::wrap_type<v1::Equal>({framework_node_lhs, framework_node_rhs});
-    auto not_equal_op = pattern::wrap_type<v1::NotEqual>({framework_node_lhs, framework_node_rhs});
+    const auto& framework_node_lhs = pattern::wrap_type<PtFrameworkNode>();
+    const auto& framework_node_rhs = pattern::wrap_type<PtFrameworkNode>();
+    const auto& equal_op = pattern::wrap_type<v1::Equal>({framework_node_lhs, framework_node_rhs});
+    const auto& not_equal_op = pattern::wrap_type<v1::NotEqual>({framework_node_lhs, framework_node_rhs});
 
-    auto string_equality_pattern = std::make_shared<pattern::op::Or>(OutputVector{equal_op, not_equal_op});
+    const auto& string_equality_pattern = std::make_shared<pattern::op::Or>(OutputVector{equal_op, not_equal_op});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();

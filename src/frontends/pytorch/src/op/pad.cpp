@@ -85,7 +85,7 @@ OutputVector translate_pad_common(const NodeContext& context,
         return {cur};
     }
     auto pad_value_ = context.mark_node(std::make_shared<v1::ConvertLike>(pad_value, data));
-    const std::map<std::string, PadMode> pt_to_ov_pad{
+    static const std::map<std::string, PadMode> pt_to_ov_pad{
         {"constant", PadMode::CONSTANT},
         {"reflect", PadMode::REFLECT},
         {"replicate", PadMode::EDGE},

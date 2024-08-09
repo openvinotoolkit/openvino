@@ -28,7 +28,7 @@ OutputVector translate_clamp(const NodeContext& context) {
         max_clip = context.mark_node(std::make_shared<v1::ConvertLike>(max_clip, x));
         x = context.mark_node(std::make_shared<v1::Minimum>(x, max_clip));
     }
-    return {x};
+    return {std::move(x)};
 };
 
 }  // namespace op
