@@ -56,6 +56,16 @@ techniques like weights compression using
 
 -  `Interactive demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -63,7 +73,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "torch>=2.1" "torchvision" "timm" "transformers>=4.40" "Pillow" "gradio>=4.19" "tqdm" "sentencepiece" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch>=2.1" "torchvision" "timm>=0.9.2" "transformers>=4.40" "Pillow" "gradio>=4.19" "tqdm" "sentencepiece" "peft" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2024.2.0" "nncf>=2.11.0"
 
 
@@ -82,6 +92,7 @@ Download PyTorch model
 
     from transformers import AutoModel, AutoTokenizer
     from pathlib import Path
+    from huggingface_hub import snapshot_download
 
     model_dir = Path("model")
     text_emb_path = model_dir / "language_model/embed_tokens.xml"
@@ -91,11 +102,169 @@ Download PyTorch model
     model = None
 
     if not all([text_emb_path.exists(), image_encoder_path.exists(), llm_path.exists()]):
-        model = AutoModel.from_pretrained("openbmb/MiniCPM-V-2", trust_remote_code=True)
+        model_local_dir = Path("MiniCPM-V-2")
+
+        if not model_local_dir.exists():
+            snapshot_download("openbmb/MiniCPM-V-2", local_dir=model_local_dir)
+
+        modeling_file = model_local_dir / "modeling_minicpmv.py"
+        orig_modeling_file = model_local_dir / f"orig_{modeling_file.name}"
+        resampler_file = model_local_dir / "resampler.py"
+        orig_resampler_file = model_local_dir / f"orig_{resampler_file.name}"
+
+        if not orig_modeling_file.exists():
+            modeling_file.rename(orig_modeling_file)
+        with orig_modeling_file.open("r") as f:
+            content = f.read()
+        content = content.replace("import deepspeed", "")
+        with modeling_file.open("w") as f:
+            f.write(content)
+
+        if not orig_resampler_file.exists():
+            resampler_file.rename(orig_resampler_file)
+        with orig_resampler_file.open("r") as f:
+            content = f.read()
+        content = content.replace("import deepspeed", "")
+        with resampler_file.open("w") as f:
+            f.write(content)
+
+        model = AutoModel.from_pretrained(model_local_dir, trust_remote_code=True)
         model.eval()
         model.config.save_pretrained(model_dir)
-        tokenizer = AutoTokenizer.from_pretrained("openbmb/MiniCPM-V-2", trust_remote_code=True)
+        tokenizer = AutoTokenizer.from_pretrained(model_local_dir, trust_remote_code=True)
         tokenizer.save_pretrained(model_dir)
+
+
+
+.. parsed-literal::
+
+    Fetching 21 files:   0%|          | 0/21 [00:00<?, ?it/s]
+
+
+
+.. parsed-literal::
+
+    .gitattributes:   0%|          | 0.00/1.72k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    README.md:   0%|          | 0.00/10.1k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    station.gif:   0%|          | 0.00/7.42M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    london_car.gif:   0%|          | 0.00/7.64M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    minicpmv-2-benchmark.png:   0%|          | 0.00/446k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    minicpmv-2-peformance2.png:   0%|          | 0.00/823k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    minicpmv2-cases_2.png:   0%|          | 0.00/19.2M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    english_menu.gif:   0%|          | 0.00/5.61M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    config.json:   0%|          | 0.00/1.18k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    configuration_minicpm.py:   0%|          | 0.00/10.9k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    generation_config.json:   0%|          | 0.00/111 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model-00002-of-00002.safetensors:   0%|          | 0.00/1.88G [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model.safetensors.index.json:   0%|          | 0.00/54.6k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    modeling_minicpmv.py:   0%|          | 0.00/20.4k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model-00001-of-00002.safetensors:   0%|          | 0.00/4.99G [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    modeling_minicpm.py:   0%|          | 0.00/71.2k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    resampler.py:   0%|          | 0.00/36.0k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    tokenizer.json:   0%|          | 0.00/6.20M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    special_tokens_map.json:   0%|          | 0.00/651 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    tokenizer.model:   0%|          | 0.00/1.99M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    tokenizer_config.json:   0%|          | 0.00/3.37k [00:00<?, ?B/s]
 
 
 
@@ -201,12 +370,6 @@ instance, we will use it separately.
         del ov_model
         cleanup_torchscript_cache()
         gc.collect()
-
-
-.. parsed-literal::
-
-    ['input']
-
 
 Language Model
 ~~~~~~~~~~~~~~
@@ -629,21 +792,16 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/running-inference
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4565: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4674: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
-    /tmp/ipykernel_150470/514161198.py:38: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /tmp/ipykernel_3760610/514161198.py:38: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if sequence_length != 1:
-    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/openbmb/MiniCPM-V-2/187851962daa9b63072d40ec802f597b71bff532/modeling_minicpm.py:176: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/MiniCPM-V-2/modeling_minicpm.py:176: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len > self.max_seq_len_cached:
-    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/openbmb/MiniCPM-V-2/187851962daa9b63072d40ec802f597b71bff532/modeling_minicpm.py:883: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/MiniCPM-V-2/modeling_minicpm.py:883: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attention_mask.size() != (bsz, 1, q_len, kv_seq_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:165: UserWarning: The .grad attribute of a Tensor that is not a leaf Tensor is being accessed. Its .grad attribute won't be populated during autograd.backward(). If you indeed want the .grad field to be populated for a non-leaf Tensor, use .retain_grad() on the non-leaf Tensor. If you access the non-leaf Tensor by mistake, make sure you access the leaf Tensor instead. See github.com/pytorch/pytorch/pull/30531 for more informations. (Triggered internally at aten/src/ATen/core/TensorBody.h:489.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:165: UserWarning: The .grad attribute of a Tensor that is not a leaf Tensor is being accessed. Its .grad attribute won't be populated during autograd.backward(). If you indeed want the .grad field to be populated for a non-leaf Tensor, use .retain_grad() on the non-leaf Tensor. If you access the non-leaf Tensor by mistake, make sure you access the leaf Tensor instead. See github.com/pytorch/pytorch/pull/30531 for more informations. (Triggered internally at aten/src/ATen/core/TensorBody.h:489.)
       if a.grad is not None:
-
-
-.. parsed-literal::
-
-    ['attention_mask', 'position_ids', 'past_key_values', 'inputs_embeds']
 
 
 Compress Language Model Weights to 4 bits
@@ -735,6 +893,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
         shutil.copy(text_emb_path, llm_int4_path.parent / text_emb_path.name)
         shutil.copy(text_emb_path.with_suffix(".bin"), llm_int4_path.parent / text_emb_path.with_suffix(".bin").name)
         shutil.copy(llm_path.parent / "config.json", llm_int4_path.parent / "config.json")
+        shutil.copy(llm_path.parent / "configuration_minicpm.py", llm_int4_path.parent / "configuration_minicpm.py")
 
 
 .. parsed-literal::
@@ -744,10 +903,10 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 .. parsed-literal::
 
-    2024-07-13 01:04:47.035322: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-07-13 01:04:47.077265: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-08-07 01:52:07.183881: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-07 01:52:07.224003: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-07-13 01:04:47.647632: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-08-07 01:52:07.809955: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -902,35 +1061,31 @@ the image representations. We will combine them together into one model.
         cleanup_torchscript_cache()
 
     del model
-    gc.collect()
+    gc.collect();
 
 
 .. parsed-literal::
 
     WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+    WARNING:nncf:NNCF provides best results with torch==2.3.*, while current torch version is 2.2.2+cpu. If you encounter issues, consider switching to torch==2.3.*
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/layers/pos_embed.py:29: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/layers/pos_embed.py:29: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if num_new_tokens == num_pos_tokens and new_size[0] == new_size[1]:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/layers/pos_embed.py:33: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/layers/pos_embed.py:33: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       hw = int(math.sqrt(num_pos_tokens - num_prefix_tokens))
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/functional.py:512: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3587.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/functional.py:507: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3549.)
       return _VF.meshgrid(tensors, \*\*kwargs)  # type: ignore[attr-defined]
-
-
-.. parsed-literal::
-
-    ['pixel_values', 'tgt_size']
-
-
-
-
-.. parsed-literal::
-
-    3680
-
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/MiniCPM-V-2/resampler.py:461: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert embed_dim == embed_dim_to_check, \
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/MiniCPM-V-2/resampler.py:468: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert head_dim * num_heads == embed_dim, f"embed_dim {embed_dim} not divisible by num_heads {num_heads}"
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/MiniCPM-V-2/resampler.py:474: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert key.shape == value.shape, f"key shape {key.shape} does not match value shape {value.shape}"
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/MiniCPM-V-2/resampler.py:580: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      q_scaled = q / math.sqrt(E)
 
 
 Prepare model inference pipeline
@@ -1686,7 +1841,7 @@ Select model variant
 .. parsed-literal::
 
     Answer:
-    The unusual aspect of this image is the presence of a cat laying inside an open cardboard box.
+    The unusual aspect of this image is the presence of a cat lying inside an open cardboard box. This scenario isn't typical as cats are generally curious creatures and wouldn't typically sleep or lay down in such unconventional places like boxes, especially if they have fur that can easily get stuck on them.
 
 
 Interactive demo

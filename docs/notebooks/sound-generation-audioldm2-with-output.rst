@@ -42,6 +42,16 @@ backing it one by one and will run an interactive app with Gradio!
    pipeline <#adapt-openvino-models-to-the-original-pipeline>`__
 -  `Try out the converted pipeline <#try-out-the-converted-pipeline>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/76463150/c93a0f86-d9cf-4bd1-93b9-e27532170d75
 
 Prerequisites
@@ -53,13 +63,6 @@ Prerequisites
 
     %pip install -q accelerate "diffusers>=0.21.0" transformers "torch>=2.1" "gradio>=4.19" "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2024.0.0"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Instantiating Generation Pipeline
 ---------------------------------

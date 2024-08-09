@@ -51,6 +51,16 @@ Notebook contains the following steps:
 
 -  `Interactive demo with Gradio <#interactive-demo-with-gradio>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -208,21 +218,7 @@ hidden states.
         print(f"Text encoder will be loaded from {TEXT_ENCODER_OV_PATH}")
 
     del text_encoder
-    gc.collect()
-
-
-.. parsed-literal::
-
-    Text encoder will be loaded from text_encoder.xml
-
-
-
-
-.. parsed-literal::
-
-    32
-
-
+    gc.collect();
 
 VAE
 ~~~
@@ -325,22 +321,7 @@ into two independent models.
         print(f"VAE decoder will be loaded from {VAE_DECODER_OV_PATH}")
 
     del vae
-    gc.collect()
-
-
-.. parsed-literal::
-
-    VAE encoder will be loaded from vae_encoder.xml
-    VAE decoder will be loaded from vae_decoder.xml
-
-
-
-
-.. parsed-literal::
-
-    0
-
-
+    gc.collect();
 
 Unet
 ~~~~
@@ -403,21 +384,7 @@ Model predicts the ``sample`` state for the next step.
     else:
         print(f"Unet will be loaded from {UNET_OV_PATH}")
     del unet
-    gc.collect()
-
-
-.. parsed-literal::
-
-    Unet will be loaded from unet.xml
-
-
-
-
-.. parsed-literal::
-
-    0
-
-
+    gc.collect();
 
 Prepare Inference Pipeline
 --------------------------
@@ -974,13 +941,6 @@ can provide device selecting one from available in dropdown list.
         VAE_DECODER_OV_PATH,
         device=device.value,
     )
-
-
-.. parsed-literal::
-
-    /home/ltalamanova/env_ci/lib/python3.8/site-packages/diffusers/configuration_utils.py:134: FutureWarning: Accessing config attribute `unet` directly via 'OVInstructPix2PixPipeline' object attribute is deprecated. Please access 'unet' over 'OVInstructPix2PixPipeline's config object instead, e.g. 'scheduler.config.unet'.
-      deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
-
 
 Now, you are ready to define editing instructions and an image for
 running the inference pipeline. You can find example results generated

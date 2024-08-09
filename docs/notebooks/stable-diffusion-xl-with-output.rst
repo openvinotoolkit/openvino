@@ -92,6 +92,16 @@ The tutorial consists of the following steps:
    -  `Run Text2Image generation with
       Refinement <#run-text2image-generation-with-refinement>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Install prerequisites
 ---------------------
 
@@ -99,7 +109,7 @@ Install prerequisites
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1" "diffusers>=0.18.0" "invisible-watermark>=0.2.0" "transformers>=4.33.0" "accelerate" "onnx" "peft==0.6.2"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1,<2.4" "torchvision<0.19.0" "diffusers>=0.18.0" "invisible-watermark>=0.2.0" "transformers>=4.33.0" "accelerate" "onnx" "peft==0.6.2"
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
     %pip install -q "openvino>=2023.1.0" "gradio>=4.19" "nncf>=2.9.0"
 

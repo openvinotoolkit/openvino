@@ -99,6 +99,16 @@ used to build the saliency map. Here is how it can be done:
 -  `Interactive demo with Gradio <#interactive-demo-with-gradio>`__
 -  `What To Do Next <#what-to-do-next>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. |image0| image:: https://user-images.githubusercontent.com/29454499/218967961-9858efd5-fff2-4eb0-bde9-60852f4b31cb.JPG
 .. |image1| image:: https://openaiassets.blob.core.windows.net/$web/clip/draft/20210104b/overview-a.svg
 
@@ -126,15 +136,6 @@ Initial Implementation with Transformers and Pytorch
     import tqdm
     from PIL import Image
     from transformers import CLIPModel, CLIPProcessor
-
-
-.. parsed-literal::
-
-    2023-09-12 14:10:49.435909: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-09-12 14:10:49.470573: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-09-12 14:10:50.130215: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
 
 To get the CLIP model, you will use the ``transformers`` library and the
 official ``openai/clip-vit-base-patch16`` from OpenAI. You can use any
@@ -208,7 +209,7 @@ parameters at the end, when you get an optimized model.
     query = "Who developed the Theory of General Relativity?"
     image_path = Path("example.jpg")
 
-    r = requests.get("https://www.storypick.com/wp-content/uploads/2016/01/AE-2.jpg")
+    r = requests.get("https://github.com/user-attachments/assets/a5bedef2-e915-4286-bcc9-d599083a99a6")
 
     with image_path.open("wb") as f:
         f.write(r.content)
@@ -926,5 +927,4 @@ can explore the CLIP capabilities further. For example:
 -  Optimize models with
    `NNCF <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training/basic-quantization-flow.html>`__
    to get further acceleration. You can find example how to quantize
-   CLIP model in `this
-   notebook <../clip-zero-shot-image-classification>`__
+   CLIP model in `this notebook <clip-zero-shot-image-classification-with-output.html>`__

@@ -41,6 +41,16 @@ to build up a multiple inference task pipeline:
 
 -  `Try it with your meter photos! <#try-it-with-your-meter-photos>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     import platform
@@ -641,7 +651,7 @@ bounds of input batch size.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f2d2dd77130>
+    <matplotlib.image.AxesImage at 0x7f27e75e4d30>
 
 
 

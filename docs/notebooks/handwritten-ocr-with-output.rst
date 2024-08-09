@@ -36,6 +36,16 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
 -  `Process the Output Data <#process-the-output-data>`__
 -  `Print the Output <#print-the-output>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     import platform
