@@ -52,9 +52,17 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Debug'
 
+  CXX_Unit_Tests:
+    name: C++ unit tests
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_cxx_unit_tests.yml
+    with:
+      runner: 'aks-win-4-cores-8gb'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+
   Overall_Status:
     name: ci/gha_overall_status_windows_debug
-    needs: [ Smart_CI, Build ]
+    needs: [ Smart_CI, Build, CXX_Unit_Tests ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
