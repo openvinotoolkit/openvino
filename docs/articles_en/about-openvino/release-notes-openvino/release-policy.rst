@@ -63,7 +63,7 @@ The following elements are not guaranteed to receive updates:
 Pre-release releases
 ######################
 
-OpenVINO pre-release is the version of the software that has not undergone full release validation
+OpenVINO pre-release is an early version of regular releases that has not undergone full release validation
 or qualification. No support is offered on pre-release software. The scope, functionality,
 and APIs/behavior are subject to change in the future. It **should NOT** be incorporated into
 any production software/solution, instead it should be used only for:
