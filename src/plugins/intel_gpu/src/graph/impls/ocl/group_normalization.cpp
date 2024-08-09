@@ -21,6 +21,15 @@ struct group_normalization_impl : typed_primitive_impl_ocl<group_normalization> 
         return make_unique<group_normalization_impl>(*this);
     }
 
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
+    }
+
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<group_normalization>();
         auto params = get_default_params<kernel_selector::group_normalization_params>(impl_param, is_shape_agnostic);
