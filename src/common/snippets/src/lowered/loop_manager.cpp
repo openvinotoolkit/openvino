@@ -432,6 +432,8 @@ void LoopManager::insert_loop_id(const ExpressionPtr& expr, size_t new_id, bool 
     if (target_id != SIZE_MAX) {
         insert_it = std::find(loop_ids.cbegin(), loop_ids.cend(), target_id);
         OPENVINO_ASSERT(insert_it != loop_ids.cend(), "Failed add loop ID: target ID hasn't been found");
+        if (!before)
+            insert_it++;
     }
     loop_ids.insert(insert_it, new_id);
     expr->set_loop_ids(loop_ids);

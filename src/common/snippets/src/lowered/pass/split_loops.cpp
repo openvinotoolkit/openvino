@@ -41,37 +41,47 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
             continue;
 
         // Ticket: 113755
-        // Note: we currently consider only the outermost loops for splitting
+        // Note: we currently consider only the outermost loops or inner loop if outers are splited.
         // Splitting could also be done in a more general case, but the splitted loop and its parent must always
         // be in the same set of outer loops. Otherwise they won't be fused.
-        // TODO: need extend to support inner loop for K/V matrix
-        const auto& loop_id = loop_ids.front();
-        const auto loop = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
-        for (const auto& input_port : loop->get_input_ports()) {
-            const auto& parent_port = input_port.expr_port->get_port_connector_ptr()->get_source();
-            const auto& parent_expr = parent_port.get_expr();
-            const auto& parent_loop_ids = parent_expr->get_loop_ids();
-            if (parent_loop_ids.empty())
-                continue;
-
-            const auto& parent_loop_id = parent_loop_ids.front();
-            const auto parent_loop = loop_manager->get_loop_info<UnifiedLoopInfo>(parent_loop_id);
-
-            const bool split_parent = parent_loop->get_increment() < loop->get_increment();
-            const auto upper_loop = std::make_shared<UnifiedLoopInfo>(*parent_loop);
-            const auto lower_loop = std::make_shared<UnifiedLoopInfo>(*loop);
-            if (split_parent)
-                upper_loop->set_increment(loop->get_increment());
-            else
-                lower_loop->set_increment(parent_loop->get_increment());
-
-            const auto& loop_to_split = split_parent ? parent_loop : loop;
-            const auto& loop_to_fuse = !split_parent ? parent_loop : loop;
-            // We don't split loop which are not compatible with parent loop because such loops will not be fused
-            if (FuseLoops::can_be_fused(upper_loop, lower_loop) && can_be_split(loop_to_split, loop_to_fuse)) {
-                split(linear_ir, split_parent ? parent_loop_id : loop_id, loop_to_fuse->get_increment());
-                loop_was_split = true;
+        const auto& loop_depth = loop_ids.size();
+        size_t loop_inside_block_id = SIZE_MAX;
+        for (size_t d = 0; d < loop_depth; d++) {
+            // if outter loop is not split and fused, inner loop should stop split
+            if (!loop_was_split)
                 break;
+            const auto& loop_id = loop_ids[d];
+            const auto loop = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
+            for (const auto& input_port : loop->get_input_ports()) {  // fused outter in one port, inner in another port?
+                const auto& parent_port = input_port.expr_port->get_port_connector_ptr()->get_source();
+                const auto& parent_expr = parent_port.get_expr();
+                const auto& parent_loop_ids = parent_expr->get_loop_ids();
+                if (parent_loop_ids.size() < loop_depth)
+                    continue;
+
+                const auto& parent_loop_id = parent_loop_ids[d];
+                const auto parent_loop = loop_manager->get_loop_info<UnifiedLoopInfo>(parent_loop_id);
+
+                const bool split_parent = parent_loop->get_increment() < loop->get_increment();
+                const auto upper_loop = std::make_shared<UnifiedLoopInfo>(*parent_loop);
+                const auto lower_loop = std::make_shared<UnifiedLoopInfo>(*loop);
+                if (split_parent)
+                    upper_loop->set_increment(loop->get_increment());
+                else
+                    lower_loop->set_increment(parent_loop->get_increment());
+
+                const auto& loop_to_split = split_parent ? parent_loop : loop;
+                const auto& loop_to_fuse = !split_parent ? parent_loop : loop;
+                // We don't split loop which are not compatible with parent loop because such loops will not be fused
+                if (FuseLoops::can_be_fused(upper_loop, lower_loop) && can_be_split(loop_to_split, loop_to_fuse)) {
+                    const auto& loop_to_split_id = split_parent ? parent_loop_id : loop_id;
+                    if (loop_inside_block_id == SIZE_MAX) {
+                        loop_inside_block_id = loop_to_split_id;
+                    }
+                    split(linear_ir, loop_to_split_id, loop_to_fuse->get_increment(), loop_inside_block_id);
+                    loop_was_split = true;
+                    break;
+                }
             }
         }
     }
@@ -83,7 +93,7 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
     return loop_was_split;
 }
 
-void SplitLoops::split(LinearIR& linear_ir, size_t loop_to_split_id, size_t outer_increment) {
+void SplitLoops::split(LinearIR& linear_ir, size_t loop_to_split_id, size_t outer_increment, size_t loop_position) {
     const auto& loop_manager = linear_ir.get_loop_manager();
 
     const auto& inner_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_to_split_id);
@@ -92,7 +102,8 @@ void SplitLoops::split(LinearIR& linear_ir, size_t loop_to_split_id, size_t oute
                                                           inner_loop_info->get_output_ports());
     const auto outer_loop_id = loop_manager->mark_loop(loop_bounds.first, loop_bounds.second, inner_loop_info->get_work_amount(),
                                                        outer_increment, inner_loop_info->get_dim_idx(),
-                                                       inner_loop_info->get_input_ports(), inner_loop_info->get_output_ports(), false);
+                                                       inner_loop_info->get_input_ports(), inner_loop_info->get_output_ports(),
+                                                       false, true, loop_position);
     const auto& outer_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(outer_loop_id);
 
     const auto& inner_splitted_loop_info =
