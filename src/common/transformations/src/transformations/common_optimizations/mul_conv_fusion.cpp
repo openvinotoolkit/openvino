@@ -25,16 +25,30 @@ static bool are_shapes_compatible(const ov::Shape& weights_shape, const ov::Shap
         return false;
     }
 
+    std::cout << weights_shape << std::endl;
+    std::cout << const_shape << std::endl;
+
     auto weights_shape_it = weights_shape.rbegin();
     auto const_shape_it = const_shape.rbegin();
+    int C_dim = const_shape.size() - 1 - 2;
+    int const_shape_cur_idx = const_shape.size() - 1;
 
     while (const_shape_it != const_shape.rend()) {
-        if (*const_shape_it != 1 && *const_shape_it != *weights_shape_it) {
-            return false;
+        if (const_shape_cur_idx == C_dim) {
+            if (*const_shape_it != 1 && *const_shape_it != *weights_shape_it) {
+                std::cout << "Exiting 1" << std::endl;
+                return false;
+            }
+        } else {
+            if (*const_shape_it != 1) {
+                std::cout << "Exiting 2" << std::endl;
+                return false;
+            }
         }
 
         ++weights_shape_it;
         ++const_shape_it;
+        --const_shape_cur_idx;
     }
 
     return true;

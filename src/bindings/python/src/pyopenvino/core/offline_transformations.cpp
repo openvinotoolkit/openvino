@@ -24,6 +24,9 @@
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
 
+#include "openvino/pass/serialize.hpp"
+#include "openvino/pass/visualize_tree.hpp" 
+
 namespace py = pybind11;
 
 void regmodule_offline_transformations(py::module m) {
@@ -140,6 +143,17 @@ void regmodule_offline_transformations(py::module m) {
         py::arg("model"),
         py::arg("use_block_indices_inputs") = false,
         py::arg("use_score_outputs") = false);
+
+    m_offline_transformations.def(
+        "dump_model",
+        [](std::shared_ptr<ov::Model> model, const std::string& file_name) {
+            ov::pass::Manager manager;
+            // manager.register_pass<ov::pass::Serialize>(file_name + ".xml", file_name + ".bin");
+            manager.register_pass<ov::pass::VisualizeTree>(file_name + ".svg");
+            manager.run_passes(model);
+        },
+        py::arg("model"),
+        py::arg("file_name"));
 
     m_offline_transformations.def(
         "stateful_to_stateless_transformation",
