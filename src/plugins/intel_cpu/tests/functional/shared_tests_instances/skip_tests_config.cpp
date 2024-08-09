@@ -526,6 +526,9 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*EltwiseLayerCPUTest.*IS=\(\[1\.\.10\.2\.5\.6\]_\).*eltwiseOpType=SqDiff.*_configItem=INFERENCE_PRECISION_HINT=f16.*)");
     }
 #endif
+#if (defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)) && (!defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC))
+    retVector.emplace_back(R"(.*Prc=(F|f)16.*)");
+#endif
     if (!ov::with_cpu_x86_avx512_core_vnni() &&
         !ov::with_cpu_x86_avx2_vnni() &&
         !ov::with_cpu_x86_avx512_core_amx_int8()) {
