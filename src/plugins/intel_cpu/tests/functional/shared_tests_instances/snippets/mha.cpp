@@ -25,7 +25,8 @@ const auto& inputShapes_4D = STATIC_SHAPES(
 
 const auto& inputShapes_3D = STATIC_SHAPES(
     {{128, 12, 64}, {128, 12, 64}, {12, 128, 128}, {128, 12, 64}},
-    {{68, 6, 92}, {68, 6, 92}, {1, 68, 68}, {68, 6, 92}});
+    {{68, 6, 92}, {68, 6, 92}, {1, 68, 68}, {68, 6, 92}},
+    {{16, 2, 92}, {68, 2, 92}, {1, 16, 68}, {68, 2, 92}});
 
 static inline bool is_bf16_supported() {
     return ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16();
