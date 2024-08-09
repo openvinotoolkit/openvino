@@ -923,6 +923,9 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
         if (aw_data) {
             rtInfo["alt_width"] = aw_data.value();
         }
+        if (auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(ovNode)) {
+            rtInfo["bin_offset"] = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
+        }
     }
 
     ovNode->set_friendly_name(params.name);

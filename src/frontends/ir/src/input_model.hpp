@@ -22,7 +22,12 @@ class InputModel : public ov::frontend::InputModel {
 public:
     InputModel(std::istream& stream,
                const std::shared_ptr<ov::AlignedBuffer>& weights,
-               const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions);
+               const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+               std::wstring weights_path = "");
+#else
+               std::string weights_path = "");
+#endif
 
     std::shared_ptr<Model> convert();
 };

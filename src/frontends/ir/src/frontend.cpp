@@ -130,11 +130,15 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         return exts;
     };
 
-    auto create_input_model = [&]() -> std::shared_ptr<InputModel> {
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    auto create_input_model = [&](std::wstring& weights_path) -> std::shared_ptr<InputModel> {
+#else
+    auto create_input_model = [&](std::string& weights_path) -> std::shared_ptr<InputModel> {
+#endif
         if (provided_model_stream) {
-            return std::make_shared<InputModel>(*provided_model_stream, weights, create_extensions_map());
+            return std::make_shared<InputModel>(*provided_model_stream, weights, create_extensions_map(), weights_path);
         } else if (local_model_stream.is_open()) {
-            auto input_model = std::make_shared<InputModel>(local_model_stream, weights, create_extensions_map());
+            auto input_model = std::make_shared<InputModel>(local_model_stream, weights, create_extensions_map(), weights_path);
             local_model_stream.close();
             return input_model;
         }
@@ -236,7 +240,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         }
     }
 
-    return create_input_model();
+    return create_input_model(weights_path);
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {

@@ -205,13 +205,24 @@ class InputModel::InputModelIRImpl {
     std::unordered_map<std::string, ov::OpSet> m_opsets;
     pugi::xml_node m_root;
     pugi::xml_document m_xml_doc;
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    std::wstring m_weights_path;
+#else
+    std::string m_weights_path;
+#endif
 
 public:
     InputModelIRImpl(std::istream& stream,
                      const std::shared_ptr<ov::AlignedBuffer>& weights,
-                     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions)
+                     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+                     std::wstring& m_weights_path)
+#else
+                     std::string& m_weights_path)
+#endif
         : m_weights(weights),
-          m_extensions(extensions) {
+          m_extensions(extensions),
+          m_weights_path(m_weights_path) {
         pugi::xml_parse_result res = m_xml_doc.load(stream);
         if (res.status != pugi::status_ok) {
             OPENVINO_THROW(res.description(), " at offset ", res.offset);
@@ -227,8 +238,13 @@ public:
 
 InputModel::InputModel(std::istream& stream,
                        const std::shared_ptr<ov::AlignedBuffer>& weights,
-                       const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions) {
-    _impl = std::make_shared<InputModelIRImpl>(stream, weights, extensions);
+                       const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+                       std::wstring weights_path) {
+#else
+                       std::string weights_path) {
+#endif
+    _impl = std::make_shared<InputModelIRImpl>(stream, weights, extensions, weights_path);
 }
 
 std::shared_ptr<ov::Model> InputModel::convert() {
@@ -244,6 +260,7 @@ std::shared_ptr<ov::Model> InputModel::InputModelIRImpl::convert() {
     std::shared_ptr<ov::Model> model;
     visitor.on_attribute("net", model);
     model->get_rt_info()["version"] = int64_t(version);
+    model->get_rt_info()["weights_path"] = m_weights_path;
     parse_pre_process(m_root, m_weights, model);
 
     return model;

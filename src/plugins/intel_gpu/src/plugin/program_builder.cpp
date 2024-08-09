@@ -304,6 +304,14 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     prim->origin_op_name = op.get_friendly_name();
     prim->origin_op_type_name = op.get_type_name();
 
+    if (auto data_prim = dynamic_cast<cldnn::data *>(prim.get())) {
+        auto rt_info = op.get_rt_info();
+        auto offset = rt_info.find("bin_offset");
+        if (offset != rt_info.end()) {
+            data_prim->bin_offset = offset->second.as<size_t>();
+        }
+    }
+
     bool should_profile = prim->type != cldnn::mutable_data::type_id() &&
                           prim->type != cldnn::data::type_id();
 
