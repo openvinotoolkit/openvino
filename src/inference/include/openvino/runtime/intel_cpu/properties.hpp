@@ -63,5 +63,27 @@ static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATI
  */
 static constexpr Property<float> sparse_weights_decompression_rate{"CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE"};
 
+/**
+ * @brief This property controls whether the plugin uses tensor partial shapes to pre-allocate memory using
+ * the upper bound
+ * @ingroup ov_runtime_cpu_prop_cpp_api
+ *
+ * Using the information about the shape ranges may be beneficial for more optimal memory allocation as the whole memory
+ * reuse plan may be calculated at the compilation stage. The major disadvantage of this approach is the fact that
+ * the upper bound may be too large and exceed the avalable memory, even though it is never reached. Thus, it does make
+ * sense to controll the strategy depending on the specific application scenario.
+ *
+ * @code
+ * ie.set_property(ov::intel_cpu::alloc_max_size(true)); // enable upper bound memory allocation
+ * @endcode
+ *
+ * The following code disables upper bound memory allocation
+ *
+ * @code
+ * ie.set_property(ov::intel_cpu::alloc_max_size(false)); // disable upper bound memory allocation
+ * @endcode
+ */
+static constexpr Property<bool> alloc_max_size{"CPU_ALLOCATE_MAX_SIZE"};
+
 }  // namespace intel_cpu
 }  // namespace ov

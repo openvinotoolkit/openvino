@@ -222,6 +222,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
             RO_property(ov::hint::dynamic_quantization_group_size.name()),
             RO_property(ov::hint::kv_cache_precision.name()),
+            RO_property(ov::intel_cpu::alloc_max_size.name()),
         };
 
         OPENVINO_SUPPRESS_DEPRECATED_START
@@ -291,6 +292,8 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::intel_cpu::denormals_optimization) {
         return decltype(ov::intel_cpu::denormals_optimization)::value_type(config.denormalsOptMode ==
                                                                            Config::DenormalsOptMode::DO_On);
+    } else if (name == ov::intel_cpu::alloc_max_size) {
+        return decltype(ov::intel_cpu::alloc_max_size)::value_type(config.allocateMaxSize);
     } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(
             config.fcSparseWeiDecompressionRate);
