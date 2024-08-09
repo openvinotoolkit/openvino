@@ -22,10 +22,12 @@ public:
     OPENVINO_OP("Brgemm", "SnippetsOpset");
     Brgemm(const Output<Node>& A, const Output<Node>& B,
            const size_t offset_a = 0lu, const size_t offset_b = 0lu, const size_t offset_c = 0lu,
-           std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {});
+           std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
+           float beta = 0.f);
     Brgemm(const Output<Node>& A, const Output<Node>& B,
            const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
-           std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {});
+           std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
+           float beta = 0.f);
     Brgemm() = default;
 
     size_t get_offset_a() const { return get_input_offset(0); }
@@ -40,6 +42,9 @@ public:
     bool has_evaluate() const override { return false; }
     bool visit_attributes(AttributeVisitor& visitor) override;
 
+    float get_beta() const { return m_beta; }
+    void set_beta(float beta) { m_beta = beta; }
+
 protected:
     ov::element::Type get_output_type() const;
     std::vector<ov::PartialShape> get_planar_input_shapes(const std::vector<ov::Input<ov::Node>>& inputs) const;
@@ -48,6 +53,7 @@ protected:
 
 private:
     void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c);
+    float m_beta = 0.f;
 };
 
 } // namespace op
