@@ -4,6 +4,7 @@
 
 #include "behavior_tests.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "compiled_model.hpp"
 
 using namespace testing;
 using namespace ov::npuw::tests;
@@ -239,7 +240,9 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, CompilationIsSuccessful) {
     register_mock_plugins_in_ov();
 
     // Do the actual test:
-    use_npuw_props.emplace(devices("MockNPU"));
+    use_npuw_props.emplace(devices("MockNPU"));    
+    use_npuw_props.emplace(partitioning::online::min_size(12));
+    use_npuw_props.emplace(partitioning::online::keep_blocks(9));
     EXPECT_NO_THROW(core.compile_model(model, "NPU", use_npuw_props));
 }
 
@@ -260,6 +263,8 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, CompilationIsFailSafe) {
 
     // Do the actual test:
     use_npuw_props.emplace(devices("MockNPU,MockCPU"));
+    use_npuw_props.emplace(partitioning::online::min_size(12));
+    use_npuw_props.emplace(partitioning::online::keep_blocks(9));
     EXPECT_NO_THROW(core.compile_model(model, "NPU", use_npuw_props));
 }
 
@@ -275,6 +280,8 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, CompilationIsFailed) {
 
     // Do the actual test:
     use_npuw_props.emplace(devices("MockNPU"));
+    use_npuw_props.emplace(partitioning::online::min_size(12));
+    use_npuw_props.emplace(partitioning::online::keep_blocks(9));
     EXPECT_ANY_THROW(core.compile_model(model, "NPU", use_npuw_props));
 }
 
@@ -295,6 +302,7 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, InferRequestCreationIsSuccessful) {
     // Do the actual test:
     use_npuw_props.emplace(devices("MockNPU"));
     use_npuw_props.emplace(partitioning::online::min_size(12));
+    use_npuw_props.emplace(partitioning::online::keep_blocks(9));
     auto compiled_model = core.compile_model(model, "NPU", use_npuw_props);
     compiled_model.create_infer_request();
 }
@@ -321,6 +329,7 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, InferRequestCreationIsFailSafe) {
     // Do the actual test:
     use_npuw_props.emplace(devices("MockNPU,MockCPU"));
     use_npuw_props.emplace(partitioning::online::min_size(12));
+    use_npuw_props.emplace(partitioning::online::keep_blocks(9));
     auto compiled_model = core.compile_model(model, "NPU", use_npuw_props);
     EXPECT_NO_THROW(compiled_model.create_infer_request());
 }
@@ -343,6 +352,7 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, InferRequestCreationIsFailed) {
     // Do the actual test:
     use_npuw_props.emplace(devices("MockNPU"));
     use_npuw_props.emplace(partitioning::online::min_size(12));
+    use_npuw_props.emplace(partitioning::online::keep_blocks(9));
     auto compiled_model = core.compile_model(model, "NPU", use_npuw_props);
     EXPECT_ANY_THROW(compiled_model.create_infer_request());
 }
@@ -365,6 +375,7 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, InferIsSuccessful) {
     // Do the actual test:
     use_npuw_props.emplace(devices("MockNPU"));
     use_npuw_props.emplace(partitioning::online::min_size(12));
+    use_npuw_props.emplace(partitioning::online::keep_blocks(9));
     auto compiled_model = core.compile_model(model, "NPU", use_npuw_props);
     auto infer_request = compiled_model.create_infer_request();
     EXPECT_NO_THROW(infer_request.infer());
@@ -396,6 +407,7 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, InferIsFailSafe) {
     // Do the actual test:
     use_npuw_props.emplace(devices("MockNPU,MockCPU"));
     use_npuw_props.emplace(partitioning::online::min_size(12));
+    use_npuw_props.emplace(partitioning::online::keep_blocks(9));
     auto compiled_model = core.compile_model(model, "NPU", use_npuw_props);
     auto infer_request = compiled_model.create_infer_request();
     EXPECT_NO_THROW(infer_request.infer());
@@ -424,7 +436,95 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, InferIsFailed) {
     // Do the actual test:
     use_npuw_props.emplace(devices("MockNPU"));
     use_npuw_props.emplace(partitioning::online::min_size(12));
+    use_npuw_props.emplace(partitioning::online::keep_blocks(9));
     auto compiled_model = core.compile_model(model, "NPU", use_npuw_props);
     auto infer_request = compiled_model.create_infer_request();
     EXPECT_ANY_THROW(infer_request.infer());
+}
+
+TEST_F(BehaviorTestsNPUWOnlinePartitioning, RepeatedBlocksAreFolded) {
+    GTEST_SKIP() << "Currently disabled";
+
+    model = model_generator.get_model_with_repeated_blocks();
+
+    // Set expectations first:
+    {
+        InSequence seq;
+        EXPECT_COMPILE_MODEL(npu, 3);
+        EXPECT_COMPILE_MODEL(cpu, 0);
+    }
+    for (int i = 0;  i < 3; i++) {
+        EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(i), 1);
+    }
+
+    // Register mock objects as plugins in OpenVINO:
+    register_mock_plugins_in_ov();
+
+    // Do the actual test:
+    use_npuw_props.emplace(devices("MockNPU"));
+    use_npuw_props.emplace(partitioning::online::min_size(12));
+    use_npuw_props.emplace(partitioning::online::keep_blocks(9));
+    use_npuw_props.emplace(partitioning::fold(true));
+    auto compiled_model = core.compile_model(model, "NPU", use_npuw_props);
+    auto infer_request = compiled_model.create_infer_request();
+    EXPECT_NO_THROW(infer_request.infer());
+}
+
+TEST_F(BehaviorTestsNPUWOnlinePartitioning, FoldingAndPipelining) {
+    model = model_generator.get_model_with_repeated_blocks();
+
+    // Set expectations first:
+    {
+        InSequence seq;
+        EXPECT_COMPILE_MODEL(npu, 3);
+        EXPECT_COMPILE_MODEL(cpu, 0);
+    }
+
+    for (int i = 0;  i < 3; i++) {
+        EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(i), 2);
+    }
+
+    // Register mock objects as plugins in OpenVINO:
+    register_mock_plugins_in_ov();
+
+    // Do the actual test:
+    use_npuw_props.emplace(devices("MockNPU"));
+    use_npuw_props.emplace(partitioning::online::min_size(12));
+    use_npuw_props.emplace(partitioning::online::keep_blocks(9));
+    use_npuw_props.emplace(partitioning::fold(true));
+    use_npuw_props.emplace(partitioning::dcoff_type("f16"));
+    use_npuw_props.emplace(partitioning::dcoff_with_scale(true));  
+    use_npuw_props.emplace(funcall_async(true));  
+    auto compiled_model = core.compile_model(model, "NPU", use_npuw_props);
+    auto infer_request = compiled_model.create_infer_request();
+    EXPECT_NO_THROW(infer_request.infer());
+}
+
+TEST_F(BehaviorTestsNPUWOnlinePartitioning, FuncallForAllAsync) {
+    model = model_generator.get_model_with_repeated_blocks();
+
+    // Set expectations first:
+    {
+        InSequence seq;
+        EXPECT_COMPILE_MODEL(npu, 12);
+        EXPECT_COMPILE_MODEL(cpu, 0);
+    }
+
+    // Not working
+    for (int i = 0;  i < 12; i++) {
+        EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(i), 2);
+    }
+
+    // Register mock objects as plugins in OpenVINO:
+    register_mock_plugins_in_ov();
+
+    // Do the actual test:
+    use_npuw_props.emplace(devices("MockNPU"));
+    use_npuw_props.emplace(partitioning::online::min_size(12));
+    use_npuw_props.emplace(partitioning::online::keep_blocks(9));
+    use_npuw_props.emplace(partitioning::funcall_for_all(true));
+    use_npuw_props.emplace(funcall_async(true));
+    auto compiled_model = core.compile_model(model, "NPU", use_npuw_props);
+    auto infer_request = compiled_model.create_infer_request();
+    EXPECT_NO_THROW(infer_request.infer());
 }

@@ -21,7 +21,7 @@ namespace npuw {
 namespace tests {
 
 class BehaviorTestsNPUW : public ::testing::Test {
-public:    
+public:
     ov::Core core;
     std::shared_ptr<MockNpuPlugin> npu_plugin;
     std::shared_ptr<MockCpuPlugin> cpu_plugin;
@@ -43,8 +43,6 @@ public:
         m_shared_objects.push_back(reg_plugin<MockNpuPlugin>(core, npu_plugin));
         m_shared_objects.push_back(reg_plugin<MockCpuPlugin>(core, cpu_plugin));
     }
-
-    std::shared_ptr<ov::Model> create_example_model();
 
 private:
     std::vector<std::shared_ptr<void>> m_shared_objects;
