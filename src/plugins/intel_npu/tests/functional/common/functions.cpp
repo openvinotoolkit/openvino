@@ -5,6 +5,7 @@
 #include "functions.h"
 #include "common/npu_test_env_cfg.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/opsets/opset11.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 std::shared_ptr<ov::Model> buildSingleLayerSoftMaxNetwork() {
@@ -24,6 +25,22 @@ std::shared_ptr<ov::Model> buildSingleLayerSoftMaxNetwork() {
     auto ov_model = std::make_shared<ov::Model>(results, params, "softMax");
 
     return ov_model;
+}
+
+std::shared_ptr<ov::Model> createModelWithLargeSize() {
+    auto data = std::make_shared<ov::opset11::Parameter>(ov::element::f16, ov::Shape{4000, 4000});
+    auto mul_constant = ov::opset11::Constant::create(ov::element::f16, ov::Shape{1}, {1.5});
+    auto mul = std::make_shared<ov::opset11::Multiply>(data, mul_constant);
+    auto add_constant = ov::opset11::Constant::create(ov::element::f16, ov::Shape{1}, {0.5});
+    auto add = std::make_shared<ov::opset11::Add>(mul, add_constant);
+    // Just a sample model here, large iteration to make the model large
+    for (int i = 0; i < 1000; i++) {
+        add = std::make_shared<ov::opset11::Add>(add, add_constant);
+    }
+    auto res = std::make_shared<ov::opset11::Result>(add);
+
+    /// Create the OpenVINO model
+    return std::make_shared<ov::Model>(ov::ResultVector{std::move(res)}, ov::ParameterVector{std::move(data)});
 }
 
 const std::string PlatformEnvironment::PLATFORM = []() -> std::string {
