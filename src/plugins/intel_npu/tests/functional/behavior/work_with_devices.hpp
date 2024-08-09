@@ -138,8 +138,8 @@ TEST_P(TestCompileModelWithoutDeviceNPU, CheckDeviceInBlob) {
         // Compile model to target plugins, wrong platform specified -> expect an exception
         auto netConfigurationMLIR_wrong = configuration;
         netConfigurationMLIR_wrong[ov::intel_npu::platform.name()] =
-                getWrongDevice(PlatformEnvironment::PLATFORM, CompilerType::MLIR);
-        netConfigurationMLIR_wrong[ov::intel_npu::compiler_type.name()] = "MLIR";
+                getWrongDevice(PlatformEnvironment::PLATFORM, CompilerType::PLUGIN);
+        netConfigurationMLIR_wrong[ov::intel_npu::compiler_type.name()] = "PLUGIN";
         const auto& ov_model1 = buildSingleLayerSoftMaxNetwork();
         EXPECT_ANY_THROW(auto compiled_model =
                                  core->compile_model(ov_model1, target_device, netConfigurationMLIR_wrong));
@@ -147,8 +147,8 @@ TEST_P(TestCompileModelWithoutDeviceNPU, CheckDeviceInBlob) {
         // Compile model to target plugins, valid platform specified -> expect no exception
         auto netConfigurationMLIR_valid = configuration;
         netConfigurationMLIR_valid[ov::intel_npu::platform.name()] =
-                getValidDevice(PlatformEnvironment::PLATFORM, CompilerType::MLIR);
-        netConfigurationMLIR_valid[ov::intel_npu::compiler_type.name()] = "MLIR";
+                getValidDevice(PlatformEnvironment::PLATFORM, CompilerType::PLUGIN);
+        netConfigurationMLIR_valid[ov::intel_npu::compiler_type.name()] = "PLUGIN";
         const auto& ov_model2 = buildSingleLayerSoftMaxNetwork();
         EXPECT_NO_THROW(auto compiled_model =
                                 core->compile_model(ov_model2, target_device, netConfigurationMLIR_valid));

@@ -69,7 +69,7 @@ ov::SoPtr<ICompiler> createNPUCompiler(const Logger& log) {
 
 ov::SoPtr<ICompiler> createCompilerImpl(ov::intel_npu::CompilerType compilerType, const Logger& log) {
     switch (compilerType) {
-    case ov::intel_npu::CompilerType::MLIR:
+    case ov::intel_npu::CompilerType::PLUGIN:
         return createNPUCompiler(log);
     case ov::intel_npu::CompilerType::DRIVER:
         return createCompilerAdapter(log);

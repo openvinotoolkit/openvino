@@ -120,7 +120,7 @@ TEST_P(FailGracefullyTest, OnUnsupprotedOperator) {
         core->compile_model(ov_model, target_device, configuration);
     } catch (std::exception& ex) {
         // TODO: the below error messages will be improved in E#64716
-        if (compilerType == "MLIR") {
+        if (compilerType == "PLUGIN") {
             EXPECT_THAT(ex.what(),
                         AllOf(HasSubstr("Unsupported operation"), HasSubstr("with type UnsupportedTestOperation")));
         } else if (compilerType == "DRIVER") {

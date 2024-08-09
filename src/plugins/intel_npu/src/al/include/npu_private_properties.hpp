@@ -89,7 +89,7 @@ inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
  * Type of NPU compiler to be used for compilation of a network
  * @note Configuration API v 2.0
  */
-enum class CompilerType { MLIR, DRIVER };
+enum class CompilerType { PLUGIN, DRIVER };
 
 /**
  * @brief Prints a string representation of ov::intel_npu::CompilerType to a stream
@@ -100,8 +100,8 @@ enum class CompilerType { MLIR, DRIVER };
  */
 inline std::ostream& operator<<(std::ostream& out, const CompilerType& fmt) {
     switch (fmt) {
-    case CompilerType::MLIR: {
-        out << "MLIR";
+    case CompilerType::PLUGIN: {
+        out << "PLUGIN";
     } break;
     case CompilerType::DRIVER: {
         out << "DRIVER";
