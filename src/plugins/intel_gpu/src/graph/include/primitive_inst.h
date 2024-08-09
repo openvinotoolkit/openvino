@@ -103,9 +103,9 @@ struct primitive_impl {
     void set_dynamic(bool val) { _is_dynamic = val; }
     bool is_dynamic() const { return _is_dynamic; }
 
-    virtual void update_dispatch_data(const kernel_impl_params& impl_params) {
-        OPENVINO_ASSERT(_is_dynamic, "[GPU] update_dispatch_data is called for static shape implementation ", _kernel_name);
-        OPENVINO_ASSERT(false, "[GPU] update_dispatch_data is not implemented for dynamic implemenation ", _kernel_name);
+    virtual void update(primitive_inst& inst, const kernel_impl_params& impl_params) {
+        OPENVINO_ASSERT(_is_dynamic, "[GPU] update() is called for static shape implementation ", _kernel_name);
+        OPENVINO_ASSERT(false, "[GPU] update() is not implemented for dynamic implemenation ", _kernel_name);
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params);
@@ -303,6 +303,7 @@ public:
     virtual void update_output_memory() {}
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
+    virtual void update_shape_info_tensor(const kernel_impl_params& params);
 
     virtual kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
         return std::move(orig_impl_param);
@@ -397,7 +398,6 @@ protected:
 
     virtual void update_shape();
     virtual event::ptr update_weights();
-    virtual void update_shape_info_tensor(const kernel_impl_params& params);
 
     void fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset);
     bool use_async_compilation();
