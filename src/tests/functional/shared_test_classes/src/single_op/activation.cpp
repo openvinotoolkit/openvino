@@ -12,6 +12,25 @@
 
 namespace ov {
 namespace test {
+
+namespace {
+template<typename type>
+void update_nan(Tensor& tensor) {
+    auto data = tensor.data<type>();
+    if (tensor.get_size() > 0) data[0] = std::numeric_limits<type>::quiet_NaN();
+    if (tensor.get_size() > 1) data[1] = std::numeric_limits<type>::signaling_NaN();
+}
+
+#if !defined(OPENVINO_ARCH_ARM)
+template<typename type>
+void update_inf(Tensor& tensor) {
+    auto data = tensor.data<type>();
+    if (tensor.get_size() > 0) data[0] = std::numeric_limits<type>::infinity();
+    if (tensor.get_size() > 1) data[1] = -std::numeric_limits<type>::infinity();
+}
+#endif
+} // namespace
+
 using ov::test::utils::ActivationTypes;
 void ActivationLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     ov::element::Type model_type;
@@ -116,6 +135,25 @@ void ActivationLayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
                                             data_range,
                                             data_start_from,
                                             resolution, 1);
+
+    if (activationDecl.first == ActivationTypes::IsNaN) {
+        if (funcInput->get_element_type() == ov::element::f16) {
+            update_nan<element_type_traits<ov::element::f16>::value_type>(data_tensor);
+        } else if (funcInput->get_element_type() == ov::element::f32) {
+            update_nan<element_type_traits<ov::element::f32>::value_type>(data_tensor);
+        }
+    }
+
+#if !defined(OPENVINO_ARCH_ARM)
+    if (activationDecl.first == ActivationTypes::IsInf) {
+        if (funcInput->get_element_type() == ov::element::f16) {
+            update_inf<element_type_traits<ov::element::f16>::value_type>(data_tensor);
+        } else if (funcInput->get_element_type() == ov::element::f32) {
+            update_inf<element_type_traits<ov::element::f32>::value_type>(data_tensor);
+        }
+    }
+#endif
+
     inputs.insert({funcInput->get_node_shared_ptr(), data_tensor});
 }
 
