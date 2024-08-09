@@ -61,8 +61,8 @@ class TestBitwise(CommonTFLayerTest):
     @pytest.mark.parametrize('x_shape', [[4], [3, 4], [1, 2, 3, 4]])
     @pytest.mark.parametrize('y_shape', [[1], [4], [2, 3, 4]])
     @pytest.mark.parametrize('is_y_const', [True, False])
-    # Element types supported by evaluate, to be updated with further enablement
-    @pytest.mark.parametrize('input_type', [np.int32])
+    @pytest.mark.parametrize('input_type', [np.int8, np.int16, np.int32, np.int64,
+                                            np.uint8, np.uint16, np.uint32, np.uint64])
     @pytest.mark.parametrize("op_type", ['RightShift', 'LeftShift'])
     @pytest.mark.precommit
     @pytest.mark.nightly
