@@ -55,7 +55,7 @@ SoftmaxKernel_bf::Parent::DispatchData SoftmaxKernel_bf::SetDefault(const softma
         dispatchData.lws[0] = 1;
         // Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory
         // reads.
-        while ((dispatchData.itemsNum > 32 || dispatchData.lws[0] < dispatchData.itemsNum) && (2 * dispatchData.lws[0] <= max_lws)) {
+        while ((dispatchData.itemsNum > 8 || dispatchData.lws[0] < dispatchData.itemsNum) && (2 * dispatchData.lws[0] <= max_lws)) {
             dispatchData.lws[0] *= 2;
             dispatchData.itemsNum /= 2;
         }
