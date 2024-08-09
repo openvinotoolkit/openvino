@@ -35,8 +35,9 @@ may lower the accuracy for performance reasons (**PERFORMANCE mode**)
 
 * In **ACCURACY mode**, the device cannot convert floating point tensors to a smaller
   floating point type, so devices try to keep the accuracy metrics as close as possible to
-  the original values ​​obtained after training relative to the device's real capabilities.
+  the original values obtained after training relative to the device's real capabilities.
   This means that most devices will infer with ``f32`` precision if your device supports it.
+  In this mode, the :ref:`Dynamic Quantization <enabling-runtime-optimizations>` is disable.
 * In **PERFORMANCE mode**, the device can convert to smaller data types and apply other
   optimizations that may have some impact on accuracy rates, although we still try to
   minimize accuracy loss and may use mixed precision execution in some cases.
@@ -79,9 +80,17 @@ to specify the exact precision the user wants, but is less portable. For example
 supports ``f32`` inference precision and ``bf16`` on some platforms, GPU supports ``f32``
 and ``f16``, so if a user wants to an application that uses multiple devices, they have
 to handle all these combinations manually or let OV do it automatically by using higher
-level ``execution_mode`` property. Another thing is that ``inference_precision`` is also
-a hint, so the value provided is not guaranteed to be used by Runtime (mainly in cases
-where the current device does not have the required hardware capabilities).
+level ``execution_mode`` property.
+
+ .. note::
+
+    While using ``execution_mode``, you need to be aware that use of the **ACCURACY mode**
+    will result in enabling ``f32`` inference precision, but it will also disable
+    the :ref:`Dynamic Quantization <enabling-runtime-optimizations>`.
+
+Another thing is that ``inference_precision`` is also a hint, so the value provided is not guaranteed
+to be used by Runtime (mainly in cases where the current device does not have the required hardware
+capabilities).
 
 .. note::
 
