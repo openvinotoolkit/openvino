@@ -325,11 +325,9 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
 
 //----------- OutputInfoImpl ----------
 void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
-    std::shared_ptr<opset8::Result> result;
     auto node = m_output_node;
-    const auto start_out_node_names = node.get_tensor().get_names();
-    node.get_tensor().set_names({});
-    result = std::dynamic_pointer_cast<opset8::Result>(node.get_node_shared_ptr());
+    const auto result = std::dynamic_pointer_cast<opset8::Result>(node.get_node_shared_ptr());
+
     // Set result layout from 'model' information
     if (get_model_data()->is_layout_set()) {
         // Overwrite existing model's layout here (fix 74065)
@@ -369,56 +367,36 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
         node = std::get<0>(action_result);
         post_processing_applied = true;
     }
-    // Restore tensor names
-    node.get_tensor().set_names(start_out_node_names);
+
     auto orig_parent = result->get_input_source_output(0).get_node_shared_ptr();
-    bool reset_orig_friendly_name = false;
+    // Move result tensor names from previous input to new
+    const auto result_input_names = result->get_input_tensor(0).get_names();
+    result->get_input_tensor(0).set_names({});
+    node.get_tensor().set_names(result_input_names);
+
     if (!post_processing_applied) {
         return;
     }
+
     if (orig_parent->get_output_size() == 1) {
         node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name());
-        reset_orig_friendly_name = true;
+
+        // Reset friendly name of input node to avoid names collision
+        // when there is at a new node inserted by post-processing steps
+        // If no new nodes are inserted by post-processing, then we need to preserve friendly name of input
+        // as it's required for old API correct work
+        result->get_input_source_output(0).get_node_shared_ptr()->set_friendly_name("");
     } else if (node.get_node_shared_ptr() != orig_parent) {
         // Result node is changed - add ".<idx>" suffix
         node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name() + "." +
                                                       std::to_string(result->get_input_source_output(0).get_index()));
     }
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto tensor_name = ov::descriptor::get_ov_tensor_legacy_name(result->get_input_tensor(0));
-    if (!tensor_name.empty()) {
-        ov::descriptor::set_ov_tensor_legacy_name(node.get_tensor(), tensor_name);
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
-    // Reset friendly name of input node to avoid names collision
-    // when there is at a new node inserted by post-processing steps
-    // If no new nodes are inserted by post-processing, then we need to preserve friendly name of input
-    // as it's required for old API correct work
-    if (reset_orig_friendly_name) {
-        result->get_input_source_output(0).get_node_shared_ptr()->set_friendly_name("");
-    }
-
-    // Create result
-    auto new_result = std::make_shared<opset8::Result>(node);
-    new_result->set_friendly_name(result->get_friendly_name());
-
-    // Preserve runtime info of original result
-    new_result->get_rt_info() = result->get_rt_info();
-    new_result->input(0).get_rt_info() = result->input(0).get_rt_info();
-    new_result->output(0).get_rt_info() = result->output(0).get_rt_info();
+    result->input(0).replace_source_output(node);
+    result->revalidate_and_infer_types();
 
     // Update layout
     if (!context.layout().empty()) {
-        new_result->set_layout(context.layout());
-    }
-
-    for (auto& old_result : results) {
-        if (result == old_result) {
-            old_result = new_result;
-            break;
-        }
+        result->set_layout(context.layout());
     }
 }
 

@@ -95,7 +95,6 @@ public:
     }
 
     const std::string& get_any_name() const override {
-        std::cout << "Get any name " << get_names().size() << std::endl;
         OPENVINO_ASSERT(!get_names().empty(), "Attempt to get a name for a Tensor without names");
         return *m_name_it;
     }
