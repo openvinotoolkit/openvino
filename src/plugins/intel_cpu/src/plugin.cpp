@@ -18,6 +18,8 @@
 #include "utils/precision_support.h"
 #include "weights_cache.hpp"
 
+#include "transformations/cpu_opset/common/op/fully_connected.hpp"
+
 #if defined(__linux__)
 #    include <signal.h>
 #    include <sys/auxv.h>
@@ -241,6 +243,25 @@ static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const
         OPENVINO_THROW("Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK");
 }
 
+static bool has_fc_with_large_weights(const std::shared_ptr<const ov::Model>& model) {
+    bool has_large_fc = false;
+    for (const auto& op : model->get_ops()) {
+        if (!ov::is_type<ov::intel_cpu::FullyConnectedNode>(op))
+            continue;
+
+        auto weights = op->input_value(1);
+        if (!ov::op::util::is_on_constant_path(weights))
+            continue;
+
+        const auto element_num = ov::shape_size(weights.get_shape());
+        if (element_num <= 6600000)
+            continue;
+        has_large_fc = true;
+        break;
+    }
+    return has_large_fc;
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Plugin::compile_model");
@@ -296,6 +317,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     transformations.Snippets();
 
     transformations.CpuSpecificOpSet();
+
+    // In tensor parallel case:
+    // If a model is with a large fc, do not update conf.numSubStreams.
+    // If not, set 0 to conf.numSubStreams, which means turning off tensor parallel for this model.
+    if (!has_fc_with_large_weights(cloned_model)) {
+        conf.numSubStreams = 0;
+    }
     DEBUG_LOG(PrintableModel(*cloned_model, "cpu_"));
 
     if ((cloned_model->inputs().size() != model->inputs().size()) ||
