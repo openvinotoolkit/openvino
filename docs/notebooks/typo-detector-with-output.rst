@@ -19,11 +19,8 @@ Transformers <https://huggingface.co/docs/transformers/index>`__ library
 in the OpenVINO environment to perform the above task.
 
 The model detects typos in a given text with a high accuracy,
-performances of which are listed below,
-
-- Precision score of 0.9923
-- Recall score of 0.9859
-- f1-score of 0.9891
+performances of which are listed below, - Precision score of 0.9923 -
+Recall score of 0.9859 - f1-score of 0.9891
 
 `Source for above
 metrics <https://huggingface.co/m3hrdadfi/typo-detector-distilbert-en>`__
@@ -63,17 +60,20 @@ The model has been pretrained on the
 
    -  `Helper Functions <#helper-functions>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
-    %pip install -q "diffusers>=0.17.1" "openvino>=2023.1.0" "nncf>=2.5.0" "gradio>=4.19" "onnx>=1.11.0" "transformers>=4.39.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "diffusers>=0.17.1" "openvino>=2023.1.0" "nncf>=2.5.0" "gradio>=4.19" "onnx>=1.11.0" "transformers>=4.39.0" "torch>=2.1,<2.4" "torchvision<0.19.0" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Imports
 ~~~~~~~
@@ -93,15 +93,6 @@ Imports
     import re
     from typing import List, Dict
     import time
-
-
-.. parsed-literal::
-
-    2024-07-13 04:12:55.289699: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-07-13 04:12:55.325068: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-07-13 04:12:55.925329: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
 
 Methods
 ~~~~~~~
@@ -185,7 +176,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -211,12 +202,6 @@ Import required model class
 .. code:: ipython3
 
     from optimum.intel.openvino import OVModelForTokenClassification
-
-
-.. parsed-literal::
-
-    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
-
 
 Load the model
 ''''''''''''''
@@ -245,30 +230,8 @@ your model.
 
 .. parsed-literal::
 
-    Framework not specified. Using pt to export the model.
-    Using framework PyTorch: 2.2.2+cpu
-
-
-.. parsed-literal::
-
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
-.. parsed-literal::
-
-    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:86: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      op1 = operator(\*args, \*\*kwargs)
-
-
-.. parsed-literal::
-
-    ['input_ids', 'attention_mask']
-
-
-.. parsed-literal::
-
-    Compiling the model to AUTO ...
+    Compiling the model...
+    Set CACHE_DIR to optimum_model/model_cache
 
 
 Load the tokenizer
@@ -384,7 +347,7 @@ Let’s run a demo using the Hugging Face Optimum API.
     [Input]:  I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.
     [Detected]:  I  have been <i>stuying</i> for my math exam all week, but I'm <i>stil</i> not very <i>confidet</i> that I will pass it, because there are so many formuals to <i>remeber</i>.
     ----------------------------------------------------------------------------------------------------------------------------------
-    Time elapsed: 0.15727782249450684
+    Time elapsed: 0.17897582054138184
 
 
 2. Converting the model to OpenVINO IR
@@ -431,7 +394,14 @@ Converting to OpenVINO IR
 
 .. parsed-literal::
 
-    ['input_ids', 'attention_mask']
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+
+
+.. parsed-literal::
+
+    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:74: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+      op1 = operator(\*args, \*\*kwargs)
 
 
 Inference
@@ -632,5 +602,5 @@ Let’s run a demo using the converted OpenVINO IR model.
        [Input]:  I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.
     [Detected]:  I  have been <i>stuying</i> for my math exam all week, but I'm <i>stil</i> not very <i>confidet</i> that I will pass it, because there are so many formuals to <i>remeber</i>.
     ----------------------------------------------------------------------------------------------------------------------------------
-    Time elapsed: 0.10021185874938965
+    Time elapsed: 0.08928751945495605
 
