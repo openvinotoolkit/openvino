@@ -236,7 +236,7 @@ TEST_F(StringTensorPackStaticShapeInferenceWithTensorAccessorTest, indices_valid
                         testing::HasSubstr("Indices cannot be negative"));
     }
     {  // begins out of bounds
-        int32_t begins[] = {1, 1, 1, 3};
+        int32_t begins[] = {1, 1, 1, 4};
         int32_t ends[] = {1, 1, 2, 3};
         const auto const_inputs = std::unordered_map<size_t, Tensor>{
             {0, {element::i32, Shape{2, 2}, begins}},
@@ -247,7 +247,7 @@ TEST_F(StringTensorPackStaticShapeInferenceWithTensorAccessorTest, indices_valid
                         testing::HasSubstr("The biggest index cannot be higher than the amount or characters in symbols input"));
     }
     {  // ends out of bounds
-        int32_t begins[] = {1, 1, 1, 2};
+        int32_t begins[] = {1, 1, 1, 3};
         int32_t ends[] = {1, 1, 2, 4};
         const auto const_inputs = std::unordered_map<size_t, Tensor>{
             {0, {element::i32, Shape{2, 2}, begins}},

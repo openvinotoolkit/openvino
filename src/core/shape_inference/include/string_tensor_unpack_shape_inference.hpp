@@ -31,18 +31,14 @@ std::vector<TRShape> shape_infer(const StringTensorUnpack* op,
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
     const auto& data_shape = input_shapes[0];
     auto output_shapes = std::vector<TRShape>{data_shape, data_shape};
-    if (data_shape.is_static()) {
-        if (const auto string_data = util::get_string_tensor(op, tensor_accessor)) {
-            const auto string_count = string_data.get_size();
-            const auto tensor_data = string_data.data<std::string>();
-            size_t total_length = 0;
-            for (auto it = tensor_data; it != std::next(tensor_data, string_count); ++it) {
-                total_length += (*it).length();
-            }
-            output_shapes.emplace_back(TRShape{static_cast<typename TRShape::value_type>(total_length)});
-        } else {
-            output_shapes.emplace_back(ov::PartialShape{ov::Dimension::dynamic()});
+    if (const auto string_data = util::get_string_tensor(op, tensor_accessor)) {
+        const auto string_count = string_data.get_size();
+        const auto tensor_data = string_data.data<std::string>();
+        size_t total_length = 0;
+        for (auto it = tensor_data; it != std::next(tensor_data, string_count); ++it) {
+            total_length += (*it).length();
         }
+        output_shapes.emplace_back(TRShape{static_cast<typename TRShape::value_type>(total_length)});
     } else {
         output_shapes.emplace_back(ov::PartialShape{ov::Dimension::dynamic()});
     }
