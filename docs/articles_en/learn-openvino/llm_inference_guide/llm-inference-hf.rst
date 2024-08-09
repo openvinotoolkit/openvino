@@ -255,7 +255,7 @@ includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls an
 
   .. note::
 
-     As of release 2024.3, dynamic quantization is not enabled for the BF16 inference.
+     As of release 2024.3, dynamic quantization is not enabled for BF16 inference.
 
 
 * **KV-cache quantization** allows lowering the precision of Key and Value cache in LLMs.
