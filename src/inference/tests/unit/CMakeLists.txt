@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Close LTO temporarily for add_symbol_to_partition_1 issue
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
 set(TARGET_NAME ov_inference_unit_tests)
 
@@ -21,5 +20,9 @@ ov_add_test_target(
         LABELS
             OV UNIT RUNTIME
 )
+
+if(ENABLE_LTO)
+    set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
+endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})
