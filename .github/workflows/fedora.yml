@@ -74,7 +74,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-32gb-staging
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_33 }}
       volumes:

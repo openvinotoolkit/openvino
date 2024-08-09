@@ -1,12 +1,14 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+cmake_policy(SET CMP0149 NEW)
 
 macro(ov_search_api_validator)
     if(NOT ENABLE_API_VALIDATOR)
         return()
     endif()
 
+if(WIN32)
     # CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION is only set when
     # Visual Studio generators are used, but we need it
     # when we use Ninja as well
@@ -35,7 +37,6 @@ can't find Windows SDK version. Try to use vcvarsall.bat script")
         foreach(wdk_path IN LISTS WDK_PATHS)
             message("    * ${wdk_path}")
         endforeach()
-
         find_host_program(ONECORE_API_VALIDATOR
                           NAMES apivalidator
                           PATHS ${WDK_PATHS}
