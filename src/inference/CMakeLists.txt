@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# Close LTO temporarily for add_symbol_to_partition_1 issue
+set(ENABLE_LTO OFF)
+
 set (TARGET_NAME "openvino_runtime")
 
 file (GLOB LIBRARY_SRC
