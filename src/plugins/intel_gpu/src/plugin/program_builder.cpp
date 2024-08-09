@@ -18,6 +18,8 @@
 #include "intel_gpu/op/placeholder.hpp"
 #include "openvino/util/pp.hpp"
 
+#include "program_node.h"
+
 #ifdef __linux__
 # include <dlfcn.h>
 #endif
@@ -114,6 +116,20 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     }
 
     m_program = build(ops, partial_build, is_inner_program);
+
+    int num = 0;
+    int den = 0;
+    for (auto node : m_program->get_processing_order()) {
+        int i = 0;
+        for (auto& dep : node->get_dependencies()) {
+                if (dep.first->is_constant()) continue;
+                i++;
+                num++;
+            }
+        if (i != 0) den++;
+    }
+
+    _avg = static_cast<float>(num) / static_cast<float>(den);
 }
 
 ProgramBuilder::ProgramBuilder(cldnn::engine& engine, const ExecutionConfig& config)
