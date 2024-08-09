@@ -110,5 +110,12 @@ void get_num_streams(const int streams,
                      const std::shared_ptr<ov::Model>& model,
                      Config& config);
 
+/**
+ * @brief      Update streams info table by weight size in case of using Tensor Parallel
+ * @param[in]  model graph handle
+ * @param[in]  config intel cpu configuration
+ */
+void update_stream_with_weights(const std::shared_ptr<const ov::Model>& model, Config &config);
+
 }  // namespace intel_cpu
 }  // namespace ov

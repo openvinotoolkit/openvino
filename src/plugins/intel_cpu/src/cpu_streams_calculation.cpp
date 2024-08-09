@@ -12,6 +12,7 @@
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
+#include "transformations/cpu_opset/common/op/fully_connected.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -685,6 +686,46 @@ void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model,
     std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
 
     generate_stream_info(streams, -1, model, config, proc_type_table);
+}
+
+void update_stream_with_weights(const std::shared_ptr<const ov::Model>& model, Config& config) {
+    if (config.numSubStreams > 0) {
+        bool has_large_fc = false;
+        for (const auto& op : model->get_ops()) {
+            if (!ov::is_type<ov::intel_cpu::FullyConnectedNode>(op))
+                continue;
+
+            auto weights = op->input_value(1);
+            if (!ov::op::util::is_on_constant_path(weights))
+                continue;
+
+            const auto element_num = ov::shape_size(weights.get_shape());
+            if (element_num <= 6600000)
+                continue;
+            has_large_fc = true;
+            break;
+        }
+
+        if (!has_large_fc) {
+            config.numSubStreams = 0;
+            std::vector<std::vector<int>> cur_streams_info;
+            auto streams_info_table = config.streamExecutorConfig.get_streams_info_table();
+            for (size_t i = 0; i < streams_info_table.size(); i++) {
+                if (streams_info_table[i][NUMBER_OF_STREAMS] == -1) {
+                    cur_streams_info.emplace_back(streams_info_table[i]);
+                    break;
+                }
+            }
+            cur_streams_info[0][NUMBER_OF_STREAMS] = 1;
+            config.streamExecutorConfig = IStreamsExecutor::Config("CPUStreamsExecutor",
+                                                                   config.streams,
+                                                                   config.threadsPerStream,
+                                                                   ov::hint::SchedulingCoreType::ANY_CORE,
+                                                                   false,
+                                                                   config.streamExecutorConfig.get_cpu_pinning(),
+                                                                   cur_streams_info);
+        }
+    }
 }
 
 }  // namespace intel_cpu
