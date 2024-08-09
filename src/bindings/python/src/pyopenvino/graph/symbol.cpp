@@ -26,6 +26,20 @@ void regclass_graph_Symbol(py::module m) {
         py::is_operator());
 
     symbol.def(
+        "__add__",
+        [](const std::shared_ptr<ov::Symbol>& a, const std::shared_ptr<ov::Symbol>& b) {
+            return a + b;
+        },
+        py::is_operator());
+
+    symbol.def(
+        "__sub__",
+        [](const std::shared_ptr<ov::Symbol>& a, const std::shared_ptr<ov::Symbol>& b) {
+            return a - b;
+        },
+        py::is_operator());
+
+    symbol.def(
         "__bool__",
         [](const std::shared_ptr<ov::Symbol>& self) -> bool {
             return self != nullptr;

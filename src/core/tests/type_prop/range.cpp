@@ -6,6 +6,8 @@
 
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/shape_of.hpp"
 
 using namespace std;
 using namespace ov;
@@ -895,3 +897,45 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                            RangeParams{-1, 1, 0.25, PartialShape{8}},
                                            RangeParams{-1, 0.875, 0.25, PartialShape{8}}),
                          PrintToDummyParamName());
+
+TEST(type_prop, range_symbol_start_0_stop_A_step_1) {
+    auto stop_symbol = std::make_shared<ov::Symbol>();
+    auto source_shape = PartialShape::dynamic(1);
+    source_shape[0].set_symbol(stop_symbol);
+    auto symbol_source =
+        make_shared<ov::op::v0::ShapeOf>(make_shared<ov::op::v0::Parameter>(element::i64, source_shape));
+
+    auto start = make_shared<ov::op::v0::Constant>(element::i64, Shape{}, 0);
+    auto stop = make_shared<ov::op::v8::Gather>(symbol_source,
+                                                make_shared<ov::op::v0::Constant>(element::i64, Shape{}, 0),
+                                                make_shared<ov::op::v0::Constant>(element::i64, Shape{}, 0));
+    auto step = make_shared<ov::op::v0::Constant>(element::i64, Shape{}, 1);
+
+    auto range = make_shared<op::v0::Range>(start, stop, step);
+
+    ASSERT_TRUE(ov::symbol::are_equal(range->get_output_partial_shape(0)[0].get_symbol(), stop_symbol));
+}
+
+TEST(type_prop, range_symbol_start_A_stop_A_plus_B_step_1) {
+    auto start_symbol = std::make_shared<ov::Symbol>();
+    auto output_symbol = std::make_shared<ov::Symbol>();
+    auto stop_symbol = start_symbol + output_symbol;
+
+    auto source_shape = PartialShape::dynamic(2);
+    source_shape[0].set_symbol(start_symbol);
+    source_shape[1].set_symbol(stop_symbol);
+    auto symbol_source =
+        make_shared<ov::op::v0::ShapeOf>(make_shared<ov::op::v0::Parameter>(element::i64, source_shape));
+
+    auto start = make_shared<ov::op::v8::Gather>(symbol_source,
+                                                 make_shared<ov::op::v0::Constant>(element::i64, Shape{}, 0),
+                                                 make_shared<ov::op::v0::Constant>(element::i64, Shape{}, 0));
+    auto stop = make_shared<ov::op::v8::Gather>(symbol_source,
+                                                make_shared<ov::op::v0::Constant>(element::i64, Shape{}, 1),
+                                                make_shared<ov::op::v0::Constant>(element::i64, Shape{}, 0));
+    auto step = make_shared<ov::op::v0::Constant>(element::i64, Shape{}, 1);
+
+    auto range = make_shared<op::v0::Range>(start, stop, step);
+
+    ASSERT_TRUE(ov::symbol::are_equal(range->get_output_partial_shape(0)[0].get_symbol(), output_symbol));
+}

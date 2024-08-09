@@ -80,6 +80,15 @@ def test_symbol():
     assert dimension.get_symbol() == new_dimension.get_symbol(), "Check: Two symbols are equal: Symbol.__eq__"
 
 
+def test_symbol_operators():
+    symbol_a, symbol_b = Symbol(), Symbol()
+    assert symbol_a + symbol_b == symbol_b + symbol_a
+
+    symbol_c, symbol_d = Symbol(), Symbol()
+    assert symbol_c + symbol_d - symbol_d == symbol_c
+    assert symbol_c + symbol_d - symbol_c == symbol_d
+
+
 def test_symbol_hash():
     symbol = Symbol()
     assert isinstance(hash(symbol), int)
