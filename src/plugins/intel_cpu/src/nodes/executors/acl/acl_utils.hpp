@@ -5,6 +5,7 @@
 
 #include "memory_desc/cpu_memory_desc.h"
 #include "arm_compute/core/Types.h"
+#include "cpu_types.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -15,15 +16,14 @@ namespace intel_cpu {
 * @param dims vector of dimensions to squash
 * @return vector of dimensions that complies to ACL
 */
-inline VectorDims collapse_dims_to_max_rank(VectorDims dims) {
-    const size_t MAX_NUM_SHAPE = arm_compute::MAX_DIMS;
-    VectorDims result_dims(MAX_NUM_SHAPE - 1);
-    if (dims.size() >= MAX_NUM_SHAPE) {
-        for (size_t i = 0; i < MAX_NUM_SHAPE - 1; i++) {
+inline VectorDims collapse_dims_to_max_rank(VectorDims dims, size_t max_num_shape = arm_compute::MAX_DIMS) {
+    VectorDims result_dims(max_num_shape - 1);
+    if (dims.size() >= max_num_shape) {
+        for (size_t i = 0; i < max_num_shape - 1; i++) {
             result_dims[i] = dims[i];
         }
-        for (size_t i = MAX_NUM_SHAPE - 1; i < dims.size(); i++) {
-            result_dims[MAX_NUM_SHAPE - 2] *= dims[i];
+        for (size_t i = max_num_shape - 1; i < dims.size(); i++) {
+            result_dims[max_num_shape - 2] *= dims[i];
         }
     } else {
         result_dims = dims;
@@ -51,7 +51,7 @@ inline void changeLayoutToNH_C(const std::vector<arm_compute::TensorShape*> &_li
 }
 
 /**
-* @brief Return ComputeLibrary TensorShape with reverted layout schema used in ACL 
+* @brief Return ComputeLibrary TensorShape with reverted layout schema used in ACL
 * @param dims vector of dimensions to convert
 * @return ComputeLibrary TensorShape object
 */
@@ -105,19 +105,12 @@ inline int axisCast(const std::size_t axis, const std::size_t shapeSize, ACLAxis
     }
 }
 
-inline Dim vectorProduct(const VectorDims& vec, size_t size) {
-    Dim prod = 1;
-    for (size_t i = 0; i < size; ++i)
-        prod *= vec[i];
-    return prod;
-}
-
 /**
 * @brief Return ComputeLibrary DataType that corresponds to the given precision
 * @param precision precision to be converted
 * @return ComputeLibrary DataType or UNKNOWN if precision is not mapped to DataType
 */
-inline arm_compute::DataType precisionToAclDataType(ov::element::Type precision) {
+inline arm_compute::DataType precisionToAclDataType(const ov::element::Type& precision) {
     switch (precision) {
         case ov::element::i8:    return arm_compute::DataType::S8;
         case ov::element::u8:    return arm_compute::DataType::U8;
@@ -158,6 +151,18 @@ inline arm_compute::DataLayout getAclDataLayoutByMemoryDesc(MemoryDescCPtr desc)
 * @param config ComputeLibrary configuration function
 */
 void configureThreadSafe(const std::function<void(void)>& config);
+
+/**
+* @brief get ARM Compute Library ActivationLayerInfo for Eltwise or PostOps.
+* @param algorithm activation function of openvino representation
+* @param activationLayerInfo returned activation function of ACL representation
+* @param alpha alpha coefficient for algorithm
+* @param beta beta coefficient for algorithm
+* @param gamma gamma coefficient for algorithm
+*/
+bool getActivationLayerInfo(Algorithm algorithm,
+                            arm_compute::ActivationLayerInfo &activationLayerInfo,
+                            float alpha, float beta, float gamma);
 
 }   // namespace intel_cpu
 }   // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,11 +39,25 @@ const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasform
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams()
 };
 
+const std::vector<Activation> activations = {
+    {
+        true,
+        "fullyConnected,fullyConnected/DequantizationMultiply,relu"
+    },
+    {
+        false,
+        "fullyConnected_original,fullyConnected"
+    }
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, FullyConnectedTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues)),
+        ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn({ov::element::i8 /*, ov::element::u8*/}),
+        ::testing::ValuesIn(activations),
+        ::testing::Values("gemm_acl_i8")),
     FullyConnectedTransformation::getTestCaseName);
 }  // namespace

@@ -44,7 +44,8 @@ struct Config {
         Unknown
     };
 
-    bool collectPerfCounters = false;
+    // TODO: workaround to collect performance counters
+    bool collectPerfCounters = true;
     bool exclusiveAsyncRequests = false;
     SnippetsMode snippetsMode = SnippetsMode::Enable;
     std::string dumpToDot = {};
@@ -75,7 +76,7 @@ struct Config {
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
 #else
     // Currently INT8 mode is not optimized on ARM / RISCV or other non-x86 platforms, fallback to FP32 mode.

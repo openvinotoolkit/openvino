@@ -17,6 +17,7 @@
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/bias_attribute.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
@@ -1183,7 +1184,7 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
     const std::shared_ptr<ov::opset1::Multiply> multiply = ov::as_type_ptr<ov::opset1::Multiply>(dataNode.get_node_shared_ptr());
     std::shared_ptr<ov::opset1::Constant> multiplyConstant;
     if (multiply != nullptr) {
-        if (!FakeQuantizeDequantization::checkShape(multiply)) {
+        if (!FakeQuantizeDequantization::checkShape(multiply) || ov::marked_as_bias(multiply)) {
             return FakeQuantizeDequantization();
         }
 
@@ -1198,6 +1199,9 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
     std::shared_ptr<ov::opset1::Convert> subtractConvert;
     std::shared_ptr<ov::opset1::Constant> subtractConstant;
     if (subtract != nullptr) {
+        if (ov::marked_as_bias(subtract)) {
+            return FakeQuantizeDequantization();
+        }
         if (!FakeQuantizeDequantization::checkShape(subtract)) {
             return FakeQuantizeDequantization(dataNode, nullptr, nullptr, nullptr, nullptr, multiply, multiplyConstant);
         }
@@ -1211,6 +1215,9 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
 
     const std::shared_ptr<ov::opset1::Convert> convert = ov::as_type_ptr<ov::opset1::Convert>(dataNode.get_node_shared_ptr());
     if (convert != nullptr) {
+        if (ov::marked_as_bias(convert)) {
+            return FakeQuantizeDequantization();
+        }
         auto el_type = convert->input(0).get_element_type();
         auto foundIt = std::find(defaultPrecisions.begin(), defaultPrecisions.end(), el_type);
         if (foundIt == defaultPrecisions.end() &&
