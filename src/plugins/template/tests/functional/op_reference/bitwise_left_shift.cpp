@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
+
 #include "bitwise.hpp"
 
 using namespace ov;
@@ -18,35 +20,31 @@ namespace {
 
 // clang-format off
 std::vector<RefBitwiseParams> generateBitwiseParams() {
+    constexpr int32_t min_int32 = std::numeric_limits<int32_t>::min();
     std::vector<RefBitwiseParams> bitwiseParams{
         Builder{}
             .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
-            .inputs({{{10}, element::i32, std::vector<int32_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
+            .inputs({{{10}, element::i32, std::vector<int32_t>{0, 0, 1, -1, 3, -3, 2, -2, 64, -64}},
                      {{1}, element::i32, std::vector<int32_t>{1}}})
             .expected({{10}, element::i32, std::vector<int32_t>{0, 0, 2, -2, 6, -6, 4, -4, 128, -128}}),
         Builder{}
             .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
-            .inputs({{{2, 5}, element::i32, std::vector<int32_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
+            .inputs({{{2, 5}, element::i32, std::vector<int32_t>{0, 0, 1, -1, 3, -3, 2, -2, 64, -64}},
                      {{1, 1}, element::i32, std::vector<int32_t>{1}}})
             .expected({{2, 5}, element::i32, std::vector<int32_t>{0, 0, 2, -2, 6, -6, 4, -4, 128, -128}}),
         Builder{}
             .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
-            .inputs({{{2, 5}, element::i32, std::vector<int32_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
+            .inputs({{{2, 5}, element::i32, std::vector<int32_t>{0, 0, 1, -1, 3, -3, 2, -2, 64, -64}},
                      {{2, 1}, element::i32, std::vector<int32_t>{1, 2}}})
             .expected({{2, 5}, element::i32, std::vector<int32_t>{0, 0, 2, -2, 6, -12, 8, -8, 256, -256}}),
         Builder{}
             .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
-            .inputs({{{1, 10}, element::i32, std::vector<int32_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
-                     {{1}, element::i32, std::vector<int32_t>{-1}}})
-            .expected({{1, 10}, element::i32, std::vector<int32_t>{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}),
-        Builder{}
-            .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
-            .inputs({{{10}, element::i8, std::vector<int8_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
+            .inputs({{{10}, element::i8, std::vector<int8_t>{0, 0, 1, -1, 3, -3, 2, -2, 64, -64}},
                      {{1}, element::i8, std::vector<int8_t>{1}}})
             .expected({{10}, element::i8, std::vector<int8_t>{0, 0, 2, -2, 6, -6, 4, -4, -128, -128}}),
         Builder{}
             .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
-            .inputs({{{2, 5}, element::i64, std::vector<int64_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
+            .inputs({{{2, 5}, element::i64, std::vector<int64_t>{0, 0, 1, -1, 3, -3, 2, -2, 64, -64}},
                      {{6, 1, 1}, element::i64, std::vector<int64_t>{0, 1, 2, 3, 8, 31}}})
             .expected({{6, 2, 5},
                        element::i64,
@@ -64,7 +62,7 @@ std::vector<RefBitwiseParams> generateBitwiseParams() {
                                             -6442450944L, 4294967296L, -4294967296L, 137438953472L, -137438953472L}}),
         Builder{}
             .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
-            .inputs({{{2, 5}, element::i32, std::vector<int32_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
+            .inputs({{{2, 5}, element::i32, std::vector<int32_t>{0, 0, 1, -1, 3, -3, 2, -2, 64, -64}},
                      {{6, 1, 1}, element::i32, std::vector<int32_t>{0, 1, 2, 3, 8, 31}}})
             .expected(
                 {{6, 2, 5},
@@ -74,10 +72,10 @@ std::vector<RefBitwiseParams> generateBitwiseParams() {
                      2,     -2,     6,   -6,   4,           -4,          128,         -128,        0,   0,    4,   -4,
                      12,    -12,    8,   -8,   256,         -256,        0,           0,           8,   -8,   24,  -24,
                      16,    -16,    512, -512, 0,           0,           256,         -256,        768, -768, 512, -512,
-                     16384, -16384, 0,   0,    -2147483648L, -2147483648L, -2147483648L, -2147483648L, 0,   0,    0,   0}}),
+                     16384, -16384, 0, 0, min_int32, min_int32, min_int32, min_int32, 0, 0, 0, 0}}),
         Builder{}
             .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
-            .inputs({{{2, 5}, element::i16, std::vector<int16_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
+            .inputs({{{2, 5}, element::i16, std::vector<int16_t>{0, 0, 1, -1, 3, -3, 2, -2, 64, -64}},
                      {{6, 1, 1}, element::i16, std::vector<int16_t>{0, 1, 2, 3, 8, 15}}})
             .expected({{6, 2, 5},
                        element::i16,
@@ -88,7 +86,7 @@ std::vector<RefBitwiseParams> generateBitwiseParams() {
                            -768, 512, -512, 16384, -16384, 0,   0,  -32768, -32768, -32768, -32768, 0, 0,   0,    0}}),
         Builder{}
             .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
-            .inputs({{{2, 5}, element::i8, std::vector<int8_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
+            .inputs({{{2, 5}, element::i8, std::vector<int8_t>{0, 0, 1, -1, 3, -3, 2, -2, 64, -64}},
                      {{6, 1, 1}, element::i8, std::vector<int8_t>{0, 1, 2, 3, 4, 7}}})
             .expected({{6, 2, 5},
                        element::i8,
@@ -145,6 +143,13 @@ std::vector<RefBitwiseParams> generateBitwiseParams() {
                            0,  256, 512, 768, 1024, 1280, 1536, 1792, 2048, 2304, 13056, 16384, 0, 9223372036854775808ul,
                            0, 9223372036854775808ul, 0, 9223372036854775808ul, 0, 9223372036854775808ul, 0, 9223372036854775808ul,
                            9223372036854775808ul,  0}}),
+
+        //// Note: Negative shift, Implementation defined or undefined behavior
+        // Builder{}
+        //     .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
+        //     .inputs({{{1, 10}, element::i32, std::vector<int32_t>{0, 0, 1, -1, 3, -3, 2, -2, 64, -64}},
+        //              {{1}, element::i32, std::vector<int32_t>{-1}}})
+        //     .expected({{1, 10}, element::i32, std::vector<int32_t>{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}),
     };
     return bitwiseParams;
 }
