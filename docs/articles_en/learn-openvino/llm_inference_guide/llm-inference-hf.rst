@@ -250,7 +250,7 @@ includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls an
 
      model = OVModelForCausalLM.from_pretrained(
          model_path,
-         ov_config={"DYNAMIC_QUANTIZATION_GROUP_SIZE": "64", "PERFORMANCE_HINT": "LATENCY"}
+         ov_config={"DYNAMIC_QUANTIZATION_GROUP_SIZE": "64"}
      )
 
   .. note::
