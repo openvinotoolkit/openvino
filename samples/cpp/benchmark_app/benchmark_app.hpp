@@ -282,7 +282,7 @@ DEFINE_uint64(t, 0, execution_time_message);
 
 /// @brief Define parameter for batch size <br>
 /// Default is 0 (that means don't specify)
-DEFINE_uint64(b, 0, batch_size_message);
+DEFINE_uint64(b, 5000, batch_size_message);
 
 /// @brief Define flag for input shape <br>
 DEFINE_string(shape, "", shape_message);
