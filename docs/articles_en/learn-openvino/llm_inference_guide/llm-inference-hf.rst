@@ -244,7 +244,7 @@ includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls an
   to the ``ACCURACY mode``. More information on both modes are available in the
   :ref:`Precision Control Guide <execution-mode>`
 
-  To change a group size value (e.g. to 64), you need to execute the following code:
+  To change a group size value (e.g. to ``64``), you need to execute the following code:
 
   .. code-block:: python
 
