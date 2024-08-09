@@ -241,8 +241,6 @@ private:
 
 }  // namespace
 
-ov::pass::Manager::Manager() : m_pass_config(std::make_shared<PassConfig>()) {}
-
 ov::pass::Manager::~Manager() = default;
 
 ov::pass::Manager::Manager(std::string name) : m_pass_config(std::make_shared<PassConfig>()), m_name(std::move(name)) {}
