@@ -1,4 +1,4 @@
-name: Linux ARM64 (Ubuntu 20.04, Python 3.11)
+name: Linux ARM64 (Ubuntu 20.04, Python 3.12)
 on:
   workflow_dispatch:
   pull_request:
@@ -17,7 +17,7 @@ permissions: read-all
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.12'
 
 jobs:
   Smart_CI:

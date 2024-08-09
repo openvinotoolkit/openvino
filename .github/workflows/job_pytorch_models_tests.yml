@@ -99,10 +99,10 @@ jobs:
           # install 'g++' to build 'detectron2' and 'natten' wheels
           sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
 
-      - name: Setup Python 3.11
+      - name: Setup Python 3.12
         uses: ./openvino/.github/actions/setup_python
         with:
-          version: '3.11'
+          version: '3.12'
           should-setup-pip-paths: 'false'
           self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
 

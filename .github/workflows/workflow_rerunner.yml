@@ -3,12 +3,12 @@ name: Rerun Workflow with Known Errors
 on:
   workflow_run:
     workflows:
-      - Linux (Ubuntu 20.04, Python 3.11)
-      - Linux ARM64 (Ubuntu 20.04, Python 3.11)
-      - Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)
+      - Linux (Ubuntu 20.04, Python 3.12)
+      - Linux ARM64 (Ubuntu 20.04, Python 3.12)
+      - Linux Static CC (Ubuntu 22.04, Python 3.12, Clang)
       - Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
-      - Windows (VS 2019, Python 3.11)
-      - Windows Conditional Compilation (VS 2022, Python 3.11)
+      - Windows (VS 2019, Python 3.12)
+      - Windows Conditional Compilation (VS 2022, Python 3.12)
     types:
       - completed
   pull_request:

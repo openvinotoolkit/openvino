@@ -23,9 +23,9 @@ RUN apt-get update && \
         gpg-agent \
         tzdata \
         # Python
-        python3.11-dev \
-        python3.11-venv \
-        python3.11-distutils \
+        python3.12-dev \
+        python3.12-venv \
+        python3.12-distutils \
         # For Java API
         default-jdk \
         && \
@@ -61,12 +61,12 @@ RUN apt-get update && apt-get install -y cuda-runtime-11-8 cuda-11-8 && apt-get 
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.12 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
-# Use Python 3.11 as default
+# Use Python 3.12 as default
 # Using venv here 'cause other methods to switch the default Python on Ubuntu 22 break both system and wheels build
-RUN python3.11 -m venv venv
+RUN python3.12 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
