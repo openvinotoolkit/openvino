@@ -50,6 +50,16 @@ and do inference with a sample image.
    -  `Integration preprocessing to
       model <#integration-preprocessing-to-model>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -106,7 +116,7 @@ The notebook uses utility functions. The cell below will download the
 
 .. parsed-literal::
 
-    23215
+    23941
 
 
 
@@ -184,7 +194,7 @@ from TensorFlow Hub:
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/model/tf/faster_rcnn_resnet50_v1_640x640.tar.gz')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/model/tf/faster_rcnn_resnet50_v1_640x640.tar.gz')
 
 
 
@@ -370,7 +380,7 @@ Load and save an image:
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_bike.jpg')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_bike.jpg')
 
 
 
@@ -398,7 +408,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f9fdceb46d0>
+    <matplotlib.image.AxesImage at 0x7f20d4fffac0>
 
 
 
@@ -476,21 +486,21 @@ outputs will be used.
       19.  4. 31.  1.  2.  8. 18. 15.  4.  2.  2.  2. 31. 84. 15.  3. 18.  2.
       27. 28. 15. 31. 28.  1.  1.  8. 20.  3.  1. 41.]]
     image_detection_scores: [[0.98100936 0.94071937 0.932054   0.87772274 0.84029174 0.5898775
-      0.5533583  0.5398071  0.49383202 0.47797197 0.46248457 0.44053423
-      0.40156218 0.34709066 0.31749818 0.27442315 0.2470981  0.23665425
-      0.23217289 0.22382483 0.21970394 0.20213611 0.19405638 0.14689012
-      0.14507611 0.14343795 0.12780005 0.12564348 0.11809891 0.10874528
-      0.10462028 0.09282681 0.09071824 0.08906853 0.08674242 0.08082759
+      0.5533583  0.5398071  0.49383202 0.47797197 0.46248457 0.4405343
+      0.40156218 0.34709066 0.3174982  0.27442312 0.24709812 0.23665425
+      0.23217288 0.22382483 0.21970391 0.2021361  0.19405638 0.14689012
+      0.14507614 0.14343795 0.12780006 0.12564348 0.11809891 0.10874528
+      0.10462027 0.09282681 0.09071824 0.08906853 0.08674242 0.0808276
       0.08010086 0.079368   0.06617683 0.0628278  0.06066268 0.0602232
       0.0580567  0.053602   0.05180356 0.04988255 0.048532   0.04689693
       0.04476341 0.04134317 0.0408088  0.03969054 0.03504278 0.03275277
       0.03109965 0.02965053 0.02862901 0.02858275 0.0257968  0.02342912
       0.02333545 0.02142582 0.02137399 0.02088613 0.02024864 0.01939381
-      0.0193674  0.01934038 0.01863845 0.01847859 0.01844665 0.01834509
-      0.01803045 0.01781685 0.0173003  0.01667061 0.01585764 0.01565674
+      0.0193674  0.01934038 0.01863845 0.0184786  0.01844665 0.0183451
+      0.01803045 0.01781685 0.01730029 0.01667061 0.01585764 0.01565674
       0.01565629 0.01524817 0.01516375 0.01505281 0.01435965 0.01434395
       0.01415888 0.01369895 0.01359102 0.0129866  0.01253129 0.0120007
-      0.01156755 0.01149271 0.01135032 0.01133145 0.01113621 0.01108707
+      0.01156755 0.01149271 0.01135033 0.01133145 0.01113621 0.01108707
       0.01100362 0.01090855 0.01044954 0.01028427 0.01001238 0.00976972
       0.00976233 0.00964447 0.00960519 0.00954092 0.0094881  0.00940329
       0.00935068 0.00933121 0.00906878 0.00887597 0.0088425  0.00881775
@@ -499,8 +509,8 @@ outputs will be used.
       0.00765653 0.00765338 0.00744546 0.00704072 0.00697901 0.00689811
       0.00689055 0.00659724 0.00649199 0.0063755  0.00635564 0.00623979
       0.00622121 0.00599785 0.0058857  0.00585696 0.00579975 0.0057361
-      0.00572549 0.0056205  0.00558006 0.00556708 0.00549531 0.00547659
-      0.00547634 0.00546918 0.00541863 0.00540305 0.00535539 0.00534114
+      0.00572549 0.0056205  0.00558006 0.00556709 0.00549531 0.00547659
+      0.00547634 0.00546918 0.00541863 0.00540305 0.00535539 0.00534113
       0.00524252 0.00522422 0.00505857 0.0050541  0.00490434 0.00482884
       0.00479049 0.00470287 0.00461144 0.0046054  0.00460464 0.00457361
       0.00455593 0.00455155 0.00454144 0.0044696  0.00437295 0.00425156
@@ -700,7 +710,7 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__:
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_91cl.txt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_91cl.txt')
 
 
 

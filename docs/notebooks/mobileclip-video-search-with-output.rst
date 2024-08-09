@@ -21,8 +21,10 @@ combined. Using CLIP, you can provide a text query and CLIP will return
 the images most related to the query.
 
 In this tutorial, we consider how to use MobileCLIP to implement a
-visual content search engine for finding relevant frames in video. ####
-Table of contents:
+visual content search engine for finding relevant frames in video.
+
+
+**Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__
 -  `Select model <#select-model>`__
@@ -44,8 +46,19 @@ Table of contents:
 
 -  `Interactive Demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
+
 
 
 .. code:: ipython3
@@ -61,11 +74,11 @@ Prerequisites
 .. parsed-literal::
 
     Cloning into 'ml-mobileclip'...
-    remote: Enumerating objects: 68, done.[K
-    remote: Counting objects: 100% (68/68), done.[K
-    remote: Compressing objects: 100% (51/51), done.[K
-    remote: Total 68 (delta 19), reused 65 (delta 16), pack-reused 0[K
-    Unpacking objects: 100% (68/68), 447.59 KiB | 4.03 MiB/s, done.
+    remote: Enumerating objects: 84, done.[K
+    remote: Counting objects: 100% (84/84), done.[K
+    remote: Compressing objects: 100% (61/61), done.[K
+    remote: Total 84 (delta 29), reused 75 (delta 22), pack-reused 0[K
+    Unpacking objects: 100% (84/84), 467.39 KiB | 3.59 MiB/s, done.
 
 
 .. code:: ipython3
@@ -81,8 +94,8 @@ Prerequisites
 
     Note: you may need to restart the kernel to use updated packages.
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.3.1+cpu which is incompatible.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.1+cpu which is incompatible.
+    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
+    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -437,8 +450,8 @@ Perform search
 
 .. parsed-literal::
 
-    Image encoding took 0.123 ms
-    Text encoding took 0.0159 ms
+    Image encoding took 0.1 ms
+    Text encoding took 0.0132 ms
 
 
 
@@ -516,18 +529,8 @@ be used separately. Let’s convert each part to OpenVINO.
 
 .. parsed-literal::
 
-    ['image']
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len != self.num_embeddings:
-
-
-.. parsed-literal::
-
-    ['text']
 
 
 Run OpenVINO model inference
@@ -618,8 +621,8 @@ Perform search
 
 .. parsed-literal::
 
-    Image encoding took 0.0321 ms
-    Text encoding took 0.00763 ms
+    Image encoding took 0.0297 ms
+    Text encoding took 0.00573 ms
 
 
 

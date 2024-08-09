@@ -39,6 +39,16 @@ run optimization with
 
 -  `Interactive Demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -46,15 +56,8 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "torch>=2.1" "diffusers>=0.25" "peft==0.6.2" "transformers" "openvino>=2024.1.0" Pillow opencv-python tqdm  "gradio>=4.19" safetensors --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch>=2.1" "torchvision<0.19.0" "diffusers>=0.25" "peft==0.6.2" "transformers" "openvino>=2024.1.0" Pillow opencv-python tqdm  "gradio>=4.19" safetensors --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q datasets "nncf>=2.10.0"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Download PyTorch Model
 ----------------------
@@ -1358,7 +1361,7 @@ pipelines.
 
     int8_out_path = Path("generated_int8.mp4")
 
-    export_to_video(frames, str(out_path), fps=7)
+    export_to_video(int8_frames, str(int8_out_path), fps=7)
     int8_frames[0].save(
         "generated_int8.gif",
         save_all=True,

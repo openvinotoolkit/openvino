@@ -89,6 +89,16 @@ LoRA, OpenVINO and quantization with
 
 -  `Interactive Demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Background
 ----------
 
@@ -806,7 +816,7 @@ Prepare Inference pipeline
 
 We already deeply discussed how the ControlNet-guided pipeline works on
 example pose-controlled generation in `controlnet
-notebook <../controlnet-stable-diffusion>`__. In our current example,
+notebook <controlnet-stable-diffusion-with-output.html>`__. In our current example,
 the pipeline remains without changes. Similarly to Diffusers
 ``StableDiffusionControlNetPipeline``, we define our own
 ``OVControlNetStableDiffusionPipeline`` inference pipeline based on

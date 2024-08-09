@@ -20,25 +20,26 @@ card <https://huggingface.co/stabilityai/stable-diffusion-3-medium>`__,
 paper <https://stability.ai/news/stable-diffusion-3-research-paper>`__
 and `Stability.AI blog
 post <https://stability.ai/news/stable-diffusion-3-medium>`__. In this
-tutorial, we will consider how to convert and optimize Stable Diffusion
-v3 for running with OpenVINO. If you want to run previous Stable
-Diffusion versions, please check our other notebooks:
+tutorial, we will consider how to convert Stable Diffusion v3 for
+running with OpenVINO. An additional part demonstrates how to run
+optimization with `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to
+speed up pipeline. If you want to run previous Stable Diffusion
+versions, please check our other notebooks:
 
--  `Stable Diffusion <../stable-diffusion-text-to-image>`__
--  `Stable Diffusion v2 <../stable-diffusion-v2>`__
--  `Stable Diffusion XL <../stable-diffusion-xl>`__
+-  `Stable Diffusion <stable-diffusion-text-to-image-with-output.html>`__
+-  `Stable Diffusion v2 <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/stable-diffusion-v2>`__
+-  `Stable Diffusion XL <stable-diffusion-xl-with-output.html>`__
 -  `LCM Stable
-   Diffusion <../latent-consistency-models-image-generation>`__
--  `Turbo SDXL <../sdxl-turbo>`__
--  `Turbo SD <../sketch-to-image-pix2pix-turbo>`__
+   Diffusion <latent-consistency-models-image-generation-with-output.html>`__
+-  `Turbo SDXL <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/sdxl-turbo>`__
+-  `Turbo SD <sketch-to-image-pix2pix-turbo-with-output.html>`__
 
 **Table of contents:**
 
 
 -  `Prerequisites <#prerequisites>`__
 -  `Build PyTorch pipeline <#build-pytorch-pipeline>`__
--  `Convert and Optimize models with OpenVINO and
-   NNCF <#convert-and-optimize-models-with-openvino-and-nncf>`__
+-  `Convert models with OpenVINO <#convert-models-with-openvino>`__
 
    -  `Transformer <#transformer>`__
    -  `T5 Text Encoder <#t5-text-encoder>`__
@@ -48,7 +49,26 @@ Diffusion versions, please check our other notebooks:
 -  `Prepare OpenVINO inference
    pipeline <#prepare-openvino-inference-pipeline>`__
 -  `Run OpenVINO model <#run-openvino-model>`__
+-  `Quantization <#quantization>`__
+
+   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
+   -  `Run Quantization <#run-quantization>`__
+   -  `Run Weights Compression <#run-weights-compression>`__
+   -  `Compare model file sizes <#compare-model-file-sizes>`__
+   -  `Compare inference time of the FP16 and optimized
+      pipelines <#compare-inference-time-of-the-fp16-and-optimized-pipelines>`__
+
 -  `Interactive demo <#interactive-demo>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Prerequisites
 -------------
@@ -57,8 +77,8 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "git+https://github.com/initml/diffusers.git@clement/feature/flash_sd3" "gradio>=4.19" "torch>=2.1"  "transformers" "nncf>=2.11.0" "opencv-python" "pillow" "peft>=0.7.0" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -qU --pre  "openvino" --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -q "git+https://github.com/initml/diffusers.git@clement/feature/flash_sd3" "gradio>=4.19" "torch>=2.1"  "transformers" "nncf>=2.12.0" "datasets>=2.14.6" "opencv-python" "pillow" "peft>=0.7.0" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -qU "openvino>=2024.3.0"
 
 Build PyTorch pipeline
 ----------------------
@@ -202,15 +222,8 @@ memory consumption:
     if requires_conversion:
         transformer, vae, text_encoder, text_encoder_2, text_encoder_3 = get_pipeline_components()
 
-
-.. parsed-literal::
-
-    /home/ea/work/notebooks_env/lib/python3.8/site-packages/diffusers/models/transformers/transformer_2d.py:34: FutureWarning: `Transformer2DModelOutput` is deprecated and will be removed in version 1.0.0. Importing `Transformer2DModelOutput` from `diffusers.models.transformer_2d` is deprecated and this will be removed in a future version. Please use `from diffusers.models.modeling_outputs import Transformer2DModelOutput`, instead.
-      deprecate("Transformer2DModelOutput", "1.0.0", deprecation_message)
-
-
-Convert and Optimize models with OpenVINO and NNCF
---------------------------------------------------
+Convert models with OpenVINO
+----------------------------
 
 
 
@@ -227,17 +240,7 @@ The pipeline consists of four important parts:
 -  Transformer for step-by-step denoising latent image representation.
 -  Autoencoder (VAE) for decoding latent space to image.
 
-For reducing model memory consumption and improving performance we will
-use weights compression. The `Weights
-Compression <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__
-algorithm is aimed at compressing the weights of the models and can be
-used to optimize the model footprint and performance of large models
-where the size of weights is relatively larger than the size of
-activations, for example, Large Language Models (LLM). Compared to INT8
-compression, INT4 compression improves performance even more, but
-introduces a minor drop in prediction quality.
-
-Let us convert and optimize each part:
+Let us convert each part:
 
 Transformer
 ~~~~~~~~~~~
@@ -297,69 +300,6 @@ Transformer
     del transformer
     gc.collect()
 
-
-
-
-.. parsed-literal::
-
-    20
-
-
-
-.. code:: ipython3
-
-    import ipywidgets as widgets
-
-    to_compress_weights = widgets.Checkbox(
-        value=True,
-        description="Weights Compression",
-        disabled=False,
-    )
-
-    to_compress_weights
-
-
-
-
-.. parsed-literal::
-
-    Checkbox(value=True, description='Weights Compression')
-
-
-
-.. code:: ipython3
-
-    import nncf
-
-    core = ov.Core()
-
-    TRANSFORMER_INT4_PATH = MODEL_DIR / "transformer_int4.xml"
-
-    if to_compress_weights.value and not TRANSFORMER_INT4_PATH.exists():
-        transformer = core.read_model(TRANSFORMER_PATH)
-        compressed_transformer = nncf.compress_weights(transformer, mode=nncf.CompressWeightsMode.INT4_SYM, ratio=0.8, group_size=64)
-        ov.save_model(compressed_transformer, TRANSFORMER_INT4_PATH)
-        del compressed_transformer
-        del transformer
-        gc.collect()
-
-    if TRANSFORMER_INT4_PATH.exists():
-        fp16_ir_model_size = TRANSFORMER_PATH.with_suffix(".bin").stat().st_size / 1024
-        compressed_model_size = TRANSFORMER_INT4_PATH.with_suffix(".bin").stat().st_size / 1024
-
-        print(f"FP16 model size: {fp16_ir_model_size:.2f} KB")
-        print(f"INT8 model size: {compressed_model_size:.2f} KB")
-        print(f"Model compression rate: {fp16_ir_model_size / compressed_model_size:.3f}")
-
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
-    FP16 model size: 4243354.63 KB
-    INT8 model size: 1411706.74 KB
-    Model compression rate: 3.006
-
-
 T5 Text Encoder
 ~~~~~~~~~~~~~~~
 
@@ -376,40 +316,6 @@ T5 Text Encoder
 
     del text_encoder_3
     gc.collect()
-
-
-
-
-.. parsed-literal::
-
-    11
-
-
-
-.. code:: ipython3
-
-    if load_t5.value:
-        display(to_compress_weights)
-
-.. code:: ipython3
-
-    TEXT_ENCODER_3_INT4_PATH = MODEL_DIR / "text_encoder_3_int4.xml"
-
-    if load_t5.value and to_compress_weights.value and not TEXT_ENCODER_3_INT4_PATH.exists():
-        encoder = core.read_model(TEXT_ENCODER_3_PATH)
-        compressed_encoder = nncf.compress_weights(encoder, mode=nncf.CompressWeightsMode.INT4_SYM, ratio=0.8, group_size=64)
-        ov.save_model(compressed_encoder, TEXT_ENCODER_3_INT4_PATH)
-        del compressed_encoder
-        del encoder
-        gc.collect()
-
-    if TEXT_ENCODER_3_INT4_PATH.exists():
-        fp16_ir_model_size = TEXT_ENCODER_3_PATH.with_suffix(".bin").stat().st_size / 1024
-        compressed_model_size = TEXT_ENCODER_3_INT4_PATH.with_suffix(".bin").stat().st_size / 1024
-
-        print(f"FP16 model size: {fp16_ir_model_size:.2f} KB")
-        print(f"INT8 model size: {compressed_model_size:.2f} KB")
-        print(f"Model compression rate: {fp16_ir_model_size / compressed_model_size:.3f}")
 
 Clip text encoders
 ~~~~~~~~~~~~~~~~~~
@@ -429,15 +335,6 @@ Clip text encoders
     del text_encoder
     gc.collect()
 
-
-
-
-.. parsed-literal::
-
-    0
-
-
-
 .. code:: ipython3
 
     if not TEXT_ENCODER_2_PATH.exists():
@@ -450,15 +347,6 @@ Clip text encoders
 
     del text_encoder_2
     gc.collect()
-
-
-
-
-.. parsed-literal::
-
-    0
-
-
 
 VAE
 ~~~
@@ -475,15 +363,6 @@ VAE
 
     del vae
     gc.collect()
-
-
-
-
-.. parsed-literal::
-
-    0
-
-
 
 Prepare OpenVINO inference pipeline
 -----------------------------------
@@ -1080,6 +959,7 @@ Run OpenVINO model
 
 .. code:: ipython3
 
+    core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="CPU",
@@ -1089,49 +969,14 @@ Run OpenVINO model
 
     device
 
-
-
-
-.. parsed-literal::
-
-    Dropdown(description='Device:', options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='CPU')
-
-
-
-.. code:: ipython3
-
-    use_int4_transformer = widgets.Checkbox(value=TRANSFORMER_INT4_PATH.exists(), description="INT4 transformer", disabled=not TRANSFORMER_INT4_PATH.exists())
-
-    use_int4_t5 = widgets.Checkbox(value=TEXT_ENCODER_3_INT4_PATH.exists(), description="INT4 t5 text encoder", disabled=not TEXT_ENCODER_3_INT4_PATH.exists())
-
-    v_box_widgets = []
-    if TRANSFORMER_INT4_PATH.exists():
-        v_box_widgets.append(use_int4_transformer)
-
-    if load_t5.value and TEXT_ENCODER_3_INT4_PATH.exists():
-        v_box_widgets.append(use_int4_t5)
-
-    if v_box_widgets:
-        model_options = widgets.VBox(v_box_widgets)
-        display(model_options)
-
-
-
-.. parsed-literal::
-
-    VBox(children=(Checkbox(value=True, description='INT4 transformer'),))
-
-
 .. code:: ipython3
 
     ov_config = {}
     if "GPU" in device.value:
         ov_config["INFERENCE_PRECISION_HINT"] = "f32"
 
-    transformer = core.compile_model(TRANSFORMER_PATH if not use_int4_transformer.value else TRANSFORMER_INT4_PATH, device.value)
-    text_encoder_3 = (
-        core.compile_model(TEXT_ENCODER_3_PATH if not use_int4_t5.value else TEXT_ENCODER_3_INT4_PATH, device.value, ov_config) if load_t5.value else None
-    )
+    transformer = core.compile_model(TRANSFORMER_PATH, device.value)
+    text_encoder_3 = core.compile_model(TEXT_ENCODER_3_PATH, device.value, ov_config) if load_t5.value else None
     text_encoder = core.compile_model(TEXT_ENCODER_PATH, device.value, ov_config)
     text_encoder_2 = core.compile_model(TEXT_ENCODER_2_PATH, device.value, ov_config)
     vae = core.compile_model(VAE_DECODER_PATH, device.value)
@@ -1177,14 +1022,430 @@ Run OpenVINO model
 
 
 
-.. image:: stable-diffusion-v3-with-output_files/stable-diffusion-v3-with-output_30_1.png
+.. image:: stable-diffusion-v3-with-output_files/stable-diffusion-v3-with-output_25_1.png
 
+
+
+Quantization
+------------
+
+
+
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
+post-training quantization by adding quantization layers into model
+graph and then using a subset of the training dataset to initialize the
+parameters of these additional quantization layers. Quantized operations
+are executed in ``INT8`` instead of ``FP32``/``FP16`` making model
+inference faster.
+
+According to ``OVStableDiffusion3Pipeline`` structure, the
+``transformer`` model takes up significant portion of the overall
+pipeline execution time. Now we will show you how to optimize the UNet
+part using `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to reduce
+computation cost and speed up the pipeline. Quantizing the rest of the
+pipeline does not significantly improve inference performance but can
+lead to a substantial degradation of accuracy. That’s why we use 4-bit
+weight compression for the rest of the pipeline to reduce memory
+footprint.
+
+Please select below whether you would like to run quantization to
+improve model inference speed.
+
+   **NOTE**: Quantization is time and memory consuming operation.
+   Running quantization code below may take some time.
+
+.. code:: ipython3
+
+    to_quantize = widgets.Checkbox(
+        value=True,
+        description="Quantization",
+        disabled=False,
+    )
+
+    to_quantize
+
+Let’s load ``skip magic`` extension to skip quantization if
+``to_quantize`` is not selected
+
+.. code:: ipython3
+
+    # Fetch `skip_kernel_extension` module
+    import requests
+
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+    )
+    open("skip_kernel_extension.py", "w").write(r.text)
+
+    optimized_pipe = None
+
+    %load_ext skip_kernel_extension
+
+Prepare calibration dataset
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+We use a portion of
+`google-research-datasets/conceptual_captions <https://huggingface.co/datasets/google-research-datasets/conceptual_captions>`__
+dataset from Hugging Face as calibration data. We use prompts below to
+guide image generation and to determine what not to include in the
+resulting image.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    TRANSFORMER_INT8_PATH = MODEL_DIR / "transformer_int8.xml"
+    TEXT_ENCODER_INT4_PATH = MODEL_DIR / "text_encoder_int4.xml"
+    TEXT_ENCODER_2_INT4_PATH = MODEL_DIR / "text_encoder_2_int4.xml"
+    VAE_DECODER_INT4_PATH = MODEL_DIR / "vae_decoder_int4.xml"
+    TEXT_ENCODER_3_INT4_PATH = MODEL_DIR / "text_encoder_3_int4.xml" if TEXT_ENCODER_3_PATH.exists() else None
+
+    negative_prompts = [
+        "blurry unreal occluded",
+        "low contrast disfigured uncentered mangled",
+        "amateur out of frame low quality nsfw",
+        "ugly underexposed jpeg artifacts",
+        "low saturation disturbing content",
+        "overexposed severe distortion",
+        "amateur NSFW",
+        "ugly mutilated out of frame disfigured",
+    ]
+
+To collect intermediate model inputs for calibration we should customize
+``CompiledModel``. We should set the height and width of the image to
+512 to reduce memory consumption during quantization.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    import datasets
+    import numpy as np
+    from tqdm.notebook import tqdm
+    from transformers import set_seed
+    from typing import Any, Dict, List
+
+    set_seed(42)
+
+    def disable_progress_bar(pipeline, disable=True):
+        if not hasattr(pipeline, "_progress_bar_config"):
+            pipeline._progress_bar_config = {'disable': disable}
+        else:
+            pipeline._progress_bar_config['disable'] = disable
+
+
+    class CompiledModelDecorator(ov.CompiledModel):
+        def __init__(self, compiled_model: ov.CompiledModel, data_cache: List[Any] = None, keep_prob: float = 0.5):
+            super().__init__(compiled_model)
+            self.data_cache = data_cache if data_cache is not None else []
+            self.keep_prob = keep_prob
+
+        def __call__(self, *args, **kwargs):
+            if np.random.rand() <= self.keep_prob:
+                self.data_cache.append(*args)
+            return super().__call__(*args, **kwargs)
+
+
+    def collect_calibration_data(ov_pipe, calibration_dataset_size: int, num_inference_steps: int) -> List[Dict]:
+        original_model = ov_pipe.transformer
+        calibration_data = []
+        ov_pipe.transformer = CompiledModelDecorator(original_model, calibration_data, keep_prob=1)
+        disable_progress_bar(ov_pipe)
+
+        dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", trust_remote_code=True, streaming=True)
+        size = int(calibration_dataset_size // num_inference_steps)
+        dataset = dataset.shuffle(seed=42).take(size)
+
+        # Run inference for data collection
+        pbar = tqdm(total=size)
+        for batch in dataset:
+            prompt = batch["caption"]
+            negative_prompt = np.random.choice(negative_prompts)
+            ov_pipe(
+                prompt,
+                negative_prompt=negative_prompt,
+                num_inference_steps=num_inference_steps,
+                guidance_scale=5 if not use_flash_lora.value else 0,
+                height=512,
+                width=512
+            )
+            if len(calibration_data) >= calibration_dataset_size:
+                pbar.update(calibration_dataset_size - pbar.n)
+                break
+            pbar.update(len(calibration_data) - pbar.n)
+
+        disable_progress_bar(ov_pipe, disable=False)
+        ov_pipe.transformer = original_model
+        return calibration_data
+
+Run Quantization
+~~~~~~~~~~~~~~~~
+
+
+
+Quantization of the first ``Convolution`` layer impacts the generation
+results. We recommend using ``IgnoredScope`` to keep accuracy sensitive
+layers in FP16 precision.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    import nncf
+    from transformers import set_seed
+
+    if not TRANSFORMER_INT8_PATH.exists():
+        calibration_dataset_size = 200
+        unet_calibration_data = collect_calibration_data(ov_pipe,
+                                                         calibration_dataset_size=calibration_dataset_size,
+                                                         num_inference_steps=28 if not use_flash_lora.value else 4)
+
+        transformer = core.read_model(TRANSFORMER_PATH)
+        quantized_model = nncf.quantize(
+            model=transformer,
+            calibration_dataset=nncf.Dataset(unet_calibration_data),
+            subset_size=calibration_dataset_size,
+            model_type=nncf.ModelType.TRANSFORMER,
+            ignored_scope=nncf.IgnoredScope(names=["__module.model.base_model.model.pos_embed.proj.base_layer/aten::_convolution/Convolution"]),
+        )
+
+        ov.save_model(quantized_model, TRANSFORMER_INT8_PATH)
+
+Run Weights Compression
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+Quantizing of the ``Text Encoders`` and ``Autoencoder`` does not
+significantly improve inference performance but can lead to a
+substantial degradation of accuracy.
+
+For reducing model memory consumption we will use weights compression.
+The `Weights
+Compression <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__
+algorithm is aimed at compressing the weights of the models and can be
+used to optimize the model footprint and performance of large models
+where the size of weights is relatively larger than the size of
+activations, for example, Large Language Models (LLM). Compared to INT8
+compression, INT4 compression improves performance even more, but
+introduces a minor drop in prediction quality.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    def compress_model(model_path, save_path):
+        if not save_path.exists():
+            model = core.read_model(model_path)
+            compressed_model = nncf.compress_weights(model, mode=nncf.CompressWeightsMode.INT4_SYM, ratio=0.8, group_size=128)
+            ov.save_model(compressed_model, save_path)
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    compress_model(TEXT_ENCODER_PATH, TEXT_ENCODER_INT4_PATH)
+    compress_model(TEXT_ENCODER_2_PATH, TEXT_ENCODER_2_INT4_PATH)
+    compress_model(VAE_DECODER_PATH, VAE_DECODER_INT4_PATH)
+    if TEXT_ENCODER_3_PATH.exists():
+        compress_model(TEXT_ENCODER_3_PATH, TEXT_ENCODER_3_INT4_PATH)
+
+Let’s compare the images generated by the original and optimized
+pipelines.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    optimized_transformer = core.compile_model(TRANSFORMER_INT8_PATH, device.value)
+    optimized_vae_model = core.compile_model(VAE_DECODER_INT4_PATH, device.value)
+    optimized_text_encoder = core.compile_model(TEXT_ENCODER_INT4_PATH, device.value)
+    optimized_text_encoder_2 = core.compile_model(TEXT_ENCODER_2_INT4_PATH, device.value)
+    optimized_text_encoder_3 = core.compile_model(TEXT_ENCODER_3_INT4_PATH, device.value) if TEXT_ENCODER_3_PATH.exists() else None
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    optimized_pipe = OVStableDiffusion3Pipeline(
+        optimized_transformer,
+        scheduler,
+        optimized_vae_model,
+        optimized_text_encoder,
+        tokenizer,
+        optimized_text_encoder_2,
+        tokenizer_2,
+        optimized_text_encoder_3,
+        tokenizer_3
+    )
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    import matplotlib.pyplot as plt
+
+    def visualize_results(orig_img, optimized_img):
+        """
+        Helper function for results visualization
+
+        Parameters:
+           orig_img (Image.Image): generated image using FP16 models
+           optimized_img (Image.Image): generated image using quantized models
+        Returns:
+           fig (matplotlib.pyplot.Figure): matplotlib generated figure contains drawing result
+        """
+        orig_title = "FP16 pipeline"
+        control_title = "INT8 pipeline"
+        figsize = (20, 20)
+        fig, axs = plt.subplots(1, 2, figsize=figsize, sharex='all', sharey='all')
+        list_axes = list(axs.flat)
+        for a in list_axes:
+            a.set_xticklabels([])
+            a.set_yticklabels([])
+            a.get_xaxis().set_visible(False)
+            a.get_yaxis().set_visible(False)
+            a.grid(False)
+        list_axes[0].imshow(np.array(orig_img))
+        list_axes[1].imshow(np.array(optimized_img))
+        list_axes[0].set_title(orig_title, fontsize=15)
+        list_axes[1].set_title(control_title, fontsize=15)
+
+        fig.subplots_adjust(wspace=0.01, hspace=0.01)
+        fig.tight_layout()
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    opt_image = optimized_pipe(
+        "A raccoon trapped inside a glass jar full of colorful candies, the background is steamy with vivid colors",
+        negative_prompt="",
+        num_inference_steps=28 if not use_flash_lora.value else 4,
+        guidance_scale=5 if not use_flash_lora.value else 0,
+        height=512,
+        width=512,
+        generator=torch.Generator().manual_seed(141),
+    ).images[0]
+
+    visualize_results(image, opt_image)
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/4 [00:00<?, ?it/s]
+
+
+
+.. image:: stable-diffusion-v3-with-output_files/stable-diffusion-v3-with-output_43_1.png
+
+
+Compare model file sizes
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    fp16_model_paths = [TRANSFORMER_PATH, TEXT_ENCODER_PATH, TEXT_ENCODER_2_PATH, TEXT_ENCODER_3_PATH, VAE_DECODER_PATH]
+    optimized_models = [TRANSFORMER_INT8_PATH, TEXT_ENCODER_INT4_PATH, TEXT_ENCODER_2_INT4_PATH, TEXT_ENCODER_3_INT4_PATH, VAE_DECODER_INT4_PATH]
+
+    for fp16_path, optimized_path in zip(fp16_model_paths, optimized_models):
+        if not fp16_path.exists():
+            continue
+        fp16_ir_model_size = fp16_path.with_suffix(".bin").stat().st_size
+        optimized_model_size = optimized_path.with_suffix(".bin").stat().st_size
+        print(f"{fp16_path.stem} compression rate: {fp16_ir_model_size / optimized_model_size:.3f}")
+
+
+.. parsed-literal::
+
+    transformer compression rate: 1.939
+    text_encoder compression rate: 2.705
+    text_encoder_2 compression rate: 3.068
+    vae_decoder compression rate: 2.007
+
+
+Compare inference time of the FP16 and optimized pipelines
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+To measure the inference performance of the ``FP16`` and optimized
+pipelines, we use mean inference time on 5 samples.
+
+   **NOTE**: For the most accurate performance estimation, it is
+   recommended to run ``benchmark_app`` in a terminal/command prompt
+   after closing other applications.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    import time
+
+    def calculate_inference_time(pipeline, validation_data):
+        inference_time = []
+        pipeline.set_progress_bar_config(disable=True)
+        for prompt in validation_data:
+            start = time.perf_counter()
+            _ = pipeline(
+                prompt,
+                negative_prompt="",
+                num_inference_steps=28 if not use_flash_lora.value else 4,
+                guidance_scale=5 if not use_flash_lora.value else 0,
+                height=512,
+                width=512,
+                generator=torch.Generator().manual_seed(141),
+            ).images[0]
+            end = time.perf_counter()
+            delta = end - start
+            inference_time.append(delta)
+        return np.median(inference_time)
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    validation_size = 5
+    validation_dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", streaming=True, trust_remote_code=True)
+    validation_dataset = validation_dataset.take(validation_size)
+    validation_data = [batch["caption"] for batch in validation_dataset]
+
+    fp_latency = calculate_inference_time(ov_pipe, validation_data)
+    opt_latency = calculate_inference_time(optimized_pipe, validation_data)
+    print(f"Performance speed-up: {fp_latency / opt_latency:.3f}")
+
+
+.. parsed-literal::
+
+    Performance speed-up: 1.494
 
 
 Interactive demo
 ----------------
 
 
+
+Please select below whether you would like to use the quantized models
+to launch the interactive demo.
+
+.. code:: ipython3
+
+    quantized_models_present = optimized_pipe is not None
+
+    use_quantized_models = widgets.Checkbox(
+        value=quantized_models_present,
+        description="Use quantized models",
+        disabled=not quantized_models_present,
+    )
+
+    use_quantized_models
 
 .. code:: ipython3
 
@@ -1194,6 +1455,7 @@ Interactive demo
 
     MAX_SEED = np.iinfo(np.int32).max
     MAX_IMAGE_SIZE = 1344
+    pipeline = optimized_pipe if use_quantized_models.value else ov_pipe
 
 
     def infer(prompt, negative_prompt, seed, randomize_seed, width, height, guidance_scale, num_inference_steps, progress=gr.Progress(track_tqdm=True)):
@@ -1202,7 +1464,7 @@ Interactive demo
 
         generator = torch.Generator().manual_seed(seed)
 
-        image = ov_pipe(
+        image = pipeline(
             prompt=prompt,
             negative_prompt=negative_prompt,
             guidance_scale=guidance_scale,

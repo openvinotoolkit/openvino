@@ -66,6 +66,16 @@ documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
 -  `Performance Comparison <#performance-comparison>`__
 -  `References <#references>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     # Install openvino package
@@ -559,9 +569,9 @@ performance.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.039 seconds per image, FPS: 25.91
-    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 54.55
-    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.028 seconds per image, FPS: 35.81
+    PyTorch model on CPU: 0.041 seconds per image, FPS: 24.19
+    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 54.75
+    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.029 seconds per image, FPS: 34.70
 
 
 **Show Device Information**

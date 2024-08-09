@@ -54,6 +54,16 @@ the prompt.
 
 -  `Try out the converted pipeline <#try-out-the-converted-pipeline>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -74,6 +84,8 @@ Install requirements
 
 .. parsed-literal::
 
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    torchaudio 2.4.0+cpu requires torch==2.4.0, but you have torch 2.2.2+cpu which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
@@ -145,7 +157,7 @@ model and generate a segmentation map.
 
 .. parsed-literal::
 
-    100%|██████████| 138M/138M [00:03<00:00, 44.4MB/s]
+    100%|██████████| 138M/138M [00:03<00:00, 39.3MB/s]
 
 
 
@@ -157,8 +169,8 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 706.9ms
-    Speed: 3.9ms preprocess, 706.9ms inference, 592.3ms postprocess per image at shape (1, 3, 768, 1024)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 638.2ms
+    Speed: 3.9ms preprocess, 638.2ms inference, 774.6ms postprocess per image at shape (1, 3, 768, 1024)
 
 
 The model returns segmentation maps for all the objects on the image.
@@ -196,15 +208,15 @@ tracing. The FastSAM model itself is based on YOLOv8 model.
 
 .. parsed-literal::
 
-    Ultralytics YOLOv8.2.24 🚀 Python-3.8.10 torch-2.3.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
+    Ultralytics YOLOv8.2.24 🚀 Python-3.8.10 torch-2.2.2+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
 
     PyTorch: starting from 'FastSAM-x.pt' with input shape (1, 3, 1024, 1024) BCHW and output shape(s) ((1, 37, 21504), (1, 32, 256, 256)) (138.3 MB)
 
-    OpenVINO: starting export with openvino 2024.2.0-15519-5c0f38f83f6-releases/2024/2...
+    OpenVINO: starting export with openvino 2024.3.0-16041-1e3b88e4e3f-releases/2024/3...
     OpenVINO: export success ✅ 6.2s, saved as 'FastSAM-x_openvino_model/' (276.1 MB)
 
-    Export complete (9.2s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/fast-segment-anything
+    Export complete (9.1s)
+    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/fast-segment-anything
     Predict:         yolo predict task=segment model=FastSAM-x_openvino_model imgsz=1024
     Validate:        yolo val task=segment model=FastSAM-x_openvino_model imgsz=1024 data=ultralytics/datasets/sa.yaml
     Visualize:       https://netron.app
@@ -313,8 +325,8 @@ pipeline.
 .. parsed-literal::
 
 
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 1024x1024 42 objects, 508.7ms
-    Speed: 7.4ms preprocess, 508.7ms inference, 32.1ms postprocess per image at shape (1, 3, 1024, 1024)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 1024x1024 42 objects, 504.0ms
+    Speed: 7.2ms preprocess, 504.0ms inference, 32.2ms postprocess per image at shape (1, 3, 1024, 1024)
 
 
 One can observe the converted model outputs in the next cell, they is
@@ -383,7 +395,7 @@ The quantization algorithm is based on `The YOLOv8 quantization
 example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/post_training_quantization/openvino/yolov8>`__
 in the NNCF repo, refer there for more details. Moreover, you can check
 out other quantization tutorials in the `OV notebooks
-repo <../yolov8-optimization/>`__.
+repo <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/yolov8-optimization>`__.
 
    **Note**: Model post-training quantization is time-consuming process.
    Be patient, it can take several minutes depending on your hardware.
@@ -515,11 +527,6 @@ repo <../yolov8-optimization/>`__.
 
 .. parsed-literal::
 
-    <string>:7: TqdmExperimentalWarning: Using `tqdm.autonotebook.tqdm` in notebook mode. Use `tqdm.tqdm` instead to force console mode (e.g. in jupyter console)
-
-
-.. parsed-literal::
-
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
@@ -537,17 +544,17 @@ repo <../yolov8-optimization/>`__.
 
 .. parsed-literal::
 
-    INFO:nncf:3 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:3 ignored nodes were found by names in the NNCFGraph
     INFO:nncf:8 ignored nodes were found by types in the NNCFGraph
-    INFO:nncf:Not adding activation input quantizer for operation: 271 __module.model.22/aten::sigmoid/Sigmoid
-    INFO:nncf:Not adding activation input quantizer for operation: 312 __module.model.22.dfl.conv/aten::_convolution/Convolution
-    INFO:nncf:Not adding activation input quantizer for operation: 349 __module.model.22/aten::sub/Subtract
-    INFO:nncf:Not adding activation input quantizer for operation: 350 __module.model.22/aten::add/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 362 __module.model.22/aten::add/Add_1
-    374 __module.model.22/aten::div/Divide
+    INFO:nncf:Not adding activation input quantizer for operation: 268 __module.model.22/aten::sigmoid/Sigmoid
+    INFO:nncf:Not adding activation input quantizer for operation: 309 __module.model.22.dfl.conv/aten::_convolution/Convolution
+    INFO:nncf:Not adding activation input quantizer for operation: 346 __module.model.22/aten::sub/Subtract
+    INFO:nncf:Not adding activation input quantizer for operation: 347 __module.model.22/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 359 __module.model.22/aten::add/Add_1
+    371 __module.model.22/aten::div/Divide
 
-    INFO:nncf:Not adding activation input quantizer for operation: 363 __module.model.22/aten::sub/Subtract_1
-    INFO:nncf:Not adding activation input quantizer for operation: 386 __module.model.22/aten::mul/Multiply
+    INFO:nncf:Not adding activation input quantizer for operation: 360 __module.model.22/aten::sub/Subtract_1
+    INFO:nncf:Not adding activation input quantizer for operation: 382 __module.model.22/aten::mul/Multiply
 
 
 
@@ -628,8 +635,8 @@ calibration dataset to measure the performance.
 
 .. parsed-literal::
 
-    Segmented in 69 seconds.
-    Resulting in 1.86 fps
+    Segmented in 68 seconds.
+    Resulting in 1.88 fps
 
 
 .. code:: ipython3
@@ -658,7 +665,7 @@ calibration dataset to measure the performance.
 
     Segmented in 22 seconds
     Resulting in 5.82 fps
-    That is 3.14 times faster!
+    That is 3.09 times faster!
 
 
 Try out the converted pipeline

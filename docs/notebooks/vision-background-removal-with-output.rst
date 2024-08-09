@@ -38,6 +38,16 @@ The model source is available
 
 -  `References <#references>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Preparation
 -----------
 
@@ -184,7 +194,7 @@ next cell loads the model and the pre-trained weights.
     Downloading...
     From: https://drive.google.com/uc?id=1W8E4FHIlTVstfRkYmNOjbr0VDXTZm0jD
     To: <_io.BufferedWriter name='model/u2net_lite/u2net_lite.pth'>
-    100%|██████████| 4.68M/4.68M [00:00<00:00, 34.0MB/s]
+    100%|██████████| 4.68M/4.68M [00:00<00:00, 33.6MB/s]
 
 .. parsed-literal::
 
@@ -235,13 +245,8 @@ OpenVINO IR format. Executing the following command may take a while.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:3782: UserWarning: nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:3782: UserWarning: nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.
       warnings.warn("nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.")
-
-
-.. parsed-literal::
-
-    ['x']
 
 
 Load and Pre-Process Input Image
@@ -337,7 +342,7 @@ Load the OpenVINO IR model to OpenVINO Runtime and do inference.
 
 .. parsed-literal::
 
-    Inference finished. Inference time: 0.119 seconds, FPS: 8.43.
+    Inference finished. Inference time: 0.122 seconds, FPS: 8.16.
 
 
 Visualize Results

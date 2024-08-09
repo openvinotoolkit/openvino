@@ -44,6 +44,16 @@ Notebook contains the following steps:
 -  `Support for Automatic1111 Stable Diffusion
    WebUI <#support-for-automatic1111-stable-diffusion-webui>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -74,10 +84,10 @@ Prerequisites
 
 .. parsed-literal::
 
-    2024-07-13 04:01:03.234781: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-07-13 04:01:03.269549: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-08-07 04:10:51.500920: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-07 04:10:51.534561: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-07-13 04:01:03.796151: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-08-07 04:10:52.218766: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Stable Diffusion with Diffusers library
@@ -108,11 +118,6 @@ The code below demonstrates how to create the
 .. parsed-literal::
 
     Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
 
 
 OpenVINO TorchDynamo backend
@@ -216,6 +221,18 @@ Run Image generation
     image
 
 
+.. parsed-literal::
+
+    Traceback (most recent call last):
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/_inductor/compile_worker/__main__.py", line 45, in <module>
+        main()
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/_inductor/compile_worker/__main__.py", line 38, in main
+        pre_fork_setup()
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/_inductor/async_compile.py", line 62, in pre_fork_setup
+        from triton.compiler.compiler import triton_key
+    ImportError: cannot import name 'triton_key' from 'triton.compiler.compiler' (/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/triton/compiler/compiler.py)
+
+
 
 .. parsed-literal::
 
@@ -224,7 +241,7 @@ Run Image generation
 
 
 
-.. image:: stable-diffusion-torchdynamo-backend-with-output_files/stable-diffusion-torchdynamo-backend-with-output_14_1.png
+.. image:: stable-diffusion-torchdynamo-backend-with-output_files/stable-diffusion-torchdynamo-backend-with-output_14_2.png
 
 
 

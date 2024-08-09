@@ -63,6 +63,16 @@ This tutorial include following steps:
    -  `Compare results on one image <#compare-results-on-one-image>`__
    -  `Compare performance <#compare-performance>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Settings
 --------
 
@@ -207,8 +217,8 @@ and save it to the disk.
 
 .. parsed-literal::
 
-    2024-07-13 01:20:31.789841: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-07-13 01:20:31.790029: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-08-07 02:08:30.072873: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-08-07 02:08:30.073066: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 .. parsed-literal::
@@ -366,7 +376,7 @@ for mean/scale normalization.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7f19306c9630>
+    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7fe02406e330>
 
 
 
@@ -397,7 +407,7 @@ may be specified is input data
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7f1ac05d62f0>
+    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7fe02405fcb0>
 
 
 
@@ -435,7 +445,7 @@ then such conversion will be added explicitly.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7f19306c3eb0>
+    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7fe02405f7f0>
 
 
 
@@ -649,6 +659,6 @@ Compare performance
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0153 seconds per image, FPS: 65.49
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0138 seconds per image, FPS: 72.21
+    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0153 seconds per image, FPS: 65.50
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0139 seconds per image, FPS: 71.87
 
