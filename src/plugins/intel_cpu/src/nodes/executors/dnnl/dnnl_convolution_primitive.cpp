@@ -14,6 +14,7 @@
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/dnnl/dnnl_aliases.hpp"
+#include "nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
@@ -90,12 +91,12 @@ static dnnl::convolution_forward::primitive_desc createDescriptorInternal(const 
 
     // @todo create general mapping from node configuration to backend configuration
     static const std::map<memory::data_type, memory::data_type> weightsTypeByInputType{
-  // input data type        weights data type
-        {memory::data_type::f32,  memory::data_type::f32 },
-        {memory::data_type::f16,  memory::data_type::f16 },
+        // input data type        weights data type
+        {memory::data_type::f32, memory::data_type::f32},
+        {memory::data_type::f16, memory::data_type::f16},
         {memory::data_type::bf16, memory::data_type::bf16},
-        {memory::data_type::u8,   memory::data_type::s8  },
-        {memory::data_type::s8,   memory::data_type::s8  },
+        {memory::data_type::u8, memory::data_type::s8},
+        {memory::data_type::s8, memory::data_type::s8},
     };
 
     // make a fake shape: OC, IC, 1
@@ -156,15 +157,8 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const ConvAttrs& attrs,
         one_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(dstDesc->getPrecision());
 
-    DnnlPostOpsComposer dnnlpoc(postOps,
-                                context->getEngine(),
-                                dims,
-                                1,
-                                isINT8,
-                                1 << 0,
-                                {},
-                                attrs.withBias,
-                                outputDataType);
+    DnnlPostOpsComposer
+        dnnlpoc(postOps, context->getEngine(), dims, 1, isINT8, 1 << 0, {}, attrs.withBias, outputDataType);
 
     return dnnlpoc.compose();
 }
@@ -208,6 +202,12 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
     assert(primitive);
 
     return primitive;
+}
+
+DnnlMemoryDescPtr DnnlConvolutionPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
+                                                                           const DnnlMemoryDescPtr dstDesc,
+                                                                           bool weightsNonTransposed) {
+    return DnnlFCPrimitive::makeTransposedWeightDescriptor(srcDesc, dstDesc, weightsNonTransposed);
 }
 
 DnnlConvolutionPrimitive::DnnlConvolutionPrimitive(const Key& key,
