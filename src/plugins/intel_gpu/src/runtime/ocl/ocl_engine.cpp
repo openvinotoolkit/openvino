@@ -3,6 +3,7 @@
 //
 
 #include "ocl_engine.hpp"
+#include "intel_gpu/runtime/device.hpp"
 #include "ocl_common.hpp"
 #include "ocl_memory.hpp"
 #include "ocl_stream.hpp"
@@ -128,19 +129,22 @@ allocation_type ocl_engine::detect_usm_allocation_type(const void* memory) const
 bool ocl_engine::check_allocatable(const layout& layout, allocation_type type) {
     OPENVINO_ASSERT(supports_allocation(type) || type == allocation_type::cl_mem, "[GPU] Unsupported allocation type: ", type);
 
-    bool exceed_allocatable_mem_size = (layout.bytes_count() > get_device_info().max_alloc_mem_size);
+    // For intel GPU we use special internal option to allow unlimited USM allocations
+    if (_device->get_info().vendor_id != INTEL_VENDOR_ID && memory_capabilities::is_usm_type(type)) {
+        bool exceed_allocatable_mem_size = (layout.bytes_count() > get_device_info().max_alloc_mem_size);
 
-    // When dynamic shape upper bound makes bigger buffer, then return false.
-    if (exceed_allocatable_mem_size && layout.is_dynamic()) {
-        OPENVINO_ASSERT(layout.has_upper_bound(), "[GPU] Dynamic shape without upper bound tries to allocate");
-        return false;
+        // When dynamic shape upper bound makes bigger buffer, then return false.
+        if (exceed_allocatable_mem_size && layout.is_dynamic()) {
+            OPENVINO_ASSERT(layout.has_upper_bound(), "[GPU] Dynamic shape without upper bound tries to allocate");
+            return false;
+        }
+
+        OPENVINO_ASSERT(!exceed_allocatable_mem_size,
+                        "[GPU] Exceeded max size of memory object allocation: ",
+                        "requested ", layout.bytes_count(), " bytes, "
+                        "but max alloc size supported by device is ", get_device_info().max_alloc_mem_size, " bytes.",
+                        "Please try to reduce batch size or use lower precision.");
     }
-
-    OPENVINO_ASSERT(!exceed_allocatable_mem_size,
-                    "[GPU] Exceeded max size of memory object allocation: ",
-                    "requested ", layout.bytes_count(), " bytes, "
-                    "but max alloc size supported by device is ", get_device_info().max_alloc_mem_size, " bytes.",
-                    "Please try to reduce batch size or use lower precision.");
 
     auto used_mem = get_used_device_memory(allocation_type::usm_device) + get_used_device_memory(allocation_type::usm_host);
     auto exceed_available_mem_size = (layout.bytes_count() + used_mem > get_max_memory_size());
