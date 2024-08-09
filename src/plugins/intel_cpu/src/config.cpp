@@ -371,6 +371,14 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::hint::kv_cache_precision.name(),
                                ". Supported values: u8, bf16, f16, f32");
             }
+        } else if (key == ov::cache_crypto_callback.name()) {
+            try {
+                auto crypto_callback = val.as<std::vector<std::function<std::string(const std::string&)>>>();
+                cacheEncrypt = crypto_callback[0];
+                cacheDecrypt = crypto_callback[1];
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value for property key ", ov::cache_crypto_callback.name());
+            }
         } else {
             OPENVINO_THROW("NotFound: Unsupported property ", key, " by CPU plugin.");
         }

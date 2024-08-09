@@ -785,6 +785,17 @@ inline std::istream& operator>>(std::istream& is, CacheMode& mode) {
 static constexpr Property<CacheMode, PropertyMutability::RW> cache_mode{"CACHE_MODE"};
 
 /**
+ * @brief Write-only property to set encryption/decryption function for saving/loading model cache.
+ * If cache_crypto_callback is set, the model cache will be encrypted/decrypted when saving/loading cache.
+ * cache_crypto_callback is enabled in core.compile_model only.
+ * - First value of the vector is encryption function.
+ * - Second value of the vector is decryption function.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::vector<std::function<std::string(const std::string&)>>, PropertyMutability::WO>
+    cache_crypto_callback{"CACHE_CRYPTO_CALLBACK"};
+
+/**
  * @brief Read-only property to provide information about a range for streams on platforms where streams are supported.
  * @ingroup ov_runtime_cpp_prop_api
  *

@@ -33,6 +33,8 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
                 }
             }
             modelDistributionPolicy = value.as<std::set<ov::hint::ModelDistributionPolicy>>();
+        } else if (ov::cache_crypto_callback == key) {
+            crypto_callback = value.as<std::vector<std::function<std::string(const std::string&)>>>();
         } else {
             if (throwOnUnsupported)
                 OPENVINO_THROW("Property was not found: ", key);

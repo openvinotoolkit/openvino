@@ -10,6 +10,7 @@
 #include <streambuf>
 #include <string>
 
+#include "openvino/c/ov_common.h"
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/exception.hpp"
@@ -30,11 +31,51 @@
         return ov_status_e::UNKNOW_EXCEPTION;              \
     }
 
-#define GET_PROPERTY_FROM_ARGS_LIST                     \
-    std::string property_key = va_arg(args_ptr, char*); \
-    std::string _value = va_arg(args_ptr, char*);       \
-    ov::Any value = _value;                             \
-    property[property_key] = value;
+#define GET_PROPERTY_FROM_ARGS_LIST                                                                                \
+    std::string property_key = va_arg(args_ptr, char*);                                                            \
+    if (property_key == ov::cache_crypto_callback.name()) {                                                        \
+        ov_crypto_callback* _value = va_arg(args_ptr, ov_crypto_callback*);                                        \
+        auto encrypt_func = _value->encrypt_func;                                                                  \
+        auto decrypt_func = _value->decrypt_func;                                                                  \
+        std::function<std::string(const std::string&)> encrypt_value = [encrypt_func](const std::string& in) {     \
+            size_t out_size = 0;                                                                                   \
+            char* output = nullptr;                                                                                \
+            std::string out_str;                                                                                   \
+            encrypt_func(in.c_str(), in.length(), nullptr, &out_size);                                             \
+            if (out_size > 0) {                                                                                    \
+                output = new char[out_size];                                                                       \
+                if (output) {                                                                                      \
+                    encrypt_func(in.c_str(), in.length(), output, &out_size);                                      \
+                    out_str.assign(output, out_size);                                                              \
+                    delete[] output;                                                                               \
+                    output = nullptr;                                                                              \
+                }                                                                                                  \
+            }                                                                                                      \
+            return out_str;                                                                                        \
+        };                                                                                                         \
+        std::function<std::string(const std::string&)> decrypt_value = [decrypt_func](const std::string& in) {     \
+            size_t out_size = 0;                                                                                   \
+            char* output = nullptr;                                                                                \
+            std::string out_str;                                                                                   \
+            decrypt_func(in.c_str(), in.length(), nullptr, &out_size);                                             \
+            if (out_size > 0) {                                                                                    \
+                output = new char[out_size];                                                                       \
+                if (output) {                                                                                      \
+                    decrypt_func(in.c_str(), in.length(), output, &out_size);                                      \
+                    out_str.assign(output, out_size);                                                              \
+                    delete[] output;                                                                               \
+                    output = nullptr;                                                                              \
+                }                                                                                                  \
+            }                                                                                                      \
+            return out_str;                                                                                        \
+        };                                                                                                         \
+        std::vector<std::function<std::string(const std::string&)>> crypto_callback{encrypt_value, decrypt_value}; \
+        property[property_key] = crypto_callback;                                                                  \
+    } else {                                                                                                       \
+        std::string _value = va_arg(args_ptr, char*);                                                              \
+        ov::Any value = _value;                                                                                    \
+        property[property_key] = value;                                                                            \
+    }
 
 /**
  * @struct ov_core
