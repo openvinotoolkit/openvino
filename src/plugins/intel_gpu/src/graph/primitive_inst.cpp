@@ -454,6 +454,28 @@ void primitive_inst::update_shape() {
     }
 }
 
+kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param) {
+    auto updated_params = _node->type()->get_fake_aligned_params(orig_impl_param);
+
+    const auto &dev_info = get_node().get_program().get_engine().get_device_info();
+
+    // The target HW of this patch is limited because of performance concern
+    if (dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu) {
+        // Check whether the input node has enough space for output data. Otherwise, fake alignment is not possible due to page fault
+        // i.e. predecessor node was supposed be increased already
+        if (get_node().is_type<fully_connected>() && dependencies().size() > 0 && dep_memory(0).get_layout().is_static()
+            && dep_memory(0).count() < updated_params.input_layouts[0].count()) {
+            GPU_DEBUG_TRACE_DETAIL << "Roll back fake_aligned params for " << id()
+                << "  allocated: " << dep_memory(0).count()
+                << "  required: " << updated_params.input_layouts[0].count()
+                << std::endl;
+            updated_params = *_impl_params;
+        }
+    }
+    return updated_params;
+}
+
+
 event::ptr primitive_inst::realloc_if_needed() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_if_needed: " + id()));
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -475,7 +497,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     // Update param if fake_alignment is available
-    auto updated_params = get_fake_aligned_params(*_impl_params);
+    auto updated_params = get_fake_aligned_params_if_possible(*_impl_params);
 
     const auto& actual_layouts = updated_params.output_layouts;
     OPENVINO_ASSERT(actual_layouts[0].is_static(), "[GPU] Can't realloc mem for dynamic layout");
@@ -595,7 +617,7 @@ event::ptr primitive_inst::realloc_if_needed() {
                     user->set_shape_change();
                 user->update_shape_done_by_other = true;
                 auto fc_impl_params = *user->_impl_params;
-                auto fc_input_layout = get_fake_aligned_params(fc_impl_params).input_layouts[0];
+                auto fc_input_layout = user->get_node().type()->get_fake_aligned_params(fc_impl_params).input_layouts[0];
                 if (fc_input_layout.bytes_count() > updated_layouts[dep_idx].bytes_count()) {
                     GPU_DEBUG_TRACE_DETAIL << id() << ": increase output layout allocation size from "
                                         << actual_layouts[dep_idx].to_short_string() << " -> "
@@ -954,7 +976,7 @@ bool primitive_inst::update_impl(bool use_async_compilation) {
 #endif
 
         // Update param if fake_alignment is available
-        auto updated_params = get_fake_aligned_params(*_impl_params);
+        auto updated_params = get_fake_aligned_params_if_possible(*_impl_params);
         // Change weights layout of `updated_params` to original one to have valid information
         // in _impl->_weights_reorder_params about required weights format after impl selection
         if (_node->is_type<fully_connected>() || _node->is_type<convolution>() || _node->is_type<deconvolution>()) {
