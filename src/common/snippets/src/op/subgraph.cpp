@@ -398,13 +398,17 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::data_flow_transformations")
 
-    ov::snippets::pass::Manager manager;
+    std::shared_ptr<ov::pass::PassConfig> pass_config = std::make_shared<ov::pass::PassConfig>();
     // If subgraph has its own specific canonicalization, which is different with common behavior, will skip the this common one.
     // for example in GN, scale and bias shape [c] are canonicalized to [1,c,1,1], not [1,1,1,c]. Common canonicalization is disabled in this case.
-    if (!blocked_input_shapes.empty() && !config.m_has_broadcast_sensitive_ops)
-        manager.register_pass<snippets::pass::Canonicalization>(blocked_input_shapes);
-    if (!input_precisions.empty() && !output_precisions.empty())
-        manager.register_pass<snippets::pass::AlignElementTypes>(input_precisions, output_precisions);
+    if (blocked_input_shapes.empty() || config.m_has_broadcast_sensitive_ops)
+        pass_config->disable<snippets::pass::Canonicalization>();
+    if (input_precisions.empty() || output_precisions.empty())
+        pass_config->disable<snippets::pass::AlignElementTypes>();
+
+    ov::snippets::pass::Manager manager(pass_config, "SnippetsDataFlowManager");
+    manager.register_pass<snippets::pass::Canonicalization>(blocked_input_shapes);
+    manager.register_pass<snippets::pass::AlignElementTypes>(input_precisions, output_precisions);
 
     if (config.m_has_domain_sensitive_ops) {
         manager.register_pass<snippets::pass::MatMulToBrgemm>();

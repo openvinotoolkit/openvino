@@ -15,11 +15,12 @@
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/propagate_precision.hpp"
 #include "snippets/pass/positioned_pass.hpp"
+#include "snippets/pass/canonicalization.hpp"
+#include "snippets/pass/analyze_broadcastable_inputs.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
-#include "snippets/lowered/pass/insert_broadcastmove.hpp"
 #include "transformations/defs.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/snippets/common/pass/mul_add_to_fma.hpp"
@@ -540,102 +541,10 @@ void Subgraph::createPrimitive() {
         initPluginBlockedShapes();
         initAttributes();
         initStartOffsets();
-        initBroadcastableInputs();
         optimizeIR();
     }
 
     Node::createPrimitive();
-}
-
-void Subgraph::initBroadcastableInputs() {
-    // Snippets supports tokenization of the following operations:
-    // - Unary, Binary and Ternary (Select) Elementwise ops
-    // - Softmax, MatMul, Transpose, GroupNorm
-    // Binary Elementwise ops (+ Select) requires explicit Broadcast op
-    // on inputs if broadcasting of latest dimensions is needed.
-    // These ops will be start points of DFS - need to go to Parameters and update `broadcastable_inputs_map`.
-    // We iterates through all ops by execution order. So if we already analyzied some op in the input branch - skip this branch.
-    // However, there some ops which can change `processing_dim_idx`:
-    // - Transpose has order which changes `processing_dim_idx`. But Transpose can be only after Parameters
-    // - MatMul's first input doesn't affect output latest dimension - skip this branch.
-    //   Also MatMul has `transposed_b` which changes `processing_dim_idx`
-    broadcastable_inputs.clear();
-    const auto& body = subgraph_attrs->snippet->body_ptr();
-    // Currently Broadcasting can be changed only if there are several Parameters in body
-    if (body->get_parameters().size() < 2)
-        return;
-
-    const auto& ops = body->get_ordered_ops();
-    std::set<std::shared_ptr<ov::Node>> visited_ops = {};
-    for (const auto& op : ops) {
-        if (!ov::snippets::lowered::pass::InsertBroadcastMove::is_broadcasting_supported(op))
-            continue;
-
-        size_t processing_dim_idx = 0;
-
-        // We need to propagate `processing_dim_idx` from input of the current node to the parameter.
-        // To do it we use DFS
-        std::stack<std::shared_ptr<ov::Node>> nodes_to_calculate;
-        nodes_to_calculate.push(op);
-        while (!nodes_to_calculate.empty()) {
-            auto current_node = nodes_to_calculate.top();
-            nodes_to_calculate.pop();
-
-            if (const auto& param = ov::as_type_ptr<ov::op::v0::Parameter>(current_node)) {
-                const auto consumers = param->get_output_target_inputs(0);
-                if (std::any_of(consumers.cbegin(), consumers.cend(),
-                                [](const ov::Input<ov::Node>& in) { return ov::is_type<ov::op::v1::Transpose>(in.get_node()); })) {
-                    OPENVINO_ASSERT(consumers.size() == 1, "Incorrect count of outputs of Parameter!");
-                    const auto transpose = consumers.begin()->get_node();
-                    std::vector<size_t> order;
-                    const auto& constant = ov::as_type_ptr<const opset1::Constant>(transpose->get_input_node_shared_ptr(1));
-                    OPENVINO_ASSERT(constant, "Unsupported order node of Transpose");
-                    order = constant->cast_vector<size_t>();
-                    if (order.empty()) {
-                        order.resize(transpose->get_output_partial_shape(0).size());
-                        std::iota(order.rbegin(), order.rend(), 0);
-                    }
-                    // `processing_dim_idx` starts from the end
-                    processing_dim_idx = order.size() - 1 - ov::snippets::utils::get_input_dim_idx(order, processing_dim_idx);
-                }
-                const auto param_idx = body->get_parameter_index(param);
-                if (broadcastable_inputs.count(param_idx) == 0) {
-                    broadcastable_inputs[param_idx] = processing_dim_idx;
-                } else {
-                    OPENVINO_ASSERT(broadcastable_inputs.at(param_idx) == processing_dim_idx,
-                                    "Parameter has been already analyzed and has another processing dim index!");
-                }
-                processing_dim_idx = 0;
-                continue;
-            } else if (ov::is_type<ov::op::v0::Constant>(current_node)) {
-                visited_ops.insert(op);
-                continue;
-            }
-
-            ov::OutputVector inputs = current_node->input_values();
-            if (const auto mm = ov::as_type_ptr<ov::op::v0::MatMul>(current_node)) {
-                inputs = { current_node->input_value(1) };
-                processing_dim_idx = static_cast<size_t>(mm->get_transpose_b());
-            }
-
-            // not a leaf - continue to search
-            for (const auto& input_value : inputs) {
-                const auto& input_node = input_value.get_node()->shared_from_this();
-                if (visited_ops.count(input_node) == 0) {
-                    nodes_to_calculate.push(input_node);
-                }
-            }
-        }
-
-        visited_ops.insert(op);
-    }
-
-    OPENVINO_ASSERT(broadcastable_inputs.size() < srcMemPtrs.size() || broadcastable_inputs.rbegin()->first < srcMemPtrs.size(),
-                    "Incorrect indexes of broadcastable inputs of Subgraph");
-    for (const auto broadcastable_input : broadcastable_inputs) {
-        OPENVINO_ASSERT(broadcastable_input.second < in_shapes[broadcastable_input.first].size(),
-                        "Incorrect processing dimension index of broadcastable index");
-    }
 }
 
 void Subgraph::initMemoryPtrs() {
@@ -711,7 +620,7 @@ void Subgraph::initPluginBlockedShapes() const {
         in_shapes[i] = srcMemPtrs[i]->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
 }
 
-Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() const {
+Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     DataFlowPasses backend_passes;
 
     using PassPosition = ov::snippets::pass::PassPosition;
@@ -719,6 +628,8 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() const {
 
 #   define SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(PASS_PLACE, PASS, ...) \
             backend_passes.emplace_back(PassPosition(PASS_PLACE), std::make_shared<PASS>(__VA_ARGS__))
+#   define SNIPPETS_REGISTER_PASS_RELATIVE_COMMON(PASS_PLACE, TARGET_PASS, PASS, ...) \
+            backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), std::make_shared<PASS>(__VA_ARGS__))
 
 #if defined(OPENVINO_ARCH_X86_64)
 #   define SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(PASS_PLACE, PASS, ...) \
@@ -731,6 +642,8 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() const {
 #endif  // OPENVINO_ARCH_X86_64
 
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineStart, ConvertToSwishCPU);
+    SNIPPETS_REGISTER_PASS_RELATIVE_COMMON(Place::After, ov::snippets::pass::Canonicalization,
+                                           ov::snippets::pass::AnalyzeBroadcastableInputs, broadcastable_inputs);
     if (context->getConfig().inferencePrecision == ov::element::bf16 && subgraph_attrs->snippet->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement
@@ -754,6 +667,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() const {
 #endif
 
 #undef SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON
+#undef SNIPPETS_REGISTER_PASS_RELATIVE_COMMON
 #undef SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_X86_64
 
@@ -807,6 +721,16 @@ void Subgraph::optimizeIR() {
     const auto in_blocked_shapes = getSnippetsBlockedShapes();
     const auto precisions = getIOPrecisions();
     subgraph->data_flow_transformations(in_blocked_shapes, precisions.first, precisions.second, getDataFlowPasses());
+
+    // DataFlow transformations includes AnalyzeBroadcastableInputs pass:
+    // we should verify that the received map is aligned with our blocked input shapes
+    OPENVINO_ASSERT((broadcastable_inputs.size() < in_shapes.size()) ||
+                    (!broadcastable_inputs.empty() && broadcastable_inputs.rbegin()->first < in_shapes.size()),
+                    "Incorrect indexes of broadcastable inputs of Subgraph");
+    for (const auto broadcastable_input : broadcastable_inputs) {
+        OPENVINO_ASSERT(broadcastable_input.second < in_shapes[broadcastable_input.first].size(),
+                        "Incorrect processing dimension index of broadcastable index");
+    }
 
     // TODO: Snippets don't support backend-provided blocking, so we need to reshape body
     //       using blocked shapes first. This can be removed after [121670]

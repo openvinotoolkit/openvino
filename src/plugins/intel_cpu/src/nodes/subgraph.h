@@ -61,7 +61,6 @@ protected:
     IShapeInfer::Result shapeInfer() const override;
 
 private:
-    void initBroadcastableInputs();
     void initMemoryPtrs();
     void initAttributes();
     void initStartOffsets();
@@ -77,7 +76,7 @@ private:
     using DataFlowPasses = std::vector<ov::snippets::pass::Manager::PositionedPassBase>;
     using ControlFlowPasses = std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered>;
 
-    DataFlowPasses getDataFlowPasses() const;
+    DataFlowPasses getDataFlowPasses();
     ControlFlowPasses getControlFlowPasses() const;
 
     // Holds ISA version used is codeGeneration target
