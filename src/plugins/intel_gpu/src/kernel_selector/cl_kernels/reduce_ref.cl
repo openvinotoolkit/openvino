@@ -26,6 +26,87 @@ KERNEL(reduce_ref)(
     , FUSED_OPS_DECLS
 #endif
 )
+#if SCALAR_OUTPUT == 1
+{
+    __local ACCUMULATOR_TYPE buffer[NUM_BLOCKS];
+
+    const uint bi = (uint)get_global_id(0);
+
+    ACCUMULATOR_TYPE acc = 0;
+    uint counter = 0;
+    for (uint i = bi; i < TOTAL_NUM_ELEMENTS; i += BLOCK_STRIDE) {
+#ifdef REDUCE_SUM_MODE
+        acc += data[i];
+#elif REDUCE_MAX_MODE
+        if (counter == 0)
+            acc = data[i];
+        else
+            acc = data[i] > acc ? data[i] : acc;
+#elif REDUCE_MIN_MODE
+        if (counter == 0)
+            acc = data[i];
+        else
+            acc = data[i] < acc ? data[i] : acc;
+#elif REDUCE_MEAN_MODE
+        acc += data[i];
+#elif REDUCE_PROD_MODE
+        if (counter == 0)
+            acc = data[i];
+        else
+            acc *= data[i];
+#endif
+        counter++;
+    }
+
+    buffer[bi] = acc;
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    if (bi != 0)
+        return;
+    
+    acc = 0;
+    counter = 0;
+    for (uint i = 0; i < NUM_BLOCKS; i++) {
+#ifdef REDUCE_SUM_MODE
+        acc += buffer[i];
+#elif REDUCE_MAX_MODE
+        if (counter == 0)
+            acc = buffer[i];
+        else
+            acc = buffer[i] > acc ? buffer[i] : acc;
+#elif REDUCE_MIN_MODE
+        if (counter == 0)
+            acc = buffer[i];
+        else
+            acc = buffer[i] < acc ? buffer[i] : acc;
+#elif REDUCE_MEAN_MODE
+        acc += buffer[i];
+#elif REDUCE_PROD_MODE
+        if (counter == 0)
+            acc = buffer[i];
+        else
+            acc *= buffer[i];
+#endif
+        counter++;
+    }
+
+    FINAL_ACCUMULATOR_TYPE final_acc = TO_FINAL_ACCUMULATOR_TYPE(acc);
+    #if REDUCE_MEAN_MODE
+        final_acc /= TOTAL_NUM_ELEMENTS;
+    #endif
+
+    OUTPUT_TYPE final_result;
+    ACTIVATION_TYPE reduce_result = TO_ACTIVATION_TYPE(final_acc);
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    final_result = FUSED_OPS_RESULT;
+#else
+    final_result = TO_OUTPUT_TYPE(ACTIVATION(reduce_result, ACTIVATION_PARAMS));
+#endif
+    output[0] = final_result;
+}
+#else // SCALAR_OUTPUT != 1
 {
     const uint xy     = (uint)get_global_id(0);
     const uint wzuv   = (uint)get_global_id(1);
@@ -262,3 +343,4 @@ KERNEL(reduce_ref)(
 #endif
     output[out_idx] = final_result;
 }
+#endif // SCALAR_OUTPUT == 1
