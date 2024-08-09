@@ -33,6 +33,7 @@
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
+#include "transformations/common_optimizations/matmul_split_decomposition.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.hpp"
@@ -354,6 +355,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     ov::pass::Manager manager("Plugin:CPU");
     manager.set_per_pass_validation(false);
+
+    // Decomposition
+    auto decomp = manager.register_pass<ov::pass::GraphRewrite>();
+    ADD_MATCHER(decomp, ov::pass::MatmulGatherDecomposition)
+
     if (useLpt)
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantizationSubgraph, defaultPrecisions);
 
