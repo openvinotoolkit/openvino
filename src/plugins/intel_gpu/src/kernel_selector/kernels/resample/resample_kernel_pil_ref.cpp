@@ -112,8 +112,12 @@ DataTensor GetIntermediateBufferSize(const resample_params& params) {
 
 ParamsKey ResampleKernelPilRef::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::UINT8);
+    k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableDifferentTypes();
@@ -336,6 +340,17 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
                 MakeJitConstant("ENABLE_HORIZONTAL_PASS", NeedHorizontalPass(params)),
                 MakeJitConstant("KSIZE", ksize),
             });
+            if ((params.inputs[0].GetDType() == Datatype::UINT8 || params.inputs[0].GetDType() == Datatype::INT8) &&
+                 NeedHorizontalPass(params)) {
+                // In case of uint8 or int8 where both horizontal and vertical passes are needed,
+                // horizontal pass is performed and then vertical pass.
+                // In other words, the output from horizontal pass will be the input to vertical pass.
+                // At this point the type of input to vertical pass needs to be float in order to reduce the loss,
+                // and then the output will be type-casted back to uint8 or int8.
+                jit_constants.AddConstant(MakeJitConstant("VERTICAL_INPUT_TYPE", "float"));
+            } else {
+                jit_constants.AddConstant(MakeJitConstant("VERTICAL_INPUT_TYPE", "INPUT0_TYPE"));
+            }
             break;
         }
         default:
