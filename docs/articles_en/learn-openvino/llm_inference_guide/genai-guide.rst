@@ -4,6 +4,13 @@ Run LLM Inference on OpenVINO with the GenAI Flavor
 .. meta::
    :description: Learn how to use the OpenVINO GenAI flavor to execute LLM models.
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   genai-guide-npu
+
+
 This guide will show you how to integrate the OpenVINO GenAI flavor into your application, covering
 loading a model and passing the input context to receive generated text. Note that the vanilla flavor of OpenVINO
 will not work with these instructions, make sure to
