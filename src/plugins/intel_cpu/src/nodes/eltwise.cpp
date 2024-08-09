@@ -2354,7 +2354,10 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         inputPrecisions[i] = filterPrecision(inputPrecisions[i]);
     }
     outputPrecision = filterPrecision(outputPrecision);
-#if defined(OV_CPU_WITH_ACL) || defined(OV_CPU_WITH_SHL)
+#if defined(OV_CPU_WITH_SHL)
+    }
+#endif
+#if defined(OV_CPU_WITH_ACL)
     }
 #endif
 
