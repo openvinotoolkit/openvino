@@ -8,9 +8,6 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -101,8 +98,9 @@ TEST(CoreBaseTest, LoadOVFolderOverCWPathPluginXML) {
 #    if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
 TEST(CoreBaseTest, AddExtensionwithSymlink) {
     fs::create_directory("test_link");
-    std::string openvino_template_extension = ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
-                                                    std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
+    std::string openvino_template_extension =
+        ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
+                                                 std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
 
     std::string NameSymlink = "test_link/test_symlink";
     fs::create_symlink(openvino_template_extension, NameSymlink);

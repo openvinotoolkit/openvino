@@ -145,7 +145,7 @@ TEST(RegisterPluginTests, registerPluginWithSymlink) {
     fs::remove_all("test_link");
     ASSERT_FALSE(ov::util::directory_exists("test_link"));
 }
-#endif
+#    endif
 
 inline std::string getPluginFile() {
     std::string filePostfix{"mock_engine_valid.xml"};
