@@ -26,7 +26,6 @@ snippets::lowered::SpecificIterationHandlers BrgemmBlockingBase::get_default_blo
     const auto tail_size = snippets::utils::is_dynamic_value(work_amount) ? snippets::utils::get_dynamic_value<size_t>() : work_amount % block_size;
     if (tail_size != 0)
         handlers.register_pass<snippets::lowered::SpecificLoopIterType::LAST_ITER, snippets::lowered::pass::UpdateSubtensors>(tail_size);
-    handlers.register_pass<snippets::lowered::SpecificLoopIterType::LAST_ITER, SetEvaluateOnce>();
     return handlers;
 }
 

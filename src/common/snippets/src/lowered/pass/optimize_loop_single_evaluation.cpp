@@ -24,7 +24,7 @@ bool OptimizeLoopSingleEvaluation::run(lowered::LinearIR& linear_ir, lowered::Li
         const auto& expr = *expr_it;
         if (auto loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node())) {
             const auto& loop_info = loop_manager->get_loop_info<ExpandedLoopInfo>(loop_end->get_id());
-            if (loop_info->is_evaluate_once()) {
+            if (loop_info->get_work_amount() == loop_info->get_increment()) {
                 auto new_finalization_offsets = loop_end->get_finalization_offsets();
                 const auto& ptr_increments = loop_end->get_ptr_increments();
                 const auto work_amount_incr = static_cast<int64_t>(loop_end->get_increment());
@@ -39,6 +39,7 @@ bool OptimizeLoopSingleEvaluation::run(lowered::LinearIR& linear_ir, lowered::Li
                 // Update the corresponding ExpandedLoopInfo
                 loop_info->update_ptr_increments(loop_end->get_ptr_increments());
                 loop_info->update_finalization_offsets(loop_end->get_finalization_offsets());
+                loop_info->set_evaluate_once(true);
 
                 is_modified = true;
             }

@@ -30,9 +30,31 @@ void init_data_ptr_shifts(const lowered::UnifiedLoopInfoPtr& unified_loop_info, 
 }
 }  // namespace
 
+#ifdef SNIPPETS_DEBUG_CAPS
+std::string RuntimeConfig::to_string() const {
+    std::stringstream out;
+    out << " ========== RuntimeConfig state ==========\n" <<
+           "tensor_rank: " << tensor_rank << "\n" <<
+           "tile_rank: " << tile_rank << "\n" <<
+           "master_shape: " << ov::Shape(master_shape) << "\n";
+    out << "io_data_offsets: " << "\n";
+    for (size_t i = 0; i < io_data_offsets.size(); ++i)
+        out << "\t[" << i << "]" << ov::Shape(io_data_offsets[i]) << "\n";
+    out << "buffer_scratchpad_size: " << buffer_scratchpad_size << "\n";
+    out << "buffer_cluster_offsets: " << "\n";
+    for (size_t i = 0; i < buffer_cluster_offsets.size(); ++i)
+        out << "\t[" << i << "]" << buffer_cluster_offsets[i] << "\n";
+    return out.str();
+}
+#endif
+
 RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c) :
     m_config(std::move(c)) {
     OPENVINO_ASSERT(m_config, "Runtime config is nullptr!");
+}
+
+void RuntimeConfigurator::reset_kernel_executor_table() const {
+    m_config->kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
 }
 
 const std::shared_ptr<RuntimeConfig>& RuntimeConfigurator::get_updated_config(const lowered::LinearIRCPtr& linear_ir) {
@@ -53,6 +75,22 @@ void RuntimeConfigurator::initialization(const lowered::LinearIRCPtr& linear_ir)
     m_latest_shapes.resize(m_io_num);
     m_config->io_data_offsets.resize(m_io_num);
     m_config->tile_rank = linear_ir->get_config().m_loop_depth;
+
+    // InnerSplittedLoops should be inited after OuterSplittedLoops
+    m_ordered_loop_ids.clear();
+    size_t offset = 0;
+    const auto& loop_map = linear_ir->get_loop_manager()->get_map();
+    for (const auto& p : loop_map) {
+        const auto loop_id = p.first;
+        const auto& expanded_loop_info = ov::as_type_ptr<lowered::ExpandedLoopInfo>(p.second);
+        OPENVINO_ASSERT(expanded_loop_info, "UpdateLoopInfo expects ExpandedLoopInfo in LoopManager");
+        if (ov::is_type<lowered::InnerSplittedUnifiedLoopInfo>(expanded_loop_info->get_unified_loop_info())) {
+            m_ordered_loop_ids.push_back(loop_id);
+        } else {
+            m_ordered_loop_ids.insert(m_ordered_loop_ids.begin() + offset, loop_id);
+            ++offset;
+        }
+    }
 }
 
 void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
@@ -152,16 +190,15 @@ void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_i
     };
     std::unordered_map<lowered::UnifiedLoopInfoPtr, CurrentUnifiedLoopInfo> initializated_info_map;
 
-    const auto& loop_map = linear_ir->get_loop_manager()->get_map();
-    for (const auto& p : loop_map) {
-        const auto& expanded_loop_info = ov::as_type_ptr<lowered::ExpandedLoopInfo>(p.second);
-        OPENVINO_ASSERT(expanded_loop_info, "UpdateLoopInfo expects ExpandedLoopInfo in LoopManager");
+    const auto& loop_manager = linear_ir->get_loop_manager();
+    for (const auto& loop_id : m_ordered_loop_ids) {
+        const auto& expanded_loop_info = loop_manager->get_loop_info<lowered::ExpandedLoopInfo>(loop_id);
 
         // First visiting of unified (whole) loop
         const auto& current_unified_loop_info = expanded_loop_info->get_unified_loop_info();
         if (initializated_info_map.count(current_unified_loop_info) == 0) {
             auto& current_info = initializated_info_map[current_unified_loop_info];
-            lowered::pass::InitLoops::init_loop_info(current_unified_loop_info, true);
+            lowered::pass::InitLoops::update_runtime_parameters(current_unified_loop_info);
 
             current_info.current_work_amount = current_unified_loop_info->get_work_amount();
             init_data_ptr_shifts(current_unified_loop_info, current_info.ptr_increments, current_info.finalization_offsets);
@@ -216,12 +253,12 @@ void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRC
         size_t additional_size = 0;
         for (const auto& buffer_expr : cluster) {
             const auto& allocation_size = lowered::pass::ComputeBufferAllocationSize::get_allocation_size(loop_manager, buffer_expr, m_config->tile_rank);
+            OPENVINO_ASSERT(!utils::is_dynamic_value(allocation_size), "Buffer scratchpad size must be defined!");
             additional_size = std::max(allocation_size * buffer_expr->get_node()->get_element_type().size(), additional_size);
         }
 
         cluster_offset = m_config->buffer_scratchpad_size;
         OPENVINO_ASSERT(!utils::is_dynamic_value(cluster_offset), "Offset of the cluster must be defined!");
-        OPENVINO_ASSERT(!utils::is_dynamic_value(additional_size), "Buffer scratchpad size must be defined!");
         m_config->buffer_scratchpad_size += additional_size;
     }
 

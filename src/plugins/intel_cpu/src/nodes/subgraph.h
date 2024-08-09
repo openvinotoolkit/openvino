@@ -61,6 +61,7 @@ protected:
     IShapeInfer::Result shapeInfer() const override;
 
 private:
+    void initBroadcastableInputs();
     void initMemoryPtrs();
     void initAttributes();
     void initStartOffsets();
@@ -87,6 +88,9 @@ private:
 #endif
 
     std::shared_ptr<SubgraphAttrs> subgraph_attrs;
+
+    // Index of Paramater -> Index of broadcastable dimension from end
+    std::map<size_t, size_t> broadcastable_inputs = {};
 
     size_t input_num = 0;
     size_t output_num = 0;

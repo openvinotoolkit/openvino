@@ -81,7 +81,7 @@ public:
      * @param compile_params compile-time parameters used for code generation
      * @return variable to handle the result
      */
-    LoweringResult generate(lowered::LinearIR& linear_ir, const void* compile_params = nullptr) const;
+    LoweringResult generate(const lowered::LinearIRPtr& linear_ir, const void* compile_params = nullptr) const;
 
     /**
      * @brief gets target machine
