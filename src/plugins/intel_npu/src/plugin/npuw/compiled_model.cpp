@@ -20,7 +20,6 @@
 #include "openvino/util/common_util.hpp"
 #include "plugin.hpp"
 #include "util.hpp"
-#include "weights_bank.hpp"
 
 // required for get_properties_per_device()
 #include <intel_npu/al/config/config.hpp>
@@ -113,19 +112,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         LOG_INFO("Accuracy check is enabled.");
     }
 
-    // Sort out weights sharing routine
+    // Initialize weights bank
     const std::string weights_bank_opt = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
-    if (!weights_bank_opt.empty()) {
-        if (m_cfg.get<::intel_npu::NPUW_FOLD>()) {
-            LOG_WARN("NPUW can't utilize NPUW_WEIGHTS_BANK property with NPUW_FOLD enabled!"
-                     << " Disabling weights bank usage.");
-        } else if ("YES" != m_cfg.getString<::intel_npu::NPUW_CWAI>()) {
-            LOG_WARN("NPUW can't utilize NPUW_WEIGHTS_BANK property without NPUW_CWAI enabled! "
-                     << " Disabling weights bank usage.");
-        } else {
-            m_weights_bank_name = weights_bank_opt;
-        }
-    }
+    m_weights_bank = ov::npuw::weights::bank(weights_bank_opt);
 
     LOG_VERB("*** Original model ***");
     const auto& orig_parameters = model->get_parameters();
@@ -286,8 +275,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             m_compiled_submodels[id].closure = subgraph._closure;
             m_compiled_submodels[id].scales = subgraph._scales;
             m_compiled_submodels[id].zerops = subgraph._zerops;
-            // Assume unpack to be required until specified otherwise
-            m_compiled_submodels[id].unpack_required = std::vector<bool>(m_compiled_submodels[id].closure.size(), true);
+            m_compiled_submodels[id].unpack_required.resize(subgraph._closure.size(), false);
+            m_compiled_submodels[id].update_required.resize(subgraph._closure.size(), false);
+            fill_weights_bank(id);
         }  // if(!funcall)
 
         if (!m_compiled_submodels[id].model && !m_compiled_submodels[id].replaced_by) {
@@ -402,6 +392,23 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     m_finalized = true;
     reset_io();
+}
+
+void ov::npuw::CompiledModel::fill_weights_bank(const std::size_t idx) {
+    LOG_VERB("Filling weights bank for Subgraph[" << idx << "]...");
+    LOG_BLOCK();
+    auto& comp_model_desc = m_compiled_submodels[idx];
+
+    for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
+        comp_model_desc.closure[cidx] = m_weights_bank->get(comp_model_desc.closure[cidx]);
+        if ("YES" == m_cfg.getString<::intel_npu::NPUW_CWAI>()) {
+            comp_model_desc.update_required[cidx] = true;
+        } else {
+            comp_model_desc.update_required[cidx] = false;
+        }
+    }
+
+    LOG_VERB("DONE");
 }
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
@@ -785,15 +792,15 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::online::isolate, NPUW_ONLINE_ISOLATE),
                           BIND(npuw::partitioning::online::nofold, NPUW_ONLINE_NO_FOLD),
                           BIND(npuw::partitioning::online::dump_plan, NPUW_ONLINE_DUMP_PLAN),
-                          BIND(npuw::weights_bank, NPUW_WEIGHTS_BANK),
                           BIND(npuw::partitioning::plan, NPUW_PLAN),
                           BIND(npuw::partitioning::fold, NPUW_FOLD),
                           BIND(npuw::partitioning::cwai, NPUW_CWAI),
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
-                          BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
                           BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
+                          BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                           BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),
+                          BIND(npuw::weights_bank, NPUW_WEIGHTS_BANK),
                           BIND(npuw::accuracy::check, NPUW_ACC_CHECK),
                           BIND(npuw::accuracy::threshold, NPUW_ACC_THRESH),
                           BIND(npuw::accuracy::reference_device, NPUW_ACC_DEVICE),

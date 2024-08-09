@@ -13,6 +13,7 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "partitioning/partitioning.hpp"
+#include "weights_bank.hpp"
 
 namespace intel_npu {
 class Plugin;
@@ -71,6 +72,8 @@ private:
 
     void implement_properties();
 
+    void fill_weights_bank(const std::size_t idx);
+
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
     GetPropertiesMap m_prop_to_opt;
@@ -120,6 +123,7 @@ private:
         std::vector<ov::Tensor> scales;
         std::vector<ov::Tensor> zerops;
         std::vector<bool> unpack_required;
+        std::vector<bool> update_required;
 
         // FIXME: Take it out of structure
         ov::SoPtr<ov::ICompiledModel> ref_compiled_model;
@@ -135,7 +139,7 @@ private:
 
     execution_stats m_total_stat;
 
-    std::string m_weights_bank_name = "";
+    std::shared_ptr<weights::Bank> m_weights_bank = nullptr;
 };
 }  // namespace npuw
 }  // namespace ov

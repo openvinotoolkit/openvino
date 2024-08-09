@@ -5,42 +5,63 @@
 #include "weights_bank.hpp"
 
 using ov::npuw::weights::Bank;
-using ov::npuw::weights::BankManager;
 
-Bank::Bank(const std::string& device_name) : m_device_name(device_name) {
-    if (m_device_name != "CPU") {
-        OPENVINO_THROW("NPUW doesn't support ", m_device_name, " device for weights sharing!");
+class BankManager {
+public:
+    static BankManager& getInstance() {
+        static BankManager instance;
+        return instance;
     }
-}
+
+private:
+    BankManager() {}
+    BankManager(BankManager const&);
+    void operator=(BankManager const&);
+
+public:
+    // Public API
+    std::shared_ptr<Bank> getBank(const std::string& bank_name);
+
+private:
+    // Data
+    std::unordered_map<std::string, std::weak_ptr<Bank>> m_bank_map;
+    std::mutex m_mutex;
+};
 
 ov::Tensor Bank::get(const ov::Tensor& tensor) {
     if (!tensor) {
         OPENVINO_THROW("Uninitialized tensor in weights bank allocation!");
     }
 
-    void* host_data_ptr = tensor.data();
-
     std::lock_guard<std::mutex> guard(m_mutex);
 
-    if (m_bank.find(host_data_ptr) == m_bank.end()) {
+    if (m_bank.find(tensor.data()) == m_bank.end()) {
         // need to allocate first
-        m_bank[host_data_ptr] = tensor;
+        m_bank[tensor.data()] = tensor;
     }
 
-    return m_bank[host_data_ptr];
+    return tensor;
 }
 
-std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name, const std::string& device_name) {
+std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name) {
     std::lock_guard<std::mutex> guard(m_mutex);
 
-    auto bank_key = bank_name + device_name;
-    if (m_bank_map.find(bank_key) == m_bank_map.end()) {
-        m_bank_map[bank_key] = std::make_shared<Bank>(device_name);
+    // Extend ptr lifetime until obtained
+    std::shared_ptr<Bank> bank = nullptr;
+    if (m_bank_map.find(bank_name) == m_bank_map.end()) {
+        bank = std::make_shared<Bank>();
+        m_bank_map[bank_name] = bank;
     }
 
-    return m_bank_map[bank_key];
+    return m_bank_map[bank_name].lock();
 }
 
-std::shared_ptr<Bank> ov::npuw::weights::bank(const std::string& bank_name, const std::string& device_name) {
-    return BankManager::getInstance().getBank(bank_name, device_name);
+std::shared_ptr<Bank> ov::npuw::weights::bank(const std::string& bank_name) {
+    if (bank_name.empty()) {
+        // Don't share this bank in manager
+        return std::make_shared<Bank>();
+    }
+
+    auto& instance = BankManager::getInstance();
+    return instance.getBank(bank_name);
 }
