@@ -11,6 +11,7 @@ endif()
 
 if(ENABLE_LTO)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-lto")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fno-lto")
 endif()
 
 ov_add_test_target(
