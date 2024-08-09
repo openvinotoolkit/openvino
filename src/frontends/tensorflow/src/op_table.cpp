@@ -97,6 +97,7 @@ TF_OP_CONVERTER(translate_iterator_get_next_op);
 TF_OP_CONVERTER(translate_iterator_op);
 TF_OP_CONVERTER(translate_lookup_table_import_op);
 TF_OP_CONVERTER(translate_lookup_table_find_op);
+TF_OP_CONVERTER(translate_lookup_table_size_op);
 TF_OP_CONVERTER(translate_loop_cond_op);
 TF_OP_CONVERTER(translate_merge_op);
 TF_OP_CONVERTER(translate_mergev2checkpoint_op);
@@ -301,6 +302,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"LookupTableImportV2", CreatorFunction(translate_lookup_table_import_op)},
         {"LookupTableInsert", CreatorFunction(translate_no_op)},
         {"LookupTableInsertV2", CreatorFunction(translate_no_op)},
+        {"LookupTableSize", CreatorFunction(translate_lookup_table_size_op)},
+        {"LookupTableSizeV2", CreatorFunction(translate_lookup_table_size_op)},
         {"LRN", CreatorFunction(translate_lrn_op)},
         {"MatMul", CreatorFunction(translate_mat_mul_op)},
         {"MatrixBandPart", CreatorFunction(translate_matrix_band_part_op)},
