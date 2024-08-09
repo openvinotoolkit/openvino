@@ -205,6 +205,13 @@ interface Core {
     deviceName: string,
     properties: { [key: string]: string | number | boolean },
   ): void;
+  /**
+   * It queries the model passed for the requested property.
+   * @param model The passed model to query the property.
+   * @param deviceName The name of a device.
+   * @param properties An object with the property name - property value pairs.
+   */
+  queryModel(model: Model, deviceName: string, properties?: {[key: string]: string | number | boolean}): {[key: string]: string | number | boolean};
 }
 interface CoreConstructor {
   new(): Core;
