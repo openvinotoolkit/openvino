@@ -133,7 +133,6 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_PrintInputDataShapes",  "Print data_shapes of input layers for benchmark_app.");
     message_list.emplace_back("OV_GPU_DisableUsm", "Disable usm usage");
     message_list.emplace_back("OV_GPU_DisableOnednn", "Disable onednn for discrete GPU (no effect for integrated GPU)");
-    message_list.emplace_back("OV_GPU_DisableOnednnPermuteFusion", "Disable permute fusion for onednn gemm (no effect for integrated GPU)");
     message_list.emplace_back("OV_GPU_DisableOnednnOptPostOps", "Disable onednn optimize post operators");
     message_list.emplace_back("OV_GPU_DumpProfilingData", "Enables dump of extended profiling information to specified directory."
                               " Please use OV_GPU_DumpProfilingDataPerIter=1 env variable to collect performance per iteration."
@@ -217,7 +216,6 @@ debug_configuration::debug_configuration()
         , print_input_data_shapes(0)
         , disable_usm(0)
         , disable_onednn(0)
-        , disable_onednn_permute_fusion(0)
         , disable_onednn_opt_post_ops(0)
         , dump_profiling_data(std::string(""))
         , dump_profiling_data_per_iter(0)
@@ -268,7 +266,6 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DumpLayersResult", dump_layers_result);
     get_gpu_debug_env_var("DumpLayersInput", dump_layers_input);
     get_gpu_debug_env_var("DisableOnednn", disable_onednn);
-    get_gpu_debug_env_var("DisableOnednnPermuteFusion", disable_onednn_permute_fusion);
     get_gpu_debug_env_var("DisableOnednnOptPostOps", disable_onednn_opt_post_ops);
     get_gpu_debug_env_var("DumpProfilingData", dump_profiling_data);
     get_gpu_debug_env_var("DumpProfilingDataPerIter", dump_profiling_data_per_iter);
