@@ -172,8 +172,32 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     auto transformed_model = clone_and_transform_model(model, config, context);
     {
+        auto program = std::make_shared<ProgramBuilder>(transformed_model, context->get_engine(), config, true);
+        float avg = program->_avg;
+
+	std::cout << "AVG PARALLEL: " << avg << std::endl;
+
+        if (avg > 1.2) {
+            std::cout << "OUT OF ORDER EXECUTION IN USE" << std::endl;
+            config.set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+        }
+        else {
+            std::cout << "IN ORDER EXECUTION IN USE" << std::endl;
+            config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+        }
+
+        config.apply_user_properties(context->get_engine().get_device_info());
+
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
         return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config);
+
+
+
+
+
+        //auto transformed_model2 = clone_and_transform_model(model, config, context);
+
+        //return std::make_shared<CompiledModel>(transformed_model2, shared_from_this(), context, config);
     }
 }
 

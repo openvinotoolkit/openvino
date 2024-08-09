@@ -18,10 +18,6 @@ public:
         cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
 
         std::shared_ptr<cldnn::engine> engine1 = create_test_engine();
-        if (engine1->get_device_info().supports_immad) {
-            // Enable this test for out_of_order queue-type if Onednn supports out_of_order
-            return;
-        }
 
         auto input1 = engine1->allocate_memory({ data_types::f16, format::bfyx,{ 2, 2, 256, 256} });
         auto input2 = engine1->allocate_memory({ data_types::f16, format::bfyx,{ 2, 2, 256, 256} });

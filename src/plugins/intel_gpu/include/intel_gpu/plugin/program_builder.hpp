@@ -145,6 +145,7 @@ public:
 
     std::shared_ptr<ov::threading::IStreamsExecutor> get_task_executor() const { return m_task_executor; }
     std::shared_ptr<cldnn::ICompilationContext> get_compilation_context() const { return m_compilation_context; }
+    float _avg;
 
 private:
     static factories_map_t factories_map;

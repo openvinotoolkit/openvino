@@ -225,10 +225,6 @@ TEST_P(test_can_fuse_reorder_cldnn, reorder_for_firstconv_cldnn)
 
     ExecutionConfig cfg = get_test_default_config(engine);
     cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
-    if (engine.get_device_info().supports_immad) {
-        // Enable this test for out_of_order queue-type if Onednn supports out_of_order
-        return;
-    }
 
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
@@ -334,10 +330,7 @@ TEST_P(can_fuse_reorder, surface_input_reorder) {
 
     ExecutionConfig cfg = get_test_default_config(engine);
     cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
-    if (engine.get_device_info().supports_immad) {
-        // Enable this test for out_of_order queue-type if Onednn supports out_of_order
-        return;
-    }
+
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo);
@@ -397,10 +390,6 @@ TEST_P(can_fuse_reorder, surface_input_reorder_batched) {
 
     ExecutionConfig cfg = get_test_default_config(engine);
     cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
-    if (engine.get_device_info().supports_immad) {
-        // Enable this test for out_of_order queue-type if Onednn supports out_of_order
-        return;
-    }
 
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
