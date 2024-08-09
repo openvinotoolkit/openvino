@@ -27,8 +27,8 @@ static bool are_shapes_compatible(const ov::Shape& weights_shape, const ov::Shap
 
     auto weights_shape_it = weights_shape.rbegin();
     auto const_shape_it = const_shape.rbegin();
-    int C_dim = const_shape.size() - 1 - 2;
-    int const_shape_cur_idx = const_shape.size() - 1;
+    size_t C_dim = const_shape.size() - 1 - 2;
+    size_t const_shape_cur_idx = const_shape.size() - 1;
 
     while (const_shape_it != const_shape.rend()) {
         if (const_shape_cur_idx == C_dim) {
