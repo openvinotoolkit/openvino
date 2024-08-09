@@ -466,7 +466,6 @@ std::vector<std::string> disabledTestPatterns() {
     // int8 / code-generation specific
     retVector.emplace_back(R"(smoke_LPT.*)");
     // Compressed weights are not supported
-    retVector.emplace_back(R"(smoke_MatMulCompressedWeights.*)");
     retVector.emplace_back(R"(smoke_MatMulSharedCompressedWeights.*)");
     retVector.emplace_back(R"(smoke_MatmulAndGatherSharedWeightsDecompression.*)");
     // smoke_Snippets test cases are not supported on arm32 platforms

@@ -300,8 +300,9 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
     DEBUG_LOG("FuseFCAndWeightsDecompression can't be applied for node ", node->getName()); \
     continue
 
-    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2))
+    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) && !impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd)) {
         return;
+    }
 
     auto& graphNodes = graph.GetNodes();
     for (size_t i = 0; i < graphNodes.size(); i++) {

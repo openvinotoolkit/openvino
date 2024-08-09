@@ -12,6 +12,7 @@
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_fullyconnected.hpp"
+#include "nodes/executors/acl/acl_fullyconnected.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_implementation.hpp"
@@ -173,6 +174,27 @@ OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noPostOps(const FCConfig& config
 template <>
 const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<FCAttrs>> fullyconnectedImplementations {
+        OV_CPU_INSTANCE_ACL(
+            "fullyconnected_acl",
+            ExecutorType::Acl,
+            OperationType::FullyConnected,
+            ShapeTolerance::Agnostic,
+            // supports
+            [](const FCConfig& config) -> bool {
+                return ACLFCExecutor::supports(config);
+            },
+            // requiresFallback
+            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+                return {};
+            },
+            // acceptsShapes
+            [](const MemoryArgs& memory) -> bool {
+                return true;
+            },
+            // create
+            [](const FCAttrs& attrs, const PostOps& postOps, const MemoryArgs& memory, ExecutorContext::CPtr context) {
+                return std::make_shared<ACLFCExecutor>(attrs, postOps, memory, context);
+            })
         OV_CPU_INSTANCE_MLAS_X64(
             "fullyconnected_mlas",
             ExecutorType::Mlas,
