@@ -58,7 +58,7 @@ std::vector<RefBitwiseParams> generateBitwiseParams() {
                                             -24,         16,         -16,         512,          -512,
                                             0,           0,          256,         -256,         768,
                                             -768,        512,        -512,        16384,        -16384,
-                                            0,           0,          2147483648L,  -2147483648L,  6442450944L,
+                                            0,           0,          2147483648L,  min_int32,  6442450944L,
                                             -6442450944L, 4294967296L, -4294967296L, 137438953472L, -137438953472L}}),
         Builder{}
             .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
