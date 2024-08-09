@@ -947,7 +947,9 @@ class TestMoConvertTF(CommonMOConvertTest):
         assert ov_model.outputs[0].names == {"name1"}
 
         ov_model.outputs[0].get_tensor().set_names({"name2"})
-        assert ov_model.outputs[0].names == {"name2"}
+        # set model's output names will not change connected node names
+        # output can have additional input names
+        assert "name2" in ov_model.outputs[0].names
 
 
 
