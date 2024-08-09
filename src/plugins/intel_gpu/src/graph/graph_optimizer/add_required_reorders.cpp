@@ -151,7 +151,7 @@ void add_required_reorders::run(program& p) {
             }
         }
 
-        if (usr->type()->does_an_implementation_exist(*usr)) {
+        if (usr->type()->has_impl_for(*usr)) {
             if (usr->get_preferred_impl_type() != impl_types::onednn) {
                 continue;
             } else {
@@ -226,7 +226,7 @@ void add_required_reorders::run(program& p) {
                                           original_layout.data_type,
                                           node.first->get_output_layout().format);
                     usr->set_output_layout(current_layout, false);
-                    if (usr->type()->does_possible_implementation_exist(*usr)) {
+                    if (usr->type()->has_impl_for(*usr)) {
                         correct_layout_selected = true;
                         break;
                     } else if (original_layout.data_type == data_types::i64) {
@@ -235,14 +235,14 @@ void add_required_reorders::run(program& p) {
                         current_layout = original_layout;
                         current_layout.data_type = data_types::i32;
                         usr->set_output_layout(current_layout, false);
-                        if (usr->type()->does_possible_implementation_exist(*usr)) {
+                        if (usr->type()->has_impl_for(*usr)) {
                             correct_layout_selected = true;
                         } else {
                             current_layout = original_layout;
                             current_layout.data_type = data_types::i32;
                             current_layout.format = node.first->get_output_layout().format;
                             usr->set_output_layout(current_layout, false);
-                            if (usr->type()->does_possible_implementation_exist(*usr)) {
+                            if (usr->type()->has_impl_for(*usr)) {
                                 correct_layout_selected = true;
                             }
                         }
@@ -295,14 +295,14 @@ void add_required_reorders::run(program& p) {
                 preferred_layout_formats.push_back(cldnn::format::byxf);
             }
 
-            if (original_layout.is_dynamic() && usr->type()->does_dynamic_implementation_exist(*usr)) {
+            if (original_layout.is_dynamic() && usr->type()->has_impl_for(*usr, shape_types::dynamic_shape)) {
                 correct_layout_selected = true;
             }
 
             if (usr->get_preferred_impl_type() == impl_types::onednn) {
                 usr->set_preferred_impl_type(impl_types::ocl);
                 usr->set_output_layout(original_layout, false);
-                if (usr->type()->does_possible_implementation_exist(*usr)) {
+                if (usr->type()->has_impl_for(*usr)) {
                     correct_layout_selected = true;
                 }
             }
@@ -311,7 +311,7 @@ void add_required_reorders::run(program& p) {
                 for (auto new_layout_format : preferred_layout_formats) {
                     layout current_layout(original_layout.get_partial_shape(), original_layout.data_type, new_layout_format);
                     usr->set_output_layout(current_layout, false);
-                    if (usr->type()->does_possible_implementation_exist(*usr)) {
+                    if (usr->type()->has_impl_for(*usr)) {
                         correct_layout_selected = true;
                         break;
                     }
@@ -326,7 +326,7 @@ void add_required_reorders::run(program& p) {
                                                data_types::i32,
                                                original_layout.format);
                     usr->set_output_layout(original_layout_i32, false);
-                    if (usr->type()->does_possible_implementation_exist(*usr)) {
+                    if (usr->type()->has_impl_for(*usr)) {
                         correct_layout_selected = true;
                     }
 
@@ -336,7 +336,7 @@ void add_required_reorders::run(program& p) {
                                                       original_layout_i32.data_type,
                                                       new_layout_format);
                             usr->set_output_layout(current_layout_i32, false);
-                            if (usr->type()->does_possible_implementation_exist(*usr)) {
+                            if (usr->type()->has_impl_for(*usr)) {
                                 correct_layout_selected = true;
                                 break;
                             }

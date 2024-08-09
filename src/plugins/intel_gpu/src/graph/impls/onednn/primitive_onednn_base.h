@@ -8,23 +8,17 @@
 
 #include "primitive_inst.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/file_util.hpp"
 #include "to_string_utils.h"
-#include "register.hpp"
 #include "utils.hpp"
 #include "runtime/ocl/ocl_event.hpp"
 
-#include "quantize_inst.h"
-#include "reorder_inst.h"
+#include "intel_gpu/primitives/reorder.hpp"
 
-#include "reorder/reorder_weights_kernel_selector.h"
-#include "reorder/reorder_kernel_base.h"
 #include "impls/ocl/kernel_selector_helper.h"
 
 #include <vector>
-#include <list>
 #include <utility>
 
 #include <oneapi/dnnl/dnnl.hpp>
@@ -58,10 +52,6 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
             _scratchpad_md = _pd.scratchpad_desc();
 
             GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
-                _enable_profiling = true;
-            }
-
             GPU_DEBUG_IF(debug_config->verbose >= 4) {
                 if (_scratchpad_md.get_size() > 0) {
                     static std::atomic_llong total{0};
@@ -560,6 +550,8 @@ protected:
                 stream.wait();
 
                 std::vector<uint64_t> duration = dnnl::get_profiling_data(stream.get_onednn_stream(), dnnl::profiling_data_kind::time);
+                if (duration.empty())
+                    duration.push_back(0);
                 OPENVINO_ASSERT(duration.size() == 1, "[GPU] oneDNN profiling data is expected to have info only for single primitive ",
                                                       "actual number is ", duration.size());
 

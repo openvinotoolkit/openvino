@@ -105,7 +105,6 @@ public:
     int print_input_data_shapes;                                // Print the input data_shape for benchmark_app.
     int disable_usm;                                            // Disable usm usage
     int disable_onednn;                                         // Disable onednn for discrete GPU (no effect for integrated GPU)
-    int disable_onednn_permute_fusion;                          // Disable permute fusion for onednn ops
     int disable_onednn_opt_post_ops;                            // Disable onednn optimize post operators
     std::string dump_profiling_data;                            // Enables dump of extended performance profiling to specified dir
     int dump_profiling_data_per_iter;                           // Enables dump of extended performance profiling to specified dir for each iteration

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "impls/registry/implementation_manager.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/graph/program.hpp"
@@ -469,6 +470,9 @@ public:
         }
     }
 
+    bool can_use(impl_types impl_type) const;
+    void select_preferred_formats(impl_types impl_type);
+
 protected:
     size_t unique_id = 0;
     static thread_local size_t cur_id;
@@ -575,5 +579,6 @@ struct typed_program_node : public typed_program_node_base<PType> {
 
     program_node& input(size_t index = 0) const { return program_node::get_dependency(index); }
 };
+
 
 }  // namespace cldnn

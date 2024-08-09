@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <array>
-
 #include "register.hpp"
 #include "crop_inst.h"
 #include "impls/registry/implementation_map.hpp"

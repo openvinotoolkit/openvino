@@ -5,6 +5,7 @@
 #include "convolution/convolution_kernel_selector.h"
 #include "convolution/convolution_params.h"
 #include "convolution_inst.h"
+#include "convolution.hpp"
 #include "convolution_shape_inference.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "kernel_base.h"
@@ -271,108 +272,11 @@ public:
     }
 };
 
-namespace detail {
-
-attach_convolution_impl::attach_convolution_impl() {
-    implementation_map<convolution>::add(impl_types::ocl, typed_primitive_impl_ocl<convolution>::create<convolution_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-
-        std::make_tuple(data_types::f32, format::winograd_2x3_s1_data),
-        std::make_tuple(data_types::f16, format::winograd_2x3_s1_data),
-
-        std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
-
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::u8, format::byxf),
-        std::make_tuple(data_types::i8, format::byxf),
-
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
-
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
-
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv4),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv4),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv4),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv4),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv4),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv4),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv8_fsv4),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv4),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv2),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv2),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv2),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv2),
-    });
-
-    auto types = {
-        data_types::f32,
-        data_types::f16,
-        data_types::i8,
-        data_types::u8
-    };
-    auto dyn_formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::b_fs_yx_fsv16
-    };
-
-    implementation_map<convolution>::add(impl_types::ocl,
-                                         shape_types::dynamic_shape,
-                                         typed_primitive_impl_ocl<convolution>::create<convolution_impl>,
-                                         types,
-                                         dyn_formats);
+std::unique_ptr<primitive_impl> ConvolutionImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    OPENVINO_ASSERT(node.is_type<convolution>());
+    return typed_primitive_impl_ocl<convolution>::create<convolution_impl>(static_cast<const convolution_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
 

@@ -10179,7 +10179,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_no_bias_swap_xy) {
 
     auto inst = network.get_primitive("conv");
     const auto& node = inst->get_node();
-    auto selected_impl = node.type()->choose_impl(node);
+    auto selected_impl = node.type()->create_impl(node);
     bool found_define = false;
     for (auto& s : selected_impl->get_kernels_source()) {
         if (s != nullptr && !s->get_str().empty()

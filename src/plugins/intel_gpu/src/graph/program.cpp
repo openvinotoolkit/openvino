@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/registry/implementation_manager.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 
@@ -17,6 +19,7 @@
 #include "pass_manager.h"
 #include "primitive_type.h"
 #include "program_dump_graph.h"
+#include "program_node.h"
 #include "sliding_window_utils.hpp"
 #include "program_helpers.h"
 
@@ -72,9 +75,6 @@
 #include "impls/ocl/register.hpp"
 #include "impls/cpu/register.hpp"
 #include "impls/common/register.hpp"
-#ifdef ENABLE_ONEDNN_FOR_GPU
-#include "impls/onednn/register.hpp"
-#endif
 
 #include "kernel_base.h"
 
@@ -251,9 +251,6 @@ void program::init_primitives() {
     if (!is_initialized) {
         common::register_implementations();
         ocl::register_implementations();
-#ifdef ENABLE_ONEDNN_FOR_GPU
-        onednn::register_implementations();
-#endif
         cpu::register_implementations();
         is_initialized = true;
     }
@@ -1784,6 +1781,8 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << kernels_cache;
         ob << impl_ids;
         for (auto& impl_id : impl_ids) {
+            std::string type_name = get_node_ptr(impl_id)->get_selected_impl()->m_manager->get_type_info().name;
+            ob << type_name;
             if (get_node_ptr(impl_id)->get_selected_impl()->is_onednn()) {
                 ob << true;
                 auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
@@ -1900,7 +1899,10 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
         for (auto& impl_id : impl_ids) {
             auto& p_node = get_node(impl_id);
-
+            std::string type_name;
+            ib >> type_name;
+            ov::DiscreteTypeInfo type(type_name.c_str());
+            auto impl_manager = p_node.type()->get(type);
             bool is_onednn;
             ib >> is_onednn;
             if (is_onednn) {
@@ -1910,6 +1912,8 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
             } else {
                 ib >> p_node.selected_impl;
             }
+
+            p_node.selected_impl->m_manager = impl_manager.get();
 
             std::vector<std::string> cached_kernel_ids;
             ib >> cached_kernel_ids;
