@@ -23,7 +23,7 @@ describe('setProperty() / getProperty()', () => {
     it('throws an error when called without arguments', () => {
       assert.throws(
         () => compiledModel.getProperty(),
-        /Expected a single string argument to retrieve property value/
+        /'getProperty' method called with incorrect parameters/
       );
     });
     it('throws an error when called with property name that does not exists', ()=>{
@@ -42,20 +42,20 @@ describe('setProperty() / getProperty()', () => {
     it('throws an error when called without an object argument', () => {
       assert.throws(
         () => compiledModel.setProperty(),
-        /Expected a single object argument for setting properties/
+        /'setProperty' method called with incorrect parameters/
       );
     });
     it('throws an error when called with wrong argument', () => {
       assert.throws(
           () => compiledModel.setProperty(123),
-          /Expected a single object argument for setting properties/
+          /'setProperty' method called with incorrect parameters/
       );
     });
   
     it('throws an error when called with multiple arguments', () => {
       assert.throws(
         () => compiledModel.setProperty({"PERFORMANCE_HINT": "THROUGHPUT"}, {"NUM_STREAMS": "AUTO"}),
-        /Expected a single object argument for setting properties/
+        /'setProperty' method called with incorrect parameters/
       );
     });
   
