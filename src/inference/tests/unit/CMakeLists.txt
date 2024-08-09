@@ -9,6 +9,10 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
 endif()
 
+if(ENABLE_LTO)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-lto")
+endif()
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -20,9 +24,5 @@ ov_add_test_target(
         LABELS
             OV UNIT RUNTIME
 )
-
-if(ENABLE_LTO)
-    set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
-endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})
