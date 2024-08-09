@@ -181,7 +181,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
         } else if (std::dynamic_pointer_cast<ov::op::v8::Slice>(op)) {
             is_changed |= inherit_output_rank(op, {0});
             is_changed |= inherit_output_type(op, {0});
-        } else if (std::dynamic_pointer_cast<ov::op::v0::Squeeze>(op)) {
+        } else if (auto squeeze_op = std::dynamic_pointer_cast<ov::op::v0::Squeeze>(op)) {
             auto in0_pshape = op->get_input_partial_shape(0);
             auto in0_rank = in0_pshape.rank();
             if (output_shape.rank().is_static()) {
@@ -203,7 +203,9 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                     int64_t num_ones = in1_data.size();
                     if (num_ones == in0_rank.get_length() - output_shape.rank().get_length()) {
                         auto axes = ov::op::v0::Constant::create(element::i64, Shape{in1_data.size()}, in1_data);
-                        auto new_squeeze = std::make_shared<ov::op::v0::Squeeze>(op->get_input_source_output(0), axes);
+                        const auto torch = squeeze_op->get_pytorch_dynamic_rank();
+                        auto new_squeeze =
+                            std::make_shared<ov::op::v0::Squeeze>(op->get_input_source_output(0), axes, torch);
                         op->output(0).replace(new_squeeze->output(0));
                         copy_runtime_info(op, new_squeeze);
                     }

@@ -11,15 +11,19 @@ namespace op {
 namespace v0 {
 /// \brief Squeeze operation.
 ///
+/// \param torch_mode Shape inference result with dynamic rank if selected axis has 1 is in range of its dynamic
+/// dimension. The solution mimics the PyTorch approach.
+///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Squeeze : public Op {
 public:
     OPENVINO_OP("Squeeze", "opset1");
 
     Squeeze();
-    Squeeze(const Output<Node>& data, const Output<Node>& axes);
-    Squeeze(const Output<Node>& data);
+    Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool torch_mode = false);
+    Squeeze(const Output<Node>& data, const bool torch_mode = false);
 
+    bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
@@ -31,9 +35,11 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool is_dynamic() const override;
+    bool get_pytorch_dynamic_rank() const;
 
 private:
     Output<Node> get_default_axes_input() const;
+    bool m_pytorch_dynamic_rank{};
 };
 }  // namespace v0
 }  // namespace op

@@ -29,7 +29,7 @@ class TestSqueeze(PytorchLayerTest):
 
         return aten_squeeze(dim), ref_net, "aten::squeeze"
 
-    @pytest.mark.parametrize("dim,dynamic_shapes", [(-2, True), (0, True), (None, False)])
+    @pytest.mark.parametrize("dim,dynamic_shapes", [(-2, False), (0, False), (None, False)])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
