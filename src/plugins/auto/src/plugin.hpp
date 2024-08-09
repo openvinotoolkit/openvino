@@ -5,16 +5,16 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include <map>
-#include <vector>
-#include <string>
 #include <list>
+#include <map>
+#include <string>
+#include <vector>
 
-#include "openvino/runtime/iplugin.hpp"
-#include "utils/log_util.hpp"
 #include "common.hpp"
-#include "plugin_config.hpp"
 #include "compiled_model.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "plugin_config.hpp"
+#include "utils/log_util.hpp"
 
 namespace ov {
 namespace auto_plugin {
@@ -26,7 +26,7 @@ public:
 
     void set_property(const ov::AnyMap& properties) override;
 
-    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
+    MOCKTESTMACRO ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
@@ -66,6 +66,7 @@ public:
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
+    MOCKTESTMACRO std::map<std::string, double> get_device_utilization(const std::string& device) const;
 
 private:
     std::shared_ptr<ov::ICompiledModel> compile_model_impl(const std::string& model_path,
