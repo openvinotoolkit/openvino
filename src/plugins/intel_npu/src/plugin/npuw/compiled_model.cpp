@@ -397,7 +397,7 @@ void ov::npuw::CompiledModel::fill_weights_bank(const std::size_t idx) {
     LOG_VERB("Filling weights bank for Subgraph[" << idx << "]...");
     LOG_BLOCK();
 
-    NPUW_ASSERT(m_compiled_submodels[idx].model && m_compiled_submodels[idx].replaced_by);
+    NPUW_ASSERT(m_compiled_submodels[idx].replaced_by);
 
     auto& comp_model_desc = m_compiled_submodels[idx];
 

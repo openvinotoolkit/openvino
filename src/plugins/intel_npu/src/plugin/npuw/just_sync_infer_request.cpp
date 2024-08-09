@@ -173,9 +173,10 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     // Sort out how to handle weights bank and unpack
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_VERB("Trying to preemptively set tensors for Subgraph[" << i << "]...");
+        LOG_BLOCK();
         auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
 
-        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+        if (!comp_model_desc.compiled_model || !comp_model_desc.replaced_by) {
             continue;
         }
 
@@ -191,14 +192,12 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             const auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
             const auto& clparam = request->get_tensor(iport);
 
-            // No update required means no folding
-            // In this case we can set tensor only once
+            // No update required to this tensor in runtime - so it can be set only once
             if (!comp_model_desc.update_required[cidx]) {
                 request->set_tensor(iport, ov::get_tensor_impl(closure));
-                LOG_VERB("Tensor set");
             }
         }  // for(closure)
-        LOG_INFO("DONE");
+        LOG_VERB("DONE");
     }
 }
 

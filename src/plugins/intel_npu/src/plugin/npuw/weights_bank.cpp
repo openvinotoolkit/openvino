@@ -46,14 +46,13 @@ ov::Tensor Bank::get(const ov::Tensor& tensor) {
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name) {
     std::lock_guard<std::mutex> guard(m_mutex);
 
-    // Extend ptr lifetime until obtained
-    std::shared_ptr<Bank> bank = nullptr;
-    if (m_bank_map.find(bank_name) == m_bank_map.end()) {
-        bank = std::make_shared<Bank>();
+    auto iter = m_bank_map.find(bank_name);
+    if (iter == m_bank_map.end()) {
+        auto bank = std::make_shared<Bank>();
         m_bank_map[bank_name] = bank;
+        return bank;
     }
-
-    return m_bank_map[bank_name].lock();
+    return iter->second.lock();
 }
 
 std::shared_ptr<Bank> ov::npuw::weights::bank(const std::string& bank_name) {
