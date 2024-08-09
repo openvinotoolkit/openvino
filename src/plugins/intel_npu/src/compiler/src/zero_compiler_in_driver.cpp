@@ -329,7 +329,7 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
         for (const std::shared_ptr<ov::op::v0::Parameter>& parameter : parameters) {
             const std::string& name = parameter->get_friendly_name();
             const ov::element::Type& precision = parameter->get_element_type();
-            const size_t rank = parameter->get_shape().size();
+            const size_t rank = parameter->get_output_partial_shape(0).size();
 
             if (name != firstInputName) {
                 inputsPrecisionSS << VALUES_SEPARATOR;
@@ -353,7 +353,7 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
     for (const std::shared_ptr<ov::op::v0::Result>& result : results) {
         const std::string& name = result->get_input_node_ptr(0)->get_friendly_name();
         const ov::element::Type_t precision = result->get_element_type();
-        const size_t rank = result->get_shape().size();
+        const size_t rank = result->get_output_partial_shape(0).size();
 
         if (name != firstOutputName) {
             outputsPrecisionSS << VALUES_SEPARATOR;
