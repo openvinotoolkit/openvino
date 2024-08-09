@@ -302,9 +302,9 @@ interface CompiledModel {
   /** It gets all outputs of a compiled model. */
   outputs: Output[];
   /**
-   * It gets property for current compiled model.
-   * @param propertyName A string to get property value.
-   * @returns property value.
+   * It gets the property for the current compiled model.
+   * @param propertyName A string to get the property value.
+   * @returns The property value.
    */
   getProperty(propertyName: string): string | number | boolean;
   /**
@@ -356,11 +356,12 @@ interface CompiledModel {
    */
   input(name: string): Output;
    /**
-   * It sets properties for current compiled model. Properties
+   * It sets properties for the current compiled model. Properties
    * can be retrieved via {@link CompiledModel.getProperty}.
-   * @param property The object to set properties for current compiled model.
+   * @param property An object with the key-value pairs.
+   * (property name, property value)
    */
-   setProperty(property: {
+   setProperty(properties: {
       [propertyName: string]: string | number | boolean
     }): void;
 }
