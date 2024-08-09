@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include "intel_gpu/runtime/tensor.hpp"
 #include "intel_gpu/runtime/layout.hpp"
-#include "intel_gpu/runtime/device.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 

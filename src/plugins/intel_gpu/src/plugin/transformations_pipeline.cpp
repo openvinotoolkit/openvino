@@ -70,7 +70,9 @@
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/group_norm_composition.hpp"
+#include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -545,7 +547,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     if (auto axes_node = dynamic_cast<ov::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
                         auto mvn_axes = axes_node->cast_vector<int64_t>();
                         auto out_rank = mvn->get_output_partial_shape(0).size();
-                        ov::util::normalize_axes(mvn.get(), out_rank, mvn_axes);
+                        ov::util::try_normalize_axes(mvn_axes, out_rank, *mvn);
 
                         std::sort(mvn_axes.begin(), mvn_axes.end());
 
@@ -777,6 +779,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
     {
         ov::pass::Manager manager("GPU:PostLPT");
+        manager.set_per_pass_validation(false);
 
         // Other ops support eltwise fusions
         const std::vector<DiscreteTypeInfo> allowed_data_movement_ops = {
@@ -846,6 +849,27 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
+
+        manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
+
+        auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
+        if (device_info.supports_immad) { // XXX: 1048576 is considered per-token
+            pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
+                if (root->get_input_node_shared_ptr(0)->get_element_type() == ov::element::Type_t::f32) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  Dynamic quantization is turned off because input type is not supported" << std::endl;
+                    return true;
+                }
+
+                auto weight_shape = root->get_input_partial_shape(1);
+                const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
+                if (innermost_size < 32) {
+                    GPU_DEBUG_TRACE << "Dynamic quantization: shape is too small " << innermost_size << " / " << dynamic_quantization_group_size << std::endl;
+                    return true;
+                }
+                return false;
+            });
+            manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size);
+        }
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation

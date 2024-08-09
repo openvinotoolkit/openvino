@@ -28,11 +28,10 @@
 #include "transformations/snippets/aarch64/shape_inference.hpp"
 #else
 #include "emitters/snippets/x64/cpu_generator.hpp"
-#include "transformations/snippets/x64/pass/lowered/brgemm_blocking.hpp"
+#include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 #include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
 #include "transformations/snippets/x64/pass/lowered/set_brgemm_copy_b_buffers_shape.hpp"
 #include "transformations/snippets/x64/pass/remove_converts.hpp"
-#include "transformations/snippets/x64/pass/set_brgemm_cpu_blocking_params.hpp"
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "transformations/snippets/x64/shape_inference.hpp"
@@ -56,6 +55,7 @@ std::mutex err_print_lock;
 #include "transformations/tpp/x64/pass/eltwise_to_eltwise_tpp.hpp"
 #include "transformations/tpp/x64/pass/scalar_to_scalar_tpp.hpp"
 #include "transformations/tpp/x64/pass/lowered/set_tpp_leading_dim.hpp"
+#include "transformations/tpp/x64/pass/lowered/brgemm_tpp_blocking.hpp"
 #endif
 
 namespace ov {
@@ -648,8 +648,6 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() const {
     }
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before, ov::snippets::pass::PropagatePrecision,
                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU);
-    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::intel_cpu::pass::BrgemmToBrgemmCPU,
-                                           ov::intel_cpu::pass::SetBrgemmCPUBlockingParams);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
 
@@ -682,13 +680,15 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
 #endif  // OPENVINO_ARCH_X86_64
 
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::snippets::lowered::pass::MarkLoops,
-                                    ov::intel_cpu::pass::BrgemmBlocking);
+                                    ov::intel_cpu::pass::BrgemmCPUBlocking);
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::snippets::lowered::pass::InsertLoops,
                                     ov::intel_cpu::pass::FuseLoadStoreConvert);
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
                                     ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
+    SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::intel_cpu::pass::BrgemmCPUBlocking,
+                                    ov::intel_cpu::tpp::pass::BrgemmTPPBlocking);
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
                                     ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
 #endif
@@ -746,15 +746,34 @@ void Subgraph::prepareParams() {
     const auto cache = context->getParamsCache();
 
     auto builder = [this, cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphExecutor> {
-        const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(subgraph_attrs->snippet->update_runtime_config());
-        // Firstly, find the schedule in the cache
-        const auto code_gen_result = cache->getOrCreate(SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
-                                                        [&snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
-                                                            return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config);
-                                                        });
+        const auto& snippet = subgraph_attrs->snippet;
         if (is_dynamic) {
-            return std::make_shared<SubgraphDynamicSpecializedExecutor>(key.attrs, code_gen_result.first, start_offset_in, start_offset_out, snippet_config);
+            // Dynamic case:
+            // 1. Generate JIT code if needed
+            // 2. Update runtime config with dynamic values
+            //    If JIT code has been taken from cache, need to set cached kernel executor table for the configuration
+            // 3. Create SubgraphDynamicSpecializedExecutor
+            const auto code_gen_result = cache->getOrCreate(SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
+                                                            [](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
+                                                                return std::make_shared<SubgraphCodeGenerator>(key.attrs, std::make_shared<CPURuntimeConfig>());
+                                                            });
+            const auto& code_gen = code_gen_result.first;
+            // [148644] : Update Kernel table from SubgraphCodeGenerator when JIT code was already generated with specific Kernel table
+            if (code_gen_result.second == CacheEntryBase::LookUpStatus::Hit) {
+                snippet->get_runtime_configurator()->set_kernel_executor_table(code_gen->get()->lowering_result.kernel_executor_table);
+            }
+            const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
+            return std::make_shared<SubgraphDynamicSpecializedExecutor>(key.attrs, code_gen, start_offset_in, start_offset_out, snippet_config);
         } else {
+            // Static case:
+            // 1. Update runtime config to get static scheduling data (io data offsets, parallel domain) which will be compiled in JIT code
+            // 2. Generate JIT code with this static data if needed
+            // 3. Create SubgraphStaticExecutor
+            const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
+            const auto code_gen_result = cache->getOrCreate(SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
+                                                            [&snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
+                                                                return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config);
+                                                            });
             return std::make_shared<SubgraphStaticExecutor>(key.attrs, code_gen_result.first, start_offset_in, start_offset_out, snippet_config);
         }
     };
