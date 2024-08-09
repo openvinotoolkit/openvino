@@ -47,7 +47,7 @@ public:
         return std::make_shared<ov::Model>(results, params);
     }
 
-    std::shared_ptr<ov::Model> get_model_with_repeated_blocks() {
+    std::shared_ptr<ov::Model> get_model_with_repeated_blocks(std::size_t repetitions) {
         // Generate head
         std::shared_ptr<ov::op::v0::Parameter> input = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 1, 40});
         m_nodes.push_back(input);
@@ -72,7 +72,7 @@ public:
         std::vector<std::shared_ptr<ov::Node>> outputs;
         outputs.push_back(output);
 
-        for (size_t i = 0; i < 9; ++i) {
+        for (size_t i = 0; i < repetitions - 1; ++i) {
             output = get_block(output);
             outputs.push_back(output);
         }
@@ -80,7 +80,7 @@ public:
         // Generate tail
         std::vector<std::shared_ptr<ov::Node>> tail(6, nullptr);
         tail[0] = std::make_shared<ov::op::v0::Concat>(outputs, -1);
-        tail[1] = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int>{1, 20, 20});
+        tail[1] = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int>{1, 40, int(repetitions)});
         tail[2] = std::make_shared<ov::op::v1::Reshape>(tail[0], tail[1], false);
         tail[3] = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1, 1, 1});
         tail[4] = std::make_shared<ov::op::v1::Multiply>(tail[2], tail[3]);
@@ -178,6 +178,10 @@ public:
         }
 
         return op[15];
+    }
+
+    std::shared_ptr<ov::Model> get_model_with_repeated_blocks() {
+        return get_model_with_repeated_blocks(10);
     }
 
 private:

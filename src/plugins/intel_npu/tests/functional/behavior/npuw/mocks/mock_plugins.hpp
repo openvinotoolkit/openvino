@@ -7,6 +7,7 @@
 #include <gmock/gmock.h>
 
 #include <memory>
+#include <utility>
 
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -56,7 +57,7 @@ public:
     MockCompiledModelBase(
             const std::shared_ptr<const ov::Model>& model, std::shared_ptr<ov::IPlugin> plugin,
             const ov::AnyMap& config,
-            std::shared_ptr<std::pair<std::function<void(MockInferRequest&)>, bool>> infer_req_expectations);
+            std::shared_ptr<std::map<int, std::pair<std::function<void(MockInferRequest&)>, bool>>> infer_reqs_to_expectations);
 
     // Methods from a base class ov::ICompiledModel
     MOCK_METHOD(const std::vector<ov::Output<const ov::Node>>&, outputs, (), (const, override));
@@ -73,7 +74,8 @@ public:
 
 private:
     std::mutex m_mock_creation_mutex;
-    std::shared_ptr<std::pair<std::function<void(MockInferRequest&)>, bool>> m_infer_req_expectations_ptr;
+    int m_num_created_infer_requests{};
+    std::shared_ptr<std::map<int, std::pair<std::function<void(MockInferRequest&)>, bool>>> m_infer_reqs_to_expectations_ptr;
 
     std::shared_ptr<const ov::Model> m_model;
     ov::AnyMap m_config;
@@ -118,7 +120,7 @@ public:
     // This must be called *before* the custom ON_CALL() statements.
     void create_implementation();
     void set_expectations_to_comp_models(int model_idx, std::function<void(MockCompiledModel&)> expectations);
-    void set_expectations_to_infer_reqs(int req_idx, std::function<void(MockInferRequest&)> expectations);
+    void set_expectations_to_infer_reqs(int model_idx, int req_idx, std::function<void(MockInferRequest&)> expectations);
 
     ~MockPluginBase() override;
 
@@ -128,7 +130,7 @@ private:
     int m_num_compiled_models{};
     // TODO: Make thread-safe and simplify.
     std::map<int, std::pair<std::function<void(MockCompiledModel&)>, bool>> m_models_to_expectations;
-    std::map<int, std::shared_ptr<std::pair<std::function<void(MockInferRequest&)>, bool>>> m_infer_reqs_to_expectations;
+    std::map<int, std::shared_ptr<std::map<int, std::pair<std::function<void(MockInferRequest&)>, bool>>>> m_models_to_reqs_to_expectations;
 
     // Properties
     int32_t num_streams{0};
