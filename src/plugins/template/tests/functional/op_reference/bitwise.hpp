@@ -6,8 +6,10 @@
 
 #include "base_reference_test.hpp"
 #include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
 #include "openvino/op/bitwise_not.hpp"
 #include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/bitwise_xor.hpp"
 
 using namespace ov;
@@ -15,7 +17,7 @@ using namespace ov;
 namespace reference_tests {
 namespace BitwiseOpsRefTestDefinitions {
 
-enum BitwiseTypes { BITWISE_AND, BITWISE_NOT, BITWISE_OR, BITWISE_XOR };
+enum BitwiseTypes { BITWISE_AND, BITWISE_NOT, BITWISE_OR, BITWISE_XOR, BITWISE_RIGHT_SHIFT, BITWISE_LEFT_SHIFT };
 
 struct RefBitwiseParams {
     BitwiseTypes opType;
@@ -76,6 +78,14 @@ private:
         }
         case BitwiseTypes::BITWISE_XOR: {
             bitwise_op = std::make_shared<ov::op::v13::BitwiseXor>(params_vec[0], params_vec[1]);
+            break;
+        }
+        case BitwiseTypes::BITWISE_RIGHT_SHIFT: {
+            bitwise_op = std::make_shared<ov::op::v15::BitwiseRightShift>(params_vec[0], params_vec[1]);
+            break;
+        }
+        case BitwiseTypes::BITWISE_LEFT_SHIFT: {
+            bitwise_op = std::make_shared<ov::op::v15::BitwiseLeftShift>(params_vec[0], params_vec[1]);
             break;
         }
         }

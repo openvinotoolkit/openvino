@@ -14,8 +14,10 @@
 #include "openvino/op/atan.hpp"
 #include "openvino/op/atanh.hpp"
 #include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
 #include "openvino/op/bitwise_not.hpp"
 #include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/cos.hpp"
@@ -173,6 +175,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"BitwiseAnd", CreatorFunction(translate_binary_op<v13::BitwiseAnd>)},
         {"BitwiseOr", CreatorFunction(translate_binary_op<v13::BitwiseOr>)},
         {"BitwiseXor", CreatorFunction(translate_binary_op<v13::BitwiseXor>)},
+        {"RightShift", CreatorFunction(translate_binary_op<v15::BitwiseRightShift>)},
+        {"LeftShift", CreatorFunction(translate_binary_op<v15::BitwiseLeftShift>)},
         {"Div", CreatorFunction(translate_div_op)},
         {"Equal", CreatorFunction(translate_binary_op<v1::Equal>)},
         {"FloorMod", CreatorFunction(translate_binary_op<v1::FloorMod>)},
