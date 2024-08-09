@@ -463,7 +463,7 @@ double LinearIR::get_inserted_expr_exec_num(constExprIt insertion_pos) const {
 
         // sync point to enumerate expressions
         // 10 * eps - is to avoid meaningless result after (right_order + left_order) / 2 below
-        if ((1 - left_order/right_order) <= 10 * std::numeric_limits<double>::epsilon()) {
+        if (std::abs(1 - left_order/right_order) <= 10 * std::numeric_limits<double>::epsilon()) {
             enumerate_expressions();
             left_order = left_pos->get()->get_exec_num();
             right_order = right_pos->get()->get_exec_num();

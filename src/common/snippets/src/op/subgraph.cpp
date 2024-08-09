@@ -398,13 +398,17 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::data_flow_transformations")
 
-    ov::snippets::pass::Manager manager;
+    std::shared_ptr<ov::pass::PassConfig> pass_config = std::make_shared<ov::pass::PassConfig>();
     // If subgraph has its own specific canonicalization, which is different with common behavior, will skip the this common one.
     // for example in GN, scale and bias shape [c] are canonicalized to [1,c,1,1], not [1,1,1,c]. Common canonicalization is disabled in this case.
-    if (!blocked_input_shapes.empty() && !config.m_has_broadcast_sensitive_ops)
-        manager.register_pass<snippets::pass::Canonicalization>(blocked_input_shapes);
-    if (!input_precisions.empty() && !output_precisions.empty())
-        manager.register_pass<snippets::pass::AlignElementTypes>(input_precisions, output_precisions);
+    if (blocked_input_shapes.empty() || config.m_has_broadcast_sensitive_ops)
+        pass_config->disable<snippets::pass::Canonicalization>();
+    if (input_precisions.empty() || output_precisions.empty())
+        pass_config->disable<snippets::pass::AlignElementTypes>();
+
+    ov::snippets::pass::Manager manager(pass_config, "SnippetsDataFlowManager");
+    manager.register_pass<snippets::pass::Canonicalization>(blocked_input_shapes);
+    manager.register_pass<snippets::pass::AlignElementTypes>(input_precisions, output_precisions);
 
     if (config.m_has_domain_sensitive_ops) {
         manager.register_pass<snippets::pass::MatMulToBrgemm>();
@@ -533,21 +537,17 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
     // Note: to not corrupt the lowered linear IR for the shape-dependent passes, we have to make a copy
     OPENVINO_ASSERT(m_linear_ir, "Attempt to call generate, when linear IR was not initialized");
     ov::snippets::lowered::ExpressionMap expression_map;
-    auto linear_ir = *lowered::LinearIRBuilder().clone(m_linear_ir, expression_map);
+    const auto linear_ir = lowered::LinearIRBuilder().clone(m_linear_ir, expression_map);
 
     if (is_dynamic()) {
         ov::snippets::lowered::pass::PassPipeline shape_dependent_pipeline;
         shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::SetLoadStoreScalar>();
         shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::InsertBroadcastMove>();
         shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
-        shape_dependent_pipeline.run(linear_ir);
+        shape_dependent_pipeline.run(*linear_ir);
     }
 
     auto lowering_result = m_generator->generate(linear_ir, compile_params);
-    // Some kernel executors might've been registered during code emission.
-    //  We need to update them, so appropriate kernels will be compiled.
-    const auto& exec_table = get_runtime_configurator()->get_kernel_executor_table();
-    exec_table->update_state(m_linear_ir);
     return {std::move(lowering_result)};
 }
 
