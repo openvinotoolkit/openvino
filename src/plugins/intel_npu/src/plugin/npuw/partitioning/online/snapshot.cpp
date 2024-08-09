@@ -702,7 +702,7 @@ void Snapshot::mergeUniques() {
 
     std::unordered_set<std::shared_ptr<Repeated>> merged_this_time;
 
-    for (const auto& nh : m_graph->nodes()) {
+    for (const auto& nh : m_graph->sorted()) {
         if (!m_graph->contains(nh)) {
             continue;
         }
