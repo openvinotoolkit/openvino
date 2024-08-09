@@ -4,12 +4,12 @@
 
 #include "snippets/lowered/pass/split_loops.hpp"
 
-#include "snippets/lowered/pass/fuse_loops.hpp"
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/pass/fuse_loops.hpp"
 #include "snippets/lowered/pass/iter_handler.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
@@ -46,7 +46,6 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
         // Note: we currently consider only the outermost loops for splitting
         // Splitting could also be done in a more general case, but the splitted loop and its parent must always
         // be in the same set of outer loops. Otherwise they won't be fused.
-        // TODO: need extend to support inner loop for K/V matrix
         const auto& loop_id = loop_ids.front();
         const auto loop = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
         for (const auto& input_port : loop->get_input_ports()) {
@@ -100,6 +99,75 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
                 break;
             }
         }
+
+        const auto& loop_id_innermost = loop_ids.back();
+        const auto loop_innermost = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id_innermost);
+        for (const auto& input_port : loop_innermost->get_input_ports()) {
+            const auto& parent_port = input_port.expr_port->get_port_connector_ptr()->get_source();
+            const auto& parent_expr = parent_port.get_expr();
+            const auto& parent_loop_ids = parent_expr->get_loop_ids();
+            if (parent_loop_ids.empty())
+                continue;
+            const auto& parent_loop_id = parent_loop_ids.back();
+            const auto parent_loop = loop_manager->get_loop_info<UnifiedLoopInfo>(parent_loop_id);
+
+            const bool split_parent = parent_loop->get_increment() < loop->get_increment();
+            const auto upper_loop = std::make_shared<UnifiedLoopInfo>(*parent_loop);
+            const auto lower_loop = std::make_shared<UnifiedLoopInfo>(*loop);
+            if (split_parent)
+                upper_loop->set_increment(loop->get_increment());
+            else
+                lower_loop->set_increment(parent_loop->get_increment());
+
+            const auto& loop_to_split = split_parent ? parent_loop : loop;
+            const auto& loop_to_fuse = !split_parent ? parent_loop : loop;
+            if (FuseLoops::can_be_fused(upper_loop, lower_loop) && can_be_split(loop_to_split, loop_to_fuse)) {
+                loop_was_split = true;
+                loop_to_split->set_work_amount(loop_to_fuse->get_increment());
+                loop_to_split->set_work_amount_const(true);
+
+                const auto& loop_to_split_id = split_parent ? parent_loop_id : loop_id;
+                const auto loop_bounds = LoopManager::get_loop_bounds(linear_ir, loop_to_split_id,
+                                                                      loop_to_split->get_input_ports(),
+                                                                      loop_to_split->get_output_ports());
+                const auto split_loop_id = loop_manager->mark_loop(loop_bounds.first,
+                                                                   loop_bounds.second,
+                                                                   loop_to_fuse->get_work_amount(),
+                                                                   loop_to_fuse->get_increment(),
+                                                                   loop_to_split->get_dim_idx(),
+                                                                   loop_to_split->get_input_ports(),
+                                                                   loop_to_split->get_output_ports());
+                const auto& new_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(split_loop_id);
+                const auto work_amount = loop_to_fuse->get_work_amount();
+                const auto increment = loop_to_fuse->get_increment();
+                const auto tail_size = work_amount % increment;
+                auto new_handlers = loop_to_split->get_handlers();
+                if (tail_size != 0) {
+                    new_handlers.register_pass<SpecificLoopIterType::LAST_ITER, TransformInnerSplitLoop>(tail_size);
+                }
+                new_loop_info->set_handlers(new_handlers);
+                // if innermost loop not same depth, move outter
+                if (parent_loop_ids.size() != loop_ids.size()) {
+                    const auto common_outer_loop_ids = loop_manager->get_common_outer_loops(expr, parent_expr);
+                    if (split_parent) {
+                        auto parent_loop_ids = parent_expr->get_loop_ids();
+                        auto size = parent_loop_ids.size();
+                        auto last_id = parent_loop_ids[size - 1];
+                        parent_loop_ids[size - 1] = parent_loop_ids[size - 2];
+                        parent_loop_ids[size - 2] = last_id;
+                        parent_expr->set_loop_ids(parent_loop_ids);
+                    } else {
+                        auto loop_ids = expr->get_loop_ids();
+                        auto size = loop_ids.size();
+                        auto last_id = loop_ids[size - 1];
+                        loop_ids[size - 1] = loop_ids[size - 2];
+                        loop_ids[size - 2] = last_id;
+                        expr->set_loop_ids(loop_ids);
+                    }
+                }
+                break;
+            }
+        }
     }
     // Ticket: 113666
     // FuseLoops pass is explicitly run here in order to avoid unnecessary computations
@@ -108,7 +176,7 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
         FuseLoops().run(linear_ir, begin, end);
     return loop_was_split;
 }
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov
