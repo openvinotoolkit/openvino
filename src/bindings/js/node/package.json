@@ -18,7 +18,8 @@
     "build": "npm run tsc",
     "prepare": "npm run build",
     "lint": "eslint .",
-    "test": "node --test ./tests/unit/*.test.js",
+    "test_setup": "node ./tests/unit/setup.js",
+    "test": "npm run test_setup && node --test ./tests/unit/*.test.js",
     "test:e2e": "mocha ./tests/e2e/electron-app.test.js",
     "tsc": "tsc",
     "postinstall": "npm run install_runtime",
@@ -38,6 +39,7 @@
     "node": ">=21.0.0"
   },
   "dependencies": {
+    "follow-redirects": "^1.15.6",
     "gunzip-maybe": "^1.4.2",
     "https-proxy-agent": "^7.0.2",
     "tar-fs": "^3.0.4"

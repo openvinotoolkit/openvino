@@ -4,7 +4,9 @@
 
 const path = require('path');
 
-module.exports = { getModelPath };
+module.exports = {
+  getModelPath,
+};
 
 function getModelPath(isFP16=false) {
   const basePath = 'tests/unit/test_models/';
