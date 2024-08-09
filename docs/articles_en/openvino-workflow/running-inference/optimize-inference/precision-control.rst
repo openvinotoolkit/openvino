@@ -82,11 +82,11 @@ and ``f16``, so if a user wants to an application that uses multiple devices, th
 to handle all these combinations manually or let OV do it automatically by using higher
 level ``execution_mode`` property.
 
- .. note::
+.. note::
 
-    While using ``execution_mode``, you need to be aware that use of the **ACCURACY mode**
-    will result in enabling ``f32`` inference precision, but it will also disable
-    the :ref:`Dynamic Quantization <enabling-runtime-optimizations>`.
+   While using ``execution_mode``, you need to be aware that use of the **ACCURACY mode**
+   will result in enabling ``f32`` inference precision, but it will also disable
+   the :ref:`Dynamic Quantization <enabling-runtime-optimizations>`.
 
 Another thing is that ``inference_precision`` is also a hint, so the value provided is not guaranteed
 to be used by Runtime (mainly in cases where the current device does not have the required hardware
