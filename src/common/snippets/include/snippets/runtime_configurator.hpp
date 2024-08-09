@@ -43,6 +43,7 @@ public:
     ov::snippets::VectorDims master_shape = {};
 
     size_t buffer_scratchpad_size = 0;
+    int buffer_output_inplace = -1;
     std::vector<size_t> buffer_cluster_offsets {};
     KernelExecutorTablePtr kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
 };

@@ -70,6 +70,8 @@ DefineBufferClusters::BufferPorts DefineBufferClusters::get_output_buffers(const
     const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_expr->get_node());
     const auto in_count = loop_end->get_input_num();
     const auto out_count = loop_end->get_output_num();
+    // in_connector and out_connector is continous?
+    // io_size == input size, out buffer is still input, need change pointer of output
     const auto& connectors = loop_expr->get_input_port_connectors();
 
     for (size_t i = in_count; i < in_count + out_count; ++i) {
