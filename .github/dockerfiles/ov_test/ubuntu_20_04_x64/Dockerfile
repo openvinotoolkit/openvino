@@ -19,34 +19,22 @@ RUN apt-get update && \
     apt-get install \
         curl \
         git \
-        ca-certificates \
         gpg-agent \
         tzdata \
-        # Python
-        python3.11-dev \
-        python3.11-venv \
-        python3.11-distutils \
         libhdf5-dev \
         && \
     rm -rf /var/lib/apt/lists/*
 
-# Install build dependencies
-ADD install_build_dependencies.sh /install_build_dependencies.sh
-RUN chmod +x /install_build_dependencies.sh && \
-    /install_build_dependencies.sh && \
+# Install openvino dependencies
+ADD scripts/install_dependencies/install_openvino_dependencies.sh /install_openvino_dependencies.sh
+RUN chmod +x /install_openvino_dependencies.sh && \
+    /install_openvino_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.8 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
-    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
-# Use Python 3.11 as default instead of Python 3.8
-# Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
-RUN python3.11 -m venv venv
-ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
-
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
-ENV PIP_INSTALL_PATH=/venv/lib/python3.11/site-packages

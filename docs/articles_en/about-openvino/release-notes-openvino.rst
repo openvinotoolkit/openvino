@@ -52,10 +52,8 @@ Common
 * OpenVINO may now be used as a backend for vLLM, offering better CPU performance due to
   fully-connected layer optimization, fusing multiple fully-connected layers (MLP), U8 KV cache,
   and dynamic split fuse.
-* OpenVINO is now integrated with vLLM and offers better CPU performance with its serving, due
-  to fully connected layer optimization, fusing multiple fully-connected layers (MLP), U8 KV
-  cache, and dynamic split fuse.
-* Ubuntu 24.04 is now officially supported, which means OpenVINO is now validated on this system.
+* Ubuntu 24.04 is now officially supported, which means OpenVINO is now validated on this
+  system (preview support).
 * The following have been improved:
 
   * Increasing support for models like YoloV10 or PixArt-XL-2, thanks to enabling Squeeze and
@@ -118,12 +116,11 @@ NPU Device Plugin
 OpenVINO Python API
 -----------------------------
 
-* visit_attributes is now available in custom operation implemented in Python, so you may pass
-  a dictionary of attributes, i.e. {"name1": value1, "name2": value2...}, instead of multiple
-  on_attribute methods (as in C++).
-* ReadValue or NodeFactory can now be used to benefit different use cases, for reduced code
-  complexity.
-* Kwargs overloading is now supported.
+* visit_attributes is now available for custom operation implemented in Python, enabling
+  serialization of operation attributes.
+* Python API is now extended with new methods for Model class, e.g. Model.get_sink_index, new
+  overloads for Model.get_result_index.
+
 
 OpenVINO Node.js API
 -----------------------------
@@ -279,7 +276,7 @@ Known Issues
 |   The OpenVINO.GenAI archive distribution doesn't include debug libraries for OpenVINO
     Tokenizers and OpenVINO.GenAI.
 
-| **Component: OpenVINO.GenAI**
+| **Component: GPU**
 | ID: 146283
 | Description:
 |   For some LLM models, longer prompts, such as several thousand tokens, may result in

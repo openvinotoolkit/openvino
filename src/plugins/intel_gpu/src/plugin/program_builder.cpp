@@ -381,7 +381,7 @@ void validate_inputs_count(const std::shared_ptr<ov::Node>& op, std::vector<size
         }
     }
 
-    OPENVINO_THROW("Invalid inputs count (", op->get_input_size(), ") in )",
+    OPENVINO_THROW("Invalid inputs count (", op->get_input_size(), ") in ",
                    op->get_friendly_name(), " (", op->get_type_name(),
                    " ", op->get_type_info().version_id, ")");
 }

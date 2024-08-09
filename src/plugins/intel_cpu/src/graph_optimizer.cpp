@@ -289,7 +289,8 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
 }
 
 void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
-    std::set<ov::element::Type> supportedWeightsPrecisions{ov::element::u8, ov::element::i8, ov::element::nf4, ov::element::u4, ov::element::i4};
+    std::set<ov::element::Type> supportedWeightsPrecisions{
+        ov::element::u8, ov::element::i8, ov::element::nf4, ov::element::u4, ov::element::i4, ov::element::f4e2m1};
     const std::set<ov::element::Type> supportedDataPrecisions{ov::element::f32, ov::element::bf16};
     auto expectedNode = [](NodePtr node, Type expectedType) {
         return node->getType() == expectedType && node->getChildEdges().size() == 1;
@@ -329,16 +330,24 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         }
 
         CPU_GRAPH_OPTIMIZER_SCOPE(FuseFCAndWeightsDecompression);
-        const auto multiplyConstNode = multiplyNode->getParentEdgeAt(1)->getParent();
+        const auto mulParent1 = multiplyNode->getParentEdgeAt(1)->getParent();
+        NodePtr multiplyParent, multiplyConvertNode, multiplyConstNode;
+        multiplyParent = mulParent1;
+        if (multiplyParent->getType() == Type::Convert) {
+            multiplyConvertNode = multiplyParent;
+            multiplyParent = multiplyConvertNode->getParentEdgeAt(0)->getParent();
+        }
+        multiplyConstNode = multiplyParent;
         if (multiplyConstNode->getType() != Type::Input) {
             SKIP_FUSION_FOR_NODE(fcNode);
         }
+        const bool withMultiplyConvert = multiplyConvertNode != nullptr;
 
-        const auto mulParent = multiplyNode->getParentEdgeAt(0)->getParent();
-        const bool withSubtract = mulParent->getAlgorithm() == Algorithm::EltwiseSubtract;
+        const auto mulParent0 = multiplyNode->getParentEdgeAt(0)->getParent();
+        const bool withSubtract = mulParent0->getAlgorithm() == Algorithm::EltwiseSubtract;
         NodePtr subtractNode, subtractConvertNode, subtractConstNode;
         if (withSubtract) {
-            subtractNode = mulParent;
+            subtractNode = mulParent0;
             if (!expectedNode(subtractNode, Type::Eltwise)) {
                 SKIP_FUSION_FOR_NODE(fcNode);
             }
@@ -354,7 +363,7 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         }
 
         const bool withSubtractConvert = subtractConvertNode != nullptr;
-        const auto convertNode = withSubtract ? subtractNode->getParentEdgeAt(0)->getParent() : mulParent;
+        const auto convertNode = withSubtract ? subtractNode->getParentEdgeAt(0)->getParent() : mulParent0;
         if (!expectedNode(convertNode, Type::Convert)) {
             SKIP_FUSION_FOR_NODE(fcNode);
         }
@@ -461,6 +470,8 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             fcNode->addOriginalLayer(subtractNode->getOriginalLayers());
         if (withSubtractConvert)
             fcNode->addOriginalLayer(subtractConvertNode->getOriginalLayers());
+        if (withMultiplyConvert)
+            fcNode->addOriginalLayer(multiplyConvertNode->getOriginalLayers());
 
         const auto& weightsPrecision = weightsNode->getOriginalOutputPrecisionAtPort(0);
         if (withTranspose) {
@@ -511,6 +522,12 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
                     graph.RemoveEdge(subtractConvertNode->getParentEdgeAt(0));
             }
             graph.RemoveEdge(multiplyNode->getParentEdgeAt(1));
+            if (withMultiplyConvert) {
+                // MultiplyConvert is removed only if there are no other consumers (e.g. CompressedGather)
+                const auto& restChilds = multiplyConvertNode->getChildEdges();
+                if (restChilds.empty())
+                    graph.RemoveEdge(multiplyConvertNode->getParentEdgeAt(0));
+            }
 
             graph.DropNode(convertNode);
             if (withSubtract)
