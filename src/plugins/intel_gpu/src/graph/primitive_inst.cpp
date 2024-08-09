@@ -30,8 +30,9 @@
 #include "condition_inst.h"
 #include "gather_inst.h"
 #include "broadcast_inst.h"
+#include "dynamic_quantize_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
 
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -39,7 +40,6 @@
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 
@@ -454,6 +454,28 @@ void primitive_inst::update_shape() {
     }
 }
 
+kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param) {
+    auto updated_params = _node->type()->get_fake_aligned_params(orig_impl_param);
+
+    const auto &dev_info = get_node().get_program().get_engine().get_device_info();
+
+    // The target HW of this patch is limited because of performance concern
+    if (dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu) {
+        // Check whether the input node has enough space for output data. Otherwise, fake alignment is not possible due to page fault
+        // i.e. predecessor node was supposed be increased already
+        if (get_node().is_type<fully_connected>() && dependencies().size() > 0 && dep_memory(0).get_layout().is_static()
+            && dep_memory(0).count() < updated_params.input_layouts[0].count()) {
+            GPU_DEBUG_TRACE_DETAIL << "Roll back fake_aligned params for " << id()
+                << "  allocated: " << dep_memory(0).count()
+                << "  required: " << updated_params.input_layouts[0].count()
+                << std::endl;
+            updated_params = *_impl_params;
+        }
+    }
+    return updated_params;
+}
+
+
 event::ptr primitive_inst::realloc_if_needed() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_if_needed: " + id()));
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -475,7 +497,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     // Update param if fake_alignment is available
-    auto updated_params = get_fake_aligned_params(*_impl_params);
+    auto updated_params = get_fake_aligned_params_if_possible(*_impl_params);
 
     const auto& actual_layouts = updated_params.output_layouts;
     OPENVINO_ASSERT(actual_layouts[0].is_static(), "[GPU] Can't realloc mem for dynamic layout");
@@ -497,7 +519,7 @@ event::ptr primitive_inst::realloc_if_needed() {
             // Reuse state memory as output for kv cache if possible
             // otherwise clear _outputs for the cases when mem was reused previously
             if (_impl_params->can_be_optimized()) {
-                GPU_DEBUG_TRACE_DETAIL << id() << " : realloc_if_needed: Set kvcache output memmory as variable memory " << variable.get_memory()->buffer_ptr()
+                GPU_DEBUG_TRACE_DETAIL << id() << " : realloc_if_needed: Set kvcache output memory as variable memory " << variable.get_memory()->buffer_ptr()
                                     << " (ptr: " << variable.get_memory()->buffer_ptr()
                                     << ", actual_size: " << variable.get_actual_mem_size()/8 << " bytes"
                                     << ", variable layout " << variable.get_layout().to_short_string() << ")" << std::endl;
@@ -595,11 +617,20 @@ event::ptr primitive_inst::realloc_if_needed() {
                     user->set_shape_change();
                 user->update_shape_done_by_other = true;
                 auto fc_impl_params = *user->_impl_params;
-                auto fc_input_layout = get_fake_aligned_params(fc_impl_params).input_layouts[0];
+                auto fc_input_layout = user->get_node().type()->get_fake_aligned_params(fc_impl_params).input_layouts[0];
                 if (fc_input_layout.bytes_count() > updated_layouts[dep_idx].bytes_count()) {
-                    GPU_DEBUG_TRACE_DETAIL << id() << ": increase output layout allocation size from " << actual_layouts[dep_idx].to_short_string() << " -> "
+                    GPU_DEBUG_TRACE_DETAIL << id() << ": increase output layout allocation size from "
+                                        << actual_layouts[dep_idx].to_short_string() << " -> "
                                         << fc_input_layout.to_short_string() << " to meet the input buffer alignment requirements for FC\n";
                     updated_layouts[dep_idx] = fc_input_layout;
+                }
+
+                // dynamic quantization is only applied to activation of FC
+                if (get_node().is_type<dynamic_quantize>()) {
+                    auto dyn_quan_scale_layout = dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(updated_layouts[dep_idx], 0);
+                    GPU_DEBUG_TRACE_DETAIL << "update layout of dynamic quantize scale parameter layout "
+                                        << dyn_quan_scale_layout[1].to_short_string() << std::endl;
+                    updated_params.output_layouts[1] = dyn_quan_scale_layout[1];
                 }
             }
         }
@@ -945,7 +976,7 @@ bool primitive_inst::update_impl(bool use_async_compilation) {
 #endif
 
         // Update param if fake_alignment is available
-        auto updated_params = get_fake_aligned_params(*_impl_params);
+        auto updated_params = get_fake_aligned_params_if_possible(*_impl_params);
         // Change weights layout of `updated_params` to original one to have valid information
         // in _impl->_weights_reorder_params about required weights format after impl selection
         if (_node->is_type<fully_connected>() || _node->is_type<convolution>() || _node->is_type<deconvolution>()) {
@@ -1011,9 +1042,7 @@ bool primitive_inst::update_impl(bool use_async_compilation) {
                 if (!can_be_optimized())  {
                     if (!is_current_impl_dynamic)
                         _impl = std::move(_dynamic_impl);
-                    auto new_impl_params = _impl->canonicalize_shapes(*_impl_params);
-                    _impl->update_dispatch_data(new_impl_params);
-                    update_shape_info_tensor(new_impl_params);
+                    _impl->update(*this, *_impl_params);
                 }
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params);

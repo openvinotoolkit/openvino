@@ -55,17 +55,28 @@ in low precision.
 
 -  `Interactive demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. |image0| image:: https://raw.githubusercontent.com/Tencent/HunyuanDiT/main/asset/framework.png
 
 Prerequisites
 -------------
 
 
+
 .. code:: ipython3
 
     %pip install -q "torch>=2.1" torchvision einops timm peft accelerate transformers diffusers huggingface-hub tokenizers sentencepiece protobuf loguru --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "nncf>=2.11" "gradio>=4.19" "pillow" "opencv-python"
-    %pip install -pre -Uq openvino --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -q "nncf>=2.12" "gradio>=4.19" "pillow" "opencv-python"
+    %pip install -Uq "openvino>=2024.3.0"
 
 .. code:: ipython3
 
@@ -790,14 +801,6 @@ Please select inference device using dropdown widget:
     tokenizer = AutoTokenizer.from_pretrained("./ckpts/t2i/tokenizer/")
     embedder_tokenizer = AutoTokenizer.from_pretrained("./ckpts/t2i/mt5")
 
-
-.. parsed-literal::
-
-    You are using the default legacy behaviour of the <class 'transformers.models.t5.tokenization_t5.T5Tokenizer'>. This is expected, and simply means that the `legacy` (previous) behavior will be used so nothing changes for you. If you want to use the new behaviour, set `legacy=False`. This should only be set if you understand what it means, and thoroughly read the reason why this was added as explained in https://github.com/huggingface/transformers/pull/24565
-    /home/ea/work/notebooks_env/lib/python3.8/site-packages/transformers/convert_slow_tokenizer.py:562: UserWarning: The sentencepiece tokenizer that you are converting to a fast tokenizer uses the byte fallback option which is not implemented in the fast tokenizers. In practice this means that the fast version of the tokenizer can produce unknown tokens whereas the sentencepiece version would have converted these unknown tokens into a sequence of byte tokens matching the original piece of text.
-      warnings.warn(
-
-
 .. code:: ipython3
 
     from hydit.constants import SAMPLER_FACTORY, NEGATIVE_PROMPT
@@ -1015,22 +1018,3 @@ Interactive demo
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    Keyboard interruption in main thread... closing server.
-

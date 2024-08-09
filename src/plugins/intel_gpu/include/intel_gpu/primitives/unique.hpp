@@ -13,6 +13,8 @@ namespace cldnn {
 struct unique_count : primitive_base<unique_count> {
     CLDNN_DECLARE_PRIMITIVE(unique_count)
 
+    unique_count() : primitive_base("", {}) {}
+
     /// @brief Constructs unique_count primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -44,6 +46,8 @@ struct unique_count : primitive_base<unique_count> {
 
 struct unique_gather : primitive_base<unique_gather> {
     CLDNN_DECLARE_PRIMITIVE(unique_gather)
+
+    unique_gather() : primitive_base("", {}) {}
 
     /// @brief Constructs unique_gather primitive.
     /// @param id This primitive id.

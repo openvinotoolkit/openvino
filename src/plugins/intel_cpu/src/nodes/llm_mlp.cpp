@@ -166,6 +166,7 @@ struct LLMMLP::Impl {
     const LLMMLPNode::Config m_config;
     DnnlScratchPadPtr m_scrachPad;
     MemoryPtr m_scratchMem;
+    uint8_t* m_scratch_base = nullptr;
 
     Linear gate_up;
     Linear down;
@@ -200,7 +201,11 @@ struct LLMMLP::Impl {
     }
 
     void setM(int M) {
-        if (m_M < M) {
+        uint8_t* cur_scratch_base = nullptr;
+        if (m_scratchMem)
+            cur_scratch_base = m_scratchMem->getDataAs<uint8_t>();
+        // new M larger than previous or the scratch pointer is changed after the following allocation
+        if (m_M < M || cur_scratch_base != m_scratch_base) {
             size_t total_scratch_size = M * m_N * sizeof(ov::bfloat16);
             std::vector<size_t> scratch_offsets;
             std::vector<size_t> scratch_C_sizes;
@@ -214,11 +219,11 @@ struct LLMMLP::Impl {
             auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, Shape{total_scratch_size});
             m_scratchMem = m_scrachPad->createScratchPadMem(newMemDesc);
 
-            auto* scratch_base = m_scratchMem->getDataAs<uint8_t>();
-            m_actUp.resize<ov::bfloat16>({static_cast<size_t>(M), static_cast<size_t>(m_N)}, reinterpret_cast<ov::bfloat16*>(scratch_base));
+            m_scratch_base = m_scratchMem->getDataAs<uint8_t>();
+            m_actUp.resize<ov::bfloat16>({static_cast<size_t>(M), static_cast<size_t>(m_N)}, reinterpret_cast<ov::bfloat16*>(m_scratch_base));
 
             for (size_t ithr = 0; ithr < m_tempC.size(); ithr++) {
-                m_tempC[ithr].resize<float>({1, scratch_C_sizes[ithr]}, reinterpret_cast<float*>(scratch_base + scratch_offsets[ithr]));
+                m_tempC[ithr].resize<float>({1, scratch_C_sizes[ithr]}, reinterpret_cast<float*>(m_scratch_base + scratch_offsets[ithr]));
             }
             m_M = M;
         }

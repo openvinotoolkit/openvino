@@ -100,7 +100,7 @@ public:
 protected:
     std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const BrgemmKernelConfig& c) const override;
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
-                       const ov::snippets::lowered::LinearIRPtr& linear_ir,
+                       const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                        BrgemmKernelConfig& config) const override;
 
     static float get_beta(const ov::snippets::lowered::LoopManagerPtr& loop_manager, int loop_id,

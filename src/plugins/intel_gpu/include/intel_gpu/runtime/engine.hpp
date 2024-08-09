@@ -94,7 +94,7 @@ public:
     bool supports_allocation(allocation_type type) const;
 
     /// Returns device structure which represents stores device capabilities
-    device_info get_device_info() const;
+    const device_info& get_device_info() const;
 
     /// Returns device object associated with the engine
     const device::ptr get_device() const;

@@ -35,10 +35,6 @@ public:
         : HashTable(other) {
         m_keys = keys;
         m_values = values;
-        // reset names of tensor corresponding to variable value
-        // that is because variable can have multiple values during inference
-        m_keys.set_names({});
-        m_values.set_names({});
         m_is_initialized = true;
         ++m_init_counter;
     }

@@ -4,9 +4,7 @@
 
 #include "register.hpp"
 #include "reorder_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
+#include "impls/registry/implementation_map.hpp"
 
 #include "openvino/op/convert.hpp"
 
@@ -84,7 +82,7 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
-    void update_dispatch_data(const kernel_impl_params& impl_param) override {}
+    void update(primitive_inst& inst, const kernel_impl_params& impl_param) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const reorder_node& arg, const kernel_impl_params& impl_param) {

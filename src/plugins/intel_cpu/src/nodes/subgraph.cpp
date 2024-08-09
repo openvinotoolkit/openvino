@@ -746,15 +746,34 @@ void Subgraph::prepareParams() {
     const auto cache = context->getParamsCache();
 
     auto builder = [this, cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphExecutor> {
-        const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(subgraph_attrs->snippet->update_runtime_config());
-        // Firstly, find the schedule in the cache
-        const auto code_gen_result = cache->getOrCreate(SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
-                                                        [&snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
-                                                            return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config);
-                                                        });
+        const auto& snippet = subgraph_attrs->snippet;
         if (is_dynamic) {
-            return std::make_shared<SubgraphDynamicSpecializedExecutor>(key.attrs, code_gen_result.first, start_offset_in, start_offset_out, snippet_config);
+            // Dynamic case:
+            // 1. Generate JIT code if needed
+            // 2. Update runtime config with dynamic values
+            //    If JIT code has been taken from cache, need to set cached kernel executor table for the configuration
+            // 3. Create SubgraphDynamicSpecializedExecutor
+            const auto code_gen_result = cache->getOrCreate(SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
+                                                            [](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
+                                                                return std::make_shared<SubgraphCodeGenerator>(key.attrs, std::make_shared<CPURuntimeConfig>());
+                                                            });
+            const auto& code_gen = code_gen_result.first;
+            // [148644] : Update Kernel table from SubgraphCodeGenerator when JIT code was already generated with specific Kernel table
+            if (code_gen_result.second == CacheEntryBase::LookUpStatus::Hit) {
+                snippet->get_runtime_configurator()->set_kernel_executor_table(code_gen->get()->lowering_result.kernel_executor_table);
+            }
+            const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
+            return std::make_shared<SubgraphDynamicSpecializedExecutor>(key.attrs, code_gen, start_offset_in, start_offset_out, snippet_config);
         } else {
+            // Static case:
+            // 1. Update runtime config to get static scheduling data (io data offsets, parallel domain) which will be compiled in JIT code
+            // 2. Generate JIT code with this static data if needed
+            // 3. Create SubgraphStaticExecutor
+            const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
+            const auto code_gen_result = cache->getOrCreate(SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
+                                                            [&snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
+                                                                return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config);
+                                                            });
             return std::make_shared<SubgraphStaticExecutor>(key.attrs, code_gen_result.first, start_offset_in, start_offset_out, snippet_config);
         }
     };

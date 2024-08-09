@@ -9,7 +9,6 @@
 
 #include "openvino/core/except.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
-#include "intel_gpu/runtime/tensor.hpp"
 
 namespace cldnn {
 

@@ -3,7 +3,7 @@
 //
 
 #include "detection_output_inst.h"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 #include "register.hpp"
 #include "cpu_impl_helpers.hpp"
 

@@ -109,7 +109,7 @@ but not including, ``b``. That is why in the example given the length of "IntelO
                 <dim>2</dim>     <!-- ends = [1, 9] -->
             </port>
             <port id="2" precision="U8">
-                <dim>13</dim>    <!-- symbols = "123456789" encoded in an utf-8 array -->
+                <dim>9</dim>     <!-- symbols = "123456789" encoded in an utf-8 array -->
             </port>
         </input>
         <output>

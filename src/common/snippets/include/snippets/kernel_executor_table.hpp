@@ -43,7 +43,7 @@ public:
     * @brief Update current kernel config in accordance with the passed expression. Corresponding kernel is recompiled if necessary.
      * This method should be called to update KernelExecutor based on runtime info (e.g. shapes) available through expression ptr
     */
-    virtual void update_by_expression(const lowered::ExpressionPtr& expr, const lowered::LinearIRPtr& linear_ir) = 0;
+    virtual void update_by_expression(const lowered::ExpressionPtr& expr, const lowered::LinearIRCPtr& linear_ir) = 0;
     /**
     * @brief Replace current kernel config with the provided value. Corresponding kernel is recompiled if necessary.
      * This method should be called to restore a saved state of the executor, that was configured using update_by_expression().
@@ -70,7 +70,7 @@ public:
     explicit KernelExecutor(Conf c) : KernelExecutorBase(), m_config{std::move(c)} {}
 
     // Note: override when final is redundant, but needed to avoid warnings on some compilers
-    void update_by_expression(const lowered::ExpressionPtr& expr, const lowered::LinearIRPtr& linear_ir) override final { // NOLINT
+    void update_by_expression(const lowered::ExpressionPtr& expr, const lowered::LinearIRCPtr& linear_ir) override final { // NOLINT
         update_config(expr, linear_ir, m_config);
         OPENVINO_ASSERT(m_config.is_completed(), "Failed to update kernel config in update_by_expression");
         update_kernel(m_config, m_kernel);
@@ -103,7 +103,7 @@ public:
 
 protected:
     /*** Updates stored kernel config based on runtime info from expression (e.g. new input shapes). */
-    virtual void update_config(const lowered::ExpressionPtr& expr, const lowered::LinearIRPtr& linear_ir, Conf& config) const = 0;
+    virtual void update_config(const lowered::ExpressionPtr& expr, const lowered::LinearIRCPtr& linear_ir, Conf& config) const = 0;
     /*** Updates stored kernel in accordance with the passed config. Recompilation of the kernel is
      * performed if necessary. */
     virtual void update_kernel(const Conf& c, std::shared_ptr<KernelType>& kernel) const = 0;
@@ -122,17 +122,26 @@ public:
             typename std::enable_if<std::is_base_of<KernelExecutorBase, T>::value, bool>::type = true>
     std::shared_ptr<T> register_kernel(const lowered::ExpressionPtr& expr, C... args) {
         const auto& instance = std::make_shared<T>(args...);
-        OPENVINO_ASSERT(m_table.insert({expr, instance}).second, "This expression already has an alterable kernel");
+        OPENVINO_ASSERT(m_table.insert({expr->get_exec_num(), instance}).second, "This expression execution number already has an alterable kernel");
         return instance;
     }
-   const std::shared_ptr<KernelExecutorBase>& get_kernel_executor(const lowered::ExpressionPtr& expr) const {
-        OPENVINO_ASSERT(m_table.count(expr), "This expression doesn't have a registered kernel executor");
-        return m_table.at(expr);
+
+    const std::shared_ptr<KernelExecutorBase>& get_kernel_executor(const lowered::ExpressionPtr& expr) const {
+        return get_kernel_executor(expr->get_exec_num());
     }
+    const std::shared_ptr<KernelExecutorBase>& get_kernel_executor(double expr_exec_num) const {
+        OPENVINO_ASSERT(m_table.count(expr_exec_num), "This expression execution number doesn't have a registered kernel executor");
+        return m_table.at(expr_exec_num);
+    }
+
     /*** Updates every registered KernelExecutor in accordance with the corresponding expression */
-    void update_state(const lowered::LinearIRPtr& linear_ir) const {
-        for (const auto& record : m_table)
-            record.second->update_by_expression(record.first, linear_ir);
+    void update_state(const lowered::LinearIRCPtr& linear_ir) const {
+        for (const auto& expr : *linear_ir) {
+            const auto& found = m_table.find(expr->get_exec_num());
+            if (found != m_table.end()) {
+                found->second->update_by_expression(expr, linear_ir);
+            }
+        }
     }
 
     /*** Returns lambda function that contains current state of the table, and restores this state when called  */
@@ -141,19 +150,12 @@ public:
         return [=]() { reset_state(current_state); };
     }
 
-    /**
-    * @brief Replace originally registered ExpressionPtr with a new value.
-     * Note that code emission is performed on a copy of LIR, so all expression pointers visible from emitters won't
-     * be accessible from RuntimeConfigurator. In order to replace these cloned ExpressionPtrs with the original ones,
-     * we need to call this method.
-    */
-    void replace_key_expression(const lowered::ExpressionPtr& from, const lowered::ExpressionPtr& to);
-
     virtual ~KernelExecutorTable() = default;
 
 protected:
-    std::unordered_map<lowered::ExpressionPtr, std::shared_ptr<KernelExecutorBase>> m_table{};
-    typedef std::vector<std::pair<lowered::ExpressionPtr, std::shared_ptr<const KernelExecutorBase::GenericConfig>>> ExecTableState;
+    std::unordered_map<double, std::shared_ptr<KernelExecutorBase>> m_table {};
+
+    typedef std::vector<std::pair<double, std::shared_ptr<const KernelExecutorBase::GenericConfig>>> ExecTableState;
 
     /*** Restore the table state previously obtained by get_state() */
     void reset_state(const ExecTableState& state);

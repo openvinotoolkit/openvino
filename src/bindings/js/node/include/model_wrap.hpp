@@ -116,6 +116,13 @@ public:
      */
     Napi::Value get_output_element_type(const Napi::CallbackInfo& info);
 
+    /**
+     * @brief Returns a cloned model for the current model
+     * @param info Contains information about the environment and passed arguments
+     * @return Napi::Value Cloned model returned from the API
+     */
+    Napi::Value clone(const Napi::CallbackInfo& info);
+
 private:
     std::shared_ptr<ov::Model> _model;
     ov::Core _core;

@@ -6,7 +6,7 @@
 #include "data_inst.h"
 #include "prior_box_inst.h"
 #include "input_layout_inst.h"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 #include "register.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include <vector>
@@ -54,7 +54,7 @@ public:
         return make_unique<wait_for_events_impl>(prior_box);
     }
 
-    void update_dispatch_data(const kernel_impl_params& impl_param) override { }
+    void update(primitive_inst& inst, const kernel_impl_params& impl_param) override { }
 };
 
 namespace detail {

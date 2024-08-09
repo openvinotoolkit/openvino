@@ -80,6 +80,16 @@ The tutorial consists of the following steps:
 
    -  `Gradio Interactive Demo <#gradio-interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -92,7 +102,7 @@ Prerequisites
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
 
     %pip install -q "nncf>=2.11.0"
-    %pip install --pre -Uq openvino --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -Uq "openvino>=2024.3.0"
     %pip install -q "git+https://github.com/THU-MIG/yolov10.git" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "torch>=2.1" "torchvision>=0.16" tqdm opencv-python "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
 

@@ -4,9 +4,7 @@
 
 #include "register.hpp"
 #include "scatter_update_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
+#include "impls/registry/implementation_map.hpp"
 
 #include "openvino/op/scatter_update.hpp"
 
@@ -106,7 +104,7 @@ struct scatter_update_impl : public typed_primitive_impl<scatter_update> {
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
-    void update_dispatch_data(const kernel_impl_params& impl_param) override {}
+    void update(primitive_inst& inst, const kernel_impl_params& impl_param) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const scatter_update_node& arg, const kernel_impl_params& impl_param) {

@@ -73,6 +73,16 @@ model using `NNCF <https://github.com/openvinotoolkit/nncf>`__.
 
 -  `Interactive Demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -82,15 +92,6 @@ Prerequisites
 
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
     "torch>=2.1" transformers diffusers "git+https://github.com/huggingface/optimum-intel.git" "gradio>=4.19" "openvino>=2023.3.0" "peft==0.6.2"
-
-
-.. parsed-literal::
-
-    WARNING: Skipping openvino-dev as it is not installed.
-    WARNING: Skipping openvino as it is not installed.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Prepare PyTorch model
 ---------------------
@@ -125,15 +126,6 @@ pipeline on disk.
         del pipe
         gc.collect()
 
-
-.. parsed-literal::
-
-    2024-01-24 14:12:38.551058: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-01-24 14:12:38.591203: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-01-24 14:12:39.344351: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
 Convert model to OpenVINO format
 --------------------------------
 
@@ -158,9 +150,9 @@ You can find a mapping between tasks and model classes in Optimum
 TaskManager
 `documentation <https://huggingface.co/docs/optimum/exporters/task_manager>`__.
 
-Additionally, you can specify weights compression ``--fp16`` for the
-compression model to FP16 and ``--int8`` for the compression model to
-INT8. Please note, that for INT8, it is necessary to install nncf.
+Additionally, you can specify weights compression ``--weight-format``
+for the model compression. Please note, that for INT8/INT4, it is
+necessary to install nncf.
 
 Full list of supported arguments available via ``--help`` For more
 details and examples of usage, please check `optimum
@@ -225,7 +217,7 @@ back to image format.
 
 
     if not skip_convert_model:
-        !optimum-cli export openvino --model $sdxl_model_id --task stable-diffusion-xl $model_dir --fp16
+        !optimum-cli export openvino --model $sdxl_model_id --task stable-diffusion-xl $model_dir --weight-format fp16
         convert_tiny_vae(tae_id, model_dir)
 
 Text-to-image generation

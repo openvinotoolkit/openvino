@@ -10,7 +10,6 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include <string>
 #include <exception>
 #include <algorithm>

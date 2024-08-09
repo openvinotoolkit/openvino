@@ -22,6 +22,16 @@ Paint By Example: Exemplar-based Image Editing with Diffusion Models
 
 -  `Interactive inference <#interactive-inference>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Stable Diffusion in Diffusers library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -48,13 +58,6 @@ This is the overall flow of the application:
 
     %pip install -q "torch>=2.1" torchvision --extra-index-url "https://download.pytorch.org/whl/cpu"
     %pip install -q "diffusers>=0.25.0" "peft==0.6.2" "openvino>=2023.2.0" "transformers>=4.25.1" ipywidgets opencv-python pillow "nncf>=2.7.0" "gradio==3.44.1" tqdm
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Download the model from `HuggingFace
 Paint-by-Example <https://huggingface.co/Fantasy-Studio/Paint-by-Example>`__.

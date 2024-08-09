@@ -18,7 +18,7 @@ int main() {
         auto compiled_model_1 = core.compile_model(model, device, ov::inference_num_threads(1));
 
         // Use logical processors of Efficient-cores for inference on hybrid platform
-        auto compiled_model_2 = core.compile_model(model, device, ov::hint::scheduling_core_type(ECORE_ONLY));
+        auto compiled_model_2 = core.compile_model(model, device, ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY));
 
         // Use one logical processor per CPU core for inference when hyper threading is on
         auto compiled_model_3 = core.compile_model(model, device, ov::hint::enable_hyper_threading(false));

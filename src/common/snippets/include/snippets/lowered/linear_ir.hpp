@@ -284,6 +284,7 @@ private:
     size_t m_static_buffer_scratchpad_size = 0;
 };
 using LinearIRPtr = std::shared_ptr<LinearIR>;
+using LinearIRCPtr = std::shared_ptr<const LinearIR>;
 
 template<typename iterator>
 iterator LinearIR::find(iterator begin, iterator end, const ExpressionPtr& target) const {

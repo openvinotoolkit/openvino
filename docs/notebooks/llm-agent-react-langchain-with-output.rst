@@ -50,6 +50,16 @@ OpenVINO and LangChain.
    -  `Create AI agent demo with Gradio
       UI <#create-ai-agent-demo-with-gradio-ui>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -63,15 +73,15 @@ Prerequisites
 
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
-    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
-    "git+https://github.com/huggingface/optimum-intel.git"\
-    "git+https://github.com/openvinotoolkit/nncf.git"\
-    "torch>=2.1"\
-    "datasets"\
-    "accelerate"\
-    "gradio>=4.19"\
-    "transformers>=4.38.1" "langchain>=0.2.3" "langchain-community>=0.2.4" "wikipedia"
+    %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
+    "torch>=2.1" \
+    "datasets" \
+    "accelerate" \
+    "gradio>=4.19"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "transformers>=4.38.1" "langchain>=0.2.3" "langchain-community>=0.2.4" "Wikipedia"
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" \
+    "git+https://github.com/openvinotoolkit/nncf.git"
 
 Create a tools
 --------------
@@ -784,7 +794,10 @@ Create AI agent demo with Gradio UI
     # if you have any issue to launch on your platform, you can pass share=True to launch method:
     # demo.launch(share=True)
     # it creates a publicly shareable link for the interface. Read more in the docs: https://gradio.app/docs/
-    demo.launch()
+    try:
+        demo.launch()
+    except Exception:
+        demo.launch(share=True)
 
 
 .. parsed-literal::

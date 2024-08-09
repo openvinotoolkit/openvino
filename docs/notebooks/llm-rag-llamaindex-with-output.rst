@@ -76,6 +76,16 @@ with OpenVINO to optimize their inference performance.
 -  `Run QA over Document <#run-qa-over-document>`__
 -  `Gradio Demo <#gradio-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -89,24 +99,22 @@ Install required dependencies
 
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
 
-    %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
-    "llama-index" "faiss-cpu" "pymupdf" "llama-index-readers-file" "llama-index-vector-stores-faiss" "llama-index-llms-langchain" "llama-index-llms-openvino" "llama-index-embeddings-openvino" "llama-index-postprocessor-openvino-rerank" "transformers>=4.40" \
-    "git+https://github.com/huggingface/optimum-intel.git"\
-    "git+https://github.com/openvinotoolkit/nncf.git"\
-    "datasets"\
-    "accelerate"\
-    "gradio" \
-    "langchain"
-    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
+    "llama-index" "faiss-cpu" "pymupdf" "langchain" "llama-index-readers-file" "llama-index-vector-stores-faiss" "llama-index-llms-langchain" "llama-index-llms-openvino>=0.2.0" "llama-index-embeddings-openvino>=0.2.0" "llama-index-postprocessor-openvino-rerank>=0.2.0"
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" \
+    "git+https://github.com/openvinotoolkit/nncf.git" \
+    "datasets" \
+    "accelerate" \
+    "gradio"
+    %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
 
 
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-    WARNING: Skipping optimum as it is not installed.
-    WARNING: Skipping optimum-intel as it is not installed.
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -193,14 +201,14 @@ The available rerank model options are:
 -  `bge-reranker-v2-m3 <https://huggingface.co/BAAI/bge-reranker-v2-m3>`__
 -  `bge-reranker-large <https://huggingface.co/BAAI/bge-reranker-large>`__
 -  `bge-reranker-base <https://huggingface.co/BAAI/bge-reranker-base>`__
-   Reranker model with cross-encoder will perform full-attention over
-   the input pair, which is more accurate than embedding model (i.e.,
-   bi-encoder) but more time-consuming than embedding model. Therefore,
-   it can be used to re-rank the top-k documents returned by embedding
-   model.
+
+Reranker model with cross-encoder will perform full-attention over the
+input pair, which is more accurate than embedding model (i.e.,
+bi-encoder) but more time-consuming than embedding model. Therefore, it
+can be used to re-rank the top-k documents returned by embedding model.
 
 You can also find available LLM model options in
-`llm-chatbot <../llm-chatbot/README.md>`__ notebook.
+`llm-chatbot <llm-chatbot-with-output.html>`__ notebook.
 
 .. code:: ipython3
 
@@ -267,7 +275,7 @@ quality.
 
 .. parsed-literal::
 
-    Dropdown(description='Model:', index=12, options=('tiny-llama-1b-chat', 'gemma-2b-it', 'red-pajama-3b-chat', '…
+    Dropdown(description='Model:', index=13, options=('tiny-llama-1b-chat', 'gemma-2b-it', 'red-pajama-3b-chat', '…
 
 
 
@@ -279,11 +287,11 @@ quality.
 
 .. parsed-literal::
 
-    Selected LLM model llama-3-8b-instruct
+    Selected LLM model phi-3-mini-instruct
 
 
 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the 
+the interface between the
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -566,7 +574,7 @@ Let’s compare model size for different compression types
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 5085.79 MB
+    Size of model with INT4 compressed weights is 2319.41 MB
 
 
 Convert embedding model using Optimum-CLI
@@ -807,7 +815,7 @@ class of LlamaIndex.
     from llama_index.embeddings.huggingface_openvino import OpenVINOEmbedding
 
 
-    embedding = OpenVINOEmbedding(folder_name=embedding_model_id.value, device=embedding_device.value)
+    embedding = OpenVINOEmbedding(model_id_or_path=embedding_model_id.value, device=embedding_device.value)
 
     embeddings = embedding.get_text_embedding("Hello World!")
     print(len(embeddings))
@@ -840,7 +848,7 @@ class of LlamaIndex.
 
     from llama_index.postprocessor.openvino_rerank import OpenVINORerank
 
-    reranker = OpenVINORerank(model=rerank_model_id.value, device=rerank_device.value, top_n=2)
+    reranker = OpenVINORerank(model_id_or_path=rerank_model_id.value, device=rerank_device.value, top_n=2)
 
 
 .. parsed-literal::
@@ -914,8 +922,7 @@ inference on it.
         ov_config["INFERENCE_PRECISION_HINT"] = "f32"
 
     llm = OpenVINOLLM(
-        model_name=str(model_dir),
-        tokenizer_name=str(model_dir),
+        model_id_or_path=str(model_dir),
         context_window=3900,
         max_new_tokens=2,
         model_kwargs={"ov_config": ov_config, "trust_remote_code": True},
@@ -929,24 +936,39 @@ inference on it.
 
 .. parsed-literal::
 
-    The argument `trust_remote_code` is to be used along with export=True. It will be ignored.
+    /home/ethan/intel/openvino_notebooks/openvino_env/lib/python3.11/site-packages/pydantic/_internal/_fields.py:161: UserWarning: Field "model_id" has conflict with protected namespace "model_".
+
+    You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+      warnings.warn(
 
 
 .. parsed-literal::
 
-    Loading model from llama-3-8b-instruct/INT4_compressed_weights
+    Loading model from phi-3-mini-instruct/INT4_compressed_weights
+
 
 
 .. parsed-literal::
 
+    configuration_phi3.py:   0%|          | 0.00/11.2k [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    A new version of the following files was downloaded from https://huggingface.co/microsoft/Phi-3-mini-4k-instruct:
+    - configuration_phi3.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
     Compiling the model to CPU ...
     Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-    Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+    /home/ethan/intel/openvino_notebooks/openvino_env/lib/python3.11/site-packages/transformers/generation/configuration_utils.py:515: UserWarning: `do_sample` is set to `False`. However, `temperature` is set to `0.7` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `temperature`.
+      warnings.warn(
+    /home/ethan/intel/openvino_notebooks/openvino_env/lib/python3.11/site-packages/transformers/generation/configuration_utils.py:520: UserWarning: `do_sample` is set to `False`. However, `top_p` is set to `0.95` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `top_p`.
+      warnings.warn(
 
 
 .. parsed-literal::
 
-     4
+    4
 
 
 Run QA over Document
@@ -1064,21 +1086,28 @@ The most common full sequence from raw data to answer looks like:
 
 .. parsed-literal::
 
-    Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+    /home/ethan/intel/openvino_notebooks/openvino_env/lib/python3.11/site-packages/transformers/generation/configuration_utils.py:515: UserWarning: `do_sample` is set to `False`. However, `temperature` is set to `0.7` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `temperature`.
+      warnings.warn(
+    /home/ethan/intel/openvino_notebooks/openvino_env/lib/python3.11/site-packages/transformers/generation/configuration_utils.py:520: UserWarning: `do_sample` is set to `False`. However, `top_p` is set to `0.95` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `top_p`.
+      warnings.warn(
 
 
 .. parsed-literal::
 
-     According to the provided context information, Intel vPro Enterprise systems can offer:
-    - Dynamic root of trust
-    - System management mode (SMM) protections
-    - Memory encryption with multi-key support
-    - OS kernel protection
-    - Out-of-band management with remote KVM control
-    - Unique device identifier
-    - Device history
-    - In-band manageability plug-ins
-    Note that this information is based solely on the provided context and does not represent any external knowledge or understanding. The answer is intended to accurately reflect the content presented in the given text.
+
+
+    Intel vPro® Enterprise systems can offer a range of advanced security features to protect network infrastructure. These include network security appliances, secure access service edge (SASE), next-generation firewall (NGFW), real-time deep packet inspection, antivirus, intrusion prevention and detection, and SSL/TLS inspection. These systems support more devices, users, and key capabilities such as real-time threat detection while processing higher network throughput. They also drive advanced security features for growing network infrastructure with enhanced power efficiency and density.
+
+    Intel QuickAssist Technology (Intel QAT) accelerates and offloads key encryption/compression workloads from the CPU to free up CPU cycles. Trusted execution environments (TEEs) with Intel Software Guard Extensions (Intel SGX) and Intel Trust Domain Extensions (Intel TDX) help protect network workloads and encryption keys across edge-to-cloud infrastructure.
+
+    In industrial and energy sectors, Intel vPro® Enterprise systems improve manageability and help reduce the operational costs of automation and control systems. Hardened platforms ensure system reliability in extreme conditions, and high core density provides more dedicated resources to VMs.
+
+    Intel vPro® Enterprise systems also offer higher performance per watt, one-core density, and faster DDR5 memory bandwidth to enhance throughput and efficiency for edge security workloads. Intel QuickAssist Technology (Intel QAT) accelerates and offloads key encryption/compression workloads from the CPU to free up CPU cycles. Trusted execution environments (TEEs) with Intel Software Guard Extensions (Intel SGX) and Intel Trust Domain Extensions (Intel TDX) harden platforms from unauthorized access.
+
+    Cache Allocation Technology (CAT) within the Intel® Resource Director Technology (Intel® RDT) framework enables performance prioritization for key applications to help meet real-time deterministic requirements.
+
+
+
 
 Gradio Demo
 -----------
@@ -1515,7 +1544,10 @@ First we can check the default prompt template in LlamaIndex pipeline.
     # if you have any issue to launch on your platform, you can pass share=True to launch method:
     # demo.launch(share=True)
     # it creates a publicly shareable link for the interface. Read more in the docs: https://gradio.app/docs/
-    demo.launch()
+    try:
+        demo.launch()
+    except Exception:
+        demo.launch(share=True)
 
 .. code:: ipython3
 

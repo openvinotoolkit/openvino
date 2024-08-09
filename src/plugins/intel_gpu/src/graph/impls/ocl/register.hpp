@@ -20,6 +20,7 @@
 #include "intel_gpu/primitives/deconvolution.hpp"
 #include "intel_gpu/primitives/depth_to_space.hpp"
 #include "intel_gpu/primitives/detection_output.hpp"
+#include "intel_gpu/primitives/dynamic_quantize.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/experimental_detectron_detection_output.hpp"
 #include "intel_gpu/primitives/experimental_detectron_prior_grid_generator.hpp"
@@ -104,6 +105,7 @@ REGISTER_OCL(deconvolution);
 REGISTER_OCL(depth_to_space);
 REGISTER_OCL(detection_output);
 REGISTER_OCL(dft);
+REGISTER_OCL(dynamic_quantize);
 REGISTER_OCL(experimental_detectron_detection_output);
 REGISTER_OCL(experimental_detectron_generate_proposals_single_image);
 REGISTER_OCL(experimental_detectron_prior_grid_generator);

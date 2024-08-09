@@ -66,5 +66,9 @@
     {
         "error_text": "Unexpected HTTP response: 520",
         "ticket": 147958
+    },
+    {
+        "error_text": "Unable to make request: ECONNRESET",
+        "ticket": 148702
     }
 ]

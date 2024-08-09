@@ -532,11 +532,11 @@ vit_wee_patch16_reg1_gap_256.sbb_in1k,None
 vit_xsmall_patch16_clip_224.tinyclip_yfcc15m,None
 vitamin_base_224.datacomp1b_clip,None,xfail,RuntimeError Error in loading state_dict for VisionTransformer
 vitamin_large2_224.datacomp1b_clip,None
-volo_d1_224.sail_in1k,None,xfail,Cannot get length of dynamic dimension
-volo_d2_224.sail_in1k,None,xfail,Cannot get length of dynamic dimension
-volo_d3_224.sail_in1k,None,xfail,Cannot get length of dynamic dimension
-volo_d4_224.sail_in1k,None,xfail,Cannot get length of dynamic dimension
-volo_d5_224.sail_in1k,None,xfail,Cannot get length of dynamic dimension
+volo_d1_224.sail_in1k,None,xfail_export,Requested None inlined input for op aten.index.Tensor
+volo_d2_224.sail_in1k,None,xfail_export,Requested None inlined input for op aten.index.Tensor
+volo_d3_224.sail_in1k,None,xfail_export,Requested None inlined input for op aten.index.Tensor
+volo_d4_224.sail_in1k,None,xfail_export,Requested None inlined input for op aten.index.Tensor
+volo_d5_224.sail_in1k,None,xfail_export,Requested None inlined input for op aten.index.Tensor
 wide_resnet101_2.tv2_in1k,None
 wide_resnet50_2.racm_in1k,None
 xception41.tf_in1k,None

@@ -207,7 +207,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
             LOG_DEBUG("Matched: " << matched_paramB << " - parameter to remove...");
 
             // Record mapping from the Scale coeff paramter to the Real weight parameter
-            m_params_to.get().scales[matched_paramB] = std::move(matched_paramA);
+            m_params_to.get().scales[matched_paramB] = matched_paramA;
 
             // Disconnect Multiply and Convert from their outputs
             auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
@@ -220,8 +220,8 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
                 }
             };
             LOG_DEBUG("Dropping the connections...");
-            drop_outputs(std::move(matched_mulply));
-            drop_outputs(std::move(matched_convrt));
+            drop_outputs(matched_mulply);
+            drop_outputs(matched_convrt);
 
             LOG_DEBUG("Reconnecting the root...");
             reconnect_root_to_convert(m);
@@ -352,8 +352,8 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
             // it can be probably eliminated as well)
 
             // Record mapping from the Scale coeff paramter to the Real weight parameter
-            m_params_to.get().zerops[matched_paramA] = std::move(matched_valueB);
-            m_params_to.get().scales[matched_paramC] = std::move(matched_paramA);
+            m_params_to.get().zerops[matched_paramA] = matched_valueB;
+            m_params_to.get().scales[matched_paramC] = matched_paramA;
 
             // Disconnect Multiply and Convert from their outputs
             auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
@@ -366,8 +366,8 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
                 }
             };
             LOG_DEBUG("Dropping the connections...");
-            drop_outputs(std::move(matched_mulply));
-            drop_outputs(std::move(matched_convrt));
+            drop_outputs(matched_mulply);
+            drop_outputs(matched_convrt);
 
             LOG_DEBUG("Reconnecting the root...");
             reconnect_root(m);
@@ -484,8 +484,8 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
                 // Reshape will be reconnected to Convert directly
 
                 // Record mapping from the Scale coeff parameter to the Real weight parameter
-                pref.get().zerops[matched_paramA] = std::move(matched_valueB);
-                pref.get().scales[matched_paramC] = std::move(matched_paramA);
+                pref.get().zerops[matched_paramA] = matched_valueB;
+                pref.get().scales[matched_paramC] = matched_paramA;
 
                 // Disconnect Multiply and Convert from their outputs
                 auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
@@ -498,7 +498,7 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
                     }
                 };
                 LOG_DEBUG("Dropping the connections...");
-                drop_outputs(std::move(matched_mulply));
+                drop_outputs(matched_mulply);
                 drop_outputs(matched_convrt);
 
                 LOG_DEBUG("Reconnecting the Root...");
@@ -510,6 +510,89 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
         return false;  // root node hasn't changed
     };
     register_matcher(std::make_shared<opp::Matcher>(reshpe, "TagDCOFFReshape2"), std::move(callback));
+}
+
+// Pattern: Phi-3 4SymW16A/GPTQ
+//
+//
+//   "tensor"       "scale"           >            "tensor"
+//    Param:A       Param:C           >             Param:A
+//      i4          f16|f32           >              f16
+//       :           :                >               :
+//       V          :                 >               V
+//     Convert     :                  >              Convert
+//     f16|f32    :                   >                f32
+//        :      :                    >
+//        V      V                    >
+//        Multiply                    >
+//         f16|f32                    >
+//            :                       >
+//            :                       >
+//            V                       >
+//         Convert
+
+DCOFFPassCWAI3::DCOFFPassCWAI3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref) {
+    auto paramA = opp::wrap_type<ov::op::v0::Parameter>();
+    auto paramC = opp::wrap_type<ov::op::v0::Parameter>();
+    auto cvtA = opp::wrap_type<ov::op::v0::Convert>({paramA});
+    auto mulply = opp::wrap_type<ov::op::v1::Multiply>({cvtA, paramC});
+    auto cvt = opp::wrap_type<ov::op::v0::Convert>({mulply});
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto matched_nodeA = node_to_output.at(paramA).get_node_shared_ptr();
+        auto matched_nodeC = node_to_output.at(paramC).get_node_shared_ptr();
+
+        NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeA));
+        NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeC));
+
+        auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
+        auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
+
+        if (ov::element::i4 == matched_paramA->get_element_type() &&
+            (ov::element::f16 == matched_paramC->get_element_type() ||
+             ov::element::f32 == matched_paramC->get_element_type())) {
+            LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << dcoff_type);
+            matched_paramA->set_element_type(dcoff_type);
+
+            if (dcoff_mode == DCOffMode::CAST_SCALE) {
+                NPUW_ASSERT(dcoff_type == ov::element::f16);
+
+                LOG_DEBUG("Matched: " << matched_paramC << " - parameter to remove...");
+                LOG_BLOCK();
+
+                // Extra transformation here:
+                // - remove Multiply + Intermediate Convert
+                // - mark paramC for removal.
+                // Convert will be reconnected to paramA directly.
+
+                // Record mapping from the Scale coeff parameter to the Real weight parameter
+                pref.get().scales[matched_paramC] = matched_paramA;
+
+                // Disconnect Multiply and Convert from their outputs
+                auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
+                auto matched_convrt = node_to_output.at(cvtA).get_node_shared_ptr();
+                auto drop_outputs = [](std::shared_ptr<ov::Node> node) {
+                    for (auto&& node_outputs : node->outputs()) {
+                        for (auto&& node_reader_port : node_outputs.get_target_inputs()) {
+                            node_outputs.remove_target_input(node_reader_port);
+                        }
+                    }
+                };
+                LOG_DEBUG("Dropping the connections...");
+                drop_outputs(matched_mulply);
+                drop_outputs(matched_convrt);
+
+                LOG_DEBUG("Reconnecting the Root...");
+                auto matched_cvt = node_to_output.at(cvt).get_node_shared_ptr();
+                matched_cvt->input(0).replace_source_output(matched_paramA);
+            }
+            LOG_DEBUG("Done");
+        }
+        return false;  // root node hasn't changed
+    };
+
+    register_matcher(std::make_shared<opp::Matcher>(cvt, "TagDCOFFPassCWAI3"), std::move(callback));
 }
 
 //------------------------------------------------------------------------------

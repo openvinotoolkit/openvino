@@ -10,6 +10,8 @@ depth-anything-v2
 detectron2-to-openvino
 distilbert-sequence-classification
 explainable-ai-1-basic
+explainable-ai-2-deep-dive
+explainable-ai-3-map-interpretation
 fast-segment-anything
 grounded-segment-anything
 handwritten-ocr
