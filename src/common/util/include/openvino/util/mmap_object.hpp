@@ -50,4 +50,14 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::wstring& path);
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
+class MmapStreamBuffer final : public std::stringbuf {
+public:
+    MmapStreamBuffer(std::shared_ptr<ov::MappedMemory> mem) {
+        m_memory = mem;
+        this->basic_streambuf::pubsetbuf(mem->data(), mem->size());
+    }
+
+    std::shared_ptr<ov::MappedMemory> m_memory;
+};
+
 }  // namespace ov

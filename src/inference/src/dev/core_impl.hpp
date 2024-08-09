@@ -154,6 +154,7 @@ private:
         ov::Plugin& plugin,
         const ov::AnyMap& config,
         const ov::SoPtr<ov::IRemoteContext>& context,
+        const bool enable_mmap,
         std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda);
 
     bool device_supports_model_caching(const ov::Plugin& plugin) const;
@@ -252,6 +253,9 @@ public:
     std::shared_ptr<ov::Model> read_model(const std::string& model,
                                           const ov::Tensor& weights,
                                           bool frontend_mode = false) const override;
+
+    std::shared_ptr<ov::Model> read_model(const std::shared_ptr<AlignedBuffer>& model,
+                                          const std::shared_ptr<AlignedBuffer>& weights) const override;
 
     std::shared_ptr<ov::Model> read_model(const std::string& model_path, const std::string& bin_path) const override;
 

@@ -55,7 +55,7 @@ public:
 
     SoPtr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const;
 
-    SoPtr<ov::ICompiledModel> import_model(std::istream& networkModel,
+    SoPtr<ov::ICompiledModel> import_model(std::istream& model,
                                            const ov::SoPtr<ov::IRemoteContext>& context,
                                            const ov::AnyMap& config) const;
 
@@ -75,6 +75,8 @@ public:
         return get_property(property.name(), arguments).template as<T>();
     }
     bool supports_model_caching() const;
+
+    bool supports_model_caching_with_mmap() const;
 };
 
 }  // namespace ov
