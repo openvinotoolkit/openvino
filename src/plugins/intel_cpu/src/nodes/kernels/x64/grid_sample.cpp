@@ -922,7 +922,7 @@ void GridSampleKernel<isa>::reflectionPadding(const Vmm& vCoordDst, const Vmm& v
                 mov(rAux, ptr[regParams + GET_OFF(srcWidthMul2Sub1F)]);
                 uni_vmovups(vAux1, ptr[rAux]);
             }
-        } else if (coord::h) {
+        } else if (dim == coord::h) {
             if (vSrcHeightMul2Sub1F.isInitialized()) {
                 vMul2Sub1 = vSrcHeightMul2Sub1F;
             } else {
@@ -956,7 +956,7 @@ void GridSampleKernel<isa>::reflectionPadding(const Vmm& vCoordDst, const Vmm& v
                 mov(rAux, ptr[regParams + GET_OFF(srcWidthMul2F)]);
                 uni_vmovups(vAux1, ptr[rAux]);
             }
-        } else if (coord::h) {
+        } else if (dim == coord::h) {
             if (vSrcHeightMul2F.isInitialized()) {
                 vMul2 = vSrcHeightMul2F;
             } else {
@@ -987,7 +987,7 @@ void GridSampleKernel<isa>::reflectionPadding(const Vmm& vCoordDst, const Vmm& v
                 mov(rAux, ptr[regParams + GET_OFF(srcWidthMul2Sub1F)]);
                 uni_vsubps(vAux0, vCoordDst, ptr[rAux]);
             }
-        } else if (coord::h) {
+        } else if (dim == coord::h) {
             if (vSrcHeightMul2Sub1F.isInitialized()) {
                 uni_vsubps(vAux0, vCoordDst, vSrcHeightMul2Sub1F);
             } else {

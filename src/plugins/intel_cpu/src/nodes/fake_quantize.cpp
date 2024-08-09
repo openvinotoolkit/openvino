@@ -1298,7 +1298,7 @@ void FakeQuantize::getSupportedDescriptors() {
     if (getChildEdges().empty())
         OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", getChildEdges().size());
 
-    if (getInputShapeAtPort(0).getRank() != getInputShapeAtPort(0).getRank()) {
+    if (getInputShapeAtPort(0).getRank() != getOutputShapeAtPort(0).getRank()) {
         OPENVINO_THROW(errorPrefix, "has different ranks for input and output tensors");
     }
 

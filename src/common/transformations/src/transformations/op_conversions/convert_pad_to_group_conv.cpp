@@ -64,7 +64,7 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
             return a < 0;
         };
         if (std::any_of(pad_begin.begin(), pad_begin.end(), pred) ||
-            std::any_of(pad_begin.begin(), pad_begin.end(), pred)) {
+            std::any_of(pad_end.begin(), pad_end.end(), pred)) {
             return false;
         }
 
