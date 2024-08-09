@@ -6,19 +6,23 @@
 # Runs MLIR only MLP benchmarks using TPP-MLIR.
 
 die_syntax() {
-  echo "Syntax: $0 [-t (f32|f16|bf16|...)] [-D] [-C]"
+  echo "Syntax: $0 [-t (f32|f16|bf16|...)] [-D] [-C] [-l 3]"
   echo ""
   echo "  -t: Optional data type"
+  echo "  -l: Optional number of layers (def:3)"
   echo "  -D: Set model shapes to dynamic"
   echo "  -C: Weights as constants (default: arguments)"
   exit 1
 }
 
 # Cmd-line opts
-while getopts "t:DC" arg; do
+while getopts "t:l:DC" arg; do
   case ${arg} in
     t)
       DATA_TYPE=${OPTARG}
+      ;;
+    l)
+      NUM_LAYERS=${OPTARG}
       ;;
     D)
       IS_DYNAMIC=true
@@ -51,18 +55,27 @@ if [ "${IS_DYNAMIC}" ]; then
 fi
 
 # Kernel config.
-LAYERS=( 1024 2048 4096 8192 )
-MINI_BATCHES=( 128 256 512 )
+# LAYERS=( 1024 2048 4096 8192 )
+# MINI_BATCHES=( 128 256 512 )
+LAYERS=( 1024 )
+MINI_BATCHES=( 256 )
 if [ ! "${DATA_TYPE}" ]; then
     DATA_TYPE="f32"
 fi
+if [ ! $NUM_LAYERS ]; then
+  NUM_LAYERS=3
+fi
 
-echo "Result type: time [s]"
+echo "Result type: time [s] - NUM LAYERS: ${NUM_LAYERS}"
 for MB in "${MINI_BATCHES[@]}"; do
   echo "MLP - MB: ${MB} LAYERS: ${LAYERS[@]}"
   for LAYER in "${LAYERS[@]}"; do
     # Generate model.
-    MODEL_CONFIG=(--batch=${MB} --layers=${LAYER},${LAYER} -bias -relu)
+    LAYER_STRING="${LAYER}"
+    for i in $(seq ${NUM_LAYERS}); do
+      LAYER_STRING="${LAYER_STRING},${LAYER}"
+    done
+    MODEL_CONFIG=(--batch=${MB} --layers=${LAYER_STRING} -bias -relu)
     KERNEL_TYPE=args
     if [ "${CONST_WEIGHTS}" ]; then
         KERNEL_TYPE=const

@@ -6,7 +6,7 @@
 # Runs OV MLP benchmarks.
 
 die_syntax() {
-  echo "Syntax: $0 [-t (f32|f16|bf16|...)] [-b (mlp)] [-D]"
+  echo "Syntax: $0 [-t (f32|f16|bf16|...)] [-b (mlp)] [-D] [-l 3]"
   echo ""
   echo "  -t: Optional data type"
   echo "  -b: Optional baseline model"
@@ -79,7 +79,7 @@ if [ ! "${DATA_TYPE}" ]; then
 fi
 MODEL_NAME="MLIR_MLP_BENCH.xml"
 
-echo "Result type: time [ms]"
+echo "Result type: time [ms] - NUM LAYERS: ${NUM_LAYERS}"
 for MB in "${MINI_BATCHES[@]}"; do
   echo "MLP - MB: ${MB} LAYERS: ${LAYERS[@]}"
   for LAYER in "${LAYERS[@]}"; do
