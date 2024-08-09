@@ -7,31 +7,21 @@
 #include "cpu_memory.h"
 #include "onednn/iml_type_mapper.h"
 #include "executor.hpp"
+#include "mvn_config.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-enum MVNLayoutType {
-    mvn_planar,
-    mvn_block,
-    mvn_by_channel
-};
+class MVNExecutorBase {
+public:
+    MVNExecutorBase(const MVNAttrs& mvnAttrs);
+    virtual void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_, const VectorDims& shape5d) = 0;
+    virtual ~MVNExecutorBase() = default;
 
-// Defines way to add epsilon: inside sqrt or outside.
-enum MVNEpsMode {
-    INSIDE_SQRT,
-    OUTSIDE_SQRT
-};
-
-struct MVNAttrs {
-    MVNLayoutType layout = mvn_planar;
-    bool initAcrossChannels_ = false;
-    bool execAcrossChannels_ = false;
-    bool normalizeVariance_  = false;
-    float epsValue_ = 0.0f;
-    MVNEpsMode epsMode_ = INSIDE_SQRT;
-    ov::element::Type src_prc;
-    ov::element::Type dst_prc;
+protected:
+    MVNAttrs mvnAttrs;
+    size_t src_data_size = 0;
+    size_t dst_data_size = 0;
 };
 
 class MVNExecutor {
@@ -46,8 +36,6 @@ public:
     virtual ~MVNExecutor() = default;
 
     virtual impl_desc_type getImplType() const = 0;
-
-    static VectorDims transformTo5DCase(const VectorDims& shape, bool initAcrossChannels);
 
 protected:
     MVNAttrs mvnAttrs;
