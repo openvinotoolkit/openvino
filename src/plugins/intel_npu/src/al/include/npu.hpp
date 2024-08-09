@@ -43,6 +43,8 @@ public:
     virtual void registerOptions(OptionsDesc& options) const;
     /** @brief Get Level Zero context*/
     virtual void* getContext() const;
+    /** @brief Update backend and device info */
+    virtual void updateInfo(const Config& config) = 0;
 
 protected:
     virtual ~IEngineBackend() = default;
@@ -82,6 +84,8 @@ public:
         const std::shared_ptr<const ICompiledModel>& compiledModel,
         const std::shared_ptr<IExecutor>& executor,
         const Config& config) = 0;
+
+    virtual void updateInfo(const Config& config) = 0;
 
     virtual ov::SoPtr<ov::IRemoteTensor> createRemoteTensor(
         std::shared_ptr<ov::IRemoteContext> context,

@@ -64,7 +64,7 @@ Logger& Logger::global() {
     }
     static Logger log("global", logLvl);
 #else
-    static Logger log("global", ov::log::Level::NO);
+    static Logger log("global", ov::log::Level::ERR);
 #endif
     return log;
 }
