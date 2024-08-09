@@ -122,7 +122,6 @@ private:
         std::vector<ov::Tensor> closure;
         std::vector<ov::Tensor> scales;
         std::vector<ov::Tensor> zerops;
-        std::vector<bool> unpack_required;
         std::vector<bool> update_required;
 
         // FIXME: Take it out of structure

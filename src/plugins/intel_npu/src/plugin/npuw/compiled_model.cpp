@@ -275,7 +275,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             m_compiled_submodels[id].closure = subgraph._closure;
             m_compiled_submodels[id].scales = subgraph._scales;
             m_compiled_submodels[id].zerops = subgraph._zerops;
-            m_compiled_submodels[id].unpack_required.resize(subgraph._closure.size(), false);
             m_compiled_submodels[id].update_required.resize(subgraph._closure.size(), false);
             fill_weights_bank(id);
         }  // if(!funcall)
@@ -397,11 +396,14 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 void ov::npuw::CompiledModel::fill_weights_bank(const std::size_t idx) {
     LOG_VERB("Filling weights bank for Subgraph[" << idx << "]...");
     LOG_BLOCK();
+
+    NPUW_ASSERT(m_compiled_submodels[idx].model && m_compiled_submodels[idx].replaced_by);
+
     auto& comp_model_desc = m_compiled_submodels[idx];
 
     for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
         comp_model_desc.closure[cidx] = m_weights_bank->get(comp_model_desc.closure[cidx]);
-        if ("YES" == m_cfg.getString<::intel_npu::NPUW_CWAI>()) {
+        if (m_cfg.get<::intel_npu::NPUW_FOLD>()) {
             comp_model_desc.update_required[cidx] = true;
         } else {
             comp_model_desc.update_required[cidx] = false;
