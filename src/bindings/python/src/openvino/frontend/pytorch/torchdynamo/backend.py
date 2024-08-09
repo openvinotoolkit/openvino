@@ -13,6 +13,7 @@ import torch
 from torch._dynamo.backends.common import fake_tensor_unsupported, aot_autograd
 from torch._dynamo.backends.registry import register_backend
 from torch._inductor.compile_fx import compile_fx
+from torch._inductor.freezing import replace_params_with_constants
 from torch.fx.experimental.proxy_tensor import make_fx
 from torch._decomp import decomposition_table, get_decompositions
 
@@ -56,8 +57,8 @@ def openvino(subgraph, example_inputs, options=None):
         openvino_options = options
         decompositions = _get_decompositions(options) + get_inf_decomposition_list()
         decompositions = decompositions + get_aot_decomposition_list()
-        return aot_autograd(fw_compiler=fx_openvino, 
-                            bw_compiler=fx_openvino, 
+        return aot_autograd(fw_compiler=fx_openvino,
+                            bw_compiler=fx_openvino,
                             decompositions=get_decompositions(decompositions))(subgraph, example_inputs)
     return fx_openvino(subgraph, example_inputs, options)
 
@@ -87,6 +88,12 @@ def fx_openvino(subgraph, example_inputs, options=None):
             example_inputs.reverse()
 
         if (_get_aot_autograd(options)):
+            if tracing_context := torch._guards.TracingContext.try_get():
+                fw_metadata = tracing_context.fw_metadata
+                params_flat = tracing_context.params_flat
+                assert fw_metadata is not None and params_flat is not None
+            preserved_arg_indices = replace_params_with_constants(subgraph, params_flat, fw_metadata)
+            example_inputs = [example_inputs[ind] for ind in preserved_arg_indices]
             model = subgraph
         else:
             from torch._subclasses.fake_tensor import FakeTensorMode
@@ -107,9 +114,12 @@ def fx_openvino(subgraph, example_inputs, options=None):
                 executor_parameters["model_hash_str"] += "_fs"
 
         def _call(*args):
-            res = execute(compiled_model, *args, executor="openvino",
+            args_list = args[0]
+            args_new = [args_list[i] for i in preserved_arg_indices]
+            res = execute(compiled_model, *args_new, executor="openvino",
                           executor_parameters=executor_parameters, options=options)
             return res
+        _call._boxed_call = True # type: ignore[attr-defined]
         return _call
     except Exception as e:
         logger.debug(f"Failed in OpenVINO execution: {e}")
