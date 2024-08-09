@@ -289,3 +289,4 @@ REGISTER_FACTORY(internal, IndirectSDPA);
 REGISTER_FACTORY(internal, RoPE);
 REGISTER_FACTORY(internal, SyncTensor);
 REGISTER_FACTORY(internal, RankConstant);
+REGISTER_FACTORY(internal, DynamicQuantize);

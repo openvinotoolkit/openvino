@@ -28,6 +28,8 @@
 #include "utils/general_utils.h"
 #include "utils/profiler.hpp"
 
+#include "fake_quantize.h"
+
 using namespace dnnl;
 using namespace ov::element;
 
@@ -199,6 +201,25 @@ bool FullyConnected::canFuse(const NodePtr& node) const {
 #if defined(OV_CPU_WITH_SHL)
     return false;
 #endif
+    if (node->getType() == Type::FakeQuantize) {
+        auto* fq = dynamic_cast<FakeQuantize*>(node.get());
+        if (fq->getBroadcastingPolicy() != FakeQuantize::BroadcastingPolicy::PerTensor) {
+            const auto& dstShape = getOutputShapeAtPort(0);
+            auto dataRanks = dstShape.getRank();
+            // only per-OC or per-Tensor fakequantize can be postOps
+            if (fq->getAxis() != dataRanks - 1) {
+                DEBUG_LOG("reject FakeQuantize ",
+                          fq->getName(),
+                          "(axis=",
+                          fq->getAxis(),
+                          ") from fusing into ",
+                          getName(),
+                          " with dst shape ",
+                          dstShape);
+                return false;
+            }
+        }
+    }
     return canFuseSimpleOperation(node);
 }
 

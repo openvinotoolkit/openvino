@@ -34,9 +34,8 @@ endif()
 
 ov_dependent_option (ENABLE_INTEL_GPU "GPU OpenCL-based plugin for OpenVINO Runtime" ${ENABLE_INTEL_GPU_DEFAULT} "X86_64 OR AARCH64;NOT APPLE;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
 
-if (ANDROID OR MINGW OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0) OR (NOT BUILD_SHARED_LIBS AND ENABLE_INTEL_CPU))
-    # oneDNN doesn't support old compilers and android builds for now, so we'll build GPU plugin without oneDNN
-    # also, in case of static build CPU's and GPU's oneDNNs will conflict, so we are disabling GPU's one in this case
+if (ANDROID OR MINGW OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
+    # oneDNN doesn't support old compilers and Android builds for now, so we'll build GPU plugin without oneDNN
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
 else()
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
@@ -51,6 +50,7 @@ else()
 endif()
 
 ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ${ENABLE_INTEL_NPU_DEFAULT} "X86 OR X86_64;NOT APPLE" OFF)
+ov_dependent_option (ENABLE_INTEL_NPU_INTERNAL "NPU plugin internal components for OpenVINO runtime" ON "ENABLE_INTEL_NPU" OFF)
 
 ov_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
 ov_dependent_option (ENABLE_NPU_DEBUG_CAPS "enable NPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_NPU" OFF)
@@ -92,10 +92,7 @@ else()
     set(THREADING_DEFAULT "TBB")
 endif()
 
-set(THREADING_OPTIONS "TBB" "TBB_AUTO" "SEQ")
-if(NOT APPLE)
-    list(APPEND THREADING_OPTIONS "OMP")
-endif()
+set(THREADING_OPTIONS "TBB" "TBB_AUTO" "SEQ" "OMP")
 
 set(THREADING "${THREADING_DEFAULT}" CACHE STRING "Threading")
 set_property(CACHE THREADING PROPERTY STRINGS ${THREADING_OPTIONS})
