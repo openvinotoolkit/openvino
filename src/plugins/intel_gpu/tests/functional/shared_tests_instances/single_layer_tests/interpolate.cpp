@@ -8,28 +8,8 @@
 namespace {
 using ov::test::InterpolateLayerTest;
 using ov::test::Interpolate11LayerTest;
-
-class GPUInterpolateLayerTest : public InterpolateLayerTest {
-protected:
-    void SetUp() override {
-        InterpolateLayerTest::SetUp();
-        ov::test::InterpolateLayerTestParams params = GetParam();
-        ov::test::InterpolateSpecificParams interpolate_params;
-        ov::element::Type model_type;
-        std::vector<ov::test::InputShape> shapes;
-        ov::Shape target_shape;
-        std::map<std::string, std::string> additional_config;
-        std::tie(interpolate_params, model_type, shapes, target_shape, targetDevice, additional_config) = this->GetParam();
-        // Some rounding float to integer types on GPU may differ from CPU, and as result,
-        // the actual values may differ from reference ones on 1 when the float is very close to an integer,
-        // e.g 6,0000023 calculated on CPU may be cast to 5 by OpenCL convert_uchar function.
-        // That is why the threshold is set 1.f for integer types.
-        if (targetDevice == "GPU" &&
-                (model_type == ov::element::u8 || model_type == ov::element::i8)) {
-            rel_threshold = 1.f;
-        }
-    }
-};
+using ov::test::GPUInterpolateLayerTest;
+using ov::test::GPUInterpolate11LayerTest;
 
 const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f16,
@@ -264,9 +244,11 @@ const std::vector<ov::op::util::InterpolateBase::InterpolateMode> modesPillow = 
 const std::vector<ov::element::Type> pillowModePrecisions = {
     ov::element::f16,
     ov::element::f32,
+    ov::element::i8,
+    ov::element::u8,
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow, Interpolate11LayerTest, ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow, GPUInterpolate11LayerTest, ::testing::Combine(
     ::testing::Combine(
             ::testing::ValuesIn(modesPillow),
             ::testing::Values(ov::op::util::InterpolateBase::ShapeCalcMode::SCALES),
@@ -283,10 +265,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow, Interpolate11LayerTest, ::
         ::testing::Values(ov::Shape{1, 1, 50, 50}),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
-    Interpolate11LayerTest::getTestCaseName);
+    GPUInterpolate11LayerTest::getTestCaseName);
 
 
-INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Horizontal, Interpolate11LayerTest, ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Horizontal, GPUInterpolate11LayerTest, ::testing::Combine(
     ::testing::Combine(
             ::testing::ValuesIn(modesPillow),
             ::testing::Values(ov::op::util::InterpolateBase::ShapeCalcMode::SCALES),
@@ -303,10 +285,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Horizontal, Interpolate11La
         ::testing::Values(ov::Shape{1, 1, 25, 50}),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
-    Interpolate11LayerTest::getTestCaseName);
+    GPUInterpolate11LayerTest::getTestCaseName);
 
 
-INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Vertical, Interpolate11LayerTest, ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Vertical, GPUInterpolate11LayerTest, ::testing::Combine(
     ::testing::Combine(
             ::testing::ValuesIn(modesPillow),
             ::testing::Values(ov::op::util::InterpolateBase::ShapeCalcMode::SCALES),
@@ -323,10 +305,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Vertical, Interpolate11Laye
         ::testing::Values(ov::Shape{1, 1, 50, 25}),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
-    Interpolate11LayerTest::getTestCaseName);
+    GPUInterpolate11LayerTest::getTestCaseName);
 
 
-INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Vertical_BF, Interpolate11LayerTest, ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Vertical_BF, GPUInterpolate11LayerTest, ::testing::Combine(
     ::testing::Combine(
             ::testing::ValuesIn(modesPillow),
             ::testing::Values(ov::op::util::InterpolateBase::ShapeCalcMode::SCALES),
@@ -343,5 +325,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Vertical_BF, Interpolate11L
         ::testing::Values(ov::Shape{52, 26, 2, 2}),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
-    Interpolate11LayerTest::getTestCaseName);
+    GPUInterpolate11LayerTest::getTestCaseName);
 } // namespace

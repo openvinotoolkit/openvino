@@ -157,7 +157,9 @@ KERNEL (resample_horizontal_gpu_ref)(  __global INPUT0_TYPE* input
 
 #else // RESAMPLE_PILLOW_STAGE == STAGE_RESAMPLE_VERTICAL
 
-KERNEL (resample_vertical_gpu_ref)(  __global INPUT0_TYPE* input
+inline INPUT0_TYPE FUNC(round)(float x) { if (x >= 0) return x + 0.5; else return x - 0.5; }
+
+KERNEL (resample_vertical_gpu_ref)(  __global VERTICAL_INPUT_TYPE* input
                                      , __global float* coefficients
                                      , __global int* bounds
                                      , __global OUTPUT_TYPE* output
@@ -195,6 +197,7 @@ KERNEL (resample_vertical_gpu_ref)(  __global INPUT0_TYPE* input
 #endif
 
     OUTPUT_TYPE ss = 0.f;
+
     for (int vertical_dim = 0; vertical_dim < vertical_max; vertical_dim++) {
 #if ENABLE_HORIZONTAL_PASS
 
@@ -207,7 +210,19 @@ KERNEL (resample_vertical_gpu_ref)(  __global INPUT0_TYPE* input
 #elif X_IS_VERTICAL_AXIS == 1
         int in_idx = INTERMEDIATE_BUF_GET_INDEX(b, f, y, vertical_dim + vertical_min);
 #endif
-        ss += input[in_idx] * k[vertical_dim];
+    ss += input[in_idx] * k[vertical_dim];
+    int out_idx = OUTPUT_GET_INDEX(b, f, y, x);
+    if (sizeof(INPUT0_TYPE) == 1) {
+    // For the case of uint8 or int8 where both ENABLE_HORIZONTAL_PASS and ENABLE_VERTICAL_PASS are true,
+    //     - INPUT0_TYPE : uchar or char
+    //     - OUTPUT_TYPE : explicitly float, but actually uchar or char, e.g. 1.0, 2.0, and so on.
+    //     - VERTICAL_INPUT_TYPE : float
+    // At this point type-casting discards the decimal point, which causes a difference from what's expected.
+    // So it needs to round the decimal point and do type-casting in order to reduce the loss.
+        output[out_idx] = FUNC_CALL(round)(ss);
+    } else {
+        output[out_idx] = ss;
+    }
 #else // ENABLE_HORIZONTAL_PASS
 
 #if BATCH_IS_VERTICAL_AXIS == 1
@@ -240,10 +255,10 @@ KERNEL (resample_vertical_gpu_ref)(  __global INPUT0_TYPE* input
             int in_idx = INPUT0_GET_INDEX(b_no_padding, f_no_padding, y_no_padding, x_no_padding);
             ss += input[in_idx] * k[vertical_dim];
         }
-#endif // ENABLE_HORIZONTAL_PASS
-    }
     int out_idx = OUTPUT_GET_INDEX(b, f, y, x);
     output[out_idx] = ss;
+#endif // ENABLE_HORIZONTAL_PASS
+    }
 }
 
 #endif

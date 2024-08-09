@@ -15,5 +15,14 @@ TEST_P(InterpolateLayerTest, Inference) {
 TEST_P(Interpolate11LayerTest, Inference) {
     run();
 }
+
+TEST_P(GPUInterpolateLayerTest, Inference) {
+    run();
+}
+
+TEST_P(GPUInterpolate11LayerTest, Inference) {
+    run();
+}
+
 }  // namespace test
 }  // namespace ov
