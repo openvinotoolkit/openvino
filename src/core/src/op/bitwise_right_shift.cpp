@@ -17,13 +17,19 @@ struct Evaluate : ov::element::NoAction<bool> {
     using ov::element::NoAction<bool>::visit;
 
     template <element::Type_t ET>
-    static result_type visit(const Tensor& in0, const Tensor& in1, Tensor& out) {
+    static result_type visit(const Tensor& in0,
+                             const Tensor& in1,
+                             Tensor& out,
+                             const Shape& arg0_shape,
+                             const Shape& arg1_shape,
+                             const op::AutoBroadcastSpec& broadcast_spec) {
         using T = typename element_type_traits<ET>::value_type;
         reference::bitwise_right_shift(in0.data<const T>(),
                                        in1.data<const T>(),
                                        out.data<T>(),
-                                       in0.get_shape(),
-                                       in1.get_shape());
+                                       arg0_shape,
+                                       arg1_shape,
+                                       broadcast_spec);
         return true;
     }
 };
@@ -53,7 +59,10 @@ bool BitwiseRightShift::evaluate(TensorVector& outputs, const TensorVector& inpu
                       inputs[0].get_element_type(),
                       inputs[0],
                       inputs[1],
-                      outputs[0]);
+                      outputs[0],
+                      inputs[0].get_shape(),
+                      inputs[1].get_shape(),
+                      get_autob());
 }
 
 void BitwiseRightShift::validate_and_infer_types() {
