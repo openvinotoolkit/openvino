@@ -504,7 +504,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     gen_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper, get_generator()->get_target_machine()->get_reg_count());
     gen_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
     gen_pipeline.register_pass<lowered::pass::NormalizeLoopIDs>();
-    //gen_pipeline.register_pass<lowered::pass::ValidateExpandedLoops>();
+    gen_pipeline.register_pass<lowered::pass::ValidateExpandedLoops>();
     gen_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     gen_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
     gen_pipeline.run(*m_linear_ir);

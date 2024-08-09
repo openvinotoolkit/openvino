@@ -12,7 +12,7 @@
 #include "snippets/lowered/pass/insert_load_store.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
-#include "snippets/lowered/pass/iter_handler.hpp"
+#include "snippets/lowered/pass/split_loops.hpp"
 #include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
 #include "snippets/lowered/pass/validate_unified_loops.hpp"
 #include "snippets/lowered/pass/validate_expanded_loops.hpp"
@@ -47,14 +47,14 @@ static void init_linear_ir(const std::vector<ov::PartialShape>& in_shapes, Linea
     const auto outer_wa = std::max(*(in_shape0.rbegin() + 1), *(in_shape1.rbegin() + 1));
     const auto outer_inc = blocked_wa;
     loop_manager->mark_loop(expr_it, std::next(expr_it), inner_wa, inner_inc, 0, loop_input_ports, loop_output_ports);
-    loop_manager->mark_loop(expr_it, std::next(expr_it), blocked_wa, blocked_inc, 1, loop_input_ports, loop_output_ports, true, true);
-    const auto loop_id = loop_manager->mark_loop(expr_it, std::next(expr_it), outer_wa, outer_inc, 1, loop_input_ports, loop_output_ports);
+    loop_manager->mark_loop(expr_it, std::next(expr_it), blocked_wa, blocked_inc, 1, loop_input_ports, loop_output_ports);
+    const auto loop_id = loop_manager->mark_loop(expr_it, std::next(expr_it), outer_wa, outer_inc, 1, loop_input_ports, loop_output_ports, false);
     const auto& outer_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
-    const auto outer_tail_size = outer_wa % outer_inc;
-    if (outer_tail_size != 0) {
-        outer_loop_info->register_pass_to_handler<ov::snippets::lowered::SpecificLoopIterType::LAST_ITER, ov::snippets::lowered::pass::TransformInnerSplitLoop>(
-           outer_tail_size);
+    if (!outer_loop_info->get_handlers().get_passes<SpecificLoopIterType::FIRST_ITER>().empty()) {
+        outer_loop_info->register_pass_to_handler<SpecificLoopIterType::FIRST_ITER, ov::snippets::lowered::pass::SplitLoops::TransformInnerSplitLoop>();
     }
+    outer_loop_info->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, ov::snippets::lowered::pass::SplitLoops::TransformInnerSplitLoop>();
+    outer_loop_info->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, ov::snippets::lowered::pass::SplitLoops::TransformInnerSplitLoop>();
 }
 
 static void apply_transformations(LinearIR& linear_ir, const std::shared_ptr<ov::snippets::lowered::pass::PassConfig>& config) {
