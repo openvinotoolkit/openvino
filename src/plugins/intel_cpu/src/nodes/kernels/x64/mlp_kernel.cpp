@@ -281,21 +281,21 @@ void GateUpCombine::generate() {
     const auto zmm_up = zmm0;
     const auto ymm_dst = ymm5;
 
-    // when save_state is false, push/pop will not be generated.
     auto injector = std::make_shared<jit_uni_eltwise_injector_f32<dnnl::impl::cpu::x64::avx512_core>>(
         this,
         m_act_alg,
         1.f,
         1.0f,
         1.f,
-        false,                              // save_state, state will be saved in our function
+        true,                               // save_state, true due to additional r15 is used.
         Xbyak::Reg64(Xbyak::Operand::R10),  // p_table
         Xbyak::Opmask(1),                   // k_mask
         true,                               // is_fwd
         false,                              // use_dst
         false,                              // preserve_vmm
-        false);                             // preserve_p_table
+        false);                             // preserve_p_table, false due to it will be saved in the function
 
+    push(r10);
     xor_(loop_i, loop_i);
     injector->load_table_addr();
 
@@ -317,6 +317,7 @@ void GateUpCombine::generate() {
     cmp(loop_i, BN);
     jl(loop_begin, T_NEAR);
 
+    pop(r10);
     ret();
 
     injector->prepare_table();
