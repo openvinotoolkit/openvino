@@ -45,6 +45,7 @@
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tan.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/op/greater.hpp"
 
 namespace ov {
 namespace test {
@@ -164,6 +165,8 @@ std::shared_ptr<ov::Node> make_activation(const ov::ParameterVector& parameters,
     switch (activation_type) {
     case ov::test::utils::ActivationTypes::LeakyRelu:
         return std::make_shared<ov::op::v0::PRelu>(parameters[0], parameters[1]);
+    case ov::test::utils::ActivationTypes::Greater:
+        return std::make_shared<ov::op::v1::Greater>(parameters[0], parameters[1]);
     case ov::test::utils::ActivationTypes::HardSigmoid:
         return std::make_shared<ov::op::v0::HardSigmoid>(parameters[0], parameters[1], parameters[2]);
     case ov::test::utils::ActivationTypes::Selu:
