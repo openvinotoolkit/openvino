@@ -5,6 +5,7 @@
 #include "plugin.hpp"
 
 #include <fstream>
+#include <sstream>
 
 #include "compiled_model.hpp"
 #include "compiler.hpp"
@@ -14,7 +15,9 @@
 #include "intel_npu/al/config/npuw.hpp"
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/itt.hpp"
+#include "npu_private_properties.hpp"
 #include "npuw/compiled_model.hpp"
+#include "openvino/core/any.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -542,15 +545,58 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.getString<BACKEND_COMPILATION_PARAMS>();
           }}},
-        {ov::intel_npu::batch_mode.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
-                                                return config.getString<BATCH_MODE>();
-                                            }}}};
+        {ov::intel_npu::batch_mode.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.getString<BATCH_MODE>();
+          }}},
+        {ov::intel_npu::driver_elf_format_version.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.getString<DRIVER_ELF_FORMAT_VERSION>();
+          }}},
+        {ov::intel_npu::driver_mi_version.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.getString<DRIVER_MI_VERSION>();
+          }}},
+    };
 
     for (auto& property : _properties) {
         if (std::get<0>(property.second)) {
             _supportedProperties.emplace_back(ov::PropertyName(property.first, std::get<1>(property.second)));
         }
     }
+
+    checkDriverVersion();
+}
+
+void Plugin::checkDriverVersion() {
+    // The driver versions are fetched from zero device
+    const auto device = _backends->getDevice();
+    if (device == nullptr) {
+        return;
+    }
+
+    const std::optional<ov::intel_npu::Version> driverElfVersion = device->getLibraryELFVersion();
+    const std::optional<ov::intel_npu::Version> driverMIVersion = device->getLibraryMIVersion();
+
+    if (!(driverElfVersion && driverMIVersion)) {
+        // The current driver version doesn't have versions API
+        _logger.info("Driver Version is too old to use MLIR Compiler. "
+                     "Driver Compiler will be set as default compiler type.");
+        return;
+    }
+
+    std::stringstream strStream;
+    strStream << driverElfVersion.value();
+    _globalConfig.update({{std::string(ov::intel_npu::driver_elf_format_version.name()), strStream.str()}});
+    strStream.str("");
+    strStream << driverMIVersion.value();
+    _globalConfig.update({{std::string(ov::intel_npu::driver_mi_version.name()), strStream.str()}});
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {

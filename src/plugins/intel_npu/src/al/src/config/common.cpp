@@ -4,6 +4,8 @@
 
 #include "intel_npu/al/config/common.hpp"
 
+#include "npu_private_properties.hpp"
+
 using namespace intel_npu;
 using namespace ov::intel_npu;
 
@@ -22,6 +24,8 @@ void intel_npu::registerCommonOptions(OptionsDesc& desc) {
     desc.add<CACHE_DIR>();
     desc.add<LOADED_FROM_CACHE>();
     desc.add<BATCH_MODE>();
+    desc.add<DRIVER_ELF_FORMAT_VERSION>();
+    desc.add<DRIVER_MI_VERSION>();
 }
 
 //
@@ -72,6 +76,46 @@ ov::intel_npu::BatchMode intel_npu::BATCH_MODE::parse(std::string_view val) {
 }
 
 std::string intel_npu::BATCH_MODE::toString(const ov::intel_npu::BatchMode& val) {
+    std::stringstream strStream;
+
+    strStream << val;
+
+    return strStream.str();
+}
+
+//
+// DRIVER_ELF_FORMAT_VERSION
+//
+
+ov::intel_npu::Version intel_npu::DRIVER_ELF_FORMAT_VERSION::parse(std::string_view val) {
+    std::stringstream strStream;
+    strStream << val;
+    Version version;
+    strStream >> version;
+    return version;
+}
+
+std::string intel_npu::DRIVER_ELF_FORMAT_VERSION::toString(const ov::intel_npu::Version& val) {
+    std::stringstream strStream;
+
+    strStream << val;
+
+    return strStream.str();
+}
+
+//
+// DRIVER_MI_VERSION
+//
+
+ov::intel_npu::Version intel_npu::DRIVER_MI_VERSION::parse(std::string_view val) {
+    std::stringstream strStream;
+    strStream << val;
+    Version version;
+    strStream >> version;
+    return version;
+}
+
+std::string intel_npu::DRIVER_MI_VERSION::toString(const ov::intel_npu::Version& val) {
     std::stringstream strStream;
 
     strStream << val;

@@ -6,6 +6,8 @@
 
 #include <ze_api.h>
 
+#include <optional>
+
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "zero_executor.hpp"
@@ -84,6 +86,13 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     // Find the corresponding command queue group.
     log.debug("ZeroDevice::ZeroDevice - findGroupOrdinal");
     _group_ordinal = zeroUtils::findGroupOrdinal(command_group_properties, device_properties);
+
+    if (!(_initStructs->getDriverExtVersion() < ZE_GRAPH_EXT_VERSION_1_6)) {
+        zeroUtils::throwOnFail(
+            "pfnDeviceGetGraphProperties2",
+            _graph_ddi_table_ext->pfnDeviceGetGraphProperties2(_initStructs->getDevice(), &graph_properties));
+    }
+
     log.debug("ZeroDevice::ZeroDevice - init completed");
 }
 
@@ -92,6 +101,22 @@ std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
     const Config& config) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Device::createExecutor");
     return std::make_shared<ZeroExecutor>(_initStructs, networkDescription, config, _group_ordinal);
+}
+
+std::optional<ov::intel_npu::Version> ZeroDevice::getLibraryELFVersion() const {
+    if (_initStructs->getDriverExtVersion() < ZE_GRAPH_EXT_VERSION_1_6) {
+        return std::nullopt;
+    }
+    return {{graph_properties.elfVersion.major, graph_properties.elfVersion.minor, graph_properties.elfVersion.patch}};
+}
+
+std::optional<ov::intel_npu::Version> ZeroDevice::getLibraryMIVersion() const {
+    if (_initStructs->getDriverExtVersion() < ZE_GRAPH_EXT_VERSION_1_6) {
+        return std::nullopt;
+    }
+    return {{graph_properties.runtimeVersion.major,
+             graph_properties.runtimeVersion.minor,
+             graph_properties.runtimeVersion.patch}};
 }
 
 std::string ZeroDevice::getName() const {

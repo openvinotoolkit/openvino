@@ -507,6 +507,23 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
 
+    // DRIVER_ELF_FROMAT_VERSION and DRIVER_MI_VERSION are not supported in versions < 5.8 - need to remove them
+    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 8)) {
+        std::ostringstream elfstr;
+        elfstr << ov::intel_npu::driver_elf_format_version.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+               << VALUE_DELIMITER;
+        _logger.warning(
+            "DRIVER_ELF_FROMAT_VERSION property is not suppored by this compiler version. Removing from parameters");
+        content = std::regex_replace(content, std::regex(elfstr.str()), "");
+
+        std::ostringstream mistr;
+        mistr << ov::intel_npu::driver_mi_version.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+              << VALUE_DELIMITER;
+        _logger.warning(
+            "DRIVER_MI_VERSION property is not suppored by this compiler version. Removing from parameters");
+        content = std::regex_replace(content, std::regex(mistr.str()), "");
+    }
+
     // Remove the properties that are not used by the compiler
     // WorkloadType is used only by compiled model
     std::ostringstream workloadtypestr;
