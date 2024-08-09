@@ -45,7 +45,7 @@ BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const ele
 }
 
 bool BrgemmKernelConfig::is_completed() const {
-    return utils::one_of(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC) || is_empty();
+    return !utils::one_of(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC) || is_empty();
 }
 
 bool BrgemmKernelConfig::operator==(const BrgemmKernelConfig& rhs) const {

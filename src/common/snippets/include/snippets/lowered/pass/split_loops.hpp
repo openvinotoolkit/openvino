@@ -37,13 +37,24 @@ namespace pass {
  *         Loop_2_end (wa = 1024, inc = 16)                ...                                       Loop_1_end (wa = 1024, inc = 256)
  *                                                     Split_loop_2_end (wa = 256, inc = 16)
  *                                                     Split_loop_1_end (wa = 1024, inc = 256)
+ * MM0 is M and N split, MM1 is M and K split
+ * split ... + softmax on M amd N/K dimension
+ *             N,N_blk  M,M_blk              N,vec  M,1                  K,K_blk  M,M_blk
+ * |__|__MM0___|________|      |__|___Elt____|______|      |_|__MM1______|________|
+ *
+ *             N,N_blk  M,M_blk               N,vec M_blk,1 M,M_blk                K,K_blk  M,M_blk
+ * |__|__MM0___|________|      |_|_|___Elt____|_____|_______|        |_|___MM1_____|________|
+ *
+ *             N,N_blk  M,M_blk                  N_blk,vec N,N_blk   M_blk,1 M,M_blk              K,K_blk  M,M_blk
+ * |__|__MM0___|________|      |_|_|_|____Elt____|_________|_________|_______|      |_|__MM1______|________|
+ *
+ *             N,N_blk  M,M_blk                  N_blk,vec M_blk,1   N,N_blk M,M_blk              K,K_blk  M,M_blk
+ * |__|__MM0___|________|      |_|_|_|___Elt_____|_________|_________|_______|      |_|__MM1______|________|
+ *
+ *                        N_blk,vec  M_blk,1             N,N_blk  M,M_blk   (K and N is the same)
+ * |__|__MM0___|_|__Elt___|__________|________MM1________|________|
  * @ingroup snippets
  */
-
-/**
- * MM0 is M and N split, MM1 is M and K split
- * split ... + softmax + ... on second dimension
-*/
 
 class SplitLoops : public RangedPass {
 public:
@@ -54,7 +65,7 @@ public:
 private:
     static bool can_be_split(const UnifiedLoopInfoPtr& current, const UnifiedLoopInfoPtr& target);
 
-    static void split(LinearIR& linear_ir, size_t loop_to_split_id, size_t outer_increment);
+    static void split(LinearIR& linear_ir, size_t loop_to_split_id, size_t outer_increment, size_t loop_position);
 
     /**
      * @interface TransformInnerSplitLoop
