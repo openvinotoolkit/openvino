@@ -8,6 +8,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "crop_inst.h"
 #include "rope_inst.h"
+#include "gemm_inst.h"
 #include "primitive_inst.h"
 
 #include <string>
@@ -43,8 +44,29 @@ public:
             return false;
 
         // TODO: If user is RoPE and dynamic padding exists, ouput padding propagation is not supported in the base mode
-        if (get_users().size() == 1 && get_users().front()->is_type<rope>())
+        auto user = get_users().front();
+        if (get_users().size() == 1 && user->is_type<rope>())
             return false;
+
+        // TODO: Support transpose-fused gemm with dynamic_pad
+        if (get_users().size() == 1 && user->is_type<gemm>()) {
+            auto desc = user->as<gemm>().get_primitive();
+
+            auto input_order_transposed = [&]() -> bool {
+                for (size_t i = 0; i < desc->input0_transpose_order.size(); i++) {
+                    if (desc->input0_transpose_order[i] != static_cast<int64_t>(i))
+                        return true;
+                }
+                for (size_t i = 0; i < desc->input1_transpose_order.size(); i++) {
+                    if (desc->input1_transpose_order[i] != static_cast<int64_t>(i))
+                        return true;
+                }
+                return false;
+            };
+
+            if (input_order_transposed())
+                return false;
+        }
 
         auto axis = input().as<crop>().get_primitive()->axis;
         const auto& input_pshape = input().get_output_layout(false).get_partial_shape();
