@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_Precision_Control}
-
 Precision Control
 =================
 
@@ -88,7 +86,7 @@ where the current device does not have the required hardware capabilities).
 .. note::
 
    All devices only support floating-point data types (``f32``, ``f16``, ``bf16``) as a value
-   for ``inference_precision`` attribute, because quantization cannot be done in Runtime.
+   for ``inference_precision`` attribute.
 
 
 .. _limited_inference_precision:
