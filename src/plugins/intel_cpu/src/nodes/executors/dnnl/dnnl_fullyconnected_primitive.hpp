@@ -10,7 +10,6 @@
 #include "cpu_memory.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
-#include "nodes/executors/dnnl/dnnl_utils.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 
@@ -25,7 +24,6 @@ class DnnlFCPrimitive {
         DnnlMemoryDescCPtr dst;
         dnnl::primitive_attr attr;
         bool sparseWeights;
-        bool transposedWeights;
         Config::ModelType modelType;
 
         size_t hash() const;

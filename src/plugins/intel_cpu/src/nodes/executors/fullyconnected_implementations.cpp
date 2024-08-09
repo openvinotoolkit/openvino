@@ -369,7 +369,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             },
             // requiresFallback
             [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
-                // @todo use dnnlConvolutionLayoutConfig after one is implemented
                 return requiresFallbackCommon(config,
                                               dnnlMatMulTypeMapping,
                                               dnnlFCLayoutConfig,

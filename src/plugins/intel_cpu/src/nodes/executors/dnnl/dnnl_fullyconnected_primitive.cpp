@@ -9,7 +9,6 @@
 #include <common/primitive_attr.hpp>
 #include <common/primitive_desc_iface.hpp>
 #include <common/primitive_iface.hpp>
-#include <iostream>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -24,6 +23,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
+#include "nodes/executors/dnnl/dnnl_utils.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
@@ -51,7 +51,6 @@ size_t DnnlFCPrimitive::Key::hash() const {
 
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
     seed = hash_combine(seed, sparseWeights);
-    seed = hash_combine(seed, transposedWeights);
     seed = hash_combine(seed, modelType);
 
     return seed;
@@ -73,8 +72,9 @@ bool DnnlFCPrimitive::Key::operator==(const Key& rhs) const {
         result = result && dst && rhs.dst && dst->getDnnlDesc() == rhs.dst->getDnnlDesc();
     }
 
-    result = result && *attr.get() == *rhs.attr.get() && sparseWeights == rhs.sparseWeights &&
-             transposedWeights == rhs.transposedWeights && modelType == rhs.modelType;
+    result = result && *attr.get() == *rhs.attr.get() &&
+        sparseWeights == rhs.sparseWeights &&
+        modelType == rhs.modelType;
 
     return result;
 }
@@ -94,7 +94,6 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
                   dstDesc,
                   shapeAgnosticData->primAttrs.attr,
                   attrs.sparseWeights,
-                  attrs.weightsNonTransposed,
                   attrs.modelType};
 
     auto builder = [&context](const Key& dnnlKey) {
