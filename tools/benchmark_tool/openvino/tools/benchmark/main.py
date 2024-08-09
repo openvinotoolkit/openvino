@@ -43,7 +43,7 @@ def parse_and_check_command_line():
 
     _, ext = os.path.splitext(args.path_to_model)
     is_network_compiled = True if ext == BLOB_EXTENSION else False
-    is_precisiton_set = not (args.input_precision == "" and args.output_precision == "" and args.input_output_precision == "")
+    is_precisiton_set = not (args.input_precision == None and args.output_precision == None and args.input_output_precision == None)
 
     if is_network_compiled and is_precisiton_set:
         raise Exception("Cannot set precision for a compiled model. " \
