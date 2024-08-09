@@ -30,6 +30,24 @@ void init_data_ptr_shifts(const lowered::UnifiedLoopInfoPtr& unified_loop_info, 
 }
 }  // namespace
 
+#ifdef SNIPPETS_DEBUG_CAPS
+std::string RuntimeConfig::to_string() const {
+    std::stringstream out;
+    out << " ========== RuntimeConfig state ==========\n" <<
+           "tensor_rank: " << tensor_rank << "\n" <<
+           "tile_rank: " << tile_rank << "\n" <<
+           "master_shape: " << ov::Shape(master_shape) << "\n";
+    out << "io_data_offsets: " << "\n";
+    for (size_t i = 0; i < io_data_offsets.size(); ++i)
+        out << "\t[" << i << "]" << ov::Shape(io_data_offsets[i]) << "\n";
+    out << "buffer_scratchpad_size: " << buffer_scratchpad_size << "\n";
+    out << "buffer_cluster_offsets: " << "\n";
+    for (size_t i = 0; i < buffer_cluster_offsets.size(); ++i)
+        out << "\t[" << i << "]" << buffer_cluster_offsets[i] << "\n";
+    return out.str();
+}
+#endif
+
 RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c) :
     m_config(std::move(c)) {
     OPENVINO_ASSERT(m_config, "Runtime config is nullptr!");

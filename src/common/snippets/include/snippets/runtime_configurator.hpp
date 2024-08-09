@@ -36,6 +36,10 @@ public:
         return get_type_info().name;
     }
 
+#ifdef SNIPPETS_DEBUG_CAPS
+    virtual std::string to_string() const;
+#endif
+
     size_t tensor_rank = 0;
     size_t tile_rank = 0;
 
