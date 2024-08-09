@@ -33,7 +33,7 @@ public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(read_value_node const& /*node*/, const kernel_impl_params& impl_param) {
         auto desc = impl_param.typed_desc<read_value>();
-        const auto default_layout = desc->output_layout;
+        const auto& default_layout = desc->output_layout;
 
         return { impl_param.state_layout.value_or(default_layout) };
     }

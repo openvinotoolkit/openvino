@@ -1,0 +1,58 @@
+name: 'Restore artifacts'
+description: 'Take artifacts from a shared drive and load them back to GitHub'
+inputs:
+  storage_dir:
+    description: "Subdirectory name for artifacts, same as product type"
+    required: true
+  storage_root:
+    description: "Root path of the artifacts storage"
+    required: true
+  event_name:
+    description: "GitHub event name. If not set - taken from github context"
+    required: false
+  branch_name:
+    description: "Target branch name. If not set - taken from github context"
+    required: false
+  trigger_repo_sha:
+    description: "Commit hash of a trigger repo. If not set - taken from github context"
+    required: false
+  artifacts_key:
+    description: "A key under which to upload the artifacts to storage, product type by default"
+    required: false
+
+
+outputs:
+  artifacts_storage_path:
+    description: "Path on a shared drive where the artifacts are stored"
+    value: ${{ steps.restore.outputs.artifacts_storage_path }}
+  restored_artifacts_key:
+    description: "Key under which the restored artifacts, if any, were uploaded to GitHub"
+    value: ${{ steps.restore.outputs.restored_artifacts_key }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Restore artifacts
+      id: restore
+      if: "!inputs.artifacts"
+      shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+      run: >-
+        python3 ${{ env.ACTION_PATH }}/restore_artifacts.py
+        -t "${{ env.GITHUB_WORKSPACE }}/${{ inputs.storage_dir }}"
+        --storage_dir "${{ inputs.storage_dir }}" --storage_root "${{ inputs.storage_root }}"
+        -s "${{ inputs.trigger_repo_sha || github.event.pull_request.head.sha || github.sha }}"
+        ${{ inputs.branch_name && env.BRANCH_PARAM || '' }}
+        ${{ inputs.event_name && env.EVENT_PARAM || '' }}
+      env:
+        ACTION_PATH: ${{ runner.os == 'Windows' && '$env:GITHUB_ACTION_PATH' || '$GITHUB_ACTION_PATH' }}
+        GITHUB_WORKSPACE: ${{ runner.os == 'Windows' && '$env:GITHUB_WORKSPACE' || '$GITHUB_WORKSPACE' }}
+        BRANCH_PARAM: "-b ${{ inputs.branch_name }}"
+        EVENT_PARAM: "-e ${{ inputs.event_name }}"
+
+    - name: Upload artifacts
+      if: "!inputs.artifacts"
+      uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+      with:
+        name: ${{ inputs.artifacts_key || steps.restore.outputs.restored_artifacts_key }}
+        path: ${{ steps.restore.outputs.artifacts_workspace_path }}
+        if-no-files-found: 'error'
