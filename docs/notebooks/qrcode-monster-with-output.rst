@@ -61,6 +61,16 @@ conditioning by pose, please refer to this
 -  `Running Text-to-Image Generation with ControlNet Conditioning and
    OpenVINO <#running-text-to-image-generation-with-controlnet-conditioning-and-openvino>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/76463150/1a5978c6-e7a0-4824-9318-a3d8f4912c47
 
 Prerequisites
