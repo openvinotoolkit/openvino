@@ -99,19 +99,16 @@ TEST(CoreBaseTest, LoadOVFolderOverCWPathPluginXML) {
 }
 
 #    if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
-TEST(CoreBaseTest, ReadModelwithSymlink) {
+TEST(CoreBaseTest, AddExtensionwithSymlink) {
     fs::create_directory("test_link");
-    std::string modelName = "test_link/test.xml";
-    std::string weightsName = "test_link/test.bin";
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(modelName, weightsName);
-    manager.run_passes(ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::Type_t::f32));
+    std::string openvino_template_extension = ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
+                                                    std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
 
-    std::string modelNameSymlink = "test_link/test_symlink.xml";
-    fs::create_symlink(modelName, modelNameSymlink);
+    std::string NameSymlink = "test_link/test_symlink";
+    fs::create_symlink(openvino_template_extension, NameSymlink);
     ov::Core core;
-    EXPECT_NO_THROW(core.read_model(modelName, weightsName));
-    EXPECT_THROW(core.read_model(modelNameSymlink, weightsName), std::runtime_error);
+    EXPECT_NO_THROW(core.add_extension(openvino_template_extension));
+    EXPECT_THROW(core.add_extension(NameSymlink), std::runtime_error);
 
     fs::remove_all("test_link");
     ASSERT_FALSE(ov::util::directory_exists("test_link"));
