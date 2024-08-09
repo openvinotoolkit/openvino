@@ -56,7 +56,9 @@ void regclass_graph_Shape(py::module m) {
     auto compareShape = [](const ov::Shape& self, const auto& container) {
         if (self.size() != container.size()) return false;
         for (size_t i = 0; i < self.size(); ++i) {
-            if (self[i] != container[i].cast<size_t>()) return false;
+            if (self[i] != container[i].cast<size_t>()) {
+                return false;
+            }
         }
         return true;
     };
