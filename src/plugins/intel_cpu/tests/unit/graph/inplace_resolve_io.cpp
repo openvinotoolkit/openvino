@@ -113,7 +113,7 @@ protected:
             inputNodes.push_back(std::make_shared<node::Input>(params[i], context));
         }
 
-        auto dummy_softmax = std::make_shared<cpu_unit_test::DummyNode>(
+        auto dummy_softmax = std::make_shared<cpu_unit_test::GenericNode>(
             params[0]->get_output_partial_shape(0), testPrec, "Softmax0" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, 0/*look*/);
 
         auto concat = std::make_shared<v0::Concat>(ov::OutputVector{params[0], params[0]}, 0);  // default, the connection will be reset by addEdge
@@ -136,7 +136,7 @@ protected:
                 hidden_size, RecurrentSequenceDirection::FORWARD);
         auto rnnseqNode = std::make_shared<node::RNN>(rnnseq, context);
 
-        auto dummy_reshape = std::make_shared<cpu_unit_test::DummyNode>(
+        auto dummy_reshape = std::make_shared<cpu_unit_test::GenericNode>(
             rnnseq->get_output_partial_shape(0), testPrec, "Reshape1" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, Edge::LOOK::LOOK_BOTH);
 
         auto outputNode0 = std::make_shared<node::Input>(results.front(), context);
@@ -196,13 +196,13 @@ protected:
             outputNodes.push_back(std::make_shared<node::Input>(results[i], context));
         }
 
-        auto dummy_softmax = std::make_shared<cpu_unit_test::DummyNode>(
+        auto dummy_softmax = std::make_shared<cpu_unit_test::GenericNode>(
             testShape, testPrec, "softmax" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, 0/*look*/);
 
-        auto dummy_add = std::make_shared<cpu_unit_test::DummyNode>(
+        auto dummy_add = std::make_shared<cpu_unit_test::GenericNode>(
             testShape, testPrec, "add" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, 0/*look*/);
 
-        auto dummy_reshape = std::make_shared<cpu_unit_test::DummyNode>(
+        auto dummy_reshape = std::make_shared<cpu_unit_test::GenericNode>(
             testShape, testPrec, "reshape" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, Edge::LOOK::LOOK_BOTH);
 
         addEdge(inputNodes.front(), dummy_softmax, 0, 0);
@@ -253,16 +253,16 @@ protected:
             outputNodes.push_back(std::make_shared<node::Input>(results[i], context));
         }
 
-        auto dummy_softmax = std::make_shared<cpu_unit_test::DummyNode>(
+        auto dummy_softmax = std::make_shared<cpu_unit_test::GenericNode>(
             testShape, testPrec, "softmax" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, 0/*look*/);
 
-        auto dummy_add = std::make_shared<cpu_unit_test::DummyNode>(
+        auto dummy_add = std::make_shared<cpu_unit_test::GenericNode>(
             testShape, testPrec, "add" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, 0/*look*/);
 
-        auto dummy_reshape0 = std::make_shared<cpu_unit_test::DummyNode>(
+        auto dummy_reshape0 = std::make_shared<cpu_unit_test::GenericNode>(
             testShape, testPrec, "reshape0" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, Edge::LOOK::LOOK_BOTH);
 
-        auto dummy_reshape1 = std::make_shared<cpu_unit_test::DummyNode>(
+        auto dummy_reshape1 = std::make_shared<cpu_unit_test::GenericNode>(
             testShape, testPrec, "reshape1" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, Edge::LOOK::LOOK_BOTH);
 
         addEdge(inputNodes.front(), dummy_softmax, 0, 0);
@@ -308,7 +308,7 @@ protected:
             outputNodes.push_back(std::make_shared<node::Input>(results[i], context));
         }
 
-        auto dummy_reshape = std::make_shared<cpu_unit_test::DummyNode>(
+        auto dummy_reshape = std::make_shared<cpu_unit_test::GenericNode>(
             testShape, testPrec, "reshape0" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, Edge::LOOK::LOOK_BOTH);
 
         addEdge(inputNodes.front(), dummy_reshape, 0, 0);

@@ -62,6 +62,15 @@ public:
         return isGrouped && 1 == groupOC && 1 == groupIC;
     }
 
+    bool canPrepInput(size_t idx) const override {
+        return idx == 1;
+    }
+
+    void prepInput(size_t idx, InputPrepType type) override {
+        OPENVINO_ASSERT(idx == 1, "Only weights input (1) can be preprocessed");
+        this->weightsPrepType = type;
+    }
+
 protected:
     ov::element::Type fusedEltwisePrecision(const NodePtr& fusingNode) const;
     void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
@@ -177,6 +186,7 @@ private:
 #else
     const dnnl::algorithm baseConvAlgorithm = dnnl::algorithm::convolution_auto;
 #endif
+    InputPrepType weightsPrepType = InputPrepType::None;
 };
 
 }   // namespace node

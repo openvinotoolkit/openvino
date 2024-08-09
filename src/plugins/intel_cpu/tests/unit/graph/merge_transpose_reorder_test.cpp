@@ -116,7 +116,7 @@ protected:
 
         auto inputNode = std::make_shared<node::Input>(params[0], m_context);
 
-        auto dummyNode1 = std::make_shared<cpu_unit_test::DummyNode>(
+        auto dummyNode1 = std::make_shared<cpu_unit_test::GenericNode>(
             testShape, precision, "reshape", "DummyNode", m_context, firstNodeLayout, firstNodeInplaceDirection);
 
         auto orderNode = std::make_shared<node::Input>(constOrder, m_context);
@@ -129,7 +129,7 @@ protected:
 
         const auto& transpose_shape = transpose->get_output_shape(0);
         for (size_t i = 0; i < num_consumers; i++) {
-            auto dummyConsumer = std::make_shared<cpu_unit_test::DummyNode>(transpose_shape,
+            auto dummyConsumer = std::make_shared<cpu_unit_test::GenericNode>(transpose_shape,
                                                                             precision,
                                                                             "multiply",
                                                                             "DummyNode",
@@ -230,7 +230,7 @@ class MergeTransposeReorderWithReshapeCPUTest : public MergeTransposeReorderCPUT
         };
 
         auto inputNode = std::make_shared<node::Input>(param, m_context);
-        auto dummyNode1 = std::make_shared<cpu_unit_test::DummyNode>(
+        auto dummyNode1 = std::make_shared<cpu_unit_test::GenericNode>(
             testShape, precision, "before_reshape", "DummyNode", m_context, LayoutType::nspc, LOOK::LOOK_UP);
 
         auto reshapeConstNode = std::make_shared<node::Input>(reshape_const, m_context);
@@ -248,7 +248,7 @@ class MergeTransposeReorderWithReshapeCPUTest : public MergeTransposeReorderCPUT
 
         const auto& transpose_shape = transpose->get_output_shape(0);
         for (size_t i = 0; i < num_consumers; i++) {
-            auto dummyConsumer = std::make_shared<cpu_unit_test::DummyNode>(transpose_shape,
+            auto dummyConsumer = std::make_shared<cpu_unit_test::GenericNode>(transpose_shape,
                                                                             precision,
                                                                             "multiply",
                                                                             "DummyNode",

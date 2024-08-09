@@ -52,7 +52,7 @@ public:
 
     static std::string getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc);
 
-    static void reorderData(const IMemory &input, const IMemory &output, MultiCachePtr cache = nullptr);
+    static void reorderData(const IMemory &input, const IMemory &output, MultiCachePtr cache = nullptr, bool ftz = false);
 
 private:
     dnnl::reorder::primitive prim;
