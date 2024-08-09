@@ -101,8 +101,11 @@ private:
     void set_tensor(std::shared_ptr<ITensorDescriptor> tensor) {
         OPENVINO_ASSERT(tensor, "Cannot set NULL tensor descriptor");
         rm_tensor_output_names();
+        auto prev_rt_map = rt_map();
+
         m_shared_tensor = std::move(tensor);
         m_shared_tensor->add_names(m_output_names);
+        rt_map().insert(std::make_move_iterator(prev_rt_map.begin()), std::make_move_iterator(prev_rt_map.end()));
     }
 
     void rm_tensor_output_names() {
