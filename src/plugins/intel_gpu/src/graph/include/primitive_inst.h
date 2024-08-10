@@ -284,6 +284,7 @@ public:
     void add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, std::string memalloc_info, int64_t time, bool per_iter_mode = false);
     const std::unordered_map<size_t, std::tuple<int64_t, size_t>>& get_profiling_data() const { return _profiling_data; }
     const std::unordered_map<size_t, instrumentation::perf_counter_key>& get_profiling_info() const { return _profiling_info; }
+    std::map<std::string, std::vector<int64_t>>& get_host_timestamps() { return _host_timestamps; }
 
     layout get_input_layout(size_t idx = 0) const { return _impl_params->get_input_layout(idx); }
     layout get_output_layout(size_t idx = 0) const { return _impl_params->get_output_layout(idx); }
@@ -465,6 +466,7 @@ protected:
     // and store mapping onto original perf_clounter_key for further data analysis and dumps
     std::unordered_map<size_t, std::tuple<int64_t, size_t>> _profiling_data;
     std::unordered_map<size_t, instrumentation::perf_counter_key> _profiling_info;
+    std::map<std::string, std::vector<int64_t>> _host_timestamps;
 };
 
 /*
