@@ -629,15 +629,6 @@ struct EltwiseEmitter<jit_is_inf_emitter> {
     }
 };
 
-template<>
-struct EltwiseEmitter<jit_logicalnot_emitter> {
-    void operator()(EltwiseEmitterContext& ctx) {
-        ctx.emitter = std::make_shared<jit_logicalnot_emitter>(ctx.host,
-                                                                 ctx.host_isa,
-                                                                 ctx.exec_prc);
-    }
-};
-
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitter(const EltwiseData& data, const ov::element::Type& exec_prec) {
     EltwiseEmitterContext ctx = {
