@@ -167,6 +167,13 @@ else()
     set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
 endif()
 
+# Failed: openvino/src/bindings/js/node/thirdparty/node-lib.def: no such file or directory
+if(WIN32 AND AARCH64)
+    set(ENABLE_JS_DEFAULT OFF)
+else()
+    set(ENABLE_JS_DEFAULT ON)
+endif()
+
 ov_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" ${ENABLE_SYSTEM_TBB_DEFAULT}
     "THREADING MATCHES TBB" OFF)
 ov_option (ENABLE_SYSTEM_PUGIXML "Enables use of system PugiXML" OFF)
@@ -186,7 +193,7 @@ ov_dependent_option (ENABLE_SYSTEM_SNAPPY "Enables use of system version of Snap
 ov_dependent_option (ENABLE_PYTHON_PACKAGING "Enables packaging of Python API in APT / YUM" OFF
     "ENABLE_PYTHON;UNIX" OFF)
 
-ov_dependent_option(ENABLE_JS "Enables JS API building" ON "NOT ANDROID;NOT EMSCRIPTEN" OFF)
+ov_dependent_option(ENABLE_JS "Enables JS API building" ${ENABLE_JS_DEFAULT} "NOT ANDROID;NOT EMSCRIPTEN" OFF)
 
 ov_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
 
