@@ -30,7 +30,7 @@ public:
      * @param port Port of the tensor to get.
      * @return Tensor for the port @p port.
      */
-    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
+    virtual ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
 
     /**
      * @brief Sets an input/output tensor to infer.
@@ -38,7 +38,7 @@ public:
      * @param tensor Reference to a tensor. The element_type and shape of a tensor must match
      * the model's input/output element_type and size.
      */
-    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
+    virtual void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
 
     /**
      * @brief Currently there is no support implemented for batches of tensors, thus this call is a simple redirection
@@ -160,7 +160,7 @@ protected:
      * otherwise.
      * @param precision The precision value to be checked.
      */
-    virtual void check_network_precision(const ov::element::Type_t precision) = 0;
+    virtual void check_network_precision(const ov::element::Type_t precision) const = 0;
 
     /**
      * @brief Indicates a kind of provided tensor. Marks special tensors, used for internal implementation
@@ -179,16 +179,16 @@ protected:
     void allocate_tensor(std::string tensorName,
                          const IONodeDescriptor& descriptor,
                          TensorType tensorType = TensorType::InputOrOutput,
-                         const ov::Allocator& allocator = {});
+                         const ov::Allocator& allocator = {}) const;
 
     // Mutable to return reference to ov::Tensor
     mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _allTensors;
     mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _shapesTensors;
     // A copy of each tensor is needed to maintain the original L0 memory allocation in case the user provides another
     // memory area for the tensor.
-    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _copyAllTensors;
+    mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _copyAllTensors;
 
-    std::unordered_map<std::string, std::shared_ptr<VariableState>> _variableStates;
+    mutable std::unordered_map<std::string, std::shared_ptr<VariableState>> _variableStates;
 
     // This is intel_npu::ICompiledModel pointer, but need to use OV base class because
     // ov::IInferRequest::get_compiled_model returns a refernce to shared_ptr!

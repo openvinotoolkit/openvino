@@ -16,7 +16,7 @@
 #include "primitive_inst.h"
 #include "kernel_selector_helper.h"
 #include "register.hpp"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 #include "concatenation_inst.h"
 #include "gather_inst.h"
 #include "permute_inst.h"
@@ -90,7 +90,8 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
                impl_param.is_type<gather>() ||
                impl_param.is_type<permute>() ||
                impl_param.is_type<strided_slice>() ||
-               impl_param.is_type<broadcast>()) && impl_param.is_dynamic())) {
+               impl_param.is_type<broadcast>() ||
+               impl_param.is_type<crop>()) && impl_param.is_dynamic())) {
             return make_unique<ImplType>(kernel_selector::kernel_data{});
         }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
@@ -100,6 +101,12 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         auto best_kernel = kernel_selector.get_best_kernel(kernel_params);
 
         return make_unique<ImplType>(best_kernel);
+    }
+
+    void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
+        auto new_impl_params = this->canonicalize_shapes(impl_params);
+        update_dispatch_data(new_impl_params);
+        inst.update_shape_info_tensor(new_impl_params);
     }
 
 protected:
@@ -311,6 +318,11 @@ protected:
 
     std::pair<std::string, std::string> get_kernels_dump_info() const override {
         return kernel_dump_info;
+    }
+
+    virtual void update_dispatch_data(const kernel_impl_params& impl_params) {
+        OPENVINO_ASSERT(this->_is_dynamic, "[GPU] update_dispatch_data() is called for static shape implementation ", this-> _kernel_name);
+        OPENVINO_ASSERT(false, "[GPU] update_dispatch_data() is not implemented for dynamic implemenation ", this->_kernel_name);
     }
 };
 

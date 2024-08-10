@@ -116,6 +116,10 @@ a#wap_dns {display: none;}
     font-weight: 600;
 }
 
+.bold {
+    font-weight: 700;
+}
+
 /* Underline width */
 a:hover,
 .toc-entry a.nav-link:hover,
@@ -126,7 +130,6 @@ nav.bd-links li > a:hover {
 
 #bd-docs-nav div ul a:hover {
     color: white;
-    text-decoration: underline
 }
 
 ul#navbar-main-elements > li:hover {
@@ -140,12 +143,34 @@ nav.bd-links .current>a {
     color: black;
 }
 
+a.current {
+    background-color: #76CEFF!important;
+}
+
+.bd-sidebar-primary label.toctree-toggle:hover {
+    background: #76CEFF!important;
+}
+
+a.current svg:not(:host).svg-inline--fa, svg:not(:root).svg-inline--fa {
+    color: black;
+}
+
 .bd-header .navbar-nav li a.nav-link {
     color: #fff;
     font-size: 1rem;
     white-space: nowrap;
     padding-right: 0;
     padding: 0 0.8rem;
+}
+ul.bd-breadcrumbs li.breadcrumb-item:not(.breadcrumb-home):before {
+    padding: .2rem .5rem 0 !important;
+}
+li.breadcrumb-item {
+    align-items: center !important;
+}
+
+.bd-sidebar-primary {
+    display:block !important;
 }
 
 a.nav-link:hover {
@@ -161,11 +186,6 @@ a.nav-link:hover {
     display: none;
     visibility: none;
     color: white;
-}
-
-li.toctree-l1.has-children  > a.reference.internal {
-    font-weight: 700;
-    color: black;
 }
 
 .rotate {
@@ -461,6 +481,9 @@ div.highlight {
     .container-sm,
     .container-xl {
         max-width: 100%;
+    }
+    .bd-main .bd-content .bd-article-container .bd-article {
+        padding-left: 1rem !important;
     }
 }
 

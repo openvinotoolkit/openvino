@@ -13,8 +13,8 @@ labels and confidence scores for each box. Object detection is a good
 choice when you need to identify objects of interest in a scene, but
 don’t need to know exactly where the object is or its exact shape.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Get PyTorch model <#get-pytorch-model>`__
@@ -33,6 +33,13 @@ Table of contents:
 -  `Compare inference time and model
    sizes. <#compare-inference-time-and-model-sizes>`__
 
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 ~~~~~~~~~~~~~
 
@@ -41,13 +48,6 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q "ultralytics==8.2.24" "openvino>=2024.0.0" "nncf>=2.9.0" tqdm
-
-
-.. parsed-literal::
-
-    DEPRECATION: torchsde 0.2.5 has a non-standard dependency specifier numpy>=1.19.*; python_version >= "3.7". pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of torchsde or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Import required utility functions. The lower cell will download the
 notebook_utils Python module from GitHub.
@@ -167,8 +167,6 @@ instance.
 .. parsed-literal::
 
     val: New cache created: /home/ea/work/openvino_notebooks/notebooks/fast-segment-anything/datasets/dota8/labels/train.cache
-
-
 
 
 
@@ -457,17 +455,17 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -478,17 +476,17 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 

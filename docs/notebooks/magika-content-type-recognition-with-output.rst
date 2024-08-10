@@ -41,8 +41,7 @@ post <https://opensource.googleblog.com/2024/02/magika-ai-powered-fast-and-effic
 
 In this tutorial we consider how to bring OpenVINO power into Magika.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__
 -  `Define model loading class <#define-model-loading-class>`__
@@ -55,8 +54,19 @@ Table of contents:
 
 -  `Interactive demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
+
 
 
 .. code:: ipython3

@@ -507,7 +507,7 @@ class Core(CoreBase):
         device_name: Optional[str] = None,
         config: Optional[dict] = None,
         *,
-        weights: Optional[bytes] = None
+        weights: Optional[bytes] = None,
     ) -> CompiledModel:
         """Creates a compiled model.
 

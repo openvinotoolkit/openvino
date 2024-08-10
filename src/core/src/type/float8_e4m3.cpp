@@ -8,6 +8,8 @@
 #include <cmath>
 #include <limits>
 
+#include "openvino/core/type/float_util.hpp"
+
 namespace ov {
 
 static_assert(sizeof(float8_e4m3) == 1, "class f8e4m3 must be exactly 1 byte");
@@ -38,8 +40,6 @@ static constexpr std::array<float, 128> f8_to_float_lut{
     128.0f,    144.0f,       160.0f,      176.0f,       192.0f,     208.0f,       224.0f,      240.0f,
     256.0f,    288.0f,       320.0f,      352.0f,       384.0f,     416.0f,       448.0f,      float_nan};
 
-constexpr uint32_t three_bytes_shift = 24;
-
 constexpr uint8_t f8e4m3_s_mask = 0x80;  // f8e4m3 sign bit mask
 constexpr uint8_t f8e4m3_e_size = 4;     // f8e4m3 exponent bit size
 constexpr uint8_t f8e4m3_e_mask = 0x78;  // f8e4m3 exponent bit mask
@@ -47,11 +47,6 @@ constexpr uint8_t f8e4m3_e_bias = 7;     // f8e4m3 exponent bias
 constexpr uint8_t f8e4m3_e_max = 0x0f;   // f8e4m3 exponent max value
 constexpr uint8_t f8e4m3_m_size = 3;     // f8e4m3 mantissa bits size
 constexpr uint8_t f8e4m3_m_mask = 0x07;  // f8e4m3 mantissa bit mask
-
-union f32_t {
-    float value;
-    uint32_t bits;
-};
 
 uint8_t f32_to_f8e4m3_bits(const float value) {
     constexpr uint32_t f32_s_mask = 0x80000000;  // f32 sign bit mask
@@ -70,16 +65,16 @@ uint8_t f32_to_f8e4m3_bits(const float value) {
     constexpr uint32_t round_even = 0x00800000;  // value for half to even round for f8
     constexpr uint32_t round_odd = 0x01800000;   // value for an non-half to even round for f8
 
-    const auto input = f32_t{value};
-    auto f8_bits = static_cast<uint8_t>((input.bits & f32_s_mask) >> three_bytes_shift);
+    const auto input = util::f32_to_u32_bits(value);
+    auto f8_bits = static_cast<uint8_t>((input & f32_s_mask) >> three_bytes_shift);
 
-    uint32_t f32_e_field = input.bits & f32_e_mask;
+    uint32_t f32_e_field = input & f32_e_mask;
 
     if (f32_e_field == f32_e_mask) {
         f8_bits |= (f8e4m3_e_mask | f8e4m3_m_mask);
     } else if (f32_e_field != 0) {
         int32_t f8_biased_exp = (f32_e_field >> f32_m_size) - (f32_e_bias - f8e4m3_e_bias);
-        uint32_t fractional = (input.bits & f32_m_mask) << (f32_e_size - f8e4m3_e_size);
+        uint32_t fractional = (input & f32_m_mask) << (f32_e_size - f8e4m3_e_size);
 
         // for normalized values round apply rounding change f8 fractional and biased exponent
         if ((fractional & round_half) == round_odd || (fractional & round_norm) != 0) {
@@ -99,7 +94,7 @@ uint8_t f32_to_f8e4m3_bits(const float value) {
             f8_bits |= (f8_biased_exp << f8e4m3_m_size) | (fractional >> three_bytes_shift);
         } else {
             // Restore the hidden 1 in f8 mantissa for subnormal calculation
-            fractional = f8_m_hidden_one_mask | (input.bits & f32_m_mask) << (f32_e_size - f8e4m3_e_size);
+            fractional = f8_m_hidden_one_mask | (input & f32_m_mask) << (f32_e_size - f8e4m3_e_size);
             // Will any bits be shifted off?
             int32_t shift = f8_biased_exp < -(f8e4m3_e_max) ? 0 : (1U << (1 - f8_biased_exp));
             uint32_t sticky = (fractional & (shift - 1)) ? 1 : 0;
@@ -126,9 +121,9 @@ float8_e4m3::float8_e4m3(const uint32_t sign, const uint32_t biased_exponent, co
 float8_e4m3::float8_e4m3(const float value) : m_value{f32_to_f8e4m3_bits(value)} {}
 
 float8_e4m3::operator float() const {
-    auto converted = f32_t{f8_to_float_lut[m_value & (f8e4m3_e_mask | f8e4m3_m_mask)]};
-    converted.bits |= (m_value & f8e4m3_s_mask) << three_bytes_shift;
-    return converted.value;
+    auto f32_bits = util::f32_to_u32_bits(f8_to_float_lut[m_value & (f8e4m3_e_mask | f8e4m3_m_mask)]);
+    f32_bits |= (m_value & f8e4m3_s_mask) << three_bytes_shift;
+    return util::u32_bits_to_f32(f32_bits);
 }
 
 uint8_t float8_e4m3::to_bits() const {

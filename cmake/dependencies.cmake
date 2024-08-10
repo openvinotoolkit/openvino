@@ -35,7 +35,20 @@ if(THREADING STREQUAL "OMP")
                 SHA256 "591ea4a7e08bbe0062648916f42bded71d24c27f00af30a8f31a29b5878ea0cc"
                 USE_NEW_LOCATION TRUE)
     else()
-        message(FATAL_ERROR "Intel OMP is not available on current platform")
+        message(WARNING "Pre-built Intel OMP is not available on current platform. System OMP will be used.")
+        find_package(OpenMP)
+        if(OpenMP_CXX_FOUND)
+           foreach(OpenMP_LIB ${OpenMP_CXX_LIBRARIES})
+               string(FIND ${OpenMP_LIB} "omp" OpenMP_LIB_OMP_INDEX)
+               if(NOT OpenMP_LIB_OMP_INDEX EQUAL -1)
+                   cmake_path(GET OpenMP_LIB PARENT_PATH OpenMP_LIB_DIR)
+                   set(OMP_LIB ${OpenMP_LIB} CACHE FILEPATH "Path to OMP library")
+                   set(OMP ${OpenMP_LIB_DIR} CACHE FILEPATH "Path to OMP root folder")
+                   return()
+               endif()
+           endforeach()
+        endif()
+        message(FATAL_ERROR "System OpenMP has not been found")
     endif()
     update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
     debug_message(STATUS "intel_omp=" ${OMP})
@@ -104,10 +117,10 @@ function(ov_download_tbb)
     elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.2.5-lin-trim.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.2.4-lin.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "9bea2c838df3085d292989d643523dc1cedce9b46d5a03eec90104151b49a180"
+                SHA256 "6523661559a340e88131472ea9a595582c306af083e55293b7357d11b8015546"
                 USE_NEW_LOCATION TRUE)
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB

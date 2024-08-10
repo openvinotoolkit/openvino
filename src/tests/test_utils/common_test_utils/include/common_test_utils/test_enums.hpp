@@ -123,6 +123,7 @@ enum ActivationTypes {
     GeluErf,
     GeluTanh,
     SoftSign,
+    IsFinite,
     IsInf,
     IsNaN,
 };

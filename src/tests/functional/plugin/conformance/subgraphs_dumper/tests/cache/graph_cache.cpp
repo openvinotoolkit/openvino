@@ -64,13 +64,13 @@ TEST_F(GraphCacheFuncTest, get_graph_cache_twice) {
 TEST_F(GraphCacheFuncTest, update_cache) {
     auto graph_cache = ov::tools::subgraph_dumper::GraphCache::get();
     graph_cache->update_cache(test_model, test_model_path, true);
-    ASSERT_NO_THROW(graph_cache->update_cache(test_model, test_model_path, true));
+    OV_ASSERT_NO_THROW(graph_cache->update_cache(test_model, test_model_path, true));
 }
 
 TEST_F(GraphCacheFuncTest, serialize_cache) {
     auto graph_cache = ov::tools::subgraph_dumper::GraphCache::get();
     graph_cache->set_serialization_dir(test_artifacts_dir);
-    ASSERT_NO_THROW(graph_cache->serialize_cache());
+    OV_ASSERT_NO_THROW(graph_cache->serialize_cache());
 }
 
 // ====================== Graph Cache Unit tests ==============================

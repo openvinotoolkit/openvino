@@ -39,6 +39,7 @@
 #include "embedding_bag_inst.h"
 #include "extract_image_patches_inst.h"
 #include "reduce_inst.h"
+#include "group_normalization_inst.h"
 #include <vector>
 #include <map>
 #include <list>
@@ -400,7 +401,6 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                        desc->weights,
                                                                        bias_name,
                                                                        fc.get_output_layout().data_type,
-                                                                       desc->output_paddings[0],
                                                                        desc->input_size);
 
             if (desc->compressed_weights) {
@@ -409,6 +409,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 fc_with_bias_prim->decompression_zero_point = desc->decompression_zero_point;
                 if (desc->decompression_zero_point_scalar.has_value())
                     fc_with_bias_prim->decompression_zero_point_scalar = desc->decompression_zero_point_scalar.value();
+                fc_with_bias_prim->activation_scale = desc->activation_scale;
+                fc_with_bias_prim->dynamic_quantized_activation = desc->dynamic_quantized_activation;
             }
             auto& new_fc_node = p.get_or_create(fc_with_bias_prim);
             fuse_bias_f(fc, new_fc_node, bias_node, eltw_node);
@@ -694,6 +696,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input.is_type<mvn>();
 
+            should_fuse |= input.is_type<group_normalization>();
+
             should_fuse |= input.is_type<normalize>() && data_type_traits::is_i8_u8(input.get_input_layout(0).data_type);
 
             should_fuse |= input.is_type<deconvolution>();
@@ -891,6 +895,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                        conv_supports_fusings(parents[i].first->as<convolution>())) ||
                                       (parents[i].first->is_type<mvn>() &&
                                        mvn_supports_fusings(parents[i].first->as<mvn>(), true)) ||
+                                      (parents[i].first->is_type<group_normalization>()) ||
                                       (parents[i].first->is_type<deconvolution>()) ||
                                       (parents[i].first->is_type<permute>()) ||
                                       (parents[i].first->is_type<resample>()) ||
@@ -981,18 +986,60 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             size_t fused_idx = can_fuse_parents[0] ? 0 : 1;
             size_t peer_idx  = can_fuse_parents[0] ? 1 : 0;
 
-            int p1_pnum = p.get_processing_order().get_processing_number(parents[fused_idx].first);
-            int p2_pnum = p.get_processing_order().get_processing_number(parents[peer_idx].first);
+            auto can_swap_parents = [&]() -> bool {
+                // Swap in below two cases
+                //     1. Both branches have same data type. Select branch with lower processing number.
+                //     2. Peer node has fp32 output type, but fused node - int8.
+                //         - In that case we have to fuse to the branch with fp32 out type to avoid fp32 blobs in the quantized graph.
+                //
+                if (can_fuse_parents[peer_idx]) {
+                    auto p1_pnum = p.get_processing_order().get_processing_number(parents[fused_idx].first);
+                    auto p2_pnum = p.get_processing_order().get_processing_number(parents[peer_idx].first);
+                    auto p1_dt = parents[fused_idx].first->get_output_layout().data_type;
+                    auto p2_dt = parents[peer_idx].first->get_output_layout().data_type;
+                    // Notice:
+                    //     - If current node has two parent nodes and one of the parent nodes is what has been fused with some nodes,
+                    //       and which is not the last one of the fused primitives, the current node should be fused to that node.
+                    //     - See example graph and description below.
+                    //         : Where [convolution1 - parent1 - eltwise1] have been fused to convolution1,
+                    //               1) if parent1 exists in fusing_history as the node to which the current node will be fused,
+                    //               2) and parent1 is not the last one among the primitives fused to convolution1
+                    //                  (e.g. eltwise1, eltwise2, eltwise3 and eltwise4 will be fused to convolution1 the last one is eltwise4),
+                    //           current node should be fused into [convolution1 - parent1 - eltwise1] without index swapping.
+                    //         : There is no problem with swapping index when eltwise1 has not yet been fused at the time of fusing current node.
+                    //
+                    //                convolution1    convolution2
+                    //                      |             |
+                    //                   parent1       parent2
+                    //                   /     \       /
+                    //           eltwise1       current
+                    //               |             |
+                    //           eltwise2          |
+                    //                \            |
+                    //             eltwise3 -- eltwise4
+                    //
+                    for (auto& fused_prim : parents[fused_idx].first->get_fused_primitives()) {
+                        auto iter = fusing_history.find(node.id());
+                        if (iter != fusing_history.end()) {
+                            for (auto id : iter->second) {
+                                if (id.first == fused_prim.desc->id &&
+                                    id.first != parents[fused_idx].first->get_fused_primitives().back().desc->id) {
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+                    if (p1_pnum < p2_pnum && p1_dt == p2_dt) {
+                        return true;
+                    }
+                    if (data_type_traits::is_floating_point(p2_dt) && !data_type_traits::is_floating_point(p1_dt)) {
+                        return true;
+                    }
+                }
+                return false;
+            };
 
-            auto p1_dt = parents[fused_idx].first->get_output_layout().data_type;
-            auto p2_dt = parents[peer_idx].first->get_output_layout().data_type;
-
-            if (can_fuse_parents[peer_idx] &&
-               ((p1_pnum < p2_pnum && p1_dt == p2_dt) || (data_type_traits::is_floating_point(p2_dt) && !data_type_traits::is_floating_point(p1_dt)))) {
-                // Swap in 2 cases:
-                // 1. Both branches have same data type. Select branch with lower processing number
-                // 2. Peer node has fp32 output type, but fused node - int8. In that case we have to fuse to the branch
-                // with fp32 out type to avoid fp32 blobs in the quantized graph.
+            if (can_swap_parents()) {
                 std::swap(fused_idx, peer_idx);
             }
 

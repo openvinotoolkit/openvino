@@ -8,13 +8,23 @@ running multiple times.
 
 |image0|
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Showing Info Available Devices <#showing-info-available-devices>`__
 -  `Configure Inference Pipeline <#configure-inference-pipeline>`__
 -  `Using full precision model in choice device with
    OVStableDiffusionPipeline <#using-full-precision-model-in-choice-device-with-ovstablediffusionpipeline>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 .. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/10940214/1858dae4-72fd-401e-b055-66d503d82446
 
@@ -47,7 +57,7 @@ OpenVINO’s integration into Optimum.
 .. code:: ipython3
 
     import warnings
-    
+
     warnings.filterwarnings("ignore")
 
 Showing Info Available Devices
@@ -66,10 +76,10 @@ If you just have either an iGPU or dGPU that will be assigned to
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
     devices = core.available_devices
-    
+
     for device in devices:
         device_name = core.get_property(device, "FULL_DEVICE_NAME")
         print(f"{device}: {device_name}")
@@ -92,14 +102,14 @@ Select device from dropdown list for running inference using OpenVINO.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -119,7 +129,7 @@ Using full precision model in choice device with ``OVStableDiffusionPipeline``
 .. code:: ipython3
 
     from optimum.intel.openvino import OVStableDiffusionPipeline
-    
+
     # download the pre-converted SD v2.1 model from Hugging Face Hub
     name = "helenai/stabilityai-stable-diffusion-2-1-base-ov"
     ov_pipe = OVStableDiffusionPipeline.from_pretrained(name, compile=False)
@@ -130,7 +140,7 @@ Using full precision model in choice device with ``OVStableDiffusionPipeline``
 .. code:: ipython3
 
     import gc
-    
+
     # Generate an image.
     prompt = "red car in snowy forest, epic vista, beautiful landscape, 4k, 8k"
     output_ov = ov_pipe(prompt, num_inference_steps=17, output_type="pil").images[0]
@@ -153,4 +163,4 @@ Using full precision model in choice device with ``OVStableDiffusionPipeline``
 .. code:: ipython3
 
     del ov_pipe
-    gc.collect()
+    gc.collect();

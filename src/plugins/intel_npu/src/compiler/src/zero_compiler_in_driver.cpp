@@ -10,6 +10,7 @@
 
 #include "graph_transformations.hpp"
 #include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/al/prefix.hpp"
@@ -376,6 +377,47 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
     const Config& config,
     ze_graph_compiler_version_info_t& compilerVersion) const {
     std::string content = config.toString();
+    _logger.debug("Original content of config: %s", content.c_str());
+
+    // Remove optimization-level and performance-hint-override for old driver which not support them
+    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 7)) {
+        std::string valueOfParams = config.get<COMPILATION_MODE_PARAMS>();
+        std::string keyOfOptL("optimization-level");
+        std::string keyOfPerfHO("performance-hint-override");
+        if (valueOfParams != "" && (valueOfParams.find(keyOfOptL) != std::string::npos ||
+                                    valueOfParams.find(keyOfPerfHO) != std::string::npos)) {
+            // Remove unsupported options from value
+            std::ostringstream optLevelStr;
+            optLevelStr << keyOfOptL << KEY_VALUE_SEPARATOR << "\\d+";
+            std::ostringstream perfHintStr;
+            perfHintStr << keyOfPerfHO << KEY_VALUE_SEPARATOR << "\\S+";
+            _logger.warning("%s property is not suppored by this compiler version. Removing from parameters",
+                            keyOfOptL.c_str());
+            valueOfParams = std::regex_replace(valueOfParams, std::regex(optLevelStr.str()), "");
+            _logger.warning("%s property is not suppored by this compiler version. Removing from parameters",
+                            keyOfPerfHO.c_str());
+            valueOfParams = std::regex_replace(valueOfParams, std::regex(perfHintStr.str()), "");
+
+            // Trim space
+            valueOfParams = std::regex_replace(valueOfParams, std::regex(R"(^\s+|\s+$)"), "");
+
+            // Replace the value in content with new value
+            std::ostringstream compilationParamsStr;
+            compilationParamsStr << ov::intel_npu::compilation_mode_params.name() << KEY_VALUE_SEPARATOR
+                                 << VALUE_DELIMITER << ".*" << VALUE_DELIMITER;
+            if (valueOfParams == "") {
+                _logger.warning("Clear empty NPU_COMPILATION_MODE_PARAMS. Removing from parameters");
+                content = std::regex_replace(content, std::regex(compilationParamsStr.str()), "");
+            } else {
+                std::ostringstream newValue;
+                newValue << ov::intel_npu::compilation_mode_params.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER
+                         << valueOfParams << VALUE_DELIMITER;
+                _logger.warning("Replace value of NPU_COMPILATION_MODE_PARAMS with new value %s",
+                                newValue.str().c_str());
+                content = std::regex_replace(content, std::regex(compilationParamsStr.str()), newValue.str().c_str());
+            }
+        }
+    }
 
     // As a consequence of complying to the conventions established in the 2.0 OV API, the set of values corresponding
     // to the "model priority" key has been modified
@@ -465,6 +507,16 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
 
+    // Remove the properties that are not used by the compiler
+    // WorkloadType is used only by compiled model
+    std::ostringstream workloadtypestr;
+    workloadtypestr << ov::workload_type.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
+    content = std::regex_replace(content, std::regex(workloadtypestr.str()), "");
+    // Remove turbo property as it is not used by compiler
+    std::ostringstream turbostring;
+    turbostring << ov::intel_npu::turbo.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
+    content = std::regex_replace(content, std::regex(turbostring.str()), "");
+
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
     // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix
     if (compilerVersion.major < 5) {
@@ -510,6 +562,36 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
     return std::unordered_set<std::string>();
 }
 
+// For ext version == 1.3 && == 1.4
+template <typename TableExtension>
+template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool>>
+ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQueryNetworkCreateV1(
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config,
+    ze_device_graph_properties_t deviceGraphProperties,
+    const ze_device_handle_t& _deviceHandle,
+    ze_graph_query_network_handle_t& hGraphQueryNetwork) const {
+    ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
+
+    auto serializedIR = serializeIR(model, compilerVersion);
+
+    std::string buildFlags;
+    buildFlags += serializeConfig(config, compilerVersion);
+    _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
+
+    ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+                            nullptr,
+                            ZE_GRAPH_FORMAT_NGRAPH_LITE,
+                            serializedIR.first,
+                            serializedIR.second.get(),
+                            buildFlags.c_str()};
+
+    // Create querynetwork handle
+    ze_result_t result = _graphDdiTableExt->pfnQueryNetworkCreate(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
+
+    return result;
+}
+
 // For ext version == 1.3 && == 1.4, query is supported, calling querynetwork api in _graphDdiTableExt
 template <typename TableExtension>
 template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool>>
@@ -528,6 +610,27 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
                        std::hex,
                        uint64_t(result));
     }
+
+    ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
+
+    result = seriazlideIRModelAndQueryNetworkCreateV1(model,
+                                                      config,
+                                                      deviceGraphProperties,
+                                                      _deviceHandle,
+                                                      hGraphQueryNetwork);
+
+    return getQueryResultFromSupportedLayers(result, hGraphQueryNetwork);
+}
+
+// For ext version >= 1.5
+template <typename TableExtension>
+template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool>>
+ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQueryNetworkCreateV2(
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config,
+    ze_device_graph_properties_t deviceGraphProperties,
+    const ze_device_handle_t& _deviceHandle,
+    ze_graph_query_network_handle_t& hGraphQueryNetwork) const {
     ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
 
     auto serializedIR = serializeIR(model, compilerVersion);
@@ -536,18 +639,18 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
     buildFlags += serializeConfig(config, compilerVersion);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
-    ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                            nullptr,
-                            ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                            serializedIR.first,
-                            serializedIR.second.get(),
-                            buildFlags.c_str()};
-    ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
+    ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+                              nullptr,
+                              ZE_GRAPH_FORMAT_NGRAPH_LITE,
+                              serializedIR.first,
+                              serializedIR.second.get(),
+                              buildFlags.c_str(),
+                              ZE_GRAPH_FLAG_NONE};
 
     // Create querynetwork handle
-    result = _graphDdiTableExt->pfnQueryNetworkCreate(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
+    ze_result_t result = _graphDdiTableExt->pfnQueryNetworkCreate2(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
 
-    return getQueryResultFromSupportedLayers(result, hGraphQueryNetwork);
+    return result;
 }
 
 // For ext version >= 1.5
@@ -568,26 +671,14 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
                        std::hex,
                        uint64_t(result));
     }
-    ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
-
-    auto serializedIR = serializeIR(model, compilerVersion);
-
-    std::string buildFlags;
-    buildFlags += serializeConfig(config, compilerVersion);
-    _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
-
-    ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                              nullptr,
-                              ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                              serializedIR.first,
-                              serializedIR.second.get(),
-                              buildFlags.c_str(),
-                              ZE_GRAPH_FLAG_NONE};
 
     ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
 
-    // Create querynetwork handle
-    result = _graphDdiTableExt->pfnQueryNetworkCreate2(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
+    result = seriazlideIRModelAndQueryNetworkCreateV2(model,
+                                                      config,
+                                                      deviceGraphProperties,
+                                                      _deviceHandle,
+                                                      hGraphQueryNetwork);
 
     return getQueryResultFromSupportedLayers(result, hGraphQueryNetwork);
 }
@@ -707,6 +798,36 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
     // Create querynetwork handle
     return _graphDdiTableExt->pfnCreate2(_context, _deviceHandle, &desc, graph);
 }
+template <typename TableExtension>
+ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreateGraph(
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config,
+    ze_device_graph_properties_t deviceGraphProperties,
+    ze_graph_handle_t& graphHandle) const {
+    const ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
+    auto serializedIR = serializeIR(model, compilerVersion);
+
+    ze_graph_format_t format = ZE_GRAPH_FORMAT_NGRAPH_LITE;
+
+    std::string buildFlags;
+
+    buildFlags += serializeIOInfo(model);
+    buildFlags += " ";
+    buildFlags += serializeConfig(config, const_cast<ze_graph_compiler_version_info_t&>(compilerVersion));
+
+    _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
+
+    // If OV cache is enabled, disable driver caching
+    uint32_t flags = ZE_GRAPH_FLAG_NONE;
+    const auto set_cache_dir = config.get<CACHE_DIR>();
+    if (!set_cache_dir.empty()) {
+        flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
+    }
+
+    _logger.info("compileIR Using extension version: %s", typeid(TableExtension).name());
+    ze_result_t result = createGraph(format, serializedIR, buildFlags, flags, &graphHandle);
+    return result;
+}
 
 template <typename TableExtension>
 NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std::shared_ptr<const ov::Model>& model,
@@ -724,33 +845,11 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
                        std::hex,
                        uint64_t(result));
     }
-    ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
-
-    auto serializedIR = serializeIR(model, compilerVersion);
-
-    ze_graph_format_t format = ZE_GRAPH_FORMAT_NGRAPH_LITE;
-
-    std::string buildFlags;
-
-    buildFlags += serializeIOInfo(model);
-    buildFlags += " ";
-    buildFlags += serializeConfig(config, compilerVersion);
-
-    _logger.debug("compile Build flags : %s", buildFlags.c_str());
-    // TODO #-30202 Store graph_handle inside NetworkDesc instead of blob. But this will require changes in zeroAPI
 
     // Graph handle should be used only in scope of compile / parse functions.
     ze_graph_handle_t graphHandle;
 
-    // If OV cache is enabled, disable driver caching
-    uint32_t flags = ZE_GRAPH_FLAG_NONE;
-    const auto set_cache_dir = config.get<CACHE_DIR>();
-    if (!set_cache_dir.empty()) {
-        flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
-    }
-
-    _logger.info("compile Using extension version: %s", typeid(TableExtension).name());
-    result = createGraph(format, serializedIR, buildFlags, flags, &graphHandle);
+    result = seriazlideIRModelAndCreateGraph(model, config, deviceGraphProperties, graphHandle);
 
     OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
                     "Failed to compile network. L0 createGraph",

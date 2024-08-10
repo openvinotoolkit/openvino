@@ -73,7 +73,7 @@ jobs:
           ref: 'master'
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
@@ -120,16 +120,14 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           # use OpenVINO wheel package only to build the extension
-          export OpenVINO_DIR=$(python3 -c "from openvino.utils import get_cmake_path; print(get_cmake_path(), end='')")
-          python -m pip wheel -v --no-deps --wheel-dir ${EXTENSION_BUILD_DIR} ${OPENVINO_TOKENIZERS_REPO}
+          python -m pip wheel -v --no-deps --wheel-dir ${EXTENSION_BUILD_DIR} --find-links ${INSTALL_DIR}/tools ${OPENVINO_TOKENIZERS_REPO}
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: '4'
 
       - name: Build tokenizers wheel (Windows)
         if: runner.os == 'Windows'
         run: |
-          $env:OpenVINO_DIR=$(python3 -c "from openvino.utils import get_cmake_path; print(get_cmake_path(), end='')")
-          python3 -m pip wheel -v --no-deps --wheel-dir ${env:EXTENSION_BUILD_DIR} ${env:OPENVINO_TOKENIZERS_REPO}
+          python3 -m pip wheel -v --no-deps --wheel-dir ${env:EXTENSION_BUILD_DIR} --find-links ${env:INSTALL_DIR}/tools ${env:OPENVINO_TOKENIZERS_REPO}
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: '4'
 
@@ -139,7 +137,7 @@ jobs:
 
       - name: Upload openvino tokenizers wheel
         if: ${{ always() }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: openvino_tokenizers_wheel
           path: ${{ env.EXTENSION_BUILD_DIR }}/*.whl

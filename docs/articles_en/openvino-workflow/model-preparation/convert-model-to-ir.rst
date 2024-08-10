@@ -1,6 +1,3 @@
-.. {#openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR}
-
-
 Convert to OpenVINO IR
 =============================================
 
@@ -18,14 +15,9 @@ Convert to OpenVINO IR
    Convert from PaddlePaddle <convert-model-paddle>
 
 
-:doc:`IR (Intermediate Representation) <../../documentation/openvino-ir-format>` is
-OpenVINO own format consisting of  ``.xml`` and ``.bin`` files.
-Convert the model into OpenVINO IR for `better performance <#ir-conversion-benefits>`__.
 
-Convert Models
-##############################################
-
-Here are code examples of how to use these methods with different model formats:
+:doc:`OpenVINO IR <../../documentation/openvino-ir-format>` is the proprietary model format
+used by OpenVINO, typically obtained by converting models of supported frameworks:
 
 .. tab-set::
 
@@ -75,7 +67,11 @@ Here are code examples of how to use these methods with different model formats:
 
             * The ``convert_model()`` method:
 
-              When you use the ``convert_model()`` method, you have more control and you can specify additional adjustments for ``ov.Model``. The ``read_model()`` and ``compile_model()`` methods are easier to use, however, they do not have such capabilities. With ``ov.Model`` you can choose to optimize, compile and run inference on it or serialize it into a file for subsequent use.
+              When you use the ``convert_model()`` method, you have more control and you can
+              specify additional adjustments for ``ov.Model``. The ``read_model()`` and
+              ``compile_model()`` methods are easier to use, however, they do not have such
+              capabilities. With ``ov.Model`` you can choose to optimize, compile and run
+              inference on it or serialize it into a file for subsequent use.
 
               .. dropdown:: List of supported formats:
 
@@ -175,7 +171,8 @@ Here are code examples of how to use these methods with different model formats:
          .. tab-item:: CLI
             :sync: cli
 
-            You can use ``ovc`` command-line tool to convert a model to IR. The obtained IR can then be read by ``read_model()`` and inferred.
+            You can use ``ovc`` command-line tool to convert a model to IR. The obtained IR can
+            then be read by ``read_model()`` and inferred.
 
             .. code-block:: sh
 
@@ -194,7 +191,11 @@ Here are code examples of how to use these methods with different model formats:
 
             * The ``convert_model()`` method:
 
-              When you use the ``convert_model()`` method, you have more control and you can specify additional adjustments for ``ov.Model``. The ``read_model()`` and ``compile_model()`` methods are easier to use, however, they do not have such capabilities. With ``ov.Model`` you can choose to optimize, compile and run inference on it or serialize it into a file for subsequent use.
+              When you use the ``convert_model()`` method, you have more control and you can
+              specify additional adjustments for ``ov.Model``. The ``read_model()`` and
+              ``compile_model()`` methods are easier to use, however, they do not have such
+              capabilities. With ``ov.Model`` you can choose to optimize, compile and run
+              inference on it or serialize it into a file for subsequent use.
 
               .. dropdown:: List of supported formats:
 
@@ -294,7 +295,8 @@ Here are code examples of how to use these methods with different model formats:
 
             * The ``convert_model()`` method:
 
-              You can use ``mo`` command-line tool to convert a model to IR. The obtained IR can then be read by ``read_model()`` and inferred.
+              You can use ``mo`` command-line tool to convert a model to IR. The obtained IR can
+              then be read by ``read_model()`` and inferred.
 
               .. dropdown:: List of supported formats:
 
@@ -319,7 +321,11 @@ Here are code examples of how to use these methods with different model formats:
 
             * The ``convert_model()`` method:
 
-              When you use the ``convert_model()`` method, you have more control and you can specify additional adjustments for ``ov.Model``. The ``read_model()`` and ``compile_model()`` methods are easier to use, however, they do not have such capabilities. With ``ov.Model`` you can choose to optimize, compile and run inference on it or serialize it into a file for subsequent use.
+              When you use the ``convert_model()`` method, you have more control and you can
+              specify additional adjustments for ``ov.Model``. The ``read_model()`` and
+              ``compile_model()`` methods are easier to use, however, they do not have such
+              capabilities. With ``ov.Model`` you can choose to optimize, compile and run
+              inference on it or serialize it into a file for subsequent use.
 
               .. dropdown:: List of supported formats:
 
@@ -416,7 +422,8 @@ Here are code examples of how to use these methods with different model formats:
 
             * The ``convert_model()`` method:
 
-              You can use ``mo`` command-line tool to convert a model to IR. The obtained IR can then be read by ``read_model()`` and inferred.
+              You can use ``mo`` command-line tool to convert a model to IR. The obtained IR
+              can then be read by ``read_model()`` and inferred.
 
               .. dropdown:: List of supported formats:
 
@@ -441,7 +448,11 @@ Here are code examples of how to use these methods with different model formats:
 
             * The ``convert_model()`` method:
 
-              When you use the ``convert_model()`` method, you have more control and you can specify additional adjustments for ``ov.Model``. The ``read_model()`` and ``compile_model()`` methods are easier to use, however, they do not have such capabilities. With ``ov.Model`` you can choose to optimize, compile and run inference on it or serialize it into a file for subsequent use.
+              When you use the ``convert_model()`` method, you have more control and you can
+              specify additional adjustments for ``ov.Model``. The ``read_model()`` and
+              ``compile_model()`` methods are easier to use, however, they do not have such
+              capabilities. With ``ov.Model`` you can choose to optimize, compile and run
+              inference on it or serialize it into a file for subsequent use.
 
               .. dropdown:: List of supported formats:
 
@@ -545,7 +556,8 @@ Here are code examples of how to use these methods with different model formats:
 
             * The ``convert_model()`` method:
 
-              You can use ``mo`` command-line tool to convert a model to IR. The obtained IR can then be read by ``read_model()`` and inferred.
+              You can use ``mo`` command-line tool to convert a model to IR. The obtained IR
+              can then be read by ``read_model()`` and inferred.
 
               .. dropdown:: List of supported formats:
 
@@ -561,32 +573,38 @@ Here are code examples of how to use these methods with different model formats:
               :doc:`article <convert-model-paddle>`.
 
 
-* :doc:`How to convert PyTorch <convert-model-pytorch>`
-* :doc:`How to convert ONNX <convert-model-onnx>`
-* :doc:`How to convert TensorFlow <convert-model-tensorflow>`
-* :doc:`How to convert TensorFlow Lite <convert-model-tensorflow-lite>`
-* :doc:`How to convert PaddlePaddle <convert-model-paddle>`
 
-To choose the best workflow for your application, read the :doc:`Model Preparation section <../model-preparation>`.
+These are basic examples, for detailed conversion instructions, see the individual guides on
+:doc:`PyTorch <convert-model-pytorch>`, :doc:`ONNX <convert-model-onnx>`,
+:doc:`TensorFlow <convert-model-tensorflow>`, :doc:`TensorFlow Lite <convert-model-tensorflow-lite>`,
+and :doc:`PaddlePaddle <convert-model-paddle>`.
 
 Refer to the list of all supported conversion options in :doc:`Conversion Parameters <conversion-parameters>`.
 
 IR Conversion Benefits
 ################################################
 
-
 | **Saving to IR to improve first inference latency**
-|    When first inference latency matters, rather than convert the framework model each time it is loaded, which may take some time depending on its size, it is better to do it once. Save the model as an OpenVINO IR with ``save_model`` and then load it with ``read_model`` as needed. This should improve the time it takes the model to make the first inference as it avoids the conversion step.
+|    When first inference latency matters, rather than convert the framework model each time it
+     is loaded, which may take some time depending on its size, it is better to do it once. Save
+     the model as an OpenVINO IR with ``save_model`` and then load it with ``read_model`` as
+     needed. This should improve the time it takes the model to make the first inference as it
+     avoids the conversion step.
 
 | **Saving to IR in FP16 to save space**
-|    Save storage space, even more so if FP16 is used as it may cut the size by about 50%, especially useful for large models, like Llama2-7B.
+|    Save storage space, even more so if FP16 is used as it may cut the size by about 50%,
+     especially useful for large models, like Llama2-7B.
 
 | **Saving to IR to avoid large dependencies in inference code**
-|    Frameworks such as TensorFlow and PyTorch tend to be large dependencies (multiple gigabytes), and not all inference environments have enough space to hold them.
-|    Converting models to OpenVINO IR allows them to be used in an environment where OpenVINO is the only dependency, so much less disk space is needed.
-|    Loading and compiling with OpenVINO directly usually takes less runtime memory than loading the model in the source framework and then converting and compiling it.
+|    Frameworks such as TensorFlow and PyTorch tend to be large dependencies for applications
+     running inference (multiple gigabytes). Converting models to OpenVINO IR removes this
+     dependency, as OpenVINO can run its inference with no additional components.
+     This way, much less disk space is needed, while loading and compiling usually takes less
+     runtime memory than loading the model in the source framework and then converting
+     and compiling it.
 
-An example showing how to take advantage of OpenVINO IR, saving a model in OpenVINO IR once, using it many times, is shown below:
+Here is an example of how to benefit from OpenVINO IR, saving a model once and running it
+multiple times:
 
 .. code-block:: py
 

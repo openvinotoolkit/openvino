@@ -18,7 +18,7 @@ accuracy.
 
 Previously, we already discussed how to build an instruction-following
 pipeline using OpenVINO and Optimum Intel, please check out `Dolly
-example <../dolly-2-instruction-following>`__ for reference. In this
+example <dolly-2-instruction-following-with-output.html>`__ for reference. In this
 tutorial, we consider how to use the power of OpenVINO for running Large
 Language Models for chat. We will use a pre-trained model from the
 `Hugging Face
@@ -42,8 +42,8 @@ The tutorial consists of the following steps:
    API <https://github.com/openvinotoolkit/openvino.genai/blob/master/src/README.md>`__.
 -  Run chat pipeline
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Select model for inference <#select-model-for-inference>`__
@@ -68,6 +68,16 @@ Table of contents:
       function <#setup-of-the-chatbot-life-process-function>`__
    -  `Next Step <#next-step>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -83,24 +93,15 @@ Install required dependencies
 
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
-    %pip install -q "openvino-genai>=2024.2"
+    %pip install -q -U "openvino>=2024.3.0" openvino-tokenizers[transformers] openvino-genai
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
     "git+https://github.com/huggingface/optimum-intel.git"\
     "git+https://github.com/openvinotoolkit/nncf.git"\
     "torch>=2.1"\
     "datasets" \
-    "accelerate"\
-    "gradio>=4.19"\
-    "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.40" "bitsandbytes"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    "accelerate" \
+    "gradio>=4.19" \
+    "onnx<=1.16.1; sys_platform=='win32'" "einops" "transformers_stream_generator" "tiktoken" "bitsandbytes"
 
 .. code:: ipython3
 
@@ -143,7 +144,19 @@ provided options to compare the quality of open source LLM solutions.
 >\ **Note**: conversion of some models can require additional actions
 from user side and at least 64GB RAM for conversion.
 
-The available options are:
+.. raw:: html
+
+   <details>
+
+.. raw:: html
+
+   <summary>
+
+Click here to see available models options
+
+.. raw:: html
+
+   </summary>
 
 -  **tiny-llama-1b-chat** - This is the chat model finetuned on top of
    `TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T <https://huggingface.co/TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T>`__.
@@ -173,9 +186,10 @@ The available options are:
    model can be found in `model
    card <https://huggingface.co/google/gemma-2b-it>`__. >\ **Note**: run
    model with demo, you will need to accept license agreement. >You must
-   be a registered user in Hugging Face Hub. Please visit `HuggingFace
-   model card <https://huggingface.co/google/gemma-2b-it>`__, carefully
-   read terms of usage and click accept button. You will need to use an
+   be a registered user in Hugging Face Hub. Please visit
+   `HuggingFace model
+   card <https://huggingface.co/google/gemma-2b-it>`__, carefully read
+   terms of usage and click accept button. You will need to use an
    access token for the code below to run. For more information on
    access tokens, refer to `this section of the
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
@@ -221,9 +235,10 @@ The available options are:
    model can be found in `model
    card <https://huggingface.co/google/gemma-7b-it>`__. >\ **Note**: run
    model with demo, you will need to accept license agreement. >You must
-   be a registered user in Hugging Face Hub. Please visit `HuggingFace
-   model card <https://huggingface.co/google/gemma-7b-it>`__, carefully
-   read terms of usage and click accept button. You will need to use an
+   be a registered user in Hugging Face Hub. Please visit
+   `HuggingFace model
+   card <https://huggingface.co/google/gemma-7b-it>`__, carefully read
+   terms of usage and click accept button. You will need to use an
    access token for the code below to run. For more information on
    access tokens, refer to `this section of the
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
@@ -290,6 +305,37 @@ The available options are:
    agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__,
+   carefully read terms of usage and click accept button. You will need
+   to use an access token for the code below to run. For more
+   information on access tokens, refer to `this section of the
+   documentation <https://huggingface.co/docs/hub/security-tokens>`__.
+   >You can login on Hugging Face Hub in notebook environment, using
+   following code:
+
+.. code:: python
+
+       ## login to huggingfacehub to get access to pretrained model
+
+       from huggingface_hub import notebook_login, whoami
+
+       try:
+           whoami()
+           print('Authorization token already provided')
+       except OSError:
+           notebook_login()
+
+-  **llama-3.1-8b-instruct** - The Llama 3.1 instruction tuned text only
+   models (8B, 70B, 405B) are optimized for multilingual dialogue use
+   cases and outperform many of the available open source and closed
+   chat models on common industry benchmarks. More details about model
+   can be found in `Meta blog
+   post <https://ai.meta.com/blog/meta-llama-3-1/>`__, `model
+   website <https://llama.meta.com>`__ and `model
+   card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__.
+   >\ **Note**: run model with demo, you will need to accept license
+   agreement. >You must be a registered user in Hugging Face Hub.
+   Please visit `HuggingFace model
+   card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__,
    carefully read terms of usage and click accept button. You will need
    to use an access token for the code below to run. For more
    information on access tokens, refer to `this section of the
@@ -400,6 +446,23 @@ The available options are:
    significant improvements in various capabilities, including
    reasoning, mathematics, and coding. More details about model can be
    found in `model repository <https://huggingface.co/internlm>`__.
+-  **glm-4-9b-chat** - GLM-4-9B is the open-source version of the latest
+   generation of pre-trained models in the GLM-4 series launched by
+   Zhipu AI. In the evaluation of data sets in semantics, mathematics,
+   reasoning, code, and knowledge, GLM-4-9B and its human
+   preference-aligned version GLM-4-9B-Chat have shown superior
+   performance beyond Llama-3-8B. In addition to multi-round
+   conversations, GLM-4-9B-Chat also has advanced features such as web
+   browsing, code execution, custom tool calls (Function Call), and long
+   text reasoning (supporting up to 128K context). More details about
+   model can be found in `model
+   card <https://huggingface.co/THUDM/glm-4-9b-chat/blob/main/README_en.md>`__,
+   `technical report <https://arxiv.org/pdf/2406.12793>`__ and
+   `repository <https://github.com/THUDM/GLM-4>`__
+
+.. raw:: html
+
+   </details>
 
 .. code:: ipython3
 
@@ -458,7 +521,7 @@ The available options are:
 
 .. parsed-literal::
 
-    Selected model qwen2-0.5b-instruct
+    Selected model llama-3.1-8b-instruct
 
 
 Convert model using Optimum-CLI tool
@@ -466,8 +529,8 @@ Convert model using Optimum-CLI tool
 
 
 
-`Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the
+`Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__
+is the interface between the
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -537,7 +600,7 @@ sacrifice of the model size and inference latency.
 
 .. code:: ipython3
 
-    from IPython.display import Markdown, display
+    from IPython.display import display
 
     prepare_int4_model = widgets.Checkbox(
         value=True,
@@ -623,183 +686,54 @@ We can now save floating point and compressed model variants
 .. code:: ipython3
 
     from pathlib import Path
+    from llm_config import compression_configs, get_optimum_cli_command
+    from IPython.display import Markdown, display
 
     pt_model_id = model_configuration["model_id"]
     pt_model_name = model_id.value.split("-")[0]
     fp16_model_dir = Path(model_id.value) / "FP16"
     int8_model_dir = Path(model_id.value) / "INT8_compressed_weights"
     int4_model_dir = Path(model_id.value) / "INT4_compressed_weights"
-
-
-    def convert_to_fp16():
-        if (fp16_model_dir / "openvino_model.xml").exists():
-            return
-        remote_code = model_configuration.get("remote_code", False)
-        export_command_base = "optimum-cli export openvino --model {} --task text-generation-with-past --weight-format fp16".format(pt_model_id)
-        if remote_code:
-            export_command_base += " --trust-remote-code"
-        export_command = export_command_base + " " + str(fp16_model_dir)
-        display(Markdown("**Export command:**"))
-        display(Markdown(f"`{export_command}`"))
-        ! $export_command
-
-
-    def convert_to_int8():
-        if (int8_model_dir / "openvino_model.xml").exists():
-            return
-        int8_model_dir.mkdir(parents=True, exist_ok=True)
-        remote_code = model_configuration.get("remote_code", False)
-        export_command_base = "optimum-cli export openvino --model {} --task text-generation-with-past --weight-format int8".format(pt_model_id)
-        if remote_code:
-            export_command_base += " --trust-remote-code"
-        export_command = export_command_base + " " + str(int8_model_dir)
-        display(Markdown("**Export command:**"))
-        display(Markdown(f"`{export_command}`"))
-        ! $export_command
-
-
-    def convert_to_int4():
-        compression_configs = {
-            "zephyr-7b-beta": {
-                "sym": True,
-                "group_size": 64,
-                "ratio": 0.6,
-            },
-            "mistral-7b": {
-                "sym": True,
-                "group_size": 64,
-                "ratio": 0.6,
-            },
-            "minicpm-2b-dpo": {
-                "sym": True,
-                "group_size": 64,
-                "ratio": 0.6,
-            },
-            "gemma-2b-it": {
-                "sym": True,
-                "group_size": 64,
-                "ratio": 0.6,
-            },
-            "notus-7b-v1": {
-                "sym": True,
-                "group_size": 64,
-                "ratio": 0.6,
-            },
-            "neural-chat-7b-v3-1": {
-                "sym": True,
-                "group_size": 64,
-                "ratio": 0.6,
-            },
-            "llama-2-chat-7b": {
-                "sym": True,
-                "group_size": 128,
-                "ratio": 0.8,
-            },
-            "llama-3-8b-instruct": {
-                "sym": True,
-                "group_size": 128,
-                "ratio": 0.8,
-            },
-            "gemma-7b-it": {
-                "sym": True,
-                "group_size": 128,
-                "ratio": 0.8,
-            },
-            "chatglm2-6b": {
-                "sym": True,
-                "group_size": 128,
-                "ratio": 0.72,
-            },
-            "qwen-7b-chat": {"sym": True, "group_size": 128, "ratio": 0.6},
-            "red-pajama-3b-chat": {
-                "sym": False,
-                "group_size": 128,
-                "ratio": 0.5,
-            },
-            "default": {
-                "sym": False,
-                "group_size": 128,
-                "ratio": 0.8,
-            },
-        }
-
-        model_compression_params = compression_configs.get(model_id.value, compression_configs["default"])
-        if (int4_model_dir / "openvino_model.xml").exists():
-            return
-        remote_code = model_configuration.get("remote_code", False)
-        export_command_base = "optimum-cli export openvino --model {} --task text-generation-with-past --weight-format int4".format(pt_model_id)
-        int4_compression_args = " --group-size {} --ratio {}".format(model_compression_params["group_size"], model_compression_params["ratio"])
-        if model_compression_params["sym"]:
-            int4_compression_args += " --sym"
-        if enable_awq.value:
-            int4_compression_args += " --awq --dataset wikitext2 --num-samples 128"
-        export_command_base += int4_compression_args
-        if remote_code:
-            export_command_base += " --trust-remote-code"
-        export_command = export_command_base + " " + str(int4_model_dir)
-        display(Markdown("**Export command:**"))
-        display(Markdown(f"`{export_command}`"))
-        ! $export_command
-
+    remote_code = model_configuration.get("remote_code", False)
 
     if prepare_fp16_model.value:
-        convert_to_fp16()
+        if (fp16_model_dir / "openvino_model.xml").exists():
+            print(f"✅ FP16 {model_id.value} model already converted and can be found in {fp16_model_dir}")
+        else:
+            print(f"⌛ {model_id.value} conversion to FP16 started. It may takes some time.")
+            export_command = get_optimum_cli_command(pt_model_id, "fp16", fp16_model_dir, trust_remote_code=remote_code)
+            display(Markdown("**Export command:**"))
+            display(Markdown(f"`{export_command}`"))
+            ! $export_command
+            print(f"✅ FP16 {model_id.value} model converted and can be found in {fp16_model_dir}")
+
     if prepare_int8_model.value:
-        convert_to_int8()
+        if (int8_model_dir / "openvino_model.xml").exists():
+            print(f"✅ INT8 {model_id.value} model already converted and can be found in {int8_model_dir}")
+        else:
+            print(f"⌛ {model_id.value} conversion to INT8 started. It may takes some time.")
+            export_command = get_optimum_cli_command(pt_model_id, "int8", int8_model_dir, trust_remote_code=remote_code)
+            display(Markdown("**Export command:**"))
+            display(Markdown(f"`{export_command}`"))
+            ! $export_command
+            print(f"✅ INT8 {model_id.value} model converted and can be found in {int8_model_dir}")
+
     if prepare_int4_model.value:
-        convert_to_int4()
-
-
-
-**Export command:**
-
-
-
-``optimum-cli export openvino --model Qwen/Qwen2-0.5B-Instruct --task text-generation-with-past --weight-format int4 --group-size 128 --ratio 0.8 qwen2-0.5b-instruct/INT4_compressed_weights``
+        if (int4_model_dir / "openvino_model.xml").exists():
+            print(f"✅ INT4 {model_id.value} model already converted and can be found in {int8_model_dir}")
+        else:
+            print(f"⌛ {model_id.value} conversion to INT4 started. It may takes some time.")
+            model_compression_params = compression_configs.get(model_id.value, compression_configs["default"])
+            export_command = get_optimum_cli_command(pt_model_id, "int4", int4_model_dir, model_compression_params, enable_awq.value, remote_code)
+            display(Markdown("**Export command:**"))
+            display(Markdown(f"`{export_command}`"))
+            ! $export_command
+            print(f"✅ INT4 {model_id.value} model converted and can be found in {int4_model_dir}")
 
 
 .. parsed-literal::
 
-    2024-06-20 00:02:37.229229: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-20 00:02:37.263502: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-20 00:02:37.780256: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
-      torch.utils._pytree._register_pytree_node(
-    config.json: 100%|█████████████████████████████| 659/659 [00:00<00:00, 68.6kB/s]
-    Framework not specified. Using pt to export the model.
-    model.safetensors: 100%|█████████████████████| 988M/988M [00:10<00:00, 94.5MB/s]
-    generation_config.json: 100%|██████████████████| 242/242 [00:00<00:00, 27.1kB/s]
-    tokenizer_config.json: 100%|████████████████| 1.29k/1.29k [00:00<00:00, 775kB/s]
-    vocab.json: 100%|██████████████████████████| 2.78M/2.78M [00:00<00:00, 5.12MB/s]
-    merges.txt: 100%|██████████████████████████| 1.67M/1.67M [00:00<00:00, 3.81MB/s]
-    tokenizer.json: 100%|██████████████████████| 7.03M/7.03M [00:00<00:00, 16.1MB/s]
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-    Using framework PyTorch: 2.3.1+cpu
-    Overriding 1 configuration item(s)
-    	- use_cache -> True
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:114: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if (input_shape[-1] > 1 or self.sliding_window is not None) and self.is_causal:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/optimum/exporters/onnx/model_patcher.py:300: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if past_key_values_length > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:120: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if seq_len > self.max_seq_len_cached:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:667: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attention_mask.size() != (bsz, 1, q_len, kv_seq_len):
-    [2KMixed-Precision assignment ━━━━━━━━━━━━━━━━━━━━ 100% 168/168 • 0:00:04 • 0:00:00
-    INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 43% (81 / 169)              │ 21% (80 / 168)                         │
-    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │              4 │ 57% (88 / 169)              │ 79% (88 / 168)                         │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━ 100% 169/169 • 0:00:09 • 0:00:00
-    Replacing `(?!\S)` pattern to `(?:$|[^\S])` in RegexSplit operation
+    ✅ INT4 llama-3.1-8b-instruct model already converted and can be found in llama-3.1-8b-instruct/INT8_compressed_weights
 
 
 Let’s compare model size for different compression types
@@ -821,7 +755,7 @@ Let’s compare model size for different compression types
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 358.86 MB
+    Size of model with INT4 compressed weights is 4435.75 MB
 
 
 Select device for inference and model variant
@@ -856,7 +790,7 @@ Select device for inference and model variant
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='CPU')
 
 
 
@@ -919,6 +853,8 @@ LLMPipeline.
 
 .. code:: ipython3
 
+    from transformers import AutoTokenizer
+    from openvino_tokenizers import convert_tokenizer
     from openvino_genai import LLMPipeline
 
     if model_to_run.value == "INT4":
@@ -929,15 +865,23 @@ LLMPipeline.
         model_dir = fp16_model_dir
     print(f"Loading model from {model_dir}\n")
 
-    pipe = LLMPipeline(model_dir.as_posix(), device.value)
-    print(pipe.generate("The Sun is yellow bacause", temperature=1.2, top_k=4, do_sample=True, max_new_tokens=50))
+    # optionally convert tokenizer if used cached model without it
+    if not (model_dir / "openvino_tokenizer.xml").exists() or not (model_dir / "openvino_detokenizer.xml").exists():
+        hf_tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
+        ov_tokenizer, ov_detokenizer = convert_tokenizer(hf_tokenizer, with_detokenizer=True)
+        ov.save_model(ov_tokenizer, model_dir / "openvino_tokenizer.xml")
+        ov.save_model(ov_tokenizer, model_dir / "openvino_detokenizer.xml")
+
+
+    pipe = LLMPipeline(str(model_dir), device.value)
+    print(pipe.generate("The Sun is yellow bacause", temperature=1.2, top_k=4, do_sample=True, max_new_tokens=10))
 
 
 .. parsed-literal::
 
-    Loading model from qwen2-0.5b-instruct/INT4_compressed_weights
+    Loading model from llama-3.1-8b-instruct/INT4_compressed_weights
 
-     the light rays of the Sun hit the earth at the same angle of incidence. The same angle of incidence is also at the same angle for every other point on the Earth. This is the phenomenon of refraction. The Sun is the source of light
+     it is a giant ball of hot glowing gases.
 
 
 Run Chatbot
@@ -1050,6 +994,7 @@ when it is needed. It will help estimate performance.
 .. code:: ipython3
 
     import re
+    import numpy as np
     from queue import Queue
     from openvino_genai import StreamerBase
 
@@ -1077,7 +1022,7 @@ when it is needed. It will help estimate performance.
                 return value
 
         def put(self, token_id):
-            openvino_output = self.compiled_detokenizer([[0, token_id]])
+            openvino_output = self.compiled_detokenizer(np.array([[token_id]], dtype=int))
             text = str(openvino_output["string_output"][0])
             # remove labels/special symbols
             text = re.sub("<.*>", "", text)
@@ -1100,13 +1045,20 @@ After that it’s generate new chatbot message and we add it to history.
     from uuid import uuid4
     from threading import Event, Thread
 
-    pipe = LLMPipeline(model_dir.as_posix(), device.value)
+    pipe = LLMPipeline(str(model_dir), device.value)
 
-    max_new_tokens = 80
+    max_new_tokens = 256
 
     start_message = model_configuration["start_message"]
     history_template = model_configuration.get("history_template")
     current_message_template = model_configuration.get("current_message_template")
+
+
+    def get_uuid():
+        """
+        universal unique identifier for thread
+        """
+        return str(uuid4())
 
 
     def convert_history_to_input(history):
@@ -1221,13 +1173,6 @@ After that it’s generate new chatbot message and we add it to history.
         if streamer is not None:
             streamer.end()
         return None, None
-
-
-    def get_uuid():
-        """
-        universal unique identifier for thread
-        """
-        return str(uuid4())
 
 .. code:: ipython3
 
@@ -1359,22 +1304,17 @@ After that it’s generate new chatbot message and we add it to history.
     # if you have any issue to launch on your platform, you can pass share=True to launch method:
     # demo.launch(share=True)
     # it creates a publicly shareable link for the interface. Read more in the docs: https://gradio.app/docs/
-    demo.launch()
+    try:
+        demo.launch()
+    except Exception:
+        demo.launch(share=True)
 
 
 .. parsed-literal::
 
-    Running on local URL:  http://127.0.0.1:7860
+    Running on local URL:  http://127.0.0.1:7862
 
     To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
-
 
 
 
@@ -1397,4 +1337,4 @@ Besides chatbot, we can use LangChain to augmenting LLM knowledge with
 additional data, which allow you to build AI applications that can
 reason about private data or data introduced after a model’s cutoff
 date. You can find this solution in `Retrieval-augmented generation
-(RAG) example <../llm-rag-langchain/>`__.
+(RAG) example <llm-rag-langchain-with-output.html>`__.
