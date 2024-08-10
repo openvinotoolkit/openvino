@@ -9,3 +9,4 @@
 using Type = ::testing::Types<ov::op::v13::BitwiseXor>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_bitwise_xor, BitwiseOperator, Type);
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_bitwise_xor, BitwiseOperatorBoolean, Type);

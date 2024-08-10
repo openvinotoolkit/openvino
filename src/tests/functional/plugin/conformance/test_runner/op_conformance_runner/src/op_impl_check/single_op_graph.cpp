@@ -1571,6 +1571,10 @@ std::shared_ptr<ov::Model> generateBinaryEltwiseBitwise(const std::shared_ptr<ov
         eltwise = std::make_shared<ov::op::v13::BitwiseOr>(params[0], params[1]);
     } else if (ov::is_type<ov::op::v13::BitwiseXor>(node)) {
         eltwise = std::make_shared<ov::op::v13::BitwiseXor>(params[0], params[1]);
+    } else if (ov::is_type<ov::op::v15::BitwiseLeftShift>(node)) {
+        eltwise = std::make_shared<ov::op::v15::BitwiseLeftShift>(params[0], params[1]);
+    } else if (ov::is_type<ov::op::v15::BitwiseRightShift>(node)) {
+        eltwise = std::make_shared<ov::op::v15::BitwiseRightShift>(params[0], params[1]);
     } else {
         return nullptr;
     }

@@ -6,7 +6,9 @@
 #include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
 #include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/concat.hpp"
@@ -173,6 +175,8 @@ template OutputVector translate_binary_op<v1::Add>(const NodeContext& node);
 template OutputVector translate_binary_op<v13::BitwiseAnd>(const NodeContext& node);
 template OutputVector translate_binary_op<v13::BitwiseOr>(const NodeContext& node);
 template OutputVector translate_binary_op<v13::BitwiseXor>(const NodeContext& node);
+template OutputVector translate_binary_op<v15::BitwiseRightShift>(const NodeContext& node);
+template OutputVector translate_binary_op<v15::BitwiseLeftShift>(const NodeContext& node);
 template OutputVector translate_binary_op<v1::Equal>(const NodeContext& node);
 template OutputVector translate_binary_op<v1::FloorMod>(const NodeContext& node);
 template OutputVector translate_binary_op<v1::Greater>(const NodeContext& node);
