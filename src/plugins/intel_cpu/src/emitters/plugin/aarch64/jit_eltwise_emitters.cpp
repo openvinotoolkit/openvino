@@ -930,11 +930,7 @@ void jit_logicalnot_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, co
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     TReg src = TReg(in_vec_idxs[0]);
     TReg dst = TReg(out_vec_idxs[0]);
-    TReg tmp = TReg(aux_vec_idxs[0]);
-
-    h->movi(tmp.b16, 1);
-    h->bit(src.b16, tmp.b16, src.b16);
-    h->eor(dst.b16, tmp.b16, src.b16);
+    h->not_(dst.b16, src.b16);
 }
 
 std::set<std::vector<element::Type>> jit_logicalnot_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
