@@ -138,7 +138,18 @@ ov_option(ENABLE_OV_JAX_FRONTEND "Enable JAX FrontEnd" ON)
 ov_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ov_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ov_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
-ov_dependent_option(ENABLE_SNAPPY_COMPRESSION "Enables compression support for TF FE" ON
+
+if(WIN32 AND AARCH64 AND CMAKE_CL_64)
+    # Failed: openvino/src/bindings/js/node/thirdparty/node-lib.def: no such file or directory
+    set(ENABLE_JS_DEFAULT OFF)
+    # Some flags for building are failed on clang-cl win arm in snappy compression lib
+    set(ENABLE_SNAPPY_COMPRESSION_DEFAULT OFF)
+else()
+    set(ENABLE_JS_DEFAULT ON)
+    set(ENABLE_SNAPPY_COMPRESSION_DEFAULT ON)
+endif()
+
+ov_dependent_option(ENABLE_SNAPPY_COMPRESSION "Enables compression support for TF FE" ${ENABLE_SNAPPY_COMPRESSION_DEFAULT}
     "ENABLE_OV_TF_FRONTEND" OFF)
 
 ov_dependent_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON "ENABLE_TESTS;ENABLE_OV_ONNX_FRONTEND" OFF)
@@ -165,13 +176,6 @@ if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN|VCPKG)$")
     set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
 else()
     set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
-endif()
-
-# Failed: openvino/src/bindings/js/node/thirdparty/node-lib.def: no such file or directory
-if(WIN32 AND AARCH64)
-    set(ENABLE_JS_DEFAULT OFF)
-else()
-    set(ENABLE_JS_DEFAULT ON)
 endif()
 
 ov_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" ${ENABLE_SYSTEM_TBB_DEFAULT}
