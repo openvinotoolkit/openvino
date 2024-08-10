@@ -6,6 +6,7 @@
 
 #include "cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
+#include "openvino/core/type/nf4.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
 #include "nodes/kernels/x64/jit_kernel.hpp"
@@ -509,59 +510,58 @@ struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
              PrecisionInfo<ov::element::ST>::value_type, \
              PrecisionInfo<ov::element::DT>::value_type)
 
-#define INTEL_CPU_CVT_LIST                                                                                             \
-    INTEL_CPU_CVT(u8, i8), INTEL_CPU_CVT(u8, u16), INTEL_CPU_CVT(u8, i16), INTEL_CPU_CVT(u8, u32),                     \
-        INTEL_CPU_CVT(u8, i32), INTEL_CPU_CVT(u8, u64), INTEL_CPU_CVT(u8, i64), INTEL_CPU_CVT(u8, f32),                \
-        INTEL_CPU_CVT(u8, f16), INTEL_CPU_CVT(u8, bf16), INTEL_CPU_CVT(u8, f64), INTEL_CPU_CVT(u8, boolean),           \
-        INTEL_CPU_CVT(i8, u8), INTEL_CPU_CVT(i8, u16), INTEL_CPU_CVT(i8, i16), INTEL_CPU_CVT(i8, u32),                 \
-        INTEL_CPU_CVT(i8, i32), INTEL_CPU_CVT(i8, u64), INTEL_CPU_CVT(i8, i64), INTEL_CPU_CVT(i8, f32),                \
-        INTEL_CPU_CVT(i8, f16), INTEL_CPU_CVT(i8, bf16), INTEL_CPU_CVT(i8, f64), INTEL_CPU_CVT(i8, boolean),           \
-        INTEL_CPU_CVT(u16, u8), INTEL_CPU_CVT(u16, i8), INTEL_CPU_CVT(u16, i16), INTEL_CPU_CVT(u16, u32),              \
-        INTEL_CPU_CVT(u16, i32), INTEL_CPU_CVT(u16, u64), INTEL_CPU_CVT(u16, i64), INTEL_CPU_CVT(u16, f32),            \
-        INTEL_CPU_CVT(u16, f16), INTEL_CPU_CVT(u16, bf16), INTEL_CPU_CVT(u16, f64), INTEL_CPU_CVT(u16, boolean),       \
-        INTEL_CPU_CVT(i16, u8), INTEL_CPU_CVT(i16, i8), INTEL_CPU_CVT(i16, u16), INTEL_CPU_CVT(i16, u32),              \
-        INTEL_CPU_CVT(i16, i32), INTEL_CPU_CVT(i16, u64), INTEL_CPU_CVT(i16, i64), INTEL_CPU_CVT(i16, f32),            \
-        INTEL_CPU_CVT(i16, f16), INTEL_CPU_CVT(i16, bf16), INTEL_CPU_CVT(i16, f64), INTEL_CPU_CVT(i16, boolean),       \
-        INTEL_CPU_CVT(u32, u8), INTEL_CPU_CVT(u32, i8), INTEL_CPU_CVT(u32, u16), INTEL_CPU_CVT(u32, i16),              \
-        INTEL_CPU_CVT(u32, i32), INTEL_CPU_CVT(u32, u64), INTEL_CPU_CVT(u32, i64), INTEL_CPU_CVT(u32, f32),            \
-        INTEL_CPU_CVT(u32, f16), INTEL_CPU_CVT(u32, bf16), INTEL_CPU_CVT(u32, f64), INTEL_CPU_CVT(u32, boolean),       \
-        INTEL_CPU_CVT(i32, u8), INTEL_CPU_CVT(i32, i8), INTEL_CPU_CVT(i32, u16), INTEL_CPU_CVT(i32, i16),              \
-        INTEL_CPU_CVT(i32, u32), INTEL_CPU_CVT(i32, u64), INTEL_CPU_CVT(i32, i64), INTEL_CPU_CVT(i32, f32),            \
-        INTEL_CPU_CVT(i32, f16), INTEL_CPU_CVT(i32, bf16), INTEL_CPU_CVT(i32, f64), INTEL_CPU_CVT(i32, boolean),       \
-        INTEL_CPU_CVT(u64, u8), INTEL_CPU_CVT(u64, i8), INTEL_CPU_CVT(u64, u16), INTEL_CPU_CVT(u64, i16),              \
-        INTEL_CPU_CVT(u64, u32), INTEL_CPU_CVT(u64, i32), INTEL_CPU_CVT(u64, i64), INTEL_CPU_CVT(u64, f32),            \
-        INTEL_CPU_CVT(u64, f16), INTEL_CPU_CVT(u64, bf16), INTEL_CPU_CVT(u64, f64), INTEL_CPU_CVT(u64, boolean),       \
-        INTEL_CPU_CVT(i64, u8), INTEL_CPU_CVT(i64, i8), INTEL_CPU_CVT(i64, u16), INTEL_CPU_CVT(i64, i16),              \
-        INTEL_CPU_CVT(i64, u32), INTEL_CPU_CVT(i64, i32), INTEL_CPU_CVT(i64, u64), INTEL_CPU_CVT(i64, f32),            \
-        INTEL_CPU_CVT(i64, f16), INTEL_CPU_CVT(i64, bf16), INTEL_CPU_CVT(i64, f64), INTEL_CPU_CVT(i64, boolean),       \
-        INTEL_CPU_CVT(f32, u8), INTEL_CPU_CVT(f32, i8), INTEL_CPU_CVT(f32, u16), INTEL_CPU_CVT(f32, i16),              \
-        INTEL_CPU_CVT(f32, u32), INTEL_CPU_CVT(f32, i32), INTEL_CPU_CVT(f32, u64), INTEL_CPU_CVT(f32, i64),            \
-        INTEL_CPU_CVT(f32, f16), INTEL_CPU_CVT(f32, bf16), INTEL_CPU_CVT(f32, f64), INTEL_CPU_CVT(f32, boolean),       \
-        INTEL_CPU_CVT(f16, u8), INTEL_CPU_CVT(f16, i8), INTEL_CPU_CVT(f16, u16), INTEL_CPU_CVT(f16, i16),              \
-        INTEL_CPU_CVT(f16, u32), INTEL_CPU_CVT(f16, i32), INTEL_CPU_CVT(f16, u64), INTEL_CPU_CVT(f16, i64),            \
-        INTEL_CPU_CVT(f16, f32), INTEL_CPU_CVT(f16, bf16), INTEL_CPU_CVT(f16, f64), INTEL_CPU_CVT(f16, boolean),       \
-        INTEL_CPU_CVT(bf16, u8), INTEL_CPU_CVT(bf16, i8), INTEL_CPU_CVT(bf16, u16), INTEL_CPU_CVT(bf16, i16),          \
-        INTEL_CPU_CVT(bf16, u32), INTEL_CPU_CVT(bf16, i32), INTEL_CPU_CVT(bf16, u64), INTEL_CPU_CVT(bf16, i64),        \
-        INTEL_CPU_CVT(bf16, f32), INTEL_CPU_CVT(bf16, f16), INTEL_CPU_CVT(bf16, f64), INTEL_CPU_CVT(bf16, boolean),    \
-        INTEL_CPU_CVT(f64, u8), INTEL_CPU_CVT(f64, i8), INTEL_CPU_CVT(f64, u16), INTEL_CPU_CVT(f64, i16),              \
-        INTEL_CPU_CVT(f64, u32), INTEL_CPU_CVT(f64, i32), INTEL_CPU_CVT(f64, u64), INTEL_CPU_CVT(f64, i64),            \
-        INTEL_CPU_CVT(f64, f32), INTEL_CPU_CVT(f64, f16), INTEL_CPU_CVT(f64, bf16), INTEL_CPU_CVT(f64, boolean),       \
-        INTEL_CPU_CVT(boolean, u8), INTEL_CPU_CVT(boolean, i8), INTEL_CPU_CVT(boolean, u16),                           \
-        INTEL_CPU_CVT(boolean, i16), INTEL_CPU_CVT(boolean, u32), INTEL_CPU_CVT(boolean, i32),                         \
-        INTEL_CPU_CVT(boolean, u64), INTEL_CPU_CVT(boolean, i64), INTEL_CPU_CVT(boolean, f32),                         \
-        INTEL_CPU_CVT(boolean, f16), INTEL_CPU_CVT(boolean, bf16), INTEL_CPU_CVT(boolean, f64), INTEL_CPU_CVT(u8, u8), \
-        INTEL_CPU_CVT(i8, i8), INTEL_CPU_CVT(u16, u16), INTEL_CPU_CVT(i16, i16), INTEL_CPU_CVT(u32, u32),              \
-        INTEL_CPU_CVT(i32, i32), INTEL_CPU_CVT(u64, u64), INTEL_CPU_CVT(i64, i64), INTEL_CPU_CVT(f32, f32),            \
-        INTEL_CPU_CVT(f16, f16), INTEL_CPU_CVT(bf16, bf16), INTEL_CPU_CVT(f64, f64), INTEL_CPU_CVT(boolean, boolean)
+#define INTEL_CPU_CVT_LIST                                                                                         \
+    INTEL_CPU_CVT(u8, i8), INTEL_CPU_CVT(u8, u16), INTEL_CPU_CVT(u8, i16), INTEL_CPU_CVT(u8, u32),                 \
+    INTEL_CPU_CVT(u8, i32), INTEL_CPU_CVT(u8, u64), INTEL_CPU_CVT(u8, i64), INTEL_CPU_CVT(u8, f32),                \
+    INTEL_CPU_CVT(u8, f16), INTEL_CPU_CVT(u8, bf16), INTEL_CPU_CVT(u8, f64), INTEL_CPU_CVT(u8, boolean),           \
+    INTEL_CPU_CVT(i8, u8), INTEL_CPU_CVT(i8, u16), INTEL_CPU_CVT(i8, i16), INTEL_CPU_CVT(i8, u32),                 \
+    INTEL_CPU_CVT(i8, i32), INTEL_CPU_CVT(i8, u64), INTEL_CPU_CVT(i8, i64), INTEL_CPU_CVT(i8, f32),                \
+    INTEL_CPU_CVT(i8, f16), INTEL_CPU_CVT(i8, bf16), INTEL_CPU_CVT(i8, f64), INTEL_CPU_CVT(i8, boolean),           \
+    INTEL_CPU_CVT(u16, u8), INTEL_CPU_CVT(u16, i8), INTEL_CPU_CVT(u16, i16), INTEL_CPU_CVT(u16, u32),              \
+    INTEL_CPU_CVT(u16, i32), INTEL_CPU_CVT(u16, u64), INTEL_CPU_CVT(u16, i64), INTEL_CPU_CVT(u16, f32),            \
+    INTEL_CPU_CVT(u16, f16), INTEL_CPU_CVT(u16, bf16), INTEL_CPU_CVT(u16, f64), INTEL_CPU_CVT(u16, boolean),       \
+    INTEL_CPU_CVT(i16, u8), INTEL_CPU_CVT(i16, i8), INTEL_CPU_CVT(i16, u16), INTEL_CPU_CVT(i16, u32),              \
+    INTEL_CPU_CVT(i16, i32), INTEL_CPU_CVT(i16, u64), INTEL_CPU_CVT(i16, i64), INTEL_CPU_CVT(i16, f32),            \
+    INTEL_CPU_CVT(i16, f16), INTEL_CPU_CVT(i16, bf16), INTEL_CPU_CVT(i16, f64), INTEL_CPU_CVT(i16, boolean),       \
+    INTEL_CPU_CVT(u32, u8), INTEL_CPU_CVT(u32, i8), INTEL_CPU_CVT(u32, u16), INTEL_CPU_CVT(u32, i16),              \
+    INTEL_CPU_CVT(u32, i32), INTEL_CPU_CVT(u32, u64), INTEL_CPU_CVT(u32, i64), INTEL_CPU_CVT(u32, f32),            \
+    INTEL_CPU_CVT(u32, f16), INTEL_CPU_CVT(u32, bf16), INTEL_CPU_CVT(u32, f64), INTEL_CPU_CVT(u32, boolean),       \
+    INTEL_CPU_CVT(i32, u8), INTEL_CPU_CVT(i32, i8), INTEL_CPU_CVT(i32, u16), INTEL_CPU_CVT(i32, i16),              \
+    INTEL_CPU_CVT(i32, u32), INTEL_CPU_CVT(i32, u64), INTEL_CPU_CVT(i32, i64), INTEL_CPU_CVT(i32, f32),            \
+    INTEL_CPU_CVT(i32, f16), INTEL_CPU_CVT(i32, bf16), INTEL_CPU_CVT(i32, f64), INTEL_CPU_CVT(i32, boolean),       \
+    INTEL_CPU_CVT(u64, u8), INTEL_CPU_CVT(u64, i8), INTEL_CPU_CVT(u64, u16), INTEL_CPU_CVT(u64, i16),              \
+    INTEL_CPU_CVT(u64, u32), INTEL_CPU_CVT(u64, i32), INTEL_CPU_CVT(u64, i64), INTEL_CPU_CVT(u64, f32),            \
+    INTEL_CPU_CVT(u64, f16), INTEL_CPU_CVT(u64, bf16), INTEL_CPU_CVT(u64, f64), INTEL_CPU_CVT(u64, boolean),       \
+    INTEL_CPU_CVT(i64, u8), INTEL_CPU_CVT(i64, i8), INTEL_CPU_CVT(i64, u16), INTEL_CPU_CVT(i64, i16),              \
+    INTEL_CPU_CVT(i64, u32), INTEL_CPU_CVT(i64, i32), INTEL_CPU_CVT(i64, u64), INTEL_CPU_CVT(i64, f32),            \
+    INTEL_CPU_CVT(i64, f16), INTEL_CPU_CVT(i64, bf16), INTEL_CPU_CVT(i64, f64), INTEL_CPU_CVT(i64, boolean),       \
+    INTEL_CPU_CVT(f32, u8), INTEL_CPU_CVT(f32, i8), INTEL_CPU_CVT(f32, u16), INTEL_CPU_CVT(f32, i16),              \
+    INTEL_CPU_CVT(f32, u32), INTEL_CPU_CVT(f32, i32), INTEL_CPU_CVT(f32, u64), INTEL_CPU_CVT(f32, i64),            \
+    INTEL_CPU_CVT(f32, f16), INTEL_CPU_CVT(f32, bf16), INTEL_CPU_CVT(f32, f64), INTEL_CPU_CVT(f32, boolean),       \
+    INTEL_CPU_CVT(f16, u8), INTEL_CPU_CVT(f16, i8), INTEL_CPU_CVT(f16, u16), INTEL_CPU_CVT(f16, i16),              \
+    INTEL_CPU_CVT(f16, u32), INTEL_CPU_CVT(f16, i32), INTEL_CPU_CVT(f16, u64), INTEL_CPU_CVT(f16, i64),            \
+    INTEL_CPU_CVT(f16, f32), INTEL_CPU_CVT(f16, bf16), INTEL_CPU_CVT(f16, f64), INTEL_CPU_CVT(f16, boolean),       \
+    INTEL_CPU_CVT(bf16, u8), INTEL_CPU_CVT(bf16, i8), INTEL_CPU_CVT(bf16, u16), INTEL_CPU_CVT(bf16, i16),          \
+    INTEL_CPU_CVT(bf16, u32), INTEL_CPU_CVT(bf16, i32), INTEL_CPU_CVT(bf16, u64), INTEL_CPU_CVT(bf16, i64),        \
+    INTEL_CPU_CVT(bf16, f32), INTEL_CPU_CVT(bf16, f16), INTEL_CPU_CVT(bf16, f64), INTEL_CPU_CVT(bf16, boolean),    \
+    INTEL_CPU_CVT(f64, u8), INTEL_CPU_CVT(f64, i8), INTEL_CPU_CVT(f64, u16), INTEL_CPU_CVT(f64, i16),              \
+    INTEL_CPU_CVT(f64, u32), INTEL_CPU_CVT(f64, i32), INTEL_CPU_CVT(f64, u64), INTEL_CPU_CVT(f64, i64),            \
+    INTEL_CPU_CVT(f64, f32), INTEL_CPU_CVT(f64, f16), INTEL_CPU_CVT(f64, bf16), INTEL_CPU_CVT(f64, boolean),       \
+    INTEL_CPU_CVT(boolean, u8), INTEL_CPU_CVT(boolean, i8), INTEL_CPU_CVT(boolean, u16),                           \
+    INTEL_CPU_CVT(boolean, i16), INTEL_CPU_CVT(boolean, u32), INTEL_CPU_CVT(boolean, i32),                         \
+    INTEL_CPU_CVT(boolean, u64), INTEL_CPU_CVT(boolean, i64), INTEL_CPU_CVT(boolean, f32),                         \
+    INTEL_CPU_CVT(boolean, f16), INTEL_CPU_CVT(boolean, bf16), INTEL_CPU_CVT(boolean, f64), INTEL_CPU_CVT(u8, u8), \
+    INTEL_CPU_CVT(i8, i8), INTEL_CPU_CVT(u16, u16), INTEL_CPU_CVT(i16, i16), INTEL_CPU_CVT(u32, u32),              \
+    INTEL_CPU_CVT(i32, i32), INTEL_CPU_CVT(u64, u64), INTEL_CPU_CVT(i64, i64), INTEL_CPU_CVT(f32, f32),            \
+    INTEL_CPU_CVT(f16, f16), INTEL_CPU_CVT(bf16, bf16), INTEL_CPU_CVT(f64, f64), INTEL_CPU_CVT(boolean, boolean)
 
-#define INTEL_CPU_CVT_FROM_BIN(DT) OV_CASE(ov::element::DT, PrecisionInfo<ov::element::DT>::value_type)
 
-#define INTEL_CPU_CVT_FROM_BIN_LIST                                                            \
-    INTEL_CPU_CVT_FROM_BIN(f32), INTEL_CPU_CVT_FROM_BIN(f16), INTEL_CPU_CVT_FROM_BIN(bf16),    \
-        INTEL_CPU_CVT_FROM_BIN(f64), INTEL_CPU_CVT_FROM_BIN(i16), INTEL_CPU_CVT_FROM_BIN(u8),  \
-        INTEL_CPU_CVT_FROM_BIN(i8), INTEL_CPU_CVT_FROM_BIN(u16), INTEL_CPU_CVT_FROM_BIN(i32),  \
-        INTEL_CPU_CVT_FROM_BIN(u32), INTEL_CPU_CVT_FROM_BIN(i64), INTEL_CPU_CVT_FROM_BIN(u64), \
-        INTEL_CPU_CVT_FROM_BIN(boolean)
+#define INTEL_CPU_CVT_FROM_BIN_LIST                                          \
+    INTEL_CPU_CVT(u1, f32), INTEL_CPU_CVT(u1, f16), INTEL_CPU_CVT(u1, bf16), \
+    INTEL_CPU_CVT(u1, f64), INTEL_CPU_CVT(u1, i16), INTEL_CPU_CVT(u1, u8),   \
+    INTEL_CPU_CVT(u1, i8), INTEL_CPU_CVT(u1, u16), INTEL_CPU_CVT(u1, i32),   \
+    INTEL_CPU_CVT(u1, u32), INTEL_CPU_CVT(u1, i64), INTEL_CPU_CVT(u1, u64),  \
+    INTEL_CPU_CVT(u1, boolean)
 
 struct ConvertFromBinContext {
     const void *srcPtr;
@@ -571,27 +571,30 @@ struct ConvertFromBinContext {
 };
 
 template<typename T>
-struct ConvertFromBinPrecision {
+struct ConvertFromBinPrecision;
+
+template<typename src_t, typename dst_t>
+struct ConvertFromBinPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertFromBinContext &ctx) {
         auto src = static_cast<const uint8_t *>(ctx.srcPtr);
-        auto dst = static_cast<T *>(ctx.dstPtr);
+        auto dst = static_cast<dst_t *>(ctx.dstPtr);
         const size_t nBits = 8;
         const size_t nBytes = rnd_up(ctx.size, nBits);
         parallel_for(nBytes, [&](size_t byteIndex) {
             auto currentBitNum = std::min(nBits, ctx.size - byteIndex * nBits);
             for (size_t bitIndex = 0; bitIndex < currentBitNum; ++bitIndex) {
-                dst[byteIndex * nBits + bitIndex] = static_cast<T>((src[byteIndex] & (1 << bitIndex)) >> bitIndex);
+                dst[byteIndex * nBits + bitIndex] = static_cast<dst_t>((src[byteIndex] & (1 << bitIndex)) >> bitIndex);
             }
         });
         ctx.converted = true;
     }
 };
 
-#define INTEL_CPU_CVT_FROM_4BIT(DT) OV_CASE(ov::element::DT, PrecisionInfo<ov::element::DT>::value_type)
-
-#define INTEL_CPU_CVT_FROM_4BIT_LIST                                                           \
-    INTEL_CPU_CVT_FROM_4BIT(f32), INTEL_CPU_CVT_FROM_4BIT(bf16), INTEL_CPU_CVT_FROM_4BIT(f16), \
-        INTEL_CPU_CVT_FROM_4BIT(i8), INTEL_CPU_CVT_FROM_4BIT(u8)
+#define INTEL_CPU_CVT_FROM_4BIT_LIST                                                                                       \
+    INTEL_CPU_CVT(u4, f32), INTEL_CPU_CVT(u4, bf16), INTEL_CPU_CVT(u4, f16), INTEL_CPU_CVT(u4, i8), INTEL_CPU_CVT(u4, u8), \
+    INTEL_CPU_CVT(i4, f32), INTEL_CPU_CVT(i4, bf16), INTEL_CPU_CVT(i4, f16), INTEL_CPU_CVT(i4, i8), INTEL_CPU_CVT(i4, u8), \
+    INTEL_CPU_CVT(nf4, f32), INTEL_CPU_CVT(nf4, bf16), INTEL_CPU_CVT(nf4, f16), INTEL_CPU_CVT(nf4, i8), INTEL_CPU_CVT(nf4, u8), \
+    INTEL_CPU_CVT(f4e2m1, f32), INTEL_CPU_CVT(f4e2m1, bf16), INTEL_CPU_CVT(f4e2m1, f16), INTEL_CPU_CVT(f4e2m1, i8), INTEL_CPU_CVT(f4e2m1, u8)
 
 struct ConvertFrom4BitContext {
     ov::element::Type_t inType;
@@ -621,18 +624,59 @@ static int8_t get_u4(const uint8_t& val, bool high) {
     return high ? (val >> 4) : (val & 0xF);
 }
 
-template <typename DT>
-struct ConvertFrom4BitPrecision {
+template<typename T>
+struct ConvertFrom4BitPrecision;
+
+template<typename src_t, typename dst_t>
+struct ConvertFrom4BitPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertFrom4BitContext &ctx) {
         auto src = static_cast<const uint8_t*>(ctx.srcPtr);
-        auto dst = static_cast<DT*>(ctx.dstPtr);
-        if (ctx.inType == ov::element::u4) {
+        auto dst = static_cast<dst_t*>(ctx.dstPtr);
+        if (ctx.inType == ov::element::nf4) {
             parallel_for(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<DT>(get_u4(src[i / 2], i % 2));
+                dst[i] = static_cast<dst_t>(ConvertNF4::dequantize(get_u4(src[i / 2], i % 2)));
+            });
+        } else if (ctx.inType == ov::element::u4) {
+            parallel_for(ctx.size, [&](size_t i) {
+                dst[i] = static_cast<dst_t>(get_u4(src[i / 2], i % 2));
             });
         } else if (ctx.inType == ov::element::i4) {
             parallel_for(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<DT>(get_i4(src[i / 2], i % 2));
+                dst[i] = static_cast<dst_t>(get_i4(src[i / 2], i % 2));
+            });
+        } else if (ctx.inType == ov::element::f4e2m1) {
+            parallel_for(ctx.size, [&](size_t i) {
+                dst[i] = static_cast<dst_t>(float4_e2m1::from_bits(get_u4(src[i / 2], i % 2)));
+            });
+        } else {
+            OPENVINO_THROW("cpu_convert doesn't support input data type: ", ctx.inType, ". Not implemented.");
+        }
+        ctx.converted = true;
+    }
+};
+
+#define INTEL_CPU_CVT_FROM_BYTE_FP_LIST                                                           \
+    INTEL_CPU_CVT(f8e8m0, f32), INTEL_CPU_CVT(f8e8m0, bf16), INTEL_CPU_CVT(f8e8m0, f16)
+
+struct ConvertFromByteFPContext {
+    ov::element::Type_t inType;
+    const void *srcPtr;
+    void *dstPtr;
+    size_t size;
+    bool converted;
+};
+
+template<typename T>
+struct ConvertFromByteFPPrecision;
+
+template<typename src_t, typename dst_t>
+struct ConvertFromByteFPPrecision<std::tuple<src_t, dst_t>> {
+    void operator()(ConvertFromByteFPContext &ctx) {
+        auto src = static_cast<const uint8_t*>(ctx.srcPtr);
+        auto dst = static_cast<dst_t*>(ctx.dstPtr);
+        if (ctx.inType == ov::element::f8e8m0) {
+            parallel_for(ctx.size, [&](size_t i) {
+                dst[i] = static_cast<dst_t>(float8_e8m0::from_bits(src[i]));
             });
         } else {
             OPENVINO_THROW("cpu_convert doesn't support input data type: ", ctx.inType, ". Not implemented.");
@@ -690,7 +734,7 @@ void cpu_convert(const void *srcPtr,
                 size,
                 false
         };
-        OV_SWITCH(intel_cpu, ConvertFromBinPrecision, ctx, dstPrc, INTEL_CPU_CVT_FROM_BIN_LIST);
+        OV_SWITCH(intel_cpu, ConvertFromBinPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BIN_LIST);
         if (!ctx.converted)
             OPENVINO_THROW("cpu_convert can't convert from: ",
                            srcPrc,
@@ -700,7 +744,12 @@ void cpu_convert(const void *srcPtr,
                            dstPrc);
     } else if (srcPrc.bitwidth() == 4u) {
         ConvertFrom4BitContext ctx{srcPrc, srcPtr, dstPtr, size, false};
-        OV_SWITCH(intel_cpu, ConvertFrom4BitPrecision, ctx, dstPrc, INTEL_CPU_CVT_FROM_4BIT_LIST);
+        OV_SWITCH(intel_cpu, ConvertFrom4BitPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_4BIT_LIST);
+        if (!ctx.converted)
+            OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
+    } else if (srcPrc.bitwidth() == 8u && srcPrc.is_real()) {
+        ConvertFromByteFPContext ctx{srcPrc, srcPtr, dstPtr, size, false};
+        OV_SWITCH(intel_cpu, ConvertFromByteFPPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BYTE_FP_LIST);
         if (!ctx.converted)
             OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     } else {
@@ -716,6 +765,26 @@ void cpu_convert(const void *srcPtr,
         if (!ctx.converted)
             OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     }
+}
+
+struct isSupportedContext {
+    bool isSupported = false;
+};
+
+template <typename DT>
+struct isSupported {
+    void operator()(isSupportedContext &ctx) {
+        ctx.isSupported = true;
+    }
+};
+
+bool is_supported_convert(ov::element::Type srcPrc, ov::element::Type dstPrc) {
+    isSupportedContext ctx;
+    OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_LIST);
+    OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BIN_LIST);
+    OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_4BIT_LIST);
+    OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BYTE_FP_LIST);
+    return ctx.isSupported;
 }
 
 #undef INTEL_CPU_CVT

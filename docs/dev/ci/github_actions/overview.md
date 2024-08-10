@@ -32,7 +32,7 @@ They include:
 
 You can find all workflows for this repository in the [workflows folder](../../../../.github/workflows).
 The three main ones, providing most coverage for different operating systems, are:
-* [Linux](../../../../.github/workflows/linux.yml)
+* [Linux](../../../../.github/workflows/ubuntu_22.yml)
 * [Windows](../../../../.github/workflows/windows.yml)
 * [macOS](../../../../.github/workflows/mac.yml)
 
@@ -56,7 +56,7 @@ and see what and how to [obtain additional actions](https://github.com/marketpla
 Workflows run whenever they are triggered by predefined [events](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows).
 These triggers **are not** mutually exclusive and multiple can be used by one workflow.
 The OpenVINO repository has three, and as you may see in the example below, they are all
-included in the [Linux workflow](../../../../.github/workflows/linux.yml). They are:
+included in the [Linux workflow](../../../../.github/workflows/ubuntu_22.yml). They are:
 
 * `on: schedule` - schedule trigger
   * This trigger runs the workflow on a specified interval (e.g., nightly).
@@ -129,7 +129,7 @@ The workflow structures for Linux, Windows, and macOS are mostly the same:
 **NOTE**: some workflows may use the same structure, while others may lack the last 3 steps,
 with tests coming right after the `Build` step.
 
-Overview of the [Linux workflow](../../../../.github/workflows/linux.yml).
+Overview of the [Linux workflow](../../../../.github/workflows/ubuntu_22.yml).
 There are several jobs present:
 
 ```yaml
@@ -167,7 +167,7 @@ Each job has several keys that describe its environment. Consider checking a com
 
 This section describes the specifics of the OpenVINO CI environment.
 
-Overview of the [Linux workflow's](../../../../.github/workflows/linux.yml) `Python_Unit_Tests` job:
+Overview of the [Linux workflow's](../../../../.github/workflows/ubuntu_22.yml) `Python_Unit_Tests` job:
 ```yaml
   Python_Unit_Tests:
     name: Python unit tests

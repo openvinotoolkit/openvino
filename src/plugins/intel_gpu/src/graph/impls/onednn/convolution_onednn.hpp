@@ -47,6 +47,13 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
     auto weights_md = onednn::layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::any);
     auto output_md = onednn::layout_to_memory_desc(output_layout, tag_in_out);
 
+    OPENVINO_ASSERT(!input_md.is_zero(),
+                    "[GPU] The input memory descriptor of onednn convolution should not have zero dim.");
+    OPENVINO_ASSERT(!weights_md.is_zero(),
+                    "[GPU] The weights memory descriptor of onednn convolution should not have zero dim.");
+    OPENVINO_ASSERT(!output_md.is_zero(),
+                    "[GPU] The output memory descriptor of onednn convolution should not have zero dim.");
+
     // adjust_conv_dilation_pad(dilation, stride, pad_l, pad_r, input_md, output_md, weights_md, grouped_weights);
     for (size_t i = 0; i < dilation.size(); i++) {
         dilation[i]--;
