@@ -596,15 +596,6 @@ struct EltwiseEmitter<jit_elu_emitter> {
 };
 
 template<>
-struct EltwiseEmitter<jit_greater_emitter> {
-    void operator()(EltwiseEmitterContext& ctx) {
-        ctx.emitter = std::make_shared<jit_greater_emitter>(ctx.host,
-                                                                 ctx.host_isa,
-                                                                 ctx.exec_prc);
-    }
-};
-
-template<>
 struct EltwiseEmitter<jit_clamp_emitter> {
     void operator()(EltwiseEmitterContext& ctx) {
         ctx.emitter = std::make_shared<jit_clamp_emitter>(ctx.host,
