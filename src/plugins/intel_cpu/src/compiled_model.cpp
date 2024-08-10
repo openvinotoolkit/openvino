@@ -16,7 +16,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "transformations/utils/utils.hpp"
-#include "utils/serialize_base.hpp"
+#include "utils/serialize.hpp"
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include <cstring>

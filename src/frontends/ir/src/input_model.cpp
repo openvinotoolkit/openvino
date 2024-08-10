@@ -207,50 +207,51 @@ class InputModel::InputModelIRImpl {
     pugi::xml_document m_xml_doc;
 
 public:
-    InputModelIRImpl(std::istream& stream,
+    InputModelIRImpl(std::istream& model,
                      const std::shared_ptr<ov::AlignedBuffer>& weights,
                      const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions)
         : m_weights(weights),
           m_extensions(extensions) {
-        pugi::xml_parse_result res = m_xml_doc.load(stream);
+        pugi::xml_parse_result res = m_xml_doc.load(model);
         if (res.status != pugi::status_ok) {
             OPENVINO_THROW(res.description(), " at offset ", res.offset);
         }
-        m_root = m_xml_doc.document_element();
-        for (const auto& it : ov::get_available_opsets()) {
-            m_opsets[it.first] = it.second();
-        }
+        init_opset();
     }
 
-    InputModelIRImpl(const std::shared_ptr<ov::AlignedBuffer>& model_buf,
+    InputModelIRImpl(const std::shared_ptr<ov::AlignedBuffer>& model,
                      const std::shared_ptr<ov::AlignedBuffer>& weights,
                      const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions)
         : m_weights(weights),
           m_extensions(extensions) {
-        auto res =
-            m_xml_doc.load_buffer(model_buf->get_ptr(), model_buf->size(), pugi::parse_default, pugi::encoding_utf8);
+        auto res = m_xml_doc.load_buffer(model->get_ptr(), model->size(), pugi::parse_default, pugi::encoding_utf8);
         if (res.status != pugi::status_ok) {
             OPENVINO_THROW(res.description(), " at offset ", res.offset);
         }
-        m_root = m_xml_doc.document_element();
-        for (const auto& it : ov::get_available_opsets()) {
-            m_opsets[it.first] = it.second();
-        }
+        init_opset();
     }
 
     std::shared_ptr<ov::Model> convert();
+
+private:
+    void init_opset() {
+        m_root = m_xml_doc.document_element();
+        for (const auto& it : ov::get_available_opsets()) {
+            m_opsets[it.first] = it.second();
+        }
+    }
 };
 
-InputModel::InputModel(std::istream& stream,
+InputModel::InputModel(std::istream& model,
                        const std::shared_ptr<ov::AlignedBuffer>& weights,
                        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions) {
-    _impl = std::make_shared<InputModelIRImpl>(stream, weights, extensions);
+    _impl = std::make_shared<InputModelIRImpl>(model, weights, extensions);
 }
 
-InputModel::InputModel(const std::shared_ptr<ov::AlignedBuffer>& model_buf,
+InputModel::InputModel(const std::shared_ptr<ov::AlignedBuffer>& model,
                        const std::shared_ptr<ov::AlignedBuffer>& weights,
                        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions) {
-    _impl = std::make_shared<InputModelIRImpl>(model_buf, weights, extensions);
+    _impl = std::make_shared<InputModelIRImpl>(model, weights, extensions);
 }
 
 std::shared_ptr<ov::Model> InputModel::convert() {

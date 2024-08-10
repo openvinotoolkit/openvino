@@ -16,8 +16,7 @@
 #include "transformations/utils/utils.hpp"
 #include "utils/denormals.hpp"
 #include "utils/precision_support.h"
-#include "utils/serialize_mmap.hpp"
-#include "utils/serialize_stream.hpp"
+#include "utils/serialize.hpp"
 #include "weights_cache.hpp"
 
 #if defined(__linux__)
@@ -593,31 +592,22 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream,
-                                                         const ov::AnyMap& properties) const {
+                                                         const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
-    std::shared_ptr<ModelDeserializerBase> deserializer;
-    auto use_mmap = properties.find(ov::internal::caching_with_mmap.name());
-    if (use_mmap != properties.end() && use_mmap->second.as<bool>()) {
-        deserializer = std::make_shared<ModelMmapDeserializer>(model_stream,
-            [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
-                return get_core()->read_model(model, weights);
-            });
-    } else {
-        deserializer = std::make_shared<ModelStreamDeserializer>(model_stream,
-            [this](const std::string& model, const ov::Tensor& weights) {
-                return get_core()->read_model(model, weights, true);
-            });
-    }
+    ModelDeserializer deserializer(model_stream,
+        [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
+            return get_core()->read_model(model, weights);
+        });
 
     std::shared_ptr<ov::Model> model;
-    *deserializer >> model;
+    deserializer >> model;
 
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
 
     // check ov::loaded_from_cache property and erase it to avoid exception in readProperties.
-    auto _config = properties;
+    auto _config = config;
     const auto& it = _config.find(ov::loaded_from_cache.name());
     bool loaded_from_cache = false;
     if (it != _config.end()) {
@@ -629,10 +619,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
     // import config props from caching model
     calculate_streams(conf, model, true);
     auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, loaded_from_cache);
-
     return compiled_model;
 }
-
 }  // namespace intel_cpu
 }  // namespace ov
 
