@@ -196,26 +196,30 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
 
 
         if (node->get_output_layout().is_dynamic()) {
-            auto broadcast_type = eltw_node.get_primitive()->broadcast_spec.m_type;
-            if (!eltw_node.get_dependency(non_const_dep_idx).is_type<fully_connected>())
-                continue;
-            if (broadcast_type != ov::op::AutoBroadcastType::NUMPY && broadcast_type != ov::op::AutoBroadcastType::NONE)
-                continue;
-            // Numpy broadcast rule requires the dimension size which is not one to be same as the corresponding dimension of the other operand.
-            // So we can ensure that the feature size is same for this broadcasting rule, thereby being considered as bias.
-            auto const_shape = eltw_node.get_dependency(const_dep_idx).get_output_layout().get_shape();
-            int32_t count_elements_not_one = 0;
-            int32_t idx_element_not_one = -1;
-            for (size_t i = 0; i < const_shape.size(); ++i) {
-                if (const_shape[i] != 1) {
-                    count_elements_not_one++;
-                    idx_element_not_one = static_cast<int32_t>(i);
+            if (eltw_node.get_dependency(non_const_dep_idx).is_type<fully_connected>()) {
+                auto broadcast_type = eltw_node.get_primitive()->broadcast_spec.m_type;
+                if (broadcast_type != ov::op::AutoBroadcastType::NUMPY && broadcast_type != ov::op::AutoBroadcastType::NONE)
+                    continue;
+
+                // Numpy broadcast rule requires the dimension size which is not one to be same as the corresponding dimension of the other operand.
+                // So we can ensure that the feature size is same for this broadcasting rule, thereby being considered as bias.
+                auto const_shape = eltw_node.get_dependency(const_dep_idx).get_output_layout().get_shape();
+                int32_t count_elements_not_one = 0;
+                int32_t idx_element_not_one = -1;
+                for (size_t i = 0; i < const_shape.size(); ++i) {
+                    if (const_shape[i] != 1) {
+                        count_elements_not_one++;
+                        idx_element_not_one = static_cast<int32_t>(i);
+                    }
+                    if (count_elements_not_one > 1)
+                        break;
                 }
-                if (count_elements_not_one > 1)
-                    break;
-            }
-            if (count_elements_not_one != 1 ||
-                (idx_element_not_one != (static_cast<int32_t>(const_shape.size()) - 1))) {
+
+                if (count_elements_not_one != 1 ||
+                    (idx_element_not_one != (static_cast<int32_t>(const_shape.size()) - 1))) {
+                    continue;
+                }
+            } else if (!eltw_node.get_dependency(non_const_dep_idx).is_type<convolution>()) {
                 continue;
             }
         } else {
@@ -994,10 +998,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             auto fused_node = parents[fused_idx].first;
             auto peer_node = parents[peer_idx].first;
-
             if (_lo.get_optimization_attributes().use_onednn_impls && _lo.is_primitive_implemented_for_onednn(*fused_node)) {
                 auto eltw_in_size = peer_node->get_output_layout();
-                if (eltw_in_size.is_dynamic())
+                if (eltw_in_size.is_dynamic()
+                    // this whitelist condition is temporarily and to be relaxed soon.
+                    && !fused_node->is_type<fully_connected>())
                     return;
             }
             if (parent1.first->is_type<convolution>() && !conv_supports_fusings(parent1.first->as<convolution>()))

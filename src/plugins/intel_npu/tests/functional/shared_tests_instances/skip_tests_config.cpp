@@ -580,19 +580,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*smoke_MemoryLSTMCellTest.*"
         });
 
-        // [Track number: E#118999]
-        _skipRegistry.addPatterns(backendName.isZero(),
-                "Newly enabled, never tested", {
-                ".*smoke_BehaviorTests/OVCompiledGraphImportExportTest.importExportedFunctionConstantResultOnly.*",
-                ".*smoke_BehaviorTests_OVClassImportExportTestP/OVClassCompiledModelImportExportTestP.smoke_ImportNetworkThrowWithDeviceName.*",
-                ".*ClassExecutableNetworkTestSuite1NPU.PropertyIsSupportedAndImmutableAndGet.*",
-                ".*ClassExecutableNetworkTestSuite2NPU.PropertyIsSupportedAndImmutableAndCanNotSet.*",
-                ".*smoke_BehaviorTests_ClassPluginPropertiesTest/ClassPluginPropertiesTestSuite2NPU.CanNotSetImmutableProperty.*",
-                ".*smoke_BehaviorTests_ClassPluginPropertiesOptsTest1NPU/ClassPluginPropertiesTestSuite3NPU.CanGetPropertyWithOptionsNotAffectingCore.*",
-                ".*ClassPluginPropertiesTestSuite4NPU.CanNotSetGetInexistentProperty.*",
-                ".*BehaviorTests_OVCheckSetSupportedRWMandatoryMetricsPropsTests/OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties.*"
-        });
-
         _skipRegistry.addPatterns(!backendName.isZero() || !devices.has3720(),
                 "QueryNetwork is only supported by 3720 platform", {
                 ".*QueryNetworkTestSuite.*"

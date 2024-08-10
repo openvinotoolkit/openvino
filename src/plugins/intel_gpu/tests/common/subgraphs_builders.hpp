@@ -14,6 +14,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/result.hpp"
@@ -119,7 +120,6 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch 
 
     ov::ResultVector results{kv_present, matmul_out};
     auto model = std::make_shared<ov::Model>(results, params, "LLM-KV-Cache");
-    ov::pass::VisualizeTree("model.svg").run_on_model(model);
     if (stateful) {
         ov::pass::MakeStateful({{in_kv_prev, kv_present}}).run_on_model(model);
     }

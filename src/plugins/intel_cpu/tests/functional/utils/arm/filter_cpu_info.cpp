@@ -38,4 +38,8 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpeci
     return CPUParams;
 }
 
+std::vector<CPUSpecificParams> filterCPUInfoForDeviceWithFP16(const std::vector<CPUSpecificParams>& allParams) {
+    std::vector<CPUSpecificParams> resCPUParams;
+    return resCPUParams;
+}
 } // namespace CPUTestUtils

@@ -29,7 +29,7 @@ const Params paramsStreamsDRIVER[] = {
 
 }  // namespace
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CoreThreadingTest_NPU, CoreThreadingTest, testing::ValuesIn(params),
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_CoreThreadingTest_NPU, CoreThreadingTest, testing::ValuesIn(params),
                          (ov::test::utils::appendPlatformTypeTestName<CoreThreadingTest>));
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CoreThreadingTest_NPU, CoreThreadingTestsWithIter,

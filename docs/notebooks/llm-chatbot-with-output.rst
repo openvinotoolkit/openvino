@@ -25,7 +25,12 @@ Language Models for chat. We will use a pre-trained model from the
 Transformers <https://huggingface.co/docs/transformers/index>`__
 library. To simplify the user experience, the `Hugging Face Optimum
 Intel <https://huggingface.co/docs/optimum/intel/index>`__ library is
-used to convert the models to OpenVINO™ IR format.
+used to convert the models to OpenVINO™ IR format and to create
+inference pipeline. The inference pipeline can also be created using
+`OpenVINO Generate
+API <https://github.com/openvinotoolkit/openvino.genai/tree/master/src>`__,
+the example of that, please, see in the notebook `LLM chatbot with
+OpenVINO Generate API <./llm-chatbot-generate-api.ipynb>`__
 
 The tutorial consists of the following steps:
 
@@ -49,6 +54,7 @@ Table of contents:
 
    -  `Weights Compression using
       Optimum-CLI <#weights-compression-using-optimum-cli>`__
+   -  `Weight compression with AWQ <#weight-compression-with-awq>`__
 
 -  `Select device for inference and model
    variant <#select-device-for-inference-and-model-variant>`__
@@ -79,7 +85,16 @@ Install required dependencies
     "datasets" \
     "accelerate"\
     "gradio>=4.19"\
-    "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.38.1" "bitsandbytes"
+    "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.40" "bitsandbytes"
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+
 
 .. code:: ipython3
 
@@ -101,7 +116,7 @@ Install required dependencies
                 shutil.copy(config_shared_path, config_dst_path)
         else:
             r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
-            with open("llm_config.py", "w") as f:
+            with open("llm_config.py", "w", encoding="utf-8") as f:
                 f.write(r.text)
     elif not os.path.islink(config_dst_path):
         print("LLM config will be updated")
@@ -109,7 +124,7 @@ Install required dependencies
             shutil.copy(config_shared_path, config_dst_path)
         else:
             r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
-            with open("llm_config.py", "w") as f:
+            with open("llm_config.py", "w", encoding="utf-8") as f:
                 f.write(r.text)
 
 Select model for inference
@@ -173,7 +188,7 @@ The available options are:
        except OSError:
            notebook_login()
 
--  **phi3-mini-instruct<|end|>** - The Phi-3-Mini is a 3.8B parameters,
+-  **phi3-mini-instruct** - The Phi-3-Mini is a 3.8B parameters,
    lightweight, state-of-the-art open model trained with the Phi-3
    datasets that includes both synthetic data and the filtered publicly
    available websites data with a focus on high-quality and reasoning
@@ -286,6 +301,18 @@ The available options are:
        except OSError:
            notebook_login()
 
+-  **qwen2-1.5b-instruct/qwen2-7b-instruct** - Qwen2 is the new series
+   of Qwen large language models.Compared with the state-of-the-art open
+   source language models, including the previous released Qwen1.5,
+   Qwen2 has generally surpassed most open source models and
+   demonstrated competitiveness against proprietary models across a
+   series of benchmarks targeting for language understanding, language
+   generation, multilingual capability, coding, mathematics, reasoning,
+   etc. For more details, please refer to
+   `model_card <https://huggingface.co/Qwen/Qwen2-7B-Instruct>`__,
+   `blog <https://qwenlm.github.io/blog/qwen2/>`__,
+   `GitHub <https://github.com/QwenLM/Qwen2>`__, and
+   `Documentation <https://qwen.readthedocs.io/en/latest/>`__.
 -  **qwen1.5-0.5b-chat/qwen1.5-1.8b-chat/qwen1.5-7b-chat** - Qwen1.5 is
    the beta version of Qwen2, a transformer-based decoder-only language
    model pretrained on a large amount of data. Qwen1.5 is a language
@@ -420,7 +447,7 @@ The available options are:
 
     model_id = widgets.Dropdown(
         options=model_ids,
-        value=model_ids[2],
+        value=model_ids[0],
         description="Model:",
         disabled=False,
     )
@@ -444,7 +471,7 @@ The available options are:
 
 .. parsed-literal::
 
-    Selected model phi-3-mini-instruct
+    Selected model qwen2-7b-instruct
 
 
 Convert model using Optimum-CLI tool
@@ -453,7 +480,7 @@ Convert model using Optimum-CLI tool
 
 
 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the 
+the interface between the
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -477,7 +504,8 @@ that exported model should solve. For LLMs it will be
 ``text-generation-with-past``. If model initialization requires to use
 remote code, ``--trust-remote-code`` flag additionally should be passed.
 
-<|end|>## Compress model weights
+Compress model weights
+----------------------
 
 The `Weights
 Compression <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__
@@ -559,6 +587,39 @@ sacrifice of the model size and inference latency.
 
     Checkbox(value=False, description='Prepare FP16 model')
 
+
+Weight compression with AWQ
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+`Activation-aware Weight
+Quantization <https://arxiv.org/abs/2306.00978>`__ (AWQ) is an algorithm
+that tunes model weights for more accurate INT4 compression. It slightly
+improves generation quality of compressed LLMs, but requires significant
+additional time for tuning weights on a calibration dataset. We use
+``wikitext-2-raw-v1/train`` subset of the
+`Wikitext <https://huggingface.co/datasets/Salesforce/wikitext>`__
+dataset for calibration.
+
+Below you can enable AWQ to be additionally applied during model export
+with INT4 precision.
+
+   **Note**: Applying AWQ requires significant memory and time.
+
+..
+
+   **Note**: It is possible that there will be no matching patterns in
+   the model to apply AWQ, in such case it will be skipped.
+
+.. code:: ipython3
+
+    enable_awq = widgets.Checkbox(
+        value=False,
+        description="Enable AWQ",
+        disabled=not prepare_int4_model.value,
+    )
+    display(enable_awq)
 
 We can now save floating point and compressed model variants
 
@@ -673,6 +734,8 @@ We can now save floating point and compressed model variants
         int4_compression_args = " --group-size {} --ratio {}".format(model_compression_params["group_size"], model_compression_params["ratio"])
         if model_compression_params["sym"]:
             int4_compression_args += " --sym"
+        if enable_awq.value:
+            int4_compression_args += " --awq --dataset wikitext2 --num-samples 128"
         export_command_base += int4_compression_args
         if remote_code:
             export_command_base += " --trust-remote-code"
@@ -689,7 +752,18 @@ We can now save floating point and compressed model variants
     if prepare_int4_model.value:
         convert_to_int4()
 
-Let’s compare model size for different compression types
+
+
+**Export command:**
+
+
+
+``optimum-cli export openvino --model Qwen/Qwen2-7B-Instruct --task text-generation-with-past --weight-format int4 --group-size 128 --ratio 0.8 qwen2-7b-instruct/INT4_compressed_weights``
+
+
+.. parsed-literal::
+
+   Let’s compare model size for different compression types
 
 .. code:: ipython3
 
@@ -708,7 +782,7 @@ Let’s compare model size for different compression types
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 2339.74 MB
+    Size of model with INT4 compressed weights is 4929.13 MB
 
 
 Select device for inference and model variant
@@ -743,7 +817,7 @@ Select device for inference and model variant
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='CPU')
 
 
 
@@ -829,6 +903,9 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
 
     ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
 
+    if "GPU" in device.value and "qwen2-7b-instruct" in model_id.value:
+        ov_config["GPU_ENABLE_SDPA_OPTIMIZATION"] = "NO"
+
     # On a GPU device a model is executed in FP16 precision. For red-pajama-3b-chat model there known accuracy
     # issues caused by this, which we avoid by setting precision hint to "f32".
     if model_id.value == "red-pajama-3b-chat" and "GPU" in core.available_devices and device.value in ["GPU", "AUTO"]:
@@ -848,45 +925,12 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+    Loading model from qwen2-7b-instruct/INT4_compressed_weights
 
 
 .. parsed-literal::
 
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    2024-04-23 22:13:04.208987: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-23 22:13:04.210866: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-04-23 22:13:04.245998: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-04-23 22:13:04.246894: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-04-23 22:13:04.941663: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/cextension.py:34: UserWarning: The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
-      warn("The installed version of bitsandbytes was compiled without GPU support. "
-
-
-.. parsed-literal::
-
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/libbitsandbytes_cpu.so: undefined symbol: cadam32bit_grad_fp32
-
-
-.. parsed-literal::
-
-    WARNING[XFORMERS]: xFormers can't load C++/CUDA extensions. xFormers was built for:
-        PyTorch 2.0.1+cu118 with CUDA 1108 (you have 2.1.2+cpu)
-        Python  3.8.18 (you have 3.8.10)
-      Please reinstall xformers (see https://github.com/facebookresearch/xformers#installing-xformers)
-      Memory-efficient attention, SwiGLU, sparse and more won't be available.
-      Set XFORMERS_MORE_DETAILS=1 for more details
     Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-
-
-.. parsed-literal::
-
-    Loading model from phi-3-mini-instruct/INT4_compressed_weights
-
-
-.. parsed-literal::
-
     The argument `trust_remote_code` is to be used along with export=True. It will be ignored.
     Compiling the model to CPU ...
 
@@ -1339,26 +1383,6 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
     # demo.launch(share=True)
     # it creates a publicly shareable link for the interface. Read more in the docs: https://gradio.app/docs/
     demo.launch()
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 .. code:: ipython3
 

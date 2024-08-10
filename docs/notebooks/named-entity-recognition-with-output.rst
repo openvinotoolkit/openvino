@@ -175,6 +175,7 @@ corresponding ``OVModelForXxx`` class. So we use
         num_samples=100,
         dataset_split="train",
         preprocess_batch=True,
+        trust_remote_code=True,
     )
     
     # The directory where the quantized model will be saved

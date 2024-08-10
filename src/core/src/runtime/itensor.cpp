@@ -147,8 +147,8 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
             max_pos[inverted_idx] = shape[inverted_idx];
             cur_pos[inverted_idx] = 0;
         }
-        src_strides = src_str;
-        dst_strides = dst_str;
+        src_strides = std::move(src_str);
+        dst_strides = std::move(dst_str);
     }
 
     const auto update_index = [](const ov::Shape& pos, const ov::Shape& shape, const ov::Strides& strides) {

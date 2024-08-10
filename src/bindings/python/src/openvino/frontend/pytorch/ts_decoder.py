@@ -96,6 +96,7 @@ class TorchScriptPythonDecoder (Decoder):
         if isinstance(pt_module, torch.nn.Module):
             pt_module.eval()
         input_signature = None
+        input_parameters = None
         if isinstance(pt_module, torch.nn.Module) and not isinstance(pt_module, (torch.jit._trace.TopLevelTracedModule, torch.jit._script.RecursiveScriptModule)):
             # input params is dictionary contains input names and their signature values (type hints and default values if any)
             input_params = inspect.signature(pt_module.forward if hasattr(
@@ -150,8 +151,10 @@ class TorchScriptPythonDecoder (Decoder):
                     scripted, preserved_attrs=preserved_attrs)
             else:
                 f_model = scripted
+            self._example_input = input_parameters["example_inputs"] if input_parameters else None
         else:
             f_model = pt_module
+            self._example_input = example_inputs
 
         self._input_signature = input_signature
         return f_model

@@ -64,17 +64,17 @@ models will be stored.
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -82,39 +82,39 @@ models will be stored.
 
     from pathlib import Path
     import logging
-    
+
     import tensorflow as tf
     import tensorflow_datasets as tfds
-    
+
     from nncf import NNCFConfig
     from nncf.tensorflow.helpers.model_creation import create_compressed_model
     from nncf.tensorflow.initialization import register_default_init_args
     from nncf.common.logging.logger import set_log_level
     import openvino as ov
-    
+
     set_log_level(logging.ERROR)
-    
+
     MODEL_DIR = Path("model")
     OUTPUT_DIR = Path("output")
     MODEL_DIR.mkdir(exist_ok=True)
     OUTPUT_DIR.mkdir(exist_ok=True)
-    
+
     BASE_MODEL_NAME = "ResNet-18"
-    
+
     fp32_h5_path = Path(MODEL_DIR / (BASE_MODEL_NAME + "_fp32")).with_suffix(".h5")
     fp32_ir_path = Path(OUTPUT_DIR / "saved_model").with_suffix(".xml")
     int8_pb_path = Path(OUTPUT_DIR / (BASE_MODEL_NAME + "_int8")).with_suffix(".pb")
     int8_ir_path = int8_pb_path.with_suffix(".xml")
-    
+
     BATCH_SIZE = 128
     IMG_SIZE = (64, 64)  # Default Imagenet image size
     NUM_CLASSES = 10  # For Imagenette dataset
-    
+
     LR = 1e-5
-    
+
     MEAN_RGB = (0.485 * 255, 0.456 * 255, 0.406 * 255)  # From Imagenet dataset
     STDDEV_RGB = (0.229 * 255, 0.224 * 255, 0.225 * 255)  # From Imagenet dataset
-    
+
     fp32_pth_url = "https://storage.openvinotoolkit.org/repositories/nncf/openvino_notebook_ckpts/305_resnet18_imagenette_fp32_v1.h5"
     _ = tf.keras.utils.get_file(fp32_h5_path.resolve(), fp32_pth_url)
     print(f"Absolute path where the model weights are saved:\n {fp32_h5_path.resolve()}")
@@ -122,10 +122,10 @@ models will be stored.
 
 .. parsed-literal::
 
-    2024-06-06 03:39:02.561572: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-06 03:39:02.596425: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-20 02:46:24.199617: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-20 02:46:24.234494: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-06 03:39:03.197901: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-20 02:46:24.831892: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -134,7 +134,7 @@ models will be stored.
     Downloading data from https://storage.openvinotoolkit.org/repositories/nncf/openvino_notebook_ckpts/305_resnet18_imagenette_fp32_v1.h5
     134604992/134604992 [==============================] - 4s 0us/step
     Absolute path where the model weights are saved:
-     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/tensorflow-quantization-aware-training/model/ResNet-18_fp32.h5
+     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/tensorflow-quantization-aware-training/model/ResNet-18_fp32.h5
 
 
 Dataset Preprocessing
@@ -142,8 +142,10 @@ Dataset Preprocessing
 
 
 
-Download and prepare Imagenette 160px dataset. - Number of classes: 10 -
-Download size: 94.18 MiB
+Download and prepare Imagenette 160px dataset.
+
+- Number of classes: 10
+- Download size: 94.18 MiB
 
 ::
 
@@ -167,17 +169,17 @@ Download size: 94.18 MiB
 
 .. parsed-literal::
 
-    2024-06-06 03:39:11.942470: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-06-06 03:39:11.942504: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
-    2024-06-06 03:39:11.942508: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
-    2024-06-06 03:39:11.942662: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
-    2024-06-06 03:39:11.942676: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
-    2024-06-06 03:39:11.942680: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
-    2024-06-06 03:39:12.051672: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_3' with dtype int64 and shape [1]
-    	 [[{{node Placeholder/_3}}]]
-    2024-06-06 03:39:12.051996: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_3' with dtype int64 and shape [1]
-    	 [[{{node Placeholder/_3}}]]
-    2024-06-06 03:39:12.122902: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2024-06-20 02:46:33.492574: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-06-20 02:46:33.492607: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
+    2024-06-20 02:46:33.492610: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
+    2024-06-20 02:46:33.492763: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
+    2024-06-20 02:46:33.492777: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
+    2024-06-20 02:46:33.492780: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-06-20 02:46:33.612058: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int64 and shape [1]
+    	 [[{{node Placeholder/_4}}]]
+    2024-06-20 02:46:33.612380: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_1' with dtype string and shape [1]
+    	 [[{{node Placeholder/_1}}]]
+    2024-06-20 02:46:33.690725: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
 
 
 
@@ -192,10 +194,10 @@ Download size: 94.18 MiB
         image = image / STDDEV_RGB
         label = tf.one_hot(label, NUM_CLASSES)
         return image, label
-    
-    
+
+
     train_dataset = train_dataset.map(preprocessing, num_parallel_calls=tf.data.experimental.AUTOTUNE).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
-    
+
     validation_dataset = (
         validation_dataset.map(preprocessing, num_parallel_calls=tf.data.experimental.AUTOTUNE).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
     )
@@ -211,7 +213,7 @@ Define a Floating-Point Model
         def layer(input_tensor):
             x = tf.keras.layers.BatchNormalization(epsilon=2e-5)(input_tensor)
             x = tf.keras.layers.Activation("relu")(x)
-    
+
             # Defining shortcut connection.
             if cut == "pre":
                 shortcut = input_tensor
@@ -223,7 +225,7 @@ Define a Floating-Point Model
                     kernel_initializer="he_uniform",
                     use_bias=False,
                 )(x)
-    
+
             # Continue with convolution layers.
             x = tf.keras.layers.ZeroPadding2D(padding=(1, 1))(x)
             x = tf.keras.layers.Conv2D(
@@ -233,23 +235,23 @@ Define a Floating-Point Model
                 kernel_initializer="he_uniform",
                 use_bias=False,
             )(x)
-    
+
             x = tf.keras.layers.BatchNormalization(epsilon=2e-5)(x)
             x = tf.keras.layers.Activation("relu")(x)
             x = tf.keras.layers.ZeroPadding2D(padding=(1, 1))(x)
             x = tf.keras.layers.Conv2D(filters, (3, 3), kernel_initializer="he_uniform", use_bias=False)(x)
-    
+
             # Add residual connection.
             x = tf.keras.layers.Add()([x, shortcut])
             return x
-    
+
         return layer
-    
-    
+
+
     def ResNet18(input_shape=None):
         """Instantiates the ResNet18 architecture."""
         img_input = tf.keras.layers.Input(shape=input_shape, name="data")
-    
+
         # ResNet18 bottom
         x = tf.keras.layers.BatchNormalization(epsilon=2e-5, scale=False)(img_input)
         x = tf.keras.layers.ZeroPadding2D(padding=(3, 3))(x)
@@ -258,7 +260,7 @@ Define a Floating-Point Model
         x = tf.keras.layers.Activation("relu")(x)
         x = tf.keras.layers.ZeroPadding2D(padding=(1, 1))(x)
         x = tf.keras.layers.MaxPooling2D((3, 3), strides=(2, 2), padding="valid")(x)
-    
+
         # ResNet18 body
         repetitions = (2, 2, 2, 2)
         for stage, rep in enumerate(repetitions):
@@ -272,15 +274,15 @@ Define a Floating-Point Model
                     x = residual_conv_block(filters, stage, block, strides=(1, 1), cut="pre")(x)
         x = tf.keras.layers.BatchNormalization(epsilon=2e-5)(x)
         x = tf.keras.layers.Activation("relu")(x)
-    
+
         # ResNet18 top
         x = tf.keras.layers.GlobalAveragePooling2D()(x)
         x = tf.keras.layers.Dense(NUM_CLASSES)(x)
         x = tf.keras.layers.Activation("softmax")(x)
-    
+
         # Create the model.
         model = tf.keras.models.Model(img_input, x)
-    
+
         return model
 
 .. code:: ipython3
@@ -304,13 +306,13 @@ model and a training pipeline.
 
     # Load the floating-point weights.
     fp32_model.load_weights(fp32_h5_path)
-    
+
     # Compile the floating-point model.
     fp32_model.compile(
         loss=tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1),
         metrics=[tf.keras.metrics.CategoricalAccuracy(name="acc@1")],
     )
-    
+
     # Validate the floating-point model.
     test_loss, acc_fp32 = fp32_model.evaluate(
         validation_dataset,
@@ -321,16 +323,16 @@ model and a training pipeline.
 
 .. parsed-literal::
 
-    2024-06-06 03:39:13.292630: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [1]
-    	 [[{{node Placeholder/_0}}]]
-    2024-06-06 03:39:13.293394: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_3' with dtype int64 and shape [1]
-    	 [[{{node Placeholder/_3}}]]
+    2024-06-20 02:46:34.826683: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int64 and shape [1]
+    	 [[{{node Placeholder/_4}}]]
+    2024-06-20 02:46:34.827140: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_1' with dtype string and shape [1]
+    	 [[{{node Placeholder/_1}}]]
 
 
 .. parsed-literal::
 
     4/4 [==============================] - 1s 243ms/sample - loss: 0.9807 - acc@1: 0.8220
-    
+
     Accuracy of FP32 model: 0.822
 
 
@@ -375,13 +377,13 @@ scenario and requires only 3 modifications.
 
 .. parsed-literal::
 
-    2024-06-06 03:39:15.881712: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_1' with dtype string and shape [1]
-    	 [[{{node Placeholder/_1}}]]
-    2024-06-06 03:39:15.882101: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_1' with dtype string and shape [1]
-    	 [[{{node Placeholder/_1}}]]
-    2024-06-06 03:39:16.811397: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
-    2024-06-06 03:39:17.409491: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
-    2024-06-06 03:39:25.687275: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2024-06-20 02:46:37.445673: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_2' with dtype string and shape [1]
+    	 [[{{node Placeholder/_2}}]]
+    2024-06-20 02:46:37.446118: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int64 and shape [1]
+    	 [[{{node Placeholder/_4}}]]
+    2024-06-20 02:46:38.347593: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2024-06-20 02:46:38.954949: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2024-06-20 02:46:47.074888: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
 
 
 Evaluate the new model on the validation set after initialization of
@@ -397,7 +399,7 @@ demonstrated here.
         loss=tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1),
         metrics=[tf.keras.metrics.CategoricalAccuracy(name="acc@1")],
     )
-    
+
     # Validate the INT8 model.
     test_loss, test_acc = int8_model.evaluate(
         validation_dataset,
@@ -407,7 +409,7 @@ demonstrated here.
 
 .. parsed-literal::
 
-    4/4 [==============================] - 1s 304ms/sample - loss: 0.9766 - acc@1: 0.8120
+    4/4 [==============================] - 1s 305ms/sample - loss: 0.9766 - acc@1: 0.8120
 
 
 Fine-tune the Compressed Model
@@ -424,10 +426,10 @@ training pipeline are required. Here is a simple example.
 .. code:: ipython3
 
     print(f"\nAccuracy of INT8 model after initialization: {test_acc:.3f}")
-    
+
     # Train the INT8 model.
     int8_model.fit(train_dataset, epochs=2)
-    
+
     # Validate the INT8 model.
     test_loss, acc_int8 = int8_model.evaluate(
         validation_dataset,
@@ -439,16 +441,16 @@ training pipeline are required. Here is a simple example.
 
 .. parsed-literal::
 
-    
+
     Accuracy of INT8 model after initialization: 0.812
     Epoch 1/2
-    101/101 [==============================] - 49s 418ms/step - loss: 0.7134 - acc@1: 0.9299
+    101/101 [==============================] - 48s 414ms/step - loss: 0.7134 - acc@1: 0.9299
     Epoch 2/2
-    101/101 [==============================] - 42s 417ms/step - loss: 0.6807 - acc@1: 0.9489
+    101/101 [==============================] - 42s 418ms/step - loss: 0.6807 - acc@1: 0.9489
     4/4 [==============================] - 1s 143ms/sample - loss: 0.9760 - acc@1: 0.8160
-    
+
     Accuracy of INT8 model after fine-tuning: 0.816
-    
+
     Accuracy drop of tuned INT8 model over pre-trained FP32 model: 0.006
 
 
@@ -515,7 +517,7 @@ Please select a benchmarking device using the dropdown list:
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     # Initialize OpenVINO runtime
     core = ov.Core()
     device = widgets.Dropdown(
@@ -524,7 +526,7 @@ Please select a benchmarking device using the dropdown list:
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -541,12 +543,12 @@ Please select a benchmarking device using the dropdown list:
     def parse_benchmark_output(benchmark_output):
         parsed_output = [line for line in benchmark_output if "FPS" in line]
         print(*parsed_output, sep="\n")
-    
-    
+
+
     print("Benchmark FP32 model (IR)")
     benchmark_output = ! benchmark_app -m $fp32_ir_path -d $device.value -api async -t 15 -shape [1,64,64,3]
     parse_benchmark_output(benchmark_output)
-    
+
     print("\nBenchmark INT8 model (IR)")
     benchmark_output = ! benchmark_app -m $int8_ir_path -d $device.value -api async -t 15 -shape [1,64,64,3]
     parse_benchmark_output(benchmark_output)
@@ -555,10 +557,10 @@ Please select a benchmarking device using the dropdown list:
 .. parsed-literal::
 
     Benchmark FP32 model (IR)
-    [ INFO ] Throughput:   2843.86 FPS
-    
+    [ INFO ] Throughput:   2811.91 FPS
+
     Benchmark INT8 model (IR)
-    [ INFO ] Throughput:   11417.45 FPS
+    [ INFO ] Throughput:   11015.18 FPS
 
 
 Show Device Information for reference.

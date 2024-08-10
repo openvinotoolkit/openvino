@@ -25,6 +25,7 @@ Place::Place(const ov::frontend::InputModel& input_model, size_t tensor_index)
     auto in_it = std::find(inputs.begin(), inputs.end(), tensor_index);
     if (in_it != inputs.end()) {
         m_is_input = true;
+        m_input_index = std::distance(inputs.begin(), in_it);
         auto idx = std::distance(inputs.begin(), in_it);
         const auto& signature_name = decoder->get_input_signature_name(idx);
         m_names.push_back(signature_name);
@@ -53,6 +54,31 @@ Place::Place(const ov::frontend::InputModel& input_model, size_t tensor_index)
     if (m_is_input && m_is_output) {
         OPENVINO_DEBUG << "[WARNING] Place " << tensor_index << " is input and output at a same time.";
     }
+}
+
+Place::Place(const ov::frontend::InputModel& input_model, const std::string& name, size_t input_index)
+    : m_input_model(input_model),
+      m_tensor_index(0),
+      m_is_fake(true),
+      m_input_index(input_index),
+      m_pshape(PartialShape::dynamic()),
+      m_type(element::dynamic),
+      m_is_input(true) {
+    if (!name.empty())
+        m_names = {name};
+}
+
+bool Place::is_equal(const Ptr& another) const {
+    const auto& pt_place = std::dynamic_pointer_cast<pytorch::Place>(another);
+    if (!pt_place)
+        return this == another.get();
+    if (m_is_fake || pt_place->m_is_fake) {
+        if ((m_is_fake && m_names.size() != 0) || (pt_place->m_is_fake && pt_place->m_names.size() != 0))
+            // named fake place can only be equal to itself
+            return this == another.get();
+        return m_input_index == pt_place->get_input_index();
+    }
+    return this == another.get();
 }
 
 }  // namespace pytorch

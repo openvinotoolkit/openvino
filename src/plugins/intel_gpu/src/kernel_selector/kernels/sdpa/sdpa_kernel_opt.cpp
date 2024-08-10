@@ -273,7 +273,7 @@ void SDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsPriority SDPAKernelOpt::GetKernelsPriority(const Params& /*params*/) const {
-    return FORCE_PRIORITY_1;
+KernelsPriority SDPAKernelOpt::GetKernelsPriority(const Params& params) const {
+    return params.engineInfo.supports_immad ?  FORCE_PRIORITY_2 : FORCE_PRIORITY_1;
 }
 }  // namespace kernel_selector

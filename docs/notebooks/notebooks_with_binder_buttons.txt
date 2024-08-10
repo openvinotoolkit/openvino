@@ -15,11 +15,9 @@ hello-segmentation
 hello-world
 hugging-face-hub
 image-classification-quantization
-image-inpainting
 knowledge-graphs-conve
 magika-content-type-recognition
 meter-reader
-model-tools
 music-generation
 object-detection
 openvino-api

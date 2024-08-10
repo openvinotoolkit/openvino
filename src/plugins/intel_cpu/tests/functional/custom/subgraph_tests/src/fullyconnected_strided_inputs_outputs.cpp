@@ -102,11 +102,27 @@ TEST_P(FullyConnectedStridedInputsOutputsTest, CompareWithRefs) {
     run();
 }
 
+using FullyConnectedStridedInputsOutputsTest_FP16 = FullyConnectedStridedInputsOutputsTest;
+TEST_P(FullyConnectedStridedInputsOutputsTest_FP16, CompareWithRefs) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
+
+    run();
+}
+
 namespace {
 
 INSTANTIATE_TEST_SUITE_P(smoke_Check,
                          FullyConnectedStridedInputsOutputsTest,
                          ::testing::Combine(::testing::Values(ov::element::f32, ov::element::bf16),
+                                            ::testing::Values(2, 3)),
+                         FullyConnectedStridedInputsOutputsTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Check,
+                         FullyConnectedStridedInputsOutputsTest_FP16,
+                         ::testing::Combine(::testing::Values(ov::element::f32),
                                             ::testing::Values(2, 3)),
                          FullyConnectedStridedInputsOutputsTest::getTestCaseName);
 

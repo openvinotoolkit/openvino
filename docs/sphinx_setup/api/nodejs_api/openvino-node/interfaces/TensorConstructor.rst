@@ -76,3 +76,17 @@ Constructors
    * **Defined in:**
      `addon.ts:392 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L392>`__
 
+
+   .. code-block:: ts
+
+       new TensorConstructor(tensorData: string[]): Tensor;
+
+   It constructs a string tensor. The strings from
+   the array are used to fill tensor data. Each element of a string tensor
+   is a string of arbitrary length.
+
+   * **Returns:**  :doc:`Tensor <Tensor>`
+
+   * **Defined in:**
+     `addon.ts:399 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L399>`__
+

@@ -138,6 +138,17 @@ public:
         return layout{ bias_shape, p.default_type, p.default_format };
     }
 
+    layout get_scale_layout(fully_connected_test_params& p, size_t group_size = 1) {
+        if (p.weights_type == data_types::u8 || p.weights_type == data_types::i8) {
+            auto scale_shape = p.out_shape.size() == 3 ? ov::PartialShape{p.out_shape[2]} : ov::PartialShape{p.out_shape[1]};
+            return layout{ scale_shape, p.default_type, p.default_format };
+        } else {
+            auto groups_num = p.in_shape.size() == 3 ? p.in_shape[2] / group_size : p.in_shape[1] / group_size;
+            auto scale_shape = p.out_shape.size() == 3 ? ov::PartialShape{p.out_shape[2], groups_num} : ov::PartialShape{p.out_shape[1], groups_num};
+            return layout{ scale_shape, p.default_type, p.default_format };
+        }
+    }
+
     layout get_output_layout(fully_connected_test_params& p) {
         return layout{ p.out_shape, p.data_type, p.input_format };
     }
@@ -571,13 +582,44 @@ TEST_P(fc_fp16_eltwise_add_dynamic, basic) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
+    bool is_dynamic = true;
+    cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
     tolerance = 1e-2f;
-    execute(p, false, true);
+    execute(p, false, is_dynamic);
 }
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, fc_fp16_eltwise_add_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_add_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ CASE_FC_FP16_3, 2, 3 },
-    fully_connected_test_params{ CASE_FC_FP16_4, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_4, 2, 3 }
+}));
+
+class fc_compressed_int8_bias_dynamic_onednn : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_compressed_int8_bias_dynamic_onednn, basic) {
+    auto p = GetParam();
+    auto test_input_layout = get_input_layout(p);
+    auto dynamic_input_layout = layout{ov::PartialShape::dynamic(test_input_layout.get_partial_shape().rank()), test_input_layout.data_type, test_input_layout.format};
+
+    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, padding(), get_output_dim_size(p), get_input_weights_rank(p));
+    fc_prim.decompression_zero_point_scalar = 8.0f;
+
+    create_topologies(
+        input_layout("input", dynamic_input_layout),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("scale", get_mem(get_scale_layout(p, 128))),
+        data("bias", get_mem(get_bias_layout(p))),
+        fc_prim,
+        eltwise("bias_add", { input_info("fc_prim"), input_info("bias") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("bias_add"), p.default_format, data_types::f32)
+    );
+
+    bool is_dynamic = true;
+    cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
+    tolerance = 1.0f;
+    execute(p, false, is_dynamic);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_int8_bias_dynamic_onednn, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_1, 2, 3 },
 }));
 
 class fc_fp16_eltwise_sub : public FullyConnectedFusingTestOneDNN {

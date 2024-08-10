@@ -14,12 +14,15 @@ namespace test {
 
 class InputNoReorderEltwiseBF16 : virtual public SubgraphBaseStaticTest, public CPUTestsBase {
 protected:
-    void SetUp() override {
-        auto netPrecision = inType = ov::element::f32;
+    virtual void set_output_type_and_config() {
         outType = ov::element::bf16;
-        targetDevice = ov::test::utils::DEVICE_CPU;
         ov::AnyMap additional_config{ov::hint::inference_precision(ov::element::bf16)};
         configuration.insert(additional_config.begin(), additional_config.end());
+    }
+    void SetUp() override {
+        auto netPrecision = inType = ov::element::f32;
+        set_output_type_and_config();
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         ov::Shape inputShape{2, 4, 4, 1};
         auto eltwiseType = ov::test::utils::EltwiseTypes::ADD;
@@ -56,5 +59,27 @@ TEST_F(InputNoReorderEltwiseBF16, smoke_CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
     CheckNumberOfNodesWithTypes(compiledModel, {"Eltwise", "Subgraph"}, 1);
 }
+
+class InputNoReorderEltwiseFP16 : public InputNoReorderEltwiseBF16 {
+protected:
+    void set_output_type_and_config() override {
+        outType = ov::element::f16;
+        ov::AnyMap additional_config{ov::hint::inference_precision(ov::element::f16)};
+        configuration.insert(additional_config.begin(), additional_config.end());
+    }
+};
+
+TEST_F(InputNoReorderEltwiseFP16, smoke_CompareWithRefs) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+
+    run();
+
+    CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
+    CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
+    CheckNumberOfNodesWithTypes(compiledModel, {"Eltwise", "Subgraph"}, 1);
+}
+
 }  // namespace test
 }  // namespace ov

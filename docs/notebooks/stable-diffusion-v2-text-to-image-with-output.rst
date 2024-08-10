@@ -1033,7 +1033,7 @@ Prepare calibration dataset
 
 
 We use a portion of
-`conceptual_captions <https://huggingface.co/datasets/conceptual_captions>`__
+`conceptual_captions <https://huggingface.co/datasets/google-research-datasets/conceptual_captions>`__
 dataset from Hugging Face as calibration data. To collect intermediate
 model inputs for calibration we should customize ``CompiledModel``.
 
@@ -1072,7 +1072,7 @@ model inputs for calibration we should customize ``CompiledModel``.
         ov_pipe.unet = CompiledModelDecorator(original_unet, calibration_data, keep_prob=0.7)
         disable_progress_bar(ov_pipe)
     
-        dataset = datasets.load_dataset("conceptual_captions", split="train").shuffle(seed=42)
+        dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train").shuffle(seed=42)
     
         # Run inference for data collection
         pbar = tqdm(total=calibration_dataset_size)
@@ -1250,7 +1250,7 @@ pipelines, we use median inference time on calibration subset.
     %%skip not $to_quantize.value
     
     validation_size = 10
-    validation_dataset = datasets.load_dataset("conceptual_captions", split="train", streaming=True).take(validation_size)
+    validation_dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", streaming=True).take(validation_size)
     validation_data = [batch["caption"] for batch in validation_dataset]
     
     fp_latency = calculate_inference_time(ov_pipe, validation_data)

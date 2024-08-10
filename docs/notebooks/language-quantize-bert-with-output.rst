@@ -90,10 +90,10 @@ Imports
 
 .. parsed-literal::
 
-    2024-06-06 00:36:52.607166: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-06 00:36:52.641403: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-19 23:53:37.418375: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-19 23:53:37.462423: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-06 00:36:53.239122: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-19 23:53:38.056568: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -191,7 +191,7 @@ PyTorch model formats are supported:
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4481: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4481: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
 
 
@@ -522,9 +522,9 @@ Frames Per Second (FPS) for images.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.068 seconds per sentence, SPS: 14.61
-    IR FP32 model in OpenVINO Runtime/AUTO: 0.021 seconds per sentence, SPS: 47.63
-    OpenVINO IR INT8 model in OpenVINO Runtime/AUTO: 0.010 seconds per sentence, SPS: 103.25
+    PyTorch model on CPU: 0.068 seconds per sentence, SPS: 14.70
+    IR FP32 model in OpenVINO Runtime/AUTO: 0.021 seconds per sentence, SPS: 47.66
+    OpenVINO IR INT8 model in OpenVINO Runtime/AUTO: 0.010 seconds per sentence, SPS: 105.08
 
 
 Finally, measure the inference performance of OpenVINO ``FP32`` and
@@ -554,38 +554,38 @@ in OpenVINO.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.2.0-15519-5c0f38f83f6-releases/2024/2
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.2.0-15519-5c0f38f83f6-releases/2024/2
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 19.23 ms
+    [ INFO ] Read model took 17.94 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,?]
-    [ INFO ]     63 , attention_mask (node: attention_mask) : i64 / [...] / [1,?]
+    [ INFO ]     attention_mask , 63 (node: attention_mask) : i64 / [...] / [1,?]
     [ INFO ]     token_type_ids (node: token_type_ids) : i64 / [...] / [1,?]
     [ INFO ] Model outputs:
     [ INFO ]     logits (node: __module.classifier/aten::linear/Add) : f32 / [...] / [1,2]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_ids': [1,128], '63': [1,128], 'token_type_ids': [1,128]
-    [ INFO ] Reshape model took 10.36 ms
+    [ INFO ] Reshape model took 5.18 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,128]
-    [ INFO ]     63 , attention_mask (node: attention_mask) : i64 / [...] / [1,128]
+    [ INFO ]     attention_mask , 63 (node: attention_mask) : i64 / [...] / [1,128]
     [ INFO ]     token_type_ids (node: token_type_ids) : i64 / [...] / [1,128]
     [ INFO ] Model outputs:
     [ INFO ]     logits (node: __module.classifier/aten::linear/Add) : f32 / [...] / [1,2]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 362.31 ms
+    [ INFO ] Compile model took 434.02 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -626,17 +626,17 @@ in OpenVINO.
     [ INFO ] Fill input 'token_type_ids' with random values 
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 21.08 ms
+    [ INFO ] First inference took 31.01 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            6222 iterations
-    [ INFO ] Duration:         120015.61 ms
+    [ INFO ] Count:            6136 iterations
+    [ INFO ] Duration:         120013.13 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        19.16 ms
-    [ INFO ]    Average:       19.20 ms
-    [ INFO ]    Min:           18.52 ms
-    [ INFO ]    Max:           23.65 ms
-    [ INFO ] Throughput:   51.84 FPS
+    [ INFO ]    Median:        19.44 ms
+    [ INFO ]    Average:       19.46 ms
+    [ INFO ]    Min:           18.66 ms
+    [ INFO ]    Max:           23.61 ms
+    [ INFO ] Throughput:   51.13 FPS
 
 
 .. code:: ipython3
@@ -652,18 +652,18 @@ in OpenVINO.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.2.0-15519-5c0f38f83f6-releases/2024/2
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.2.0-15519-5c0f38f83f6-releases/2024/2
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 25.23 ms
+    [ INFO ] Read model took 24.03 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,?]
@@ -674,7 +674,7 @@ in OpenVINO.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_ids': [1,128], '63': [1,128], 'token_type_ids': [1,128]
-    [ INFO ] Reshape model took 12.77 ms
+    [ INFO ] Reshape model took 6.90 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,128]
@@ -683,7 +683,7 @@ in OpenVINO.
     [ INFO ] Model outputs:
     [ INFO ]     logits (node: __module.classifier/aten::linear/Add) : f32 / [...] / [1,2]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1122.18 ms
+    [ INFO ] Compile model took 1148.23 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -724,15 +724,15 @@ in OpenVINO.
     [ INFO ] Fill input 'token_type_ids' with random values 
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 18.38 ms
+    [ INFO ] First inference took 17.48 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            11981 iterations
-    [ INFO ] Duration:         120000.10 ms
+    [ INFO ] Count:            12194 iterations
+    [ INFO ] Duration:         120005.10 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        10.28 ms
-    [ INFO ]    Average:       9.93 ms
-    [ INFO ]    Min:           8.10 ms
-    [ INFO ]    Max:           11.42 ms
-    [ INFO ] Throughput:   99.84 FPS
+    [ INFO ]    Median:        9.79 ms
+    [ INFO ]    Average:       9.75 ms
+    [ INFO ]    Min:           8.30 ms
+    [ INFO ]    Max:           11.35 ms
+    [ INFO ] Throughput:   101.61 FPS
 

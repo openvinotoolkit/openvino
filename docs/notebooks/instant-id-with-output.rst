@@ -50,7 +50,6 @@ additional part demonstrates how to run optimization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
 pipeline.
 
-
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
@@ -498,6 +497,7 @@ Now, let’s see models inference result
 
 Select Inference Device for Face Recognition
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 .. code:: ipython3
 

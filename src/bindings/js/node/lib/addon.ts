@@ -391,6 +391,12 @@ interface TensorConstructor {
    */
   new(type: element | elementTypeString, shape: number[],
     tensorData: SupportedTypedArray): Tensor;
+  /**
+   * It constructs a tensor using the element type and shape. The strings from 
+   * the array are used to fill the new tensor. Each element of a string tensor
+   * is a string of arbitrary length, including an empty string.
+   */
+  new(tensorData: string[]): Tensor;
 }
 
 /**

@@ -26,7 +26,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type ty
     set_input_port_descriptor({0, offset_a}, 0);
     set_input_port_descriptor({0, offset_b}, 1);
     set_output_port_descriptor({0, offset_c}, 0);
-    compute_block_size_values(blk_size_m, blk_size_k, blk_size_n);
+    set_block_size_values(blk_size_m, blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
     set_beta(beta);
 }
@@ -43,7 +43,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<
     set_input_port_descriptor({0, offset_b}, 1);
     set_output_port_descriptor({0, offset_c}, 0);
     set_input_port_descriptor({0, offset_scratch}, 2);
-    compute_block_size_values(blk_size_m, blk_size_k, blk_size_n);
+    set_block_size_values(blk_size_m, blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
     set_beta(beta);
 }
@@ -57,7 +57,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type ty
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}};
     m_output_ports = {{0, desc_c}};
-    compute_block_size_values(blk_size_m, blk_size_k, blk_size_n);
+    set_block_size_values(blk_size_m, blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
     set_beta(beta);
 }
@@ -71,7 +71,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}, {2, desc_scratch}};
     m_output_ports = {{0, desc_c}};
-    compute_block_size_values(blk_size_m, blk_size_k, blk_size_n);
+    set_block_size_values(blk_size_m, blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
     set_beta(beta);
 }
@@ -87,7 +87,7 @@ void BrgemmCPU::custom_constructor_validate_and_infer_types(std::vector<size_t> 
         std::vector<ov::PartialShape>{ snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_a),
                                        brgemm_copy ? snippets::utils::get_planar_pshape(brgemm_copy->input(0))
                                                    : snippets::utils::get_planar_pshape(get_input_partial_shape(1), layout_b) };
-    auto output_shape = get_output_partial_shape(planar_input_shapes);
+    auto output_shape = infer_output_partial_shape(planar_input_shapes);
     set_output_type(0, get_output_type(), snippets::utils::get_planar_pshape(output_shape, layout_c));
 
     // Additional check for 3rd input
@@ -100,7 +100,7 @@ void BrgemmCPU::validate_and_infer_types() {
 
     const auto brgemm_copy = is_with_data_repacking() ? get_brgemm_copy() : nullptr;
     const auto planar_input_shapes = get_planar_input_shapes({input(0), brgemm_copy ? brgemm_copy->input(0) : input(1)});
-    auto output_shape = get_output_partial_shape(planar_input_shapes);
+    auto output_shape = infer_output_partial_shape(planar_input_shapes);
     set_output_type(0, get_output_type(), get_planar_output_shape(output_shape));
 
     // Additional check for 3rd input
@@ -119,9 +119,6 @@ void BrgemmCPU::validate_with_scratchpad() const {
 }
 
 void BrgemmCPU::validate_inputs() const {
-    // If no leading dimensions are provided, assume dense row-major inputs-outputs
-    NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static(),
-                          "BrgemmCPU currently supports only static shapes.");
     OPENVINO_ASSERT(implication(one_of(m_type, Type::Floating, Type::WithDataRepacking), get_input_size() == 2),
                     "BrgemmCPU expects 2 inputs in cases, when input precisions are f32|f32, u8|i8 or bf16|bf16 (non-AMX system)");
     OPENVINO_ASSERT(implication(one_of(m_type, Type::WithCompensations, Type::AMX), get_input_size() == 3),

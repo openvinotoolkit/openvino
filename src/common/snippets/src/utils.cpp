@@ -279,6 +279,24 @@ std::shared_ptr<ov::Node> get_leaf_node_of_first_parent_shape_infer_seq(const st
     return leaf_node;
 }
 
+size_t get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout) {
+    if (layout.empty())
+        return shape.back();
+    OPENVINO_ASSERT(layout.back() == layout.size() - 1 && layout.size() == shape.size(),
+                              "detected invalid layout values: check that this shape + layout combination is schedulable");
+    const auto idx = static_cast<VectorDims::difference_type>(layout[layout.size() - 2]);
+    return std::accumulate(shape.cbegin() + idx + 1, shape.end(), 1ull, std::multiplies<size_t>());
+}
+size_t get_out_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout) {
+    if (layout.empty())
+        return shape.back();
+    OPENVINO_ASSERT(layout.back() == layout.size() - 1 && layout.size() == shape.size(),
+                              "detected invalid layout values: check that this shape + layout combination is schedulable");
+    const auto idx = layout.size() - 2;
+    const auto dim = std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), idx));
+    return std::accumulate(shape.cbegin() + dim + 1, shape.cend(), 1ull, std::multiplies<size_t>());
+}
+
 } // namespace utils
 } // namespace snippets
 } // namespace ov

@@ -150,7 +150,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
 
         // Apply MatcherPass. In case if it returns true no other MatcherPasses will apply
         // to this node
-        bool status = m_pass->apply(node);
+        bool status = m_pass->apply(std::move(node));
 
         // In case if MatcherPass registered nodes they will be added to the beginning of execution
         // queue

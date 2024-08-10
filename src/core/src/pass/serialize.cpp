@@ -943,7 +943,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         for (const auto& res : model.get_results()) {
             result.emplace_back(res);
         }
-        sorted_ops = result;
+        sorted_ops = std::move(result);
     }
 
     for (const auto& n : sorted_ops) {

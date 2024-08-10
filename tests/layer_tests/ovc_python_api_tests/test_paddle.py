@@ -1,12 +1,17 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import tempfile
+import unittest
+
 import numpy as np
+import openvino.runtime as ov
 import pytest
+from openvino.runtime import PartialShape, Model
+from openvino.test_utils import compare_functions
+
 from common.mo_convert_test_class import CommonMOConvertTest
 
-import openvino.runtime as ov
-from openvino.runtime import PartialShape, Model
 
 def make_pd_dynamic_graph_model():
     import paddle
@@ -22,7 +27,6 @@ def make_pd_dynamic_graph_model():
     return NeuralNetwork()
 
 def make_pd_static_graph_model(shape):
-    import paddle
     import paddle.nn
 
     paddle.enable_static()
@@ -133,3 +137,41 @@ class TestPaddleConversionParams(CommonMOConvertTest):
 
         test_params.update({'input_model': fw_model})
         self._test_by_ref_graph(temp_dir, test_params, ref_model, compare_tensor_names=False)
+
+
+class TestUnicodePathsPaddle(unittest.TestCase):
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_unicode_paths(self):
+        import os
+        try:
+            import paddle
+        except ImportError:
+            return
+
+        paddle.enable_static()
+        test_directory = os.path.dirname(os.path.realpath(__file__))
+        with tempfile.TemporaryDirectory(dir=test_directory, prefix=r"晚安_путь_к_файлу") as temp_dir:
+            shape = [2, 3, 4]
+            pd_model = make_pd_hapi_graph_model(shape)
+            model_ref = make_ref_graph_model(shape)
+            model_path = temp_dir + os.sep + 'model'
+
+            try:
+                pd_model.save(model_path, False)
+            except:
+                return
+            model_path = model_path + ".pdmodel"
+
+            assert os.path.exists(model_path), "Could not create a directory with unicode path."
+
+            from openvino import convert_model
+            res_model = convert_model(model_path)
+            flag, msg = compare_functions(res_model, model_ref, False)
+            assert flag, msg
+
+            from openvino.frontend import FrontEndManager
+            fm = FrontEndManager()
+            fe = fm.load_by_framework("paddle")
+
+            assert fe.supported(model_path)
