@@ -57,11 +57,10 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
     }
 
     void get_contexts(sync_tensor_inst& instance, oclContext& oclctx, lzContext& lzctx, int rank) {
-        // printf("[get_contexts] enter \n");
-
         auto start = std::chrono::high_resolution_clock::now();
 
         int device_idx = oclctx.device_idx();
+        printf("[get_contexts] device_idx: %d \n", device_idx);
         if (device_idx == -1) {
             auto cldnnDevice = instance.get_network().get_engine().get_device();
             auto oclDevice = std::dynamic_pointer_cast<ocl::ocl_device>(cldnnDevice);
@@ -72,28 +71,29 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
             device_idx = oclctx.get_device_idx(device_id);
             std::cout << "[get_contexts] init oclctx " << std::endl;
             oclctx.init(device_idx);
+
+            printf("[get_contexts] device_idx: %d \n", device_idx);
+            std::cout << "[get_contexts] init lzContext " << std::endl;
+            lzctx.initZe(device_idx);
+            auto end_inits = std::chrono::high_resolution_clock::now();
+
+            char cwd[256];
+            getcwd(cwd, 256);
+            std::string file_path = std::string(cwd) + "/test_kernel_dg2.spv";
+            printf("[get_contexts] file_path: %s \n", file_path.c_str());
+            lzContext::readKernel(file_path.data(), "local_write_to_remote");
+            auto end_read_kernel = std::chrono::high_resolution_clock::now();
+
+            lzctx.initKernel();
+            auto end_init_kernel = std::chrono::high_resolution_clock::now();
+
+            int64_t timestamp_ctx_inits = std::chrono::duration_cast<std::chrono::microseconds>(end_inits - start).count();
+            int64_t timestamp_ctx_read_kernel = std::chrono::duration_cast<std::chrono::microseconds>(end_read_kernel - end_inits).count();
+            int64_t timestamp_ctx_init_kernel = std::chrono::duration_cast<std::chrono::microseconds>(end_init_kernel - end_inits).count();
+            printf("[sync_tensor_impl:%d] timestamp_ctx_inits: %ld ms\n", rank, timestamp_ctx_inits);
+            printf("[sync_tensor_impl:%d] timestamp_ctx_read_kernel: %ld ms\n", rank, timestamp_ctx_read_kernel);
+            printf("[sync_tensor_impl:%d] timestamp_ctx_init_kernel: %ld ms\n", rank, timestamp_ctx_init_kernel);
         }
-
-        printf("[get_contexts] device_idx: %d \n", device_idx);
-        std::cout << "[get_contexts] init lzContext " << std::endl;
-        lzctx.initZe(device_idx);
-        auto end_inits = std::chrono::high_resolution_clock::now();
-
-        char cwd[256];
-        getcwd(cwd, 256);
-        std::string file_path = std::string(cwd) + "/test_kernel_dg2.spv";
-        printf("[get_contexts] file_path: %s \n", file_path.c_str());
-        lzContext::readKernel(file_path.data(), "local_write_to_remote");
-        auto end_read_kernel = std::chrono::high_resolution_clock::now();
-        lzctx.initKernel();
-        auto end_init_kernel = std::chrono::high_resolution_clock::now();
-
-        int64_t timestamp_ctx_inits = std::chrono::duration_cast<std::chrono::microseconds>(end_inits - start).count();
-        int64_t timestamp_ctx_read_kernel = std::chrono::duration_cast<std::chrono::microseconds>(end_read_kernel - end_inits).count();
-        int64_t timestamp_ctx_init_kernel = std::chrono::duration_cast<std::chrono::microseconds>(end_init_kernel - end_inits).count();
-        printf("[sync_tensor_impl:%d] timestamp_ctx_inits: %ld ms\n", rank, timestamp_ctx_inits);
-        printf("[sync_tensor_impl:%d] timestamp_ctx_read_kernel: %ld ms\n", rank, timestamp_ctx_read_kernel);
-        printf("[sync_tensor_impl:%d] timestamp_ctx_init_kernel: %ld ms\n", rank, timestamp_ctx_init_kernel);
     }
 
     void printCLBuff(cl_command_queue& cl_queue, cl_mem& clbuf, size_t size, oclContext& oclctx, std::vector<uint32_t>& resBuf) {

@@ -1481,7 +1481,7 @@ public:
 
         // std::cout << "infer_request infer " << std::endl;
         // for (int i = 0; i < 48; ++i) {
-        for (int i = 0; i < 1; ++i) {
+        for (int i = 0; i < 3; ++i) {
             std::cout << "infer_request infer i: " << i << std::endl;
             infer_request.infer();
 
@@ -1540,7 +1540,7 @@ public:
 
         // std::cout << "infer_request infer " << std::endl;
         // for (int i = 0; i < 48; ++i) {
-        for (int i = 0; i < 1; ++i) {
+        for (int i = 0; i < 3; ++i) {
             std::cout << "infer_request infer i: " << i << std::endl;
             infer_request.infer();
 
