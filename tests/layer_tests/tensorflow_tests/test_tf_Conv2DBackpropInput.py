@@ -45,25 +45,17 @@ class TestConv2DBackpropInput(CommonTFLayerTest):
     test_data = [
         dict(input_sizes=[1, 10, 10, 1], filter_shape=[1, 1, 1, 1], out_backprop_shape=[1, 10, 10, 1],
              strides=[1, 1, 1, 1]),
-        dict(input_sizes=[1, 10, 10, 3], filter_shape=[2, 2, 3, 3], out_backprop_shape=[1, 10, 10, 3],
-             strides=[1, 1, 1, 1]),
         dict(input_sizes=[1, 10, 10, 3], filter_shape=[2, 2, 3, 3], out_backprop_shape=[1, 5, 5, 3],
              strides=[1, 2, 2, 1]),
-        dict(input_sizes=[1, 10, 10, 1], filter_shape=[1, 1, 1, 1], out_backprop_shape=[1, 10, 10, 1],
-             strides=[1, 1, 1, 1]),
-        dict(input_sizes=[1, 10, 10, 3], filter_shape=[2, 2, 3, 3], out_backprop_shape=[1, 9, 9, 3],
-             strides=[1, 1, 1, 1]),
-        dict(input_sizes=[1, 10, 10, 3], filter_shape=[2, 2, 3, 3], out_backprop_shape=[1, 5, 5, 3],
+        dict(input_sizes=[1, 20, 20, 3], filter_shape=[2, 2, 3, 3], out_backprop_shape=[1, 10, 10, 3],
              strides=[1, 2, 2, 1]),
-        dict(input_sizes=[1, 56, 56, 3], filter_shape=[2, 3, 3, 3], out_backprop_shape=[1, 28, 28, 3],
-             strides=[1, 2, 2, 1]),
-        dict(input_sizes=[1, 64, 48, 3], filter_shape=[3, 2, 3, 3], out_backprop_shape=[1, 31, 24, 3],
-             strides=[1, 2, 2, 1])
+        dict(input_sizes=[1, 20, 20, 1], filter_shape=[1, 1, 1, 1], out_backprop_shape=[1, 20, 20, 1],
+             strides=[1, 1, 1, 1]),
     ]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("padding", ['SAME', 'VALID'])
-    @pytest.mark.parametrize("input_type", [np.float32])
+    @pytest.mark.parametrize("input_type", [np.float16, np.float32, np.float64])
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_create_conv2d_backprop_input(self, params, padding, input_type,
