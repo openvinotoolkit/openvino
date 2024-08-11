@@ -59,6 +59,16 @@ The tutorial consists of following steps:
 
    -  `Run Live Background Blurring <#run-live-background-blurring>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -102,7 +112,7 @@ Install required dependencies
 
 .. parsed-literal::
 
-    23215
+    23941
 
 
 
@@ -132,7 +142,7 @@ Download pretrained model and test image
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/tflite-selfie-segmentation/selfie_multiclass_256x256.tflite')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/tflite-selfie-segmentation/selfie_multiclass_256x256.tflite')
 
 
 

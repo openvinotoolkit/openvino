@@ -116,16 +116,18 @@
 # Documentation
 /docs/  @openvinotoolkit/openvino-docs-maintainers
 /docs/CMakeLists.txt @openvinotoolkit/openvino-ie-maintainers
+/**/*.rst  @openvinotoolkit/openvino-docs-maintainers
 /**/*.md  @openvinotoolkit/openvino-docs-maintainers
 /**/*.svg  @openvinotoolkit/openvino-docs-maintainers
-/docs/MO_DG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ovc-maintainers
-/docs/OV_Runtime_UG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
-/docs/IE_PLUGIN_DG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
-/docs/Extensibility_UG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
+/docs/openvino-workflow/model-preparation/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ovc-maintainers
+/docs/openvino-workflow/running-inference/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
+/docs/openvino-extensibility/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
 /docs/snippets/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
-/docs/OV_Runtime_UG/supported_plugins/ARM_CPU.md @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino_contrib-arm_plugin-maintainers
-/docs/OV_Runtime_UG/supported_plugins/CPU.md @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-cpu-maintainers
-/docs/OV_Runtime_UG/supported_plugins/GPU*.md @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-gpu-maintainers
+/docs/articles_en/assets/snippets/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
+/docs/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device.rst @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-cpu-maintainers
+/docs/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-cpu-maintainers
+/docs/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.rst @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-gpu-maintainers
+/docs/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-gpu-maintainers
 
 # Configuration management
 /**/setup.py  @openvinotoolkit/openvino-configuration-mgmt
