@@ -461,10 +461,10 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [&](const Config& config) {
               if (!config.has<STEPPING>()) {
-                const auto specifiedDeviceName = get_specified_device_name(config);
-                return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
+                  const auto specifiedDeviceName = get_specified_device_name(config);
+                  return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
               } else {
-                return config.get<STEPPING>();
+                  return config.get<STEPPING>();
               }
           }}},
         {ov::intel_npu::max_tiles.name(),
@@ -472,10 +472,10 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [&](const Config& config) {
               if (!config.has<MAX_TILES>()) {
-                const auto specifiedDeviceName = get_specified_device_name(config);
-                return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
+                  const auto specifiedDeviceName = get_specified_device_name(config);
+                  return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
               } else {
-                return config.get<MAX_TILES>();
+                  return config.get<MAX_TILES>();
               }
           }}},
         {ov::intel_npu::compilation_mode.name(),
@@ -680,7 +680,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                           const ov::AnyMap& properties,
                                                           const ov::SoPtr<ov::IRemoteContext>& context) const {
     auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
-    OPENVINO_ASSERT(casted, "Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
+    if (casted == nullptr) {
+        OPENVINO_THROW("Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
+    }
 
     return compile_model(model, properties);
 }
@@ -752,10 +754,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     return compiledModel;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& /*stream*/,
-                                                         const ov::SoPtr<ov::IRemoteContext>& /*context*/,
-                                                         const ov::AnyMap& /*properties*/) const {
-    OPENVINO_THROW_NOT_IMPLEMENTED("The remote context feature is not supported by the NPU plugin");
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& properties) const {
+    auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
+    if (casted == nullptr) {
+        OPENVINO_THROW("Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
+    }
+
+    return import_model(stream, properties);
 }
 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
