@@ -19,9 +19,9 @@ public:
     // oclContext(cl_device_id device);
     ~oclContext();
 
-    static oclContext& getInstance() {
-        static oclContext instance;
-        return instance;
+    static oclContext& getInstance(int rank) {
+        static std::vector<oclContext> instances(2);
+        return instances[rank];
     }
 
     cl_device_id device() { return device_; }

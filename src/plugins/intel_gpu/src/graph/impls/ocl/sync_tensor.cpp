@@ -189,10 +189,10 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         // printf("[sync_tensor_impl:%d] memory id: %d\n", w_rank, id);
         sub_mem_mgr->set_memory_used(id, w_rank);
 
-        oclContext oclctx;
-        // oclContext& oclctx = oclContext::getInstance();
-        lzContext lzctx;
-        // lzContext& lzctx = lzContext::getInstance();
+        // oclContext oclctx;
+        oclContext& oclctx = oclContext::getInstance(w_rank);
+        // lzContext lzctx;
+        lzContext& lzctx = lzContext::getInstance(w_rank);
         // const size_t elemCount = 8 * 1024;
         get_contexts(instance, oclctx, lzctx, w_rank);
         end_contexts = std::chrono::high_resolution_clock::now();

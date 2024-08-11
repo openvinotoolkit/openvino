@@ -60,9 +60,9 @@ public:
     lzContext(/* args */);
     ~lzContext();
 
-    static lzContext& getInstance() {
-        static lzContext instance;
-        return instance;
+    static lzContext& getInstance(int rank) {
+        static std::vector<lzContext> instances(2);
+        return instances[rank];
     }
     static void readKernel(const char *spvFile, const char *funcName);
     ze_device_handle_t device() { return pDevice; }
