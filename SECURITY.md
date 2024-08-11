@@ -1,4 +1,13 @@
-# Security Policy
+gantt 
+    %% Use a hack for centry as a persantage
+    dateFormat YYYY
+    axisFormat %y
+    todayMarker off
+    title       OpenVINO getting started pipeline
+    Setup environment :env, 2000, 1716w
+    Build openvino :crit, build, after env, 1716w
+    Run tests :active, run, after build, 1716w
+    # Security Policy
 
 ## Report a Vulnerability
 
