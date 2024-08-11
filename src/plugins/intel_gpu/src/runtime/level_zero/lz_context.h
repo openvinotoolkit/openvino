@@ -45,6 +45,7 @@ private:
     ze_event_pool_handle_t eventPool = nullptr;
     ze_event_handle_t kernelTsEvent = nullptr;
     void *timestampBuffer = nullptr;
+    void *sharedBuf = nullptr;
 
     static const char *kernelSpvFile;
     static const char *kernelFuncName;
@@ -54,7 +55,6 @@ private:
 
     ze_device_handle_t findDevice(ze_driver_handle_t pDriver, ze_device_type_t type, uint32_t devIdx);
     void initTimeStamp();
-    // int readKernel();
 
 public:
     lzContext(/* args */);

@@ -443,15 +443,6 @@ network::network(program::ptr program, stream::ptr stream, uint16_t stream_id, o
 network::~network() {
     GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
         if (tp_host_times["sync_tensor"].size() >= 2) {
-            // double sum = 0;
-            // double sum_avg = 0;
-            // printf("[debug] sync_tensor all \n");
-            // for (size_t i = 0; i < tp_host_times["sync_tensor"].size(); ++i) {
-            //     sum += static_cast<double>(tp_host_times["sync_tensor"][i]);
-            //     sum_avg = sum / (i + 1);
-            //     printf("[%ld] sum: %f, sum_avg: %f \n", i, sum, sum_avg);
-            // }
-
             double first = static_cast<double>(tp_host_times["sync_tensor"][0]);
             double avg = static_cast<double>(
                 std::accumulate(tp_host_times["sync_tensor"].begin() + 1, tp_host_times["sync_tensor"].end(), (size_t)0, std::plus<size_t>()));
@@ -472,14 +463,12 @@ network::~network() {
                 "timestamp_pre_p2p", "timestamp_p2p_kernel", "timestamp_post_p2p"};
 
             for (const auto& item : ts_items) {
-                // printf("[debug] tp_host_times timestamp_exec all \n");
                 // iter
                 double sum_iter_first = static_cast<double>(tp_host_times[item][0]);
                 double avg_iter_first = sum_iter_first;
                 // each
                 size_t sum_each_first = tp_host_times[item + "_count"][0];
                 double avg_each_first = sum_iter_first / sum_each_first;
-                // printf("[%d] sum_iter_first: %f, sum_each_first: %ld, avg_first: %f \n", 0, sum_iter_first, sum_each_first, avg_first);
 
                 // iter
                 double sum_iter_left = static_cast<double>(
@@ -506,14 +495,6 @@ network::~network() {
                 GPU_DEBUG_COUT << "Network[" << net_id << "] Other total " << item << " host time: " << sum_iter_left << resolution << std::endl;
                 GPU_DEBUG_COUT << "Network[" << net_id << "] Other avg.  " << item << " host time (iter): " << avg_iter_left << resolution << std::endl;
                 GPU_DEBUG_COUT << "Network[" << net_id << "] Other avg.  " << item << " host time (each): " << avg_each_left << resolution << std::endl;
-
-                // // double sum_iter_left = 0;
-                // for (size_t i = 1; i < tp_host_times[item].size(); ++i) {
-                //     // sum_iter_left += static_cast<double>(tp_host_times[item][i]);
-                //     // sum_each_left += (tp_host_times[item + "_count"][i]);
-                //     avg_left = sum_iter_left / sum_each_left;
-                //     printf("[%ld] sum_iter_left: %f, sum_each_left: %ld, avg_left: %f \n", i, sum_iter_left, sum_each_left, avg_left);
-                // }
             }
         }
 
@@ -777,7 +758,6 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
 }
 
 std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
-    std::cout << "[network] set_output_memory " << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "Set output " << id << " " << mem_new->get_layout().to_short_string() << std::endl;
     std::shared_ptr<primitive_inst> p_inst;
     std::vector<event::ptr> ret_ev;
@@ -1120,8 +1100,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         "timestamp_pre_p2p", "timestamp_p2p_kernel", "timestamp_post_p2p"};
 
     tp_host_times["sync_tensor"];
-    // tp_host_times["timestamp_exec"];
-    // tp_host_times[item + "_count"];
     tp_host_times["concat"];
     tp_host_times_each_iter["sync_tensor"];
     tp_host_times_each_iter["concat"];
@@ -1264,7 +1242,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                         debug_str_for_bin_load += (filename + ",");
                     } else {
                         // Text dump
-                        // std::cout << "[network.cpp] output_mem: " << output_mem << std::endl;
                         log_memory_to_file(output_mem, inst->get_output_layout(i), get_stream(), name, debug_config->dump_layers_raw);
                     }
                 }
@@ -1280,37 +1257,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
                 if (inst->get_node().is_type<sync_tensor>()) {
                     tp_host_times_each_iter["sync_tensor"].push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
-                    printf("[debug] tp_host_times sync_tensor iter \n");
-                    double sum = 0;
-                    double sum_avg = 0;
-                    for (size_t i = 0; i < tp_host_times_each_iter["sync_tensor"].size(); ++i) {
-                        sum += static_cast<double>(tp_host_times_each_iter["sync_tensor"][i]);
-                        sum_avg = sum / (i + 1);
-                        printf("sync_tensor iter [%ld] sum: %f, sum_avg: %f \n", i, sum, sum_avg);
-                    }
-
                     // more profile for sync_tensor details
                     std::map<std::string, std::vector<int64_t>>& timestamps = inst->get_host_timestamps();
                     for (const auto& item : ts_items) {
-                        // printf("[debug] get_host_timestamps size: %ld \n", timestamps[item].size());
-                        // sum = 0;
-                        // sum_avg = 0;
-                        // for (size_t i = 0; i < timestamps[item].size(); ++i) {
-                        //     sum += static_cast<double>(timestamps[item][i]);
-                        //     sum_avg = sum / (i + 1);
-                        //     printf("timestamps iter [%ld] val: %f, sum_avg: %f \n", i, static_cast<double>(timestamps[item][i]), sum_avg);
-                        // }
-                        // sync_tensor_timestamps[item].push_back(timestamps[item].back());
                         sync_tensor_timestamps[item].push_back(timestamps[item].back());
-                        // printf("[debug] sync_tensor_timestamps timestamp_exec size: %ld \n", sync_tensor_timestamps[item].size());
-                        // sum = 0;
-                        // sum_avg = 0;
-                        // for (size_t i = 0; i < sync_tensor_timestamps[item].size(); ++i) {
-                        //     sum += static_cast<double>(sync_tensor_timestamps[item][i]);
-                        //     sum_avg = sum / (i + 1);
-                        //     printf("sync_tensor_timestamps iter [%ld] val: %f, sum_avg: %f \n",
-                        //         i, static_cast<double>(sync_tensor_timestamps[item][i]), sum_avg);
-                        // }
                     }
                 } else {
                     tp_host_times_each_iter["concat"].push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
@@ -1333,20 +1283,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                 auto sum_iter = std::accumulate(item_begin, item_end, (size_t)0, std::plus<size_t>());
                 tp_host_times[item].push_back(sum_iter);
                 tp_host_times[item + "_count"].push_back(count);
-
-                // printf("[debug] tp_host_times timestamp_exec iter \n");
-                // double sum = 0;
-                // double sum_avg = 0;
-                // size_t sum_each = 0;
-                // double sum_avg_each = 0;
-                // for (size_t i = 0; i < tp_host_times[item].size(); ++i) {
-                //     sum += static_cast<double>(tp_host_times[item][i]);
-                //     sum_avg = sum / (i + 1);
-                //     sum_each += tp_host_times[item + "_count"][i];
-                //     sum_avg_each = sum / sum_each;
-                //     printf("tp_host_times iter [%ld] sum: %f, sum_avg: %f, sum_each: %ld, sum_avg_each: %f \n",
-                //         i, sum, sum_avg, sum_each, sum_avg_each);
-                // }
             }
         }
         if (tp_host_times_each_iter["concat"].size() >= 1) {

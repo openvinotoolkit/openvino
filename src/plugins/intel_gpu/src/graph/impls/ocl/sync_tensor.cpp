@@ -315,7 +315,7 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
 
         int64_t timestamp_ctxs = std::chrono::duration_cast<std::chrono::microseconds>(end_contexts - start_impl).count();
         int64_t timestamp_sync_wait = std::chrono::duration_cast<std::chrono::microseconds>(end_sync_wait - end_contexts).count();
-        int64_t timestamp_sendbuf = std::chrono::duration_cast<std::chrono::microseconds>(end_sendbuf - end_contexts).count();
+        int64_t timestamp_sendbuf = std::chrono::duration_cast<std::chrono::microseconds>(end_sendbuf - end_sync_wait).count();
         int64_t timestamp_pre_p2p = std::chrono::duration_cast<std::chrono::microseconds>(end_pre_p2p - end_contexts).count();
         int64_t timestamp_p2p_kernel = std::chrono::duration_cast<std::chrono::microseconds>(end_p2p_kernel - end_pre_p2p).count();
         int64_t timestamp_post_p2p = std::chrono::duration_cast<std::chrono::microseconds>(end_post_p2p - end_p2p_kernel).count();

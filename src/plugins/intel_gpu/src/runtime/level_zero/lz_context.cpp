@@ -12,9 +12,15 @@ lzContext::~lzContext() {
     printf("INFO: Enter %s \n", __FUNCTION__);
     ze_result_t result;
 
+    if (sharedBuf) {
+        result = zeMemFree(context, sharedBuf);
+        CHECK_ZE_STATUS(result, "zeMemFree sharedBuf");
+        sharedBuf = nullptr;
+    }
+
     if (timestampBuffer) {
         result = zeMemFree(context, timestampBuffer);
-        CHECK_ZE_STATUS(result, "zeMemFree");
+        CHECK_ZE_STATUS(result, "zeMemFree timestampBuffer");
         timestampBuffer = nullptr;
     }
 
@@ -453,7 +459,13 @@ void *lzContext::createFromHandle(uint64_t handle, size_t bufSize) {
     alloc_desc.stype = ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC;
     alloc_desc.pNext = &import_fd;
 
-    void *sharedBuf = nullptr;
+    // void *sharedBuf = nullptr;
+    if (sharedBuf) {
+        result = zeMemFree(context, sharedBuf);
+        CHECK_ZE_STATUS(result, "zeMemFree sharedBuf");
+        sharedBuf = nullptr;
+    }
+
     result = zeMemAllocDevice(context, &alloc_desc, bufSize, 1, pDevice, &sharedBuf);
     CHECK_ZE_STATUS(result, "zeMemAllocDevice");
 
