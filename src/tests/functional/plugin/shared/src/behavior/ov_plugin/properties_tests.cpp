@@ -559,8 +559,8 @@ TEST_P(OVCheckChangePropComplieModleGetPropTests_DEVICE_ID, ChangeCorrectDeviceP
 }
 
 TEST_P(OVCheckChangePropComplieModleGetPropTests_InferencePrecision, ChangeCorrectProperties) {
-    if (is_mandatory == true) {
-        return;
+    if (is_mandatory) {
+        GTEST_SKIP();
     }
     std::vector<ov::PropertyName> supported_properties;
     OV_ASSERT_NO_THROW(supported_properties = core->get_property(target_device, ov::supported_properties));
