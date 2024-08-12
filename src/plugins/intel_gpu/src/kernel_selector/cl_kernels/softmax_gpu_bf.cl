@@ -169,15 +169,31 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         lg_storage[get_sub_group_id()] = my_maximum;
 
     barrier(CLK_LOCAL_MEM_FENCE);
+#ifdef IS_DYNAMIC
     for (uint offset = get_num_sub_groups() / 2; offset > 0; offset /= 2) {
         if (in_data_set_idx < offset) {
             lg_storage[in_data_set_idx] = max(lg_storage[in_data_set_idx], lg_storage[in_data_set_idx + offset]);
-	}
+        }
         barrier(CLK_LOCAL_MEM_FENCE);
     }
 
     //my_maximum from this point is in fact global maximum
     my_maximum = lg_storage[0];
+#elif SLM_SIZE == 1
+    my_maximum = lg_storage[0];
+#elif SLM_SIZE == 2
+    my_maximum = max(lg_storage[0], lg_storage[1]);
+#else
+    for (uint offset = get_num_sub_groups() / 2; offset > 1; offset /= 2) {
+        if (in_data_set_idx < offset) {
+            lg_storage[in_data_set_idx] = max(lg_storage[in_data_set_idx], lg_storage[in_data_set_idx + offset]);
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    //my_maximum from this point is in fact global maximum
+    my_maximum = max(lg_storage[0], lg_storage[1]);
+#endif
 
     // Get exp(x-max) and sum of exp(x-max)
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -197,15 +213,30 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         lg_storage[get_sub_group_id()] = my_sum;
 
     barrier(CLK_LOCAL_MEM_FENCE);
-
+#ifdef IS_DYNAMIC
     for (uint offset = get_num_sub_groups() / 2; offset > 0; offset /= 2) {
         if (in_data_set_idx < offset) {
             lg_storage[in_data_set_idx] += lg_storage[in_data_set_idx + offset];
-	}
+        }
         barrier(CLK_LOCAL_MEM_FENCE);
     }
 
     my_sum = lg_storage[0];
+
+#elif SLM_SIZE == 1
+    my_sum = lg_storage[0];
+#elif SLM_SIZE == 2
+    my_sum = lg_storage[0] + lg_storage[1];
+#else
+    for (uint offset = get_num_sub_groups() / 2; offset > 1; offset /= 2) {
+        if (in_data_set_idx < offset) {
+            lg_storage[in_data_set_idx] += lg_storage[in_data_set_idx + offset];
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    my_sum = lg_storage[0] + lg_storage[1];
+#endif
 
     // Write outputs
     uint output_idx = 0;
@@ -387,15 +418,31 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         lg_storage[get_sub_group_id()] = my_maximum;
 
     barrier(CLK_LOCAL_MEM_FENCE);
+#ifdef IS_DYNAMIC
     for (uint offset = get_num_sub_groups() / 2; offset > 0; offset /= 2) {
         if (in_data_set_idx < offset) {
             lg_storage[in_data_set_idx] = max(lg_storage[in_data_set_idx], lg_storage[in_data_set_idx + offset]);
-	}
+        }
         barrier(CLK_LOCAL_MEM_FENCE);
     }
 
     //my_maximum from this point is in fact global maximum
     my_maximum = lg_storage[0];
+#elif SLM_SIZE == 1
+    my_maximum = lg_storage[0];
+#elif SLM_SIZE == 2
+    my_maximum = max(lg_storage[0], lg_storage[1]);
+#else
+    for (uint offset = get_num_sub_groups() / 2; offset > 1; offset /= 2) {
+        if (in_data_set_idx < offset) {
+            lg_storage[in_data_set_idx] = max(lg_storage[in_data_set_idx], lg_storage[in_data_set_idx + offset]);
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    //my_maximum from this point is in fact global maximum
+    my_maximum = max(lg_storage[0], lg_storage[1]);
+#endif
 
     // Get exp(x-max) and sum of exp(x-max)
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -426,14 +473,30 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         lg_storage[get_sub_group_id()] = my_sum;
 
     barrier(CLK_LOCAL_MEM_FENCE);
+#ifdef IS_DYNAMIC
     for (uint offset = get_num_sub_groups() / 2; offset > 0; offset /= 2) {
         if (in_data_set_idx < offset) {
             lg_storage[in_data_set_idx] += lg_storage[in_data_set_idx + offset];
-	}
+        }
         barrier(CLK_LOCAL_MEM_FENCE);
     }
 
     my_sum = lg_storage[0];
+
+#elif SLM_SIZE == 1
+    my_sum = lg_storage[0];
+#elif SLM_SIZE == 2
+    my_sum = lg_storage[0] + lg_storage[1];
+#else
+    for (uint offset = get_num_sub_groups() / 2; offset > 1; offset /= 2) {
+        if (in_data_set_idx < offset) {
+            lg_storage[in_data_set_idx] += lg_storage[in_data_set_idx + offset];
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    my_sum = lg_storage[0] + lg_storage[1];
+#endif
 
     // Write outputs
     uint output_idx = 0;
