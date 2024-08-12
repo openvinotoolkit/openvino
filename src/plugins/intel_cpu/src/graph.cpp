@@ -352,6 +352,10 @@ void Graph::InitGraph(bool optimize) {
 
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
 
+    SortTopologically();
+
+    ResolveComplexInplaceConflicts();
+
     GroupParallelNodes();
 
     SortTopologically();
