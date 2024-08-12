@@ -10,6 +10,7 @@
 #include "node.h"
 #include "edge.h"
 #include "graph_context.h"
+#include "memory_management.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 
 #include <map>
@@ -40,6 +41,8 @@ public:
     };
 
     Graph() = default;
+    Graph(Graph&&) = default;
+    Graph& operator=(Graph&&) = default;
 
     ~Graph();
 
@@ -204,10 +207,6 @@ protected:
     // values mean increment it within each Infer() call
     int infer_count = -1;
 
-    bool reuse_io_tensors = true;
-
-    MemoryPtr memWorkspace;
-
     std::vector<NodePtr> graphNodes;
     std::vector<EdgePtr> graphEdges;
 
@@ -254,6 +253,8 @@ private:
 
     GraphContext::CPtr context;
     dnnl::stream m_stream;
+
+    std::unique_ptr<MemoryControl> m_pMemoryControl;
 
     void EnforceInferencePrecision();
     void EnforceBF16();
