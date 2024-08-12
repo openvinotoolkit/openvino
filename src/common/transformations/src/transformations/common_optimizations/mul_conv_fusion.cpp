@@ -51,7 +51,7 @@ static bool are_shapes_compatible(const ov::Shape& weights_shape, const ov::Shap
 
 ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
     MATCHER_SCOPE(MultiplyConvolutionFusion);
-    auto input_pattern = pattern::any_input();
+    auto input_pattern = pattern::any_input(pattern::has_static_rank());
     auto mul_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, mul_const_pattern},
                                                                           pattern::consumers_count(1));
@@ -68,9 +68,16 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
 
         const auto& weights = pattern_to_output.at(weights_pattern);
         const auto& mul_const = pattern_to_output.at(mul_const_pattern);
+        const auto& input = pattern_to_output.at(input_pattern);
 
         const auto& weights_shape = weights.get_shape();
         const auto& mul_const_shape = mul_const.get_shape();
+
+
+        if (input.get_partial_shape().size() < weights_shape.size()) {
+            std::cout << "EXIT 1" << std::endl;
+            return false;
+        }
 
         // Check if mul_const is broadcastable to weights.
         // Also if mul_const's rank matches weights rank and mul_const.shape[0] != 1
@@ -86,7 +93,6 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
         if (!new_weights)
             new_weights = weights_multiply;
 
-        const auto& input = pattern_to_output.at(input_pattern);
         const auto& conv = pattern_to_output.at(conv_pattern).get_node_shared_ptr();
 
         auto new_conv = conv->clone_with_new_inputs({input, new_weights});
