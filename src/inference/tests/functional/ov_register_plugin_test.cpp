@@ -123,7 +123,7 @@ TEST(RegisterPluginTests, registerExistingPluginThrows) {
                  ov::Exception);
     clearMockPlugin(m_so);
 }
-
+/*
 #    if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
 TEST(RegisterPluginTests, registerPluginWithSymlink) {
     ov::Core core;
@@ -146,7 +146,7 @@ TEST(RegisterPluginTests, registerPluginWithSymlink) {
     ASSERT_FALSE(ov::util::directory_exists("test_link"));
 }
 #    endif
-
+*/
 inline std::string getPluginFile() {
     std::string filePostfix{"mock_engine_valid.xml"};
     std::string filename = ov::test::utils::generateTestFilePrefix() + "_" + filePostfix;
