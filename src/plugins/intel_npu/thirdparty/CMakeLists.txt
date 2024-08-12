@@ -24,8 +24,10 @@ if(ENABLE_ZEROAPI_BACKEND)
         ov_add_compiler_flags(-Wno-error)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
             -Wno-undef \
-            -Wno-unused-but-set-variable \
             -Wno-missing-declarations")
+        if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-but-set-variable")
+        endif()
     endif()
     set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
     add_subdirectory(level-zero EXCLUDE_FROM_ALL)
