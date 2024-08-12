@@ -1,4 +1,6 @@
-// File: batch_matrix_inverse.cpp
+// Copyright (C) 2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #include "common_op_table.hpp"
 #include "openvino/op/inverse.hpp"
