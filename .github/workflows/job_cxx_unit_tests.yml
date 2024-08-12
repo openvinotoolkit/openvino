@@ -117,7 +117,7 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-IRFrontend.xml
 
       - name: PaddlePaddle frontend tests
-        if: fromJSON(inputs.affected-components).PDPD_FE.test
+        if: ${{ fromJSON(inputs.affected-components).PDPD_FE.test && runner.os != 'Windows' }} # Ticket: 95904
         run: |
           ${{ env.SOURCE_PREFIX }} "${{ env.INSTALL_DIR }}/${{ env.SETUPVARS }}"
           ${{ env.INSTALL_TEST_DIR }}/paddle_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleTests.xml
@@ -143,11 +143,19 @@ jobs:
           
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowFrontend.xml
 
-      - name: TensorFlow Lite frontend tests
-        if: fromJSON(inputs.affected-components).TFL_FE.test
+      - name: TensorFlow Lite frontend tests (Unix)
+        if: ${{ fromJSON(inputs.affected-components).TFL_FE.test && runner.os != 'Windows' }}
         run: |
           ${{ env.SOURCE_PREFIX }} "${{ env.INSTALL_DIR }}/${{ env.SETUPVARS }}"
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowLiteFrontend.xml
+
+      - name: TensorFlow Lite frontend tests (Windows)
+        if: ${{ fromJSON(inputs.affected-components).TFL_FE.test && runner.os == 'Windows' }}
+        run: |
+          ${{ env.SOURCE_PREFIX }} "${{ env.INSTALL_DIR }}/${{ env.SETUPVARS }}"
+          
+          # Skip ticket: 126320
+          ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_filter=-*test_decode_convert_equal_convert*:*test_convert_partially_equal_convert* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowLiteFrontend.xml
 
       - name: Transformations func tests
         if: ${{ fromJSON(inputs.affected-components).transformations.test && runner.arch != 'ARM64' }} # Ticket: 126281
