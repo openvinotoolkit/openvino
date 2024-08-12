@@ -36,6 +36,15 @@ static constexpr ov::Property<std::string> devices{"NPUW_DEVICES"};
  */
 static constexpr ov::Property<std::string> submodel_device{"NPUW_SUBMODEL_DEVICE"};
 
+/**
+ * @brief
+ * Type: std::string.
+ * Specify bank name to utilize for a particular model.
+ * Possible values: any std::string as a name.
+ * Default value: empty.
+ */
+static constexpr ov::Property<std::string> weights_bank{"NPUW_WEIGHTS_BANK"};
+
 namespace partitioning {
 namespace online {
 /**
