@@ -71,8 +71,8 @@ bool HostMemAllocator::is_equal(const HostMemAllocator& other) const {
     return (_initStructs == other._initStructs) && (_flag == other._flag);
 }
 
-void MemoryManagementUnit::appendArgument(const std::string& name, const std::size_t argSize) {
-    _offsets.emplace(std::make_pair(name, _size));
+void MemoryManagementUnit::appendArgument(const std::size_t argSize) {
+    _offsets.push_back(_size);
 
     _size += argSize + alignment -
              (argSize % alignment);  // is this really necessary? if 0==argSize%alignment -> add 1 * alignment
@@ -94,16 +94,16 @@ const void* MemoryManagementUnit::getDeviceMemRegion() const {
 void* MemoryManagementUnit::getDeviceMemRegion() {
     return _device ? _device->data() : nullptr;
 }
-void* MemoryManagementUnit::getDevicePtr(const std::string& name) {
+void* MemoryManagementUnit::getDevicePtr(const size_t index) {
     uint8_t* from = static_cast<uint8_t*>(_device ? _device->data() : nullptr);
-    if (from == nullptr) {
-        OPENVINO_THROW("Device memory not allocated yet");
-    }
-    if (!_offsets.count(name)) {
-        OPENVINO_THROW("Invalid memory offset key: ", name);
-    }
+    OPENVINO_ASSERT(from != nullptr, "Device memory not allocated yet");
+    OPENVINO_ASSERT(index < _offsets.size(),
+                    "Memory offset index out of bound. Received: ",
+                    index,
+                    ", memory offset size: ",
+                    _offsets.size());
 
-    return _offsets.at(name) + from;
+    return _offsets.at(index) + from;
 }
 }  // namespace zeroMemory
 }  // namespace intel_npu
