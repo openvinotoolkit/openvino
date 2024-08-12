@@ -586,11 +586,17 @@ void Plugin::checkDriverVersion() {
 
     if (!(driverElfVersion && driverMIVersion)) {
         // The current driver version doesn't have versions API
-        _logger.info("Driver Version is too old to use MLIR Compiler. "
-                     "Driver Compiler will be set as default compiler type.");
+        _logger.debug("Driver cannot provide MI and ELF format versions. "
+                      "Cache will be invalidated based on driver version instead.");
         return;
     }
 
+    // Replace driver verison cahcing invalidation with driver ELF fromat version and driver MI verison
+    _metrics->RemoveCachingProperty(ov::intel_npu::driver_version.name());
+    _metrics->AddCachingProperty(ov::intel_npu::driver_elf_format_version.name());
+    _metrics->AddCachingProperty(ov::intel_npu::driver_mi_version.name());
+
+    // Update global config
     std::stringstream strStream;
     strStream << driverElfVersion.value();
     _globalConfig.update({{std::string(ov::intel_npu::driver_elf_format_version.name()), strStream.str()}});

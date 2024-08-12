@@ -99,6 +99,16 @@ std::vector<ov::PropertyName> Metrics::GetInternalSupportedProperties() const {
     return _internalSupportedProperties;
 }
 
+void Metrics::RemoveCachingProperty(const ov::PropertyName& property) {
+    _cachingProperties.erase(
+        std::find_if(_cachingProperties.begin(), _cachingProperties.end(), [&property](const ov::PropertyName& p) {
+            return p == property;
+        }));
+}
+void Metrics::AddCachingProperty(const ov::PropertyName& property) {
+    _cachingProperties.push_back(property);
+}
+
 std::string Metrics::GetBackendName() const {
     if (_backends == nullptr) {
         OPENVINO_THROW("No available backends");

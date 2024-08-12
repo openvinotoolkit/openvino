@@ -44,6 +44,9 @@ public:
     std::vector<ov::PropertyName> GetCachingProperties() const;
     std::vector<ov::PropertyName> GetInternalSupportedProperties() const;
 
+    void RemoveCachingProperty(const ov::PropertyName& property);
+    void AddCachingProperty(const ov::PropertyName& property);
+
     ~Metrics() = default;
 
 private:
@@ -55,18 +58,17 @@ private:
         ov::device::capability::INT8,
         ov::device::capability::EXPORT_IMPORT,
     };
-    const std::vector<ov::PropertyName> _cachingProperties = {ov::device::architecture.name(),
-                                                              ov::intel_npu::compilation_mode_params.name(),
-                                                              ov::intel_npu::tiles.name(),
-                                                              ov::intel_npu::dpu_groups.name(),
-                                                              ov::intel_npu::dma_engines.name(),
-                                                              ov::intel_npu::compilation_mode.name(),
-                                                              ov::intel_npu::driver_mi_version.name(),
-                                                              ov::intel_npu::driver_elf_format_version.name(),
-                                                              ov::intel_npu::compiler_type.name(),
-                                                              ov::intel_npu::use_elf_compiler_backend.name(),
-                                                              ov::intel_npu::batch_mode.name(),
-                                                              ov::hint::execution_mode.name()};
+    std::vector<ov::PropertyName> _cachingProperties = {ov::device::architecture.name(),
+                                                        ov::intel_npu::compilation_mode_params.name(),
+                                                        ov::intel_npu::tiles.name(),
+                                                        ov::intel_npu::dpu_groups.name(),
+                                                        ov::intel_npu::dma_engines.name(),
+                                                        ov::intel_npu::compilation_mode.name(),
+                                                        ov::intel_npu::driver_version.name(),
+                                                        ov::intel_npu::compiler_type.name(),
+                                                        ov::intel_npu::use_elf_compiler_backend.name(),
+                                                        ov::intel_npu::batch_mode.name(),
+                                                        ov::hint::execution_mode.name()};
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name()};
 
