@@ -186,37 +186,39 @@ public:
 
     void emit_data() const override;
 
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
     std::unique_ptr<jit_exp_emitter> exp_emitter;
     float alpha;
 
-    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
 class jit_floor_emitter : public jit_emitter {
 public:
-    jit_floor_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+    jit_floor_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                       const ov::element::Type exec_prc = ov::element::f32);
 
-    jit_floor_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+    jit_floor_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                       const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_count() const override;
 
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
-    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
 class jit_gelu_erf_emitter : public jit_emitter {
@@ -239,15 +241,16 @@ public:
 
     void emit_data() const override;
 
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
     std::unique_ptr<jit_exp_emitter> exp_emitter;
 
-    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
 class jit_tanh_emitter;
@@ -272,15 +275,16 @@ public:
 
     void emit_data() const override;
 
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
     std::unique_ptr<jit_tanh_emitter> tanh_emitter;
 
-    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
 class jit_hswish_emitter : public jit_emitter {
@@ -308,18 +312,18 @@ private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
 class jit_is_finite_emitter : public jit_emitter {
 public:
-    jit_is_finite_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
-                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                       const ov::element::Type exec_prc = ov::element::f32);
+    jit_is_finite_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                          const ov::element::Type exec_prc = ov::element::f32);
 
-    jit_is_finite_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
-                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                       const std::shared_ptr<ov::Node>& node);
+    jit_is_finite_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                          const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_count() const override;
 
@@ -327,24 +331,25 @@ public:
 
     size_t get_aux_gprs_count() const override;
 
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
-    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 
     void register_table_entries() override;
 };
 
 class jit_is_nan_emitter : public jit_emitter {
 public:
-    jit_is_nan_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+    jit_is_nan_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                        const ov::element::Type exec_prc = ov::element::f32);
 
-    jit_is_nan_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+    jit_is_nan_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                        const std::shared_ptr<ov::Node>& node);
 
@@ -354,57 +359,60 @@ public:
 
     size_t get_aux_gprs_count() const override;
 
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
-    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 
     void register_table_entries() override;
 };
 
 class jit_maximum_emitter : public jit_emitter {
 public:
-    jit_maximum_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+    jit_maximum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                         const ov::element::Type exec_prc = ov::element::f32);
 
-    jit_maximum_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+    jit_maximum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                         const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_count() const override;
 
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
-    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
 class jit_minimum_emitter : public jit_emitter {
 public:
-    jit_minimum_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+    jit_minimum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                         const ov::element::Type exec_prc = ov::element::f32);
 
-    jit_minimum_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+    jit_minimum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                         const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_count() const override;
 
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
-    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
 class jit_mish_emitter : public jit_emitter {
@@ -427,15 +435,16 @@ public:
 
     void emit_data() const override;
 
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
     std::unique_ptr<jit_exp_emitter> exp_emitter;
 
-    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
 class jit_is_inf_emitter : public jit_emitter {
@@ -478,8 +487,8 @@ public:
                            const ov::element::Type exec_prc = ov::element::f32);
 
     jit_logicalnot_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
-                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                            const std::shared_ptr<ov::Node>& node);
+                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                           const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_count() const override;
 
@@ -489,95 +498,21 @@ public:
 
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
-private:
-    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
-
-    template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
-};
-
-class jit_maximum_emitter : public jit_emitter {
-public:
-    jit_maximum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
-                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                        const ov::element::Type exec_prc = ov::element::f32);
-
-    jit_maximum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
-                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                        const std::shared_ptr<ov::Node>& node);
-
-    size_t get_inputs_count() const override;
-
-    static std::set<std::vector<element::Type>> get_supported_precisions(
-        const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
-};
-
-class jit_minimum_emitter : public jit_emitter {
-public:
-    jit_minimum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
-                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                        const ov::element::Type exec_prc = ov::element::f32);
-
-    jit_minimum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
-                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                        const std::shared_ptr<ov::Node>& node);
-
-    size_t get_inputs_count() const override;
-
-    static std::set<std::vector<element::Type>> get_supported_precisions(
-        const std::shared_ptr<ov::Node>& node = nullptr);
-
-private:
-    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
-
-    template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
-};
-
-class jit_mish_emitter : public jit_emitter {
-public:
-    jit_mish_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
-                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                     const ov::element::Type exec_prc = ov::element::f32);
-
-    jit_mish_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
-                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                     const std::shared_ptr<ov::Node>& node);
-
-    size_t get_inputs_count() const override;
-
-    size_t get_aux_vecs_count() const override;
-
-    size_t get_aux_gprs_count() const override;
-
-    void register_table_entries() override;
-
-    void emit_data() const override;
-
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
-
-private:
-    std::unique_ptr<jit_exp_emitter> exp_emitter;
-
-    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
-
-    template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
 
 class jit_mod_emitter : public jit_emitter {
 public:
-    jit_mod_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+    jit_mod_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                     const ov::element::Type exec_prc = ov::element::f32);
 
-    jit_mod_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+    jit_mod_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                     const std::shared_ptr<ov::Node>& node);
 
@@ -585,13 +520,14 @@ public:
 
     size_t get_aux_vecs_count() const override;
 
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
-    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
 class jit_mul_add_emitter : public jit_emitter {
