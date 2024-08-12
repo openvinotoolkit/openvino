@@ -9,22 +9,35 @@ import os
 import openvino as ov
 import tempfile
 from collections import deque
+import csv
+
+
+def parse_transformations_log(file_name):
+    with open(file_name, 'r') as f_in:
+        csv_reader = csv.reader(f_in, delimiter=';')
+        for line in csv_reader:
+            if line[0] != 't':
+                continue
+            ts_name = line[1]
+            status = line[4]
+            yield ts_name, status
 
 
 def check_transformations(file_name, ts_names):
-    ts_names_dq = deque((';{};'.format(name) for name in ts_names))
-    with open(file_name, 'r') as f_in:
-        for line in f_in:
-            if not ts_names_dq:
+    ts_names_dq = deque(ts_names)
+    for ts_name, status in parse_transformations_log(file_name):
+        if not ts_names_dq:
+            break
+        if status != '1':
+            continue
+        for _ in range(len(ts_names_dq)):
+            name = ts_names_dq.popleft()
+            if name == ts_name:
                 break
-            for _ in range(len(ts_names_dq)):
-                name = ts_names_dq.popleft()
-                if name in line:
-                    break
-                ts_names_dq.append(name)
+            ts_names_dq.append(name)
     if ts_names_dq:
-        names = ','.join(s.replace(';', '') for s in ts_names_dq)
-        pytest.fail(f'transformation(s) {names} not executed')
+        names = ','.join(ts_names_dq)
+        pytest.fail(f'transformation(s) {names} not executed or executed without success')
 
 
 def check_operations(actual_layer_types, expected_layer_types):
