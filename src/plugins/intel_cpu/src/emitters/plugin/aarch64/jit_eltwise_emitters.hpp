@@ -504,6 +504,8 @@ private:
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
+    void register_table_entries() override;
 };
 
 class jit_mod_emitter : public jit_emitter {

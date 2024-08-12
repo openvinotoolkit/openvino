@@ -1104,12 +1104,16 @@ void jit_is_nan_emitter::register_table_entries() {
 jit_logicalnot_emitter::jit_logicalnot_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                                dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                                const std::shared_ptr<ov::Node>& node)
-    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
+    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+        prepare_table();
+    }
 
 jit_logicalnot_emitter::jit_logicalnot_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                                dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                                const ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc) {
+        prepare_table();
+    }
 
 size_t jit_logicalnot_emitter::get_inputs_count() const {
     return 1;
@@ -1120,7 +1124,7 @@ size_t jit_logicalnot_emitter::get_aux_vecs_count() const {
 }
 
 size_t jit_logicalnot_emitter::get_aux_gprs_count() const {
-    return 1;
+    return 2;
 }
 
 void jit_logicalnot_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -1140,7 +1144,19 @@ void jit_logicalnot_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     TReg src = TReg(in_vec_idxs[0]);
     TReg dst = TReg(out_vec_idxs[0]);
-    h->not_(dst.b16, src.b16);
+    TReg tmp1 = TReg(aux_vec_idxs[0]);
+    TReg tmp2 = TReg(aux_vec_idxs[1]);
+
+    h->eor(tmp1.b16, tmp1.b16, tmp1.b16);
+    h->fcmeq(tmp1.s, tmp1.s, src.s);
+    h->ld1r(tmp2.s, table_val2("one"));
+    h->eor(dst.b16, dst.b16, dst.b16);
+    h->and_(dst.b16, tmp2.b16, tmp1.b16);
+}
+
+void jit_logicalnot_emitter::register_table_entries() {
+    // Registers constant values that comply with the IEEE 754 standard.
+    push_arg_entry_of("one", 0x3f800000, true);
 }
 
 std::set<std::vector<element::Type>> jit_logicalnot_emitter::get_supported_precisions(
