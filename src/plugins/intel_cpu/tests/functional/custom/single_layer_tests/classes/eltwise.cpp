@@ -106,6 +106,14 @@ ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& 
                 break;
         }
     }
+
+    if (eltwiseType == utils::EltwiseTypes::BITWISE_LEFT_SHIFT ||
+        eltwiseType == utils::EltwiseTypes::BITWISE_RIGHT_SHIFT) {
+        params.start_from = 0;
+        params.range -= 1;
+        params.resolution = 1;
+    }
+
     ov::test::utils::InputGenerateData in_data;
     in_data.start_from = params.start_from;
     in_data.range = params.range;

@@ -82,6 +82,12 @@ std::ostream& operator<<(std::ostream& os, const ov::test::utils::EltwiseTypes t
     case ov::test::utils::EltwiseTypes::BITWISE_XOR:
         os << "BitwiseXor";
         break;
+    case ov::test::utils::EltwiseTypes::BITWISE_LEFT_SHIFT:
+        os << "BitwiseLeftShift";
+        break;
+    case ov::test::utils::EltwiseTypes::BITWISE_RIGHT_SHIFT:
+        os << "BitwiseRightShift";
+        break;
     default:
         throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
     }

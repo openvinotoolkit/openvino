@@ -60,7 +60,9 @@ enum EltwiseTypes {
     BITWISE_AND,
     BITWISE_NOT,
     BITWISE_OR,
-    BITWISE_XOR
+    BITWISE_XOR,
+    BITWISE_LEFT_SHIFT,
+    BITWISE_RIGHT_SHIFT
 };
 
 enum SqueezeOpType {
