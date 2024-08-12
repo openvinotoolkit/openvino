@@ -356,16 +356,20 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             }
         )
         OV_CPU_INSTANCE_X64(
-            "matmul",
+            "matmul_dnnl",
             ExecutorType::Dnnl,
             OperationType::MatMul,
             ShapeTolerance::Dependant,
             // supports
             [](const FCConfig& config) -> bool {
-                // CPU_DEBUG_CAP_ENABLE(if (!std::getenv("OV_CPU_USE_MAMTUL_OVER_FC")) { return false; });
-                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
-                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
-                return true;
+                // enable only with debug caps and env variable defined for now
+                CPU_DEBUG_CAP_ENABLE(
+                    if (getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC")) {
+                        VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                        VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                        return true;
+                    })
+                return false;
             },
             // requiresFallback
             [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {

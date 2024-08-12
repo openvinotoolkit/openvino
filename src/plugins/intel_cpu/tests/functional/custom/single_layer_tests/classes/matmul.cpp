@@ -205,7 +205,7 @@ TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
         }
     }
     run();
-    // CheckPluginRelatedResults(compiledModel, cpuNodeType);
+    CheckPluginRelatedResults(compiledModel, cpuNodeType);
 }
 
 namespace MatMul {

@@ -223,7 +223,7 @@ protected:
     }
 
     void check_execution_graph() {
-        // CheckPluginRelatedResults(compiledModel, "FullyConnected");
+        CheckPluginRelatedResults(compiledModel, "FullyConnected");
         CheckNumberOfNodesWithType(compiledModel, "FullyConnected", fullyConnectedCount);
         CheckNumberOfNodesWithType(compiledModel, "Transpose", transposeCount);
         CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
