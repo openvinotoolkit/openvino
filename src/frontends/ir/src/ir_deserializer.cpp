@@ -584,9 +584,9 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
     return function;
 }
 
-class MetaDataParser : public ov::Meta {
+class MetaDataParser : public ov::MetaDataWithPugixml {
 public:
-    MetaDataParser(const std::string& name, const pugi::xml_node& meta) : m_name(name) {
+    MetaDataParser(const std::string& name, const pugi::xml_node& meta) : m_name(name), m_unchanged_flag(true) {
         m_meta.append_copy(meta);
     }
 
@@ -596,9 +596,18 @@ public:
     }
 
     operator ov::AnyMap&() override {
+        m_unchanged_flag = false;
         parse();
         return m_parsed_map;
     }
+
+    pugi::xml_node get_pugi_node() const override {
+        if (m_unchanged_flag) {
+            return m_meta.child(m_name.c_str());
+        } else {
+            OPENVINO_THROW("Meta from MetaDataWithPugixml was already red and my be changed");
+        }
+    };
 
 private:
     bool has_attr(const pugi::xml_node& node, const std::string& name = "value") const {
@@ -650,10 +659,12 @@ private:
             m_parsed_map = parse_node(node);
         });
     }
+
     pugi::xml_document m_meta;
     const std::string m_name;
     mutable ov::AnyMap m_parsed_map;
     mutable std::once_flag m_oc;
+    mutable std::atomic_bool m_unchanged_flag;
 };
 
 void ov::XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section) {
@@ -699,9 +710,11 @@ void ov::XmlDeserializer::read_legacy_meta_data(const std::shared_ptr<ov::Model>
                 }
             }
         } else if (name == "quantization_parameters") {
-            // Rename quantization_parameters to optimization
-            std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("quantization_parameters", meta_section);
-            rt_info["optimization"] = meta;
+            for (const auto& data : meta_section.children()) {
+                // Rename quantization_parameters to optimization
+                std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("quantization_parameters", data);
+                rt_info["optimization"] = meta;
+            }
         }
     };
     for (const auto& it : names)
