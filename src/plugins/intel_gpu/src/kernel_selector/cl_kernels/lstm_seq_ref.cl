@@ -8,11 +8,13 @@ KERNEL(lstm_seq)(
     const __global INPUT0_TYPE* x,
     const __global INPUT1_TYPE* initial_hidden_state,
     const __global INPUT2_TYPE* initial_cell_state,
-    const __global INPUT3_TYPE* sequence_lengths,
-    const __global INPUT4_TYPE* W,
-    const __global INPUT5_TYPE* R,
-    const __global INPUT6_TYPE* B,
+    const __global INPUT3_TYPE* W,
+    const __global INPUT4_TYPE* R,
+    const __global INPUT5_TYPE* B,
+#ifdef SEQUENCE
+    const __global INPUT6_TYPE* sequence_lengths,
     __global OUTPUT_TYPE* hidden_history,
+#endif
     __global OUTPUT1_TYPE* hidden_state,
     __global OUTPUT2_TYPE* cell_state
 )
@@ -32,7 +34,7 @@ KERNEL(lstm_seq)(
             gate_output[k][HIDDEN_SIZE] = 0;
         }
     }
-    const int real_seq_length = sequence_lengths[INPUT3_GET_INDEX_SAFE(b, 0, 0, 0)];
+    const int real_seq_length = sequence_lengths[INPUT6_GET_INDEX_SAFE(b, 0, 0, 0)];
     for(int i=0;i<real_seq_length;i++){
         for(int l=0;l<HIDDEN_SIZE;l++){
             for(int k=0;k<gate_num;k++){
@@ -48,24 +50,24 @@ KERNEL(lstm_seq)(
                 }
                 for(int j=0;j<HIDDEN_SIZE;j++) {
                     if(i==0){
-                        hidden_result[k][l] += initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, 0, j, 0)]*R[INPUT5_GET_INDEX_SAFE(0, hidden_idx+weight_offsets[k], j, 0)];
+                        hidden_result[k][l] += initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, 0, j, 0)]*R[INPUT4_GET_INDEX_SAFE(0, hidden_idx+weight_offsets[k], j, 0)];
                     }else{
                         int prev_idx = i-1;
                         if(DIRECTION == 1){ //reverse
                             prev_idx = real_seq_length - i ;
                         }
-                        hidden_result[k][l] += hidden_history[OUTPUT_GET_INDEX_SAFE(b, 0, prev_idx, j)]*R[INPUT5_GET_INDEX_SAFE(0, hidden_idx+weight_offsets[k], j, 0)];
+                        hidden_result[k][l] += hidden_history[OUTPUT_GET_INDEX_SAFE(b, 0, prev_idx, j)]*R[INPUT4_GET_INDEX_SAFE(0, hidden_idx+weight_offsets[k], j, 0)];
                     }
                 }
                 
                 for(int j=0;j<INPUT_SIZE;j++) {
                     if(DIRECTION == 1){ //reverse
-                        input_result[k][l] += x[INPUT0_GET_INDEX_SAFE(b, real_seq_length-1-i, j, 0)]*W[INPUT4_GET_INDEX_SAFE(0, hidden_idx+weight_offsets[k], j, 0)];
+                        input_result[k][l] += x[INPUT0_GET_INDEX_SAFE(b, real_seq_length-1-i, j, 0)]*W[INPUT3_GET_INDEX_SAFE(0, hidden_idx+weight_offsets[k], j, 0)];
                     } else {
-                        input_result[k][l] += x[INPUT0_GET_INDEX_SAFE(b, i, j, 0)]*W[INPUT4_GET_INDEX_SAFE(0, hidden_idx+weight_offsets[k], j, 0)];
+                        input_result[k][l] += x[INPUT0_GET_INDEX_SAFE(b, i, j, 0)]*W[INPUT3_GET_INDEX_SAFE(0, hidden_idx+weight_offsets[k], j, 0)];
                     }
                 }
-                gate_output[k][l] = hidden_result[k][l] + input_result[k][l] + TO_ACCUMULATOR_TYPE(B[INPUT6_GET_INDEX_SAFE(0, hidden_idx+weight_offsets[k], 0, 0)]);
+                gate_output[k][l] = hidden_result[k][l] + input_result[k][l] + TO_ACCUMULATOR_TYPE(B[INPUT5_GET_INDEX_SAFE(0, hidden_idx+weight_offsets[k], 0, 0)]);
                 switch(k){
                     case 0:
                     case 1:

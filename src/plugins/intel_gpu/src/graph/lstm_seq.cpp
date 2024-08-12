@@ -18,11 +18,6 @@ template<typename ShapeType>
 std::vector<layout> lstm_seq_inst::calc_output_layouts(lstm_seq_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<lstm_seq>();
 
-    std::vector<ShapeType> input_shapes;
-    for (size_t i = 0; i < desc->input.size(); ++i) {
-        auto input_shape = impl_param.get_input_layout(i).get<ShapeType>();
-        input_shapes.push_back(input_shape);
-    }
 
     auto input_layout_x = impl_param.get_input_layout(0);
     auto input_pshape_x = input_layout_x.get_partial_shape();

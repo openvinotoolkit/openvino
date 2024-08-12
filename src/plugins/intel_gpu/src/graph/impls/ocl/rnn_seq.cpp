@@ -28,9 +28,21 @@ protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_seq>& instance) const override {
         kernel_arguments_data args;
         size_t op_input_size = 6 + (instance.has_cell() ? 1 : 0);
-        for (size_t i = 0; i < op_input_size; i++) {
+        for (size_t i = 0; i < 3; i++) {
             args.inputs.push_back(instance.input_memory_ptr(i));
         }
+
+        if (instance.has_cell()) {
+            for (size_t i = 3; i < 6; i++) {
+                args.inputs.push_back(instance.input_memory_ptr(i+1));
+            }
+            args.inputs.push_back(instance.input_memory_ptr(3));
+        } else {
+            for (size_t i = 3; i < op_input_size; i++) {
+                args.inputs.push_back(instance.input_memory_ptr(i));
+            }
+        }
+
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
             args.outputs.push_back(instance.output_memory_ptr(i));
         }
@@ -44,10 +56,14 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<lstm_seq>();
         auto params = get_default_params<kernel_selector::lstm_seq_params>(impl_param);
-        for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {
+        for (size_t i = 1; i < 3; ++i) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
 
+        for (size_t i = 3; i < 6; ++i) {
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i+1)));
+        }
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(3)));
         if (!primitive->params.activations.empty()) {
             auto a_sz = primitive->params.activations.size();
             auto param_sz = primitive->params.activation_params.size();

@@ -33,10 +33,10 @@ struct RNNParams{
              const input_info& x,
              const input_info& initial_hidden_state,
              const input_info& initial_cell_state,
-             const input_info& seq_lenghts,
              const input_info& W,
              const input_info& R,
              const input_info& B,
+             const input_info& seq_lenghts,
              const primitive_id& out1_prim_id = "",
              const primitive_id& out2_prim_id = "",
              const float clip = 0,
@@ -48,18 +48,17 @@ struct RNNParams{
              const uint32_t direction = 0,
              const padding& output_padding = padding(),
              const int num_outputs = 1) : id(id),
-             x(x), initial_hidden_state(initial_hidden_state), initial_cell_state(initial_cell_state), seq_lenghts(seq_lenghts), W(W), R(R), B(B), \
+             x(x), initial_hidden_state(initial_hidden_state), initial_cell_state(initial_cell_state), W(W), R(R), B(B), seq_lenghts(seq_lenghts), \
              out1_prim_id(out1_prim_id), out2_prim_id(out2_prim_id), clip(clip), activations(activations), activation_params(activation_params), \
              offset_order(offset_order), direction(direction), output_padding(output_padding), num_outputs(num_outputs) {}
     primitive_id id;
     input_info x;
     input_info initial_hidden_state;
     input_info initial_cell_state;/// @brief for lstm_elt primitive field for cell input_info
-    input_info seq_lenghts;
     input_info W;
     input_info R;
     input_info B;
-    /// @brief Primitive id containing the initial value of the cell state data.
+    input_info seq_lenghts;
     primitive_id out1_prim_id;
     primitive_id out2_prim_id;
     /// @brief Cell clip threshold T. It is applied to the input of activations [-T, T]. No clip is applied if it is not specified.

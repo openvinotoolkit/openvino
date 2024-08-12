@@ -16,7 +16,7 @@ JitConstants LSTMSeqKernelBase::GetJitConstants(const lstm_seq_params& params) c
         jit.AddConstants({MakeJitConstant("INPUT_FORGET", true)});
     }
     jit.AddConstants({MakeJitConstant("DIRECTION", static_cast<int>(params.direction))});
-
+    jit.AddConstants({MakeJitConstant("SEQUENCE", 1)});
     size_t size = params.inputs[1].Y().v;
     jit.AddConstants({
         MakeJitConstant("GEMM_OFFSET_I", params.GetOffsetIndexI() * size),
