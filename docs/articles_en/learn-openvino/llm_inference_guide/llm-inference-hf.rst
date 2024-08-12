@@ -223,6 +223,8 @@ as in OpenVINO native API:
 
    model.to("GPU")
 
+.. _enabling-runtime-optimizations:
+
 Enabling OpenVINO Runtime Optimizations
 ############################################################
 
@@ -237,16 +239,27 @@ includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls an
   insignificant deviation in generation accuracy.  Quantization is performed in a group-wise
   manner, with configurable group size. It means that values in a group share quantization
   parameters. Larger group sizes lead to faster inference but lower accuracy. Recommended
-  group size values are ``32``, ``64``, or ``128``. To enable Dynamic quantization, use
-  the corresponding inference property as follows:
+  group size values are ``0``, ``32``, ``64``, or ``128``. Dynamic quantization is enabled **by
+  default** on the CPU device. To disable dynamic quantization you can either:
 
+  * **(Primary Option)** Set ``DYNAMIC_QUANTIZATION_GROUP_SIZE`` to the ``0`` value.
+  * Switch execution mode from the ``PERFORMANCE mode`` to the ``ACCURACY mode``. However, this
+    option affects inference precision as well. You can learn more about both: ``PERFORMANCE``
+    and ``ACCURACY`` modes by following the :ref:`Precision Control Guide <execution-mode>`.
+
+  To change a group size value (e.g. to ``64``), you need to execute the following code:
 
   .. code-block:: python
 
      model = OVModelForCausalLM.from_pretrained(
          model_path,
-         ov_config={"DYNAMIC_QUANTIZATION_GROUP_SIZE": "32", "PERFORMANCE_HINT": "LATENCY"}
+         ov_config={"DYNAMIC_QUANTIZATION_GROUP_SIZE": "64"}
      )
+
+  .. note::
+
+     As of release 2024.3, dynamic quantization is not enabled for BF16 inference.
+
 
 * **KV-cache quantization** allows lowering the precision of Key and Value cache in LLMs.
   This helps reduce memory consumption during inference, improving latency and throughput.
