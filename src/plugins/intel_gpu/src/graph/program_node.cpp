@@ -988,6 +988,11 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
         ib >> fused_prims_onednn[idx].dims;
         ib >> make_data(&fused_prims_onednn[idx].dt, sizeof(dnnl::memory::data_type));
     }
+
+    // added a dummpy onednn_attrs to prevent initializing it for non-onednn impls
+    if (impl_type != impl_types::onednn) {
+        onednn_attrs = std::make_shared<dnnl::primitive_attr>();
+    }
 #endif // ENABLE_ONEDNN_FOR_GPU
 }
 
