@@ -388,8 +388,8 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
 
         // Convert B layout from icfo to fico
         auto B_split = std::make_shared<ov::op::v1::Split>(B, zero_axis, 4);
-        auto B_f =
-            std::make_shared<ov::op::v1::Add>(B_split->output(2), std::make_shared<ov::op::v0::Squeeze>(ft_additional_bias));
+        auto B_f = std::make_shared<ov::op::v1::Add>(B_split->output(2),
+                                                     std::make_shared<ov::op::v0::Squeeze>(ft_additional_bias));
 
         Output<Node> B_fico = std::make_shared<ov::op::v0::Concat>(
             OutputVector{B_f, B_split->output(0), B_split->output(1), B_split->output(3)},
