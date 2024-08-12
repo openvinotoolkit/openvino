@@ -204,10 +204,6 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
     const ov::CompiledModel& compiledModel,
     size_t num_requests) {
     slog::info << "Device memory will be used for input blobs" << slog::endl;
-    if (inputFiles.size()) {
-        slog::warn << "Device memory supports only random data at this moment, input images will be ignored"
-                   << slog::endl;
-    }
 
     std::map<std::string, ov::TensorVector> remoteTensors;
     auto context = compiledModel.get_context();
@@ -216,11 +212,6 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
     for (size_t i = 0; i < num_requests; i++) {
         for (auto& inputs_info : app_inputs_info) {
             for (auto& input : inputs_info) {
-                // Fill random
-                slog::info << "Prepare remote blob for input '" << input.first << "' with random values ("
-                           << std::string((input.second.is_image() ? "image" : "some binary data")) << " is expected)"
-                           << slog::endl;
-
                 auto tensor = zeroContext.create_l0_host_tensor(input.second.type,
                                                                 input.second.dataShape,
                                                                 ov::intel_npu::TensorType::INPUT);
@@ -228,6 +219,10 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
 
                 if (inputFiles.empty()) {
                     // Filling in random data
+                    slog::info << "Prepare remote blob for input '" << input.first << "' with random values ("
+                               << std::string((input.second.is_image() ? "image" : "some binary data"))
+                               << " is expected)" << slog::endl;
+
                     auto elementsNum = std::accumulate(begin(input.second.dataShape),
                                                        end(input.second.dataShape),
                                                        1,
@@ -235,7 +230,8 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
 
                     fill_buffer(tensor.get(), elementsNum, input.second.type);
                 } else {
-                    // TODO: add filling with real image data
+                    OPENVINO_THROW(
+                        "[NPU] Device memory supports only random data at this moment, input images will be ignored");
                 }
             }
         }
