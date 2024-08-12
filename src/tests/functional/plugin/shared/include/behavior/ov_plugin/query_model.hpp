@@ -23,11 +23,17 @@ namespace behavior {
 using OVClassQueryModelTest = OVClassBaseTestP;
 
 TEST_P(OVClassModelTestP, QueryModelActualNoThrow) {
+    if (is_mandatory) {
+        GTEST_SKIP();
+    }
     ov::Core ie = ov::test::utils::create_core();
     ie.query_model(actualNetwork, target_device);
 }
 
 TEST_P(OVClassModelTestP, QueryModelWithKSO) {
+    if (is_mandatory) {
+        GTEST_SKIP();
+    }
     ov::Core ie = ov::test::utils::create_core();
 
     auto rl_map = ie.query_model(ksoNetwork, target_device);
