@@ -1,7 +1,7 @@
 Release Policy
 =============================================================================
 
-OpenVINO™ offers releases of three different types, each targeting a different use case:
+OpenVINO™ offers releases of four different types, each targeting a different use case:
 
 * `Regular releases <#regular-releases>`__
 * `Long-Term Support <#long-term-support-releases>`__
