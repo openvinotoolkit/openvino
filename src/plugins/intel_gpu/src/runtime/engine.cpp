@@ -62,7 +62,7 @@ namespace cldnn {
 engine::engine(const device::ptr device)
     : _device(device) {}
 
-device_info engine::get_device_info() const {
+const device_info& engine::get_device_info() const {
     return _device->get_info();
 }
 
