@@ -73,9 +73,7 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
         const auto& weights_shape = weights.get_shape();
         const auto& mul_const_shape = mul_const.get_shape();
 
-
         if (input.get_partial_shape().size() < weights_shape.size()) {
-            std::cout << "EXIT 1" << std::endl;
             return false;
         }
 
