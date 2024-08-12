@@ -203,6 +203,8 @@ TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ov::Model
 
 TRANSFORMATIONS_API bool check_for_broadcast(const PartialShape& ref_shape, const PartialShape& other_shape);
 
+TRANSFORMATIONS_API bool broadcasted_only_channel(const ov::PartialShape& weights_shape, const ov::PartialShape& const_shape);
+
 TRANSFORMATIONS_API std::shared_ptr<Node> activation(const std::string& activation_name, const Output<Node>& apply_to);
 
 TRANSFORMATIONS_API bool is_seq_len_provided(const std::shared_ptr<Node>& X,

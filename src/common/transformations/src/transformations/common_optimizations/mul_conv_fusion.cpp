@@ -19,36 +19,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-// Check for both per-channel and per-tensor cases
-static bool are_shapes_compatible(const ov::Shape& weights_shape, const ov::Shape& const_shape) {
-    if (const_shape.size() > weights_shape.size()) {
-        return false;
-    }
-
-    auto weights_shape_it = weights_shape.rbegin();
-    auto const_shape_it = const_shape.rbegin();
-    size_t C_dim = const_shape.size() - 1 - 2;
-    size_t const_shape_cur_idx = const_shape.size() - 1;
-
-    while (const_shape_it != const_shape.rend()) {
-        if (const_shape_cur_idx == C_dim) {
-            if (*const_shape_it != 1 && *const_shape_it != *weights_shape_it) {
-                return false;
-            }
-        } else {
-            if (*const_shape_it != 1) {
-                return false;
-            }
-        }
-
-        ++weights_shape_it;
-        ++const_shape_it;
-        --const_shape_cur_idx;
-    }
-
-    return true;
-}
-
 ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
     MATCHER_SCOPE(MultiplyConvolutionFusion);
     auto input_pattern = pattern::any_input(pattern::has_static_rank());
@@ -81,7 +51,7 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
         // Also if mul_const's rank matches weights rank and mul_const.shape[0] != 1
         // then we can't fuse the multiply, since first dimension in mul_const corresponds to
         // batch size, while first dimension in weights corresponds to output channel count
-        if (!are_shapes_compatible(weights_shape, mul_const_shape) ||
+        if (!ov::op::util::broadcasted_only_channel(weights_shape, mul_const_shape) ||
             (weights_shape.size() == mul_const_shape.size() && mul_const_shape[0] != 1)) {
             return false;
         }
@@ -141,7 +111,7 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
             // Reshape mul_const from shape (1, C, H, W) to (G, 1, C / G, H, W) to match GroupConvolution weights format
             Shape new_shape{G, 1, C};
             std::copy(mul_const_shape.begin() + 2, mul_const_shape.end(), std::back_inserter(new_shape));
-            if (op::util::check_for_broadcast(weights_shape, new_shape)) {
+            if (!ov::op::util::broadcasted_only_channel(weights_shape, new_shape)) {
                 return false;
             }
             mul_const = std::make_shared<ov::op::v1::Reshape>(
@@ -209,7 +179,7 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
             // Reshape mul_const from shape (1, C, 1, 1) to (C, 1, 1, 1) to match ConvolutionBackpropData weights format
             Shape new_shape{mul_const_shape[1], 1};
             new_shape.insert(new_shape.end(), mul_const_shape.size() - 2, 1);
-            if (op::util::check_for_broadcast(weights_shape, new_shape)) {
+            if (!ov::op::util::broadcasted_only_channel(weights_shape, new_shape)) {
                 return false;
             }
             mul_const = std::make_shared<ov::op::v1::Reshape>(
@@ -279,7 +249,7 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
             auto C = mul_const_shape[1] / G;
             Shape new_shape{G, C, 1};
             new_shape.insert(new_shape.end(), mul_const_shape.size() - 2, 1);
-            if (op::util::check_for_broadcast(weights_shape, new_shape)) {
+            if (!ov::op::util::broadcasted_only_channel(weights_shape, new_shape)) {
                 return false;
             }
             mul_const = std::make_shared<ov::op::v1::Reshape>(
