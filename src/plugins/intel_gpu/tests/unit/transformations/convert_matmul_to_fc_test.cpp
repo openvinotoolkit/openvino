@@ -432,3 +432,196 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_compressed_u8_wei
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ matmul }, ov::ParameterVector{ data });
     }
 }
+
+// Checked blocked cases
+TEST(TransformationTests, ConvertMatMulToFullyConnectedExceptionTest_sibling_matmul_no_convert) {
+    auto CreateMatMul = [&](bool mat1_transpose_a, bool mat1_transpose_b,
+                            bool mat2_transpose_a, bool mat2_transpose_b) {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{64, 32});
+        auto input_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{64, 32}, {-1});
+
+        auto matmul1 = std::make_shared<ov::opset1::MatMul>(input1, input_const, mat1_transpose_a, mat1_transpose_b);
+        auto matmul2 = std::make_shared<ov::opset1::MatMul>(input_const, input_const, mat2_transpose_a, mat2_transpose_b);
+
+        auto model = std::make_shared<ov::Model>(ov::NodeVector{matmul2, matmul1}, ov::ParameterVector{input1});
+        return model;
+    };
+
+    ov::pass::Manager manager;
+    manager.set_per_pass_validation(false);
+    manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
+
+    auto func = CreateMatMul(true, false, true, false);
+
+    manager.run_passes(func);
+
+    bool success = false;
+    for (auto& ops : func->get_ops()) {
+        std::string type_name(ops->get_type_name());
+        if (type_name.find("FullyConnected") != std::string::npos) {
+            success = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(success == true);
+
+    func = CreateMatMul(true, false, false, true);
+    manager.run_passes(func);
+    success = false;
+    for (auto& ops : func->get_ops()) {
+        std::string type_name(ops->get_type_name());
+        if (type_name.find("FullyConnected") != std::string::npos) {
+            success = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(success == true);
+
+    func = CreateMatMul(false, true, true, false);
+    manager.run_passes(func);
+    success = false;
+    for (auto& ops : func->get_ops()) {
+        std::string type_name(ops->get_type_name());
+        if (type_name.find("FullyConnected") != std::string::npos) {
+            success = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(success == true);
+}
+
+TEST(TransformationTests, ConvertMatMulToFullyConnectedExceptionTest_sibling_matmul) {
+    auto CreateMatMul = [&](bool mat1_transpose_a, bool mat1_transpose_b,
+                            bool mat2_transpose_a, bool mat2_transpose_b) {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{10, 64});
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{64, 32});
+        auto input3 = ov::opset1::Constant::create(ov::element::f16, ov::Shape{64, 32}, {1});
+
+        auto convert = std::make_shared<ov::opset1::Convert>(input3, ov::element::f32);
+        ov::mark_as_decompression(convert);
+
+        auto matmul1 = std::make_shared<ov::opset1::MatMul>(input1, convert, mat1_transpose_a, mat1_transpose_b);
+        auto matmul2 = std::make_shared<ov::opset1::MatMul>(convert, input2, mat2_transpose_a, mat2_transpose_b);
+
+        auto model = std::make_shared<ov::Model>(ov::NodeVector{matmul1, matmul2}, ov::ParameterVector{input1, input2});
+        return model;
+    };
+
+    ov::pass::Manager manager;
+    manager.set_per_pass_validation(false);
+    manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
+
+    auto func = CreateMatMul(false, false, true, false);
+
+    manager.run_passes(func);
+
+    bool success = false;
+    for (auto& ops : func->get_ops()) {
+        std::string type_name(ops->get_type_name());
+        if (type_name.find("FullyConnected") != std::string::npos) {
+            success = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(success == false);
+
+    func = CreateMatMul(false, false, false, true);
+    manager.run_passes(func);
+    success = false;
+    for (auto& ops : func->get_ops()) {
+        std::string type_name(ops->get_type_name());
+        if (type_name.find("FullyConnected") != std::string::npos) {
+            success = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(success == false);
+}
+
+TEST(TransformationTests, ConvertMatMulToFullyConnectedExceptionTest_sibling_matmul_same_input) {
+    auto CreateMatMul = [&](bool mat1_transpose_a, bool mat1_transpose_b,
+                            bool mat2_transpose_a, bool mat2_transpose_b) {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{64, 32});
+        auto input_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{64, 32}, {-1});
+
+        auto convert = std::make_shared<ov::opset1::Convert>(input_const, ov::element::f32);
+        ov::mark_as_decompression(convert);
+
+        auto matmul1 = std::make_shared<ov::opset1::MatMul>(input1, convert, mat1_transpose_a, mat1_transpose_b);
+        auto matmul2 = std::make_shared<ov::opset1::MatMul>(convert, convert, mat2_transpose_a, mat2_transpose_b);
+
+        auto model = std::make_shared<ov::Model>(ov::NodeVector{matmul2, matmul1}, ov::ParameterVector{input1});
+        return model;
+    };
+
+    ov::pass::Manager manager;
+    manager.set_per_pass_validation(false);
+    manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
+
+    auto func = CreateMatMul(true, false, true, false);
+
+    manager.run_passes(func);
+
+    bool success = false;
+    for (auto& ops : func->get_ops()) {
+        std::string type_name(ops->get_type_name());
+        if (type_name.find("FullyConnected") != std::string::npos) {
+            success = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(success == false);
+
+    func = CreateMatMul(true, false, false, true);
+    manager.run_passes(func);
+    success = false;
+    for (auto& ops : func->get_ops()) {
+        std::string type_name(ops->get_type_name());
+        if (type_name.find("FullyConnected") != std::string::npos) {
+            success = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(success == false);
+
+    func = CreateMatMul(false, true, true, false);
+    manager.run_passes(func);
+    success = false;
+    for (auto& ops : func->get_ops()) {
+        std::string type_name(ops->get_type_name());
+        if (type_name.find("FullyConnected") != std::string::npos) {
+            success = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(success == false);
+}
+
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedExceptionTest) {
+    {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 10, 64});
+        auto input2 = ov::opset1::Constant::create(ov::element::f16, ov::Shape{64, 32}, {1});
+
+        auto convert = std::make_shared<ov::opset1::Convert>(input2, ov::element::f32);
+        ov::mark_as_decompression(convert);
+
+        auto matmul1 = std::make_shared<ov::opset1::MatMul>(input1, convert, false, false);
+        auto matmul2 = std::make_shared<ov::opset1::MatMul>(convert, convert, true, false);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{matmul1, matmul2}, ov::ParameterVector{input1});
+        manager.register_pass<ConvertMatMulToFullyConnected>();
+    }
+    {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 10, 64});
+        auto input2 = ov::opset1::Constant::create(ov::element::f16, ov::Shape{64, 32}, {1});
+
+        auto convert = std::make_shared<ov::opset1::Convert>(input2, ov::element::f32);
+        auto convert_2 = std::make_shared<ov::opset1::Convert>(input2, ov::element::f32);
+        ov::mark_as_decompression(convert);
+
+        auto matmul1 = std::make_shared<ov::opset1::MatMul>(input1, convert, false, false);
+        auto matmul2 = std::make_shared<ov::opset1::MatMul>(convert_2, convert, true, false);
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul1, matmul2}, ov::ParameterVector{input1});
+    }
+}
