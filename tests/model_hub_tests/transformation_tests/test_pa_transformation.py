@@ -4,11 +4,13 @@
 from openvino._offline_transformations import paged_attention_transformation
 from openvino._pyopenvino.op import _PagedAttentionExtension
 from optimum.intel import OVModelForCausalLM
+from models_hub_common.utils import retry
 import models_hub_common.utils as utils
 import pytest
 import os
 import re
 
+@retry(3, exceptions=(OSError,), delay=1)
 def run_pa(tmp_path, model_id, model_link, use_block_indices_inputs, use_score_outputs):
     model = OVModelForCausalLM.from_pretrained(model_id, export=True, trust_remote_code=True)
 
