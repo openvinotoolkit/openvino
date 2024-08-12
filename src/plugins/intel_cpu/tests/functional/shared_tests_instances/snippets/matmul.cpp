@@ -152,6 +152,11 @@ std::vector<std::vector<ov::test::InputShape>> input_shapes_dynamic_bias{
                 {PartialShape{-1, -1, -1, -1}, {{2, 1, 43, 49}, {1, 2, 1023, 255}, {2, 1, 43, 49}}},
                 {PartialShape{-1, -1, -1, -1}, {{1, 1, 69, 49}, {1, 2, 95, 255}, {1, 1, 69, 49}}}
         },
+        {
+                {PartialShape{-1, -1, -1, -1}, {{2, 2, 16, 32}, {2, 2, 16, 32}, {2, 2, 16, 32}, {2, 2, 16, 32}}},
+                {PartialShape{-1, -1, -1, -1}, {{2, 2, 32, 18}, {2, 2, 32, 18}, {2, 2, 32, 1},  {2, 2, 32, 1}}},
+                {PartialShape{-1, -1, -1, -1}, {{1, 1, 16, 18}, {1, 1, 16, 1},  {1, 1, 16, 18}, {1, 1, 16, 1}}}
+        },
 };
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMatMulBias, MatMulBias,
                          ::testing::Combine(

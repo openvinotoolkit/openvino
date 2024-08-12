@@ -20,6 +20,8 @@ namespace pass {
  */
 class Manager : public ov::pass::Manager {
 public:
+    Manager(std::shared_ptr<ov::pass::PassConfig> pass_config = std::make_shared<ov::pass::PassConfig>(),
+            std::string name = "UnnamedSnippetsManager");
     ~Manager() override = default;
     using PassBase = ov::pass::PassBase;
     using Validate = ov::pass::Validate;

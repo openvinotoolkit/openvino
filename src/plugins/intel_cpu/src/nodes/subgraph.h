@@ -76,7 +76,7 @@ private:
     using DataFlowPasses = std::vector<ov::snippets::pass::Manager::PositionedPassBase>;
     using ControlFlowPasses = std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered>;
 
-    DataFlowPasses getDataFlowPasses() const;
+    DataFlowPasses getDataFlowPasses();
     ControlFlowPasses getControlFlowPasses() const;
 
     // Holds ISA version used is codeGeneration target
@@ -87,6 +87,9 @@ private:
 #endif
 
     std::shared_ptr<SubgraphAttrs> subgraph_attrs;
+
+    // Index of Paramater -> Index of broadcastable dimension from end
+    std::map<size_t, size_t> broadcastable_inputs = {};
 
     size_t input_num = 0;
     size_t output_num = 0;

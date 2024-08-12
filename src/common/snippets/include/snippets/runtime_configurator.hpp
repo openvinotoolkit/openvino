@@ -73,6 +73,11 @@ public:
      */
     void set_kernel_executor_table(std::shared_ptr<KernelExecutorTable> table) const;
 
+    /**
+     * @brief Reset KernelExecutor table
+     */
+    void reset_kernel_executor_table() const;
+
 protected:
     /**
      * @brief Update RuntimeConfig based on LinearIR
