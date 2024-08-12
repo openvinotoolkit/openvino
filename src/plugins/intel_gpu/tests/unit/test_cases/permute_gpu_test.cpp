@@ -736,11 +736,11 @@ TEST(permute_gpu_f32, permute_bfwzyx)
     for (int yi = 0; yi < y; ++yi)
     for (int xi = 0; xi < x; ++xi)
     {
-        auto out_idx = expected_layout.get_linear_offset({fi, bi, wi, zi, yi, xi});
-        auto in_idx = input_mem->get_layout().get_linear_offset({bi, fi, xi, yi, zi, wi});
-        std::cout << "========================== out_idx = " << out_idx << ", in_idx = " << in_idx << std::endl;
-        expected_output[out_idx] =
-            input_data[in_idx];
+        // auto in_index = cldnn::tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi));  // spatial in x,y,z,w order
+        // auto out_index = cldnn::tensor(batch(fi), feature(bi), spatial(wi, zi, yi, xi));
+        auto in_offset = input_mem->get_layout().get_linear_offset({bi, fi, wi, zi, yi, xi});  // index in bfwzyx logical order
+        auto out_offset = expected_layout.get_linear_offset({fi, bi, xi, yi, zi, wi});
+        expected_output[out_offset] = input_data[in_offset];
     }
 
     topology topology(

@@ -9,6 +9,9 @@
 #include <algorithm>
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "intel_gpu/runtime/utils.hpp"
+
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace cldnn {
 static inline bool check_redundant_1d_along_feature(layout const& l1, layout const& l2);
@@ -141,8 +144,8 @@ std::vector<tensor::value_type> layout::get_padded_dims() const {
     for (size_t i = 0; i < res.size(); i++) {
         res[i] = dims[i] + data_padding.upper_size()[i] + data_padding.lower_size()[i];   // Cecilia TODO: export data_padding fileds?
     }
-    return res;
 
+    return res;
 }
 
 static format to_weights_format(format f, bool is_grouped) {
@@ -338,6 +341,8 @@ std::vector<tensor::value_type> layout::get_pitches() const {
     return pitches;
 }
 
+
+// index in the same logical order of shape
 size_t layout::get_linear_offset(const std::initializer_list<tensor::value_type>& index) const {
     // const auto& l_padd = data_padding.lower_size();
     // const auto& u_padd = data_padding.upper_size();
@@ -390,24 +395,75 @@ size_t layout::get_linear_offset(const std::initializer_list<tensor::value_type>
     std::transform(pad_after.begin(), pad_after.begin() + shape.size(), padded_sizes.begin(),
                padded_sizes.begin(), std::plus<tensor::value_type>());
 
-    // Cecilia: TODO rework this piece to not depend on tensor.
-    auto rank = std::max(format.dimension(), padded_sizes.size());
-    auto default_fmt = format::get_default_format(rank, format::is_weights_format(format), format::is_grouped(format));
-    auto to_tensor = [default_fmt](const cldnn::format &format, std::vector<tensor::value_type> &shape, tensor::value_type default_val = 0) {
-        std::vector<tensor::value_type> dims;
-        for (auto dim : shape) {
-            dims.push_back(static_cast<tensor::value_type>(dim));
-        }
-        if (default_fmt.dimension() > dims.size()) {
-            dims.insert(dims.end(), default_fmt.dimension() - dims.size(), default_val);
-        }
+    // Cecilia: TODO rework this piece along with get_pitches and get_linear_size by store m_strides and m_padded_dims to avoid frequent computes.
+    auto my_sizes = format_sizes(padded_sizes, format, 1);
+    auto adjusted_coords = format_sizes(padded_index, format, 0);
 
-        return tensor(default_fmt, dims);
-    };
+    // Extend N-dimensional format with B blocked dimensions to (N+B) sizes
+    for (const auto& block : format.block_sizes()) {
+        auto block_axis = block.first;
+        auto block_size = block.second;
+        auto external_axis = block_axis;
 
-    auto t = to_tensor(format, padded_sizes, 1);  // padded_sizes in logical order
-    auto t_index = to_tensor(default_fmt, padded_index);  // padded_index in logical order
-    return t.get_linear_offset(t_index, format);
+        my_sizes.push_back(block_size);
+        my_sizes[external_axis] = ceil_div(my_sizes[external_axis], block_size);
+
+        adjusted_coords.push_back(adjusted_coords[external_axis] % block_size);
+        adjusted_coords[external_axis] /= block_size;
+    }
+
+    if (format == cldnn::format::os_is_yx_isa8_osv8_isv4 &&  // TODO Fix offsets calculation for formats below
+                !(is_aligned_to(my_sizes[0], 8)) &&
+                !(is_aligned_to(my_sizes[1], 32))) {
+        my_sizes[0] = align_to(my_sizes[0], 8);
+        my_sizes[1] = align_to(my_sizes[1], 32);
+        adjusted_coords[0] = align_to(adjusted_coords[0], 8);
+        adjusted_coords[1] = align_to(adjusted_coords[1], 32);
+    } else if (format == cldnn::format::os_is_yx_isa8_osv16_isv4 &&
+                !(is_aligned_to(my_sizes[0], 16)) &&
+                !(is_aligned_to(my_sizes[1], 32))) {
+        my_sizes[0] = align_to(my_sizes[0], 16);
+        my_sizes[1] = align_to(my_sizes[1], 32);
+        adjusted_coords[0] = align_to(adjusted_coords[0], 16);
+        adjusted_coords[1] = align_to(adjusted_coords[1], 32);
+    } else if (format == cldnn::format::gs_oi_yxs_gsv4_yxsv4 || format == cldnn::format::gs_oi_yxs_gsv16_yxsv4 || format == cldnn::format::gs_oi_yxs_gsv32_yxsv4) {
+        const auto yxsv = 4;
+        const auto flat_xy = adjusted_coords[4] + adjusted_coords[3] * my_sizes[4];
+
+        my_sizes.push_back(yxsv);
+        my_sizes[4] = ceil_div(my_sizes[3] * my_sizes[4], yxsv);
+        my_sizes[3] = 1;
+
+        adjusted_coords.push_back(flat_xy % yxsv);
+        adjusted_coords[4] = flat_xy / yxsv;
+        adjusted_coords[3] = 0;
+    } else if (format == cldnn::format::os_iyx_osv32__ai32 && !is_aligned_to(my_sizes[1], 32)) {
+        my_sizes[1] = align_to(my_sizes[1], 32);
+    } else if ((format == cldnn::format::iy_xs_os_xsv2_osv8__ao32 || format == cldnn::format::iy_xs_os_xsv2_osv16__ao32) && !is_aligned_to(my_sizes[3], 32)) {
+        my_sizes[3] = align_to(my_sizes[3], 32);
+    } else if (format == cldnn::format::i_yxs_os_yxsv2_osv16 || format == cldnn::format::gi_yxs_os_yxsv2_osv16) {
+        const auto yxsv = 2;
+        auto flat_xy = adjusted_coords[2] + adjusted_coords[1] * my_sizes[2];
+
+        my_sizes.insert(std::prev(my_sizes.end()), yxsv);
+        my_sizes[2] = ceil_div(my_sizes[1] * my_sizes[2], yxsv);
+        my_sizes[1] = 1;
+
+        adjusted_coords.insert(std::prev(adjusted_coords.end()), flat_xy % yxsv);
+        adjusted_coords[2] = flat_xy / yxsv;
+        adjusted_coords[1] = 0;
+    } else if ((format == cldnn::format::giy_xs_os_xsv2_osv8__ao32 || format == cldnn::format::giy_xs_os_xsv2_osv16__ao32) && !is_aligned_to(my_sizes[3], 32)) {
+        my_sizes[4] = align_to(my_sizes[4], 32);
+    }
+
+    assert(my_sizes.size() == adjusted_coords.size());
+    assert(adjusted_coords.size() > 0);
+
+    size_t offset = adjusted_coords[0];
+    for (size_t i = 1; i < adjusted_coords.size(); i++) {
+        offset = offset * my_sizes[i] + adjusted_coords[i];
+    }
+    return offset;
 }
 
 /// @brief Get aligned linear size calculated as multiplication of all elements.
@@ -474,7 +530,7 @@ size_t layout::get_linear_size() const {
         static_cast<size_t>(1),
         std::multiplies<size_t>());
 
-    // if (total == 0) std::cout << "========== layout=" << this->size << ", shape = " << shape_size(this->size.to_shape()) << std::endl;
+    GPU_DEBUG_LOG << total << std::endl;
     return total;
 }
 

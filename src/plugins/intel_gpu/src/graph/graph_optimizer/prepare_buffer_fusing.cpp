@@ -281,16 +281,9 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
                                                     std::vector<layout>& preds_layouts,
                                                     size_t concat_axis,
                                                     bool is_runtime) {
-    auto concat_out_rank = concat_out_layout.get_rank();
     // We need to transform axis from bf[v][u][w][z]yx order to bfxy[z][w][u][v] due to tensor.sizes() usages here
     // should be removed once pad representation is changed
     auto concat_axis_legacy = concat_axis;
-    if (concat_axis_legacy >= 2) {
-        auto spatial_axis = concat_axis_legacy - 2;
-        // Default and minimum number of dimensions is 4
-        auto spatial_size = std::max<size_t>(concat_out_rank, 4) - 2;
-        concat_axis_legacy = spatial_size - spatial_axis - 1 + 2;
-    }
 
     if (concat_out_layout.is_dynamic() && !is_runtime) {
         // set dynamic pad dims for shape agnostic kernel
@@ -591,12 +584,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
                                                                             size_t crop_axis,
                                                                             bool is_runtime) {
     auto crop_axis_legacy = crop_axis;
-    if (crop_axis_legacy >= 2) {
-        auto spatial_axis = crop_axis_legacy - 2;
-        // Default and minimum number of dimensions is 4
-        auto spatial_size = std::max<size_t>(crop_layout.get_partial_shape().size(), 4) - 2;
-        crop_axis_legacy = spatial_size - spatial_axis - 1 + 2;
-    }
+
     // If it's build-time and node is dynamic, only dynamic padding is set first
     if ((crop_layout.is_dynamic() || input_layout.is_dynamic()) && !is_runtime) {
         auto info_dynamic_pad = tensor(0).sizes();
@@ -645,19 +633,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                                                                                  const tensor offsets,
                                                                                  size_t crop_axis,
                                                                                  bool is_runtime) {
-    auto convert_axis_to_legacy = [](size_t axis, size_t rank) {
-        auto axis_legacy = axis;
-        if (axis_legacy >= 2) {
-            auto spatial_axis = axis_legacy - 2;
-            // Default and minimum number of dimensions is 4
-            auto spatial_size = std::max<size_t>(rank, 4) - 2;
-            axis_legacy = spatial_size - spatial_axis - 1 + 2;
-        }
-
-        return axis_legacy;
-    };
-
-    auto crop_axis_legacy = convert_axis_to_legacy(crop_axis, crop_layout.get_partial_shape().size());
+    auto crop_axis_legacy = crop_axis;
 
     // If it's build-time and node is dynamic, only dynamic padding is set first
     if ((crop_layout.is_dynamic() || input_layout.is_dynamic()) && !is_runtime) {
@@ -682,7 +658,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                 }
 
                 auto dyn_pad_mask = tensor(0).sizes();
-                auto reshape_axis_legacy = convert_axis_to_legacy(reshape_axis, reshape_ps.size());
+                auto reshape_axis_legacy = reshape_axis;
                 dyn_pad_mask[reshape_axis_legacy] = 1;
                 user_info.second.data_padding.set_dynamic_pad_dims(dyn_pad_mask);
             }
@@ -695,13 +671,13 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
     std::vector<int32_t> lower_sizes;
     lower_sizes.push_back(offsets.batch[0]);
     lower_sizes.push_back(offsets.feature[0]);
-    for (size_t i = 0; i < input_layout.get_spatial_rank(); i++) {
+    for (int32_t i = input_layout.get_spatial_rank() - 1; i >= 0; i--) {
         lower_sizes.push_back(offsets.spatial[i]);
     }
     std::vector<int32_t> upper_sizes;
     upper_sizes.push_back(input_layout.batch() - offsets.batch[0] - crop_size.batch[0]);
     upper_sizes.push_back(input_layout.feature() - offsets.feature[0] - crop_size.feature[0]);
-    for (size_t i = 0; i < input_layout.get_spatial_rank(); i++) {
+    for (int32_t i = input_layout.get_spatial_rank() - 1; i >= 0; i--) {
         upper_sizes.push_back(input_layout.spatial(i) - offsets.spatial[i] - crop_size.spatial[i]);
     }
 
@@ -736,7 +712,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                 std::vector<int32_t> reshape_upper_sizes(output_rank, 0);
                 std::vector<int32_t> reshape_dyn_pad_mask(output_rank, 0);
 
-                const auto reshape_axis_legacy = convert_axis_to_legacy(reshape_axis, reshape_ps.size());
+                const auto reshape_axis_legacy = reshape_axis;
                 reshape_lower_sizes[reshape_axis_legacy] = lower_sizes[crop_axis_legacy];
                 reshape_upper_sizes[reshape_axis_legacy] = upper_sizes[crop_axis_legacy];
                 reshape_dyn_pad_mask[reshape_axis_legacy] = 1;
@@ -879,14 +855,6 @@ void prepare_buffer_fusing::run(program& p) {
                 return;
 
             auto concat_axis_legacy = node.get_primitive()->concat_axis;
-            if (concat_axis_legacy < 0)
-                concat_axis_legacy = kv_out_layout.get_partial_shape().size() + concat_axis_legacy;
-            if (concat_axis_legacy >= 2) {
-                auto spatial_axis = concat_axis_legacy - 2;
-                // Default and minimum number of dimensions is 4
-                auto spatial_size = std::max<size_t>(kv_out_layout.get_partial_shape().size(), 4) - 2;
-                concat_axis_legacy = spatial_size - spatial_axis - 1 + 2;
-            }
 
             if (kv_out_layout.is_dynamic()) {
                 // set dynamic pad dims for shape agnostic kernel

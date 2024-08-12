@@ -106,7 +106,7 @@ public:
         ASSERT_EQ(per_axis_blocks.at(idx).second, param.per_axis_block.at(idx).second);
     }
 
-    auto blocks = format::block_sizes(param.in_format);
+    auto blocks = format::legacy_block_sizes(param.in_format);
     ASSERT_EQ(blocks.size(), param.inner_block.size());
     for (size_t idx = 0; idx < blocks.size(); idx++) {
         ASSERT_EQ(blocks.at(idx).first, param.inner_block.at(idx).first);

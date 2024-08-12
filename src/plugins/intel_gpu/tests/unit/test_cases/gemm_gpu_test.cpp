@@ -418,11 +418,11 @@ public:
         std::vector<tensor::value_type> dyn_pad_dims_input2;
 
         if (n_dim_only) {
-            dyn_pad_dims_input1 = tensor({0, 0, 0, 0}, 0).sizes();
-            dyn_pad_dims_input2 = tensor({0, 0, 1, 0}, 0).sizes();
+            dyn_pad_dims_input1 ={0, 0, 0, 0};
+            dyn_pad_dims_input2 = {0, 0, 0, 1};
         } else {
-            dyn_pad_dims_input1 = tensor({1, 1, 1, 1}, 0).sizes();
-            dyn_pad_dims_input2 = tensor({1, 1, 1, 1}, 0).sizes();
+            dyn_pad_dims_input1 = {1, 1, 1, 1};
+            dyn_pad_dims_input2 = {1, 1, 1, 1};
         }
 
         auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input1)};
@@ -2852,12 +2852,10 @@ public:
         ov::Shape in1_shape_aligned = in1_shape;
         ov::Shape in2_shape_aligned = { 1, BATCH_SIZE, aligned_n_size, K_SIZE };
 
-        tensor dyn_pad_dims_input2({0, 0, 0, 0}, 0);
-        dyn_pad_dims_input2 = tensor({0, 0, 0, 1}, 0);
-
+        std::vector<tensor::value_type> dyn_pad_dims_input2{0, 0, 1, 0};
 
         auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx};
-        auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input2.sizes())};
+        auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input2)};
 
         auto aligned_input2_mem = engine.allocate_memory({ov::PartialShape(in2_shape_aligned), data_types::f16, format::bfyx});
 
@@ -2866,7 +2864,7 @@ public:
         auto input2_mem = engine.reinterpret_buffer(*aligned_input2_mem, layout{ov::PartialShape(in2_shape),
                                                                                 data_types::f16,
                                                                                 format::bfyx,
-                                                                                padding({0, 0, 0, 0}, {0, 0, 0, padding_size_n}, 0.0f, dyn_pad_dims_input2.sizes())});
+                                                                                padding({0, 0, 0, 0}, {0, 0, padding_size_n, 0}, 0.0f, dyn_pad_dims_input2)});
 
         auto input_1_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in1_shape), -2, 2);
         auto input_2_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in2_shape), -2, 2);

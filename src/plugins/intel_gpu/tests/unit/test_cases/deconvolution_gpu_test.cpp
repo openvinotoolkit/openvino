@@ -2594,7 +2594,7 @@ public:
                     for (size_t yi = 0; yi < y; ++yi) {
                         for (size_t xi = 0; xi < x; ++xi) {
                             auto offset = mem->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi), 
-                                                                static_cast<int32_t>(xi), static_cast<int32_t>(yi), static_cast<int32_t>(zi), 0});
+                                                                static_cast<int32_t>(zi), static_cast<int32_t>(yi), static_cast<int32_t>(xi)});
                             ptr[offset] = data[bi][fi][zi][yi][xi];
                         }
                     }
@@ -2621,8 +2621,8 @@ public:
                         for (size_t yi = 0; yi < y; ++yi) {
                             for (size_t xi = 0; xi < x; ++xi) {
                                 auto offset = mem->get_layout().get_linear_offset({static_cast<int32_t>(gi), static_cast<int32_t>(bi),
-                                                                                static_cast<int32_t>(fi), static_cast<int32_t>(xi),
-                                                                                static_cast<int32_t>(yi), static_cast<int32_t>(zi), 0});
+                                                                                static_cast<int32_t>(fi), static_cast<int32_t>(zi),
+                                                                                static_cast<int32_t>(yi), static_cast<int32_t>(xi)});
                                 ptr[offset] = data[gi][bi][fi][zi][yi][xi];
                             }
                         }
@@ -2733,8 +2733,8 @@ public:
                             for (size_t xi = 0; xi < reference[0][0].size(); xi++) {
                                 auto ref_val = reference[zi][yi][xi];
                                 auto out_offset = out_mem->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                                            static_cast<int32_t>(xi), static_cast<int32_t>(yi),
-                                                                                            static_cast<int32_t>(zi), 0});
+                                                                                            static_cast<int32_t>(zi), static_cast<int32_t>(yi),
+                                                                                            static_cast<int32_t>(xi), 0});
                                 auto out_val = ptr[out_offset];
                                 TYPED_ASSERT_EQ(ref_val, out_val)
                                     << "at b=" << bi << ", f=" << fi << ", z=" << zi << ", y=" << yi << ", x=" << xi << std::endl

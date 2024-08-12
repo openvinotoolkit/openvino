@@ -7620,7 +7620,7 @@ TEST_P(convolution_grouped_gpu, base) {
             for (int z = 0; z < input_z; z++)
                 for (int y = 0; y < input_y; y++)
                     for (int x = 0; x < input_x; x++) {
-                        size_t offset = input_lay.get_linear_offset({b, f, x, y, z, 0});
+                        size_t offset = input_lay.get_linear_offset({b, f, z, y, x});
                         input_flat[offset] = input_rnd[b][f][z][y][x];
                     }
     auto input = engine.allocate_memory(input_lay);
@@ -7650,7 +7650,7 @@ TEST_P(convolution_grouped_gpu, base) {
                 for (int kzi = 0; kzi < filter_z; ++kzi)
                     for (int kyi = 0; kyi < filter_y; ++kyi)
                         for (int kxi = 0; kxi < filter_x; ++kxi) {
-                            size_t offset = weights_lay.get_linear_offset({gi, ofi, ifi, kxi, kyi, kzi, 0});  // Cecilia: FIXME
+                            size_t offset = weights_lay.get_linear_offset({gi, ofi, ifi, kzi, kyi, kxi, 0});
                             weights_flat[offset] = weights_rnd[gi][ofi][ifi][kzi][kyi][kxi];
                         }
     auto weights = engine.allocate_memory(weights_lay);
@@ -7788,7 +7788,7 @@ TEST_P(convolution_grouped_gpu, base) {
             for (int zi = 0; zi < (int)expected_result[0][0].size(); ++zi)
                 for (int yi = 0; yi < (int)expected_result[0][0][0].size(); ++yi)
                     for (int xi = 0; xi < (int)expected_result[0][0][0][0].size(); ++xi) {
-                        auto offset = out_lay.get_linear_offset({bi, ofi, xi, yi, zi, 0});
+                        auto offset = out_lay.get_linear_offset({bi, ofi, zi, yi, xi});
                         auto val = out_ptr[offset];
                         auto val_ref = expected_result[bi][ofi][zi][yi][xi];
                         auto equal = are_equal(val_ref, val, 1e-2f);
@@ -7953,7 +7953,7 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
         for (int ofi = 0; ofi < out_lay.feature(); ++ofi)
             for (int yi = 0; yi < out_lay.spatial(1); ++yi)
                 for (int xi = 0; xi < out_lay.spatial(0); ++xi) {
-                    auto offset = out_lay.get_linear_offset({bi, ofi, xi, yi, 0, 0});
+                    auto offset = out_lay.get_linear_offset({bi, ofi, yi, xi});
                     auto val = out_ptr[offset];
                     auto val_ref = expected_result[bi][ofi][yi][xi];
                     auto equal = are_equal(val_ref, val, 1);
@@ -8269,7 +8269,7 @@ public:
                 for (size_t yi = 0; yi < input_y(); ++yi)
                     for (size_t xi = 0; xi < input_x(); ++xi) {
                         size_t offset = input_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
+                                                                static_cast<int32_t>(yi), static_cast<int32_t>(xi)});
                         input_flat[offset] = _input[bi][fi][yi][xi];
                     }
         set_values(input_mem, input_flat);
@@ -8303,7 +8303,7 @@ public:
                 for (size_t yi = 0; yi < expected[0][0].size(); ++yi)
                     for (size_t xi = 0; xi < expected[0][0][0].size(); ++xi) {
                         size_t offset = out_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                        static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
+                                                        static_cast<int32_t>(yi), static_cast<int32_t>(xi)});
 
                         ASSERT_EQ(out_ptr[offset], expected[bi][fi][yi][xi])
                             << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
@@ -8719,7 +8719,7 @@ public:
                 for (size_t yi = 0; yi < this->input_y(); ++yi)
                     for (size_t xi = 0; xi < this->input_x(); ++xi) {
                         size_t offset = input_lay.get_linear_offset({static_cast<tensor::value_type>(bi), static_cast<tensor::value_type>(fi),
-                                                                    static_cast<tensor::value_type>(xi), static_cast<tensor::value_type>(yi), 0, 0});
+                                                                    static_cast<tensor::value_type>(yi), static_cast<tensor::value_type>(xi)});
                         input_flat[offset] = this->_input[bi][fi][yi][xi];
                     }
         set_values(input_mem, input_flat);
@@ -8753,7 +8753,7 @@ public:
                 for (size_t yi = 0; yi < expected[0][0].size(); ++yi)
                     for (size_t xi = 0; xi < expected[0][0][0].size(); ++xi) {
                         size_t offset = out_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
+                                                                static_cast<int32_t>(yi), static_cast<int32_t>(xi)});
 
                         ASSERT_EQ(out_ptr[offset], expected[bi][fi][yi][xi])
                             << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
@@ -9520,7 +9520,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
         for (int ofi = 0; ofi < out_lay.feature(); ++ofi)
             for (int yi = 0; yi < out_lay.spatial(1); ++yi)
                 for (int xi = 0; xi < out_lay.spatial(0); ++xi) {
-                    auto offset = out_lay.get_linear_offset({bi, ofi, xi, yi, 0, 0});
+                    auto offset = out_lay.get_linear_offset({bi, ofi, yi, xi});
                     auto val = out_ptr[offset];
                     auto val_ref = expected_result[bi][ofi][yi][xi];
                     auto equal = are_equal(val_ref, val, 1);

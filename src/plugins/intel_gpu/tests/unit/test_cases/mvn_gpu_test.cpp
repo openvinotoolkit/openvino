@@ -40,9 +40,15 @@ void mvn_compute_mean_across_channels(cldnn::memory::ptr output, bool normalize_
             for (uint32_t z = 0; z < z_size; z++) {
                 for (uint32_t y = 0; y < y_size; ++y) {
                     for (uint32_t x = 0; x < x_size; ++x) {
-                        size_t data_index = output->get_layout().get_linear_offset({static_cast<int32_t>(b), static_cast<int32_t>(f),
-                                                                            static_cast<int32_t>(x), static_cast<int32_t>(y),
-                                                                            static_cast<int32_t>(z), 0});
+                        size_t data_index; // spatial(x, y, z, 0)
+                        if (l.get_spatial_rank() == 3)
+                            data_index = output->get_layout().get_linear_offset({static_cast<int32_t>(b), static_cast<int32_t>(f),
+                                                                            static_cast<int32_t>(z), static_cast<int32_t>(y),
+                                                                            static_cast<int32_t>(x)});
+                        else if (l.get_spatial_rank() == 2)
+                            data_index = output->get_layout().get_linear_offset({static_cast<int32_t>(b), static_cast<int32_t>(f),
+                                                                            static_cast<int32_t>(y), static_cast<int32_t>(x)});
+                        else std::runtime_error("Unimplemented!");
                         float data = static_cast<float>(buff[data_index]);
                         sum += data;
                         if (normalize_variance)
@@ -84,9 +90,15 @@ void mvn_compute_mean_within_channels(cldnn::memory::ptr output, bool normalize_
             for (uint32_t z = 0; z < z_size; ++z) {
                 for (uint32_t y = 0; y < y_size; ++y) {
                     for (uint32_t x = 0; x < x_size; ++x) {
-                        size_t data_index = output->get_layout().get_linear_offset({static_cast<int32_t>(b), static_cast<int32_t>(f),
-                                                                            static_cast<int32_t>(x), static_cast<int32_t>(y),
-                                                                            static_cast<int32_t>(z), 0});
+                        size_t data_index; // spatial(x, y, z, 0)
+                        if (l.get_spatial_rank() == 3)
+                            data_index = output->get_layout().get_linear_offset({static_cast<int32_t>(b), static_cast<int32_t>(f),
+                                                                            static_cast<int32_t>(z), static_cast<int32_t>(y),
+                                                                            static_cast<int32_t>(x)});
+                        else if (l.get_spatial_rank() == 2)
+                            data_index = output->get_layout().get_linear_offset({static_cast<int32_t>(b), static_cast<int32_t>(f),
+                                                                            static_cast<int32_t>(y), static_cast<int32_t>(x)});
+                        else std::runtime_error("Unimplemented!");
                         float data = static_cast<float>(buff[data_index]);
                         sum += data;
                         if (normalize_variance)
@@ -603,9 +615,15 @@ struct mvn_random_test : ::testing::TestWithParam<mvn_basic_test_params> {
                 for (size_t zi = 0; zi < static_cast<size_t>(l.spatial(2)); ++zi) {
                     for (size_t yi = 0; yi < static_cast<size_t>(l.spatial(1)); ++yi) {
                         for (size_t xi = 0; xi < static_cast<size_t>(l.spatial(0)); ++xi) {
-                            auto offset = mem->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                            static_cast<int32_t>(xi), static_cast<int32_t>(yi),
-                                                                            static_cast<int32_t>(zi), 0});
+                            size_t offset; // spatial(xi, yi, zi, 0)
+                            if (l.get_spatial_rank() == 3)
+                                offset = mem->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
+                                                                            static_cast<int32_t>(zi), static_cast<int32_t>(yi),
+                                                                            static_cast<int32_t>(xi)});  // spatial(xi, yi, zi, 0)
+                            else if (l.get_spatial_rank() == 2)
+                                offset = mem->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
+                                                                                static_cast<int32_t>(yi), static_cast<int32_t>(xi)});
+                            else std::runtime_error("Unimplemented!");                                        
                             ptr[offset] = data[bi][fi][xi][yi][zi];
                         }
                     }
@@ -777,9 +795,14 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
             for (size_t fi = 0; fi < static_cast<size_t>(l.feature()); ++fi) {
                 for (size_t zi = 0; zi < static_cast<size_t>(l.spatial(2)); ++zi) {
                     for (size_t yi = 0; yi < static_cast<size_t>(l.spatial(1)); ++yi) {
-                        auto offset = mem->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                            0, static_cast<int32_t>(yi),
-                                                                            static_cast<int32_t>(zi), 0});
+                        size_t offset; // spatial(0, yi, zi, 0)
+                        if (l.get_spatial_rank() == 3)
+                            offset = mem->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
+                                                                        static_cast<int32_t>(zi), static_cast<int32_t>(yi), 0});
+                        else if (l.get_spatial_rank() == 2)
+                            offset = mem->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
+                                                                            static_cast<int32_t>(yi), 0});
+                        else std::runtime_error("Unimplemented!");
                         for (size_t xi = 0; xi < static_cast<size_t>(l.spatial(0)); ++xi) {
                             ptr[offset + xi] = data[bi][fi][xi][yi][zi];
                         }
@@ -804,8 +827,16 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
     }
 
     size_t get_x_pitch(layout& layout) {
-        auto x0 = layout.get_linear_offset({0, 0, 0, 0, 0, 0});
-        auto x1 = layout.get_linear_offset({0, 0, 1, 0, 0, 0});
+        size_t x0, x1; // spatial(1, 0, 0, 0)
+        if (layout.get_spatial_rank() == 3) {
+            x0 = layout.get_linear_offset({0, 0, 0, 0, 0});
+            x1 = layout.get_linear_offset({0, 0, 0, 0, 1});
+        }
+        else if (layout.get_spatial_rank() == 2) {
+            x0 = layout.get_linear_offset({0, 0, 0, 0});
+            x1 = layout.get_linear_offset({0, 0, 0, 1});
+        }
+        else std::runtime_error("Unimplemented!");
         return (x1 - x0);
     }
 
@@ -827,10 +858,20 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
                 for (size_t yi = 0; yi < y; ++yi) {
-                    auto ref_out_offset = output_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                        static_cast<int32_t>(0), static_cast<int32_t>(yi), 0, 0});
-                    auto opt_out_offset = opt_output_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                        static_cast<int32_t>(0), static_cast<int32_t>(yi), 0, 0});
+                    size_t ref_out_offset, opt_out_offset; // spatial(0, yi, 0, 0)
+                    if (output_lay.get_spatial_rank() == 3) {
+                        ref_out_offset = output_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
+                                                                        0, static_cast<int32_t>(yi), 0});
+                        opt_out_offset = opt_output_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
+                                                                        0, static_cast<int32_t>(yi), 0});
+                    }
+                    else if (output_lay.get_spatial_rank() == 2) {
+                        ref_out_offset = output_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
+                                                                        static_cast<int32_t>(yi), 0});
+                        opt_out_offset = opt_output_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
+                                                                        static_cast<int32_t>(yi), 0});
+                    }
+                    else std::runtime_error("Unimplemented!");
                     for (size_t xi = 0; xi < x; ++xi) {
                         auto ref_out_val = ref_ptr[ref_out_offset + xi * ref_x_pitch];
                         auto opt_out_val = opt_ptr[opt_out_offset + xi * opt_x_pitch];

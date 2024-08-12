@@ -135,8 +135,8 @@ struct padding {
 
     /// @brief Gets lower padding sizes. For spatials, it means size of left (X) and top (Y) padding.
     /// @return Tensor with padding for top/left/lower bounds of data.
-    std::vector<tensor::value_type> lower_size() const {
-        std::vector<tensor::value_type> sizes(sizeof(_lower_size) / sizeof(_lower_size[0]), 0);
+    std::vector<tensor::value_type> lower_size(const size_t max_size = 0) const {  // TODO: get shape size
+        std::vector<tensor::value_type> sizes(max_size == 0 ? sizeof(_lower_size) / sizeof(_lower_size[0]) : max_size, 0);
         for (size_t i = 0; i < sizes.size(); ++i)
             sizes[i] = _lower_size[i];
         return sizes;
@@ -144,8 +144,8 @@ struct padding {
 
     /// @brief Gets upper padding sizes. For spatials, it means size of right (X) and bottom (Y) padding.
     /// @return Tensor with padding for bottom/right/upper bounds of data.
-    std::vector<tensor::value_type> upper_size() const {
-        std::vector<tensor::value_type> sizes(sizeof(_upper_size) / sizeof(_upper_size[0]), 0);
+    std::vector<tensor::value_type> upper_size(const size_t max_size = 0) const {
+        std::vector<tensor::value_type> sizes(max_size == 0 ? sizeof(_upper_size) / sizeof(_upper_size[0]) : max_size, 0);
         for (size_t i = 0; i < sizes.size(); ++i)
             sizes[i] = _upper_size[i];
         return sizes;
@@ -158,8 +158,8 @@ struct padding {
         std::fill_n(_dynamic_pad_dims + cnt, SHAPE_RANK_MAX - cnt, 0);
     }
 
-    std::vector<tensor::value_type> get_dynamic_pad_dims() const {
-        std::vector<tensor::value_type> sizes(sizeof(_dynamic_pad_dims) / sizeof(_dynamic_pad_dims[0]), 0);
+    std::vector<tensor::value_type> get_dynamic_pad_dims(const size_t max_size = 0) const {
+        std::vector<tensor::value_type> sizes(max_size == 0 ? sizeof(_dynamic_pad_dims) / sizeof(_dynamic_pad_dims[0]) : max_size, 0);
         for (size_t i = 0; i < sizes.size(); ++i)
             sizes[i] = _dynamic_pad_dims[i];
         return sizes;
@@ -502,14 +502,14 @@ struct layout {
 
     /// @brief Returns a vector of tensors values, ordered regarding to @p format from the default format.
     template <class T>
-    inline static std::vector<tensor::value_type> format_sizes(const std::vector<T> &_sizes, const cldnn::format &fmt) {
+    inline static std::vector<tensor::value_type> format_sizes(const std::vector<T> &_sizes, const cldnn::format &fmt, const tensor::value_type default_val = 1) {
         const auto& output_order = fmt.order();
-        std::vector<tensor::value_type> sizes(output_order.size(), 1);
+        std::vector<tensor::value_type> sizes(output_order.size(), default_val);
 
         auto default_fmt = format::get_default_format(sizes.size(), format::is_weights_format(fmt), format::is_grouped(fmt));
         const auto& default_order = default_fmt.order();
 
-        for (size_t i = 0; i < sizes.size(); ++i) {
+        for (size_t i = 0; i < std::min(sizes.size(), _sizes.size()); ++i) {
             auto c = output_order[i];
             auto pos = default_order.find(c);
             if (pos == std::string::npos)

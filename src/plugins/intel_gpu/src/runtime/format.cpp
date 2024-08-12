@@ -303,7 +303,7 @@ const std::vector<std::pair<size_t, int>> format::per_axis_block_size(format fmt
 }
 
 format format::find_format(const std::vector<uint64_t>& order,
-                           const std::vector<std::pair<size_t, int>>& block_sizes,
+                           const std::vector<std::pair<size_t, int>>& legacy_block_sizes,
                            bool is_weights,
                            bool is_grouped,
                            bool is_image_2d,
@@ -311,7 +311,7 @@ format format::find_format(const std::vector<uint64_t>& order,
                            bool is_nv12) {
     auto is_suitable_traits = [&](const std::pair<format::type, format_traits>& traits) -> bool {
         return traits.second._order == order &&
-               traits.second.block_sizes == block_sizes &&
+               traits.second.legacy_block_sizes == legacy_block_sizes &&
                format::is_weights_format(traits.first) == is_weights &&
                format::is_grouped(traits.first) == is_grouped &&
                format::is_image_2d(traits.first) == is_image_2d &&
