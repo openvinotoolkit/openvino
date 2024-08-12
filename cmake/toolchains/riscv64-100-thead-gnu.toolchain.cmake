@@ -3,7 +3,7 @@
 #
 
 # NOTE: use T-Head compiler:
-#    git clone https://github.com/T-head-Semi/xuantie-gnu-toolchain.git
+#    git clone https://github.com/XUANTIE-RV/xuantie-gnu-toolchain.git
 #    ./configure --prefix=/opt/riscv
 #    make linux
 #    -DRISCV_TOOLCHAIN_ROOT=/opt/riscv
