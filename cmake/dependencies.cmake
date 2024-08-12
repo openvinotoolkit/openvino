@@ -105,7 +105,7 @@ function(ov_download_tbb)
                 ARCHIVE_WIN "oneapi-tbb-2021.13.0-win-cfg.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "f1a62f89a7d151fd2472890f11454d22d4604ac5030938f82d138fc0ce5a4e19"
+                SHA256 "cae0f879458c221e00f1fb594014752a1a64fd92015e8ba07240bc383d7aad47"
                 USE_NEW_LOCATION TRUE)
     elseif(ANDROID AND X86_64)
         RESOLVE_DEPENDENCY(TBB
@@ -135,7 +135,7 @@ function(ov_download_tbb)
                 ARCHIVE_MAC "oneapi-tbb-2021.13.0-mac.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "3f128e0bcd5496a5eba62cfaa1fbc664e991df79a4b557a32d314d13fa8726d1"
+                SHA256 "86e07127bfead5c4aad456c765de845013502342bda33d249d8097ed57afe945"
                 USE_NEW_LOCATION TRUE)
     elseif(WIN32 AND AARCH64)
         # build oneTBB 2021.2.1 with Visual Studio 2022 (MSVC 14.35)
@@ -143,7 +143,7 @@ function(ov_download_tbb)
                 ARCHIVE_WIN "oneapi-tbb-2021.13.0-win-arm64-cfg.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "6ab19aebaf1e4eaf2b05566ffc1f0f233e15297a52e89722f72f96cdf87d0003"
+                SHA256 "6778f46aab7628f80707d24cd527227c43ebc84d707d848c78ea2ac83f22a304"
                 USE_NEW_LOCATION TRUE)
     elseif(LINUX AND AARCH64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB with glibc 2.17
@@ -159,7 +159,7 @@ function(ov_download_tbb)
                 ARCHIVE_MAC "oneapi-tbb-2021.13.0-mac-arm64-release.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "f91ce4636355abdfed7cb382e53d483b6295701ea6c1eccac34c107be63a0d81"
+                SHA256 "de9893f8699c15b1c8b46daa7fc51e112e84353d66d5baf1c35574932747c64c"
                 USE_NEW_LOCATION TRUE)
     else()
         message(WARNING "Prebuilt TBB is not available on current platform")
