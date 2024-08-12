@@ -73,6 +73,10 @@ extern template bool evaluate_node<ov::op::v0::LSTMCell>(std::shared_ptr<ov::Nod
                                                          ov::TensorVector& outputs,
                                                          const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v1::ReduceMean>(std::shared_ptr<ov::Node> node,
+                                                           ov::TensorVector& outputs,
+                                                           const ov::TensorVector& inputs);
+
 OPENVINO_SUPPRESS_DEPRECATED_START
 extern template bool evaluate_node<ov::op::v0::LSTMSequence>(std::shared_ptr<ov::Node> node,
                                                              ov::TensorVector& outputs,
@@ -484,6 +488,14 @@ extern template bool evaluate_node<ov::op::v13::BitwiseOr>(std::shared_ptr<ov::N
 extern template bool evaluate_node<ov::op::v13::BitwiseXor>(std::shared_ptr<ov::Node> node,
                                                             ov::TensorVector& outputs,
                                                             const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v15::BitwiseLeftShift>(std::shared_ptr<ov::Node> node,
+                                                                  ov::TensorVector& outputs,
+                                                                  const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v15::BitwiseRightShift>(std::shared_ptr<ov::Node> node,
+                                                                   ov::TensorVector& outputs,
+                                                                   const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::v13::NMSRotated>(std::shared_ptr<ov::Node> node,
                                                             ov::TensorVector& outputs,

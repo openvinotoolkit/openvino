@@ -33,6 +33,16 @@ uses OpenVINO backend for performing model quantization in NNCF.
 -  `Compare inference results on one
    picture <#compare-inference-results-on-one-picture>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     import platform
@@ -50,7 +60,7 @@ uses OpenVINO backend for performing model quantization in NNCF.
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4" "tensorflow_datasets>=4.9.0"
     else:
-        %pip install -q "matplotlib>=3.4,<3.7" "tensorflow_datasets>=4.9.0<4.9.3"
+        %pip install -q "matplotlib>=3.4,<3.7" "tensorflow_datasets>=4.9.0,<4.9.3"
 
 
 .. parsed-literal::
@@ -137,8 +147,8 @@ Prepare Dataset
 
 .. parsed-literal::
 
-    2024-07-12 23:29:23.376213: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-07-12 23:29:23.376437: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-08-06 23:31:00.434079: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-08-06 23:31:00.434310: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 .. code:: ipython3
@@ -253,6 +263,8 @@ Model Fine-tuning
     bit_model_url = "https://www.kaggle.com/models/google/bit/frameworks/TensorFlow2/variations/m-r50x1/versions/1"
     bit_m = hub.KerasLayer(bit_model_url, trainable=True)
 
+    tf_model_dir = Path("bit_tf_model")
+
     # Customize the model for the new task
     model = tf.keras.Sequential([bit_m, tf.keras.layers.Dense(NUM_CLASSES, activation="softmax")])
 
@@ -269,12 +281,12 @@ Model Fine-tuning
         epochs=FINE_TUNING_STEPS,
         validation_data=validation_dataset.take(1000),
     )
-    model.save("./bit_tf_model/", save_format="tf")
+    model.save(tf_model_dir, save_format="tf")
 
 
 .. parsed-literal::
 
-    101/101 [==============================] - 968s 9s/step - loss: 0.5046 - accuracy: 0.8758 - val_loss: 0.0804 - val_accuracy: 0.9660
+    101/101 [==============================] - 960s 9s/step - loss: 0.4738 - accuracy: 0.8870 - val_loss: 0.0864 - val_accuracy: 0.9720
 
 
 .. parsed-literal::
@@ -289,7 +301,7 @@ Perform model optimization (IR) step
 
 .. code:: ipython3
 
-    ir_path = Path("./bit_ov_model/bit_m_r50x1_1.xml")
+    ir_path = Path("bit_ov_model/bit_m_r50x1_1.xml")
     if not ir_path.exists():
         print("Initiating model optimization..!!!")
         ov_model = ov.convert_model("./bit_tf_model")
@@ -310,7 +322,7 @@ Compute accuracy of the TF model
 
 .. code:: ipython3
 
-    tf_model = tf.keras.models.load_model("./bit_tf_model/")
+    tf_model = tf.keras.models.load_model(tf_model_dir)
 
     tf_predictions = []
     gt_label = []
@@ -367,7 +379,7 @@ Select device for inference:
 
 .. code:: ipython3
 
-    ov_fp32_model = core.read_model("./bit_ov_model/bit_m_r50x1_1.xml")
+    ov_fp32_model = core.read_model(ir_path)
     ov_fp32_model.reshape([1, IMG_SIZE[0], IMG_SIZE[1], 3])
 
     # Target device set to CPU (Other options Ex: AUTO/GPU/dGPU/)
@@ -405,15 +417,16 @@ Model Quantization using NNCF
         return image
 
 
+    int8_ir_path = Path("bit_ov_int8_model/bit_m_r50x1_1_ov_int8.xml")
     val_ds = validation_ds.map(nncf_preprocessing, num_parallel_calls=tf.data.experimental.AUTOTUNE).batch(1).prefetch(tf.data.experimental.AUTOTUNE)
 
     calibration_dataset = nncf.Dataset(val_ds)
 
-    ov_fp32_model = core.read_model("./bit_ov_model/bit_m_r50x1_1.xml")
+    ov_fp32_model = core.read_model(ir_path)
 
     ov_int8_model = nncf.quantize(ov_fp32_model, calibration_dataset, fast_bias_correction=False)
 
-    ov.save_model(ov_int8_model, "./bit_ov_int8_model/bit_m_r50x1_1_ov_int8.xml")
+    ov.save_model(ov_int8_model, int8_ir_path)
 
 
 
@@ -465,7 +478,7 @@ Compute accuracy of the quantized model
 
 .. code:: ipython3
 
-    nncf_quantized_model = core.read_model("./bit_ov_int8_model/bit_m_r50x1_1_ov_int8.xml")
+    nncf_quantized_model = core.read_model(int8_ir_path)
     nncf_quantized_model.reshape([1, IMG_SIZE[0], IMG_SIZE[1], 3])
 
     # Target device set to CPU by default
@@ -502,10 +515,10 @@ Compare FP32 and INT8 accuracy
 
 .. parsed-literal::
 
-    Accuracy of the tensorflow model (fp32):  96.60%
-    Accuracy of the OpenVINO optimized model (fp32):  96.60%
-    Accuracy of the OpenVINO quantized model (int8):  96.20%
-    Accuracy drop between OV FP32 and INT8 model: 0.4%
+    Accuracy of the tensorflow model (fp32):  97.20%
+    Accuracy of the OpenVINO optimized model (fp32):  97.20%
+    Accuracy of the OpenVINO quantized model (int8):  97.20%
+    Accuracy drop between OV FP32 and INT8 model: 0.0%
 
 
 Compare inference results on one picture
@@ -547,11 +560,11 @@ Compare inference results on one picture
 
 
     # OpenVINO FP32 model
-    ov_fp32_model = core.read_model("./bit_ov_model/bit_m_r50x1_1.xml")
+    ov_fp32_model = core.read_model(ir_path)
     ov_fp32_model.reshape([1, IMG_SIZE[0], IMG_SIZE[1], 3])
 
     # OpenVINO INT8 model
-    ov_int8_model = core.read_model("./bit_ov_int8_model/bit_m_r50x1_1_ov_int8.xml")
+    ov_int8_model = core.read_model(int8_ir_path)
     ov_int8_model.reshape([1, IMG_SIZE[0], IMG_SIZE[1], 3])
 
     # OpenVINO FP32 model inference
