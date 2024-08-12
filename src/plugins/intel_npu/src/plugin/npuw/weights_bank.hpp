@@ -10,8 +10,10 @@
 #include <unordered_map>
 
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "plugin.hpp"
 
 namespace ov {
 namespace npuw {

@@ -114,7 +114,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     // Initialize weights bank
     const std::string weights_bank_opt = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
-    m_weights_bank = ov::npuw::weights::bank(weights_bank_opt);
+    m_weights_bank = ov::npuw::weights::bank(weights_bank_opt, plugin);
 
     LOG_VERB("*** Original model ***");
     const auto& orig_parameters = model->get_parameters();
