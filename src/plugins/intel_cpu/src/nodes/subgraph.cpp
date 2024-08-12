@@ -15,6 +15,8 @@
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/propagate_precision.hpp"
 #include "snippets/pass/positioned_pass.hpp"
+#include "snippets/pass/canonicalization.hpp"
+#include "snippets/pass/analyze_broadcastable_inputs.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
@@ -618,7 +620,7 @@ void Subgraph::initPluginBlockedShapes() const {
         in_shapes[i] = srcMemPtrs[i]->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
 }
 
-Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() const {
+Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     DataFlowPasses backend_passes;
 
     using PassPosition = ov::snippets::pass::PassPosition;
@@ -626,6 +628,8 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() const {
 
 #   define SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(PASS_PLACE, PASS, ...) \
             backend_passes.emplace_back(PassPosition(PASS_PLACE), std::make_shared<PASS>(__VA_ARGS__))
+#   define SNIPPETS_REGISTER_PASS_RELATIVE_COMMON(PASS_PLACE, TARGET_PASS, PASS, ...) \
+            backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), std::make_shared<PASS>(__VA_ARGS__))
 
 #if defined(OPENVINO_ARCH_X86_64)
 #   define SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(PASS_PLACE, PASS, ...) \
@@ -638,6 +642,8 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() const {
 #endif  // OPENVINO_ARCH_X86_64
 
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineStart, ConvertToSwishCPU);
+    SNIPPETS_REGISTER_PASS_RELATIVE_COMMON(Place::After, ov::snippets::pass::Canonicalization,
+                                           ov::snippets::pass::AnalyzeBroadcastableInputs, broadcastable_inputs);
     if (context->getConfig().inferencePrecision == ov::element::bf16 && subgraph_attrs->snippet->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement
@@ -661,6 +667,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() const {
 #endif
 
 #undef SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON
+#undef SNIPPETS_REGISTER_PASS_RELATIVE_COMMON
 #undef SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_X86_64
 
@@ -698,14 +705,11 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
 }
 
 uint8_t Subgraph::getBroadcastingMask(const std::vector<VectorDims>& input_shapes) {
-    // TODO: add check for non-eltwise inputs
-    if (subgraph_attrs->snippet->has_domain_sensitive_ops())
-        return 0;
-
     uint8_t mask = 0;
-    for (const auto& shape : input_shapes) {
+    for (const auto& broadcastable_input : broadcastable_inputs) {
+        const auto& shape = input_shapes[broadcastable_input.first];
         mask = mask << 1;
-        if (shape.back() == 1)
+        if (*(shape.rbegin() + broadcastable_input.second) == 1)
             mask = mask | 1;
     }
     return mask;
@@ -717,6 +721,16 @@ void Subgraph::optimizeIR() {
     const auto in_blocked_shapes = getSnippetsBlockedShapes();
     const auto precisions = getIOPrecisions();
     subgraph->data_flow_transformations(in_blocked_shapes, precisions.first, precisions.second, getDataFlowPasses());
+
+    // DataFlow transformations includes AnalyzeBroadcastableInputs pass:
+    // we should verify that the received map is aligned with our blocked input shapes
+    OPENVINO_ASSERT((broadcastable_inputs.size() < in_shapes.size()) ||
+                    (!broadcastable_inputs.empty() && broadcastable_inputs.rbegin()->first < in_shapes.size()),
+                    "Incorrect indexes of broadcastable inputs of Subgraph");
+    for (const auto broadcastable_input : broadcastable_inputs) {
+        OPENVINO_ASSERT(broadcastable_input.second < in_shapes[broadcastable_input.first].size(),
+                        "Incorrect processing dimension index of broadcastable index");
+    }
 
     // TODO: Snippets don't support backend-provided blocking, so we need to reshape body
     //       using blocked shapes first. This can be removed after [121670]

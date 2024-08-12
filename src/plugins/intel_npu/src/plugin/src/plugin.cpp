@@ -135,10 +135,23 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
 }
 
 size_t getFileSize(std::istream& stream) {
+    auto log = Logger::global().clone("getFileSize");
+    if (!stream) {
+        OPENVINO_THROW("Stream is in bad status! Please check the passed stream status!");
+    }
+
     const size_t streamStart = stream.tellg();
     stream.seekg(0, std::ios_base::end);
     const size_t streamEnd = stream.tellg();
     stream.seekg(streamStart, std::ios_base::beg);
+
+    log.debug("Read blob size: streamStart=%zu, streamEnd=%zu", streamStart, streamEnd);
+
+    if (streamEnd < streamStart) {
+        OPENVINO_THROW("Invalid stream size: streamEnd (", streamEnd,
+                       ") is not larger than streamStart (", streamStart, ")!");
+    }
+
     return streamEnd - streamStart;
 }
 
@@ -159,6 +172,7 @@ namespace intel_npu {
 static Config merge_configs(const Config& globalConfig,
                             const std::map<std::string, std::string>& rawConfig,
                             OptionMode mode = OptionMode::Both) {
+    update_log_level(rawConfig);
     Config localConfig = globalConfig;
     localConfig.update(rawConfig, mode);
     return localConfig;
@@ -189,7 +203,6 @@ Plugin::Plugin()
 
     // parse env_variables to get LOG_LEVEL if needed
     _globalConfig.parseEnvVars();
-    Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
 
     // TODO: generation of available backends list can be done during execution of CMake scripts
     std::vector<AvailableBackends> backendRegistry;
@@ -471,10 +484,10 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [&](const Config& config) {
               if (!config.has<STEPPING>()) {
-                const auto specifiedDeviceName = get_specified_device_name(config);
-                return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
+                  const auto specifiedDeviceName = get_specified_device_name(config);
+                  return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
               } else {
-                return config.get<STEPPING>();
+                  return config.get<STEPPING>();
               }
           }}},
         {ov::intel_npu::max_tiles.name(),
@@ -482,10 +495,10 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [&](const Config& config) {
               if (!config.has<MAX_TILES>()) {
-                const auto specifiedDeviceName = get_specified_device_name(config);
-                return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
+                  const auto specifiedDeviceName = get_specified_device_name(config);
+                  return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
               } else {
-                return config.get<MAX_TILES>();
+                  return config.get<MAX_TILES>();
               }
           }}},
         {ov::intel_npu::compilation_mode.name(),
@@ -607,8 +620,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     const std::map<std::string, std::string> propertiesMap = any_copy(properties);
-    update_log_level(propertiesMap);
     auto localConfig = merge_configs(_globalConfig, propertiesMap);
+    _logger.setLevel(localConfig.get<LOG_LEVEL>());
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
@@ -690,7 +703,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                           const ov::AnyMap& properties,
                                                           const ov::SoPtr<ov::IRemoteContext>& context) const {
     auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
-    OPENVINO_ASSERT(casted, "Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
+    if (casted == nullptr) {
+        OPENVINO_THROW("Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
+    }
 
     return compile_model(model, properties);
 }
@@ -706,20 +721,20 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) con
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
     OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
+
     const std::map<std::string, std::string> propertiesMap = any_copy(properties);
-    update_log_level(propertiesMap);
     auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::RunTime);
+    _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
     auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
 
     set_batch_config(_backends->isBatchingSupported(), localConfig);
 
-    Logger logger("NPUPlugin", localConfig.get<LOG_LEVEL>());
-
     const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
     if (!loadedFromCache) {
-        logger.warning("The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
+        _logger.warning(
+            "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
     }
 
     OV_ITT_TASK_NEXT(PLUGIN_IMPORT_MODEL, "parse");
@@ -730,11 +745,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         auto compiler = getCompiler(localConfig);
 
         auto graphSize = getFileSize(stream);
-        if (graphSize == 0) {
-            OPENVINO_THROW("Blob is empty");
-        }
+
         std::vector<uint8_t> blob(graphSize);
         stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
+        if (!stream) {
+            OPENVINO_THROW("Failed to read data from stream!");
+        }
+        _logger.debug("Successfully read %zu bytes into blob.", graphSize);
 
         auto meta = compiler->parse(blob, localConfig);
         meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
@@ -766,18 +783,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     return compiledModel;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& /*stream*/,
-                                                         const ov::SoPtr<ov::IRemoteContext>& /*context*/,
-                                                         const ov::AnyMap& /*properties*/) const {
-    OPENVINO_THROW_NOT_IMPLEMENTED("The remote context feature is not supported by the NPU plugin");
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& properties) const {
+    auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
+    if (casted == nullptr) {
+        OPENVINO_THROW("Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
+    }
+
+    return import_model(stream, properties);
 }
 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
     const std::map<std::string, std::string> propertiesMap = any_copy(properties);
-    update_log_level(propertiesMap);
     auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::CompileTime);
+    _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
@@ -796,7 +818,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
 ov::SoPtr<ICompiler> Plugin::getCompiler(const Config& config) const {
     auto compilerType = config.get<COMPILER_TYPE>();
-    return createCompiler(compilerType, _logger);
+    return createCompiler(compilerType);
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};
