@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-
+set(ENABLE_LTO OFF)
 set (TARGET_NAME "openvino_runtime")
 
 file (GLOB LIBRARY_SRC
