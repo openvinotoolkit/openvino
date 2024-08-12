@@ -86,7 +86,8 @@ level ``execution_mode`` property.
 
    When using ``execution_mode``, you need to be aware that using **ACCURACY mode**
    will result in enabling ``f32`` inference precision, but it will also disable
-   :ref:`Dynamic Quantization <enabling-runtime-optimizations>`.
+   :ref:`dynamic quantization <enabling-runtime-optimizations>`. This may highly affect
+   inference performance (esp. on the Xeon CPUs and Intel GPUs)
 
 Another thing is that ``inference_precision`` is also a hint, so the value provided is not guaranteed
 to be used by Runtime (mainly in cases where the current device does not have the required hardware
