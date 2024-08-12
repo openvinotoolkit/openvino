@@ -108,7 +108,7 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
         cldnn::primitive_id wr_concat_id = layerName + "_WRconcat";
         p.add_primitive(*op, cldnn::concatenation(wr_concat_id, { inputs[3], inputs[4] }, 1));
         p.add_primitive(*op, cldnn::fully_connected(lstm_fc_id, cldnn::input_info(input_concatID), wr_concat_id, bias.pid));
-        p.add_primitive(*op, cldnn::lstm_elt({lstm_elt_id, cldnn::input_info(lstm_fc_id), cldnn::input_info(inputs[2]), cldnn::input_info(), \
+        p.add_primitive(*op, cldnn::lstm_elt({lstm_elt_id, cldnn::input_info(lstm_fc_id), cldnn::input_info(), cldnn::input_info(inputs[2]), \
         cldnn::input_info(), cldnn::input_info(), cldnn::input_info(), cldnn::input_info(), "", "", clip, activations,
                                             activation_params, cldnn::lstm_weights_order::fizo}, 0));
 
