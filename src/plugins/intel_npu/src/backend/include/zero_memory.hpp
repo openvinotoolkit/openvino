@@ -96,7 +96,7 @@ private:
 struct MemoryManagementUnit {
     MemoryManagementUnit() = default;
 
-    void appendArgument(const std::string& name, const std::size_t argSize);
+    void appendArgument(const std::size_t argSize);
 
     void allocate(const ze_device_handle_t device_handle, const ze_context_handle_t context);
 
@@ -104,7 +104,7 @@ struct MemoryManagementUnit {
     const void* getDeviceMemRegion() const;
     void* getDeviceMemRegion();
 
-    void* getDevicePtr(const std::string& name);
+    void* getDevicePtr(const size_t index);
 
     bool checkHostPtr(const void* ptr) const;
 
@@ -112,7 +112,7 @@ private:
     std::size_t _size = 0;
 
     std::unique_ptr<DeviceMem> _device;
-    std::map<std::string, std::size_t> _offsets;
+    std::vector<std::size_t> _offsets;
 
     static const std::size_t alignment = STANDARD_PAGE_SIZE;
 };
