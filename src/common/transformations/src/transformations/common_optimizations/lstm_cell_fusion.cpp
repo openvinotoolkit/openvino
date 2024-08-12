@@ -23,7 +23,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov;
+using namespace ov::pass;
 
 namespace {
 static std::string get_activation_name(const std::shared_ptr<ov::Node>& node) {
