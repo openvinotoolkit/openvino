@@ -24,20 +24,31 @@ def parse_transformations_log(file_name):
 
 
 def check_transformations(file_name, ts_names):
-    ts_names_dq = deque(ts_names)
+    not_executed = deque(ts_names)
+    false_executed = set()
     for ts_name, status in parse_transformations_log(file_name):
-        if not ts_names_dq:
+        if not not_executed and not false_executed:
             break
-        if status != '1':
-            continue
-        for _ in range(len(ts_names_dq)):
-            name = ts_names_dq.popleft()
-            if name == ts_name:
+        for _ in range(len(not_executed)):
+            not_executed_name = not_executed.popleft()
+            if not_executed_name == ts_name:
+                if status != '1':
+                    false_executed.add(not_executed_name)
                 break
-            ts_names_dq.append(name)
-    if ts_names_dq:
-        names = ','.join(ts_names_dq)
-        pytest.fail(f'transformation(s) {names} not executed or executed without success')
+            not_executed.append(not_executed_name)
+        if ts_name in false_executed and status == '1':
+            false_executed.remove(ts_name)
+    if not_executed or false_executed:
+        fail_text = ''
+        if not_executed:
+            not_executed_names = ','.join(not_executed)
+            fail_text = f'transformation(s) {not_executed_names} not executed'
+        if false_executed:
+            false_executed_names = ','.join(false_executed)
+            if bool(fail_text):
+                fail_text += '; '
+            fail_text += f'transformation(s) {false_executed_names} executed with false return'
+        pytest.fail(fail_text)
 
 
 def check_operations(actual_layer_types, expected_layer_types):
