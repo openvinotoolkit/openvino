@@ -20,7 +20,9 @@ static void CreateScatterElementsUpdateOp(ProgramBuilder& p, const std::shared_p
     auto axes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
     OPENVINO_ASSERT(axes_constant, "Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
-    int64_t axis = ov::util::normalize_axis(op.get(), axes_constant->cast_vector<int64_t>()[0], op->get_input_partial_shape(0).rank());
+    int64_t axis = ov::util::try_normalize_axis(axes_constant->cast_vector<int64_t>()[0],
+                                                op->get_input_partial_shape(0).rank(),
+                                                *op);
 
     auto mode = cldnn::ScatterElementsUpdateOp::Reduction::NONE;
     auto use_init_val = true;

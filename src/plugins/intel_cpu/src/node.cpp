@@ -671,10 +671,21 @@ void Node::initSupportedPrimitiveDescriptors() {
     * since custom implementations can be not available at all, so a fallback to the default ones must happen
     * To achive the fallback, it is necessary to create a supported primitive descriptor for each implementation
     * since oneDNN primitive is mutating while iterating */
-
+#ifdef CPU_DEBUG_CAPS
+    {
+       if (!customImplPriorities.empty()) {
+            DEBUG_LOG("#", getName(), " customImplPriorities [", 0 , "/", customImplPriorities.size(),
+                        "]: ", impl_type_to_string(customImplPriorities[0]));
+       }
+    }
+#endif
     for (auto& desc : descs) {
         auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
         const bool first_match = customImplPriorities.empty();
+        DEBUG_LOG("#", getName(),
+                       ", itpd.impl_info_str(): ", desc.impl_info_str(),
+                    ", parsed imp_type: ", impl_type_to_string(parse_impl_name(desc.impl_info_str())),
+                    ", first_match: ", first_match ? "true" : "false");
         DnnlExtensionUtils::for_each_implementation(desc,
                                                     first_match,
                                                     [&](impl_desc_type implType) {
@@ -831,16 +842,8 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
     MemoryPtr ptr;
     auto weightCache = context->getWeightsCache();
     if (weightCache != nullptr && memory::format_kind::blocked == intDesc->getDnnlDesc().get_format_kind()) {
-        const auto& format = intDesc->serializeFormat();
-        const uint64_t data_hash =
-            weightCache->GetHashFunc().hash(static_cast<const unsigned char*>(internalBlob->getData()),
-                                            internalBlob->getSize());
-
-        const std::string string_hash = name + "_" + std::to_string(indx)
-                                        + "_" + format
-                                        + "_" + std::to_string(internalBlob->getSize())
-                                        + "_" + std::to_string(data_hash);
-
+        const auto string_hash =
+            name + "_" + std::to_string(indx) + "_" + DnnlExtensionUtils::computeWeightsStringHash(internalBlob, intDesc);
         ptr = *weightCache->findOrCreate(string_hash, create);
     } else {
         ptr = create();
@@ -905,10 +908,7 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
 
     auto weightCache = context->getWeightsCache();
     if (weightCache != nullptr) {
-        const std::string string_hash = getName() + "_" + format
-            + "_" + std::to_string(edgeMem->getSize())
-            + "_" + std::to_string(*edgeMem->getDataAs<uint64_t>());
-
+        const auto string_hash = DnnlExtensionUtils::computeWeightsStringHash(edgeMem, dstWeightDesc);
         ptr = *weightCache->findOrCreate(string_hash, create);
     } else {
         ptr = create();

@@ -316,9 +316,9 @@ void Partitioner::identifySubgraphs() {
         for (auto&& layer : group.all_layers) {
             auto it = node_id_cache.find(layer);
             if (node_id_cache.end() == it) {
-                OPENVINO_THROW("NPUW: Fatal error - partitition refers to layer ",
+                OPENVINO_THROW("NPUW: Fatal error - partitition refers to layer \"",
                                layer,
-                               " which was not found in the ov::Model");
+                               "\" which was not found in the ov::Model");
             }
             group_nodes.insert(it->second);
         }
@@ -1226,6 +1226,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             HANDLE_CASE(u4, uint8_t);
             HANDLE_CASE(i32, int);
             HANDLE_CASE(i64, int64_t);
+            HANDLE_CASE(f16, uint16_t);
             HANDLE_CASE(f32, float);
 #undef HANDLE_CASE
         default:
@@ -1246,7 +1247,8 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
 
         if ((((proto_shape.size() == 0 || (proto_shape.size() == 1 && proto_shape[0] <= 10)) &&
               proto_node->output(0).get_element_type().is_integral()) ||
-             (proto_node->output(0).get_element_type() == ov::element::f32 &&
+             ((proto_node->output(0).get_element_type() == ov::element::f32 ||
+               proto_node->output(0).get_element_type() == ov::element::f16) &&
               std::accumulate(proto_shape.begin(), proto_shape.end(), size_t{1}, std::multiplies<std::size_t>()) ==
                   1)) &&
             std::all_of(instances.begin(), instances.end(), [&](const CTPtr& other_node) -> bool {
@@ -1622,6 +1624,9 @@ void Partitioner::decompressionCutOff(const std::string& func_name) {
         // LLaMaGPTQ
         rewr.add_matcher<ov::npuw::patterns::SymmZP::DCOFFPassReshape2>(dcoff_mode, dcoff_type, std::ref(params_to));
 
+        // Phi-3 4SymW16A/GPTQ
+        rewr.add_matcher<ov::npuw::patterns::SymmZP::DCOFFPassCWAI3>(dcoff_mode, dcoff_type, std::ref(params_to));
+
         rewr.run_on_model(f._model);
 
         ov::pass::Validate val;
@@ -1781,8 +1786,9 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 LOG_BLOCK();
                 this_group.repeated_id = std::move(new_id);
                 ov::npuw::RepeatedBlock this_block;
-                for (auto&& layer : this_group.all_layers) {
-                    this_block.matches.push_back(ov::npuw::RepeatedBlock::MatchedLayers{std::move(layer)});
+                for (const auto& layer : this_group.all_layers) {
+                    // Note: NOT move(layer)! It breaks the code here.
+                    this_block.matches.push_back(ov::npuw::RepeatedBlock::MatchedLayers{layer});
                 }
                 ens.repeated[this_group.repeated_id] = std::move(this_block);
                 LOG_INFO("Done.");
