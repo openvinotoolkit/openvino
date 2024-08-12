@@ -22,6 +22,18 @@
 
 namespace ov {
 namespace intel_cpu {
+
+class SimpleDataHash {
+public:
+    SimpleDataHash();
+    // Computes 64-bit "cyclic redundancy check" sum, as specified in ECMA-182
+    uint64_t hash(const unsigned char* data, size_t size) const;
+
+protected:
+    static constexpr int kTableSize = 256;
+    uint64_t table[kTableSize];
+};
+
 /**
  * Caching store of Memory objects
  * Will return a cached object or create new one
@@ -69,9 +81,12 @@ public:
 
     SharedMemory::Ptr get(const std::string& key) const;
 
+    static const SimpleDataHash& GetHashFunc () { return simpleCRC; }
+
 protected:
     mutable std::mutex guard;
     std::unordered_map<std::string, MemoryInfo::Ptr> sharedWeights;
+    static const SimpleDataHash simpleCRC;
 };
 
 /**

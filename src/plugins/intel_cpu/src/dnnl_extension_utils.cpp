@@ -13,6 +13,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
 #include "utils/general_utils.h"
+#include "weights_cache.hpp"
 
 using namespace dnnl;
 
@@ -266,10 +267,14 @@ bool DnnlExtensionUtils::isUnarySupportedAsPostOp(Algorithm alg) {
 #endif
 }
 
-std::string DnnlExtensionUtils::computeWeightsStringHash(const std::shared_ptr<const IMemory> memory,
-                                                         const std::shared_ptr<DnnlMemoryDesc> dstDesc) {
-    const auto desc_hash = dnnl::impl::primitive_hashing::get_md_hash(*dstDesc->getDnnlDesc().get());
-    return std::to_string(desc_hash) + "_" + std::to_string(reinterpret_cast<uint64_t>(memory->getData()));
+std::string DnnlExtensionUtils::computeWeightsStringHash(const std::shared_ptr<const IMemory>& memory,
+                                                         const std::shared_ptr<DnnlMemoryDesc>& dstDesc,
+                                                         const WeightsSharing::Ptr& weight_cache) {
+    const auto data_hash = weight_cache->GetHashFunc().hash(reinterpret_cast<const unsigned char*>(memory->getData()),
+                                                                                                   memory->getSize());
+    const auto string_hash = std::to_string(dnnl::impl::primitive_hashing::get_md_hash(*dstDesc->getDnnlDesc().get())) + "_" + std::to_string(data_hash);
+
+    return string_hash;
 }
 
 }   // namespace intel_cpu

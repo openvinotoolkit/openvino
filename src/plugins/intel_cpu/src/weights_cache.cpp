@@ -10,6 +10,8 @@
 namespace ov {
 namespace intel_cpu {
 
+const SimpleDataHash WeightsSharing::simpleCRC;
+
 WeightsSharing::SharedMemory::SharedMemory(
         std::unique_lock<std::mutex> && lock,
         const MemoryInfo::Ptr & memory,
@@ -87,6 +89,25 @@ const WeightsSharing::Ptr& SocketsWeights::operator[](int socket_id) const {
     if (found == _cache_map.end())
         OPENVINO_THROW("Unknown socket id ", socket_id);
     return found->second;
+}
+
+////////// SimpleDataHash //////////
+
+SimpleDataHash::SimpleDataHash() {
+    for (int i = 0; i < kTableSize; i++) {
+        uint64_t c = i;
+        for (int j = 0; j < 8; j++)
+            c = ((c & 1) ? 0xc96c5795d7870f42 : 0) ^ (c >> 1);
+        table[i] = c;
+    }
+}
+
+uint64_t SimpleDataHash::hash(const unsigned char* data, size_t size) const {
+    uint64_t crc = 0;
+    for (size_t idx = 0; idx < size; idx++)
+        crc = table[(unsigned char)crc ^ data[idx]] ^ (crc >> 8);
+
+    return ~crc;
 }
 
 }   // namespace intel_cpu
