@@ -155,7 +155,8 @@ bool check_for_broadcast(const ov::PartialShape& ref_shape, const ov::PartialSha
     return false;
 }
 
-bool broadcasted_only_channel(const ov::PartialShape& weights_shape, const ov::PartialShape& const_shape) {
+bool broadcasted_only_channel(const ov::PartialShape& weights_shape,
+                              const ov::PartialShape& const_shape) {
     if (const_shape.size() > weights_shape.size()) {
         return false;
     }
