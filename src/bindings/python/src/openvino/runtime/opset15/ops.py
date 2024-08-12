@@ -144,3 +144,45 @@ def embedding_bag_packed(
         inputs.append(per_sample_weights)
 
     return _get_node_factory_opset15().create("EmbeddingBagPacked", as_nodes(*inputs, name=name), {"reduction": reduction})
+
+
+@nameable_op
+def roi_align_rotated(
+    data: NodeInput,
+    rois: NodeInput,
+    batch_indices: NodeInput,
+    pooled_h: int,
+    pooled_w: int,
+    sampling_ratio: int,
+    spatial_scale: float,
+    clockwise_mode: bool,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs ROIAlignRotated operation.
+
+    :param data: Input data.
+    :param rois: RoIs (Regions of Interest) to pool over.
+    :param batch_indices: Tensor with each element denoting the index of
+                          the corresponding image in the batch.
+    :param pooled_h: Height of the ROI output feature map.
+    :param pooled_w: Width of the ROI output feature map.
+    :param sampling_ratio: Number of bins over height and width to use to calculate
+                           each output feature map element.
+    :param spatial_scale: Multiplicative spatial scale factor to translate ROI coordinates.
+    :param clockwise_mode:  If true, rotation angle is interpreted as clockwise,
+                            otherwise as counterclockwise
+    :param name: The optional name for the output node
+
+    :return: The new node which performs ROIAlignRotated
+    """
+    return _get_node_factory_opset15().create(
+        "ROIAlignRotated",
+        as_nodes(data, rois, batch_indices, name=name),
+        {
+            "pooled_h": pooled_h,
+            "pooled_w": pooled_w,
+            "sampling_ratio": sampling_ratio,
+            "spatial_scale": spatial_scale,
+            "clockwise_mode": clockwise_mode,
+        },
+    )

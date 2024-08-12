@@ -166,6 +166,14 @@ The following properties are supported:
 | `ov::device::architecture`/</br>`DEVICE_ARCHITECTURE` | RO | Returns the platform information. | `N/A`| `N/A` |
 | `ov::device::full_name`/</br>`FULL_DEVICE_NAME` | RO | Returns the full name of the NPU device. | `N/A`| `N/A` |
 | `ov::internal::exclusive_async_requests`/</br>`EXCLUSIVE_ASYNC_REQUESTS` | RW | Allows to use exclusive task executor for asynchronous infer requests. | `YES`/ `NO`| `NO` |
+| `ov::device::type`/</br>`DEVICE_TYPE` | RO | Returns the type of device, discrete or integrated. | `DISCREETE` /</br>`INTEGRATED` | `N/A` |
+| `ov::device::gops`/</br>`DEVICE_GOPS` | RO | Returns the Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported by specified device. | `N/A`| `N/A` |
+| `ov::device::pci_info`/</br>`DEVICE_PCI_INFO` | RO | Returns the PCI bus information of device. See PCIInfo struct definition for details | `N/A`| `N/A` |
+| `ov::intel_npu::device_alloc_mem_size`/</br>`NPU_DEVICE_ALLOC_MEM_SIZE` | RO | Size of already allocated NPU DDR memory (both for discrete/integrated NPU devices) | `N/A` | `N/A` |
+| `ov::intel_npu::device_total_mem_size`/</br>`NPU_DEVICE_TOTAL_MEM_SIZE` | RO | Size of available NPU DDR memory (both for discrete/integrated NPU devices) | `N/A` | `N/A` |
+| `ov::intel_npu::driver_version`/</br>`NPU_DRIVER_VERSION` | RO | NPU driver version (for both discrete/integrated NPU devices). | `N/A` | `N/A` |
+| `ov::intel_npu::compilation_mode_params`/</br>`NPU_COMPILATION_MODE_PARAMS` | RW | Set various parameters supported by the NPU compiler. (See bellow) | `<std::string>`| `N/A` |
+| `ov::intel_npu::turbo`/</br>`NPU_TURBO` | RW | Set Turbo mode on/off | `YES`/ `NO`| `NO` |
 
 &nbsp;
 ### Performance Hint: Default Number of DPU Groups / DMA Engines
@@ -192,6 +200,38 @@ The following table shows the optimal number of inference requests returned by t
 | 3720                | 4                                           | 1                                       |
 | 4000                | 8                                           | 1                                       |
 
+&nbsp;
+### Compilation mode parameters
+``ov::intel_npu::compilation_mode_params`` is an NPU-specific property that allows to control model compilation for NPU.
+Note: The functionality is in experimental stage currently, can be a subject for deprecation and may be replaced with generic OV API in future OV releases.
+
+Following configuration options are supported:
+
+#### optimization-level
+Defines a preset of optimization passes to be applied during compilation. Supported values:
+
+| Value  | Description                                                    |
+| :---   | :---                                                           | 
+| 0      | Reduced subset of optimization passes. Smaller compile time.   |
+| 1      | Default. Balanced performance/compile time.                    |
+| 2      | Prioritize performance over compile time that may be an issue. |
+
+#### performance-hint-override
+An extension for LATENCY mode being specified using ``ov::hint::performance_mode``
+Has no effect for other ``ov::hint::PerformanceMode`` hints.
+
+Supported values:
+
+| Value      | Description                                          |
+| :---       | :---                                                 | 
+| efficiency | Default. Balanced performance and power consumption. |
+| latency    | Prioritize performance over power efficiency.        |
+
+#### Usage example:
+```
+    map<str, str> config = {ov::intel_npu::compilation_mode_params.name(), ov::Any("optimization-level=1 performance-hint-override=latency")};
+    compile_model(model, config);
+```
 
 &nbsp;
 ## Stateful models

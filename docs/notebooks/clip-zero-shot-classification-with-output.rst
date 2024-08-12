@@ -59,6 +59,16 @@ The notebook contains the following steps:
 
 -  `Interactive demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Instantiate model
 -----------------
 
@@ -79,7 +89,7 @@ text features is then used as a similarity score.
 
    clip
 
-`\**image_source\* <https://github.com/openai/CLIP/blob/main/README.md>`__
+`\*image_source <https://github.com/openai/CLIP/blob/main/README.md>`__
 
 You can find more information about this model in the `research
 paper <https://arxiv.org/abs/2103.00020>`__, `OpenAI
@@ -110,12 +120,6 @@ tokenizer and preparing the images.
     else:
         %pip install -q "matplotlib>=3.4,<3.7"
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
-
 .. code:: ipython3
 
     from transformers import CLIPProcessor, CLIPModel
@@ -124,16 +128,6 @@ tokenizer and preparing the images.
     model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16")
     # load preprocessor for model input
     processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch16")
-
-
-.. parsed-literal::
-
-    2024-02-26 12:23:32.559340: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-02-26 12:23:32.561128: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-02-26 12:23:32.599733: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-02-26 12:23:33.401048: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
 
 .. code:: ipython3
 
@@ -316,6 +310,7 @@ Great! Looks like we got the same result.
 
 Quantize model to INT8 using NNCF
 ---------------------------------
+
 
 
 The goal of this part of tutorial is to demonstrate how to speed up the
@@ -739,6 +734,7 @@ up of the dynamic quantized models.
 
 Interactive demo
 ----------------
+
 
 
 Now, it is your turn! You can provide your own image and comma-separated

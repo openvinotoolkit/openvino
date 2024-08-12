@@ -130,6 +130,11 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     const auto& blob = _networkPtr->compiledNetwork;
     stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
+    if (!stream) {
+        _logger.error("Write blob to stream failed. Blob is broken!");
+    } else {
+        _logger.info("Write blob to stream successfully.");
+    }
 
     std::stringstream str;
     str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
@@ -327,6 +332,12 @@ void CompiledModel::initialize_properties() {
           ov::PropertyMutability::RO,
           [](const Config& config) {
               return config.get<COMPILATION_MODE_PARAMS>();
+          }}},
+        {ov::intel_npu::turbo.name(),
+         {isPropertySupported(ov::intel_npu::turbo.name()),
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<TURBO>();
           }}},
         // NPU Private
         // =========

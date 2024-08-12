@@ -67,6 +67,16 @@ from `NNCF <https://github.com/openvinotoolkit/nncf/>`__ is applied.
 
 -  `Interactive demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -74,7 +84,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "transformers>=4.35" "torch>=2.1" onnx "git+https://github.com/huggingface/optimum-intel.git" "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "transformers>=4.35" "torch>=2.1,<2.4.0" onnx "git+https://github.com/huggingface/optimum-intel.git" "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.2.0" datasets  "gradio>=4.0" "librosa" "soundfile"
     %pip install -q "nncf>=2.6.0" "jiwer"
 

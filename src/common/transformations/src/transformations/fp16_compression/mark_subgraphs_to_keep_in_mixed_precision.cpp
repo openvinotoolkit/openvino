@@ -424,6 +424,7 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     RUN_ON_MODEL_SCOPE(MarkSugraphsToKeepInMixedPrecision);
 
     Manager manager(get_pass_config(), "MarkSugraphsToKeepInMixedPrecision");
+    manager.set_per_pass_validation(false);
     // Mark root of Division with eps pattern to keep in FP32
     REGISTER_PASS(manager, MarkDivWithEps)
     REGISTER_PASS(manager, MarkExpInReduceOpPath)

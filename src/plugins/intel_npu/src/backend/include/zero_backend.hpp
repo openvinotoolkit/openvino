@@ -26,9 +26,10 @@ public:
     uint32_t getDriverExtVersion() const override;
 
     bool isBatchingSupported() const override;
-    bool isWorkloadTypeSupported() const override;
+    bool isCommandQueueExtSupported() const override;
 
     void* getContext() const override;
+    void updateInfo(const Config& config) override;
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _instance;
