@@ -14,20 +14,11 @@ Export an LLM model via Hugging Face Optimum-Intel
 
 1. Create python virtual environment and install the correct components for exporting model:
 
-   .. code-block:: text
-
-      # requirements.txt
-      transformers>=4.42.4
-      openvino==2024.2.0
-      openvino-tokenizers==2024.2.0
-      nncf==2.11.0
-      optimum-intel @ git+https://github.com/huggingface/optimum-intel.git
-
    .. code-block:: console
 
       python -m venv export-npu-env
       export-npu-env\Scripts\activate
-      pip install -r requirements.txt
+      pip install transformers>=4.42.4 openvino==2024.2.0 openvino-tokenizers==2024.2.0 nncf==2.11.0 onnx==1.16.1 optimum-intel @ git+https://github.com/huggingface/optimum-intel.git
 
 2. A chat-tuned TinyLlama model is used in this example. The following conversion & optimization settings are recommended when using NPU:
 
@@ -40,22 +31,11 @@ Run the generation by using OpenVINO GenAI
 
 1. Create python virtual environment and install the correct components for running the model on NPU via OpenVINO GenAI:
 
-   .. code-block:: text
-
-      # requirements.txt
-      openvino>=2024.3.1
-      openvino-tokenizers>=2024.3.1
-      openvino-genai>=2024.3.1
-      transformers>=4.42.4
-      torch>=2.4.0+cpu
-      diffusers>=0.29.2
-      optimum-intel @ git+https://github.com/huggingface/optimum-intel.git
-
    .. code-block:: console
 
       python -m venv run-npu-env
       run-npu-env\Scripts\activate
-      pip install -r requirements.txt
+      pip install openvino>=2024.3.1 openvino-tokenizers>=2024.3.1 openvino-genai>=2024.3.1
 
 2. Perform generation using the new GenAI API
 
