@@ -1,0 +1,103 @@
+[
+  {
+    "Platform": "Intel 1 CPU-only",
+    "Model": "bert-base-cased",
+    "Checked": true,
+    "PlatformType": "atom",
+    "Parameters": {
+      "throughput": {
+        "Precisions": [
+          {
+            "int4": "344.4",
+            "int8": "404.9",
+            "int16": "233.5"
+          }
+        ],
+        "Unit": "FPS",
+        "UnitDesc": "higher is better"
+      },
+      "latency": {
+        "Precisions": [
+          {
+            "int4": "444.4",
+            "int8": "404.9",
+            "int16": "233.5"
+          }
+        ],
+        "Unit": "FPS",
+        "UnitDesc": "higher is better"
+      }
+    }
+  },
+  {
+    "Platform": "Intel 2 CPU-only",
+    "Model": "bert-base-cased",
+    "Checked": true,
+    "PlatformType": "atom",
+    "Parameters": {
+      "throughput": {
+        "Precisions": [
+          {
+            "int4": "244.4",
+            "int8": "204.9",
+            "int16": "233.5"
+          }
+        ],
+        "Unit": "FPS",
+        "UnitDesc": "higher is better"
+      },
+      "latency": {
+        "Precisions": [
+          {
+            "int4": "244.4",
+            "int8": "204.9",
+            "int16": "233.5"
+          }
+        ],
+        "Unit": "FPS",
+        "UnitDesc": "higher is better"
+      },
+      "value": {
+        "Precisions": [
+          {
+            "int4": "244.4",
+            "int8": "204.9",
+            "int16": "233.5"
+          }
+        ],
+        "Unit": "FPS",
+        "UnitDesc": "higher is better"
+      }
+    }
+  },
+  {
+    "Platform": "Intel® Xeon X64321325E CPU-only",
+    "Model": "Cornlake",
+    "Checked": false,
+    "PlatformType": "xeon",
+    "Parameters": {
+      "throughput": {
+        "Precisions": [
+          {
+            "int4": "344.4",
+            "int8": "404.9",
+            "int16": "233.5"
+          }
+        ],
+        "Unit": "FPS",
+        "UnitDesc": "higher is better"
+      },
+      "latency": {
+        "Precisions": [
+          {
+            "int4": "344.4",
+            "int8": "404.9",
+            "int16": "233.5"
+          }
+        ],
+        "Unit": "FPS",
+        "UnitDesc": "higher is better"
+      }
+    }
+  }
+]

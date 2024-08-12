@@ -5,45 +5,23 @@ const chartDisclaimers = {
     Efficiency: 'Efficiency: Performance/(No_of_sockets * TDP_of_CPU_dGPU), where total power dissipation (TDP) is in Watt as of November 2023.'
 }
 
-const OVdefaultSelections = {
-    platformTypes: {name: 'ietype', data: ['core']},
-    platforms: {name: 'platform',
+const defaultSelections = {
+    platformTypes: { name: 'ietype', data: ['atom'] },
+    // platforms: {
+    //     name: 'platform',
+    //     data: [
+    //         'Intel 1 CPU-only'
+    //     ]
+    // },
+    platformFilters: { name: 'coretype', data: ['CPU'] },
+    models: {
+        name: 'networkmodel',
         data: [
-            'Intel® Core™ i5-10500TE ',
-            'Intel® Core™ i7-1185G7 CPU',
-            'Intel® Core™ i9-10900TE ',
+            'bert-base-cased'
         ]
     },
-    platformFilters: {name: 'coretype', data: ['CPU']},
-    models: {name: 'networkmodel',
-        data: [
-            'bert-base-cased',
-            'yolo_v3_tiny',
-            'yolo_v8n',
-            'resnet-50',
-        ]
-    },
-    parameters: {name: 'kpi', data: ['Throughput','Latency']},
-    pracision: {name: 'precision', data: ['INT8', 'FP32']}
-}
-
-const OVMSdefaultSelections = {
-    platforms: {name: 'platform',
-        data: [
-            'Intel®  Xeon® 8260M CPU-only',
-            'Intel®  Xeon® Gold 6238M CPU-only'
-        ]
-    },
-    models: {name: 'networkmodel',
-        data: [
-            'bert-small-uncased-whole-word-masking-squad-0002',
-            'mobilenet-ssd ',
-            'resnet-50',
-            'yolo_v3_tiny'
-        ]
-    },
-    parameters: {name: 'kpi', data: ['Throughput']},
-    pracision: {name: 'precision', data: ['OV-INT8 (reference)', 'INT8']}
+    // parameters: { name: 'parameters', data: ['Throughput', 'Latency'] },
+    pracision: { name: 'precision', data: ['INT4', 'INT8'] }
 }
 
 // ====================================================
@@ -56,158 +34,66 @@ class Filter {
         // This is a bit obtuse, collect all options from all models
         // Some of them might return dupes, so convert them to a map, and get unique objects based on names
         const optionMap = new Map();
-        networkModels.map((model) => graphDataArr.filter((graphData => graphData.networkModel === model)))
-          .flat(1)
-          .forEach(item => optionMap.set(item.platformName, item));
-        // convert the option map back to an array with just the values
+        networkModels.map((model) => graphDataArr.filter((graphData => graphData.Model === model)))
+            .flat(1)
+            .forEach(item => optionMap.set(item.Platform, item));
         return Array.from(optionMap.values());
     }
 
     // param: GraphData[], ieType
-    static FilterByIeType(graphDataArr, value) {
-        return graphDataArr.filter((data) => data.ieType && data.ieType.includes(value));
+    static ByIeType(graphDataArr, value) {
+        return graphDataArr.filter((data) => data.PlatformType.includes(value));
+    }
+
+    // param: GraphData[], clientPlatforms
+    static ByIeKpis(graphDataArr, clientPlatforms) {
+        var kpis = []
+        clientPlatforms.forEach((platformName) => {
+            graphDataArr.filter((data) => {
+                if (data.Platform.includes(platformName)) {
+                    for (var key in data.Parameters) {
+                        if (!kpis.includes(key)) kpis.push(key)
+                    }
+                }
+            })
+        })
+        return kpis;
+    }
+
+    // param: GraphData[]
+    static getKpis(graphDataArr) {
+        var kpis = []
+        graphDataArr.filter((data) => {
+            for (var key in data.Parameters) {
+                if (!kpis.includes(key.charAt(0).toUpperCase() + key.slice(1))) kpis.push(key.charAt(0).toUpperCase() + key.slice(1))
+            }
+        })
+        return kpis;
     }
 
     // param: GraphData[], clientPlatforms[]
-    static FilterByClientPlatforms(graphDataArr, platformsArr) {
-        return graphDataArr.filter((data) => platformsArr.includes(data.platformName));
+    static ByClientPlatforms(graphDataArr, platformsArr) {
+        return graphDataArr.filter((data) => {
+            return platformsArr.includes(data.Platform)
+        });
     }
 
     // param: GraphData[], coreTypes[]
     static FilterByCoreTypes(graphDataArr, coreTypes) {
         if (coreTypes) {
-            return graphDataArr.filter((data) => coreTypes.includes(data.ieType));
+            return graphDataArr.filter((data) => coreTypes.includes(data.PlatformType));
         }
         return graphDataArr;
     }
-
-    // param: GraphData[] (of one networkModel), key (throughput, latency, efficiency, value)
-    static getKpiData(graphDataArr, key) {
-        return graphDataArr.map((data) => {
-            return data[key];
-        });
-    }
 }
-
-
-class ExcelDataTransformer {
-
-    static transform(csvdata, version) {
-        const entries = csvdata.filter((entry) => {
-            return !entry.includes('begin_rec') && !entry.includes('end_rec');
-        });
-        // do other purging and data massaging here
-
-        // else generate
-        return entries.map((entry) => {
-            if (version == 'ovms')
-                return new GraphData(new OVMSExcelData(entry));
-            return new GraphData(new ExcelData(entry));
-        });
-    }
-}
-
-
-class ExcelData {
-    constructor(csvdataline) {
-        if (!csvdataline) {
-            return;
-        }
-        this.networkModel = csvdataline[0].toLowerCase();
-        this.release = csvdataline[1];
-        this.ieType = csvdataline[2];
-        this.platformName = csvdataline[3];
-        this.throughputInt4 = csvdataline[22];
-        this.throughputInt8 = csvdataline[4];
-        this.throughputFP16 = csvdataline[5];
-        this.throughputFP32 = csvdataline[6];
-        this.throughputBF16 = csvdataline[24];
-        this.value = csvdataline[7];
-        this.efficiency = csvdataline[8];
-        this.price = csvdataline[9];
-        this.tdp = csvdataline[10];
-        this.sockets = csvdataline[11];
-        this.pricePerSocket = csvdataline[12];
-        this.tdpPerSocket = csvdataline[13];
-        this.latency = csvdataline[14];
-        this.latency16 = csvdataline[19];
-        this.latency32 = csvdataline[20];
-        this.latency4 = csvdataline[21];
-        this.latencyBF16 = csvdataline[23];
-        this.throughputUnit = csvdataline[15];
-        this.valueUnit = csvdataline[16];
-        this.efficiencyUnit = csvdataline[17];
-        this.latencyUnit = csvdataline[18];
-    }
-}
-
-
-class OVMSExcelData extends ExcelData {
-    constructor(csvdataline) {
-        super(csvdataline);
-        this.throughputOVMSInt8 = csvdataline[5];
-        this.throughputInt8 = csvdataline[4];
-        this.throughputOVMSFP32 = csvdataline[7];
-        this.throughputFP32 = csvdataline[6];
-        this.throughputUnit = csvdataline[8]
-    }
-}
-
 
 class GraphData {
     constructor(excelData) {
         if (!excelData) {
             return;
         }
-        this.networkModel = excelData.networkModel;
-        this.release = excelData.release;
-        this.ieType = excelData.ieType;
-        this.platformName = excelData.platformName;
-        this.kpi = new KPI(
-            {
-                'ovmsint8': excelData.throughputOVMSInt8,
-                'ovmsfp32': excelData.throughputOVMSFP32,
-                'int4': excelData.throughputInt4,
-                'int8': excelData.throughputInt8,
-                'fp16': excelData.throughputFP16,
-                'fp32': excelData.throughputFP32,
-                'bf16': excelData.throughputBF16
-            },
-            excelData.value,
-            excelData.efficiency,
-            {
-                'ovmsint8': excelData.throughputOVMSInt8,
-                'ovmsfp32': excelData.throughputOVMSFP32,
-                'int4': excelData.latency4,
-                'int8': excelData.latency,
-                'fp16': excelData.latency16,
-                'fp32': excelData.latency32,
-                'bf16': excelData.latencyBF16
-            },);
-
-        this.price = excelData.price;
-        this.tdp = excelData.tdp;
-        this.sockets = excelData.sockets;
-        this.pricePerSocket = excelData.pricePerSocket;
-        this.tdpPerSocket = excelData.tdpPerSocket;
-        this.latency = excelData.latency;
-        this.throughputUnit = excelData.throughputUnit;
-        this.valueUnit = excelData.valueUnit;
-        this.efficiencyUnit = excelData.efficiencyUnit;
-        this.latencyUnit = excelData.latencyUnit;
     }
 }
-
-
-class KPI {
-    constructor(precisions, value, efficiency, latencies) {
-        this.throughput = precisions;
-        this.value = value;
-        this.efficiency = efficiency;
-        this.latency = latencies;
-    }
-}
-
 
 class Modal {
     static getIeTypeLabel(ietype) {
@@ -227,16 +113,21 @@ class Modal {
     static getCoreTypesLabels() {
         return ['CPU', 'iGPU\\NPU', 'CPU+iGPU'];
     }
-    static getKpisLabels(version) {
-        if (version == 'ovms')
-            return ['Throughput'];
-        return ['Throughput', 'Latency', 'Value', 'Efficiency'];
+
+    static getPrecisionsLabels(graphDataArr) {
+        var kpis = []
+        graphDataArr.filter((data) => {
+            for (var key in data.Parameters) {
+                data.Parameters[key].Precisions.forEach((key)=>{
+                    Object.keys(key).forEach((key)=>{
+                        if (!kpis.includes(key.toUpperCase())) kpis.push(key.toUpperCase())
+                    });
+                })
+            }
+        })
+        return kpis;
     }
-    static getPrecisionsLabels(version) {
-        if (version == 'ovms')
-            return ['OV-INT8 (reference)', 'INT8', 'OV-FP32 (reference)', 'FP32'];
-        return ['INT4', 'INT8', 'FP16', 'FP32', 'BF16'];
-    }
+
     static getCoreTypes(labels) {
         return labels.map((label) => {
             switch (label) {
@@ -253,7 +144,7 @@ class Modal {
     }
     static getPrecisions(labels) {
         return labels.map((label) => {
-            switch (label) {
+            switch (label) {                
                 case 'OV-INT8 (reference)':
                     return 'ovmsint8';
                 case 'OV-FP32 (reference)':
@@ -274,24 +165,24 @@ class Modal {
         });
     }
     static getUnitDescription(unit) {
-            switch (unit) {
-                case 'msec.':
-                    return '(lower is better)';
-                case 'msec/token':
-                    return '(lower is better)';
-                case 'Generating time, sec.':
-                    return '(lower is better)';
-                case 'msec/token/TDP':
-                    return '(lower is better)';
-                case 'FPS':
-                    return '(higher is better)';
-                case 'FPS/$':
-                    return '(higher is better)';
-                case 'FPS/TDP':
-                    return '(higher is better)';
-                default:
-                    return '';
-            }
+        switch (unit) {
+            case 'msec.':
+                return '(lower is better)';
+            case 'msec/token':
+                return '(lower is better)';
+            case 'Generating time, sec.':
+                return '(lower is better)';
+            case 'msec/token/TDP':
+                return '(lower is better)';
+            case 'FPS':
+                return '(higher is better)';
+            case 'FPS/$':
+                return '(higher is better)';
+            case 'FPS/TDP':
+                return '(higher is better)';
+            default:
+                return '';
+        }
     }
 }
 
@@ -302,15 +193,12 @@ class Graph {
     }
     data = new GraphData();
 
-    // functions to get unique keys
+    // functions to get unique keys 
     static getNetworkModels(graphDataArr) {
-        return Array.from(new Set(graphDataArr.map((obj) => obj.networkModel)));
+        return Array.from(new Set(graphDataArr.map((obj) => obj.Model)));
     }
     static getIeTypes(graphDataArr) {
-        return Array.from(new Set(graphDataArr.map((obj) => obj.ieType)));
-    }
-    static getPlatforms(graphDataArr) {
-        return Array.from(new Set(graphDataArr.map((obj) => obj.platformName)));
+        return Array.from(new Set(graphDataArr.map((obj) => obj.PlatformType)));
     }
     static getCoreTypes(graphDataArr) {
         return Array.from(new Set(graphDataArr.map((obj) => obj.ieType)));
@@ -318,55 +206,55 @@ class Graph {
 
     // param: GraphData[]
     static getPlatformNames(graphDataArr) {
-        return graphDataArr.map((data) => data.platformName);
+        return graphDataArr.map((data) => data.Platform);
     }
 
     // param: GraphData[], kpi: string
-    static getDatabyKPI(graphDataArr, kpi) {
-        switch (kpi) {
-            case 'throughput':
-                return graphDataArr.map((data) => data.kpi.throughput);
-            case 'latency':
-                return graphDataArr.map((data) => data.kpi.latency);
-            case 'efficiency':
-                return graphDataArr.map((data) => data.kpi.efficiency);
-            case 'value':
-                return graphDataArr.map((data) => data.kpi.value);
-            default:
-                return [];
+    static getDatabyKPI(graphDataArr, kpi, precisions) {
+        if (graphDataArr[0].Parameters[kpi] !== undefined) {
+            return graphDataArr.map((item) => item.Parameters[kpi]);
+        }
+        else {
+            var array = [];
+            precisions.forEach((label) => {
+                var data = {};
+                data[label] = "1000";
+                array.push(data)
+            })
+            return [{ "Precisions": array }];
         }
     }
 
 
     // this returns an object that is used to ender the chart
-    static getGraphConfig(kpi, units, precisions) {
+    static getGraphConfig(kpi, item, precisions) {
         switch (kpi) {
             case 'throughput':
                 return {
                     chartTitle: 'Throughput',
                     iconClass: 'throughput-icon',
-                    unit: units.throughputUnit,
-                    datasets: precisions.map((precision) => this.getPrecisionThroughputConfig(precision, units.throughputUnit)),
+                    unit: item.Parameters[kpi].Unit,
+                    datasets: precisions.map((precision) => this.getPrecisionThroughputConfig(precision)),
                 };
             case 'latency':
                 return {
                     chartTitle: 'Latency',
                     iconClass: 'latency-icon',
-                    unit: units.latencyUnit,
-                    datasets: precisions.map((precision) => this.getPrecisionLatencyConfig(precision, units.latencyUnit)),
+                    unit: item.Parameters[kpi].Unit,
+                    datasets: precisions.map((precision) => this.getPrecisionLatencyConfig(precision)),
                 };
             case 'value':
                 return {
                     chartTitle: 'Value',
                     iconClass: 'value-icon',
-                    unit: units.valueUnit,
+                    unit: item?.Parameters[kpi]?.Unit,
                     datasets: [{ data: null, color: '#8BAE46', label: `Value` }],
                 };
             case 'efficiency':
                 return {
                     chartTitle: 'Efficiency',
                     iconClass: 'efficiency-icon',
-                    unit: units.efficiencyUnit,
+                    unit: item?.Parameters?.kpi?.Unit,
                     datasets: [{ data: null, color: '#E96115', label: `Efficiency` }],
                 };
             default:
@@ -374,12 +262,8 @@ class Graph {
         }
     }
 
-    static getPrecisionThroughputConfig(precision, unit) {
+    static getPrecisionThroughputConfig(precision) {
         switch (precision) {
-            case 'ovmsint8':
-                return { data: null, color: '#FF8F51', label: `${unit} (OV Ref. INT8)` };
-            case 'ovmsfp32':
-                return { data: null, color: '#B24501', label: `${unit} (OV Ref. FP32)` };
             case 'int4':
                 return { data: null, color: '#5bd0f0', label: `INT4` };
             case 'int8':
@@ -395,12 +279,8 @@ class Graph {
         }
     }
 
-    static getPrecisionLatencyConfig(precision, unit) {
+    static getPrecisionLatencyConfig(precision) {
         switch (precision) {
-            case 'ovmsint8':
-                return { data: null, color: '#FF8F51', label: `${unit} (OV Ref. INT8)` };
-            case 'ovmsfp32':
-                return { data: null, color: '#B24501', label: `${unit} (OV Ref. FP32)` };
             case 'int4':
                 return { data: null, color: '#c197d1', label: `INT4` };
             case 'int8':
@@ -478,16 +358,13 @@ $(document).ready(function () {
         $('body').css('overflow', 'auto');
     }
 
-    function showModal(version) {
+    function showModal() {
         $('body').css('overflow', 'hidden');
 
-        let dataPath = '../_static/benchmarks_files/OV-benchmark-data.csv';
-        if (version == 'ovms')
-            dataPath = '../_static/benchmarks_files/OVMS-benchmark-data.csv';
-        Papa.parse(dataPath, {
-            download: true,
-            complete: (result) => renderModal(result, version)
-        });
+        fetch('../_static/benchmarks_files/graph-data.json')
+            .then((response) => response.json())
+            .then((json) => renderModal(json));
+        ;
     }
 
     function getSelectedNetworkModels() {
@@ -500,13 +377,9 @@ $(document).ready(function () {
             return $(this).data('ietype');
         }).get().pop();
     }
-    function getSelectedCoreTypes() {
-        return $('.client-platform-column .selected').map(function () {
-            return $(this).data('coretype');
-        }).get();
-    }
     function getSelectedClientPlatforms() {
         return $('.client-platform-column input:checked').map(function () {
+
             return $(this).data('platform');
         }).get();
     }
@@ -523,9 +396,9 @@ $(document).ready(function () {
 
     function validateSelections() {
         if (getSelectedNetworkModels().length > 0
-        && getSelectedIeType()
-        && getSelectedClientPlatforms().length > 0
-        && getSelectedKpis().length > 0) {
+            && getSelectedIeType()
+            && getSelectedClientPlatforms().length > 0
+            && getSelectedKpis().length > 0) {
             if (getSelectedKpis().includes('Throughput')) {
                 if (getSelectedPrecisions().length > 0) {
                     $('#build-graphs-btn').prop('disabled', false);
@@ -540,21 +413,16 @@ $(document).ready(function () {
         $('#build-graphs-btn').prop('disabled', true);
     }
 
-    function renderModal(result, version) {
-        // remove header from csv line
-        result.data.shift();
-        var graph = new Graph(ExcelDataTransformer.transform(result.data, version));
-
-        var networkModels = Graph.getNetworkModels(graph.data);
-        var ieTypes = Graph.getIeTypes(graph.data);
-
+    function renderModal(graph) {
+        new Graph(graph);
+        var networkModels = Graph.getNetworkModels(graph);
+        var ieTypes = Graph.getIeTypes(graph);
         fetch('../_static/html/modal.html').then((response) => response.text()).then((text) => {
 
             // generate and configure modal container
             var modal = $('<div>');
             modal.attr('id', 'graphModal');
             modal.addClass('modal');
-            // generate and configure modal content from html import
             var modalContent = $(text);
             modalContent.attr('id', 'graphModalContent');
             modalContent.addClass('modal-content');
@@ -565,7 +433,7 @@ $(document).ready(function () {
             modal.find('.models-column-one').append(selectAllModelsButton).append(models.slice(0, models.length / 2));
             modal.find('.models-column-two').append(models.slice(models.length / 2));
 
-            const precisions = Modal.getPrecisionsLabels(version).map((precision) => createCheckMark(precision, 'precision'));
+            const precisions = Modal.getPrecisionsLabels(graph).map((precision) => createCheckMark(precision, 'precision', false));
             modal.find('.precisions-column').append(precisions);
             selectAllCheckboxes(precisions);
             disableAllCheckboxes(precisions);
@@ -575,7 +443,7 @@ $(document).ready(function () {
                 if (labelText) {
                     const item = $('<label class="checkmark-container">');
                     const checkboxSpan = $('<span class="checkmark radiobutton">');
-                    item.text(Modal.getIeTypeLabel(ieType));
+                    item.text(labelText);
                     const radio = $('<input type="radio" name="ietype"/>');
                     item.append(radio);
                     item.append(checkboxSpan);
@@ -584,17 +452,15 @@ $(document).ready(function () {
                 }
             });
             modal.find('#modal-display-graphs').hide();
-
             modal.find('.ietype-column').append(types);
             modal.find('.ietype-column input').first().prop('checked', true);
 
-            const kpiLabels = Modal.getKpisLabels(version).map((kpi) => createCheckMark(kpi, 'kpi'));
+            const kpiLabels = Filter.getKpis(graph).map((kpi) => createCheckMark(kpi, 'kpi', true));
             modal.find('.kpi-column').append(kpiLabels);
 
             $('body').prepend(modal);
-
-            renderClientPlatforms(graph.data, modal, version, true);
-            preselectDefaultSettings(graph.data, modal, version);
+            renderClientPlatforms(graph, modal, true);
+            preselectDefaultSettings(graph, modal);
 
             $('.clear-all-btn').on('click', clearAll);
             $('#build-graphs-btn').on('click', () => {
@@ -603,12 +469,14 @@ $(document).ready(function () {
             });
             $('.modal-close').on('click', hideModal);
             $('.close-btn').on('click', hideModal);
-            modal.find('.models-column-one input[data-networkmodel="Select All"]').on('click', function() {
+            modal.find('.models-column-one input[data-networkmodel="Select All"]').on('click', function () {
                 if ($(this).prop('checked'))
                     selectAllCheckboxes(models);
                 else deSelectAllCheckboxes(models);
             });
-            modal.find('.ietype-column input').on('click', () => renderClientPlatforms(graph.data, modal, version, true));
+            modal.find('.ietype-column input').on('click', () => renderClientPlatforms(graph, modal));
+            modal.find('.client-platform-column input').on('click', () => enabledKpis(graph, getSelectedClientPlatforms(), modal));
+
             modal.find('.kpi-column input').on('click', validateThroughputSelection);
             modal.find('input').on('click', validateSelections);
         });
@@ -626,18 +494,17 @@ $(document).ready(function () {
 
     function clearAll() {
         $('.modal-content-grid-container input:checkbox').each((index, object) => $(object).prop('checked', false));
-        // Uncomment if you want the Clear All button to reset the Platform Type column as well
-        // modal.find('.ietype-column input').first().prop('checked', true);
         validateThroughputSelection();
         validateSelections();
     }
 
-    function preselectDefaultSettings(data, modal, version) {
-        const defaultSelections = (version == 'ov') ? OVdefaultSelections : OVMSdefaultSelections;
+    //do not change this
+    function preselectDefaultSettings(graph, modal) {
+
         if (defaultSelections.platformTypes) {
-            const type = defaultSelections.platformTypes.data[0]
+            const type = defaultSelections.platformTypes.data[0];
             $(`input[data-ietype="${type}"]`).prop('checked', true);
-            renderClientPlatforms(data, modal, version);
+            renderClientPlatforms(graph, modal);
         }
         if (defaultSelections.platformFilters) {
             const filters = modal.find('.selectable-box-container').children('.selectable-box');
@@ -645,7 +512,7 @@ $(document).ready(function () {
             defaultSelections.platformFilters.data.forEach(selection => {
                 filters.filter(`[data-${defaultSelections.platformFilters.name}="${selection}"]`).addClass('selected');
             });
-            renderClientPlatforms(data, modal, version);
+            renderClientPlatforms(graph, modal);
         }
         clearAll();
         for (setting in defaultSelections) {
@@ -658,7 +525,7 @@ $(document).ready(function () {
         validateSelections();
     }
 
-    function showCoreSelectorTypes(coreTypes, graphDataArr,  modal) {
+    function showCoreSelectorTypes(coreTypes, graphDataArr, modal) {
         if ($('.client-platform-column').find('.selectable-box-container').length) {
             $('.client-platform-column').find('.selectable-box-container').show();
             return;
@@ -678,7 +545,7 @@ $(document).ready(function () {
             } else {
                 $(this).addClass('selected');
             }
-            var fPlatforms = filterClientPlatforms(graphDataArr, getSelectedNetworkModels(), getSelectedIeType(), Modal.getCoreTypes(getSelectedCoreTypes()));
+            var fPlatforms = filterClientPlatforms(graphDataArr, getSelectedIeType());
             renderClientPlatformsItems(modal, Graph.getPlatformNames(fPlatforms), true);
             validateSelections();
         });
@@ -688,44 +555,50 @@ $(document).ready(function () {
         $('.client-platform-column').find('.selectable-box-container').hide();
     }
 
-    function filterClientPlatforms(data, networkModels, ietype, coreTypes) {
-        // No longer filtering on the network type, if at some point we want the network type as a filter, uncomment this
-        // var first = Filter.FilterByNetworkModel(data, networkModels);
-        var second = Filter.FilterByIeType(data, ietype);
-        if (ietype === 'core') {
-          second = Filter.FilterByCoreTypes(second, coreTypes);
-        }
-        const optionMap = new Map();
-        second.forEach(item => optionMap.set(item.platformName, item));
-        return Array.from(optionMap.values());
+    function filterClientPlatforms(graph, ietype) {
+        return Filter.ByIeType(graph, ietype);
     }
 
-    function renderClientPlatforms(data, modal, version, preselectEveryItem) {
+    function renderClientPlatforms(graph, modal) {
         if (getSelectedIeType() === 'core') {
             showCoreSelectorTypes(Modal.getCoreTypesLabels(), data, modal);
-            if (version === 'ovms')
-                hideCoreSelectorTypes();
         }
         else {
             hideCoreSelectorTypes();
         }
-        var fPlatforms = filterClientPlatforms(data, getSelectedNetworkModels(), getSelectedIeType(), Modal.getCoreTypes(getSelectedCoreTypes()));
-        renderClientPlatformsItems(modal, Graph.getPlatformNames(fPlatforms), preselectEveryItem);
+        var fPlatforms = filterClientPlatforms(graph, getSelectedIeType());
+        renderClientPlatformsItems(modal, Graph.getPlatformNames(fPlatforms));
     }
 
-    function renderClientPlatformsItems(modal, platformNames, preselectEveryItem) {
+    function enabledKpis(graph, clientPlatforms) {
+        var allKpis = Filter.getKpis(graph);
+
+        allKpis.forEach((kpi) => {
+            $(`input[data-kpi="${kpi.charAt(0).toUpperCase() + kpi.slice(1)}"]`).prop('disabled', true);
+            }
+        )
+        
+        var kpis = Filter.ByIeKpis(graph, clientPlatforms);
+        kpis.forEach((kpi) => {
+            $(`input[data-kpi="${kpi.charAt(0).toUpperCase() + kpi.slice(1)}"]`).prop('disabled', false);
+        })
+        
+        return null;
+    }
+
+    function renderClientPlatformsItems(modal, platformNames) {
         $('.client-platform-column .checkmark-container').remove();
-        const clientPlatforms = platformNames.map((platform) => createCheckMark(platform, 'platform'));
-        if (preselectEveryItem)
-            selectAllCheckboxes(clientPlatforms);
+        const clientPlatforms = platformNames.map((platform) => createCheckMark(platform, 'platform', false));
+        selectAllCheckboxes(clientPlatforms);
         modal.find('.client-platform-column').append(clientPlatforms);
         modal.find('.client-platform-column input').on('click', validateSelections);
     }
 
-    function createCheckMark(itemLabel, modelLabel) {
+    function createCheckMark(itemLabel, modelLabel, disabled) {
         const item = $('<label class="checkmark-container">');
         item.text(itemLabel);
         const checkbox = $('<input type="checkbox"/>');
+        checkbox.prop('disabled', disabled);
         const checkboxSpan = $('<span class="checkmark">');
         item.append(checkbox);
         item.append(checkboxSpan);
@@ -738,12 +611,6 @@ $(document).ready(function () {
         items.forEach((item) => {
             item.find(':input').prop('checked', true);
         });
-    }
-
-    function enableAllCheckboxes(items) {
-        items.forEach((item) => {
-            item.find(':input').prop('disabled', false);
-        })
     }
 
     function disableAllCheckboxes(items) {
@@ -761,81 +628,81 @@ $(document).ready(function () {
     // =================== HTMLLEGEND =========================
 
     const getOrCreateLegendList = (chart, id) => {
-      const legendContainer = document.getElementById(id);
-      let listContainer = legendContainer.querySelector('ul');
+        const legendContainer = document.getElementById(id);
+        let listContainer = legendContainer.querySelector('ul');
 
-      if (!listContainer) {
-        listContainer = document.createElement('ul');
-        listContainer.style.display = 'flex';
-        listContainer.style.flexDirection = 'row';
-        listContainer.style.margin = 0;
-        listContainer.style.padding = 0;
-        listContainer.style.paddingLeft = '0px';
+        if (!listContainer) {
+            listContainer = document.createElement('ul');
+            listContainer.style.display = 'flex';
+            listContainer.style.flexDirection = 'row';
+            listContainer.style.margin = 0;
+            listContainer.style.padding = 0;
+            listContainer.style.paddingLeft = '0px';
 
-        legendContainer.appendChild(listContainer);
-      }
+            legendContainer.appendChild(listContainer);
+        }
 
-      return listContainer;
+        return listContainer;
     };
 
     const htmlLegendPlugin = {
-      id: 'htmlLegend',
-      afterUpdate(chart, args, options) {
+        id: 'htmlLegend',
+        afterUpdate(chart, args, options) {
 
-        const ul = getOrCreateLegendList(chart, chart.options.plugins.htmlLegend.containerID);
+            const ul = getOrCreateLegendList(chart, chart.options.plugins.htmlLegend.containerID);
 
-        // Remove old legend items
-        while (ul.firstChild) {
-          ul.firstChild.remove();
-        }
-
-        // Reuse the built-in legendItems generator
-        const items = chart.legend.legendItems;
-        items.forEach(item => {
-          const li = document.createElement('li');
-          li.style.alignItems = 'center';
-          li.style.display = 'block';
-          li.style.flexDirection = 'column';
-          li.style.marginLeft = '4px';
-
-          li.onclick = () => {
-            const {type} = chart.config;
-            if (type === 'pie' || type === 'doughnut') {
-              // Pie and doughnut charts only have a single dataset and visibility is per item
-              chart.toggleDataVisibility(item.index);
-            } else {
-              chart.setDatasetVisibility(item.datasetIndex, !chart.isDatasetVisible(item.datasetIndex));
+            // Remove old legend items
+            while (ul.firstChild) {
+                ul.firstChild.remove();
             }
-            chart.update();
-          };
 
-          // Color box
-          const boxSpan = document.createElement('span');
-          boxSpan.style.background = item.fillStyle;
-          boxSpan.style.borderColor = item.strokeStyle;
-          boxSpan.style.borderWidth = item.lineWidth + 'px';
-          boxSpan.style.display = 'inline-block';
-          boxSpan.style.height = '10px';
-          boxSpan.style.marginRight = '4px';
-          boxSpan.style.width = '30px';
+            // Reuse the built-in legendItems generator
+            const items = chart.legend.legendItems;
+            items.forEach(item => {
+                const li = document.createElement('li');
+                li.style.alignItems = 'center';
+                li.style.display = 'block';
+                li.style.flexDirection = 'column';
+                li.style.marginLeft = '4px';
 
-          // Text
-          const textContainer = document.createElement('p');
-          textContainer.style.color = '#666';
-          textContainer.style.margin = 0;
-          textContainer.style.padding = 0;
-          textContainer.style.fontSize = '0.6rem';
-          textContainer.style.marginLeft = '3px';
-          textContainer.style.textDecoration = item.hidden ? 'line-through' : '';
+                li.onclick = () => {
+                    const { type } = chart.config;
+                    if (type === 'pie' || type === 'doughnut') {
+                        // Pie and doughnut charts only have a single dataset and visibility is per item
+                        chart.toggleDataVisibility(item.index);
+                    } else {
+                        chart.setDatasetVisibility(item.datasetIndex, !chart.isDatasetVisible(item.datasetIndex));
+                    }
+                    chart.update();
+                };
 
-          const text = document.createTextNode(item.text);
-          textContainer.appendChild(text);
+                // Color box
+                const boxSpan = document.createElement('span');
+                boxSpan.style.background = item.fillStyle;
+                boxSpan.style.borderColor = item.strokeStyle;
+                boxSpan.style.borderWidth = item.lineWidth + 'px';
+                boxSpan.style.display = 'inline-block';
+                boxSpan.style.height = '10px';
+                boxSpan.style.marginRight = '4px';
+                boxSpan.style.width = '30px';
 
-          li.appendChild(boxSpan);
-          li.appendChild(textContainer);
-          ul.appendChild(li);
-        });
-      }
+                // Text
+                const textContainer = document.createElement('p');
+                textContainer.style.color = '#666';
+                textContainer.style.margin = 0;
+                textContainer.style.padding = 0;
+                textContainer.style.fontSize = '0.6rem';
+                textContainer.style.marginLeft = '3px';
+                textContainer.style.textDecoration = item.hidden ? 'line-through' : '';
+
+                const text = document.createTextNode(item.text);
+                textContainer.appendChild(text);
+
+                li.appendChild(boxSpan);
+                li.appendChild(textContainer);
+                ul.appendChild(li);
+            });
+        }
     };
 
     function getChartOptions(title, containerId) {
@@ -858,7 +725,7 @@ $(document).ready(function () {
                         display: false,
                         beginAtZero: true
                     }
-                  }
+                }
             },
             plugins: {
                 legend: {
@@ -869,7 +736,7 @@ $(document).ready(function () {
                 }
             }
         }
-    }
+    } Throughput
 
     function getChartDataNew(labels, datasets) {
         return {
@@ -887,7 +754,6 @@ $(document).ready(function () {
     }
 
     function renderData(graph, networkModels, ietype, platforms, kpis, precisions) {
-
         $('.chart-placeholder').empty();
         $('.modal-footer').empty();
         const display = new ChartDisplay(getChartsDisplayMode(kpis.length), kpis.length);
@@ -896,7 +762,6 @@ $(document).ready(function () {
             var chartName = networkModel;
             var chartSlug = chartName.replace(')', '').replace(' (', '-');
             var chartContainer = $('<div>');
-
             var chevronDown = '<span class="chevron-down-btn"></span>';
             var chevronRight = '<span style="display:none" class="chevron-right-btn"></span>';
             $(chevronRight).hide();
@@ -908,22 +773,22 @@ $(document).ready(function () {
 
             chartContainer.addClass('chart-container');
 
-            var filteredNetworkModels = Filter.FilterByNetworkModel(graph.data, [networkModel]);
-            var filteredIeTypes = Filter.FilterByIeType(filteredNetworkModels, ietype);
-            var filteredGraphData = Filter.FilterByClientPlatforms(filteredIeTypes, platforms);
-
+            var filteredNetworkModels = Filter.FilterByNetworkModel(graph, [networkModel]);
+            var filteredIeTypes = Filter.ByIeType(filteredNetworkModels, ietype);
+            var filteredGraphData = Filter.ByClientPlatforms(filteredIeTypes, platforms);
             $('.chart-placeholder').append(chartContainer);
             if (filteredGraphData.length > 0) {
                 createChartWithNewData(filteredGraphData, chartContainer, kpis, ietype, precisions, display);
             } else {
-              createEmptyChartContainer(chartContainer);
+                createEmptyChartContainer(chartContainer);
             }
         })
 
-        if(kpis.includes('Value') || kpis.includes('Efficiency')){
+        if (kpis.includes('Value') || kpis.includes('Efficiency')) {
             $('.modal-footer').append($('<div class="modal-line-divider"></div>'))
         }
         $('.modal-footer').append($('<div class="modal-footer-content"><div class="modal-disclaimer-box"></div></div>'))
+
         for (let kpi of kpis) {
             if (chartDisclaimers[kpi])
                 $('.modal-disclaimer-box').append($('<p>').text(chartDisclaimers[kpi]))
@@ -934,7 +799,7 @@ $(document).ready(function () {
     };
 
     function createEmptyChartContainer(chartContainer) {
-      chartContainer.append($('<div>').addClass('empty-chart-container').text('No data for this configuration.'));
+        chartContainer.append($('<div>').addClass('empty-chart-container').text('No data for this configuration.'));
     }
 
     // this function should take the final data set and turn it into graphs
@@ -947,17 +812,14 @@ $(document).ready(function () {
         var graphConfigs = kpis.map((str) => {
             var kpi = str.toLowerCase();
             var groupUnit = model[0];
-            if (kpi === 'throughput' || kpi === 'latency') {
-                var kpiData = Graph.getDatabyKPI(model, kpi);
-                var config = Graph.getGraphConfig(kpi, groupUnit, precisions);
-                precisions.forEach((prec, index) => {
-                    config.datasets[index].data = kpiData.map(tData => tData[prec]);
+            var kpiData = Graph.getDatabyKPI(model, kpi, precisions)[0].Precisions;
+            console.log(kpiData)
+            var config = Graph.getGraphConfig(kpi, groupUnit, precisions);
+            if (kpiData !== undefined) {
+                precisions.forEach((precision, index) => {
+                    config.datasets[index].data = kpiData.map(tData => tData[precision]);
                 });
-                return config;
-                // return removeEmptyLabel(config);
             }
-            var config = Graph.getGraphConfig(kpi, groupUnit);
-            config.datasets[0].data = Graph.getDatabyKPI(model, kpi);
             return config;
         });
 
@@ -967,7 +829,7 @@ $(document).ready(function () {
         labelsContainer.addClass('chart-labels-container');
         chartWrap.append(labelsContainer);
 
-        // get the kpi title's and create headers for the graphs
+        // get the kpi title's and create headers for the graphs 
         var chartGraphsContainer = $('<div>');
         chartGraphsContainer.addClass('chart-graphs-container');
         chartWrap.append(chartGraphsContainer);
@@ -1017,20 +879,6 @@ $(document).ready(function () {
         setChartsDisplayDirection(display.mode);
         adjustHeaderIcons(display.mode);
     }
-    function removeEmptyLabel(config, indexes) {
-        var indexes = [];
-        config.datasets.forEach((item, index) =>{
-            if(item.data[0] == '') {
-                indexes.push(index);
-            }
-        })
-        var sorted = indexes.sort(function(a, b){return b-a});
-
-        sorted.forEach((index)=>{
-            config.datasets.splice(index,1);
-        })
-        return config;
-    }
 
     function processMetricNew(labels, datasets, chartTitle, container, widthClass, id) {
         // ratio for consistent chart label height
@@ -1050,10 +898,10 @@ $(document).ready(function () {
         context.canvas.height = heightRatio;
         window.setTimeout(() => {
             new Chart(context, {
-            type: 'bar',
-            data: getChartDataNew(labels, datasets),
-            options: getChartOptions(chartTitle, containerId),
-            plugins: [htmlLegendPlugin]
+                type: 'bar',
+                data: getChartDataNew(labels, datasets),
+                options: getChartOptions(chartTitle, containerId),
+                plugins: [htmlLegendPlugin]
             });
         });
     }
@@ -1116,15 +964,15 @@ $(document).ready(function () {
         switch (numberOfCharts) {
             case 4:
                 return window.matchMedia('(max-width: 721px)').matches ? 'column'
-                        : window.matchMedia('(max-width: 830px)').matches ? 'rowCompact'
+                    : window.matchMedia('(max-width: 830px)').matches ? 'rowCompact'
                         : 'row';
             case 3:
                 return window.matchMedia('(max-width: 569px)').matches ? 'column'
-                        : window.matchMedia('(max-width: 649px)').matches ? 'rowCompact'
+                    : window.matchMedia('(max-width: 649px)').matches ? 'rowCompact'
                         : 'row';
             case 2:
                 return window.matchMedia('(max-width: 500px)').matches ? 'column'
-                        : 'row';
+                    : 'row';
             default:
                 return 'row';
         }
