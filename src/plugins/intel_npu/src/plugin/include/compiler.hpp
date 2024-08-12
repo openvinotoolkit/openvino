@@ -13,6 +13,6 @@
 
 namespace intel_npu {
 
-ov::SoPtr<ICompiler> createCompiler(ov::intel_npu::CompilerType compilerType, const Logger& log);
+ov::SoPtr<ICompiler> createCompiler(ov::intel_npu::CompilerType compilerType);
 
 }  // namespace intel_npu

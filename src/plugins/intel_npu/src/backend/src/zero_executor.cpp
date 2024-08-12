@@ -49,7 +49,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
                                                       _initStructs->getCommandQueueDdiTable(),
                                                       _config,
                                                       group_ordinal)}} {
-    _logger.debug("ZeroExecutor::ZeroExecutor - create graph_command_list");
+    _logger.debug("ZeroExecutor::ZeroExecutor init start - create graph_command_list");
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::ZeroExecutor");
     CommandList graph_command_list(_initStructs->getDevice(),
                                    _initStructs->getContext(),

@@ -64,12 +64,12 @@ std::optional<size_t> getBatchSizeForNode(const IONodeDescriptor& nodeDescriptor
     Logger logger("GetBatchSizeForNode", Logger::global().level());
 
     if (nodeDescriptor.originalShape.rank().get_length() == 0) {
-        logger.info("Networks with empty shapes are not supported when batching is handled by the plugin");
+        logger.warning("Networks with empty shapes are not supported when batching is handled by the plugin");
         return std::nullopt;
     }
 
     if (nodeDescriptor.originalShape.is_dynamic()) {
-        logger.info("Dynamic networks are not supported when batching is handled by the plugin");
+        logger.warning("Dynamic networks are not supported when batching is handled by the plugin");
         return std::nullopt;
     }
 
@@ -546,6 +546,7 @@ void ZeroInferRequest::infer_async() {
 
 void ZeroInferRequest::get_result() {
     OV_ITT_TASK_CHAIN(ZERO_RESULT, itt::domains::LevelZeroBackend, "get_result", "pull");
+    _logger.debug("InferRequest::get_result start");
 
     for (size_t i = 0; i < _batchSize; i++) {
         _pipeline->pull(i);
@@ -641,7 +642,7 @@ std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
     const auto& compiledModel = *std::dynamic_pointer_cast<const ICompiledModel>(_compiledModel);
     const auto& compilerConfig = compiledModel.get_config();
     if (!compilerConfig.get<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
-        _logger.debug("InferRequest::get_profiling_info complete with empty {}.");
+        _logger.warning("InferRequest::get_profiling_info complete with empty {}.");
         return {};
     }
 
