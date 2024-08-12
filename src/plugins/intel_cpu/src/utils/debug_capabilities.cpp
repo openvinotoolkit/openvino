@@ -684,4 +684,9 @@ void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int 
 }   // namespace intel_cpu
 }   // namespace ov
 
+bool getEnvBool(const char* name) {
+    static const bool env = ov::util::getenv_bool(name);
+    return env;
+}
+
 #endif

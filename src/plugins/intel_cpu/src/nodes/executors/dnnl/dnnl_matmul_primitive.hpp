@@ -7,31 +7,29 @@
 #include <cstddef>
 #include <oneapi/dnnl/dnnl.hpp>
 
-#include "cpu_memory.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
+#include "nodes/executors/matmul_config.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class DnnlFCPrimitive {
+class DnnlMatMulPrimitive {
     struct Key {
         DnnlMemoryDescCPtr src;
         DnnlMemoryDescCPtr wei;
         DnnlMemoryDescCPtr bias;
         DnnlMemoryDescCPtr dst;
         dnnl::primitive_attr attr;
-        bool sparseWeights;
-        Config::ModelType modelType;
 
         size_t hash() const;
         bool operator==(const Key& rhs) const;
     };
 
 public:
-    DnnlFCPrimitive(const Key& key, const dnnl::engine& engine, const std::vector<impl_desc_type>& implPriorities);
+    DnnlMatMulPrimitive(const Key& key, const dnnl::engine& engine, const std::vector<impl_desc_type>& implPriorities);
 
     void execute(const dnnl_primitive_args& primArgs) const;
 
@@ -61,27 +59,16 @@ public:
                                                             const ExecutorContext::CPtr context,
                                                             const bool cacheWeights);
 
-    static bool useWeightsDecompressionImpl(const ov::element::Type inputType,
-                                            const ov::element::Type weightsType,
-                                            const Config::ModelType modelType);
-
     static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
                                                             const DnnlMemoryDescPtr dstDesc,
                                                             bool weightsNonTransposed);
 
-    static std::shared_ptr<DnnlFCPrimitive> create(const MemoryArgs& memory,
-                                                   const FCAttrs& attrs,
-                                                   const ExecutorContext::CPtr context,
-                                                   const DnnlShapeAgnosticDataPtr& shapeAgnosticData);
+    static std::shared_ptr<DnnlMatMulPrimitive> create(const MemoryArgs& memory,
+                                                       const MatMulAttrs& attrs,
+                                                       const ExecutorContext::CPtr context,
+                                                       const DnnlShapeAgnosticDataPtr& shapeAgnosticData);
 
 private:
-    static bool useDynamicQuantizationImpl(size_t dqGroupSize,
-                                           const MemoryDescPtr srcDesc,
-                                           const MemoryDescPtr weightsDesc,
-                                           MemoryCPtr scalesPtr,
-                                           MemoryCPtr zpPtr,
-                                           bool needTranspose);
-
     dnnl::stream m_stream;
     dnnl::primitive_desc m_primDesc;
     impl_desc_type m_implType;
@@ -92,7 +79,7 @@ private:
     dnnl::primitive m_prim;
 };
 
-using DnnlFCPrimitivePtr = std::shared_ptr<DnnlFCPrimitive>;
+using DnnlMatMulPrimitivePtr = std::shared_ptr<DnnlMatMulPrimitive>;
 
 }  // namespace intel_cpu
 }  // namespace ov

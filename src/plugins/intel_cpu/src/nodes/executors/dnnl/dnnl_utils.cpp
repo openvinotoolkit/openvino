@@ -18,14 +18,6 @@ namespace ov {
 namespace intel_cpu {
 namespace utils {
 
-DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc, const DnnlMemoryDescPtr dstDesc) {
-    const auto& weiDesc = srcDesc->getDnnlDesc();
-    const auto reorderedWeiDesc = dnnl::memory::desc{weiDesc.get_dims(), weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
-    const auto transposedWeiDesc = reorderedWeiDesc.reshape(dstDesc->getDnnlDesc().get_dims());
-
-    return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
-}
-
 MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
                                const DnnlMemoryDescPtr dstWeightDesc,
                                const MemoryCPtr weightsMem,
