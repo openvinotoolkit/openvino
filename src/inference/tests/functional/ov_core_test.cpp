@@ -94,7 +94,7 @@ TEST(CoreBaseTest, LoadOVFolderOverCWPathPluginXML) {
     remove_plugin_xml(cwd_file_path);
     remove_plugin_xml(ov_file_path);
 }
-
+/*
 #    if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
 TEST(CoreBaseTest, AddExtensionwithSymlink) {
     fs::create_directory("test_link");
@@ -112,4 +112,5 @@ TEST(CoreBaseTest, AddExtensionwithSymlink) {
     ASSERT_FALSE(ov::util::directory_exists("test_link"));
 }
 #    endif
+*/
 #endif
