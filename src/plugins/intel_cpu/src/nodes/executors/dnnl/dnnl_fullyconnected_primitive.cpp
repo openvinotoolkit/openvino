@@ -9,7 +9,6 @@
 #include <common/primitive_attr.hpp>
 #include <common/primitive_desc_iface.hpp>
 #include <common/primitive_iface.hpp>
-#include <iostream>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -24,6 +23,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
+#include "nodes/executors/dnnl/dnnl_utils.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
@@ -51,7 +51,6 @@ size_t DnnlFCPrimitive::Key::hash() const {
 
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
     seed = hash_combine(seed, sparseWeights);
-    seed = hash_combine(seed, transposedWeights);
     seed = hash_combine(seed, modelType);
 
     return seed;
@@ -73,8 +72,9 @@ bool DnnlFCPrimitive::Key::operator==(const Key& rhs) const {
         result = result && dst && rhs.dst && dst->getDnnlDesc() == rhs.dst->getDnnlDesc();
     }
 
-    result = result && *attr.get() == *rhs.attr.get() && sparseWeights == rhs.sparseWeights &&
-             transposedWeights == rhs.transposedWeights && modelType == rhs.modelType;
+    result = result && *attr.get() == *rhs.attr.get() &&
+        sparseWeights == rhs.sparseWeights &&
+        modelType == rhs.modelType;
 
     return result;
 }
@@ -88,16 +88,13 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
     const auto& biaDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_BIAS)->getDescPtr());
     const auto& dstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_DST)->getDescPtr());
 
-    Key dnnlFCKey{
-        srcDesc,
-        weiDesc,
-        biaDesc,
-        dstDesc,
-        shapeAgnosticData->primAttrs.attr,
-        attrs.sparseWeights,
-        attrs.weightsNonTransposed,
-        attrs.modelType
-    };
+    Key dnnlFCKey{srcDesc,
+                  weiDesc,
+                  biaDesc,
+                  dstDesc,
+                  shapeAgnosticData->primAttrs.attr,
+                  attrs.sparseWeights,
+                  attrs.modelType};
 
     auto builder = [&context](const Key& dnnlKey) {
         return std::make_shared<DnnlFCPrimitive>(dnnlKey, context->getEngine(), context->getImplPriorities());
@@ -109,6 +106,20 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
     assert(primitive);
 
     return primitive;
+}
+
+DnnlMemoryDescPtr DnnlFCPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
+                                                                  const DnnlMemoryDescPtr dstDesc,
+                                                                  bool weightsNonTransposed) {
+    if (!weightsNonTransposed)
+        return srcDesc;
+
+    const auto& weiDesc = srcDesc->getDnnlDesc();
+    const auto reorderedWeiDesc =
+        dnnl::memory::desc{weiDesc.get_dims(), weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
+    const auto transposedWeiDesc = reorderedWeiDesc.reshape(dstDesc->getDnnlDesc().get_dims());
+
+    return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
 }
 
 bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputType,
@@ -129,8 +140,12 @@ bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputT
     return false;
 }
 
-bool DnnlFCPrimitive::useDynamicQuantizationImpl(size_t dqGroupSize, const MemoryDescPtr srcDesc, const MemoryDescPtr weightsDesc,
-                                                 MemoryCPtr scalesPtr, MemoryCPtr zpPtr, bool needTranspose) {
+bool DnnlFCPrimitive::useDynamicQuantizationImpl(size_t dqGroupSize,
+                                                 const MemoryDescPtr srcDesc,
+                                                 const MemoryDescPtr weightsDesc,
+                                                 MemoryCPtr scalesPtr,
+                                                 MemoryCPtr zpPtr,
+                                                 bool needTranspose) {
     if (dqGroupSize == 0)
         return false;
 
@@ -232,7 +247,9 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
             uint8_t zp_value = (wei_precision == ov::element::i8) ? 128 : 8;
             DnnlBlockedMemoryDesc zpMemoryDesc(ov::element::u8, Shape({1}));
             auto decompressionSubtractPtr = std::make_shared<Memory>(context->getEngine(), zpMemoryDesc, &zp_value);
-            dnnlpoc.appendDecompressionZeroPoints(decompressionSubtractPtr, !attrs.weightsNonTransposed, ov::element::u8);
+            dnnlpoc.appendDecompressionZeroPoints(decompressionSubtractPtr,
+                                                  !attrs.weightsNonTransposed,
+                                                  ov::element::u8);
         }
         dnnlpoc.setDynamicQuantizationParams(attrs.dynamicQuantizationGroupSize);
     }
@@ -364,10 +381,15 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     const auto& biasDesc = memory.at(ARG_BIAS)->getDescPtr();
     auto dstDesc = memory.at(ARG_DST)->getDescPtr();
 
-    const auto useWeightsDecompression = useWeightsDecompressionImpl(srcDesc->getPrecision(), weiDesc->getPrecision(), attrs.modelType);
-    const auto useDynamicQuantization = useWeightsDecompression &&
-        useDynamicQuantizationImpl(attrs.dynamicQuantizationGroupSize, srcDesc, weiDesc,
-                                   attrs.decompressionMultiplyPtr, attrs.decompressionSubtractPtr, !attrs.weightsNonTransposed);
+    const auto useWeightsDecompression =
+        useWeightsDecompressionImpl(srcDesc->getPrecision(), weiDesc->getPrecision(), attrs.modelType);
+    const auto useDynamicQuantization =
+        useWeightsDecompression && useDynamicQuantizationImpl(attrs.dynamicQuantizationGroupSize,
+                                                              srcDesc,
+                                                              weiDesc,
+                                                              attrs.decompressionMultiplyPtr,
+                                                              attrs.decompressionSubtractPtr,
+                                                              !attrs.weightsNonTransposed);
 
     const auto postOpData = createPrimitiveAttrs(attrs, postOps, memory, context, useDynamicQuantization);
 
@@ -402,8 +424,8 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
 
     const auto weightsDesc = DnnlExtensionUtils::makeDescriptor(primDesc.weights_desc());
     auto originalWeightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);
-    if (attrs.weightsNonTransposed)
-        originalWeightsDesc = utils::makeTransposedWeightDescriptor(originalWeightsDesc, weightsDesc);
+
+    originalWeightsDesc = makeTransposedWeightDescriptor(originalWeightsDesc, weightsDesc, attrs.weightsNonTransposed);
 
     // ignore the result since we just need to put the packed weights into the cache
     (void)utils::prepareWeightsMemory(originalWeightsDesc,
@@ -429,15 +451,16 @@ DnnlFCPrimitive::DnnlFCPrimitive(const Key& key,
                                  const dnnl::engine& engine,
                                  const std::vector<impl_desc_type>& implPriorities)
     : m_stream(dnnl::stream(engine)),
-      m_primDesc(createPrimitiveDesc(key.src->getDnnlDesc(),
-                                     key.wei->getDnnlDesc(),
-                                     key.bias->getDnnlDesc(),
-                                     key.dst->getDnnlDesc(),
-                                     key.attr,
-                                     engine,
-                                     implPriorities,
-                                     key.sparseWeights,
-                                     useWeightsDecompressionImpl(key.src->getPrecision(), key.wei->getPrecision(), key.modelType))),
+      m_primDesc(createPrimitiveDesc(
+          key.src->getDnnlDesc(),
+          key.wei->getDnnlDesc(),
+          key.bias->getDnnlDesc(),
+          key.dst->getDnnlDesc(),
+          key.attr,
+          engine,
+          implPriorities,
+          key.sparseWeights,
+          useWeightsDecompressionImpl(key.src->getPrecision(), key.wei->getPrecision(), key.modelType))),
       m_implType(implTypeFromPrimDesc(m_primDesc)),
       m_srcDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.src_desc())),
       m_weiDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.weights_desc())),
