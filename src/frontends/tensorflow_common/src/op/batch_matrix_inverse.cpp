@@ -20,8 +20,6 @@ OutputVector translate_batch_matrix_inverse_op(const NodeContext& node) {
                              "Internal error: incorrect usage of translate_batch_matrix_inverse_op.");
 
     const auto input = node.get_input(0);
-    const bool adjoint = node.get_attribute<bool>("adjoint", false);
-
     const auto input_shape = input.get_partial_shape();
     TENSORFLOW_OP_VALIDATION(node, input_shape.rank().is_static(), "BatchMatrixInverse input must have static rank");
     size_t rank = input_shape.rank().get_length();
