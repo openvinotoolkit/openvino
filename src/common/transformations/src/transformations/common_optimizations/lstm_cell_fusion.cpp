@@ -23,6 +23,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
 using namespace ov::pass;
 
 namespace {
