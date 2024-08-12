@@ -48,6 +48,7 @@ struct QKVProjection::Impl {
     QKVProjection * m_node;
     DnnlScratchPadPtr m_scrachPad;
     MemoryPtr m_scratchMem;
+    uint8_t* m_scratch_base = nullptr;
     int m_M;
 
     Impl(QKVProjection * pnode, DnnlScratchPadPtr scrachPad) : m_node(pnode), m_scrachPad(scrachPad) {
@@ -116,7 +117,11 @@ struct QKVProjection::Impl {
     }
 
     void setM(int M) {
-        if (m_M < M) {
+        uint8_t* cur_scratch_base = nullptr;
+        if (m_scratchMem)
+            cur_scratch_base = m_scratchMem->getDataAs<uint8_t>();
+        // new M larger than previous or the scratch pointer is changed after the following allocation
+        if (m_M < M || cur_scratch_base != m_scratch_base) {
             size_t total_scratch_size = 0;
             std::vector<size_t> scratch_offsets;
             std::vector<size_t> scratch_C_sizes;
@@ -130,9 +135,9 @@ struct QKVProjection::Impl {
             auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, Shape{total_scratch_size});
             m_scratchMem = m_scrachPad->createScratchPadMem(newMemDesc);
 
-            auto* scratch_base = m_scratchMem->getDataAs<uint8_t>();
+            m_scratch_base = m_scratchMem->getDataAs<uint8_t>();
             for (size_t ithr = 0; ithr < m_tempC.size(); ithr++) {
-                m_tempC[ithr].resize<float>({1, scratch_C_sizes[ithr]}, reinterpret_cast<float*>(scratch_base + scratch_offsets[ithr]));
+                m_tempC[ithr].resize<float>({1, scratch_C_sizes[ithr]}, reinterpret_cast<float*>(m_scratch_base + scratch_offsets[ithr]));
             }
 
             m_M = M;
