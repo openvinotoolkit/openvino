@@ -402,7 +402,7 @@ void ov::npuw::CompiledModel::fill_weights_bank(const std::size_t idx) {
     auto& comp_model_desc = m_compiled_submodels[idx];
 
     for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
-        comp_model_desc.closure[cidx] = m_weights_bank->get(comp_model_desc.closure[cidx]);
+        comp_model_desc.closure[cidx] = m_weights_bank->update(comp_model_desc.closure[cidx]);
         if (m_cfg.get<::intel_npu::NPUW_FOLD>()) {
             comp_model_desc.update_required[cidx] = true;
         } else {

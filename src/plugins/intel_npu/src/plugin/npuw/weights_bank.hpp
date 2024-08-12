@@ -19,17 +19,24 @@ namespace weights {
 
 class Bank {
 public:
-    Bank() = default;
+    Bank(const std::shared_ptr<const ov::IPlugin>& plugin) : m_plugin(plugin){};
 
-    ov::Tensor get(const ov::Tensor& tensor);
+    // Capture CPU version of the tensor
+    ov::Tensor update(const ov::Tensor& tensor);
+
+    // Based on previously captured tensor allocate a new tensor (if needed) on a specified device
+    ov::Tensor get(const ov::Tensor& tensor, const std::string& device);
 
 private:
-    // Note: suits both - remote and ordinary tensors
+    // Default CPU bank. Filled by update()
     std::unordered_map<void*, ov::Tensor> m_bank;
+    std::unordered_map<std::string, std::unordered_map<void*, ov::Tensor>> m_device_bank;
     std::mutex m_mutex;
+    std::shared_ptr<const ov::IPlugin> m_plugin = nullptr;
+    std::shared_ptr<ov::IRemoteContext> m_remote_ctx = nullptr;
 };
 
-std::shared_ptr<Bank> bank(const std::string& bank_name);
+std::shared_ptr<Bank> bank(const std::string& bank_name, const std::shared_ptr<const ov::IPlugin>& plugin);
 
 }  // namespace weights
 }  // namespace npuw
