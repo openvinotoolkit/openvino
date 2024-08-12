@@ -184,7 +184,7 @@ LevelZeroCompilerInDriver<TableExtension>::~LevelZeroCompilerInDriver() {
     if (_context) {
         auto result = zeContextDestroy(_context);
         if (ZE_RESULT_SUCCESS != result) {
-            _logger.warning("zeContextDestroy failed %#X", uint64_t(result));
+            _logger.error("zeContextDestroy failed %#X", uint64_t(result));
         }
     }
     _logger.debug("LevelZeroCompilerInDriver obj destroyed");
@@ -525,7 +525,7 @@ template <typename T, std::enable_if_t<NotSupportQuery(T), bool>>
 std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(
     const std::shared_ptr<const ov::Model>& /*model*/,
     const Config&) const {
-    _logger.debug("queryImpl - Driver version is less than 1.3, queryNetwork is unsupported.");
+    _logger.info("queryImpl - Driver version is less than 1.3, queryNetwork is unsupported.");
     return std::unordered_set<std::string>();
 }
 
@@ -565,7 +565,7 @@ template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool>>
 std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(
     const std::shared_ptr<const ov::Model>& model,
     const Config& config) const {
-    _logger.debug("queryImpl - Calling queryNetwork of 1.3 version.");
+    _logger.info("queryImpl - Calling queryNetwork of 1.3 version.");
 
     ze_device_graph_properties_t deviceGraphProperties{};
     auto result = _graphDdiTableExt->pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
@@ -706,15 +706,13 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQu
 template <typename TableExtension>
 ov::SupportedOpsMap LevelZeroCompilerInDriver<TableExtension>::query(const std::shared_ptr<const ov::Model>& model,
                                                                      const Config& config) const {
-    _logger.setLevel(config.get<LOG_LEVEL>());
-    _logger.debug("query");
+    _logger.debug("query start");
 
     ov::SupportedOpsMap result;
     const std::string deviceName = "NPU";
 
     try {
         const auto supportedLayers = queryImpl(model, config);
-        ;
         for (auto&& layerName : supportedLayers) {
             result.emplace(layerName, deviceName);
         }
@@ -800,8 +798,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreat
 template <typename TableExtension>
 NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std::shared_ptr<const ov::Model>& model,
                                                                       const Config& config) const {
-    _logger.setLevel(config.get<LOG_LEVEL>());
-    _logger.debug("compile");
+    _logger.debug("compile start");
 
     ze_device_graph_properties_t deviceGraphProperties{};
     auto result = _graphDdiTableExt->pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
@@ -880,8 +877,6 @@ template <typename TableExtension>
 NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vector<uint8_t>& network,
                                                                  const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "LevelZeroCompilerInDriver::parse", "desc");
-    _logger.setLevel(config.get<LOG_LEVEL>());
-    _logger.debug("getNetworkMeta");
     ze_graph_handle_t graphHandle;
 
     if (!network.empty()) {
@@ -924,12 +919,14 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vect
                        uint64_t(result));
     }
 
+    _logger.debug("parse end");
     return networkMeta;
 }
 
 template <typename TableExtension>
 uint32_t LevelZeroCompilerInDriver<TableExtension>::getSupportedOpsetVersion() const {
-    _logger.debug("getSupportedOpsetVersion");
+    _logger.debug("getSupportedOpsetVersion start");
+
     ze_device_graph_properties_t graphProperties;
 
     auto result = _graphDdiTableExt->pfnDeviceGetGraphProperties(_deviceHandle, &graphProperties);
@@ -944,6 +941,7 @@ uint32_t LevelZeroCompilerInDriver<TableExtension>::getSupportedOpsetVersion() c
     }
     const auto maxOpsetVersion = graphProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
+    _logger.debug("getSupportedOpset end");
     return maxOpsetVersion;
 }
 
@@ -1111,7 +1109,7 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::getNetworkMeta(ze_gra
 template <typename TableExtension>
 template <typename T, typename std::enable_if_t<!NotSupportLogHandle(T), bool>>
 std::string LevelZeroCompilerInDriver<TableExtension>::getLatestBuildError() const {
-    _logger.debug("getLatestBuildError()");
+    _logger.debug("getLatestBuildError start");
 
     // Get log size
     uint32_t size = 0;
@@ -1140,6 +1138,7 @@ std::string LevelZeroCompilerInDriver<TableExtension>::getLatestBuildError() con
                         "content of latest error log!");
         return "";
     }
+    _logger.debug("getLatestBuildError end");
     return logContent;
 }
 

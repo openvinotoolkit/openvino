@@ -82,24 +82,24 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
 
 std::optional<size_t> ZeroInferRequest::getBatchSize(const NetworkMetadata& metadata) {
     if (!metadata.outputs.at(0).shapeFromIRModel.has_value()) {
-        _logger.info("Batching on the plugin is not used, batching is handled by the compiler");
+        _logger.warning("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
     }
 
     const ov::PartialShape& firstOutputShape = *metadata.outputs.at(0).shapeFromIRModel;
     if (firstOutputShape.is_dynamic()) {
-        _logger.info("Networks using dynamic shapes are not supported when batching is handled by the plugin");
+        _logger.warning("Networks using dynamic shapes are not supported when batching is handled by the plugin");
         return std::nullopt;
     }
     if (firstOutputShape.rank().get_length() == 0) {
-        _logger.info(
+        _logger.warning(
             "Networks using rank 0 shapes for inputs/outputs are not supported when batching is handled by the plugin");
         return std::nullopt;
     }
 
     const size_t candidateBatchSize = firstOutputShape[BATCH_AXIS].get_length();
     if (candidateBatchSize == 0 || candidateBatchSize == DEFAULT_BATCH_SIZE) {
-        _logger.info("Batching on the plugin is not used, batching is handled by the compiler");
+        _logger.warning("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
     }
 
@@ -129,11 +129,11 @@ std::optional<size_t> ZeroInferRequest::getBatchSize(const NetworkMetadata& meta
 
     if (!checkDescriptorsUseCandidateBatchSize(metadata.inputs) ||
         !checkDescriptorsUseCandidateBatchSize(metadata.outputs)) {
-        _logger.info("Batching on the plugin is not used, batching is handled by the compiler");
+        _logger.warning("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
     }
 
-    _logger.info("Batching is handled by the plugin");
+    _logger.warning("Batching is handled by the plugin");
 
     return candidateBatchSize;
 }
@@ -495,6 +495,7 @@ void ZeroInferRequest::infer_async() {
 
 void ZeroInferRequest::get_result() {
     OV_ITT_TASK_CHAIN(ZERO_RESULT, itt::domains::LevelZeroBackend, "get_result", "pull");
+    _logger.debug("InferRequest::get_result start");
     _pipeline->pull();
 
     size_t outputIndex = 0;
@@ -584,7 +585,7 @@ std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
     const auto& compiledModel = *std::dynamic_pointer_cast<const ICompiledModel>(_compiledModel);
     const auto& compilerConfig = compiledModel.get_config();
     if (!compilerConfig.get<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
-        _logger.debug("InferRequest::get_profiling_info complete with empty {}.");
+        _logger.warning("InferRequest::get_profiling_info complete with empty {}.");
         return {};
     }
 
