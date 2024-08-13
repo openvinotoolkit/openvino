@@ -327,9 +327,50 @@ bool Node::checkScalarShape(const ov::PartialShape& pshape) {
 }
 
 void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs) {
-    for (auto& type : priority) {
-        int selectedPrimitive = -1;
-        int reorderCostScore = std::numeric_limits<int>::max();
+    auto loopEdges = [&](size_t i,
+                         const size_t inputNodesNum,
+                         const ov::intel_cpu::NodeDesc& supportedPrimitiveDesc,
+                         int& reorderLocalCostScore) {
+        for (size_t j = 0; j < inputNodesNum; j++) {
+            auto parentEdge = getParentEdgeAt(j);
+            auto parentPtr = parentEdge->getParent();
+
+            // We don't take into account constant edges since reorders on them will be executed on load network
+            // stage
+            if (ignoreConstInputs && j > 0 && parentPtr->isConstant()) {
+                continue;
+            }
+
+            auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
+            if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
+                int inNum = parentEdge->getInputNum();
+                if (inNum < 0 || inNum >= static_cast<int>(parent_spd->getConfig().outConfs.size())) {
+                    inNum = 0;
+                }
+                auto curDesc = supportedPrimitiveDesc.getConfig().inConfs[j].getMemDesc();
+                auto parentDesc = parent_spd->getConfig().outConfs[inNum].getMemDesc();
+
+                const bool isCompatible = curDesc->isCompatible(*parentDesc);
+                bool isScalarShape = checkScalarShape(curDesc->getShape().toPartialShape());
+                if (!isCompatible) {
+                    if (isScalarShape) {
+                        reorderLocalCostScore += 1;
+                    } else {
+                        reorderLocalCostScore +=
+                            ov::shape_size<ov::intel_cpu::VectorDims>(curDesc->getShape().getStaticDims());
+                    }
+                }
+
+                DEBUG_LOG(getName(), " pd[", i, "].inConfs[", j, "]"
+                          " is ", (isCompatible ? "compatible" : "not compatible"),
+                          " shape is ", (isScalarShape ? "scalar" : "not scalar"),
+                          " with parent ", parentPtr->getName(),
+                          " outConfs[", inNum, "], reorderLocalCostScore add to ", reorderLocalCostScore);
+            }
+        }
+    };
+
+    auto loopSPD = [&](const impl_desc_type type, int& selectedPrimitive, int& reorderCostScore) {
         for (size_t i = 0; i < getSupportedPrimitiveDescriptors().size(); i++) {
             const auto& supportedPrimitiveDesc = getSupportedPrimitiveDescriptors()[i];
             const impl_desc_type supportedType = supportedPrimitiveDesc.getImplementationType();
@@ -353,48 +394,22 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
                 continue;
             }
 
-            for (size_t j = 0; j < descInConfSize; j++) {
-                auto parentEdge = getParentEdgeAt(j);
-                auto parentPtr = parentEdge->getParent();
+            loopEdges(i, descInConfSize, supportedPrimitiveDesc, reorderLocalCostScore);
 
-                // We don't take into account constant edges since reorders on them will be executed on load network stage
-                if (ignoreConstInputs && j > 0 && parentPtr->isConstant()) {
-                    continue;
-                }
-
-                auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
-                if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
-                    int inNum = parentEdge->getInputNum();
-                    if (inNum < 0 || inNum >= static_cast<int>(parent_spd->getConfig().outConfs.size())) {
-                        inNum = 0;
-                    }
-                    auto curDesc = supportedPrimitiveDesc.getConfig().inConfs[j].getMemDesc();
-                    auto parentDesc = parent_spd->getConfig().outConfs[inNum].getMemDesc();
-
-                    const bool isCompatible = curDesc->isCompatible(*parentDesc);
-                    bool isScalarShape = checkScalarShape(curDesc->getShape().toPartialShape());
-                    if (!isCompatible) {
-                        if (isScalarShape) {
-                            reorderLocalCostScore += 1;
-                        } else {
-                            reorderLocalCostScore +=
-                                ov::shape_size<ov::intel_cpu::VectorDims>(curDesc->getShape().getStaticDims());
-                        }
-                    }
-
-                    DEBUG_LOG(getName(), " pd[", i, "].inConfs[", j, "]"
-                              " is ", (isCompatible ? "compatible" : "not compatible"),
-                              " shape is ", (isScalarShape ? "scalar" : "not scalar"),
-                              " with parent ", parentPtr->getName(),
-                              " outConfs[", inNum, "], reorderLocalCostScore add to ", reorderLocalCostScore);
-                }
-            }
             if (reorderLocalCostScore < reorderCostScore) {
                 reorderCostScore = reorderLocalCostScore;
                 selectedPrimitive = static_cast<int>(i);
                 DEBUG_LOG(getName(), " Select primitive desc: ", i, " ", supportedPrimitiveDesc);
             }
         }
+    };
+
+    // loop kernel priority
+    for (auto& type : priority) {
+        int selectedPrimitive = -1;
+        int reorderCostScore = std::numeric_limits<int>::max();
+
+        loopSPD(type, selectedPrimitive, reorderCostScore);
 
         if (selectedPrimitive >= 0) {
             selectPrimitiveDescriptorByIndex(selectedPrimitive);
