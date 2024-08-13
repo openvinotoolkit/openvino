@@ -17,7 +17,7 @@ using kernel_id = std::string;
 class kernel {
 public:
     using ptr = std::shared_ptr<kernel>;
-    virtual std::shared_ptr<kernel> clone() const = 0;
+    virtual std::shared_ptr<kernel> clone(bool reuse_kernel_handle = false) const = 0;
     virtual ~kernel() = default;
     virtual std::string get_id() const { return ""; }
 };

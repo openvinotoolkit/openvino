@@ -433,7 +433,8 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
 kernel::ptr kernels_cache::get_kernel_from_cached_kernels(std::string id) const {
     auto res = _cached_kernels.find(id);
     OPENVINO_ASSERT(_cached_kernels.end() != res, "[GPU] Kernel " + id + " not found in the cached kernel cache!");
-    return res->second->clone();
+
+    return res->second->clone(_reuse_kernels);
 }
 
 std::vector<kernel::ptr> kernels_cache::get_kernels(kernel_impl_params params) const {
@@ -451,7 +452,7 @@ std::vector<kernel::ptr> kernels_cache::get_kernels(kernel_impl_params params) c
     for (auto& k : res->second) {
         auto& kernel_ptr = k.first;
         auto kernel_part_idx = k.second;
-        kernels[kernel_part_idx] = kernel_ptr->clone();
+        kernels[kernel_part_idx] = kernel_ptr->clone(_reuse_kernels);
     }
     return kernels;
 }
