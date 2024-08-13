@@ -20,7 +20,7 @@ private:
 
 public:
     // Public API
-    std::shared_ptr<Bank> getBank(const std::string& bank_name, const std::shared_ptr<const ov::IPlugin>& plugin);
+    std::shared_ptr<Bank> getBank(const std::string& bank_name, const std::shared_ptr<const ov::ICore>& core);
 
 private:
     // Data
@@ -61,6 +61,7 @@ ov::Tensor Bank::get(const ov::Tensor& tensor, const std::string& device) {
 
     // If target device is CPU - just reuse the default bank
     if (device == "CPU") {
+        std::cout << "get CPU" << std::endl;
         return iter_cpu->second;
     }
 
@@ -69,27 +70,25 @@ ov::Tensor Bank::get(const ov::Tensor& tensor, const std::string& device) {
     auto iter_device = device_bank.find(tensor.data());
     if (iter_device != device_bank.end()) {
         // Already allocated on the device - reuse
+        std::cout << "get no alloc" << std::endl;
         return iter_device->second;
     }
 
     // Allocation needed
-    // FIXME: set the context in the constructor
-    if (device == "NPU" && !m_remote_ctx) {
-        m_remote_ctx = m_plugin->get_core()->get_default_context(device)._ptr;
-    }
+    std::cout << "get NPU alloc" << std::endl;
+    m_remote_ctx = m_core->get_default_context(device)._ptr;
     auto remote_tensor = m_remote_ctx->create_host_tensor(tensor.get_element_type(), tensor.get_shape());
     auto allocated_tensor = ov::make_tensor(remote_tensor);
     device_bank[tensor.data()] = allocated_tensor;
     return allocated_tensor;
 }
 
-std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
-                                           const std::shared_ptr<const ov::IPlugin>& plugin) {
+std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name, const std::shared_ptr<const ov::ICore>& core) {
     std::lock_guard<std::mutex> guard(m_mutex);
 
     auto iter = m_bank_map.find(bank_name);
     if (iter == m_bank_map.end()) {
-        auto bank = std::make_shared<Bank>(plugin);
+        auto bank = std::make_shared<Bank>(core);
         m_bank_map[bank_name] = bank;
         return bank;
     }
@@ -97,12 +96,12 @@ std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
 }
 
 std::shared_ptr<Bank> ov::npuw::weights::bank(const std::string& bank_name,
-                                              const std::shared_ptr<const ov::IPlugin>& plugin) {
+                                              const std::shared_ptr<const ov::ICore>& core) {
     if (bank_name.empty()) {
         // Don't share this bank in manager
-        return std::make_shared<Bank>(plugin);
+        return std::make_shared<Bank>(core);
     }
 
     auto& instance = BankManager::getInstance();
-    return instance.getBank(bank_name, plugin);
+    return instance.getBank(bank_name, core);
 }
