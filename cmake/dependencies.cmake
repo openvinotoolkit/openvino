@@ -102,10 +102,10 @@ function(ov_download_tbb)
         # TODO: add target_path to be platform specific as well, to avoid following if
         # build oneTBB 2021.2.1 with Visual Studio 2019 (MSVC 14.21)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "oneapi-tbb-2021.2.5-win-trim.zip"
+                ARCHIVE_WIN "oneapi-tbb-2021.13.0-win-cfg.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "a9384a25861946648db58f7f294c4aa2b1be7ae52748024fef3e13ca2762a1ba"
+                SHA256 "cae0f879458c221e00f1fb594014752a1a64fd92015e8ba07240bc383d7aad47"
                 USE_NEW_LOCATION TRUE)
     elseif(ANDROID AND X86_64)
         RESOLVE_DEPENDENCY(TBB
