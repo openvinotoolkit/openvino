@@ -29,7 +29,7 @@ Template for ModelPass transformation class
    .. tab-item:: Python
       :sync: py
 
-    .. doxygensnippet:: docs/snippets/ov_model_pass.py
+    .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_pass.py
         :language: py
         :fragment: [model_pass:ov_model_pass_py]
 
