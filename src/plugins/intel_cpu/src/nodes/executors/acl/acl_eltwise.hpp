@@ -16,7 +16,7 @@ public:
     explicit AclEltwiseExecutor(const ExecutorContext::CPtr context);
     static bool isEltwiseAlgorithmSupported(Algorithm algorithm);
 
-    bool init(const EltwiseAttrs& eltwiseAttrs,
+    bool init(const EltwiseAttrs& attrs,
               const std::vector<MemoryDescPtr>& srcDescs,
               const std::vector<MemoryDescPtr>& dstDescs,
               const std::vector<EltwisePostOp>& postOps) override;

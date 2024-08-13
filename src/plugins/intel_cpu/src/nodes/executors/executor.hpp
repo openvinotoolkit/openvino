@@ -24,9 +24,25 @@ namespace intel_cpu {
 #endif
 
 #if defined(OV_CPU_WITH_ACL)
-#    define OV_CPU_INSTANCE_ACL(...) {__VA_ARGS__},
+#   if defined(OPENVINO_ARCH_ARM)
+#       define OV_CPU_INSTANCE_ACL32(...) {__VA_ARGS__},
+#   else
+#       define OV_CPU_INSTANCE_ACL32(...)
+#   endif
+#   if defined(OPENVINO_ARCH_ARM64)
+#       define OV_CPU_INSTANCE_ACL64(...) {__VA_ARGS__},
+#   else
+#       define OV_CPU_INSTANCE_ACL64(...)
+#   endif
+#   if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#       define OV_CPU_INSTANCE_ACL(...) {__VA_ARGS__},
+#   else
+#       define OV_CPU_INSTANCE_ACL(...)
+#   endif
 #else
-#    define OV_CPU_INSTANCE_ACL(...)
+#   define OV_CPU_INSTANCE_ACL32(...)
+#   define OV_CPU_INSTANCE_ACL64(...)
+#   define OV_CPU_INSTANCE_ACL(...)
 #endif
 
 #if defined(OV_CPU_WITH_DNNL)
