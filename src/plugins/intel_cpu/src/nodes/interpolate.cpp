@@ -2024,7 +2024,13 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         return;
 
     ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
-    if ((inputPrecision != ov::element::i8) && (inputPrecision != ov::element::u8) && (inputPrecision != ov::element::bf16)) {
+
+#if defined(OV_CPU_WITH_ACL)
+    bool isInputPrecisionSupported = one_of(inputPrecision, ov::element::i8, ov::element::u8, ov::element::f16);
+#else
+    bool isInputPrecisionSupported = one_of(inputPrecision, ov::element::i8, ov::element::u8, ov::element::bf16);
+#endif
+    if (!isInputPrecisionSupported) {
         inputPrecision = ov::element::f32;
     }
 
@@ -2042,9 +2048,11 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(DATA_ID);
     }
 
+#if !defined(OV_CPU_WITH_ACL)
     if (!mayiuse(cpu::x64::sse41)) {
         inputPrecision = outputPrecision = ov::element::f32;
     }
+#endif
 
     auto targetShapeType = ov::element::i32;
     auto scalesType = ov::element::f32;
@@ -2118,6 +2126,8 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
         if (canUseAclExecutor)
             return;
+        //fallback to f32 if ref is used
+        inputPrecision = outputPrecision = ov::element::f32;
 #endif
 
         if (dataRank == 4) {
@@ -2150,6 +2160,8 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
         if (canUseAclExecutor)
             return;
+        //fallback to f32 if ref is used
+        inputPrecision = outputPrecision = ov::element::f32;
 #endif
 
         if (!mayiuse(cpu::x64::sse41) || interpAttrs.mode == InterpolateMode::linear) {
