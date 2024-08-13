@@ -20,6 +20,11 @@ namespace intel_npu {
 
 const ze_driver_uuid_t ZeroInitStructsHolder::uuid = ze_intel_npu_driver_uuid;
 
+// // Define the static member
+ze_context_handle_t ZeroInitStructsHolder::context = nullptr;
+// ze_driver_handle_t ZeroInitStructsHolder::shared_driver_handle = nullptr;
+// ze_device_handle_t ZeroInitStructsHolder::shared_device_handle = nullptr;
+
 static std::tuple<uint32_t, std::string> queryDriverExtensionVersion(
     std::vector<ze_driver_extension_properties_t>& extProps,
     uint32_t count) {
@@ -201,12 +206,22 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     // Get our target device
     zeroUtils::throwOnFail("zeDeviceGet", zeDeviceGet(driver_handle, &device_count, &device_handle));
 
+    printf(" Debug - ZeroInitStructsHolder zeContextCreate  Start ! \n");
+    
+    // Create context from backend
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
     zeroUtils::throwOnFail("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
+    
+    // setDriverHandle(driver_handle);
+    // setDeviceHandle(device_handle);
+
+    printf(" Debug - ZeroInitStructsHolder zeContextCreate Done ! \n");
+
     log.debug("ZeroInitStructsHolder initialize complete");
 }
 
 ZeroInitStructsHolder::~ZeroInitStructsHolder() {
+    printf(" Debug - ZeroInitStructsHolder Destructor !  \n");
     if (context) {
         log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
         auto result = zeContextDestroy(context);

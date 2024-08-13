@@ -48,7 +48,7 @@ using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
 template <typename TableExtension>
 class LevelZeroCompilerInDriver final : public ICompiler {
 public:
-    LevelZeroCompilerInDriver(const char* extName, ze_driver_handle_t driverHandle);
+    LevelZeroCompilerInDriver(const char* extName, ze_driver_handle_t driverHandle, ze_context_handle_t &_context);
     LevelZeroCompilerInDriver(const LevelZeroCompilerInDriver&) = delete;
     LevelZeroCompilerInDriver& operator=(const LevelZeroCompilerInDriver&) = delete;
     ~LevelZeroCompilerInDriver() override;
@@ -178,9 +178,13 @@ private:
 
 template <typename TableExtension>
 LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(const char* extName,
-                                                                     ze_driver_handle_t driverHandle)
+                                                                     ze_driver_handle_t driverHandle, ze_context_handle_t& context)
     : _driverHandle(driverHandle),
       _logger("LevelZeroCompilerInDriver", Logger::global().level()) {
+    
+    // Aceept context from adapter
+    _context = context;
+
     // Load our graph extension
     auto result =
         zeDriverGetExtensionFunctionAddress(_driverHandle, extName, reinterpret_cast<void**>(&_graphDdiTableExt));
@@ -196,11 +200,7 @@ LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(const char*
         OPENVINO_THROW("Failed to get device. Error code: ", std::hex, result);
     }
 
-    ze_context_desc_t contextDesc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0};
-    result = zeContextCreate(_driverHandle, &contextDesc, &_context);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("Failed to initialize context for device. Error code: ", std::hex, result);
-    }
+    printf(" Debug - zero_cid.hpp accept contextHandle from backend/adapater \n");
 }
 
 }  // namespace driverCompilerAdapter
