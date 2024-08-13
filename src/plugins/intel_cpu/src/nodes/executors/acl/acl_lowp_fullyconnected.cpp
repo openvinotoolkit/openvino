@@ -15,6 +15,9 @@
 #include "acl_weights.hpp"
 #include "acl_utils.hpp"
 
+#include "nodes/common/cpu_convert.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+
 namespace ov {
 namespace intel_cpu {
 
@@ -31,20 +34,16 @@ static bool checkPostOps(const PostOps &postOps) {
     return checkActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()));
 }
 
-void initFCAttrs(const FCAttrs &attrs,
-                 ACLTensorAttrs& aclTensorAttrs,
-                 ACLFCAttrs& aclfcAttrs,
-                 const MemoryArgs &memory,
-                 arm_compute::GEMMInfo& gemmInfo,
-                 const PostOps &postOps) {
+static void initFCAttrs(const FCAttrs &attrs,
+                        ACLTensorAttrs& aclTensorAttrs,
+                        ACLFCAttrs& aclfcAttrs,
+                        const MemoryArgs &memory,
+                        arm_compute::GEMMInfo& fullyConnectedLayerInfo,
+                        const PostOps &postOps) {
     aclTensorAttrs.hasLayoutTypeNHWC = memory.at(ARG_SRC)->getDescPtr()->hasLayoutType(LayoutType::nspc);
-    // TODO: not completed
     //fullyConnectedLayerInfo.weights_trained_layout = getAclDataLayoutByMemoryDesc(memory.at(ARG_WEI)->getDescPtr());
     aclfcAttrs.inputPrecision = memory.at(ARG_SRC)->getDescPtr()->getPrecision();
-    // TODO: not completed
     //fullyConnectedLayerInfo.transpose_weights = false;
-    gemmInfo.set_pretranspose_A(false);
-    gemmInfo.set_pretranspose_B(false);
     aclfcAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
 
     if (!postOps.empty()) {
@@ -64,7 +63,7 @@ ACLLowpFullyConnectedExecutor::ACLLowpFullyConnectedExecutor(const FCAttrs &attr
                                                              const MemoryArgs &memory,
                                                              const ExecutorContext::CPtr& context) : dequantizationScales(attrs.dequantizationScales) {
     initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, gemmInfo, postOps);
-    packedWeights = prepareWeightMemory(memory, context, attrs, aclfcAttrs, postOps);
+    packedWeights = acl_fc_executor::prepareWeightMemory(memory, context, attrs, aclfcAttrs, postOps);
 }
 
 bool ACLLowpFullyConnectedExecutor::supports(const FCConfig &config) {
@@ -83,7 +82,7 @@ bool ACLLowpFullyConnectedExecutor::supports(const FCConfig &config) {
 }
 
 void ACLLowpFullyConnectedExecutor::updateTensorsShapes(ACLShapes& aclMemoryShapes) {
-    updateFCTensorsShapes(aclMemoryShapes);
+    acl_fc_executor::updateFCTensorsShapes(aclMemoryShapes);
 }
 
 arm_compute::Status ACLLowpFullyConnectedExecutor::validateTensorsInfo(const ACLInfos & aclMemoryInfos) {

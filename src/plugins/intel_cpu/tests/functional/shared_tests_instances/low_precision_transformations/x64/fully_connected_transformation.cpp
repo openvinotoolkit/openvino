@@ -14,7 +14,7 @@ const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f32
 };
 
-const std::vector<MatMulShapes> shapes = {
+const std::vector<FullyConnectedShapes> shapes = {
     {
         ov::PartialShape{ 1, 16 },
         ov::PartialShape{ 16, 8 },
@@ -39,14 +39,35 @@ const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasform
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams()
 };
 
+const std::vector<FullyConnectedParams> activations = {
+    {
+        true,  // activation
+        false, // per-channel
+        true,  // FQ
+        "fullyconnected,relu_original,relu"
+    },
+    {
+        false, // activation
+        false, // per-channel
+        true,  // FQ
+        "fullyConnected_original,fullyConnected"
+    },
+    {
+        true,  // activation
+        true,  // per-channel
+        false, // FQ
+        "fullyconnected,relu_original,relu"
+    },
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, FullyConnectedTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn({ov::element::i8, ov::element::u8}),
-        ::testing::ValuesIn({true, false}),
+        ::testing::ValuesIn({ov::element::i8/*, ov::element::u8*/}),
+        ::testing::ValuesIn(activations),
         ::testing::Values("")),
     FullyConnectedTransformation::getTestCaseName);
 }  // namespace

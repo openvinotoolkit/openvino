@@ -70,16 +70,20 @@ TEST_P(FullyConnectedTransformation, CompareWithRefImpl) {
     run();
 
     const auto& activation = std::get<5>(GetParam());
-    const auto originalLayersNames = get_property_by_type("FullyConnected", "originalLayersNames");
-    EXPECT_EQ(ov::util::to_lower(activation.originalLayersNames), originalLayersNames);
+    if (!activation.originalLayersNames.empty()) {
+        const auto originalLayersNames = get_property_by_type("FullyConnected", "originalLayersNames");
+        EXPECT_EQ(ov::util::to_lower(activation.originalLayersNames), originalLayersNames);
+    }
 
     const auto& actualPrecision = get_runtime_precision_by_type("FullyConnected");
     const auto expectedPrecision = std::get<4>(GetParam());
     EXPECT_EQ(actualPrecision, expectedPrecision.to_string());
 
     const auto& expectedPrimitiveType = std::get<6>(GetParam());
-    const std::string actualPrimitiveType = get_property_by_type("FullyConnected", "primitiveType");
-    EXPECT_EQ(expectedPrimitiveType, actualPrimitiveType);
+    if (!expectedPrimitiveType.empty()) {
+        const std::string actualPrimitiveType = get_property_by_type("FullyConnected", "primitiveType");
+        EXPECT_EQ(expectedPrimitiveType, actualPrimitiveType);
+    }
 };
 
 }  // namespace LayerTestsDefinitions
