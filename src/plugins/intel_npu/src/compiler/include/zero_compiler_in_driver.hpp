@@ -201,7 +201,6 @@ LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(const char*
         OPENVINO_THROW("Failed to get device. Error code: ", std::hex, result);
     }
 
-    // printf(" Debug - zero_cid.hpp accept contextHandle from backend/adapater \n");
 }
 
 }  // namespace driverCompilerAdapter
