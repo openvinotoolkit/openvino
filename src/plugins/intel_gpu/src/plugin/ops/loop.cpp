@@ -97,6 +97,19 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
             cldnn::primitive_id from_id = layer_type_name_ID(from);
 
             back_edges_maps.emplace_back(from_id, to_id);
+            // tmp solution
+            // std::string tmp = "parameter:Parameter_1123327";
+            // if (to_id == tmp) {
+            //     to->set_partial_shape(from->get_input_partial_shape(0));
+            // }
+            // general solution
+            if (std::dynamic_pointer_cast<ov::op::v0::Result>(from) != nullptr && std::dynamic_pointer_cast<ov::op::v0::Parameter>(to) != nullptr) {
+                if (to->get_partial_shape() != from->get_input_partial_shape(0)) {
+                    if (to->get_partial_shape().is_static() && !from->get_input_partial_shape(0).is_static()) {
+                        to->set_partial_shape(from->get_input_partial_shape(0));
+                    }
+                }
+            }
             GPU_DEBUG_LOG << "back_edge = {" << from_id << " => " << to_id << "}" << std::endl;
         }
     }

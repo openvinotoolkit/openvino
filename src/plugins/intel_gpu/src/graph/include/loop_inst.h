@@ -374,6 +374,8 @@ private:
                                                                 network::ptr body_network, int64_t iter);
     void set_memory_in_body_network(cldnn::network::ptr body_network, const std::shared_ptr<cldnn::primitive_inst>& inst,
                                         memory::ptr mem);
+    void set_memory_in_body_network_from_output(cldnn::network::ptr body_network, const std::shared_ptr<cldnn::primitive_inst>& inst,
+                                        memory::ptr mem);
 
     std::vector<loop::io_primitive_map> _input_primitive_maps;
     std::vector<loop::io_primitive_map> _output_primitive_maps;
