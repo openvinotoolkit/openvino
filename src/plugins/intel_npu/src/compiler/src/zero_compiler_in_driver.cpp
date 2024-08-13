@@ -890,19 +890,30 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
     auto networkMeta = getNetworkMeta(graphHandle);
     networkMeta.name = model->get_friendly_name();
 
-    result = _graphDdiTableExt->pfnDestroy(graphHandle);
 
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("Failed to compile network. L0 pfnDestroy",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
+    // We dont destroy the graphHandle here, as it can be share for ZeroExecutor
+    //-------------------------
+    // result = _graphDdiTableExt->pfnDestroy(graphHandle);
+
+    // if (ZE_RESULT_SUCCESS != result) {
+    //     OPENVINO_THROW("Failed to compile network. L0 pfnDestroy",
+    //                    " result: ",
+    //                    ze_result_to_string(result),
+    //                    ", code 0x",
+    //                    std::hex,
+    //                    uint64_t(result));
+    // }
+    //-------------------------
 
     _logger.debug("compile end");
-    return NetworkDescription(std::move(blob), std::move(networkMeta));
+
+    auto networkDescription = NetworkDescription(std::move(blob), std::move(networkMeta));
+
+    // to test if return the same graphHandle to backend for ZeroExecutor, still able to work
+    void* graphHandleVoidPtr = static_cast<void*>(&graphHandle);
+    networkDescription.graphHandleVoidPtr = graphHandleVoidPtr;
+
+    return networkDescription;
 }
 
 template <typename TableExtension>

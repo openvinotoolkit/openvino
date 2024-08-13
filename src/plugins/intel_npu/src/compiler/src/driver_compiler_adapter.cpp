@@ -26,48 +26,11 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompile
                        std::hex,
                        uint64_t(result));
     }
-    uint32_t drivers = 0;
-    result = zeDriverGet(&drivers, nullptr);
-
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 zeDriverGet get count",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
-
-    std::vector<ze_driver_handle_t> allDrivers(drivers);
-    result = zeDriverGet(&drivers, allDrivers.data());
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 zeDriverGet get drivers",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
-
-    const ze_driver_uuid_t uuid = ze_intel_npu_driver_uuid;
-    ze_driver_properties_t props = {};
-    props.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES;
-    // Get our target driver
-    for (uint32_t i = 0; i < drivers; ++i) {
-        result = zeDriverGetProperties(allDrivers[i], &props);
-        if (ZE_RESULT_SUCCESS != result) {
-            OPENVINO_THROW("L0 zeDriverGetProperties",
-                           " result: ",
-                           ze_result_to_string(result),
-                           ", code 0x",
-                           std::hex,
-                           uint64_t(result));
-        }
-        if (memcmp(&props.uuid, &uuid, sizeof(uuid)) == 0) {
-            _driverHandle = allDrivers[i];
-            break;
-        }
-    }
+   
+    // Get shared obj from backend
+    ze_context_handle_t _context = ZeroInitStructsHolder::getContext();
+    _driverHandle = ZeroInitStructsHolder::getDriverHandle();
+    ze_device_handle_t _deviceHandle = ZeroInitStructsHolder::getDeviceHandle();
 
     if (_driverHandle == nullptr) {
         OPENVINO_THROW("LevelZeroCompilerAdapter: Failed to get properties about zeDriver");
@@ -157,29 +120,26 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompile
     }
 #endif
 
-    ze_context_handle_t _context;
-    _context = ZeroInitStructsHolder::getContext();
-
     if (ZE_GRAPH_EXT_VERSION_1_3 == targetVersion) {
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_3");
         apiAdapter =
-            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_3_t>>(graphExtName, _driverHandle, _context);
+            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_3_t>>(graphExtName, _driverHandle, _deviceHandle, _context);
     } else if (ZE_GRAPH_EXT_VERSION_1_4 == targetVersion) {
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_4");
         apiAdapter =
-            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_4_t>>(graphExtName, _driverHandle, _context);
+            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_4_t>>(graphExtName, _driverHandle, _deviceHandle, _context);
     } else if (ZE_GRAPH_EXT_VERSION_1_5 == targetVersion) {
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_5");
         apiAdapter =
-            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_5_t>>(graphExtName, _driverHandle, _context);
+            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_5_t>>(graphExtName, _driverHandle, _deviceHandle, _context);
     } else if (ZE_GRAPH_EXT_VERSION_1_6 == targetVersion) {
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_6");
         apiAdapter =
-            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_6_t>>(graphExtName, _driverHandle, _context);
+            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_6_t>>(graphExtName, _driverHandle, _deviceHandle, _context);
     } else {
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_2");
         apiAdapter =
-            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_2_t>>(graphExtName, _driverHandle, _context);
+            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_2_t>>(graphExtName, _driverHandle, _deviceHandle, _context);
     }
     _logger.debug("initialize zeAPI end");
 }

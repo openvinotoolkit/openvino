@@ -145,6 +145,9 @@ struct NetworkDescription final {
     std::vector<uint8_t> compiledNetwork;
 
     NetworkMetadata metadata;
+
+    // to test if passing graphHandle from compiler to backend executor 
+    void* graphHandleVoidPtr;
 };
 
 /**

@@ -75,6 +75,11 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
                          _networkDesc->compiledNetwork.size(),
                          _networkDesc->compiledNetwork.data(),
                          nullptr};
+
+    // GET THE graph handle from the compiler
+    ze_graph_handle_t* originalPtr = static_cast<ze_graph_handle_t*>(networkDescription->graphHandleVoidPtr);
+    _graph = *originalPtr;
+
     zeroUtils::throwOnFail(
         "pfnCreate",
         _graph_ddi_table_ext->pfnCreate(_initStructs->getContext(), _initStructs->getDevice(), &desc, &_graph));
