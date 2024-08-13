@@ -28,12 +28,6 @@ public:
 
     ~ZeroInitStructsHolder();
 
-    inline ze_driver_handle_t getDriver() const {
-        return driver_handle;
-    }
-    inline ze_device_handle_t getDevice() const {
-        return device_handle;
-    }
     inline ze_graph_dditable_ext_curr_t* getGraphDdiTable() const {
         return graph_dditable_ext_decorator.get();
     }
@@ -63,31 +57,35 @@ public:
     }
 
     static ze_driver_handle_t& getDriverHandle() {
-        return shared_driver_handle;
+        return driver_handle;
     }
 
     static void setDriverHandle(ze_driver_handle_t &newDriverHandle)  {
-        shared_driver_handle=newDriverHandle;
+        driver_handle=newDriverHandle;
     }
 
     static ze_device_handle_t& getDeviceHandle() {
-        return shared_device_handle;
+        return device_handle;
     }
 
     static void setDeviceHandle(ze_device_handle_t &newDeviceHandle)  {
-        shared_device_handle=newDeviceHandle;
+        device_handle=newDeviceHandle;
+    }
+
+    inline ze_driver_handle_t getDriver() const {
+        return driver_handle;
+    }
+    inline ze_device_handle_t getDevice() const {
+        return device_handle;
     }
 
 private:
     static const ze_driver_uuid_t uuid;
     Logger log;
 
-    ze_driver_handle_t driver_handle = nullptr;
-    ze_device_handle_t device_handle = nullptr;
-
     static ze_context_handle_t context;
-    static ze_driver_handle_t shared_driver_handle;
-    static ze_device_handle_t shared_device_handle;
+    static ze_driver_handle_t driver_handle;
+    static ze_device_handle_t device_handle;
 
     std::unique_ptr<ze_graph_dditable_ext_decorator> graph_dditable_ext_decorator;
     ze_command_queue_npu_dditable_ext_curr_t* _command_queue_npu_dditable_ext = nullptr;
