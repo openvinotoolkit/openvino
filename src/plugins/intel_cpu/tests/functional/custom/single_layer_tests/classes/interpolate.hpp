@@ -55,6 +55,6 @@ namespace Interpolate {
    const std::vector<ov::op::v11::Interpolate::NearestMode> defNearestModes();
    const std::vector<bool> antialias();
    const std::vector<double> cubeCoefs();
-}  // namespace Interpolate 
+}  // namespace Interpolate
 }  // namespace test
 }  // namespace ov

@@ -13,7 +13,7 @@ using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-namespace Interpolate{
+namespace Interpolate {
 
 const std::vector<ov::op::v11::Interpolate::CoordinateTransformMode> coordinateTransformModes_Full = {
     ov::op::v11::Interpolate::CoordinateTransformMode::HALF_PIXEL,

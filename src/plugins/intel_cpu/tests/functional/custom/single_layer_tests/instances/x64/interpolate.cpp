@@ -13,7 +13,31 @@ using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-namespace Interpolate{
+namespace Interpolate {
+namespace {
+
+const std::vector<ov::AnyMap> filterAdditionalConfig() {
+    if (ov::with_cpu_x86_avx512f()) {
+        return {{{ov::hint::inference_precision(ov::element::f32)}},
+                {{ov::hint::inference_precision(ov::element::bf16)}}};
+    } else {
+        return {// default config as an stub for target without avx512, otherwise all tests with BF16 in its name are
+                // skipped
+                {}};
+    }
+}
+
+const std::vector<CPUSpecificParams> filterCPUInfoForDevice3D() {
+    if (ov::with_cpu_x86_avx2()) {
+        return { CPUSpecificParams{{ncw, x, x, x}, {ncw}, {"jit_avx2"}, "jit_avx2"} };
+    } else {
+        return { CPUSpecificParams{{ncw, x, x, x}, {ncw}, {"ref"}, "ref"} };
+    }
+}
+
+const std::vector<ov::AnyMap> filterAdditionalConfig3D() {
+    return { {} };
+}
 
 const std::vector<ov::op::v11::Interpolate::CoordinateTransformMode> coordinateTransformModes_Smoke = {
         ov::op::v11::Interpolate::CoordinateTransformMode::HALF_PIXEL,
@@ -47,34 +71,6 @@ const std::vector<fusingSpecificParams> interpolateFusingParamsSet{
         fusingSwish,
         fusingFakeQuantizePerTensorRelu
 };
-
-std::vector<ov::AnyMap> filterAdditionalConfig() {
-    if (ov::with_cpu_x86_avx512f()) {
-        return {{{ov::hint::inference_precision(ov::element::f32)}},
-                {{ov::hint::inference_precision(ov::element::bf16)}}};
-    } else {
-        return {// default config as an stub for target without avx512, otherwise all tests with BF16 in its name are
-                // skipped
-                {}};
-    }
-}
-
-// 3D
-std::vector<CPUSpecificParams> filterCPUInfoForDevice3D() {
-    std::vector<CPUSpecificParams> resCPUParams;
-    if (ov::with_cpu_x86_avx2()) {
-        resCPUParams.push_back(CPUSpecificParams{{ncw, x, x, x}, {ncw}, {"jit_avx2"}, "jit_avx2"});
-    } else {
-        resCPUParams.push_back(CPUSpecificParams{{ncw, x, x, x}, {ncw}, {"ref"}, "ref"});
-    }
-    return resCPUParams;
-}
-
-std::vector<ov::AnyMap> filterAdditionalConfig3D() {
-    return {
-        {}
-    };
-}
 
 const std::vector<std::vector<size_t>> pads3D_smoke = {
     {0, 0, 0},
@@ -726,7 +722,7 @@ const std::vector<ov::op::v11::Interpolate::CoordinateTransformMode> coordinateT
     ov::op::v11::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN,
 };
 
-const std::vector<double> cubeCoefs()Pillow = {
+const std::vector<double> cubeCoefsPillow = {
     -0.5f,
 };
 
@@ -828,7 +824,7 @@ const auto interpolateCasesBilinearPillow_Smoke = ::testing::Combine(
         ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads4D),
         ::testing::ValuesIn(pads4D),
-        ::testing::ValuesIn(cubeCoefs()Pillow));
+        ::testing::ValuesIn(cubeCoefsPillow));
 
 const auto interpolateCasesBicubicPillow_Smoke = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::BICUBIC_PILLOW),
@@ -837,7 +833,7 @@ const auto interpolateCasesBicubicPillow_Smoke = ::testing::Combine(
         ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads4D),
         ::testing::ValuesIn(pads4D),
-        ::testing::ValuesIn(cubeCoefs()Pillow));
+        ::testing::ValuesIn(cubeCoefsPillow));
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateBilinearPillow_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
@@ -918,7 +914,7 @@ const auto interpolateCasesBilinearPillow_Smoke_nchw_as_nhwc = ::testing::Combin
         ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads4D_nchw_as_nhwc),
         ::testing::ValuesIn(pads4D_nchw_as_nhwc),
-        ::testing::ValuesIn(cubeCoefs()Pillow));
+        ::testing::ValuesIn(cubeCoefsPillow));
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateBilinearPillow_LayoutAlign_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
@@ -937,7 +933,7 @@ const auto interpolateCasesBicubicPillow_Smoke_nchw_as_nhwc = ::testing::Combine
         ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads4D_nchw_as_nhwc),
         ::testing::ValuesIn(pads4D_nchw_as_nhwc),
-        ::testing::ValuesIn(cubeCoefs()Pillow));
+        ::testing::ValuesIn(cubeCoefsPillow));
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateBicubicPillow_LayoutAlign_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
@@ -949,6 +945,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateBicubicPillow_LayoutAlign_Test, Interp
             ::testing::ValuesIn(filterPillowAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
 
+}  // namespace
 }  // namespace Interpolate
 }  // namespace test
 }  // namespace ov
