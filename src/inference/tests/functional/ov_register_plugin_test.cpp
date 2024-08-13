@@ -123,9 +123,9 @@ TEST(RegisterPluginTests, registerExistingPluginThrows) {
                  ov::Exception);
     clearMockPlugin(m_so);
 }
-/*
+
 #    if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
-TEST(RegisterPluginTests, registerPluginWithSymlink) {
+TEST(RegisterPluginTests, registerPluginWithSymlinkInDiffPlace) {
     ov::Core core;
     auto plugin = std::make_shared<ov::test::utils::MockPlugin>();
     std::shared_ptr<ov::IPlugin> base_plugin = plugin;
@@ -133,20 +133,39 @@ TEST(RegisterPluginTests, registerPluginWithSymlink) {
     mockPlugin(core, base_plugin, m_so);
     std::string libraryPath = ov::test::utils::get_mock_engine_path();
 
-    fs::create_directory("test_link");
+    // Symlink file & the real file doesn't locale in the diff place. Will throw
+    std::string symlink_for_plugin_file = "symlink_for_plugin_file";
 
-    std::string NameSymlink = "test_link/test_symlink";
-    fs::create_symlink(libraryPath, NameSymlink);
+    fs::create_symlink(libraryPath, symlink_for_plugin_file);
+    ASSERT_THROW(core.register_plugin(symlink_for_plugin_file, "MOCK_HARDWARE"), ov::Exception);
+    EXPECT_NO_THROW(core.register_plugin(libraryPath, "MOCK_HARDWARE"));
 
-    std::string mock_plugin_name{"MOCK_HARDWARE"};
-    ASSERT_THROW(core.register_plugin(NameSymlink, mock_plugin_name), ov::Exception);
+    fs::remove(symlink_for_plugin_file);
+}
 
-    EXPECT_NO_THROW(core.register_plugin(libraryPath, mock_plugin_name));
-    fs::remove_all("test_link");
-    ASSERT_FALSE(ov::util::directory_exists("test_link"));
+TEST(RegisterPluginTests, registerPluginWithSymlinkInSamePlace) {
+    ov::Core core;
+    auto plugin = std::make_shared<ov::test::utils::MockPlugin>();
+    std::shared_ptr<ov::IPlugin> base_plugin = plugin;
+    std::shared_ptr<void> m_so;
+    mockPlugin(core, base_plugin, m_so);
+    std::string libraryPath = ov::test::utils::get_mock_engine_path();
+
+    // Symlink file & the real file doesn't locale in the same place. Will no throw
+    std::string plugin_copy_file = "plugin_copy_file";
+    std::string symlink_for_plugin_copy_file = "symlink_for_plugin_copy_file";
+
+    fs::copy_file(libraryPath, plugin_copy_file);
+    fs::create_symlink(plugin_copy_file, symlink_for_plugin_copy_file);
+
+    ASSERT_NO_THROW(core.register_plugin(plugin_copy_file, "MOCK_HARDWARE"));
+    EXPECT_NO_THROW(core.register_plugin(symlink_for_plugin_copy_file, "MOCK_HARDWARE1"));
+
+    fs::remove(plugin_copy_file);
+    fs::remove(symlink_for_plugin_copy_file);
 }
 #    endif
-*/
+
 inline std::string getPluginFile() {
     std::string filePostfix{"mock_engine_valid.xml"};
     std::string filename = ov::test::utils::generateTestFilePrefix() + "_" + filePostfix;

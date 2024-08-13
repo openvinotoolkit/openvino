@@ -90,7 +90,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckChangePropComplieModleGetPr
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
         ::testing::Combine(
-                ::testing::Values(ov::test::utils::target_device),
+                ::testing::Values(ov::test::utils::target_device), // is_mate_plugin(tg_d...)? std::string("mandatory_mate_" + target_device): target_device
                 ::testing::Values(ov::AnyMap({}))),
         OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName);
 

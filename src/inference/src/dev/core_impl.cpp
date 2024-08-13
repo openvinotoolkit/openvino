@@ -1189,11 +1189,12 @@ void ov::CoreImpl::register_plugin(const std::string& plugin,
     if (device_name.find('.') != std::string::npos) {
         OPENVINO_THROW("Device name must not contain dot '.' symbol");
     }
-//#if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
-//    if (fs::is_symlink(plugin))
-//        OPENVINO_ASSERT(ov::util::get_directory(plugin) == ov::util::get_ov_lib_path(),
-//                        "Cannot registe plugin with symlink path:\"" + plugin + "\".");
-//#endif
+#if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
+    if (fs::is_symlink(plugin))
+        OPENVINO_ASSERT(ov::util::get_absolute_file_path(ov::util::get_directory(plugin)) ==
+                            ov::util::get_directory(ov::util::get_absolute_file_path(plugin)),
+                        "Cannot registe plugin with symlink path:\"" + plugin + "\".");
+#endif
     PluginDescriptor desc{ov::util::get_plugin_path(plugin), properties};
     register_plugin_in_registry_unsafe(device_name, desc);
 }
