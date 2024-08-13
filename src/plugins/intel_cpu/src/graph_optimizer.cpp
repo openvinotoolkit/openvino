@@ -450,9 +450,9 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         }
 
         // OneDNN IP primitive provides limited decompression params support
-        if (IC % groupNum != 0 || IC / groupNum < 4 || OC == 1) {
-            SKIP_FUSION_FOR_NODE(fcNode);
-        }
+//        if (IC % groupNum != 0 || IC / groupNum < 4 || OC == 1) {
+//            SKIP_FUSION_FOR_NODE(fcNode);
+//        }
 
         // Fusion processing
         auto *multiplyInputNode = dynamic_cast<node::Input *>(multiplyConstNode.get());

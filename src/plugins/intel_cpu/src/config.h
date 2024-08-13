@@ -79,7 +79,7 @@ struct Config {
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
 #else
     // Currently INT8 mode is not optimized on ARM / RISCV or other non-x86 platforms, fallback to FP32 mode.
-    LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
+    LPTransformsMode lpTransformsMode = LPTransformsMode::On;
 #endif
     // default inference precision
     ov::element::Type inferencePrecision = ov::element::f32;
