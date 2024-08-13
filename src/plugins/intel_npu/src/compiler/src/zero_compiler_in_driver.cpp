@@ -181,7 +181,7 @@ namespace driverCompilerAdapter {
 
 template <typename TableExtension>
 LevelZeroCompilerInDriver<TableExtension>::~LevelZeroCompilerInDriver() {
-    printf("\n Debug - skip zero_cid destructor - zeContextDestroy(_context) ! \n");
+    // printf("\n Debug - skip zero_cid destructor - zeContextDestroy(_context) ! \n");
     // zeContextDestroy(_context) remove the shard _context from backend instead of here 
 }
 

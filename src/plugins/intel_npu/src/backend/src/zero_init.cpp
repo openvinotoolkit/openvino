@@ -206,16 +206,12 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     // Get our target device
     zeroUtils::throwOnFail("zeDeviceGet", zeDeviceGet(driver_handle, &device_count, &device_handle));
 
-    printf(" Debug - ZeroInitStructsHolder zeContextCreate  Start ! \n");
-    
-    // Create context from backend
+    // Create context from backend to be shared with compiler
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
     zeroUtils::throwOnFail("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
     
     setDriverHandle(driver_handle);
     setDeviceHandle(device_handle);
-
-    printf(" Debug - ZeroInitStructsHolder zeContextCreate Done ! \n");
 
     log.debug("ZeroInitStructsHolder initialize complete");
 }
