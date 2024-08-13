@@ -4,10 +4,6 @@
 
 #pragma once
 
-#if defined(HAVE_GPU_DEVICE_MEM_SUPPORT)
-#    define HAVE_DEVICE_MEM_SUPPORT
-#endif
-
 #include <iostream>
 #include <string>
 #include <vector>
@@ -185,11 +181,9 @@ static const char infer_threads_pinning_message[] =
     "\t\t\t\tthreads->(NUMA)nodes(\"NUMA\") or \n"
     "\t\t\t\tcompletely disable(\"NO\") CPU inference threads pinning";
 
-#ifdef HAVE_DEVICE_MEM_SUPPORT
 // @brief message for switching memory allocation type option
 static const char use_device_mem_message[] =
     "Optional. Switch between host and device memory allocation for input and output buffers.";
-#endif
 
 /// @brief message for latency percentile settings
 static const char infer_latency_percentile_message[] =
@@ -347,10 +341,8 @@ DEFINE_uint64(nthreads, 0, infer_num_threads_message);
 // @brief Enable plugin messages
 DEFINE_string(pin, "", infer_threads_pinning_message);
 
-#ifdef HAVE_DEVICE_MEM_SUPPORT
 /// @brief Define flag for switching beetwen host and device memory allocation for input and output buffers
 DEFINE_bool(use_device_mem, false, use_device_mem_message);
-#endif
 
 /// @brief The percentile which will be reported in latency metric
 DEFINE_uint64(latency_percentile, 50, infer_latency_percentile_message);
@@ -426,9 +418,7 @@ static void show_usage() {
     std::cout << "    -nthreads  <integer>          " << infer_num_threads_message << std::endl;
     std::cout << "    -pin  <string>  (\"YES\"|\"CORE\") / \"HYBRID_AWARE\" / (\"NO\"|\"NONE\") / \"NUMA\"  "
               << infer_threads_pinning_message << std::endl;
-#ifdef HAVE_DEVICE_MEM_SUPPORT
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
-#endif
     std::cout << std::endl;
     std::cout << "Statistics dumping options:" << std::endl;
     std::cout << "    -latency_percentile     " << infer_latency_percentile_message << std::endl;
