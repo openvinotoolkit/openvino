@@ -1612,8 +1612,10 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         return false;
     };
 
+    bool use_shared_kernels = _node->get_program().get_config().get_property(ov::intel_gpu::hint::enable_kernels_reuse);
+
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
-    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts(this)) {
+    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts(this) || use_shared_kernels) {
         set_arguments();
     }
     on_execute();
@@ -1972,6 +1974,7 @@ event::ptr primitive_inst::update_weights() {
                     auto kernels = kernels_cache.compile(*reorder_kernel_params, reorder_impl->get_kernels_source());
                     OPENVINO_ASSERT(kernels.size() == 1, "[GPU] Expected number of compiled kernels is 1, but got ", kernels.size());
                     reorder_impl->set_kernels(kernels);
+                    reorder_impl->can_share_kernels = _node->get_program().get_config().get_property(ov::intel_gpu::hint::enable_kernels_reuse);
                 }
 
                 reorder_inst->set_impl(reorder_impl->clone());

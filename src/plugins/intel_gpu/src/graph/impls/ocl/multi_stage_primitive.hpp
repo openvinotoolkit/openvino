@@ -49,9 +49,10 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         , _kernels({}) {
         _kernels.reserve(other._kernels.size());
         for (size_t k = 0; k < other._kernels.size(); ++k) {
-            _kernels.emplace_back(other._kernels[k]->clone());
+            _kernels.emplace_back(other._kernels[k]->clone(other.can_share_kernels));
         }
         this->can_reuse_memory = other.can_reuse_memory;
+        this->can_share_kernels = other.can_share_kernels;
         this->_kernel_name = other._kernel_name;
         this->_is_dynamic = other._is_dynamic;
     }
@@ -126,6 +127,7 @@ protected:
             for (size_t i = 1; i < _kernels_data[0].kernels.size(); ++i)
                 kernel_dump_info.second += " " + _kernels_data[0].kernels[i].code.kernelString->entry_point;
         }
+        this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
 
     void init_by_cached_kernels(const kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids) override {
@@ -135,6 +137,7 @@ protected:
         for (size_t k = 0; k < cached_kernel_ids.size(); ++k) {
             _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[k]));
         }
+        this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
 
     std::vector<std::string> get_cached_kernel_ids(const kernels_cache& kernels_cache) override {
