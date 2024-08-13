@@ -181,13 +181,8 @@ namespace driverCompilerAdapter {
 
 template <typename TableExtension>
 LevelZeroCompilerInDriver<TableExtension>::~LevelZeroCompilerInDriver() {
-    if (_context) {
-        auto result = zeContextDestroy(_context);
-        if (ZE_RESULT_SUCCESS != result) {
-            _logger.error("zeContextDestroy failed %#X", uint64_t(result));
-        }
-    }
-    _logger.debug("LevelZeroCompilerInDriver obj destroyed");
+    printf("\n Debug - skip zero_cid destructor - zeContextDestroy(_context) ! \n");
+    // zeContextDestroy(_context) remove the shard _context from backend instead of here 
 }
 
 /**
@@ -614,8 +609,21 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQuery
                               buildFlags.c_str(),
                               ZE_GRAPH_FLAG_NONE};
 
+    if (_context == nullptr){
+        OPENVINO_THROW("L0 seriazlideIRModelAndQueryNetworkCreateV2 _context is nullptr");
+    }
+
     // Create querynetwork handle
     ze_result_t result = _graphDdiTableExt->pfnQueryNetworkCreate2(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
+
+    if (ZE_RESULT_SUCCESS != result) {
+        OPENVINO_THROW("L0 seriazlideIRModelAndQueryNetworkCreateV2",
+                       " result: ",
+                       ze_result_to_string(result),
+                       ", code 0x",
+                       std::hex,
+                       uint64_t(result));
+    }
 
     return result;
 }
@@ -760,8 +768,23 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
                               buildFlags.c_str(),
                               flags};
 
+    if (_context == nullptr){
+        OPENVINO_THROW("L0 createGraph(ex version >= 1.5) _context is nullptr");
+    }
+
     // Create querynetwork handle
-    return _graphDdiTableExt->pfnCreate2(_context, _deviceHandle, &desc, graph);
+    auto result = _graphDdiTableExt->pfnCreate2(_context, _deviceHandle, &desc, graph);
+    
+    if (ZE_RESULT_SUCCESS != result) {
+        OPENVINO_THROW("L0 pfnCreate2",
+                       " result: ",
+                       ze_result_to_string(result),
+                       ", code 0x",
+                       std::hex,
+                       uint64_t(result));
+    }
+
+    return result;
 }
 template <typename TableExtension>
 ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreateGraph(
@@ -792,6 +815,15 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreat
 
     _logger.info("compileIR Using extension version: %s", typeid(TableExtension).name());
     ze_result_t result = createGraph(format, serializedIR, buildFlags, flags, &graphHandle);
+
+    if (ZE_RESULT_SUCCESS != result) {
+        OPENVINO_THROW("Failed to create graph. L0 createGraph",
+                       " result: ",
+                       ze_result_to_string(result),
+                       ", code 0x",
+                       std::hex,
+                       uint64_t(result));
+    }
     return result;
 }
 

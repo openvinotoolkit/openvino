@@ -10,6 +10,7 @@
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "ze_intel_npu_uuid.h"
 #include "zero_compiler_in_driver.hpp"
+#include "zero_init.hpp"
 
 namespace intel_npu {
 namespace driverCompilerAdapter {
@@ -155,26 +156,30 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompile
         }
     }
 #endif
+
+    ze_context_handle_t _context;
+    _context = ZeroInitStructsHolder::getContext();
+
     if (ZE_GRAPH_EXT_VERSION_1_3 == targetVersion) {
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_3");
         apiAdapter =
-            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_3_t>>(graphExtName, _driverHandle);
+            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_3_t>>(graphExtName, _driverHandle, _context);
     } else if (ZE_GRAPH_EXT_VERSION_1_4 == targetVersion) {
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_4");
         apiAdapter =
-            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_4_t>>(graphExtName, _driverHandle);
+            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_4_t>>(graphExtName, _driverHandle, _context);
     } else if (ZE_GRAPH_EXT_VERSION_1_5 == targetVersion) {
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_5");
         apiAdapter =
-            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_5_t>>(graphExtName, _driverHandle);
+            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_5_t>>(graphExtName, _driverHandle, _context);
     } else if (ZE_GRAPH_EXT_VERSION_1_6 == targetVersion) {
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_6");
         apiAdapter =
-            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_6_t>>(graphExtName, _driverHandle);
+            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_6_t>>(graphExtName, _driverHandle, _context);
     } else {
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_2");
         apiAdapter =
-            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_2_t>>(graphExtName, _driverHandle);
+            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_2_t>>(graphExtName, _driverHandle, _context);
     }
     _logger.debug("initialize zeAPI end");
 }
