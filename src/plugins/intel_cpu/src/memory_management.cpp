@@ -8,12 +8,43 @@
 
 #include "node.h"
 #include "openvino/runtime/memory_solver.hpp"
-#include "partitioned_mem_mgr.h"
 
 namespace ov {
 namespace intel_cpu {
 
 namespace {
+
+class StaticPartitionMemoryBlock : public IMemoryBlockObserver {
+public:
+    StaticPartitionMemoryBlock(MemoryBlockPtr pBlock, ptrdiff_t offset)
+        : m_pBlock(pBlock), m_offset(offset) {
+        OPENVINO_ASSERT(m_pBlock, "Memory block is uninitialized");
+    }
+
+    void* getRawPtr() const noexcept override {
+        return static_cast<uint8_t*>(m_pBlock->getRawPtr()) + m_offset;
+    }
+    void setExtBuff(void* ptr, size_t size) override {
+        OPENVINO_THROW("Unexpected setExtBuff call to StaticPartitionMemoryBlock");
+    }
+    bool resize(size_t size) override {
+        // don't pass over as it's static memory
+        return false;
+    }
+    bool hasExtBuffer() const noexcept override {
+        return m_pBlock->hasExtBuffer();
+    }
+    void registerMemory(Memory* memPtr) override {
+        m_pBlock->registerMemory(memPtr);
+    }
+    void unregisterMemory(Memory* memPtr) override {
+        m_pBlock->unregisterMemory(memPtr);
+    }
+
+private:
+    MemoryBlockPtr m_pBlock;
+    ptrdiff_t m_offset = 0;
+};
 
 class IMemoryManager {
 public:
@@ -50,7 +81,7 @@ public:
     }
 
     const MemoryControl::MemoryBlockMap& lastSolution() override {
-        if (!m_blocks.empty()) {
+        if (!m_boxes.empty() && m_blocks.empty()) {
             solve();
         }
         return m_blocks;
@@ -71,7 +102,7 @@ private:
 
         for (const auto& box : m_boxes) {
             int64_t offset = staticMemSolver.get_offset(box.id);
-            auto memoryBlock = std::make_shared<PartitionedMemoryBlock>(m_workspace, total_size, offset, box.size * alignment);
+            auto memoryBlock = std::make_shared<StaticPartitionMemoryBlock>(m_workspace, offset);
             m_blocks[box.id] = std::move(memoryBlock);
         }
         // m_boxes.clear();
@@ -108,7 +139,7 @@ public:
     }
 
     const MemoryControl::MemoryBlockMap& lastSolution() override {
-        if (!m_blocks.empty()) {
+        if (!m_boxes.empty() && m_blocks.empty()) {
             solve();
         }
         return m_blocks;

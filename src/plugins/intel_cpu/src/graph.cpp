@@ -772,9 +772,11 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
             reg.alloc_type = allocType;
 
             isConst  |= isConstOutput(edge);
-            isOutput |= edge->getParent()->getType() == Type::Output;
+            isOutput |= edge->getChild()->getType() == Type::Output;
             isInput  |= edge->getParent()->getType() == Type::Input;
         }
+
+        reg.size = boxSize;
 
         if (isConst) {
             reg.type = MemoryRegion::RegionType::CONSTANT;
