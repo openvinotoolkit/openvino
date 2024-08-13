@@ -32,12 +32,12 @@ struct MersenneTwisterGeneratorCallArgs {
     const void* state_ptr;
     const void* min_ptr;
     const void* range_ptr;
-    const uint64_t state_id = 0lu;
-    const uint64_t state_shift = 0lu;
-    const uint64_t step = 0lu;
-    const uint64_t work_amount = 0lu;
-    const uint64_t elements_remaining = 0lu;
-    const bool optimization_enabled = false;
+    uint64_t state_id = 0lu;
+    uint64_t state_shift = 0lu;
+    uint64_t step = 0lu;
+    uint64_t work_amount = 0lu;
+    uint64_t elements_remaining = 0lu;
+    bool optimization_enabled = false;
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -158,15 +158,9 @@ private:
     RegistersPool::Reg<Vmm> v_convert_3;
 
     // Constants registers
-    RegistersPool::Reg<Vmm> v_mask;
-    RegistersPool::Reg<Vmm> v_divisor;
-    RegistersPool::Reg<Vmm> v_min_elements;
-    RegistersPool::Reg<Vmm> v_4_elements;
-    RegistersPool::Reg<Vmm> v_2_elements;
-    RegistersPool::Reg<Vmm> v_convert_0;
-    RegistersPool::Reg<Vmm> v_convert_1;
-    RegistersPool::Reg<Vmm> v_convert_2;
-    RegistersPool::Reg<Vmm> v_convert_3;
+    RegistersPool::Reg<Vmm> v_const_1;
+    RegistersPool::Reg<Vmm> v_const_2;
+
 
     void initVectors();
 

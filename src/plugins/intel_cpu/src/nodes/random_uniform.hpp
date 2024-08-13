@@ -12,6 +12,19 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+// Following const values are taken from the original paper:
+// https://www.thesalmons.org/john/random123/papers/random123sc11.pdf
+constexpr uint32_t CRUSH_RESISTANCE_CONST_LOWER_VALUE = 0x9E3779B9;
+constexpr uint32_t CRUSH_RESISTANCE_CONST_UPPER_VALUE = 0xBB67AE85;
+constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_N = 0xD2511F53;
+constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER = 0xCD9E8D57;
+constexpr uint64_t ROUNDS_NUMBER = 10llu;
+
+// Following const values are taken from the original paper (used by PyTorch):
+// https://dl.acm.org/doi/pdf/10.1145/272991.272995
+constexpr int32_t MERSENNE_STATE_N = 624;
+constexpr int32_t MERSENNE_STATE_M = 397;
+
 class RandomUniform : public Node {
 public:
     union OutputType {
@@ -91,6 +104,13 @@ private:
         uint64_t step = 0lu;
     };
 
+    struct MersenneTwisterThreadParams {
+        uint64_t elements_to_generate = 0lu;
+        uint64_t dst_shift = 0lu;
+        uint64_t state_shift = 0lu;
+        uint64_t step = 0lu;
+    };
+
     uint64_t m_threads_num = 0lu;
     std::vector<ThreadParams> m_thread_params;
 
@@ -134,7 +154,11 @@ private:
     bool m_mersenne_twister_optimization_enabled = false;
 
     // Number of random elements generated per thread.
-    uint64_t m_elements_generated = 0lu
+    uint64_t m_elements_generated = 0lu;
+
+    // Number of uint32s consumed to generate one output the requested type.
+    uint64_t m_elements_consumed_per_one_output = 0lu;
+
 
     void prepareMersenneTwisterParams();
 

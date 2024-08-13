@@ -696,24 +696,41 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
 
     // Initialize constants
     mov(r32_aux, MT_CONST_1);
-    uni_vpbroadcastd(v_temp, r32_aux);
+    // uni_vpbroadcastd(v_temp, r32_aux);
 }
 
 template <x64::cpu_isa_t isa>
 void MersenneTwisterGenerator<isa>::initVectors() {
     const auto r64_aux = getReg64();
+    const auto r32_aux = Xbyak::Reg32(r64_aux.getIdx());
 
+    v_dst = getVmm();
     v_state = getVmm();
-    v_mt_index = getVmm();
-    v_temp = getVmm();
+    v_min = getVmm();
+    v_range = getVmm();
+    v_result = getVmm();
+    v_result_bitshift_11 = getVmm();
+    v_result_bitshift_7 = getVmm();
+    v_result_bitshift_7_const_1 = getVmm();
+    v_result_bitshift_15 = getVmm();
+    v_result_bitshift_15_const_2 = getVmm();
+    v_mask = getVmm();
+    v_divisor = getVmm();
+    v_min_elements = getVmm();
+    v_4_elements = getVmm();
+    v_2_elements = getVmm();
+    v_convert_0 = getVmm();
+    v_convert_1 = getVmm();
+    v_convert_2 = getVmm();
+    v_convert_3 = getVmm();
 
     // Initialize the state array.
     mov(r64_aux, ptr[r64_params + GET_OFF(state_ptr)]);
     uni_vmovdqu(v_state, ptr[r64_aux]);
 
     // Initialize constants
-    mov(r64_aux, MT_CONST_1);
-    uni_vmovdqu(v_temp, ptr[r64_aux]);
+    mov(r32_aux, MT_CONST_1);
+    // uni_vmovdqu(v_temp, ptr[r64_aux]);
 }
 
 template <x64::cpu_isa_t isa>
@@ -730,27 +747,27 @@ void MersenneTwisterGenerator<isa>::process() {
 
         generateRandomNumbers(v_dst_0, v_dst_1);
 
-        uni_vmovups(ptr[r64_dst], v_dst_0);
-        add(r64_dst, VECTOR_LENGTH * sizeof(float));
+        // uni_vmovups(ptr[r64_dst], v_dst_0);
+        // add(r64_dst, VECTOR_LENGTH * sizeof(float));
 
         sub(r64_work_amount, VECTOR_LENGTH);
         jmp(l_loop, T_NEAR);
     }
 
-    L(l_tail);
-    tail(v_dst_0, v_dst_1);
+    // L(l_tail);
+    // tail(v_dst_0, v_dst_1);
 }
 
 template <x64::cpu_isa_t isa>
 void MersenneTwisterGenerator<isa>::generateRandomNumbers(const Vmm& v_dst_0, const Vmm& v_dst_1) {
     // MT19937 algorithm steps for generating random numbers
 
-    uni_vpxor(v_temp, v_temp, v_state);
+    // uni_vpxor(v_temp, v_temp, v_state);
     // uni_vpsrlq(v_temp, v_temp, 11);
 
-    uni_vpxor(v_dst_0, v_temp, v_state);
+    // uni_vpxor(v_dst_0, v_temp, v_state);
     // uni_vpsrlq(v_temp, v_dst_0, 7);
-    uni_vpxor(v_dst_0, v_dst_0, v_temp);
+    // uni_vpxor(v_dst_0, v_dst_0, v_temp);
 
     uni_vmovups(v_dst_1, v_dst_0);
 }
