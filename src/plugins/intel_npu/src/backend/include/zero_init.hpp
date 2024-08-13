@@ -62,23 +62,21 @@ public:
         context=newContext;
     }
 
-    // // -------
-    // static ze_driver_handle_t& getDriverHandle() {
-    //     return shared_driver_handle;
-    // }
+    static ze_driver_handle_t& getDriverHandle() {
+        return shared_driver_handle;
+    }
 
-    // static void setDriverHandle(ze_driver_handle_t &newDriverHandle)  {
-    //     shared_driver_handle=newDriverHandle;
-    // }
+    static void setDriverHandle(ze_driver_handle_t &newDriverHandle)  {
+        shared_driver_handle=newDriverHandle;
+    }
 
-    // static ze_device_handle_t& getDeviceHandle() {
-    //     return shared_device_handle;
-    // }
+    static ze_device_handle_t& getDeviceHandle() {
+        return shared_device_handle;
+    }
 
-    // static void setDeviceHandle(ze_device_handle_t &newDeviceHandle)  {
-    //     shared_device_handle=newDeviceHandle;
-    // }
-    // //------------
+    static void setDeviceHandle(ze_device_handle_t &newDeviceHandle)  {
+        shared_device_handle=newDeviceHandle;
+    }
 
 private:
     static const ze_driver_uuid_t uuid;
@@ -88,8 +86,8 @@ private:
     ze_device_handle_t device_handle = nullptr;
 
     static ze_context_handle_t context;
-    // static ze_driver_handle_t shared_driver_handle;
-    // static ze_device_handle_t shared_device_handle;
+    static ze_driver_handle_t shared_driver_handle;
+    static ze_device_handle_t shared_device_handle;
 
     std::unique_ptr<ze_graph_dditable_ext_decorator> graph_dditable_ext_decorator;
     ze_command_queue_npu_dditable_ext_curr_t* _command_queue_npu_dditable_ext = nullptr;
