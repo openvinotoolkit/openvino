@@ -36,18 +36,18 @@ KERNEL(lstm_seq)(
     ACCUMULATOR_TYPE input_result[gate_num][NUM_HIDDEN_TO_DO];
     ACCUMULATOR_TYPE gate_output[gate_num][NUM_HIDDEN_TO_DO];
     ACCUMULATOR_TYPE temp_cell_state[NUM_HIDDEN_TO_DO];
-    for(int l=0;l<HIDDEN_SIZE;l++){
+    for(int l=0;l<NUM_HIDDEN_TO_DO;l++){
         for(int k=0;k<gate_num;k++){
-            gate_output[k][HIDDEN_SIZE] = 0;
+            gate_output[k][l] = 0;
         }
     }
-#ifdef SEQUENCE
-    const int real_seq_length = sequence_lengths[INPUT6_GET_INDEX_SAFE(b, 0, 0, 0)];
-#else
-    const int real_seq_length = 1;
-#endif
+    #ifdef SEQUENCE
+        const int real_seq_length = sequence_lengths[INPUT6_GET_INDEX_SAFE(b, 0, 0, 0)];
+    #else
+        const int real_seq_length = 1;
+    #endif
     for(int i=0;i<real_seq_length;i++){
-        for(int l=0;l<HIDDEN_SIZE;l++){
+        for(int l=0;l<NUM_HIDDEN_TO_DO;l++){
             for(int k=0;k<gate_num;k++){
                 hidden_result[k][l] = 0;
                 input_result[k][l] = 0;
