@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include <iostream>
+#include <climits>
 
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/memory.hpp"
@@ -33,7 +33,8 @@ struct data : public primitive_base<data> {
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
     memory::ptr mem;
 
-    size_t bin_offset = -1;
+    size_t original_size = SIZE_MAX;
+    size_t bin_offset = SIZE_MAX;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -52,28 +53,21 @@ struct data : public primitive_base<data> {
         size_t data_size = mem->size();
         ob << make_data(&data_size, sizeof(size_t));
 
-        bool cache_without_weights = bin_offset != static_cast<size_t>(-1);
-
-        if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
-            if (cache_without_weights) {
-                // std::ofstream ifstr_save("/home/tkrupa/test/save.bin", std::ofstream::app | std::ofstream::binary);
-                // BinaryOutputBuffer saveBuffer(ifstr_save);
-                ob << true;
-                ob << bin_offset;
-                // ob << make_data(mem->buffer_ptr(), data_size);
-                // saveBuffer << make_data(mem->buffer_ptr(), data_size);
-                // ifstr_save.close();
-            } else {
-                ob << false;
-                ob << make_data(mem->buffer_ptr(), data_size);
-            }
+        bool is_cache_without_weights = bin_offset != SIZE_MAX && data_size == original_size;
+        if (is_cache_without_weights) {
+            ob << true;
+            ob << bin_offset;
         } else {
             ob << false;
-            std::vector<uint8_t> _buf;
-            _buf.resize(data_size);
-            stream* strm = reinterpret_cast<stream*>(ob.get_stream());
-            mem->copy_to(*strm, _buf.data());
-            ob << make_data(_buf.data(), data_size);
+            if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
+                ob << make_data(mem->buffer_ptr(), data_size);
+            } else {
+                std::vector<uint8_t> _buf;
+                _buf.resize(data_size);
+                stream* strm = reinterpret_cast<stream*>(ob.get_stream());
+                mem->copy_to(*strm, _buf.data());
+                ob << make_data(_buf.data(), data_size);
+            }
         }
     }
 
@@ -91,29 +85,28 @@ struct data : public primitive_base<data> {
 
         mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
 
-        bool cache_without_weights;
-        ib >> cache_without_weights;
+        bool is_cache_without_weights;
+        ib >> is_cache_without_weights;
 
+        std::ifstream fs("/home/tkrupa/test/current.txt");
+        std::string bin_path;
+        fs >> bin_path;
+        fs.close();
+
+        auto mapped_memory = ov::load_mmap_object(bin_path);
+        std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>> shared_buf;
         // TODO: propagate weights_path here
+        if (is_cache_without_weights) {
+            ib >> bin_offset;
+            original_size = data_size;
+            shared_buf = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
+                mapped_memory->data() + bin_offset,
+                data_size,
+                mapped_memory);
+        }
         if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
-            if (cache_without_weights) {
-                // std::ofstream ifstr_load("/home/tkrupa/test/load.bin", std::ofstream::app | std::ofstream::binary);
-                // BinaryOutputBuffer loadBuffer(ifstr_load);
-                size_t bin_offset;
-                ib >> bin_offset;
-                // std::ifstream ifstr("/home/tkrupa/test/shufflenet.bin", std::ifstream::binary);
-                // BinaryInputBuffer weightsBuffer(ifstr, ib.get_engine());
-                // weightsBuffer.seekg(bin_offset);
-                // weightsBuffer >> make_data(mem->buffer_ptr(), data_size);
-                auto mapped_memory = ov::load_mmap_object("/home/tkrupa/test/shufflenet.bin");
-                auto shared_buf = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
-                    mapped_memory->data() + bin_offset,
-                    data_size,
-                    mapped_memory);
+            if (is_cache_without_weights) {
                 std::memcpy(reinterpret_cast<uint8_t*>(mem->buffer_ptr()), shared_buf->get_ptr<uint8_t>(), data_size);
-                // loadBuffer << make_data(mem->buffer_ptr(), data_size);
-                // ib >> make_data(mem->buffer_ptr(), data_size);
-                // ifstr_load.close();
             } else {
                 ib >> make_data(mem->buffer_ptr(), data_size);
             }
@@ -122,7 +115,11 @@ struct data : public primitive_base<data> {
             auto& strm = ib.get_engine().get_service_stream();
             if (data_size < DATA_BLOCK_SIZE || output_layout.format.is_image_2d()) {
                 std::vector<uint8_t> _buf(data_size);
-                ib >> make_data(_buf.data(), data_size);
+                if (is_cache_without_weights) {
+                    std::memcpy(reinterpret_cast<uint8_t*>(_buf.data()), shared_buf->get_ptr<uint8_t>(), data_size);
+                } else {
+                    ib >> make_data(_buf.data(), data_size);
+                }
                 mem->copy_from(strm, _buf.data());
             } else {
                 std::vector<uint8_t> _buf1(DATA_BLOCK_SIZE);
@@ -137,14 +134,26 @@ struct data : public primitive_base<data> {
                     size_t copy_size =
                         (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
                     if (buf_flag) {
-                        ib >> make_data(_buf1.data(), copy_size);
+                        if (is_cache_without_weights) {
+                            std::memcpy(reinterpret_cast<uint8_t*>(_buf1.data()),
+                                        shared_buf->get_ptr<uint8_t>() + dst_offset,
+                                        copy_size);
+                        } else {
+                            ib >> make_data(_buf1.data(), copy_size);
+                        }
                         if (ev2 != nullptr) {
                             ev2->wait();
                             ev2 = nullptr;
                         }
                         ev1 = mem->copy_from(strm, _buf1.data(), src_offset, dst_offset, copy_size, is_blocking);
                     } else {
-                        ib >> make_data(_buf2.data(), copy_size);
+                        if (is_cache_without_weights) {
+                            std::memcpy(reinterpret_cast<uint8_t*>(_buf2.data()),
+                                        shared_buf->get_ptr<uint8_t>() + dst_offset,
+                                        copy_size);
+                        } else {
+                            ib >> make_data(_buf2.data(), copy_size);
+                        }
                         if (ev1 != nullptr) {
                             ev1->wait();
                             ev1 = nullptr;

@@ -307,8 +307,10 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
         auto rt_info = op.get_rt_info();
         auto offset = rt_info.find("bin_offset");
-        if (offset != rt_info.end()) {
+        auto original_size = rt_info.find("original_size");
+        if (offset != rt_info.end() && original_size != rt_info.end()) {
             data_prim->bin_offset = offset->second.as<size_t>();
+            data_prim->original_size = original_size->second.as<size_t>();
         }
     }
 
