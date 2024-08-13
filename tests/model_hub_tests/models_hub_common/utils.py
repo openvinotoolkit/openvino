@@ -16,7 +16,7 @@ def parse_list_file(file_name: str):
         for model_info in f_in:
             model_info = model_info.strip()
             # skip comment in model scope file
-            if model_info.startswith('#'):
+            if not model_info or model_info.startswith('#'):
                 continue
             yield model_info.split(',')
 
