@@ -56,7 +56,11 @@ static constexpr Property<size_t, PropertyMutability::RW> max_dynamic_batch{"DYN
 static constexpr Property<bool, PropertyMutability::RW> nv12_two_inputs{"GPU_NV12_TWO_INPUTS"};
 static constexpr Property<float, PropertyMutability::RW> buffers_preallocation_ratio{"GPU_BUFFERS_PREALLOCATION_RATIO"};
 static constexpr Property<size_t, PropertyMutability::RW> max_kernels_per_batch{"GPU_MAX_KERNELS_PER_BATCH"};
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+static constexpr Property<std::wstring, PropertyMutability::RW> weights_path{"GPU_WEIGHTS_PATH"};
+#else
 static constexpr Property<std::string, PropertyMutability::RW> weights_path{"GPU_WEIGHTS_PATH"};
+#endif
 
 }  // namespace intel_gpu
 }  // namespace ov
