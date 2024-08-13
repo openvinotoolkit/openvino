@@ -11,7 +11,7 @@ for information on how to start.
 Export an LLM model via Hugging Face Optimum-Intel
 ##################################################
 
-1. Create python virtual environment and install the correct components for exporting model:
+1. Create a python virtual environment and install the correct components for exporting a model:
 
    .. code-block:: console
 
