@@ -22,6 +22,16 @@ recognizes four classes: background, road, curb and mark.
 -  `Prepare Data for Visualization <#prepare-data-for-visualization>`__
 -  `Visualize data <#visualize-data>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     import platform
@@ -194,7 +204,7 @@ is provided.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f866f7dbac0>
+    <matplotlib.image.AxesImage at 0x7f8bf851a160>
 
 
 
@@ -221,7 +231,7 @@ Do Inference
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f86340753a0>
+    <matplotlib.image.AxesImage at 0x7f8bf81eda00>
 
 
 
