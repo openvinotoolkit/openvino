@@ -422,7 +422,7 @@ void primitive_inst::update_shape() {
     for (size_t i = 0; i != _impl_params->output_layouts.size(); ++i) {
         set_shape_change();
         _impl_params->output_layouts[i].set_partial_shape(new_layouts[i].get_partial_shape());
-        if (!_node->is_type<reshape>() || (!_node->get_input_layout(0).has_dynamic_pad() && !_node->can_be_optimized())) {
+        if (!_node->is_type<reshape>() || (!_node->get_input_layout(0).data_padding.is_dynamic_pad() && !_node->can_be_optimized())) {
             _impl_params->output_layouts[i].data_padding = padding::max(_impl_params->output_layouts[i].data_padding, new_layouts[i].data_padding);
         }
     }
