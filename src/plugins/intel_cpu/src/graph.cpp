@@ -777,7 +777,7 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
         }
 
         if (isConst) {
-            reg.type = MemoryRegion::RegionType::CONST;
+            reg.type = MemoryRegion::RegionType::CONSTANT;
         } else if (isInput) {
             if (isOutput) {
                 reg.type = MemoryRegion::RegionType::IO;

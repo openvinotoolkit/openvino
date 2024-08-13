@@ -18,7 +18,7 @@ struct MemoryRegion {
     int64_t size;  // size in bytes
     int64_t id;    // ID unique for each region
 
-    enum class RegionType : uint8_t { VARIABLE, CONST, INPUT, OUTPUT, IO } type;
+    enum class RegionType : uint8_t { VARIABLE, CONSTANT, INPUT, OUTPUT, IO } type;
     enum class AllocType : uint8_t { POD, STRING, UNKNOWN } alloc_type;
 };
 
