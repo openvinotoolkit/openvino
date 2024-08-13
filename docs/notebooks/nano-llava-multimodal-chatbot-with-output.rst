@@ -34,6 +34,16 @@ OpenVINO. Additionally, we will optimize model using
 
 -  `Interactive demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -47,8 +57,8 @@ Prerequisites
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.3.1+cpu which is incompatible.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.1+cpu which is incompatible.
+    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
+    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -93,19 +103,7 @@ Prerequisites
 
 .. parsed-literal::
 
-    README.md:   0%|          | 0.00/3.47k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
     generation_config.json:   0%|          | 0.00/172 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    example_1.png:   0%|          | 0.00/200k [00:00<?, ?B/s]
 
 
 
@@ -117,7 +115,19 @@ Prerequisites
 
 .. parsed-literal::
 
+    README.md:   0%|          | 0.00/3.47k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
     configuration_llava_qwen2.py:   0%|          | 0.00/8.87k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    merges.txt:   0%|          | 0.00/1.67M [00:00<?, ?B/s]
 
 
 
@@ -129,13 +139,13 @@ Prerequisites
 
 .. parsed-literal::
 
-    added_tokens.json:   0%|          | 0.00/80.0 [00:00<?, ?B/s]
+    example_1.png:   0%|          | 0.00/200k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    modeling_llava_qwen2.py:   0%|          | 0.00/103k [00:00<?, ?B/s]
+    added_tokens.json:   0%|          | 0.00/80.0 [00:00<?, ?B/s]
 
 
 
@@ -147,13 +157,13 @@ Prerequisites
 
 .. parsed-literal::
 
-    tokenizer_config.json:   0%|          | 0.00/1.32k [00:00<?, ?B/s]
+    vocab.json:   0%|          | 0.00/2.78M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    vocab.json:   0%|          | 0.00/2.78M [00:00<?, ?B/s]
+    modeling_llava_qwen2.py:   0%|          | 0.00/103k [00:00<?, ?B/s]
 
 
 
@@ -165,7 +175,7 @@ Prerequisites
 
 .. parsed-literal::
 
-    merges.txt:   0%|          | 0.00/1.67M [00:00<?, ?B/s]
+    tokenizer_config.json:   0%|          | 0.00/1.32k [00:00<?, ?B/s]
 
 
 
@@ -200,10 +210,10 @@ previous step.
 
 .. parsed-literal::
 
-    2024-07-13 01:15:06.266352: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-07-13 01:15:06.301452: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-08-07 02:02:11.410230: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-07 02:02:11.443660: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-07-13 01:15:06.954075: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-08-07 02:02:11.956162: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Run PyTorch Model Inference
@@ -252,8 +262,8 @@ Run PyTorch Model Inference
 
 .. parsed-literal::
 
-    This image captures a delightful scene featuring a white, fluffy lamb with a playful expression. The lamb is positioned towards the center of the image, its body filling most of the frame from left to right. The lamb has a charmingly expressive face, with a pair of black eyes that appear to be squinting slightly. It has a small, round, pink nose, and its ears are also pink, which contrasts with the rest of its white fur. The lamb's legs are white, and the lower part of its body is fluffy, adding to its adorable appearance.
-    The lamb's face is quite expressive, with its eyes looking down and
+    The image features a white, fluffy llama with a black nose and a black eye. The llama is wearing a pair of black pants and a black and white shirt. Its long white fur is slightly visible and seems to be slightly burned, giving it a charming and somewhat mischievous appearance. The llama's ears are pink and it has a small black eye that is quite expressive.
+    The llama's face is quite expressive, with a big black nose and a black eye. It has two small black eyes that are quite expressive. The llama's mouth is open, which gives it a cute and endearing appearance. The llama's face is also
 
 
 Convert and Optimize model
@@ -488,6 +498,15 @@ space.
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+
+
+.. parsed-literal::
+
+    WARNING:nncf:NNCF provides best results with torch==2.3.*, while current torch version is 2.2.2+cpu. If you encounter issues, consider switching to torch==2.3.*
+
+
+.. parsed-literal::
+
     huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
     To disable this warning, you can either:
     	- Avoid using `tokenizers` before the fork if possible
@@ -496,7 +515,6 @@ space.
 
 .. parsed-literal::
 
-    ['images']
     Applying weight compression to image encoder
     INFO:nncf:Statistics of the bitwidth distribution:
     ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
@@ -557,7 +575,6 @@ will use it separately.
 
 .. parsed-literal::
 
-    ['input']
     Token Embedding model successfully converted
 
 
@@ -633,7 +650,6 @@ token prediction.
 
 .. parsed-literal::
 
-    ['attention_mask', 'position_ids', 'past_key_values', 'inputs_embeds']
     Applying weight compression to second stage LLava model
 
 
