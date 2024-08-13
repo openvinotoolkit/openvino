@@ -160,7 +160,6 @@ void LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
 void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                             LinearIR::constExprIt loop_end_pos,
                             size_t loop_depth, size_t vector_size) {
-    const auto FULL_DIM = PortDescriptor::ServiceDimensions::FULL_DIM;
     std::vector<ExpressionPort> loop_input_ports, loop_output_ports;
     LoopManager::get_io_loop_ports(loop_begin_pos, loop_end_pos, loop_input_ports, loop_output_ports);
 
@@ -178,8 +177,8 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                         "Failed to broadcast work amount in marking loop");
     };
 
-    auto is_outside_loop = [&FULL_DIM](const std::vector<size_t>& subtensor) {
-        return std::all_of(subtensor.begin(), subtensor.end(), [&FULL_DIM](size_t lhs) { return lhs == FULL_DIM; });
+    auto is_outside_loop = [](const std::vector<size_t>& subtensor) {
+        return std::all_of(subtensor.begin(), subtensor.end(), utils::is_full_dim_value);
     };
 
     std::vector<size_t> loop_subtensor;
@@ -192,7 +191,7 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
             subtensor[subtensor.size() - 1] = vector_size;
         }
 
-        const size_t resizing_value = is_outside_loop(subtensor) ? FULL_DIM : 1;
+        const size_t resizing_value = is_outside_loop(subtensor) ? utils::get_full_dim_value() : 1;
         while (subtensor.size() < loop_depth)
             subtensor.insert(subtensor.begin(), resizing_value);
         if (loop_subtensor.empty())
@@ -202,7 +201,7 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                         "Incorrect scheduling parameters for loop");
 
         for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
-            if (*(subtensor.rbegin() + dim_idx) != FULL_DIM) {
+            if (!utils::is_full_dim_value(*(subtensor.rbegin() + dim_idx))) {
                 broadcast(loop_tensor, shape, dim_idx);
             }
         }
@@ -211,7 +210,7 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
     for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
         OPENVINO_ASSERT(dim_idx < loop_subtensor.size(), "Incorrect indexes of Loop for markup");
         const auto& subtensor_value = *(loop_subtensor.rbegin() + dim_idx);
-        if (subtensor_value == FULL_DIM) {
+        if (utils::is_full_dim_value(subtensor_value)) {
             continue;
         }
 
@@ -233,8 +232,6 @@ size_t LoopManager::replace_with_new_loop(const LinearIR& linear_ir, LinearIR::c
                     [&loop_info](const std::pair<size_t, LoopInfoPtr>& p) { return loop_info != p.second; }),
                     "Failed to replace with new Loop: this Loop already exists!");
 
-    // [137819] Should be before loop id replacing!!!
-    // Check that other expression in LinearIR doesn't have the old loop ID - otherwise completely removed from loop manager
     const auto old_loop_bounds = get_loop_bounds(linear_ir, old_id);
 
     const auto loop_id = this->add_loop_info(loop_info);
@@ -352,21 +349,25 @@ void LoopManager::update_loop_ports(const ExpressionPtr& expr) {
                 continue;
             count_of_common_outer_loops = std::min(count_of_common_outer_loops, get_common_outer_loops(source.get_expr(), source_consumer.get_expr()).size());
         }
-        update_loops_port({common_outer_loop_ids.cbegin(), common_outer_loop_ids.cbegin() + count_of_common_outer_loops}, source, output_ports);
+        replace_loop_ports({common_outer_loop_ids.cbegin(), common_outer_loop_ids.cbegin() + count_of_common_outer_loops}, source, output_ports);
         // Save previous port
         if (count_of_common_outer_loops != common_outer_loop_ids.size()) {
             output_ports.insert(output_ports.begin(), source);
-            update_loops_port({common_outer_loop_ids.cbegin() + count_of_common_outer_loops, common_outer_loop_ids.cend()}, source, output_ports);
+            replace_loop_ports({common_outer_loop_ids.cbegin() + count_of_common_outer_loops, common_outer_loop_ids.cend()}, source, output_ports);
         }
     }
     const auto input_ports = expr->get_input_ports();
     for (size_t i = 0; i < expr->get_output_count(); ++i) {
         const auto& consumers = expr->get_output_port_connector(i)->get_consumers();
         for (const auto& consumer : consumers) {
-            const auto common_outer_loop_ids = get_common_outer_loops(expr, consumer.get_expr());
-            update_loops_port(common_outer_loop_ids, consumer, input_ports);
+            replace_loop_ports(get_common_outer_loops(expr, consumer.get_expr()), consumer, input_ports);
         }
     }
+}
+
+void LoopManager::sort_loop_ports(const std::vector<size_t>& loop_ids) {
+    for (auto& loop_id : loop_ids)
+        get_loop_info(loop_id)->sort_ports();
 }
 
 void LoopManager::expression_replacement(LinearIR::constExprIt new_expr_begin, LinearIR::constExprIt new_expr_end, const ExpressionPtr& decomposed_expr,
@@ -383,39 +384,11 @@ void LoopManager::expression_replacement(LinearIR::constExprIt new_expr_begin, L
         get_io_loop_ports(new_expr_begin, new_expr_end, new_entries, new_exits);
     }
     for (size_t i = 0; i < decomposed_expr->get_input_count(); ++i) {
-        update_loop_port(loop_id, decomposed_expr->get_input_port(i), new_entries);
+        replace_loop_port(loop_id, decomposed_expr->get_input_port(i), new_entries);
     }
     for (size_t i = 0; i < decomposed_expr->get_output_count(); ++i) {
-        update_loop_port(loop_id, decomposed_expr->get_output_port(i), new_exits);
+        replace_loop_port(loop_id, decomposed_expr->get_output_port(i), new_exits);
     }
-}
-
-void LoopManager::sort_loop_ports(const LinearIR::constExprIt& loop_begin_pos, const LinearIR::constExprIt& loop_end_pos, size_t loop_id) {
-    // [113536] Update this logic please, when expression numeration will be implemented
-    const auto& loop_info = get_loop_info<UnifiedLoopInfo>(loop_id);
-    const auto& loop_entries = loop_info->get_input_ports();
-    const auto& loop_exits = loop_info->get_output_ports();
-
-    std::vector<size_t> new_entry_order, new_exit_order;
-    new_entry_order.reserve(loop_entries.size());
-    new_exit_order.reserve(loop_exits.size());
-
-    auto update_order = [&](const std::vector<LoopPort>& ports, const ExpressionPtr& expr) {
-        for (size_t i = 0; i < ports.size(); ++i) {
-            if (ports[i].expr_port->get_expr() == expr) {
-                auto& order = ports[i].expr_port->get_type() == ExpressionPort::Input ? new_entry_order : new_exit_order;
-                order.push_back(i);
-            }
-        }
-    };
-
-    for (auto it = loop_begin_pos; it != loop_end_pos; ++it) {
-        const auto& expr = *it;
-        update_order(loop_entries, expr);
-        update_order(loop_exits, expr);
-    }
-    loop_info->reorder_input_ports(new_entry_order);
-    loop_info->reorder_output_ports(new_exit_order);
 }
 
 bool LoopManager::reorder_identifiers(const std::map<size_t, size_t>& loop_id_map) {

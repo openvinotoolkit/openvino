@@ -11,9 +11,8 @@
 
 namespace intel_npu {
 
-ZeroEngineBackend::ZeroEngineBackend(const Config& config) : _logger("ZeroEngineBackend", config.get<LOG_LEVEL>()) {
+ZeroEngineBackend::ZeroEngineBackend(const Config& config) : _logger("ZeroEngineBackend", Logger::global().level()) {
     _logger.debug("ZeroEngineBackend - initialize started");
-    Logger::global().setLevel(config.get<LOG_LEVEL>());
 
     _instance = std::make_shared<ZeroInitStructsHolder>();
 
@@ -34,7 +33,7 @@ bool ZeroEngineBackend::isBatchingSupported() const {
     return _instance->getDriverExtVersion() >= ZE_GRAPH_EXT_VERSION_1_6;
 }
 
-bool ZeroEngineBackend::isWorkloadTypeSupported() const {
+bool ZeroEngineBackend::isCommandQueueExtSupported() const {
     return _instance->getCommandQueueDdiTable() != nullptr;
 }
 
@@ -67,6 +66,15 @@ const std::vector<std::string> ZeroEngineBackend::getDeviceNames() const {
 
 void* ZeroEngineBackend::getContext() const {
     return _instance->getContext();
+}
+
+void ZeroEngineBackend::updateInfo(const Config& config) {
+    _logger.setLevel(config.get<LOG_LEVEL>());
+    if (_devices.size() > 0) {
+        for (auto& dev : _devices) {
+            dev.second->updateInfo(config);
+        }
+    }
 }
 
 }  // namespace intel_npu

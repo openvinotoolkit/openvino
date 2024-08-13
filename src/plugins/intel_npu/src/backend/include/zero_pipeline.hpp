@@ -16,7 +16,6 @@ struct TensorData {
     void* mem;
     size_t size;
     bool levelZeroTensorCreatedLocally = true;
-    bool changed = false;
 };
 
 struct Pipeline {
@@ -28,11 +27,11 @@ public:
     Pipeline& operator=(Pipeline&&) = delete;
     virtual ~Pipeline() = default;
 
-    virtual void push(size_t batch_index) = 0;
-    virtual void pull(size_t batch_index) = 0;
-    virtual void reset(size_t batch_index) const = 0;
+    virtual void push() = 0;
+    virtual void pull() = 0;
+    virtual void reset() const = 0;
 
-    virtual void updateCommandList(std::unordered_map<std::string, TensorData>& tensors_data, size_t batch_size) = 0;
+    virtual void updateCommandList(const TensorData& tensorsData, const uint32_t index) = 0;
 
 protected:
     zeroMemory::MemoryManagementUnit _deviceInputs;
@@ -44,6 +43,7 @@ std::unique_ptr<Pipeline> makePipeline(const std::shared_ptr<const IExecutor>& e
                                        zeroProfiling::ProfilingPool& profiling_pool,
                                        zeroProfiling::ProfilingQuery& profiling_query,
                                        std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
-                                       std::unordered_map<std::string, TensorData>& tensors_data,
-                                       const size_t batch_size);
+                                       const std::vector<std::optional<TensorData>>& inputTensorsData,
+                                       const std::vector<std::optional<TensorData>>& outputTensorsData,
+                                       const size_t numberOfCommandLists);
 }  // namespace intel_npu

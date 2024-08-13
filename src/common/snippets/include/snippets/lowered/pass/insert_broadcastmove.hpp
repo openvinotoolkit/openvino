@@ -21,8 +21,8 @@ public:
     OPENVINO_RTTI("InsertBroadcastMove", "RangedPass")
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
-private:
     static bool is_broadcasting_supported(const std::shared_ptr<ov::Node>& n);
+private:
     static bool is_broadcasting_needed(const std::shared_ptr<ov::Node>& n);
     static std::vector<size_t> get_last_dims(const ExpressionPtr& expr);
     static size_t get_max_dim(const std::vector<size_t>& last_dims);

@@ -73,19 +73,13 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*OVCompiledModelBaseTest.*canSetConfigToCompiledModel.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*canExportModel.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*canSetConfigToCompiledModelWithIncorrectConfig.*)",
-        R"(.*Hetero.*Behavior.*OVCompiledModelBaseTest.*ExecGraphInfo.*)",
-        R"(.*Hetero.*Behavior.*OVCompiledModelBaseTest.*canCreateTwoCompiledModelAndCheckTheir.*)",
         // CPU does not support dynamic rank
         // Issue: 66778
         R"(.*smoke_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
-        R"(.*smoke_Hetero_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
         R"(.*smoke_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_BehaviorTests.*DynamicInputToDynamicOutput.*)",
-        R"(.*smoke_Hetero_BehaviorTests.*DynamicOutputToDynamicInput.*)",
-        R"(.*smoke_Hetero_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         // unsupported metrics
         R"(.*OVGetMetricPropsTest.*OVGetMetricPropsTest.*(MAX_BATCH_SIZE).*)",
-        R"(.*smoke_HeteroOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|OPTIMIZATION_CAPABILITIES|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
         // supports only '' as device id
         R"(.*OVClassQueryModelTest.*QueryModelWithDeviceID.*)",
         // Issue 67214
@@ -170,8 +164,6 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 114765
         R"(.*smoke_PSROIPoolingAverageLayoutTest/PSROIPoolingLayerCPUTest.*bf16.*)",
         R"(.*smoke_PSROIPoolingBilinearLayoutTest/PSROIPoolingLayerCPUTest.*bf16.*)",
-        // TODO: for 22.2 (CVS-68949)
-        R"(.*smoke_AutoBatching_CPU/AutoBatching_Test_DetectionOutput.*)",
         // Issue: 120222
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=1_axis=3_.*_modelType=f16_trgDev=CPU.*)",
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=7_axis=3_.*_modelType=f16_trgDev=CPU.*)",
@@ -314,6 +306,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_LoopForCommon/LoopLayerCPUTest.CompareWithRefs/Input0_IS=\[1..10.1.1..10\]_.*_Input1_IS=\[1..8.1.1..8\]_.*_Input2_IS=\[1..10.\?.1..10\]_TS=.*_types=0_0_1_trip_count_type=.*_trip_count=(1|5)_exec_cond=1_netType=i8.*)",
         // Issue: 142997
         R"(.*smoke_TestsROIAlign.*)",
+        // Issue: 148527
+        R"(.*Snippets.*MatMulTransposeB.*i8.*i8.*)",
     };
 
     // fp32 floor for bf16 models: conversion issue
@@ -322,7 +316,6 @@ std::vector<std::string> disabledTestPatterns() {
 #if defined(OPENVINO_ARCH_X86)
     retVector.emplace_back(R"(.*DetectionOutputLayerTest.*)");
     // WIP: plugin cannot be loaded for some reason
-    retVector.emplace_back(R"(.*HeteroSyntheticTest.*)");
     retVector.emplace_back(R"(.*IEClassBasicTestP.*)");
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     {
@@ -511,7 +504,9 @@ std::vector<std::string> disabledTestPatterns() {
         // tests are useless on such platforms
         retVector.emplace_back(R"(.*(BF|bf)16.*)");
         retVector.emplace_back(R"(.*bfloat16.*)");
-        // MatMul in Snippets uses BRGEMM that is supported only on AVX512 platforms
+    }
+    if (!ov::with_cpu_x86_avx2()) {
+        // MatMul in Snippets uses BRGEMM that is supported only on AVX2 (and newer) platforms
         // Disabled Snippets MHA tests as well because MHA pattern contains MatMul
         retVector.emplace_back(R"(.*Snippets.*MHA.*)");
         retVector.emplace_back(R"(.*Snippets.*(MatMul|Matmul).*)");
@@ -531,7 +526,9 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*EltwiseLayerCPUTest.*IS=\(\[1\.\.10\.2\.5\.6\]_\).*eltwiseOpType=SqDiff.*_configItem=INFERENCE_PRECISION_HINT=f16.*)");
     }
 #endif
-    if (!ov::with_cpu_x86_avx512_core_vnni() && !ov::with_cpu_x86_avx512_core_amx_int8()) {
+    if (!ov::with_cpu_x86_avx512_core_vnni() &&
+        !ov::with_cpu_x86_avx2_vnni() &&
+        !ov::with_cpu_x86_avx512_core_amx_int8()) {
         // MatMul in Snippets uses BRGEMM that supports i8 only on platforms with VNNI or AMX instructions
         retVector.emplace_back(R"(.*Snippets.*MatMulFQ.*)");
         retVector.emplace_back(R"(.*Snippets.*MatMul.*Quantized.*)");
@@ -590,7 +587,6 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_GatherCompressedWeights_basic/GatherWeightsDecompression.CompareWithRefs.*INFERENCE_PRECISION_HINT.*bf16.*)");
         retVector.emplace_back(R"(.*smoke_Interaction/IntertactionCPUTest.CompareWithRefs.*Prc=i32.*)");
         retVector.emplace_back(R"(.*smoke_MatMulCompressedWeights_(amx|sym_amx|corner_cases_amx)/MatmulWeightsDecompression.CompareWithRefs.*INFERENCE_PRECISION_HINT.*bf16.*)");
-        retVector.emplace_back(R"(.*smoke_AutoBatching_CPU/AutoBatching_Test.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16/EnforcePrecisionTest.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHABF16_4D/MHA.CompareWithRefImpl/.*\[1.58.16.34\]_IS\[1\]=\[1.58.16.34\]_IS\[2\]=\[1.1.1.58\]_IS\[3\]=\[1.58.16.34\].*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeBF16_(3|4)D/MHAWOTranspose.*)");
@@ -604,9 +600,6 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_CompareWithRefs_4D.*/EltwiseLayerCPUTest.*Sub_secondary.*INFERENCE_PRECISION_HINT=f16.*FakeQuantize.*enforceSnippets=1.*)");
         retVector.emplace_back(R"(smoke_Reduce.*/ReduceCPULayerTest.*axes=\((0.1|1)\).*Prod_KeepDims.*INFERENCE_PRECISION_HINT=f16.*)");
         retVector.emplace_back(R"(smoke_ConvertRangeSubgraphCPUTest/ConvertRangeSubgraphCPUTest\.CompareWithRefs.*Prc=f16.*)");
-        // Issue: 142465
-        retVector.emplace_back(R"(smoke_Reduce_MultiAxis_4D_fusing_CPU/ReduceCPULayerTest.CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
-        retVector.emplace_back(R"(smoke_Reduce_MultiAxis_5D_fusing_CPU/ReduceCPULayerTest.CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
         // Issue: 143852
         retVector.emplace_back(R"((smoke|nightly)_FC_3D_FP16/.*_Fused=Multiply\(PerChannel\).*)");
         retVector.emplace_back(R"((smoke|nightly)_MM_Brgemm_Static_FP16.*TS=\(\(55\.12\)\).*_Fused=Multiply\(PerChannel\).*)");
