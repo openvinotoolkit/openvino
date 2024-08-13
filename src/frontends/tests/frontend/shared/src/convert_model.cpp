@@ -35,7 +35,7 @@ void FrontEndConvertModelTest::doLoadFromFile() {
     ASSERT_NE(m_inputModel, nullptr);
 }
 
-#ifdef WIN32
+#ifdef _WIN32
 // Ticket: 126320
 TEST_P(FrontEndConvertModelTest, DISABLED_test_convert_partially_equal_convert) {
 #else
@@ -58,7 +58,7 @@ TEST_P(FrontEndConvertModelTest, test_convert_partially_equal_convert) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
-#ifdef WIN32
+#ifdef _WIN32
 // Ticket: 126320
 TEST_P(FrontEndConvertModelTest, DISABLED_test_decode_convert_equal_convert) {
 #else

@@ -122,7 +122,7 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-IRFrontend.xml
 
       - name: PaddlePaddle frontend tests
-        if: ${{ fromJSON(inputs.affected-components).PDPD_FE.test && runner.os != 'Windows' }} # Ticket: 95904
+        if: ${{ fromJSON(inputs.affected-components).PDPD_FE.test && runner.os != 'Windows' }} # Ticket: 149651
         run: |
           ${{ env.SETUPVARS_COMMAND }}
           ${{ env.INSTALL_TEST_DIR }}/paddle_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleTests.xml
