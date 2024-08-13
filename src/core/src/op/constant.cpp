@@ -542,6 +542,11 @@ void Constant::update_identical_flags(bool is_checked, bool identical_value) con
 
 void Constant::validate_and_infer_types() {
     set_output_type(0, m_element_type, m_shape);
+    if (const auto tensor = get_tensor_view()) {
+        auto& output_tensor = get_output_tensor(0);
+        output_tensor.set_lower_value(tensor);
+        output_tensor.set_upper_value(tensor);
+    }
 }
 
 bool Constant::visit_attributes(AttributeVisitor& visitor) {
@@ -626,7 +631,7 @@ bool Constant::constant_fold(OutputVector&, const OutputVector&) {
 }
 
 const Tensor Constant::get_tensor_view() const {
-    return m_data ? Tensor{m_element_type, m_shape, m_data->get_ptr(), m_byte_strides} : Tensor{};
+    return get_data_ptr() ? Tensor{m_element_type, m_shape, m_data->get_ptr(), m_byte_strides} : Tensor{};
 }
 
 const Strides& Constant::get_strides() const {
