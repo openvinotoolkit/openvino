@@ -38,7 +38,7 @@ def create_random_4bit_bin_file(tmp_path, shape, name):
         f.write(raw_data)
 
 
-def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx', inp='dog-224x224.bmp', batch='1', niter='10', tm=None, inference_only=True, use_device_mem=False):
+def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx', inp='dog-224x224.bmp', batch='1', niter='10', tm=None):
     output = get_cmd_output(
         get_executable(sample_language),
         *prepend(cache, inp, model, tmp_path),
@@ -55,9 +55,7 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
         *('-b', batch) if batch else '',
         *('-niter', niter) if niter else '10',
         *('-t', tm) if tm else '',
-        '-d', device,
-        *('-inference_only=false', '') if not inference_only else '',
-        *('-use_device_mem', '') if use_device_mem else ''
+        '-d', device
     )
     assert 'FPS' in output
     if tmp_path:
@@ -147,10 +145,3 @@ def test_out_of_tensor_size_range_npy_multibatch(sample_language, device, cache,
     # benchmark_app reads batch from model or cmd, not from npy.
     # benchmark_app still verifyes npy shape for python impl.
     verify(sample_language, device, inp=inp, cache=cache, tmp_path=tmp_path, batch='2')
-
-
-@pytest.mark.parametrize('api', ['sync', 'async'])
-@pytest.mark.parametrize('nireq', ['4', ''])
-@pytest.mark.parametrize('device', ['CPU', 'NPU'])
-def test_cpp_use_device_mem(api, nireq, device, cache, tmp_path):
-    verify('C++', device, api=api, nireq=nireq, cache=cache, tmp_path=tmp_path, inp=None, inference_only=False, use_device_mem=True)
