@@ -23,6 +23,7 @@ env:
 
 jobs:
   Smart_CI:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.title, 'GHA-SNIPPETS') }}
     runs-on: ubuntu-latest
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
@@ -192,8 +193,6 @@ jobs:
 
   CPU_Functional_Tests:
     name: CPU functional tests
-    # WA: currently, snippet tests are expectedly failing, we need green CI until all testcases will be fixed
-    if: ${{ github.event_name == 'workflow_dispatch'}}
     needs: [ Docker, Build, Smart_CI ]
     timeout-minutes: 30
     runs-on: aks-linux-8-cores-32gb
