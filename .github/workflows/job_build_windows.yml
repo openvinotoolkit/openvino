@@ -44,7 +44,6 @@ jobs:
       ARTIFACTS_SHARE: "C:\\mount\\build-artifacts"
       MANIFEST_PATH: "${{ github.workspace }}\\manifest.yml"
       PRODUCT_TYPE: 'public_windows_vs2019_${{ inputs.build-type }}'
-      TEST_ENV: '${{ "env.BUILD_DIR"/"env.CCACHE_MAXSIZE" }}'
       TEST_ENV_2: "${{ env.BUILD_DIR/env.CCACHE_MAXSIZE }}"
       TEST_ENV_3: ${{ env.BUILD_DIR/env.CCACHE_MAXSIZE }}
       TEST_ENV_4: ${{ env.BUILD_DIR / env.CCACHE_MAXSIZE }}
