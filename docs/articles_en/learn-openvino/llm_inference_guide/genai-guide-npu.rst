@@ -19,7 +19,7 @@ Export an LLM model via Hugging Face Optimum-Intel
       export-npu-env\Scripts\activate
       pip install transformers>=4.42.4 openvino==2024.2.0 openvino-tokenizers==2024.2.0 nncf==2.11.0 onnx==1.16.1 optimum-intel@git+https://github.com/huggingface/optimum-intel.git
 
-2. A chat-tuned TinyLlama model is used in this example. The following conversion & optimization settings are recommended when using NPU:
+2. A chat-tuned TinyLlama model is used in this example. The following conversion & optimization settings are recommended when using the NPU:
 
    .. code-block:: python
 
