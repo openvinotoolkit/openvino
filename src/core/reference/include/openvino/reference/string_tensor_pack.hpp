@@ -14,7 +14,7 @@ void string_tensor_pack(const T_idx* begins,
                         std::string* out,
                         const size_t string_count) {
     const char* chars = reinterpret_cast<const char*>(symbols);
-    for (int64_t i = 0; i < string_count; ++i) {
+    for (size_t i = 0; i < string_count; ++i) {
         out[i].assign(chars + begins[i], chars + ends[i]);
     }
 }
