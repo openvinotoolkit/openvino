@@ -40,7 +40,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     : cl_kernel(other.cl_kernel)
     , _kernels({}) {
         for (const auto& kernel : other._kernels) {
-            _kernels.emplace_back(kernel->clone());
+            _kernels.emplace_back(kernel->clone(other.can_share_kernels));
         }
     }
 
@@ -59,10 +59,12 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         _kernels.clear();
         auto compiled_kernels = kernels_cache.get_kernels(params);
         _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
+        this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
 
     void init_by_cached_kernels(const kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids) override {
         _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[0]));
+        this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
 
     std::vector<std::string> get_cached_kernel_ids(const kernels_cache& kernels_cache) override {
