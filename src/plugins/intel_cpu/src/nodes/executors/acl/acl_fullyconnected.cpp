@@ -156,12 +156,15 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
 }
 
 static bool checkPostOps(const PostOps &postOps) {
-    // Add postops
-    if (!postOps.empty() && postOps.size() == 1) {
-        if (const auto activation = std::dynamic_pointer_cast<ActivationPostOp>(postOps[0])) {
-            if (checkActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()))) {
-                return true;
-            }
+    if (postOps.empty()) {
+        return true;
+    }
+    if (postOps.size() > 1) {
+        return false;
+    }
+    if (const auto activation = std::dynamic_pointer_cast<ActivationPostOp>(postOps[0])) {
+        if (checkActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()))) {
+            return true;
         }
     }
     return false;
@@ -179,7 +182,7 @@ static void initFCAttrs(const FCAttrs &attrs,
     fullyConnectedLayerInfo.transpose_weights = false;
     aclfcAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
 
-    if (checkPostOps(postOps)) {
+    if (!postOps.empty() && checkPostOps(postOps)) {
         auto activation = std::dynamic_pointer_cast<ActivationPostOp>(postOps[0]);
         fullyConnectedLayerInfo.activation_info = getActivationLayerInfo(
                 convertToEltwiseAlgorithm(activation->type()),
@@ -203,10 +206,7 @@ bool ACLFullyConnectedExecutor::supports(const FCConfig &config) {
     VERIFY(one_of(srcType(config), ov::element::f16, ov::element::f32), UNSUPPORTED_SRC_PRECISIONS);
     VERIFY(one_of(weiType(config), ov::element::f16, ov::element::f32), UNSUPPORTED_WEI_PRECISIONS);
     VERIFY(postOpsNumbers(config) < 2,                                  UNSUPPORTED_NUMBER_OF_POSTOPS);
-    // This define is set because on ARM32 devices postOps in the function is empty (CVS-149013)
-#ifndef OPENVINO_ARCH_ARM
     VERIFY(checkPostOps(config.postOps),                                UNSUPPORTED_TYPE_OF_POSTOPS);
-#endif
     VERIFY(one_of(srcRank(config), 2U, 3U, 4U),                         UNSUPPORTED_SRC_RANK);
     VERIFY(one_of(weiRank(config), 2U, 3U),                             UNSUPPORTED_WEI_RANK);
     return true;
