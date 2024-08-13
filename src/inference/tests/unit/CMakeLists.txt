@@ -19,4 +19,7 @@ ov_add_test_target(
             OV UNIT RUNTIME
 )
 
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+message(STATUS "ENABLE_LTO is ${ENABLE_LTO}")
+
 ov_set_threading_interface_for(${TARGET_NAME})
