@@ -22,8 +22,8 @@ const ze_driver_uuid_t ZeroInitStructsHolder::uuid = ze_intel_npu_driver_uuid;
 
 // // Define the static member
 ze_context_handle_t ZeroInitStructsHolder::context = nullptr;
-ze_driver_handle_t ZeroInitStructsHolder::shared_driver_handle = nullptr;
-ze_device_handle_t ZeroInitStructsHolder::shared_device_handle = nullptr;
+ze_driver_handle_t ZeroInitStructsHolder::driver_handle = nullptr;
+ze_device_handle_t ZeroInitStructsHolder::device_handle = nullptr;
 
 static std::tuple<uint32_t, std::string> queryDriverExtensionVersion(
     std::vector<ze_driver_extension_properties_t>& extProps,
@@ -209,9 +209,6 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     // Create context from backend to be shared with compiler
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
     zeroUtils::throwOnFail("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
-    
-    setDriverHandle(driver_handle);
-    setDeviceHandle(device_handle);
 
     log.debug("ZeroInitStructsHolder initialize complete");
 }
