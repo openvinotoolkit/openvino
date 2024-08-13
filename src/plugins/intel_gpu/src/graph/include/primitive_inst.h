@@ -483,14 +483,12 @@ struct typed_primitive_impl : public primitive_impl {
 
 private:
     event::ptr execute(const std::vector<event::ptr>& event, primitive_inst& instance) override {
-        // std::cout << "[debug] typed_primitive_impl execute " << std::endl;
         if (instance.type() != PType::type_id())
             throw std::invalid_argument("Implementation type does not match primitive type");
         if (instance.get_impl() != this)
             throw std::invalid_argument(
                 "Trying to execute primitive implementation with mismatching primitive instance");
 
-        // std::cout << "[debug] typed_primitive_impl execute_impl start" << std::endl;
         return execute_impl(event, reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
@@ -503,14 +501,12 @@ private:
     }
 
     void set_arguments(primitive_inst& instance) override {
-        // std::cout << "[debug] typed_primitive_impl set_arguments " << std::endl;
         if (instance.type() != PType::type_id())
             throw std::invalid_argument("Implementation type does not match primitive type");
         if (instance.get_impl() != this)
             throw std::invalid_argument(
                 "Trying to set_arguments for primitive implementation with mismatching primitive instance");
 
-        // std::cout << "[debug] typed_primitive_impl set_arguments_impl " << std::endl;
         return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 

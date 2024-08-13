@@ -458,9 +458,9 @@ network::~network() {
         }
 
         // more profile for sync_tensor details
-        if (tp_host_times["timestamp_exec"].size() >= 2) {
-            std::vector<std::string> ts_items = {"timestamp_exec", "timestamp_ctxs", "timestamp_sync_wait", "timestamp_sendbuf",
-                "timestamp_pre_p2p", "timestamp_p2p_kernel", "timestamp_post_p2p"};
+        if (tp_host_times["ts_exec"].size() >= 2) {
+            std::vector<std::string> ts_items = {"ts_exec", "ts_event_wait", "ts_ctxs", "ts_sync_wait", "ts_sendbuf",
+                "ts_pre_p2p", "ts_p2p_kernel", "ts_post_p2p"};
 
             for (const auto& item : ts_items) {
                 // iter
@@ -1096,8 +1096,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     size_t executed_prims = 0;
     std::map<std::string, std::vector<int64_t>> tp_host_times_each_iter;
     std::map<std::string, std::vector<int64_t>> sync_tensor_timestamps;
-    std::vector<std::string> ts_items = {"timestamp_exec", "timestamp_ctxs", "timestamp_sync_wait", "timestamp_sendbuf",
-        "timestamp_pre_p2p", "timestamp_p2p_kernel", "timestamp_post_p2p"};
+    std::vector<std::string> ts_items = {"ts_exec", "ts_event_wait", "ts_ctxs", "ts_sync_wait", "ts_sendbuf",
+        "ts_pre_p2p", "ts_p2p_kernel", "ts_post_p2p"};
 
     tp_host_times["sync_tensor"];
     tp_host_times["concat"];
@@ -1550,7 +1550,6 @@ std::vector<std::pair<primitive_inst*, int>> network::get_primitives(const std::
 
 void network::execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
                                 const std::vector<event::ptr>& events) {
-    // std::cout << "[debug] network execute_primitive: " << primitive->id() << std::endl;
     event::ptr ev = primitive->execute(events);
 
     // Collect events under any of the following conditions:

@@ -16,7 +16,6 @@ sync_tensor_inst::typed_primitive_inst(network& network, const sync_tensor_node&
     parent(network, node, !node.can_be_optimized() && (node.get_output_layout().is_static() || node.get_output_layout().has_upper_bound())) {
 }
 
-
 layout sync_tensor_inst::calc_output_layout(const sync_tensor_node& node, kernel_impl_params const& impl_param) {
     return impl_param.input_layouts[0];
 }
@@ -25,26 +24,16 @@ template<typename ShapeType>
 std::vector<layout> sync_tensor_inst::calc_output_layouts(sync_tensor_node const& /*node*/, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<sync_tensor>();
     ov::intel_gpu::op::SyncTensor op(impl_param.w_size);
-    // std::cout << "[sync_tensor_inst] calc_output_layouts set_output_size: " << desc->num_outputs << std::endl;
     op.set_output_size(desc->num_outputs);
 
     std::vector<ShapeType> input_shapes = {impl_param.get_input_layout(0).get<ShapeType>()};
-    // for (size_t i = 0; i < input_shapes.size(); ++i) {
-    //     std::cout << "input_shapes[" << i << "]: " << input_shapes[i] << std::endl;
-    // }
 
     std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
-    // for (size_t i = 0; i < output_shapes.size(); ++i) {
-    //     std::cout << "output_shapes[" << i << "]: " << output_shapes[i] << std::endl;
-    // }
 
     std::vector<layout> out_layouts;
     for (size_t i = 0; i < desc->num_outputs; i++) {
-        // std::cout << "[sync_tensor_inst] " << i << ": output_shape: " << output_shapes[i] << std::endl;
         auto out_type = impl_param.get_input_layout(0).data_type;
-        // std::cout << "[sync_tensor_inst] " << i << ": out_type: " << out_type << std::endl;
         auto format = impl_param.get_output_layout(i).format;
-        // std::cout << "[sync_tensor_inst] " << i << ": format: " << format << std::endl;
         out_layouts.push_back(layout(output_shapes[i], out_type, impl_param.get_output_layout(i).format));
     }
 
@@ -54,7 +43,6 @@ std::vector<layout> sync_tensor_inst::calc_output_layouts(sync_tensor_node const
 template std::vector<layout> sync_tensor_inst::calc_output_layouts<ov::PartialShape>(sync_tensor_node const& node, const kernel_impl_params& impl_param);
 
 std::string sync_tensor_inst::to_string(const sync_tensor_node& node) {
-    // std::cout << "[-->] sync_tensor_inst to_string" << std::endl;
     auto node_info = node.desc_to_json();
     std::stringstream primitive_description;
 
@@ -64,14 +52,12 @@ std::string sync_tensor_inst::to_string(const sync_tensor_node& node) {
 }
 
 void sync_tensor_inst::on_execute() {
-    // std::cout << "[-->] sync_tensor_inst on_execute" << std::endl;
     update_output_memory();
 }
 
 void sync_tensor_inst::update_output_memory() {
     if (!can_be_optimized()) {
         auto my_rank = get_impl_params()->w_rank;
-        // std::cout << "[sync_tensor_inst] update_output_memory add output my_rank: " << my_rank << std::endl;
         _outputs[my_rank] = input_memory_ptr();
         return;
     }

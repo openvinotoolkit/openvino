@@ -139,7 +139,6 @@ protected:
     }
 
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
-        // std::cout << "[debug] typed_primitive_impl_ocl init_kernels, is_cpu: " << is_cpu() << std::endl;
         if (is_cpu()) {
             return;
         }
@@ -192,21 +191,15 @@ protected:
     }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
-        // std::cout << "[debug] typed_primitive_impl_ocl set_arguments_impl enter " << std::endl;
-        // std::cout << "[debug] can_be_optimized: " << instance.can_be_optimized() << ", is_cpu: " << is_cpu() << std::endl;
         if (instance.can_be_optimized() || is_cpu()) {
-            // std::cout << "[debug] typed_primitive_impl_ocl set_arguments_impl return " << std::endl;
             return;
         }
 
-        // std::cout << "[debug] typed_primitive_impl_ocl set_arguments_impl _kernels size: " << _kernels.size() << std::endl;
-        // std::cout << "[debug] typed_primitive_impl_ocl set_arguments_impl kernel_data size: " << _kernel_data.kernels.size() << std::endl;
         OPENVINO_ASSERT(_kernels.size() == _kernel_data.kernels.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
                                                                         "[GPU] Compiled kernels count: ", _kernels.size(), "\n",
                                                                         "[GPU] KernelData count: ", _kernel_data.kernels.size(), "\n",
                                                                         "[GPU] Likely some issue with empty tensor handling happened");
 
-        // std::cout << "[debug] typed_primitive_impl_ocl set_arguments_impl get_stream " << std::endl;
         stream& stream = instance.get_network().get_stream();
 
         for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
@@ -214,7 +207,6 @@ protected:
                 continue;
             }
 
-            // std::cout << "[debug] typed_primitive_impl_ocl set_arguments_impl get_arguments " << std::endl;
             auto args = get_arguments(instance);
             args.scalars = &_kernel_data.kernels[kd_idx].params.scalars;
 
@@ -222,7 +214,6 @@ protected:
                 args.intermediates.push_back(m);
             }
 
-            // std::cout << "[debug] typed_primitive_impl_ocl set_arguments_impl stream set_arguments " << std::endl;
             stream.set_arguments(*_kernels[kd_idx], _kernel_data.kernels[kd_idx].params, args);
         }
     }
@@ -244,7 +235,6 @@ protected:
 
     event::ptr execute_impl(const std::vector<event::ptr>& events,
                             typed_primitive_inst<PType>& instance) override {
-        // std::cout << "[debug] typed_primitive_impl_ocl execute_impl " << std::endl;
         stream& stream = instance.get_network().get_stream();
         if (instance.can_be_optimized()) {
             return aggregate_events(events, stream, false, instance.is_output());

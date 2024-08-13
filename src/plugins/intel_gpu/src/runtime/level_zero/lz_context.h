@@ -21,6 +21,7 @@
 #include <iomanip>
 
 #include "level_zero/ze_api.h"
+#include <chrono>
 
 #define CHECK_ZE_STATUS(err, msg)                                                                                  \
     if (err < 0) {                                                                                                 \

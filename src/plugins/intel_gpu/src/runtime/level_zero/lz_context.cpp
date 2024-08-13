@@ -365,6 +365,7 @@ int lzContext::initKernel() {
 
 void lzContext::runKernel(const char *spvFile, const char *funcName, void *remoteBuf, void *devBuf, const size_t elemCount,
     const int srcOffsetX, const int srcOffsetY, const int strideX, const int strideY, const int width) {
+    auto start = std::chrono::high_resolution_clock::now();
     ze_result_t result;
     const int size = elemCount / 4; // use int instead of uint8_t
     printf("[lz_kernel] elemCount: %ld, size: %d \n", elemCount, size);
@@ -374,58 +375,75 @@ void lzContext::runKernel(const char *spvFile, const char *funcName, void *remot
     // kernelFuncName = funcName;
 
     // initKernel();
+    auto end_pre = std::chrono::high_resolution_clock::now();
 
     // set kernel arguments
     result = zeKernelSetArgumentValue(function, 0, sizeof(devBuf), &devBuf);
     CHECK_ZE_STATUS(result, "zeKernelSetArgumentValue");
+    auto end_set_arg0 = std::chrono::high_resolution_clock::now();
 
     result = zeKernelSetArgumentValue(function, 1, sizeof(remoteBuf), &remoteBuf);
     CHECK_ZE_STATUS(result, "zeKernelSetArgumentValue");
+    auto end_set_arg1 = std::chrono::high_resolution_clock::now();
 
     result = zeKernelSetArgumentValue(function, 2, sizeof(int), &srcOffsetX);
     CHECK_ZE_STATUS(result, "zeKernelSetArgumentValue");
+    auto end_set_arg2 = std::chrono::high_resolution_clock::now();
 
     result = zeKernelSetArgumentValue(function, 3, sizeof(int), &srcOffsetY);
     CHECK_ZE_STATUS(result, "zeKernelSetArgumentValue");
+    auto end_set_arg3 = std::chrono::high_resolution_clock::now();
 
     result = zeKernelSetArgumentValue(function, 4, sizeof(int), &strideX);
     CHECK_ZE_STATUS(result, "zeKernelSetArgumentValue");
+    auto end_set_arg4 = std::chrono::high_resolution_clock::now();
 
     result = zeKernelSetArgumentValue(function, 5, sizeof(int), &strideY);
     CHECK_ZE_STATUS(result, "zeKernelSetArgumentValue");
+    auto end_set_arg5 = std::chrono::high_resolution_clock::now();
 
     result = zeKernelSetArgumentValue(function, 6, sizeof(int), &width);
     CHECK_ZE_STATUS(result, "zeKernelSetArgumentValue");
+    auto end_set_arg6 = std::chrono::high_resolution_clock::now();
 
     result = zeKernelSetArgumentValue(function, 7, sizeof(int), &size);
     CHECK_ZE_STATUS(result, "zeKernelSetArgumentValue");
+    auto end_set_arg7 = std::chrono::high_resolution_clock::now();
 
     uint32_t groupSize = 256;
     zeKernelSetGroupSize(function, groupSize, 1, 1);
+    auto end_set_grp_size = std::chrono::high_resolution_clock::now();
 
     // ze_group_count_t groupCount = {static_cast<uint32_t>(elemCount), 1, 1};
     // ze_group_count_t groupCount = {static_cast<uint32_t>(elemCount + groupSize - 1) / groupSize, 1, 1};
     ze_group_count_t groupCount = {static_cast<uint32_t>(size + groupSize - 1) / groupSize, 1, 1};
     result = zeCommandListAppendLaunchKernel(command_list, function, &groupCount, kernelTsEvent, 0, nullptr);
     CHECK_ZE_STATUS(result, "zeCommandListAppendLaunchKernel");
+    auto end_append_kernel = std::chrono::high_resolution_clock::now();
 
     result = zeCommandListAppendBarrier(command_list, nullptr, 0, nullptr);
     CHECK_ZE_STATUS(result, "zeCommandListAppendBarrier");
+    auto end_append_barrier = std::chrono::high_resolution_clock::now();
 
     result = zeCommandListAppendQueryKernelTimestamps(command_list, 1u, &kernelTsEvent, timestampBuffer, nullptr, nullptr, 0u, nullptr);
     CHECK_ZE_STATUS(result, "zeCommandListAppendQueryKernelTimestamps");
+    auto end_append_ts = std::chrono::high_resolution_clock::now();
 
     result = zeCommandListClose(command_list);
     CHECK_ZE_STATUS(result, "zeCommandListClose");
+    auto end_list_close = std::chrono::high_resolution_clock::now();
 
     result = zeCommandQueueExecuteCommandLists(command_queue, 1, &command_list, nullptr);
     CHECK_ZE_STATUS(result, "zeCommandQueueExecuteCommandLists");
+    auto end_queue_exec = std::chrono::high_resolution_clock::now();
 
     result = zeCommandQueueSynchronize(command_queue, UINT64_MAX);
     CHECK_ZE_STATUS(result, "zeCommandQueueSynchronize");
+    auto end_queue_sync = std::chrono::high_resolution_clock::now();
 
     result = zeCommandListReset(command_list);
     CHECK_ZE_STATUS(result, "zeCommandListReset");
+    auto end_list_reset = std::chrono::high_resolution_clock::now();
 
     ze_kernel_timestamp_result_t *kernelTsResults = reinterpret_cast<ze_kernel_timestamp_result_t *>(timestampBuffer);
     uint64_t timerResolution = deviceProperties.timerResolution;
@@ -445,6 +463,46 @@ void lzContext::runKernel(const char *spvFile, const char *funcName, void *remot
     // double bandWidth = elemCount * sizeof(uint32_t) / (gpuKernelTime / 1e6) / 1e9;
     double bandWidth = size * sizeof(uint32_t) / (gpuKernelTime / 1e6) / 1e9;
     printf("#### gpuKernelTime = %f, elemCount = %ld, Bandwidth = %f GB/s\n", gpuKernelTime, elemCount, bandWidth);
+
+    auto end_statistics = std::chrono::high_resolution_clock::now();
+
+    int64_t ts_pre = std::chrono::duration_cast<std::chrono::microseconds>(end_pre - start).count();
+    int64_t ts_arg0 = std::chrono::duration_cast<std::chrono::microseconds>(end_set_arg0 - end_pre).count();
+    int64_t ts_arg1 = std::chrono::duration_cast<std::chrono::microseconds>(end_set_arg1 - end_set_arg0).count();
+    int64_t ts_arg2 = std::chrono::duration_cast<std::chrono::microseconds>(end_set_arg2 - end_set_arg1).count();
+    int64_t ts_arg3 = std::chrono::duration_cast<std::chrono::microseconds>(end_set_arg3 - end_set_arg2).count();
+    int64_t ts_arg4 = std::chrono::duration_cast<std::chrono::microseconds>(end_set_arg4 - end_set_arg3).count();
+    int64_t ts_arg5 = std::chrono::duration_cast<std::chrono::microseconds>(end_set_arg5 - end_set_arg4).count();
+    int64_t ts_arg6 = std::chrono::duration_cast<std::chrono::microseconds>(end_set_arg6 - end_set_arg5).count();
+    int64_t ts_arg7 = std::chrono::duration_cast<std::chrono::microseconds>(end_set_arg7 - end_set_arg6).count();
+    int64_t ts_grp_size = std::chrono::duration_cast<std::chrono::microseconds>(end_set_grp_size - end_set_arg7).count();
+    int64_t ts_append_kernel = std::chrono::duration_cast<std::chrono::microseconds>(end_append_kernel - end_set_grp_size).count();
+    int64_t ts_append_barrier = std::chrono::duration_cast<std::chrono::microseconds>(end_append_barrier - end_append_kernel).count();
+    int64_t ts_append_ts = std::chrono::duration_cast<std::chrono::microseconds>(end_append_ts - end_append_barrier).count();
+    int64_t ts_list_close = std::chrono::duration_cast<std::chrono::microseconds>(end_list_close - end_append_ts).count();
+    int64_t ts_queue_exec = std::chrono::duration_cast<std::chrono::microseconds>(end_queue_exec - end_list_close).count();
+    int64_t ts_queue_sync = std::chrono::duration_cast<std::chrono::microseconds>(end_queue_sync - end_queue_exec).count();
+    int64_t ts_list_reset = std::chrono::duration_cast<std::chrono::microseconds>(end_list_reset - end_queue_sync).count();
+    int64_t ts_statistics = std::chrono::duration_cast<std::chrono::microseconds>(end_statistics - end_list_reset).count();
+
+    printf("[runKernel] ts_pre: %ld us\n", ts_pre);
+    printf("[runKernel] ts_arg0: %ld us\n", ts_arg0);
+    printf("[runKernel] ts_arg1: %ld us\n", ts_arg1);
+    printf("[runKernel] ts_arg2: %ld us\n", ts_arg2);
+    printf("[runKernel] ts_arg3: %ld us\n", ts_arg3);
+    printf("[runKernel] ts_arg4: %ld us\n", ts_arg4);
+    printf("[runKernel] ts_arg5: %ld us\n", ts_arg5);
+    printf("[runKernel] ts_arg6: %ld us\n", ts_arg6);
+    printf("[runKernel] ts_arg7: %ld us\n", ts_arg7);
+    printf("[runKernel] ts_grp_size: %ld us\n", ts_grp_size);
+    printf("[runKernel] ts_append_kernel: %ld us\n", ts_append_kernel);
+    printf("[runKernel] ts_append_barrier: %ld us\n", ts_append_barrier);
+    printf("[runKernel] ts_append_ts: %ld us\n", ts_append_ts);
+    printf("[runKernel] ts_list_close: %ld us\n", ts_list_close);
+    printf("[runKernel] ts_queue_exec: %ld us\n", ts_queue_exec);
+    printf("[runKernel] ts_queue_sync: %ld us\n", ts_queue_sync);
+    printf("[runKernel] ts_list_reset: %ld us\n", ts_list_reset);
+    printf("[runKernel] ts_statistics: %ld us\n", ts_statistics);
 }
 
 void *lzContext::createFromHandle(uint64_t handle, size_t bufSize) {

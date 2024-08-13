@@ -530,9 +530,8 @@ event::ptr primitive_inst::realloc_if_needed() {
     OPENVINO_ASSERT(actual_layouts[0].is_static(), "[GPU] Can't realloc mem for dynamic layout");
 
     // input_layout node is supposed to always use external memory in dynamic case
-    if (_node->is_type<input_layout>()) {
+    if (_node->is_type<input_layout>())
         return ev;
-    }
 
     auto& sp = *get_network().get_shape_predictor();
     std::vector<size_t> dt_sizes_in_B;
@@ -854,9 +853,8 @@ event::ptr primitive_inst::realloc_if_needed() {
         if (_impl == nullptr)
             return ev;
         const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
-        if (ibuf_layouts.empty()) {
+        if (ibuf_layouts.empty())
             return ev;
-        }
         GPU_DEBUG_CODE(std::string memalloc_info = "");
         for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
             if (i < _intermediates_memory.size() && ibuf_layouts[i].bytes_count() <= max_intermediates_memory_sizes[i]) {
@@ -1860,7 +1858,6 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
             GPU_DEBUG_TRACE_DETAIL << id() << ": initialize impl with dynamic impl " << _impl->get_kernel_name() << std::endl;
             _dynamic_impl = _impl->clone();
             const int64_t shape_elements = node.get_total_shape_info_size();
-            // std::cout << "[primitive_inst] allocate_memory shape_elements: " << shape_elements << std::endl;
             _shape_info_memory = _network.get_engine().allocate_memory(layout{{shape_elements}, data_types::i32, format::bfyx});
         }
     }
@@ -2115,7 +2112,6 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
                                             bool is_output_buffer,
                                             memory* curr_memory,
                                             bool runtime_alloc) {
-    // std::cout << "[primitive_inst] allocate_output enter, get_output_layout idx: " << idx << std::endl;
     auto layout = impl_params.get_output_layout(idx);
     OPENVINO_ASSERT(layout.is_static() || layout.has_upper_bound(), "[GPU] Can't allocate output for dynamic layout");
     auto device_mem_acc = [&](size_t a, const cldnn::layout& l) {
@@ -2132,7 +2128,6 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     const auto& total_device_input_mem_size = std::accumulate(impl_params.input_layouts.begin(), impl_params.input_layouts.end(), (uint64_t)0, device_mem_acc);
     if (total_device_input_mem_size > _engine.get_device_info().max_global_mem_size)
         usm_device_allocatable = false;
-    // std::cout << "[primitive_inst] allocate_output usm_device_allocatable: " << usm_device_allocatable << std::endl;
 
     bool reusable_across_network = (runtime_alloc && _node.is_dynamic_output_layout())
                                     || (!_node.is_dynamic_output_layout() && !user_requesting_mem_reuse_false(_node));
@@ -2147,7 +2142,6 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() :
                                               _node.get_preferred_impl_type() == impl_types::cpu;
-    // std::cout << "[primitive_inst] allocate_output is_cpu: " << is_cpu << std::endl;
     auto use_lockable_memory =
         is_output_buffer || is_cpu ||
         has_any_cpu_user_not_shape_of(_node.get_users()) ||
@@ -2155,12 +2149,10 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
         (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu);
         // // lockable memory for FC is TP enabled, as we need to do allreduce/allgather for outputs, to be optimized further
         // (_node.is_type<fully_connected>() && _node.as<fully_connected>().w_size != 1);
-    // std::cout << "[primitive_inst:" << _node.id() << "] allocate_output use_lockable_memory: " << use_lockable_memory << std::endl;
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
 
     auto alloc_type = use_lockable_memory ? lockable_mem_type
                     : !usm_device_allocatable ? lockable_mem_type : allocation_type::usm_device;
-    // std::cout << "[primitive_inst:" << _node.id() << "] allocate_output 1 alloc_type: " << alloc_type << ", is_internal: " << is_internal << std::endl;
     // if (_node.is_type<sync_tensor>()) {
     //     alloc_type = allocation_type::usm_host;
     // }
@@ -2171,7 +2163,6 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     if (_node.is_type<sync_tensor>()) {
         alloc_type = allocation_type::cl_mem;
     }
-    // std::cout << "[primitive_inst:" << _node.id() << "] allocate_output 2 alloc_type: " << alloc_type << ", is_internal: " << is_internal << std::endl;
 
     if (is_internal) {
         bool is_reorder_weights = _node.is_type<reorder>() && _node.as<reorder>().get_primitive()->weights_reorder_params;
@@ -2181,7 +2172,6 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
             if (is_internal && is_reorder_weights &&
                 _engine.supports_allocation(allocation_type::usm_device))
                 alloc_type = allocation_type::usm_device;
-            // std::cout << "[primitive_inst] allocate_output get_memory_from_pool 1 alloc_type: " << alloc_type << std::endl;
             return get_memory_from_pool(_engine,
                                         net_id,
                                         pool,

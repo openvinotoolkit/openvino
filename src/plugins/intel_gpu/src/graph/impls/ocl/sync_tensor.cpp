@@ -87,12 +87,12 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
             lzctx.initKernel();
             auto end_init_kernel = std::chrono::high_resolution_clock::now();
 
-            int64_t timestamp_ctx_inits = std::chrono::duration_cast<std::chrono::microseconds>(end_inits - start).count();
-            int64_t timestamp_ctx_read_kernel = std::chrono::duration_cast<std::chrono::microseconds>(end_read_kernel - end_inits).count();
-            int64_t timestamp_ctx_init_kernel = std::chrono::duration_cast<std::chrono::microseconds>(end_init_kernel - end_inits).count();
-            printf("[sync_tensor_impl:%d] timestamp_ctx_inits: %ld ms\n", rank, timestamp_ctx_inits);
-            printf("[sync_tensor_impl:%d] timestamp_ctx_read_kernel: %ld ms\n", rank, timestamp_ctx_read_kernel);
-            printf("[sync_tensor_impl:%d] timestamp_ctx_init_kernel: %ld ms\n", rank, timestamp_ctx_init_kernel);
+            int64_t ts_ctx_inits = std::chrono::duration_cast<std::chrono::microseconds>(end_inits - start).count();
+            int64_t ts_ctx_read_kernel = std::chrono::duration_cast<std::chrono::microseconds>(end_read_kernel - end_inits).count();
+            int64_t ts_ctx_init_kernel = std::chrono::duration_cast<std::chrono::microseconds>(end_init_kernel - end_inits).count();
+            printf("[sync_tensor_impl:%d] ts_ctx_inits: %ld us\n", rank, ts_ctx_inits);
+            printf("[sync_tensor_impl:%d] ts_ctx_read_kernel: %ld us\n", rank, ts_ctx_read_kernel);
+            printf("[sync_tensor_impl:%d] ts_ctx_init_kernel: %ld us\n", rank, ts_ctx_init_kernel);
         }
     }
 
@@ -181,6 +181,7 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
             }
         }
         stream.finish();
+        auto end_event_wait = std::chrono::high_resolution_clock::now();
 
         auto sub_mem_mgr = instance.get_network().get_sub_mem_mgr();
         auto w_rank = instance.get_network().get_program()->get_config().subStreamExecConfig.get_rank()[0];
@@ -313,37 +314,39 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
 
         end_post_p2p = std::chrono::high_resolution_clock::now();
 
-        int64_t timestamp_ctxs = std::chrono::duration_cast<std::chrono::microseconds>(end_contexts - start_impl).count();
-        int64_t timestamp_sync_wait = std::chrono::duration_cast<std::chrono::microseconds>(end_sync_wait - end_contexts).count();
-        int64_t timestamp_sendbuf = std::chrono::duration_cast<std::chrono::microseconds>(end_sendbuf - end_sync_wait).count();
-        int64_t timestamp_pre_p2p = std::chrono::duration_cast<std::chrono::microseconds>(end_pre_p2p - end_contexts).count();
-        int64_t timestamp_p2p_kernel = std::chrono::duration_cast<std::chrono::microseconds>(end_p2p_kernel - end_pre_p2p).count();
-        int64_t timestamp_post_p2p = std::chrono::duration_cast<std::chrono::microseconds>(end_post_p2p - end_p2p_kernel).count();
-        int64_t timestamp_exec = std::chrono::duration_cast<std::chrono::microseconds>(end_post_p2p - start_impl).count();
-        sync_tensor_timestamps["timestamp_exec"].push_back(timestamp_exec);
-        sync_tensor_timestamps["timestamp_ctxs"].push_back(timestamp_ctxs);
-        sync_tensor_timestamps["timestamp_sync_wait"].push_back(timestamp_sync_wait);
-        sync_tensor_timestamps["timestamp_sendbuf"].push_back(timestamp_sendbuf);
-        sync_tensor_timestamps["timestamp_pre_p2p"].push_back(timestamp_pre_p2p);
-        sync_tensor_timestamps["timestamp_p2p_kernel"].push_back(timestamp_p2p_kernel);
-        sync_tensor_timestamps["timestamp_post_p2p"].push_back(timestamp_post_p2p);
-        // printf("[sync_tensor_impl:%d] sync_tensor_timestamps[timestamp_exec] size: %ld \n", w_rank, sync_tensor_timestamps["timestamp_exec"].size());
-        // double sum = 0;
-        // double sum_avg = 0;
-        // for (size_t i = 0; i < sync_tensor_timestamps["timestamp_exec"].size(); ++i) {
-        //     sum += static_cast<double>(sync_tensor_timestamps["timestamp_exec"][i]);
-        //     sum_avg = sum / (i + 1);
-        //     printf("[sync_tensor] get_host_timestamps iter [%ld] sum: %f, sum_avg: %f \n", i, sum, sum_avg);
-        // }
+        int64_t ts_event_wait = std::chrono::duration_cast<std::chrono::microseconds>(end_event_wait - start_impl).count();
+        int64_t ts_ctxs = std::chrono::duration_cast<std::chrono::microseconds>(end_contexts - end_event_wait).count();
+        int64_t ts_sync_wait = std::chrono::duration_cast<std::chrono::microseconds>(end_sync_wait - end_contexts).count();
+        int64_t ts_sendbuf = std::chrono::duration_cast<std::chrono::microseconds>(end_sendbuf - end_sync_wait).count();
+        int64_t ts_pre_p2p = std::chrono::duration_cast<std::chrono::microseconds>(end_pre_p2p - end_sendbuf).count();
+        int64_t ts_p2p_kernel = std::chrono::duration_cast<std::chrono::microseconds>(end_p2p_kernel - end_pre_p2p).count();
+        int64_t ts_post_p2p = std::chrono::duration_cast<std::chrono::microseconds>(end_post_p2p - end_p2p_kernel).count();
+        int64_t ts_exec = std::chrono::duration_cast<std::chrono::microseconds>(end_post_p2p - start_impl).count();
+        sync_tensor_timestamps["ts_exec"].push_back(ts_exec);
+        sync_tensor_timestamps["ts_event_wait"].push_back(ts_event_wait);
+        sync_tensor_timestamps["ts_ctxs"].push_back(ts_ctxs);
+        sync_tensor_timestamps["ts_sync_wait"].push_back(ts_sync_wait);
+        sync_tensor_timestamps["ts_sendbuf"].push_back(ts_sendbuf);
+        sync_tensor_timestamps["ts_pre_p2p"].push_back(ts_pre_p2p);
+        sync_tensor_timestamps["ts_p2p_kernel"].push_back(ts_p2p_kernel);
+        sync_tensor_timestamps["ts_post_p2p"].push_back(ts_post_p2p);
+        // // printf("[sync_tensor_impl:%d] sync_tensor_timestamps[ts_exec] size: %ld \n", w_rank, sync_tensor_timestamps["ts_exec"].size());
+        // // double sum = 0;
+        // // double sum_avg = 0;
+        // // for (size_t i = 0; i < sync_tensor_timestamps["ts_exec"].size(); ++i) {
+        // //     sum += static_cast<double>(sync_tensor_timestamps["ts_exec"][i]);
+        // //     sum_avg = sum / (i + 1);
+        // //     printf("[sync_tensor] get_host_timestamps iter [%ld] sum: %f, sum_avg: %f \n", i, sum, sum_avg);
+        // // }
 
-        // GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
-        printf("[sync_tensor_impl:%d] timestamp_sync_wait: %ld us\n", w_rank, timestamp_sync_wait);
-        printf("[sync_tensor_impl:%d] timestamp_ctxs: %ld us\n", w_rank, timestamp_ctxs);
-        printf("[sync_tensor_impl:%d] timestamp_sendbuf: %ld us\n", w_rank, timestamp_sendbuf);
-        printf("[sync_tensor_impl:%d] timestamp_pre_p2p: %ld us\n", w_rank, timestamp_pre_p2p);
-        printf("[sync_tensor_impl:%d] timestamp_p2p_kernel: %ld us\n", w_rank, timestamp_p2p_kernel);
-        printf("[sync_tensor_impl:%d] timestamp_post_p2p: %ld us\n", w_rank, timestamp_post_p2p);
-        printf("[sync_tensor_impl:%d] timestamp_exec: %ld us\n", w_rank, timestamp_exec);
+        // // GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
+        printf("[sync_tensor_impl:%d] ts_sync_wait: %ld us\n", w_rank, ts_sync_wait);
+        printf("[sync_tensor_impl:%d] ts_ctxs: %ld us\n", w_rank, ts_ctxs);
+        // printf("[sync_tensor_impl:%d] ts_sendbuf: %ld us\n", w_rank, ts_sendbuf);
+        // printf("[sync_tensor_impl:%d] ts_pre_p2p: %ld us\n", w_rank, ts_pre_p2p);
+        // printf("[sync_tensor_impl:%d] ts_p2p_kernel: %ld us\n", w_rank, ts_p2p_kernel);
+        // printf("[sync_tensor_impl:%d] ts_post_p2p: %ld us\n", w_rank, ts_post_p2p);
+        // printf("[sync_tensor_impl:%d] ts_exec: %ld us\n", w_rank, ts_exec);
         return stream.create_user_event(true);
     }
 
