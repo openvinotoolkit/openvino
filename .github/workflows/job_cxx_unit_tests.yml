@@ -22,7 +22,7 @@ permissions: read-all
 jobs:
   CXX_Unit_Tests:
     name: C++ unit tests
-    timeout-minutes: 30
+    timeout-minutes: ${{ contains(inputs.runner, 'win') && 50 || 30 }}
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
@@ -58,8 +58,7 @@ jobs:
 
       - name: Setup Variables (Windows)
         if: ${{ runner.os == 'Windows' }}
-        run: |
-          Add-Content -Path $env:GITHUB_ENV -Value "SETUPVARS_COMMAND=${{ env.SOURCE_COMMAND }} ${{ github.workspace }}/install/${{ env.SETUPVARS }}"
+        run: Add-Content -Path $env:GITHUB_ENV -Value "SETUPVARS_COMMAND=${{ env.SOURCE_COMMAND }} ${{ github.workspace }}/install/${{ env.SETUPVARS }}"
 
       - name: Extract OpenVINO packages (Unix)
         if: ${{ runner.os != 'Windows' }}
@@ -149,19 +148,11 @@ jobs:
           
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowFrontend.xml
 
-      - name: TensorFlow Lite frontend tests (Unix)
-        if: ${{ fromJSON(inputs.affected-components).TFL_FE.test && runner.os != 'Windows' }}
+      - name: TensorFlow Lite frontend tests
+        if: ${{ fromJSON(inputs.affected-components).TFL_FE.test }}
         run: |
           ${{ env.SETUPVARS_COMMAND }}
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowLiteFrontend.xml
-
-      - name: TensorFlow Lite frontend tests (Windows)
-        if: ${{ fromJSON(inputs.affected-components).TFL_FE.test && runner.os == 'Windows' }}
-        run: |
-          ${{ env.SETUPVARS_COMMAND }}
-          
-          # Skip ticket: 126320
-          ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_filter=-*test_decode_convert_equal_convert*:*test_convert_partially_equal_convert* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowLiteFrontend.xml
 
       - name: Transformations func tests
         if: ${{ fromJSON(inputs.affected-components).transformations.test && runner.arch != 'ARM64' }} # Ticket: 126281
