@@ -28,7 +28,7 @@ Export an LLM model via Hugging Face Optimum-Intel
 Run generation using OpenVINO GenAI
 ##########################################
 
-1. Create python virtual environment and install the correct components for running the model on NPU via OpenVINO GenAI:
+1. Create a python virtual environment and install the correct components for running the model on the NPU via OpenVINO GenAI:
 
    .. code-block:: console
 
