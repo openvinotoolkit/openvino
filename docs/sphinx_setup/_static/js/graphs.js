@@ -118,8 +118,8 @@ class Modal {
         var kpis = []
         graphDataArr.filter((data) => {
             for (var key in data.Parameters) {
-                data.Parameters[key].Precisions.forEach((key)=>{
-                    Object.keys(key).forEach((key)=>{
+                data.Parameters[key].Precisions.forEach((key) => {
+                    Object.keys(key).forEach((key) => {
                         if (!kpis.includes(key.toUpperCase())) kpis.push(key.toUpperCase())
                     });
                 })
@@ -144,7 +144,7 @@ class Modal {
     }
     static getPrecisions(labels) {
         return labels.map((label) => {
-            switch (label) {                
+            switch (label) {
                 case 'OV-INT8 (reference)':
                     return 'ovmsint8';
                 case 'OV-FP32 (reference)':
@@ -211,8 +211,10 @@ class Graph {
 
     // param: GraphData[], kpi: string
     static getDatabyKPI(graphDataArr, kpi, precisions) {
+        // return graphDataArr.map((item) => item.Parameters[kpi]?.Precisions);
+
         if (graphDataArr[0].Parameters[kpi] !== undefined) {
-            return graphDataArr.map((item) => item.Parameters[kpi]);
+            return graphDataArr.map((item) => item.Parameters[kpi].Precisions);
         }
         else {
             var array = [];
@@ -221,8 +223,10 @@ class Graph {
                 data[label] = "1000";
                 array.push(data)
             })
-            return [{ "Precisions": array }];
+            console.log([[{ int4: '34', int8: '155', fp16: '30'}],[{ int4: '134', int8: '55', fp16: '134'}],[{ int4: '12', int8: '45', fp16: '234'}]])
+            return [[[{ int4: '34', int8: '155', fp16: '30'}],[{ int4: '134', int8: '55', fp16: '134'}],[{ int4: '12', int8: '45', fp16: '234'}]]];
         }
+        
     }
 
 
@@ -241,21 +245,21 @@ class Graph {
                     chartTitle: 'Latency',
                     iconClass: 'latency-icon',
                     unit: item.Parameters[kpi].Unit,
-                    datasets: precisions.map((precision) => this.getPrecisionLatencyConfig(precision)),
+                    datasets: precisions.map((precision) => this.getPrecisionThroughputConfig(precision)),
                 };
             case 'value':
                 return {
                     chartTitle: 'Value',
                     iconClass: 'value-icon',
-                    unit: item?.Parameters[kpi]?.Unit,
-                    datasets: [{ data: null, color: '#8BAE46', label: `Value` }],
+                    unit: item.Parameters[kpi]?.Unit,
+                    datasets: precisions.map((precision) => this.getPrecisionThroughputConfig(precision))
                 };
             case 'efficiency':
                 return {
                     chartTitle: 'Efficiency',
                     iconClass: 'efficiency-icon',
-                    unit: item?.Parameters?.kpi?.Unit,
-                    datasets: [{ data: null, color: '#E96115', label: `Efficiency` }],
+                    unit: item.Parameters?.kpi?.Unit,
+                    datasets: precisions.map((precision) => this.getPrecisionThroughputConfig(precision))
                 };
             default:
                 return {};
@@ -274,23 +278,6 @@ class Graph {
                 return { data: null, color: '#007797', label: `FP32` };
             case 'bf16':
                 return { data: null, color: '#00536a', label: `BF16` };
-            default:
-                return {};
-        }
-    }
-
-    static getPrecisionLatencyConfig(precision) {
-        switch (precision) {
-            case 'int4':
-                return { data: null, color: '#c197d1', label: `INT4` };
-            case 'int8':
-                return { data: null, color: '#b274ca', label: `INT8` };
-            case 'fp16':
-                return { data: null, color: '#8424a9', label: `FP16` };
-            case 'fp32':
-                return { data: null, color: '#5b037d', label: `FP32` };
-            case 'bf16':
-                return { data: null, color: '#37014c', label: `BF16` };
             default:
                 return {};
         }
@@ -319,7 +306,6 @@ class ChartDisplay {
         this.numberOfChartsInRow = numberOfCharts;
     }
 }
-
 
 $(document).ready(function () {
 
@@ -575,14 +561,14 @@ $(document).ready(function () {
 
         allKpis.forEach((kpi) => {
             $(`input[data-kpi="${kpi.charAt(0).toUpperCase() + kpi.slice(1)}"]`).prop('disabled', true);
-            }
+        }
         )
-        
+
         var kpis = Filter.ByIeKpis(graph, clientPlatforms);
         kpis.forEach((kpi) => {
             $(`input[data-kpi="${kpi.charAt(0).toUpperCase() + kpi.slice(1)}"]`).prop('disabled', false);
         })
-        
+
         return null;
     }
 
@@ -812,14 +798,12 @@ $(document).ready(function () {
         var graphConfigs = kpis.map((str) => {
             var kpi = str.toLowerCase();
             var groupUnit = model[0];
-            var kpiData = Graph.getDatabyKPI(model, kpi, precisions)[0].Precisions;
-            console.log(kpiData)
+            var kpiData = Graph.getDatabyKPI(model, kpi, precisions);
             var config = Graph.getGraphConfig(kpi, groupUnit, precisions);
-            if (kpiData !== undefined) {
-                precisions.forEach((precision, index) => {
-                    config.datasets[index].data = kpiData.map(tData => tData[precision]);
-                });
-            }
+            precisions.forEach((precision, index) => {
+                config.datasets[index].data = kpiData.map(tData => tData[0][precision]);
+            });
+            console.log(config);
             return config;
         });
 
