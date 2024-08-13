@@ -329,7 +329,12 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
                 GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: Set ofm_tile 1. (output_f : " << output_f
                     << ", computeUnitsCount : " << params.engineInfo.computeUnitsCount
                     << " min_num_threads : " << min_num_threads << ")" << std::endl;
-                return selector.Default(tune_params(1, 1, 4, 2, 1, 1, EXE_MODE_DEFAULT));
+                if (params.weights.IFM().v >= params.weights.OFM().v * 3 && params.weights.OFM().v <= 4096) {
+                    GPU_DEBUG_TRACE_DETAIL << "K: " << params.weights.IFM().v << " N: " << params.weights.OFM().v << " => set TILE_K_SIZE 4" << std::endl;
+                    return selector.Default(tune_params(1, 1, 4, 4, 1, 1, EXE_MODE_DEFAULT));
+                } else {
+                    return selector.Default(tune_params(1, 1, 4, 2, 1, 1, EXE_MODE_DEFAULT));
+                }
             } else {
                 return selector.Default(tune_params(1, 2, 4, 2, 1, 1, EXE_MODE_DEFAULT));
             }

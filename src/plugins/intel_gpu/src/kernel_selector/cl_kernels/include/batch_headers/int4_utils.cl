@@ -147,7 +147,19 @@ inline half4 unpack_to_half(uint4x4_t v) __attribute__((overloadable)) {
     return (half4)(f0.s0, f0.s1, f1.s0, f1.s1);
 }
 
+inline half4 unpack_to_half_osv32_isv2(uint4x4_t v) __attribute__((overloadable)) {
+    half2 f0 = unpack_to_half(v.s0);
+    half2 f1 = unpack_to_half(v.s1);
+    return (half4)(f0.s0, f0.s1, f1.s0, f1.s1);
+}
+
 inline half4 unpack_to_half(int4x4_t v) __attribute__((overloadable)) {
+    half2 f0 = unpack_to_half(v.s0);
+    half2 f1 = unpack_to_half(v.s1);
+    return (half4)(f0.s0, f0.s1, f1.s0, f1.s1);
+}
+
+inline half4 unpack_to_half_osv32_isv2(int4x4_t v) __attribute__((overloadable)) {
     half2 f0 = unpack_to_half(v.s0);
     half2 f1 = unpack_to_half(v.s1);
     return (half4)(f0.s0, f0.s1, f1.s0, f1.s1);
@@ -207,5 +219,6 @@ inline uchar8 unpack_to_uchar_osv32_isv2(uint4x8_t v) __attribute__((overloadabl
 
 #define UNPACK_INT4x2(target_type, value) CAT(unpack_to_, target_type)(value)
 #define UNPACK_INT4x2_OSV32_ISV2(target_type, value) CAT(CAT(unpack_to_, target_type), _osv32_isv2)(value)
+#define UNPACK_INT4x4_OSV32_ISV2(target_type, value) CAT(CAT(unpack_to_, target_type), _osv32_isv2)(value)
 #define UNPACK_TRANSPOSED_INT4x2(target_type, value) CAT(unpack_transposed_to_, target_type)(value)
 #define UNPACK_TRANSPOSED_INT4x2_OSV32_ISV2(target_type, value) CAT(CAT(unpack_transposed_to_, target_type), _osv32_isv2)(value)
