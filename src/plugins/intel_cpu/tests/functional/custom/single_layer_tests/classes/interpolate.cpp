@@ -253,11 +253,11 @@ const std::vector<ov::op::v11::Interpolate::NearestMode> defNearestModes() {
 
 const std::vector<bool> antialias() {
     return { false };
-};
+}
 
 const std::vector<double> cubeCoefs() {
     return { -0.75f };
-};
+}
 
 }  // namespace Interpolate
 }  // namespace test
