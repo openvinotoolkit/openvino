@@ -66,7 +66,7 @@ Run generation using OpenVINO GenAI
 Additional configuration options
 ################################
 
-Compiling models for NPU may take a while. By default, LLMPipeline for NPU
+Compiling models for NPU may take a while. By default, the LLMPipeline for the NPU
 is configured for faster compilation, but it may result in lower performance.
 To achieve better performance at the expense of compilation time, you may try these settings:
 
