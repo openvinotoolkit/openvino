@@ -9,7 +9,6 @@ namespace kernel_selector {
 
 ParamsKey LSTMCellKernelRef::GetSupportedKey() const {
     ParamsKey k;
-    //k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
@@ -25,10 +24,10 @@ ParamsKey LSTMCellKernelRef::GetSupportedKey() const {
 }
 
 KernelsData LSTMCellKernelRef::GetKernelsData(const Params& params) const {
-    return GetCommonKernelsData(params);
+    return GetCommonKernelsData(params, false);
 }
 
 KernelsPriority LSTMCellKernelRef::GetKernelsPriority(const Params& /*params*/) const {
-    return FORCE_PRIORITY_1;
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

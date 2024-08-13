@@ -13,7 +13,7 @@ namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // lstm_cell_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct lstm_cell_params : public base_params {
+struct lstm_params : public base_params {
     enum order_type : int32_t {
         offset_iofz,  // ONNX default
         offset_ifoz,  // caffe
@@ -21,7 +21,7 @@ struct lstm_cell_params : public base_params {
         offset_fizo   // OV default
     };
 
-    lstm_cell_params() : base_params(KernelType::LSTM_CELL) {}
+    lstm_params() : base_params(KernelType::LSTM_SEQ_CELL) {}
     order_type gate_order = offset_iofz;
     float clip = 0;
     bool input_forget = false;
@@ -51,19 +51,19 @@ struct lstm_cell_params : public base_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // LSTMSeqKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class LSTMCellKernelBase : public KernelBaseOpenCL {
+class LSTMKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~LSTMCellKernelBase() {}
+    virtual ~LSTMKernelBase() {}
 
     struct DispatchData : public CommonDispatchData {};
 
 protected:
-    virtual JitConstants GetJitConstants(const lstm_cell_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params) const;
+    virtual JitConstants GetJitConstants(const lstm_params& params, bool) const;
+    KernelsData GetCommonKernelsData(const Params& params, bool) const;
 
     bool Validate(const Params& p) const override {
-        if (p.GetType() != KernelType::LSTM_CELL) {
+        if (p.GetType() != KernelType::LSTM_SEQ_CELL) {
             return false;
         }
 

@@ -9,6 +9,6 @@ namespace kernel_selector {
 lstm_cell_kernel_selector::lstm_cell_kernel_selector() { Attach<LSTMCellKernelRef>(); }
 
 KernelsData lstm_cell_kernel_selector::GetBestKernels(const Params& params) const {
-    return GetNaiveBestKernel(params, KernelType::LSTM_CELL);
+    return GetNaiveBestKernel(params, KernelType::LSTM_SEQ_CELL);
 }
 }  // namespace kernel_selector

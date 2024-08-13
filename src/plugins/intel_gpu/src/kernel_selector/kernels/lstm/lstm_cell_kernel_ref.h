@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "lstm_cell_kernel_base.h"
+#include "lstm_kernel_base.h"
 
 namespace kernel_selector {
-class LSTMCellKernelRef : public LSTMCellKernelBase {
+class LSTMCellKernelRef : public LSTMKernelBase {
 public:
-    LSTMCellKernelRef() : LSTMCellKernelBase("lstm_seq_ref") {}
+    LSTMCellKernelRef() : LSTMKernelBase("lstm_seq_ref") {}
     virtual ~LSTMCellKernelRef() {}
 
     KernelsData GetKernelsData(const Params& params) const override;

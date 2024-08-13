@@ -3,10 +3,6 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#define MAX_LENGTH 100
-#define STRINGIFY(x) #x
-#define TOSTRING(x) STRINGIFY(x)
-
 
 KERNEL(lstm_seq)(
     const __global INPUT0_TYPE* x,

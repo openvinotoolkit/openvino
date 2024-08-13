@@ -25,10 +25,10 @@ ParamsKey LSTMSeqKernelRef::GetSupportedKey() const {
 }
 
 KernelsData LSTMSeqKernelRef::GetKernelsData(const Params& params) const {
-    return GetCommonKernelsData(params);
+    return GetCommonKernelsData(params, true);
 }
 
 KernelsPriority LSTMSeqKernelRef::GetKernelsPriority(const Params& /*params*/) const {
-    return FORCE_PRIORITY_1;
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector
