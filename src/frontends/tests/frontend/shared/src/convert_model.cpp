@@ -35,7 +35,12 @@ void FrontEndConvertModelTest::doLoadFromFile() {
     ASSERT_NE(m_inputModel, nullptr);
 }
 
+#ifdef _WIN32
+// Ticket: 126320
+TEST_P(FrontEndConvertModelTest, DISABLED_test_convert_partially_equal_convert) {
+#else
 TEST_P(FrontEndConvertModelTest, test_convert_partially_equal_convert) {
+#endif
     OV_ASSERT_NO_THROW(doLoadFromFile());
     std::shared_ptr<ov::Model> model_ref;
     OV_ASSERT_NO_THROW(model_ref = m_frontEnd->convert(m_inputModel));
@@ -53,7 +58,12 @@ TEST_P(FrontEndConvertModelTest, test_convert_partially_equal_convert) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
+#ifdef _WIN32
+// Ticket: 126320
+TEST_P(FrontEndConvertModelTest, DISABLED_test_decode_convert_equal_convert) {
+#else
 TEST_P(FrontEndConvertModelTest, test_decode_convert_equal_convert) {
+#endif
     OV_ASSERT_NO_THROW(doLoadFromFile());
     std::shared_ptr<ov::Model> model_ref;
     OV_ASSERT_NO_THROW(model_ref = m_frontEnd->convert(m_inputModel));
