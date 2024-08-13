@@ -155,35 +155,6 @@ bool check_for_broadcast(const ov::PartialShape& ref_shape, const ov::PartialSha
     return false;
 }
 
-bool broadcasted_only_channel(const ov::PartialShape& weights_shape, const ov::PartialShape& const_shape) {
-    if (const_shape.size() > weights_shape.size()) {
-        return false;
-    }
-
-    auto weights_shape_it = weights_shape.rbegin();
-    auto const_shape_it = const_shape.rbegin();
-    size_t C_dim = const_shape.size() - 1 - 2;
-    size_t const_shape_cur_idx = const_shape.size() - 1;
-
-    while (const_shape_it != const_shape.rend()) {
-        if (const_shape_cur_idx == C_dim) {
-            if (*const_shape_it != 1 && *const_shape_it != *weights_shape_it) {
-                return false;
-            }
-        } else {
-            if (*const_shape_it != 1) {
-                return false;
-            }
-        }
-
-        ++weights_shape_it;
-        ++const_shape_it;
-        --const_shape_cur_idx;
-    }
-
-    return true;
-}
-
 std::shared_ptr<ov::Node> activation(const std::string& activation_name, const ov::Output<ov::Node>& apply_to) {
     if (activation_name == "relu") {
         return std::make_shared<ov::op::v0::Relu>(apply_to);

@@ -43,10 +43,10 @@ ov::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
         // applied per channel and can be fused into Convolution weights.
         // Also Constant shape rank must be less or equal Convolution output shape
         // otherwise fusion will break output broadcasting
-        auto expected_shape = Shape(weights_rank, 1);
+        auto expected_shape = PartialShape{weights_rank, 1};
         expected_shape[1] = channel_dim;
 
-        if (!op::util::broadcasted_only_channel(expected_shape, const_shape)) {
+        if (!PartialShape::merge_into(expected_shape, const_shape)) {
             return false;
         }
 
@@ -107,10 +107,10 @@ ov::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
         // channel and can be fused into Convolution weights.
         // Also Constant shape rank must be less or equal Convolution output shape
         // otherwise fusion will break output broadcasting
-        auto expected_shape = Shape(weights_rank - 1, 1);
+        auto expected_shape = PartialShape{weights_rank - 1, 1};
         expected_shape[1] = G * O;
 
-        if (!op::util::broadcasted_only_channel(expected_shape, const_shape)) {
+        if (!PartialShape::merge_into(expected_shape, const_shape)) {
             return false;
         }
 
@@ -195,10 +195,10 @@ ov::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMultiply
         // channel and can be fused into Convolution weights.
         // Also Constant shape rank must be less or equal Convolution output shape
         // otherwise fusion will break output broadcasting
-        auto expected_shape = Shape(weights_rank, 1);
+        auto expected_shape = PartialShape{weights_rank, 1};
         expected_shape[1] = channel_dim;
 
-        if (!op::util::broadcasted_only_channel(expected_shape, const_shape)) {
+        if (!PartialShape::merge_into(expected_shape, const_shape)) {
             return false;
         }
 
@@ -272,10 +272,10 @@ ov::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpropDa
         // channel and can be fused into Convolution weights.
         // Also Constant shape rank must be less or equal Convolution output shape
         // otherwise fusion will break output broadcasting
-        auto expected_shape = Shape(weights_rank - 1, 1);
+        auto expected_shape = PartialShape{weights_rank - 1, 1};
         expected_shape[1] = G * O;
 
-        if (!op::util::broadcasted_only_channel(expected_shape, const_shape)) {
+        if (!PartialShape::merge_into(expected_shape, const_shape)) {
             return false;
         }
 

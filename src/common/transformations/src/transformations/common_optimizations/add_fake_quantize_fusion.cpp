@@ -50,7 +50,8 @@ ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
             return false;
 
         auto const_shape = add_const->get_shape();
-        if (!ov::op::util::broadcasted_only_channel(input.get_partial_shape(), const_shape)) {
+        auto input_shape_copy = input.get_partial_shape();
+        if (!PartialShape::merge_into(input_shape_copy, const_shape)) {
             // We can't eliminate Add if Constant input broadcasts another input shape because
             // when we reconnect input from Add to FQ won't broadcast given input, so it will result
             // in shape collision.

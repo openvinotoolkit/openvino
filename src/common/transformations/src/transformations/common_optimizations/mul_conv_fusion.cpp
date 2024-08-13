@@ -40,7 +40,7 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
         const auto& mul_const = pattern_to_output.at(mul_const_pattern);
         const auto& input = pattern_to_output.at(input_pattern);
 
-        const auto& weights_shape = weights.get_shape();
+        auto weights_shape = weights.get_partial_shape();
         const auto& mul_const_shape = mul_const.get_shape();
 
         if (input.get_partial_shape().size() < weights_shape.size()) {
@@ -51,7 +51,8 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
         // Also if mul_const's rank matches weights rank and mul_const.shape[0] != 1
         // then we can't fuse the multiply, since first dimension in mul_const corresponds to
         // batch size, while first dimension in weights corresponds to output channel count
-        if (!ov::op::util::broadcasted_only_channel(weights_shape, mul_const_shape) ||
+        // if (!ov::op::util::broadcasted_only_channel(weights_shape, mul_const_shape) ||
+        if (!PartialShape::broadcast_merge_into(weights_shape, mul_const_shape, op::AutoBroadcastType::NUMPY) ||
             (weights_shape.size() == mul_const_shape.size() && mul_const_shape[0] != 1)) {
             return false;
         }
@@ -111,7 +112,8 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
             // Reshape mul_const from shape (1, C, H, W) to (G, 1, C / G, H, W) to match GroupConvolution weights format
             Shape new_shape{G, 1, C};
             std::copy(mul_const_shape.begin() + 2, mul_const_shape.end(), std::back_inserter(new_shape));
-            if (!ov::op::util::broadcasted_only_channel(weights_shape, new_shape)) {
+            PartialShape weights_shape_copy = weights_shape;
+            if (!PartialShape::merge_into(weights_shape_copy, new_shape)) {
                 return false;
             }
             mul_const = std::make_shared<ov::op::v1::Reshape>(
@@ -159,7 +161,7 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
             return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);
-        const auto& weights_shape = weights.get_shape();
+        auto weights_shape = weights.get_partial_shape();
         std::shared_ptr<Node> mul_const = pattern_to_output.at(mul_const_pattern).get_node_shared_ptr();
 
         if (shape_size(mul_const->get_shape()) > 1) {
@@ -179,7 +181,7 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
             // Reshape mul_const from shape (1, C, 1, 1) to (C, 1, 1, 1) to match ConvolutionBackpropData weights format
             Shape new_shape{mul_const_shape[1], 1};
             new_shape.insert(new_shape.end(), mul_const_shape.size() - 2, 1);
-            if (!ov::op::util::broadcasted_only_channel(weights_shape, new_shape)) {
+            if (!PartialShape::merge_into(weights_shape, new_shape)) {
                 return false;
             }
             mul_const = std::make_shared<ov::op::v1::Reshape>(
@@ -249,7 +251,8 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
             auto C = mul_const_shape[1] / G;
             Shape new_shape{G, C, 1};
             new_shape.insert(new_shape.end(), mul_const_shape.size() - 2, 1);
-            if (!ov::op::util::broadcasted_only_channel(weights_shape, new_shape)) {
+            PartialShape weights_shape_copy = weights_shape;
+            if (!PartialShape::merge_into(weights_shape_copy, new_shape)) {
                 return false;
             }
             mul_const = std::make_shared<ov::op::v1::Reshape>(
