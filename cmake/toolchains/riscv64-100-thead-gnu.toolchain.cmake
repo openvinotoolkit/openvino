@@ -23,7 +23,7 @@ set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR riscv64)
 
 set(RISCV64_THEAD ON)
-set(RISCV64_RVV0p7 ON)
+set(RISCV64_RVV1p0 ON)
 
 set(RISCV_TOOLCHAIN_ROOT $ENV{RISCV_TOOLCHAIN_ROOT} CACHE PATH "Path to CLANG for RISC-V cross compiler build directory")
 set(CMAKE_SYSROOT "${RISCV_TOOLCHAIN_ROOT}/sysroot" CACHE PATH "RISC-V sysroot")
@@ -36,8 +36,8 @@ set(PKG_CONFIG_EXECUTABLE "NOT-FOUND" CACHE PATH "Path to RISC-V pkg-config")
 # Don't run the linker on compiler check
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 
-set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -march=rv64gcv0p7_zfh_xtheadc -mabi=lp64d")
-set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} -march=rv64gcv0p7_zfh_xtheadc -mabi=lp64d")
+set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -march=rv64gcv1p0_zfh -mabi=lp64d")
+set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} -march=rv64gcv1p0_zfh -mabi=lp64d")
 
 # system libc provides pthread functions (as detected by FindThreads.cmake), but not all functions are available
 # WA: use pthread explicitly, since we know it's available in current toolchain
