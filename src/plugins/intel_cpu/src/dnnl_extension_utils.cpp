@@ -3,14 +3,16 @@
 //
 
 #include "dnnl_extension_utils.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "onednn/iml_type_mapper.h"
-#include "utils/general_utils.h"
+
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
 #include <oneapi/dnnl/dnnl.hpp>
-
 #include <vector>
+
+#include "cpu_memory.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "onednn/iml_type_mapper.h"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 
@@ -33,6 +35,8 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     case dnnl::memory::data_type::nf4:
     case dnnl::memory::data_type::s4:
     case dnnl::memory::data_type::u4:
+    case dnnl::memory::data_type::f8_e8m0:
+    case dnnl::memory::data_type::f4_e2m1:
         return 1;
     case dnnl::memory::data_type::undef:
         return 0;
@@ -64,6 +68,10 @@ dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::elem
             return memory::data_type::s4;
         case ov::element::u4:
             return memory::data_type::u4;
+        case ov::element::f8e8m0:
+            return memory::data_type::f8_e8m0;
+        case ov::element::f4e2m1:
+            return memory::data_type::f4_e2m1;
         case ov::element::undefined:
             return memory::data_type::undef;
         default: {
@@ -96,6 +104,10 @@ ov::element::Type DnnlExtensionUtils::DataTypeToElementType(const dnnl::memory::
             return ov::element::i4;
         case memory::data_type::u4:
             return ov::element::u4;
+        case memory::data_type::f8_e8m0:
+            return ov::element::f8e8m0;
+        case memory::data_type::f4_e2m1:
+            return ov::element::f4e2m1;
         case memory::data_type::undef:
             return ov::element::undefined;
         default: {
@@ -252,6 +264,12 @@ bool DnnlExtensionUtils::isUnarySupportedAsPostOp(Algorithm alg) {
 #else
     return false;
 #endif
+}
+
+std::string DnnlExtensionUtils::computeWeightsStringHash(const std::shared_ptr<const IMemory> memory,
+                                                         const std::shared_ptr<DnnlMemoryDesc> dstDesc) {
+    const auto desc_hash = dnnl::impl::primitive_hashing::get_md_hash(*dstDesc->getDnnlDesc().get());
+    return std::to_string(desc_hash) + "_" + std::to_string(reinterpret_cast<uint64_t>(memory->getData()));
 }
 
 }   // namespace intel_cpu

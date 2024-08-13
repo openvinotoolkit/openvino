@@ -44,7 +44,7 @@ TEST_P(fully_connected_fake_align_test, fake_alignment) {
     auto input_size = p.input_layout.get_partial_shape().size();
     auto input_layout_prim = std::make_shared<input_layout>("input", p.input_layout);
     auto weight_layout_prim = std::make_shared<input_layout>("weight", p.weight_layout);
-    auto fully_connected_prim = std::make_shared<fully_connected>("output", input_info("input"), "weight", "", p.data_type, padding(), input_size);
+    auto fully_connected_prim = std::make_shared<fully_connected>("output", input_info("input"), "weight", "", p.data_type, input_size);
 
     cldnn::program prog(engine);
 
@@ -229,16 +229,16 @@ TEST_P(fully_connected_skip_fake_align_test, skip_fake_alignment_case) {
 
     topology.add(input_layout("weights", p.weight_layout));
     topology.add(fully_connected("fc_prim1", input_info("eltwise_add1"), "weights", "",
-                 cldnn::data_types::f32, padding(), p.input_layout.get_rank(), p.weight_layout.get_rank()));
-    
+                 cldnn::data_types::f32, p.input_layout.get_rank(), p.weight_layout.get_rank()));
+
     topology.add(input_layout("bias",
                  layout{ov::PartialShape{1, 1, p.expected_output_layout_igpu.get_dims()[2]}, cldnn::data_types::f32, cldnn::format::bfyx}));
     topology.add(eltwise("bias_add", { input_info("fc_prim1"), input_info("bias") }, eltwise_mode::sum));
-    
+
     topology.add(input_layout("dequantize_scale",
                  layout{ov::PartialShape{1, 1, p.expected_output_layout_igpu.get_dims()[2]}, cldnn::data_types::f32, cldnn::format::bfyx}));
     topology.add(eltwise("eltwise_multiply", { input_info("bias_add"), input_info("dequantize_scale") }, eltwise_mode::prod));
-    
+
     topology.add(input_layout("eltwise_data2", p.expected_output_layout_igpu));
     topology.add(eltwise("eltwise_add2", { input_info("eltwise_multiply"), input_info("eltwise_data2") }, eltwise_mode::sum));
     topology.add(permute("permute", input_info("eltwise_add2"), {2, 1, 0}));

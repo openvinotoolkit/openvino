@@ -170,8 +170,8 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
     // fc_tiled_opt kernel is optimized for row shape aligned by 8.
     // Thus, use fake aligned shape at kernel execution for better performance.
-    auto orig_input_layout = orig_impl_param.get_input_layout();
-    auto orig_output_layout = orig_impl_param.get_output_layout();
+    const auto& orig_input_layout = orig_impl_param.get_input_layout();
+    const auto& orig_output_layout = orig_impl_param.get_output_layout();
     OPENVINO_ASSERT(orig_input_layout.is_static() && orig_output_layout.is_static(),
                     "in/out layouts should be static for fake alignment!");
 
@@ -210,8 +210,6 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
     }
 
     if (orig_input_layout.format == format::bfyx && orig_output_layout.format == format::bfyx && can_apply_fake_alignment) {
-        auto updated_param = orig_impl_param;
-
         auto batch_size = std::accumulate(input_shape.begin(),
                                           input_shape.end() - 1,
                                           size_t{1},
@@ -236,14 +234,9 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         input_shape[0] = align_to(batch_size, fake_align_base);
         output_shape[0] = align_to(batch_size, fake_align_base);
 
-        updated_param.input_layouts[0] = layout(ov::PartialShape(input_shape),
-                                                orig_input_layout.data_type,
-                                                orig_input_layout.format,
-                                                orig_input_layout.data_padding);
-        updated_param.output_layouts[0] = layout(ov::PartialShape(output_shape),
-                                             orig_output_layout.data_type,
-                                             orig_output_layout.format,
-                                             orig_output_layout.data_padding);
+        auto updated_param = orig_impl_param;
+        updated_param.input_layouts[0] = orig_input_layout.clone_with_other_shape(input_shape);
+        updated_param.output_layouts[0] = orig_output_layout.clone_with_other_shape(output_shape);
 
         GPU_DEBUG_TRACE_DETAIL << "Apply fake alignment: input(" << orig_input_layout.to_short_string() << " -> "
                                << updated_param.input_layouts[0].to_short_string() << "), output("
@@ -276,6 +269,9 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
         if (desc->decompression_zero_point_scalar.has_value()) {
             fc_info.add("decompression zp value", desc->decompression_zero_point_scalar.value());
         }
+    }
+    if (desc->dynamic_quantized_activation) {
+        fc_info.add("activation scale id", desc->activation_scale.pid);
     }
 
     node_info->add("fully connected info", fc_info);

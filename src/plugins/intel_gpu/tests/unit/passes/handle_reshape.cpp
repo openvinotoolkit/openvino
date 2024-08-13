@@ -112,7 +112,7 @@ TEST(handle_reshape, skip_reorder_node_to_split_when_onndnn_not_support) {
     topology.add(eltwise("e1", input_info("input"), input_info("data"), eltwise_mode::sum));
     topology.add(reshape("reshape", input_info("e1"), tensor(9, 1, 1, 1024), cldnn::reshape::reshape_mode::base));
     topology.add(reorder("convert_to_f32", input_info("reshape"), { data_types::f32, format::bfyx, { 9, 1, 1, 1024} }));
-    topology.add(fully_connected("matmul", input_info("reshape"), "weights", "bias", cldnn::padding(), 3, 2));
+    topology.add(fully_connected("matmul", input_info("reshape"), "weights", "bias", 3, 2));
     topology.add(reorder("convert_to_f32_matmul", input_info("matmul"), { data_types::f32, format::bfyx, { 9, 1, 1, 1024} }));
     topology.add(eltwise("e2", input_info("convert_to_f32"), input_info("convert_to_f32_matmul"), eltwise_mode::sum));
 
