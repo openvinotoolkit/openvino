@@ -42,6 +42,7 @@ enum class KernelType {
     MVN,
     LSTM_ELT,
     LSTM_SEQ,
+    LSTM_CELL,
     BORDER,
     TILE,
     SELECT,

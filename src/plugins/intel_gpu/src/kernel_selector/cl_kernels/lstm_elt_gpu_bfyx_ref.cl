@@ -15,6 +15,7 @@ KERNEL(lstm_elt)(
 #endif
     )
 {
+    printf("elt still alive \n");
     const uint x = get_global_id(0);
     const uint b = get_global_id(1);
 

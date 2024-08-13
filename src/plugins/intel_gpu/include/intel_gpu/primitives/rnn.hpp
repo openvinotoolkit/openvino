@@ -130,10 +130,10 @@ struct RNNParams{
         ob << x;
         ob << initial_hidden_state;
         ob << initial_cell_state;
-        ob << seq_lenghts;
         ob << W;
         ob << R;
         ob << B;
+        ob << seq_lenghts;
         ob << out1_prim_id;
         ob << out2_prim_id;
         ob << clip;
@@ -150,10 +150,10 @@ struct RNNParams{
         ib >> x;
         ib >> initial_hidden_state;
         ib >> initial_cell_state;
-        ib >> seq_lenghts;
         ib >> W;
         ib >> R;
         ib >> B;
+        ib >> seq_lenghts;
         ib >> out1_prim_id;
         ib >> out2_prim_id;
         ib >> clip;
@@ -166,7 +166,7 @@ struct RNNParams{
     }
 
     std::vector<input_info> get_inputs() const {
-        return filter_empty_id( {x, initial_hidden_state, initial_cell_state, seq_lenghts, W, R, B, input_info(out1_prim_id), input_info(out2_prim_id)});
+        return filter_empty_id( {x, initial_hidden_state, initial_cell_state, W, R, B, seq_lenghts, input_info(out1_prim_id), input_info(out2_prim_id)});
     }
 
 protected:
