@@ -111,6 +111,16 @@ zero-shot classification.
       -  `Text model <#text-model>`__
       -  `Audio model <#audio-model>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -166,17 +176,6 @@ card <https://github.com/facebookresearch/ImageBind/blob/main/model_card.md>`__.
     # Instantiate model
     model = imagebind_model.imagebind_huge(pretrained=True)
     model.eval();
-
-
-.. parsed-literal::
-
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/torchvision/transforms/functional_tensor.py:5: UserWarning: The torchvision.transforms.functional_tensor module is deprecated in 0.15 and will be **removed in 0.17**. Please don't rely on it. You probably just need to use APIs in torchvision.transforms.functional or in torchvision.transforms.v2.functional.
-      warnings.warn(
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/torchvision/transforms/_functional_video.py:6: UserWarning: The 'torchvision.transforms._functional_video' module is deprecated since 0.12 and will be removed in the future. Please use the 'torchvision.transforms.functional' module instead.
-      warnings.warn(
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/torchvision/transforms/_transforms_video.py:22: UserWarning: The 'torchvision.transforms._transforms_video' module is deprecated since 0.12 and will be removed in the future. Please use the 'torchvision.transforms' module instead.
-      warnings.warn(
-
 
 Prepare input data
 ------------------
@@ -705,6 +704,7 @@ Apply quantization
 ~~~~~~~~~~~~~~~~~~
 
 
+
 .. code:: ipython3
 
     import logging
@@ -763,6 +763,8 @@ Quantize ImageBind model for text modality
 
 Quantize ImageBind model for audio modality
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 .. code:: ipython3
 
