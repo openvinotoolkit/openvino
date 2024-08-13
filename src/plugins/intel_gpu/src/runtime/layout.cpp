@@ -342,128 +342,30 @@ std::vector<tensor::value_type> layout::get_pitches() const {
 }
 
 
-// index in the same logical order of shape
-size_t layout::get_linear_offset(const std::initializer_list<tensor::value_type>& index) const {
-    // const auto& l_padd = data_padding.lower_size();
-    // const auto& u_padd = data_padding.upper_size();
+size_t layout::get_linear_offset(tensor element) const {
+    auto default_fmt = format::get_default_format(format.dimension(), format::is_weights_format(format), format::is_grouped(format));
+    const auto& l_padd = tensor(default_fmt, data_padding.lower_size(format.dimension()), 0);
+    const auto& u_padd = tensor(default_fmt, data_padding.upper_size(format.dimension()), 0);
 
-    // const auto& t = get_tensor();
+    const auto& t = get_tensor();
 
-    // if ((element.batch[0] < 0 && -element.batch[0] > l_padd.batch[0]) ||
-    //     (element.feature[0] < 0 && -element.feature[0] > l_padd.feature[0]) ||
-    //     (element.spatial[0] < 0 && -element.spatial[0] > l_padd.spatial[0]) ||
-    //     (element.spatial[1] < 0 && -element.spatial[1] > l_padd.spatial[1]) ||
-    //     (element.spatial[2] < 0 && -element.spatial[2] > l_padd.spatial[2]) ||
-    //     (element.spatial[3] < 0 && -element.spatial[3] > l_padd.spatial[3]) ||
-    //     (element.batch[0] >= t.batch[0] + u_padd.batch[0]) ||
-    //     (element.feature[0] >= t.feature[0] + u_padd.feature[0]) ||
-    //     (element.spatial[0] >= t.spatial[0] + u_padd.spatial[0]) ||
-    //     (element.spatial[1] >= t.spatial[1] + u_padd.spatial[1]) ||
-    //     (element.spatial[2] >= t.spatial[2] + u_padd.spatial[2]) ||
-    //     (element.spatial[3] >= t.spatial[3] + u_padd.spatial[3]))
-    //     throw std::invalid_argument("Requested to calculate linear offset for an element which lies outside of the buffer range.");
+    if ((element.batch[0] < 0 && -element.batch[0] > l_padd.batch[0]) ||
+        (element.feature[0] < 0 && -element.feature[0] > l_padd.feature[0]) ||
+        (element.spatial[0] < 0 && -element.spatial[0] > l_padd.spatial[0]) ||
+        (element.spatial[1] < 0 && -element.spatial[1] > l_padd.spatial[1]) ||
+        (element.spatial[2] < 0 && -element.spatial[2] > l_padd.spatial[2]) ||
+        (element.spatial[3] < 0 && -element.spatial[3] > l_padd.spatial[3]) ||
+        (element.batch[0] >= t.batch[0] + u_padd.batch[0]) ||
+        (element.feature[0] >= t.feature[0] + u_padd.feature[0]) ||
+        (element.spatial[0] >= t.spatial[0] + u_padd.spatial[0]) ||
+        (element.spatial[1] >= t.spatial[1] + u_padd.spatial[1]) ||
+        (element.spatial[2] >= t.spatial[2] + u_padd.spatial[2]) ||
+        (element.spatial[3] >= t.spatial[3] + u_padd.spatial[3]))
+        throw std::invalid_argument("Requested to calculate linear offset for an element which lies outside of the buffer range.");
 
-    // auto padded_size = t + l_padd + u_padd;  // Cecilia: logical order
-    // auto padded_element = element + l_padd;
-    // return padded_size.get_linear_offset(padded_element, format);
-
-    OPENVINO_ASSERT(!is_dynamic() || has_upper_bound(), "[GPU] get_linear_offset() is called for dynamic shape without upper bound");
-    ov::Shape shape;
-    if (is_dynamic() && has_upper_bound()) {
-        for (const auto& dim : size) {
-            shape.push_back(dim.get_max_length());
-        }
-    } else {
-        shape = size.to_shape();
-    }
-
-    OPENVINO_ASSERT((index.size() == 0) ||
-                    (index.size() >= shape.size() && shape.size() <= SHAPE_RANK_MAX), "index should have the same rank as shape."); //FIXME: dims?
-
-    std::vector<tensor::value_type> padded_index(shape.size(), 0);
-    std::vector<tensor::value_type> padded_sizes(shape.size(), 0);
-    const auto& pad_before = data_padding.lower_size();
-    const auto& pad_after = data_padding.upper_size();
-
-    if (index.size() != 0) {
-        std::transform(pad_before.begin(), pad_before.begin() + shape.size(), index.begin(),
-                padded_index.begin(), std::plus<tensor::value_type>());
-    }
-
-    std::transform(pad_before.begin(), pad_before.begin() + shape.size(), shape.begin(),
-               padded_sizes.begin(), std::plus<tensor::value_type>());
-    std::transform(pad_after.begin(), pad_after.begin() + shape.size(), padded_sizes.begin(),
-               padded_sizes.begin(), std::plus<tensor::value_type>());
-
-    // Cecilia: TODO rework this piece along with get_pitches and get_linear_size by store m_strides and m_padded_dims to avoid frequent computes.
-    auto my_sizes = format_sizes(padded_sizes, format, 1);
-    auto adjusted_coords = format_sizes(padded_index, format, 0);
-
-    // Extend N-dimensional format with B blocked dimensions to (N+B) sizes
-    for (const auto& block : format.block_sizes()) {
-        auto block_axis = block.first;
-        auto block_size = block.second;
-        auto external_axis = block_axis;
-
-        my_sizes.push_back(block_size);
-        my_sizes[external_axis] = ceil_div(my_sizes[external_axis], block_size);
-
-        adjusted_coords.push_back(adjusted_coords[external_axis] % block_size);
-        adjusted_coords[external_axis] /= block_size;
-    }
-
-    if (format == cldnn::format::os_is_yx_isa8_osv8_isv4 &&  // TODO Fix offsets calculation for formats below
-                !(is_aligned_to(my_sizes[0], 8)) &&
-                !(is_aligned_to(my_sizes[1], 32))) {
-        my_sizes[0] = align_to(my_sizes[0], 8);
-        my_sizes[1] = align_to(my_sizes[1], 32);
-        adjusted_coords[0] = align_to(adjusted_coords[0], 8);
-        adjusted_coords[1] = align_to(adjusted_coords[1], 32);
-    } else if (format == cldnn::format::os_is_yx_isa8_osv16_isv4 &&
-                !(is_aligned_to(my_sizes[0], 16)) &&
-                !(is_aligned_to(my_sizes[1], 32))) {
-        my_sizes[0] = align_to(my_sizes[0], 16);
-        my_sizes[1] = align_to(my_sizes[1], 32);
-        adjusted_coords[0] = align_to(adjusted_coords[0], 16);
-        adjusted_coords[1] = align_to(adjusted_coords[1], 32);
-    } else if (format == cldnn::format::gs_oi_yxs_gsv4_yxsv4 || format == cldnn::format::gs_oi_yxs_gsv16_yxsv4 || format == cldnn::format::gs_oi_yxs_gsv32_yxsv4) {
-        const auto yxsv = 4;
-        const auto flat_xy = adjusted_coords[4] + adjusted_coords[3] * my_sizes[4];
-
-        my_sizes.push_back(yxsv);
-        my_sizes[4] = ceil_div(my_sizes[3] * my_sizes[4], yxsv);
-        my_sizes[3] = 1;
-
-        adjusted_coords.push_back(flat_xy % yxsv);
-        adjusted_coords[4] = flat_xy / yxsv;
-        adjusted_coords[3] = 0;
-    } else if (format == cldnn::format::os_iyx_osv32__ai32 && !is_aligned_to(my_sizes[1], 32)) {
-        my_sizes[1] = align_to(my_sizes[1], 32);
-    } else if ((format == cldnn::format::iy_xs_os_xsv2_osv8__ao32 || format == cldnn::format::iy_xs_os_xsv2_osv16__ao32) && !is_aligned_to(my_sizes[3], 32)) {
-        my_sizes[3] = align_to(my_sizes[3], 32);
-    } else if (format == cldnn::format::i_yxs_os_yxsv2_osv16 || format == cldnn::format::gi_yxs_os_yxsv2_osv16) {
-        const auto yxsv = 2;
-        auto flat_xy = adjusted_coords[2] + adjusted_coords[1] * my_sizes[2];
-
-        my_sizes.insert(std::prev(my_sizes.end()), yxsv);
-        my_sizes[2] = ceil_div(my_sizes[1] * my_sizes[2], yxsv);
-        my_sizes[1] = 1;
-
-        adjusted_coords.insert(std::prev(adjusted_coords.end()), flat_xy % yxsv);
-        adjusted_coords[2] = flat_xy / yxsv;
-        adjusted_coords[1] = 0;
-    } else if ((format == cldnn::format::giy_xs_os_xsv2_osv8__ao32 || format == cldnn::format::giy_xs_os_xsv2_osv16__ao32) && !is_aligned_to(my_sizes[3], 32)) {
-        my_sizes[4] = align_to(my_sizes[4], 32);
-    }
-
-    assert(my_sizes.size() == adjusted_coords.size());
-    assert(adjusted_coords.size() > 0);
-
-    size_t offset = adjusted_coords[0];
-    for (size_t i = 1; i < adjusted_coords.size(); i++) {
-        offset = offset * my_sizes[i] + adjusted_coords[i];
-    }
-    return offset;
+    auto padded_size = t + l_padd + u_padd;
+    auto padded_element = element + l_padd;
+    return padded_size.get_linear_offset(padded_element, format);
 }
 
 /// @brief Get aligned linear size calculated as multiplication of all elements.

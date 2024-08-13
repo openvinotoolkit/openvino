@@ -2593,8 +2593,8 @@ public:
                 for (size_t zi = 0; zi < z; ++zi) {
                     for (size_t yi = 0; yi < y; ++yi) {
                         for (size_t xi = 0; xi < x; ++xi) {
-                            auto offset = mem->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi), 
-                                                                static_cast<int32_t>(zi), static_cast<int32_t>(yi), static_cast<int32_t>(xi)});
+                            auto coords = cldnn::tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                            auto offset = mem->get_layout().get_linear_offset(coords);
                             ptr[offset] = data[bi][fi][zi][yi][xi];
                         }
                     }
@@ -2620,9 +2620,8 @@ public:
                     for (size_t zi = 0; zi < z; ++zi) {
                         for (size_t yi = 0; yi < y; ++yi) {
                             for (size_t xi = 0; xi < x; ++xi) {
-                                auto offset = mem->get_layout().get_linear_offset({static_cast<int32_t>(gi), static_cast<int32_t>(bi),
-                                                                                static_cast<int32_t>(fi), static_cast<int32_t>(zi),
-                                                                                static_cast<int32_t>(yi), static_cast<int32_t>(xi)});
+                                auto coords = cldnn::tensor(group(gi), batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                                auto offset = mem->get_layout().get_linear_offset(coords);
                                 ptr[offset] = data[gi][bi][fi][zi][yi][xi];
                             }
                         }
@@ -2732,9 +2731,8 @@ public:
                         for (size_t yi = 0; yi < reference[0].size(); yi++) {
                             for (size_t xi = 0; xi < reference[0][0].size(); xi++) {
                                 auto ref_val = reference[zi][yi][xi];
-                                auto out_offset = out_mem->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                                            static_cast<int32_t>(zi), static_cast<int32_t>(yi),
-                                                                                            static_cast<int32_t>(xi), 0});
+                                auto out_coords = cldnn::tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                                auto out_offset = out_mem->get_layout().get_linear_offset(out_coords);
                                 auto out_val = ptr[out_offset];
                                 TYPED_ASSERT_EQ(ref_val, out_val)
                                     << "at b=" << bi << ", f=" << fi << ", z=" << zi << ", y=" << yi << ", x=" << xi << std::endl

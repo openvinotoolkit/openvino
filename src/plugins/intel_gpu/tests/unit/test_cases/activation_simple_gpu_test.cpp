@@ -1768,8 +1768,10 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
     }
 
     size_t get_x_pitch(layout& layout) {
-        auto x0 = layout.get_linear_offset({0, 0, 0, 0, 0, 0});
-        auto x1 = layout.get_linear_offset({0, 0, 1, 0, 0, 0});
+        auto tensor_x0 = tensor(batch(0), feature(0), spatial(0, 0, 0, 0));
+        auto tensor_x1 = tensor(batch(0), feature(0), spatial(1, 0, 0, 0));
+        auto x0 = layout.get_linear_offset(tensor_x0);
+        auto x1 = layout.get_linear_offset(tensor_x1);
         return (x1 - x0);
     }
 
@@ -1787,7 +1789,8 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
             for (auto fi = 0; fi < f; ++fi) {
                 for (auto yi = 0; yi < y; ++yi) {
                     for (auto xi = 0; xi < x; ++xi) {
-                        auto offset = mem->get_layout().get_linear_offset({bi, fi, xi, yi, 0, 0});
+                        auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto offset = mem->get_layout().get_linear_offset(coords);
                         ptr[offset] = data[bi][fi][yi][xi];
                     }
                 }
@@ -1832,8 +1835,9 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
         for (auto bi = 0; bi < b; ++bi) {
             for (auto fi = 0; fi < f; ++fi) {
                 for (auto yi = 0; yi < y; ++yi) {
-                    auto ref_out_offset = output_lay.get_linear_offset({bi, fi, 0, yi, 0, 0});
-                    auto opt_out_offset = opt_output_lay.get_linear_offset({bi, fi, 0, yi, 0, 0});
+                    auto ref_out_coords = tensor(batch(bi), feature(fi), spatial(0, yi, 0, 0));
+                    auto ref_out_offset = output_lay.get_linear_offset(ref_out_coords);
+                    auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
                     for (auto xi = 0; xi < x; ++xi) {
                         auto ref_out_val = ref_ptr[ref_out_offset + xi * ref_x_pitch];
                         auto opt_out_val = opt_ptr[opt_out_offset + xi * opt_x_pitch];

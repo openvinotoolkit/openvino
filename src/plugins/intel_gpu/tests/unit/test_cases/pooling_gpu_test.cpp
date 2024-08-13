@@ -1882,7 +1882,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_65x5x6x7_input_3x3_pool_4x4_stride_3
         golden_topology.add(input_layout("input", input_prim->get_layout()));
         golden_topology.add(reorder("reorder_input", input_info("input"), input_prim->get_layout().with_padding(padding{ {0,0,x_in_pad,y_in_pad},0 })));
         auto pool = pooling("golden_pooling", input_info("reorder_input"), pooling_mode::average, { pool_size, pool_size }, { stride_size, stride_size }, { 0, 0 }, { 0, 0 }, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR);
-        pool.output_paddings = { padding{ { 0, 0, x_out_pad, y_out_pad }, 0 }};
+        pool.output_paddings = { padding{ { 0, 0, y_out_pad, x_out_pad }, 0 }};
         golden_topology.add(pool);
         network golden_network(engine, golden_topology, get_test_default_config(engine));
         golden_network.set_input_data("input", input_prim);
@@ -1900,7 +1900,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_65x5x6x7_input_3x3_pool_4x4_stride_3
         golden_topology.add(input_layout("input", input_prim->get_layout()));
         golden_topology.add(reorder("reorder_input", input_info("input"), layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor, padding{ {0, 0, x_in_pad, y_in_pad}, 0 })));
         auto pool = pooling("fsv32_pooling", input_info("reorder_input"), pooling_mode::average, { pool_size, pool_size }, { stride_size, stride_size }, { 0, 0 }, { 0, 0 }, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR);
-        pool.output_paddings = { padding{ { 0, 0, x_out_pad, y_out_pad }, 0 }};
+        pool.output_paddings = { padding{ { 0, 0, y_out_pad, x_out_pad }, 0 }};
         golden_topology.add(pool);
         golden_topology.add(reorder("reorder_pooling", input_info("fsv32_pooling"), layout(data_types::f16, format::bfyx, input_tensor, padding{ { 0,0,x_out_pad,y_out_pad },0 })));
 
@@ -1971,9 +1971,8 @@ public:
                 for (size_t zi = 0; zi < input_z(); ++zi)
                     for (size_t yi = 0; yi < input_y(); ++yi)
                         for (size_t xi = 0; xi < input_x(); ++xi) {
-                            size_t offset = input_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                        static_cast<int32_t>(xi), static_cast<int32_t>(yi),
-                                                                        static_cast<int32_t>(zi), 0});
+                            tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                            size_t offset = input_lay.get_linear_offset(coords);
                             input_flat[offset] = _input[bi][fi][zi][yi][xi];
                         }
         set_values(input_mem, input_flat);
@@ -2009,9 +2008,8 @@ public:
                 for (size_t zi = 0; zi < expected[0][0].size(); ++zi)
                     for (size_t yi = 0; yi < expected[0][0][0].size(); ++yi)
                         for (size_t xi = 0; xi < expected[0][0][0][0].size(); ++xi) {
-                            size_t offset = out_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                       static_cast<int32_t>(xi), static_cast<int32_t>(yi),
-                                                                       static_cast<int32_t>(zi), 0});
+                            tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                            size_t offset = out_lay.get_linear_offset(coords);
                             auto ref_val = static_cast<float>(expected[bi][fi][zi][yi][xi]);
                             auto actual_val = static_cast<float>(out_ptr[offset]);
                             if (compare_with_tolerance) {
@@ -2951,12 +2949,12 @@ public:
 
                     // Output padding
                     auto p1 = std::make_shared<pooling>("pooling", input_info("input0"), pooling_mode, size, stride, generate_pad(2, 3, size), generate_pad(2, 3, size), ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR);
-                    p1->output_paddings = {{ { 0, 0, 1, 5 }, { 0, 0, 19, 4 } }};
+                    p1->output_paddings = {{ { 0, 0, 5, 1 }, { 0, 0, 4, 19 } }};
                     all_layer_params.emplace_back(p1);
 
                     // Input + output padding
                     auto p2 = std::make_shared<pooling>("pooling", input_info("reorder0"), pooling_mode, size, stride, generate_pad(2, 3, size), generate_pad(2, 3, size), ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR);
-                    p2->output_paddings = {{ { 0, 0, 2, 1 }, { 0, 0, 3, 4 } }};
+                    p2->output_paddings = {{ { 0, 0, 1, 2 }, { 0, 0, 4, 3 } }};
                     all_layer_params.emplace_back(p2);
                 }
             }
@@ -3070,8 +3068,8 @@ public:
         cldnn::mem_lock<Type> input_mem(inputs[0], get_test_stream());
         cldnn::mem_lock<Type> output_mem(output, get_test_stream());
 
-        int output_width = output->get_layout().get_padded_dims()[2 + 0];
-        int output_height = output->get_layout().get_padded_dims()[2 + 1];
+        int output_width = output->get_layout().get_padded_dims()[2 + 1];   // x
+        int output_height = output->get_layout().get_padded_dims()[2 + 0];  // y
 
         const auto input_desc = get_linear_memory_desc(inputs[0]->get_layout());
         const auto output_desc = get_linear_memory_desc(output->get_layout());
@@ -3168,8 +3166,8 @@ public:
                                 pad_y_start = std::max(pad_y_start, 0);
 
                                 int output_index = (b * feature + f) * output_height * output_width;
-                                tensor lower_padding(pooling->output_paddings[0].lower_size());
-                                output_index += (lower_padding.spatial[1] + h) * output_width + lower_padding.spatial[0] + w;
+                                auto lower_padding = pooling->output_paddings[0].lower_size();
+                                output_index += (lower_padding[2 + 0] + h) * output_width + lower_padding[2 + 1] + w;
 
                                 int num_of_elements = 0;
                                 for (int y = pad_y_start; y < pad_y_end; y++)

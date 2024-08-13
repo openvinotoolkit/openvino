@@ -70,8 +70,8 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
 
         return (idx.batch[0] % sizes.batch[0])*pitches[0]
                         + (idx.feature[0] % sizes.feature[0])*pitches[1]
-                        + (idx.spatial[1] % sizes.spatial[1])*pitches[2 + 1]
-                        + (idx.spatial[0] % sizes.spatial[0])*pitches[2 + 0];
+                        + (idx.spatial[1] % sizes.spatial[1])*pitches[2 + 0]   // y
+                        + (idx.spatial[0] % sizes.spatial[0])*pitches[2 + 1];  // x
     };
 
     auto lock_memory = [&stream] (memory::ptr memory, std::function<void(std::size_t, float)>& set_data,
@@ -148,12 +148,13 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
         for (int f = 0; f < scales_layout.feature(); f++) {
             for (int y = 0; y < scales_layout.spatial(1); y++) {
                 for (int x = 0; x < scales_layout.spatial(0); x++) {
-                    auto s_offset = scales_layout.get_linear_offset({b, f, y, x});
-                    float in_lo = get_data_input_low(get_offset_safe(mem_input_low->get_layout(), {b, f, y, x}));
-                    float in_hi = get_data_input_high(get_offset_safe(mem_input_high->get_layout(), {b, f, y, x}));
+                    auto idx = cldnn::tensor(format::bfyx, {b, f, y, x}, 0);
+                    auto s_offset = scales_layout.get_linear_offset(idx);
+                    float in_lo = get_data_input_low(get_offset_safe(mem_input_low->get_layout(), idx));
+                    float in_hi = get_data_input_high(get_offset_safe(mem_input_high->get_layout(), idx));
 
-                    float out_lo = get_data_output_low(get_offset_safe(mem_output_low->get_layout(), {b, f, y, x}));
-                    float out_hi = get_data_output_high(get_offset_safe(mem_output_high->get_layout(), {b, f, y, x}));
+                    float out_lo = get_data_output_low(get_offset_safe(mem_output_low->get_layout(), idx));
+                    float out_hi = get_data_output_high(get_offset_safe(mem_output_high->get_layout(), idx));
                     float in_shift_basic = (static_cast<float>(levels) - 1.f) / (in_hi - in_lo);
                     set_data_input_scale(s_offset, in_shift_basic);
                     set_data_input_shift(s_offset, -in_lo * in_shift_basic);

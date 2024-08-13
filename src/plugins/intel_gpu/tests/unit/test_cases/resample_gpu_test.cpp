@@ -328,9 +328,8 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
             for (size_t fi = 0; fi < f; ++fi) {
                 for (size_t yi = 0; yi < y; ++yi) {
                     for (size_t xi = 0; xi < x; ++xi) {
-                        auto offset = mem->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                            static_cast<int32_t>(xi), static_cast<int32_t>(yi),
-                                                                            0, 0});
+                        auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto offset = mem->get_layout().get_linear_offset(coords);
                         ptr[offset] = data[bi][fi][yi][xi];
                     }
                 }
@@ -378,13 +377,11 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
                     for (size_t xi = 0; xi < x; ++xi) {
                         auto in_xi = static_cast<size_t>(floor(x_ratio * xi));
                         auto in_yi = static_cast<size_t>(floor(y_ratio * yi));
-                        auto in_offset = input->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                                static_cast<int32_t>(in_xi), static_cast<int32_t>(in_yi),
-                                                                                0, 0});
+                        auto in_coords = tensor(batch(bi), feature(fi), spatial(in_xi, in_yi, 0, 0));
+                        auto in_offset = input->get_layout().get_linear_offset(in_coords);
                         auto in_val = in_ptr[in_offset];
-                        auto out_offset = output->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                            static_cast<int32_t>(xi), static_cast<int32_t>(yi),
-                                                                            0, 0});
+                        auto out_coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto out_offset = output->get_layout().get_linear_offset(out_coords);
                         auto out_val = out_ptr[out_offset];
                         ASSERT_EQ(in_val, out_val) << " at bi=" << bi << ", fi=" << fi << ", xi=" << xi << ", yi=" << yi;
                     }
@@ -423,14 +420,15 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
                         auto dx = x_ratio * xi - static_cast<float>(low_in_xi);
                         auto dy = y_ratio * yi - static_cast<float>(low_in_yi);
 
-                        auto top_left_val = in_ptr[input_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                            static_cast<int32_t>(low_in_xi), static_cast<int32_t>(low_in_yi), 0, 0})];
-                        auto top_right_val = in_ptr[input_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                            static_cast<int32_t>(high_in_xi), static_cast<int32_t>(low_in_yi), 0, 0})];
-                        auto bottom_left_val = in_ptr[input_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                            static_cast<int32_t>(low_in_xi), static_cast<int32_t>(high_in_yi), 0, 0})];
-                        auto bottom_right_val = in_ptr[input_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                            static_cast<int32_t>(high_in_xi), static_cast<int32_t>(high_in_yi), 0, 0})];
+                        auto top_left_coords = tensor(batch(bi), feature(fi), spatial(low_in_xi, low_in_yi, 0, 0));
+                        auto top_right_coords = tensor(batch(bi), feature(fi), spatial(high_in_xi, low_in_yi, 0, 0));
+                        auto bottom_left_coords = tensor(batch(bi), feature(fi), spatial(low_in_xi, high_in_yi, 0, 0));
+                        auto bottom_right_coords = tensor(batch(bi), feature(fi), spatial(high_in_xi, high_in_yi, 0, 0));
+
+                        auto top_left_val = in_ptr[input_lay.get_linear_offset(top_left_coords)];
+                        auto top_right_val = in_ptr[input_lay.get_linear_offset(top_right_coords)];
+                        auto bottom_left_val = in_ptr[input_lay.get_linear_offset(bottom_left_coords)];
+                        auto bottom_right_val = in_ptr[input_lay.get_linear_offset(bottom_right_coords)];
 
                         auto top_val = static_cast<float>(top_left_val)
                             + (static_cast<float>(top_right_val) - static_cast<float>(top_left_val)) * dx;
@@ -439,8 +437,8 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
 
                         auto final_val = top_val + (bottom_val - top_val) * dy;
 
-                        auto output_val = out_ptr[output_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                        static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0})];
+                        auto output_coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto output_val = out_ptr[output_lay.get_linear_offset(output_coords)];
 
                         ASSERT_NEAR(static_cast<float>(output_val), final_val, 1.e-1f)
                             << " at bi=" << bi << ", fi=" << fi << ", xi=" << xi << ", yi=" << yi;
@@ -574,9 +572,8 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
             for (size_t fi = 0; fi < f; ++fi) {
                 for (size_t yi = 0; yi < y; ++yi) {
                     for (size_t xi = 0; xi < x; ++xi) {
-                        auto offset = mem->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                        static_cast<int32_t>(xi), static_cast<int32_t>(yi),
-                                                                        0, 0});
+                        auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto offset = mem->get_layout().get_linear_offset(coords);
                         ptr[offset] = data[bi][fi][yi][xi];
                     }
                 }
@@ -619,14 +616,11 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
             for (size_t fi = 0; fi < f; ++fi) {
                 for (size_t yi = 0; yi < y; ++yi) {
                     for (size_t xi = 0; xi < x; ++xi) {
-                        auto ref_out_offset = output_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                        static_cast<int32_t>(xi), static_cast<int32_t>(yi),
-                                                                        0, 0});
+                        auto ref_out_coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto ref_out_offset = output_lay.get_linear_offset(ref_out_coords);
                         auto ref_out_val = ref_ptr[ref_out_offset];
 
-                        auto opt_out_offset = opt_output_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                        static_cast<int32_t>(xi), static_cast<int32_t>(yi),
-                                                                        0, 0});
+                        auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
                         auto opt_out_val = opt_ptr[opt_out_offset];
 
                         ASSERT_EQ(ref_out_offset, opt_out_offset);
@@ -2008,9 +2002,8 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
                 for (size_t zi = 0; zi < z; ++zi) {
                     for (size_t yi = 0; yi < y; ++yi) {
                         for (size_t xi = 0; xi < x; ++xi) {
-                            auto offset = mem->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                        static_cast<int32_t>(xi), static_cast<int32_t>(yi),
-                                                                        static_cast<int32_t>(zi), 0});
+                            auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                            auto offset = mem->get_layout().get_linear_offset(coords);
                             ptr[offset] = data[bi][fi][zi][yi][xi];
                         }
                     }
@@ -2056,13 +2049,10 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
                 for (size_t zi = 0; zi < z; ++zi) {
                     for (size_t yi = 0; yi < y; ++yi) {
                         for (size_t xi = 0; xi < x; ++xi) {
-                            auto ref_out_offset = output_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                        static_cast<int32_t>(xi), static_cast<int32_t>(yi),
-                                                                        static_cast<int32_t>(zi), 0});
+                            auto ref_out_coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                            auto ref_out_offset = output_lay.get_linear_offset(ref_out_coords);
                             auto ref_out_val = ref_ptr[ref_out_offset];
-                            auto opt_out_offset = opt_output_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                        static_cast<int32_t>(xi), static_cast<int32_t>(yi),
-                                                                        static_cast<int32_t>(zi), 0});
+                            auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
                             auto opt_out_val = opt_ptr[opt_out_offset];
                             ASSERT_EQ(ref_out_offset, opt_out_offset);
                             if (std::is_same<T, ov::float16>::value) {

@@ -4122,8 +4122,8 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
             for (size_t fi = 0; fi < f; ++fi) {
                 for (size_t yi = 0; yi < y; ++yi) {
                     for (size_t xi = 0; xi < x; ++xi) {
-                        auto offset = mem->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                        static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
+                        auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto offset = mem->get_layout().get_linear_offset(coords);
                         ptr[offset] = data[bi][fi][yi][xi];
                     }
                 }
@@ -4166,12 +4166,11 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
             for (size_t fi = 0; fi < f; ++fi) {
                 for (size_t yi = 0; yi < y; ++yi) {
                     for (size_t xi = 0; xi < x; ++xi) {
-                        auto ref_out_offset = output_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                            static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
+                        auto ref_out_coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto ref_out_offset = output_lay.get_linear_offset(ref_out_coords);
                         auto ref_out_val = ref_ptr[ref_out_offset];
 
-                        auto opt_out_offset = opt_output_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                            static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
+                        auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
                         auto input_out_val = input_ptr[opt_out_offset];
 
                         ASSERT_EQ((input_out_val+input_out_val), ref_out_val);
@@ -4737,8 +4736,8 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
             for (size_t fi = 0; fi < f; ++fi) {
                 for (size_t yi = 0; yi < y; ++yi) {
                     for (size_t xi = 0; xi < x; ++xi) {
-                        auto offset = mem->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                            static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
+                        auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto offset = mem->get_layout().get_linear_offset(coords);
                         ptr[offset] = data[bi][fi][yi][xi];
                     }
                 }
@@ -4781,12 +4780,11 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
             for (size_t fi = 0; fi < f; ++fi) {
                 for (size_t yi = 0; yi < y; ++yi) {
                     for (size_t xi = 0; xi < x; ++xi) {
-                        auto ref_out_offset = output_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                            static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
+                        auto ref_out_coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto ref_out_offset = output_lay.get_linear_offset(ref_out_coords);
                         auto ref_out_val = ref_ptr[ref_out_offset];
 
-                        auto opt_out_offset = opt_output_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
-                                                                            static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
+                        auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
                         auto opt_out_val = opt_ptr[opt_out_offset];
 
                         ASSERT_EQ(opt_out_val, ref_out_val);

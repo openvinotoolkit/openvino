@@ -1721,18 +1721,19 @@ public:
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
         auto l = mem->get_layout();
-        auto b = l.batch();
-        auto f = l.feature();
-        auto x = l.spatial(0);
-        auto y = l.spatial(1);
+        size_t b = l.batch();
+        size_t f = l.feature();
+        size_t x = l.spatial(0);
+        size_t y = l.spatial(1);
 
         auto data = rg.generate_random_4d<T>(b, f, y, x, min, max, k);
         mem_lock<T> ptr{mem, get_test_stream()};
-        for (auto bi = 0; bi < b; ++bi) {
-            for (auto fi = 0; fi < f; ++fi) {
-                for (auto yi = 0; yi < y; ++yi) {
-                    for (auto xi = 0; xi < x; ++xi) {
-                        auto offset = mem->get_layout().get_linear_offset({bi, fi, xi, yi, 0, 0});
+        for (size_t bi = 0; bi < b; ++bi) {
+            for (size_t fi = 0; fi < f; ++fi) {
+                for (size_t yi = 0; yi < y; ++yi) {
+                    for (size_t xi = 0; xi < x; ++xi) {
+                        auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto offset = mem->get_layout().get_linear_offset(coords);
                         ptr[offset] = data[bi][fi][yi][xi];
                     }
                 }

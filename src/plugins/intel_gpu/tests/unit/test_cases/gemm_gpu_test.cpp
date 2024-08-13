@@ -381,7 +381,8 @@ public:
                 for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
                     for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
                         for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
-                            auto buffer_idx = l.get_linear_offset({b, f, y, x});
+                            auto tensor_coord = cldnn::tensor{{b, f, x, y}, 0};
+                            auto buffer_idx = l.get_linear_offset(tensor_coord);
                             mem_ptr[buffer_idx] = data[data_idx++];
                         }
                     }
@@ -719,7 +720,8 @@ public:
                 for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
                     for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
                         for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
-                            auto buffer_idx = l.get_linear_offset({b, f, y, x});
+                            auto tensor_coord = cldnn::tensor{{b, f, x, y}, 0};
+                            auto buffer_idx = l.get_linear_offset(tensor_coord);
                             mem_ptr[buffer_idx] = data[data_idx++];
                         }
                     }
@@ -864,7 +866,8 @@ public:
                 for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
                     for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
                         for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
-                            auto buffer_idx = l.get_linear_offset({b, f, y, x});
+                            auto tensor_coord = cldnn::tensor{{b, f, x, y}, 0};
+                            auto buffer_idx = l.get_linear_offset(tensor_coord);
                             mem_ptr[buffer_idx] = data[data_idx++];
                         }
                     }
@@ -1007,7 +1010,8 @@ public:
                 for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
                     for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
                         for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
-                            auto buffer_idx = l.get_linear_offset({b, f, y, x});
+                            auto tensor_coord = cldnn::tensor{{b, f, x, y}, 0};
+                            auto buffer_idx = l.get_linear_offset(tensor_coord);
                             mem_ptr[buffer_idx] = data[data_idx++];
                         }
                     }
@@ -2669,7 +2673,8 @@ public:
                 for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
                     for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
                         for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
-                            auto buffer_idx = l.get_linear_offset({b, f, y, x});
+                            auto tensor_coord = cldnn::tensor{{b, f, x, y}, 0};
+                            auto buffer_idx = l.get_linear_offset(tensor_coord);
                             mem_ptr[buffer_idx] = data[data_idx++];
                         }
                     }
@@ -2834,7 +2839,8 @@ public:
                 for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
                     for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
                         for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
-                            auto buffer_idx = l.get_linear_offset({b, f, y, x});
+                            auto tensor_coord = cldnn::tensor{{b, f, x, y}, 0};
+                            auto buffer_idx = l.get_linear_offset(tensor_coord);
                             mem_ptr[buffer_idx] = data[data_idx++];
                         }
                     }

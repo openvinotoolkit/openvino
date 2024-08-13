@@ -388,7 +388,7 @@ struct layout {
 
     // @brief Calculates position within buffer of the data element pointed by the provided tensor.
     // element == { 0,0,0,0 } means first no-padding (i.e. data) element
-    size_t get_linear_offset(const std::initializer_list<tensor::value_type>& index = {}) const;   // Cecilia: FIXME initial value
+    size_t get_linear_offset(tensor element = tensor(0)) const;
 
     /// @brief Get aligned linear size calculated as multiplication of all elements.
     size_t get_linear_size() const;

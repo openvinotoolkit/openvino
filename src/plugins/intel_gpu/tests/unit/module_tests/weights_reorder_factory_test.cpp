@@ -110,7 +110,8 @@ TEST(weights_factory, reorder_test) {
     cldnn::mem_lock<float> output_ptr(weights_data_output, get_test_stream());
     for (int o = 0; o < output_f; o++) {
         for (int i = 0; i < input_f; i++) {
-            size_t input_idx = output_weights_layout.get_linear_offset({o, i});
+            auto tensor_coord = tensor(std::vector<tensor::value_type>{o, i}, 0);
+            size_t input_idx = output_weights_layout.get_linear_offset(tensor_coord);
             ASSERT_EQ(weights_data_vec[o * input_f + i], output_ptr[input_idx]);
         }
     }
