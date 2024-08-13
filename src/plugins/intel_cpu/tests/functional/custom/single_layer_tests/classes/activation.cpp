@@ -14,6 +14,7 @@ using namespace ov::test::utils;
 
 namespace ov {
 namespace test {
+
 std::string ActivationLayerCPUTest::getTestCaseName(const testing::TestParamInfo<ActivationLayerCPUTestParamSet> &obj) {
     std::vector<ov::test::InputShape> inputShapes;
     std::vector<size_t> activationShapes;
