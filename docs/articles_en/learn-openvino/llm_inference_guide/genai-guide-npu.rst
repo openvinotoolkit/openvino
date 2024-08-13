@@ -4,10 +4,9 @@ Run LLMs with OpenVINO GenAI Flavor on NPU
 .. meta::
    :description: Learn how to use the OpenVINO GenAI flavor to execute LLM models on NPU.
 
-This guide provide some extra details on how to utilize NPU with GenAI
-flavor. Please refer to
-:doc:`install OpenVINO GenAI <../../get-started/install-openvino/install-openvino-genai>`
-for more information on OpenVINO GenAI.
+This guide will give you extra details on how to utilize NPU with the GenAI flavor.
+:doc:`See the installation guide <../../get-started/install-openvino/install-openvino-genai>`
+for information on how to start.
 
 Export an LLM model via Hugging Face Optimum-Intel
 ##################################################
