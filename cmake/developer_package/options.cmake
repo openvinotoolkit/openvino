@@ -8,6 +8,8 @@ if(POLICY CMP0127)
     cmake_policy(SET CMP0127 NEW)
 endif()
 
+unset(OV_OPTIONS CACHE)
+
 macro(ov_option variable description value)
     option(${variable} "${description}" ${value})
     list(APPEND OV_OPTIONS ${variable})
