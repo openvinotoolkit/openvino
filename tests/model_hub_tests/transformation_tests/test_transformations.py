@@ -58,11 +58,24 @@ def check_operations(actual_layer_types, expected_layer_types):
         pytest.fail(f'operation(s) {names} not found in compiled model')
 
 
+class EnvVar:
+    def __init__(self, env_vars):
+        self.__vars = env_vars
+
+    def __enter__(self):
+        for name, value in self.__vars.items():
+            os.environ[name] = value
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        for name in self.__vars:
+            del os.environ[name]
+
+
 def run_test(model_id, ie_device, ts_names, expected_layer_types):
     model = OVModelForCausalLM.from_pretrained(model_id, export=True, trust_remote_code=True)
 
-    with tempfile.NamedTemporaryFile(delete=True) as temp_file:
-        os.environ['OV_ENABLE_PROFILE_PASS'] = temp_file.name
+    with tempfile.NamedTemporaryFile(delete=True) as temp_file, \
+            EnvVar({'OV_ENABLE_PROFILE_PASS': temp_file.name}):
         core = ov.Core()
         compiled = core.compile_model(model.model, ie_device)
         check_transformations(temp_file.name, ts_names)
