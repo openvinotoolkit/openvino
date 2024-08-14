@@ -33,7 +33,6 @@ class PatternReplacement(MatcherPass):
         self.register_matcher(Matcher(relu, "PatternReplacement"), callback)
 
 
-// ! [matcher_pass_full_example:ov_matcher_pass_py]
 '''
 After running this code you will see the next:
 
