@@ -20,17 +20,21 @@ OutputVector translate_batch_matrix_inverse_op(const NodeContext& node) {
     size_t rank = input_shape.rank().get_length();
     TENSORFLOW_OP_VALIDATION(node, rank >= 3, "BatchMatrixInverse input must have at least 3 dimensions");
 
-    std::vector<size_t> combined_shape = {0};
-    combined_shape.insert(combined_shape.end(), input_shape.end() - 2, input_shape.end());
-    auto reshape_to_2d = std::make_shared<ov::op::v1::Reshape>(
-        input,
-        ov::op::v0::Constant::create(ov::element::i64, {combined_shape.size()}, combined_shape),
-        false);
-    auto inverse_2d = std::make_shared<ov::op::v14::Inverse>(reshape_to_2d, node.get_attribute<bool>("adjoint", false));
-    auto original_shape = ov::op::v0::Constant::create(ov::element::i64, {rank}, input_shape.get_shape());
-    auto reshape_back = std::make_shared<ov::op::v1::Reshape>(inverse_2d, original_shape, false);
-    set_node_name(node.get_name(), reshape_back);
-    return {reshape_back};
+    bool has_zero_dim = false;
+    if(input_shape.is_static()){
+        has_zero_dim = std::any_of(input_shape.begin(), input_shape.end() -2, [](const Dimension& dim) {return dim.is_static() && dim.get_length() == 0;});
+    }
+    std::shared_ptr<Node> result;
+    if(has_zero_dim) {
+        result = input.get_node_shared_ptr();
+    }
+    else{
+        bool adjoint = node.get_attribute<bool>("adjoint",false);
+        result = std::make_shared<ov::op::v14::Inverse>(input,adjoint);
+    }
+    
+    set_node_name(node.get_name(), result);
+    return {result};
 }
 }  // namespace op
 }  // namespace tensorflow
