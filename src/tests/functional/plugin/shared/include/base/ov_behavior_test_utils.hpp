@@ -53,7 +53,6 @@ private:
 protected:
     double k = 1.0;
     std::string target_device = "";
-    bool is_mandatory = true;
     ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::undefined;
     ov::test::utils::ApiSummary& api_summary = ov::test::utils::ApiSummary::getInstance();
 
@@ -220,21 +219,7 @@ public:
         OVClassNetworkTest::SetUp();
     }
 };
-
-using PropertiesParamsforQureyModel = std::tuple<std::string, bool>;
-
-class OVClassModelTestP : public OVClassNetworkTest,
-                          public ::testing::WithParamInterface<PropertiesParamsforQureyModel>,
-                          public OVPluginTestBase {
-public:
-    void SetUp() override {
-        std::tie(target_device, is_mandatory) = GetParam();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        APIBaseTest::SetUp();
-        OVClassNetworkTest::SetUp();
-    }
-};
-
+using OVClassModelTestP = OVClassBaseTestP;
 using OVClassModelOptionalTestP = OVClassBaseTestP;
 
 class OVCompiledModelClassBaseTestP : public OVClassNetworkTest,
