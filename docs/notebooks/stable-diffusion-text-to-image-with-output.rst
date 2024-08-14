@@ -53,6 +53,16 @@ using OpenVINO.
    -  `Interactive image-to-image
       demo <#interactive-image-to-image-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -65,16 +75,6 @@ Prerequisites
     %pip install -q "huggingface-hub>=0.9.1"
     %pip install -q "gradio>=4.19"
     %pip install -q transformers Pillow opencv-python tqdm
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Prepare Inference Pipelines
 ---------------------------

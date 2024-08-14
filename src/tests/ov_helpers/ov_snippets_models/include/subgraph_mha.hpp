@@ -373,17 +373,24 @@ protected:
  */
 class MHATransposedInputFunction : public SnippetsFunctionBase {
 public:
-    explicit MHATransposedInputFunction(const std::vector<PartialShape>& inputShapes, bool transposed_b = false,
-                                        std::vector<int64_t> order = {})
-        : SnippetsFunctionBase(inputShapes), m_transposed_b(transposed_b), m_order(order) {
+    explicit MHATransposedInputFunction(const std::vector<PartialShape>& inputShapes,
+                                        bool transposed_b = false,
+                                        std::vector<int64_t> order = {},
+                                        bool transpose_b_native_support = false)
+        : SnippetsFunctionBase(inputShapes),
+          m_transposed_b(transposed_b),
+          m_order(order),
+          m_transpose_b_native_support(transpose_b_native_support) {
         OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
 
     bool m_transposed_b = false;
     std::vector<int64_t> m_order = {};
+    bool m_transpose_b_native_support = false;
 };
 
 /* Graph:

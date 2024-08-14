@@ -189,6 +189,12 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = 16;
         dispatchData.lws[2] = 1;
+    } else if (input_l == DataLayout::byfx) {
+        auto first_primary_axis_size = dispatchData.gws[0];  // X axis
+        auto second_primiary_axis_size =  dispatchData.gws[1];  // YF axes
+        dispatchData.gws[0] = first_primary_axis_size * input.Feature().v;  // takes XF axes
+        dispatchData.gws[1] = second_primiary_axis_size / input.Feature().v;  // takes Y axis
+        dispatchData.lws = {1, 1, 1};
     }
 
     return dispatchData;

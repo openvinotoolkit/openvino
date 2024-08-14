@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "common_test_utils/test_constants.hpp"
 #include "hetero_tests.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -23,37 +24,37 @@ TEST_F(HeteroTests, get_available_devices) {
 
 TEST_F(HeteroTests, compile_with_registered_devices) {
     // Change device priority
-    core.set_property("HETERO", ov::device::priorities("MOCK0,MOCK1"));
+    core.set_property(ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCK0,MOCK1"));
     auto model = create_model_with_reshape();
-    EXPECT_NO_THROW(core.compile_model(model, "HETERO"));
+    EXPECT_NO_THROW(core.compile_model(model, ov::test::utils::DEVICE_HETERO));
 }
 
 TEST_F(HeteroTests, compile_with_unregistered_devices_throw) {
     // Change device priority
-    core.set_property("HETERO", ov::device::priorities("MOCK2,MOCK3"));
+    core.set_property(ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCK2,MOCK3"));
     auto model = create_model_with_reshape();
-    EXPECT_THROW(core.compile_model(model, "HETERO"), ov::Exception);
+    EXPECT_THROW(core.compile_model(model, ov::test::utils::DEVICE_HETERO), ov::Exception);
 }
 
 TEST_F(HeteroTests, compile_without_device_priorities_throw) {
     // Change device priority
-    core.set_property("HETERO", ov::device::priorities(""));
+    core.set_property(ov::test::utils::DEVICE_HETERO, ov::device::priorities(""));
     auto model = create_model_with_reshape();
-    EXPECT_THROW(core.compile_model(model, "HETERO"), ov::Exception);
+    EXPECT_THROW(core.compile_model(model, ov::test::utils::DEVICE_HETERO), ov::Exception);
 }
 
 TEST_F(HeteroTests, compile_dynamic_model_fail) {
     // Change device priority
-    core.set_property("HETERO", ov::device::priorities("MOCK0,MOCK1"));
+    core.set_property(ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCK0,MOCK1"));
     auto model = create_model_with_subtract_reshape(true);
-    EXPECT_THROW(core.compile_model(model, "HETERO"), ov::Exception);
+    EXPECT_THROW(core.compile_model(model, ov::test::utils::DEVICE_HETERO), ov::Exception);
 }
 
 TEST_F(HeteroTests, compile_model_shapeof) {
     // Change device priority
-    core.set_property("HETERO", ov::device::priorities("MOCK0,MOCK1"));
+    core.set_property(ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCK0,MOCK1"));
     auto model = create_model_with_subtract_shapeof_reshape();
-    EXPECT_NO_THROW(core.compile_model(model, "HETERO"));
+    EXPECT_NO_THROW(core.compile_model(model, ov::test::utils::DEVICE_HETERO));
 }
 
 TEST_F(HeteroTests, compile_with_device_properties) {
@@ -61,7 +62,7 @@ TEST_F(HeteroTests, compile_with_device_properties) {
                          ov::device::properties("MOCK0", ov::num_streams(4), ov::enable_profiling(false)),
                          ov::device::properties("MOCK1", ov::num_streams(6), ov::enable_profiling(true))};
     auto model = create_model_with_subtract_reshape();
-    auto compiled_model = core.compile_model(model, "HETERO", config);
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_HETERO, config);
     EXPECT_THROW(compiled_model.get_property(ov::num_streams), ov::Exception);
     EXPECT_THROW(compiled_model.get_property(ov::enable_profiling), ov::Exception);
     auto device_properties = compiled_model.get_property(ov::device::properties.name()).as<ov::AnyMap>();
@@ -85,7 +86,7 @@ TEST_F(HeteroTests, compile_with_device_properties_no_exclusive) {
                          ov::device::properties("MOCK0", ov::num_streams(4)),
                          ov::device::properties("MOCK1", ov::num_streams(6))};
     auto model = create_model_with_subtract_reshape();
-    auto compiled_model = core.compile_model(model, "HETERO", config);
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_HETERO, config);
     EXPECT_THROW(compiled_model.get_property(ov::num_streams), ov::Exception);
     auto device_properties = compiled_model.get_property(ov::device::properties.name()).as<ov::AnyMap>();
     ASSERT_TRUE(device_properties.count("MOCK0.0"));
@@ -105,7 +106,7 @@ TEST_F(HeteroTests, get_runtime_model) {
     for (auto& op : model->get_ordered_ops()) {
         original_names.insert(op->get_friendly_name());
     }
-    auto compiled_model = core.compile_model(model, "HETERO", config);
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_HETERO, config);
     auto runtime_model = compiled_model.get_runtime_model();
     for (auto& op : runtime_model->get_ordered_ops()) {
         auto& info = op->get_rt_info();

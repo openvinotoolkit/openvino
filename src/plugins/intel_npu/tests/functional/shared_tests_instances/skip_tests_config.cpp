@@ -658,10 +658,7 @@ std::vector<std::string> disabledTestPatterns() {
         // [Tracking number: E#108600]
         _skipRegistry.addPatterns(backendName.isZero(),
                 "Unsupported NPU properties", {
-                ".*OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties.*EXECUTION_MODE_HINT.*",
-                ".*OVCheckChangePropComplieModleGetPropTests_InferencePrecision.*",
                 ".*OVCheckMetricsPropsTests_ModelDependceProps.*",
-                ".*OVCheckChangePropComplieModleGetPropTests_DEVICE_ID.*ENABLE_CPU_PINNING.*",
                 ".*OVClassCompileModelAndCheckSecondaryPropertiesTest.*"
         });
 
@@ -669,10 +666,8 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(backendName.isZero(),
                 "Failing properties tests", {
                 ".*OVSpecificDeviceSetConfigTest.GetConfigSpecificDeviceNoThrow.*",
+                // [Tracking number: E#133153]
                 ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*DEVICE_ID.*",
-                ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*NPU_COMPILATION_MODE.*",
-                ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*NPU_COMPILATION_MODE_PARAMS.*",
-                ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*NPU_PROFILING_OUTPUT_FILE.*"
         });
 
         // [Tracking number: E#109040]
@@ -754,10 +749,8 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(backendName.isZero(),
                 "Failing properties tests", {
                 ".*OVSpecificDeviceSetConfigTest.GetConfigSpecificDeviceNoThrow.*",
+                // [Tracking number: E#133153]
                 ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*DEVICE_ID.*",
-                ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*NPU_COMPILATION_MODE.*",
-                ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*NPU_COMPILATION_MODE_PARAMS.*",
-                ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*NPU_PROFILING_OUTPUT_FILE.*"
         });
 
         // [Tracking number: E#117582]
@@ -901,11 +894,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVClassQueryModelTest.QueryModelHETEROWithDeviceIDNoThrow.*",
                 ".*OVClassQueryModelTest.QueryModelWithBigDeviceIDThrows.*",
                 ".*OVClassQueryModelTest.QueryModelWithInvalidDeviceIDThrows.*"
-        });
-
-        // [Tracking number: E#116762]
-        _skipRegistry.addPatterns("softMaxDynamicTest4D_NPU3720 tests do not work with COMPILER_TYPE=DRIVER", {
-                ".*SoftMaxLayerTestNPU.CompareWithRef.*"
         });
 
         // [Tracking number: E#109040]
