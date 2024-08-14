@@ -32,30 +32,25 @@ KERNEL(lstm_seq)(
     ACCUMULATOR_TYPE input_result[gate_num][NUM_HIDDEN_TO_DO];
     ACCUMULATOR_TYPE gate_output[gate_num][NUM_HIDDEN_TO_DO];
     ACCUMULATOR_TYPE temp_cell_state[NUM_HIDDEN_TO_DO];
-    for(int l=0;l<NUM_HIDDEN_TO_DO;l++){
-        for(int k=0;k<gate_num;k++){
-            gate_output[k][l] = 0;
-        }
-    }
     #ifdef SEQUENCE
         const int real_seq_length = sequence_lengths[INPUT6_GET_INDEX_SAFE(b, 0, 0, 0)];
     #else
         const int real_seq_length = 1;
     #endif
     for(int i=0;i<real_seq_length;i++){
-        for(int l=0;l<NUM_HIDDEN_TO_DO;l++){
-            for(int k=0;k<gate_num;k++){
+        unroll_for(int l=0;l<NUM_HIDDEN_TO_DO;l++){
+            unroll_for(int k=0;k<gate_num;k++){
                 hidden_result[k][l] = 0;
                 input_result[k][l] = 0;
             }
         }
-        for(int k=0;k<gate_num;k++){
-            for(int l=0;l<NUM_HIDDEN_TO_DO;l++) { //kernel responsible for HIDDEN_SIZE
+        unroll_for(int k=0;k<gate_num;k++){
+            unroll_for(int l=0;l<NUM_HIDDEN_TO_DO;l++) { //kernel responsible for HIDDEN_SIZE
                 const uint hidden_idx = local_idx*NUM_HIDDEN_TO_DO + l;
                 if (hidden_idx >= HIDDEN_SIZE) {
                     continue;
                 }
-                for(int j=0;j<HIDDEN_SIZE;j++) {
+                unroll_for(int j=0;j<HIDDEN_SIZE;j++) {
                     if(i==0){
                         #ifdef SEQUENCE
                             hidden_result[k][l] += initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, 0, j, 0)]*R[INPUT4_GET_INDEX_SAFE(0, hidden_idx+weight_offsets[k], j, 0)];
@@ -73,7 +68,7 @@ KERNEL(lstm_seq)(
                     }
                 }
                 
-                for(int j=0;j<INPUT_SIZE;j++) {
+                unroll_for(int j=0;j<INPUT_SIZE;j++) {
                     if(DIRECTION == 1){ //reverse
                         input_result[k][l] += x[INPUT0_GET_INDEX_SAFE(b, real_seq_length-1-i, j, 0)]*W[INPUT3_GET_INDEX_SAFE(0, hidden_idx+weight_offsets[k], j, 0)];
                     } else {
@@ -103,7 +98,7 @@ KERNEL(lstm_seq)(
                 }
             }
         }
-         for(int l=0;l<NUM_HIDDEN_TO_DO;l++) { //kernel responsible for HIDDEN_SIZE
+        unroll_for(int l=0;l<NUM_HIDDEN_TO_DO;l++) { //kernel responsible for HIDDEN_SIZE
             const uint hidden_idx = local_idx*NUM_HIDDEN_TO_DO + l;
             if (hidden_idx >= HIDDEN_SIZE) {
                 continue;
