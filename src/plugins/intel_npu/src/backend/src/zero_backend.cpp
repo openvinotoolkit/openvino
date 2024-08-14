@@ -76,6 +76,14 @@ void* ZeroEngineBackend::getDeviceHandle() const {
     return _instance->getDevice();
 }
 
+char* ZeroEngineBackend::getGraphExtName() {
+    return _instance->getGraphExtName();
+}
+
+uint32_t ZeroEngineBackend::getTargetVersion() {
+    return _instance->getTargetVersion();
+}
+
 void ZeroEngineBackend::updateInfo(const Config& config) {
     _logger.setLevel(config.get<LOG_LEVEL>());
     if (_devices.size() > 0) {

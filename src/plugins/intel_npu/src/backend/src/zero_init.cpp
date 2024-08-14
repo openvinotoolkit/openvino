@@ -205,11 +205,44 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
     zeroUtils::throwOnFail("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
 
+    // Allocate memory for the char array
+    graphExtName = new char[graph_ext_name.size() + 1];
+    // Copy the contents of the string to the char array
+    std::strcpy(graphExtName, graph_ext_name.c_str());
+
+    for (uint32_t i = 0; i < count; ++i) {
+        auto& property = extProps[i];
+
+        if (strncmp(property.name, ZE_GRAPH_EXT_NAME, strlen(ZE_GRAPH_EXT_NAME)) != 0) {
+            continue;
+        }
+
+        // If the driver version is latest, will just use its name.
+        if (property.version == ZE_GRAPH_EXT_VERSION_CURRENT) {
+            targetVersion = property.version;
+            break;
+        }
+
+        // Use the latest version supported by the driver.
+        if (property.version > targetVersion) {
+            targetVersion = property.version;
+        }
+    }
+
+    const uint16_t adapterMajorVersion = 1;
+    uint16_t driverMajorVersion = ZE_MAJOR_VERSION(targetVersion);
+    if (adapterMajorVersion != driverMajorVersion) {
+        OPENVINO_THROW("ze_init.cpp: adapterMajorVersion: ",
+                       adapterMajorVersion,
+                       " and driverMajorVersion: ",
+                       driverMajorVersion,
+                       " mismatch!");
+    }
+
     log.debug("ZeroInitStructsHolder initialize complete");
 }
 
 ZeroInitStructsHolder::~ZeroInitStructsHolder() {
-    printf(" Debug - ZeroInitStructsHolder Destructor !  \n");
     if (context) {
         log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
         auto result = zeContextDestroy(context);
