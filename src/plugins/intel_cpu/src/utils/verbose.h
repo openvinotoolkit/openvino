@@ -17,7 +17,10 @@ namespace intel_cpu {
 class Verbose {
 public:
     Verbose(const NodePtr& _node, const std::string& _lvl)
-        : node(_node), lvl(atoi(_lvl.c_str())) {
+        : node(_node),
+          lvl(atoi(_lvl.c_str()) % 10),
+          /* 1,  2,  3,  etc -> no color. 11, 22, 33, etc -> colorize */
+          colorUp(atoi(_lvl.c_str()) / 10) {
         if (!shouldBePrinted())
             return;
         printInfo();
@@ -34,6 +37,7 @@ public:
 private:
     const NodePtr& node;
     const int lvl;
+    const bool colorUp;
     std::stringstream stream;
 
     bool shouldBePrinted() const;
