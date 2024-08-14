@@ -877,6 +877,8 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
             });
         }
     }
+
+    m_pMemoryControl->allocateMemory();
 }
 
 void Graph::Allocate(const std::vector<size_t>& syncNodesInds) {

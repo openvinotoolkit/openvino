@@ -77,6 +77,7 @@ public:
     void setExtBuff(void* ptr, size_t size) override;
     bool resize(size_t size) override;
     bool hasExtBuffer() const noexcept override;
+    void free();
 
 private:
     bool m_useExternalStorage = false;

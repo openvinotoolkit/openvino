@@ -46,11 +46,48 @@ private:
     ptrdiff_t m_offset = 0;
 };
 
+class MemoryBlockWithRelease : public IMemoryBlockObserver {
+public:
+    MemoryBlockWithRelease() {
+        auto pInternalMem = make_unique<MemoryBlockWithReuse>();
+        m_pInternalMem = pInternalMem.get();
+        m_pBlock = std::make_shared<DnnlMemoryBlock>(std::move(pInternalMem));
+    }
+
+    void* getRawPtr() const noexcept override {
+        return m_pBlock->getRawPtr();
+    }
+    void setExtBuff(void* ptr, size_t size) override {
+        m_pBlock->setExtBuff(ptr, size);
+    }
+    bool resize(size_t size) override {
+        return m_pBlock->resize(size);
+    }
+    bool hasExtBuffer() const noexcept override {
+        return m_pBlock->hasExtBuffer();
+    }
+    void registerMemory(Memory* memPtr) override {
+        m_pBlock->registerMemory(memPtr);
+    }
+    void unregisterMemory(Memory* memPtr) override {
+        m_pBlock->unregisterMemory(memPtr);
+    }
+    void free() {
+        m_pInternalMem->free();
+    }
+
+private:
+    MemoryBlockPtr m_pBlock;
+    MemoryBlockWithReuse* m_pInternalMem;
+};
+
 class IMemoryManager {
 public:
     virtual ~IMemoryManager() = default;
     virtual void insert(const MemoryRegion& reg) = 0;
     virtual const MemoryControl::MemoryBlockMap& lastSolution() = 0;
+    virtual void allocate() = 0;
+    virtual void release() = 0;
 };
 
 using MemoryManagerPtr = std::shared_ptr<IMemoryManager>;
@@ -60,7 +97,7 @@ std::shared_ptr<DnnlMemoryBlock> makeDnnlMemoryBlock(Args&&... args) {
     return std::make_shared<DnnlMemoryBlock>(make_unique<T>(std::forward<Args>(args)...));
 }
 
-class MemoryManagerIndividualBlocks : public IMemoryManager {
+class MemoryManagerIO : public IMemoryManager {
 public:
     void insert(const MemoryRegion& reg) override {
         m_blocks.insert({reg.id, makeDnnlMemoryBlock<MemoryBlockWithReuse>()});
@@ -68,6 +105,13 @@ public:
 
     const MemoryControl::MemoryBlockMap& lastSolution() override {
         return m_blocks;
+    }
+
+    void allocate() override {
+        // nothing to do
+    }
+    void release() override {
+        // nothing to do
     }
 
 private:
@@ -95,10 +139,9 @@ private:
         });
 
         ov::MemorySolver staticMemSolver(m_boxes);
-        size_t total_size = static_cast<size_t>(staticMemSolver.solve()) * alignment;
+        m_totalSize = static_cast<size_t>(staticMemSolver.solve()) * alignment;
 
-        m_workspace = makeDnnlMemoryBlock<MemoryBlockWithReuse>();
-        m_workspace->resize(total_size);
+        m_workspace = std::make_shared<MemoryBlockWithRelease>();
 
         for (const auto& box : m_boxes) {
             int64_t offset = staticMemSolver.get_offset(box.id);
@@ -108,10 +151,18 @@ private:
         // m_boxes.clear();
     }
 
+    void allocate() override {
+        if(m_workspace) m_workspace->resize(m_totalSize);
+    }
+    void release() override {
+        if(m_workspace) m_workspace->free();
+    }
+
 private:
     MemoryControl::MemoryBlockMap m_blocks;
     std::vector<MemorySolver::Box> m_boxes;
-    MemoryBlockPtr m_workspace;
+    std::shared_ptr<MemoryBlockWithRelease> m_workspace;
+    size_t m_totalSize = 0;
 };
 
 class MemoryManageNonOverlapingSets : public IMemoryManager {
@@ -141,6 +192,7 @@ public:
     const MemoryControl::MemoryBlockMap& lastSolution() override {
         if (!m_boxes.empty() && m_blocks.empty()) {
             solve();
+            m_blocks = MemoryControl::MemoryBlockMap{m_internalBlocks.begin(), m_internalBlocks.end()};
         }
         return m_blocks;
     }
@@ -168,16 +220,27 @@ private:
             }
         }
         for (auto& group : groups) {
-            auto grpMemBlock = makeDnnlMemoryBlock<MemoryBlockWithReuse>();
+            auto grpMemBlock = std::make_shared<MemoryBlockWithRelease>();
             for (auto& box : group) {
-                m_blocks[box.id] = grpMemBlock;
+                m_internalBlocks[box.id] = grpMemBlock;
             }
         }
         // m_boxes.clear();
     }
 
+    void allocate() override {
+        //nothing to do
+    }
+    void release() override {
+        for (auto&& item : m_internalBlocks) {
+            item.second->free();
+        }
+    }
+
 private:
     MemoryControl::MemoryBlockMap m_blocks;
+    std::unordered_map<MemoryControl::MemoryBlockMap::key_type, std::shared_ptr<MemoryBlockWithRelease>>
+        m_internalBlocks;
     std::vector<MemorySolver::Box> m_boxes;
     std::vector<size_t> m_syncInds;
 };
@@ -204,6 +267,14 @@ public:
 
     const MemoryControl::MemoryBlockMap& lastSolution() const {
         return m_memManager->lastSolution();
+    }
+
+    void allocate() {
+        m_memManager->allocate();
+    }
+
+    void release() {
+        m_memManager->release();
     }
 
 private:
@@ -243,7 +314,7 @@ MemoryControl::MemoryControl(std::vector<size_t> syncInds) {
     }, std::move(syncInds)));
 
     //handler for I/O tensors, so far simply individual blocks
-    m_handlers.emplace_back(buildHandler<MemoryManagerIndividualBlocks>([](const MemoryRegion& reg) {
+    m_handlers.emplace_back(buildHandler<MemoryManagerIO>([](const MemoryRegion& reg) {
         if (MemoryRegion::RegionType::VARIABLE == reg.type || reg.alloc_type != MemoryRegion::AllocType::POD) {
             return false;
         }
@@ -277,6 +348,18 @@ MemoryControl::MemoryBlockMap MemoryControl::insert(const std::vector<MemoryRegi
     }
 
     return blocksMap;
+}
+
+void MemoryControl::allocateMemory() {
+    for(auto&& handler : m_handlers) {
+        handler->allocate();
+    }
+}
+
+void MemoryControl::releaseMemory() {
+    for(auto&& handler : m_handlers) {
+        handler->release();
+    }
 }
 
 edgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEdges) {

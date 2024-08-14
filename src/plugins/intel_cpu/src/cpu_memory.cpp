@@ -229,6 +229,12 @@ bool MemoryBlockWithReuse::hasExtBuffer() const noexcept {
     return m_useExternalStorage;
 }
 
+void MemoryBlockWithReuse::free() {
+    m_data = decltype(m_data)(nullptr, release );
+    m_memUpperBound = 0ul;
+    m_useExternalStorage = false;
+}
+
 void MemoryBlockWithReuse::release(void *ptr) {}
 
 void MemoryBlockWithReuse::destroy(void *ptr) {

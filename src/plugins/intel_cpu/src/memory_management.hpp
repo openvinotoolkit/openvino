@@ -36,6 +36,9 @@ public:
 
     MemoryBlockMap insert(const std::vector<MemoryRegion>& regions);
 
+    void allocateMemory();
+    void releaseMemory();
+
 private:
     void insert(const MemoryRegion& region);
 
