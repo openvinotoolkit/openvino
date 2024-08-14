@@ -848,6 +848,14 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
         OPENVINO_ASSERT(count == 1);
     }
 
+    if (getConfig().flushIntermediateTensors) {
+        m_preInferEvents.push_back(&Graph::allocateIntermediateTensors);
+        m_postInferEvents.push_back(&Graph::releaseIntermediateTensors);
+    } else {
+        //allocate mem right away
+        allocateIntermediateTensors();
+    }
+
     // Resolve all other edges with status NotAllocated and in-place
     for (auto& cluster : edge_clusters) {
         for (auto& edge : cluster) {
@@ -877,8 +885,6 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
             });
         }
     }
-
-    m_pMemoryControl->allocateMemory();
 }
 
 void Graph::Allocate(const std::vector<size_t>& syncNodesInds) {
@@ -1352,6 +1358,10 @@ void Graph::ParalleMtNuma(size_t num_nodes,
 void Graph::Infer(SyncInferRequest* request) {
     DEBUG_LOG("Infer graph: ", GetName(), ". Status: ", static_cast<int>(status));
 
+    for(auto&& item : m_preInferEvents) {
+        (this->*item)();
+    }
+
     switch (status) {
     case Status::ReadyDynamic:
         InferDynamic(request, UpdateNodes(m_executableGraphNodes));
@@ -1364,6 +1374,10 @@ void Graph::Infer(SyncInferRequest* request) {
         break;
     default:
         OPENVINO_ASSERT(IsReady(), "Wrong state of the ov::intel_cpu::Graph. Topology is not ready: ", static_cast<int>(status));
+    }
+
+    for(auto&& item : m_postInferEvents) {
+        (this->*item)();
     }
 
     if (infer_count != -1) infer_count++;
@@ -1811,6 +1825,18 @@ std::shared_ptr<ov::Model> Graph::dump() const {
 
 const std::unordered_map<std::string, node::MemoryStateNode*>& Graph::getInternalStateNodes() const {
     return context->getMemoryStatesRegister()->getMemoryStates();
+}
+
+void Graph::allocateIntermediateTensors() {
+    if (m_pMemoryControl) {
+        m_pMemoryControl->allocateMemory();
+    }
+}
+
+void Graph::releaseIntermediateTensors() {
+    if (m_pMemoryControl) {
+        m_pMemoryControl->releaseMemory();
+    }
 }
 
 }   // namespace intel_cpu

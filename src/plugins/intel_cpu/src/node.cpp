@@ -555,6 +555,21 @@ void Node::updateShapes() {
                 if (ShapeInferStatus::success == result.status) {
                     redefineOutputMemory(result.dims);
                 }
+            } else {
+                //check the memory is allocated and try to reallocate
+                for (auto&& edge : getChildEdges()) {
+                    auto edge_ptr = edge.lock();
+                    CPU_NODE_ASSERT(edge_ptr, " has null edge");
+                    auto mem = edge_ptr->getMemoryPtr();
+                    CPU_NODE_ASSERT(mem, " has null output memory");
+
+                    if (mem->getShape().hasZeroDims()) {
+                        continue;
+                    }
+                    if (nullptr == mem->getData()) {
+                        mem->getMemoryBlock()->resize(mem->getSize()); // TODO: conceptually this is a very bad solution
+                    }
+                }
             }
         } catch (const std::exception& exp) {
             THROW_CPU_NODE_ERR(exp.what());

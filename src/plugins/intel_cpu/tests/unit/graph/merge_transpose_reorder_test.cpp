@@ -74,7 +74,9 @@ protected:
         OPENVINO_ASSERT(shape.size() == 4 || shape.size() == 3,
                         "MergeTransposeReorderCPUTest doesn't support shape", shape,
                         ". Only 4D and 3D shapes are supported");
-        m_context = std::make_shared<GraphContext>(Config(), nullptr, false);
+        Config conf;
+        conf.flushIntermediateTensors = false; // deferred allocation
+        m_context = std::make_shared<GraphContext>(conf, nullptr, false);
         const auto replication_result = CreateModelAndReplicate(shape,
                                                                 params.firstNodeLayout,
                                                                 params.firstNodeInplaceDirection,
