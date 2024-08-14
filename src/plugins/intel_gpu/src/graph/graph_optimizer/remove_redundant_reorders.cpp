@@ -307,7 +307,7 @@ void remove_redundant_reorders::run(program& p) {
                 pad_hi[1] = i_layout.data_padding.upper_size()[1];
 
                 if (i_layout.feature() % 16 != 0) {
-                    pad_hi[0] += 16 - i_layout.feature() % 16;
+                    pad_hi[1] += 16 - i_layout.feature() % 16;
                 }
 
                 r_node.merge_output_padding(padding{pad_lo, pad_hi});
