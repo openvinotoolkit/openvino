@@ -23,7 +23,7 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
         return padding();
 
     auto in_pad = in_layout.data_padding;
-    if (in_pad.is_dynamic_pad()) {
+    if (!in_pad.is_dynamic_pad()) {
         return padding();
     }
 
