@@ -102,7 +102,7 @@ private:
 
         for (const auto& box : m_boxes) {
             int64_t offset = staticMemSolver.get_offset(box.id);
-            auto memoryBlock = std::make_shared<StaticPartitionMemoryBlock>(m_workspace, offset);
+            auto memoryBlock = std::make_shared<StaticPartitionMemoryBlock>(m_workspace, offset * alignment);
             m_blocks[box.id] = std::move(memoryBlock);
         }
         // m_boxes.clear();
