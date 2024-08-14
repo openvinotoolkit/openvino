@@ -68,6 +68,14 @@ void* ZeroEngineBackend::getContext() const {
     return _instance->getContext();
 }
 
+void* ZeroEngineBackend::getDriverHandle() const {
+    return _instance->getDriver();
+}
+
+void* ZeroEngineBackend::getDeviceHandle() const {
+    return _instance->getDevice();
+}
+
 void ZeroEngineBackend::updateInfo(const Config& config) {
     _logger.setLevel(config.get<LOG_LEVEL>());
     if (_devices.size() > 0) {
