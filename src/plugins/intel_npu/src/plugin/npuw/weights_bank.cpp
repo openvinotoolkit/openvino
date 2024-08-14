@@ -61,7 +61,6 @@ ov::Tensor Bank::get(const ov::Tensor& tensor, const std::string& device) {
 
     // If target device is CPU - just reuse the default bank
     if (device == "CPU") {
-        std::cout << "get CPU" << std::endl;
         return iter_cpu->second;
     }
 
@@ -70,12 +69,10 @@ ov::Tensor Bank::get(const ov::Tensor& tensor, const std::string& device) {
     auto iter_device = device_bank.find(tensor.data());
     if (iter_device != device_bank.end()) {
         // Already allocated on the device - reuse
-        std::cout << "get no alloc" << std::endl;
         return iter_device->second;
     }
 
     // Allocation needed
-    std::cout << "get NPU alloc" << std::endl;
     m_remote_ctx = m_core->get_default_context(device)._ptr;
     auto remote_tensor = m_remote_ctx->create_host_tensor(tensor.get_element_type(), tensor.get_shape());
     auto allocated_tensor = ov::make_tensor(remote_tensor);
