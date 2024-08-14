@@ -34,7 +34,7 @@ Run generation using OpenVINO GenAI
 
       python -m venv run-npu-env
       run-npu-env\Scripts\activate
-      pip install openvino>=2024.3.1 openvino-tokenizers>=2024.3.1 openvino-genai>=2024.3.1
+      pip install --pre openvino==2024.3.0.dev20240807 openvino-tokenizers==2024.3.0.0.dev20240807 openvino-genai==2024.3.0.0.dev20240807 --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/pre-release
 
 2. Perform generation using the new GenAI API
 
@@ -47,7 +47,7 @@ Run generation using OpenVINO GenAI
 
             import openvino_genai as ov_genai
             pipe = ov_genai.LLMPipeline(model_path, "NPU")
-            print(pipe.generate("The Sun is yellow because", max_new_tokens=100))
+            print(pipe.generate("What is OpenVINO?", max_new_tokens=100))
 
       .. tab-item:: C++
          :sync: cpp
@@ -60,7 +60,7 @@ Run generation using OpenVINO GenAI
             int main(int argc, char* argv[]) {
                std::string model_path = argv[1];
                ov::genai::LLMPipeline pipe(model_path, "NPU");
-               std::cout << pipe.generate("The Sun is yellow because", ov::genai::max_new_tokens(100));
+               std::cout << pipe.generate("What is OpenVINO?", ov::genai::max_new_tokens(100));
             }
 
 Additional configuration options
