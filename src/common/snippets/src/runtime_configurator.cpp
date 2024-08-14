@@ -35,7 +35,11 @@ RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c) :
     OPENVINO_ASSERT(m_config, "Runtime config is nullptr!");
 }
 
-const std::shared_ptr<RuntimeConfig>& RuntimeConfigurator::get_updated_config(const lowered::LinearIRPtr& linear_ir) {
+void RuntimeConfigurator::reset_kernel_executor_table() const {
+    m_config->kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
+}
+
+const std::shared_ptr<RuntimeConfig>& RuntimeConfigurator::get_updated_config(const lowered::LinearIRCPtr& linear_ir) {
     // First initialization
     if (m_io_num == 0)
         initialization(linear_ir);
@@ -44,7 +48,7 @@ const std::shared_ptr<RuntimeConfig>& RuntimeConfigurator::get_updated_config(co
     return m_config;
 }
 
-void RuntimeConfigurator::initialization(const lowered::LinearIRPtr& linear_ir) {
+void RuntimeConfigurator::initialization(const lowered::LinearIRCPtr& linear_ir) {
     init_data_info(linear_ir);
     init_tensor_rank(linear_ir);
     init_buffer_info(linear_ir);
@@ -55,7 +59,7 @@ void RuntimeConfigurator::initialization(const lowered::LinearIRPtr& linear_ir) 
     m_config->tile_rank = linear_ir->get_config().m_loop_depth;
 }
 
-void RuntimeConfigurator::update(const lowered::LinearIRPtr& linear_ir) {
+void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
     if (linear_ir->is_dynamic()) {
         update_loop_info(linear_ir);
         update_buffer_scratchpad_size(linear_ir);
@@ -67,11 +71,11 @@ void RuntimeConfigurator::update(const lowered::LinearIRPtr& linear_ir) {
     update_latest_shapes();
 }
 
-void RuntimeConfigurator::init_tensor_rank(const lowered::LinearIRPtr& linear_ir) const {
+void RuntimeConfigurator::init_tensor_rank(const lowered::LinearIRCPtr& linear_ir) const {
     m_config->tensor_rank = linear_ir->get_master_shape().size();
 }
 
-void RuntimeConfigurator::init_data_info(const lowered::LinearIRPtr& linear_ir) {
+void RuntimeConfigurator::init_data_info(const lowered::LinearIRCPtr& linear_ir) {
     const auto& parameters = linear_ir->get_parameters();
     const auto& results = linear_ir->get_results();
     m_in_num = parameters.size();
@@ -113,7 +117,7 @@ void RuntimeConfigurator::init_data_info(const lowered::LinearIRPtr& linear_ir) 
     }
 }
 
-void RuntimeConfigurator::init_buffer_info(const lowered::LinearIRPtr& linear_ir) {
+void RuntimeConfigurator::init_buffer_info(const lowered::LinearIRCPtr& linear_ir) {
     std::map<size_t, std::set<lowered::ExpressionPtr>> dynamic_buffer_clusters, static_buffer_clusters;
 
     // All needed checks are in Validate pass
@@ -143,7 +147,7 @@ void RuntimeConfigurator::init_buffer_info(const lowered::LinearIRPtr& linear_ir
     m_dynamic_buffer_clusters = std::move(dynamic_buffer_clusters);
 }
 
-void RuntimeConfigurator::update_loop_info(const lowered::LinearIRPtr& linear_ir) const {
+void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_ir) const {
     // Initialized UnifiedLoopInfo
     struct CurrentUnifiedLoopInfo {
         size_t current_work_amount = 0;
@@ -202,7 +206,7 @@ void RuntimeConfigurator::update_loop_info(const lowered::LinearIRPtr& linear_ir
     }
 }
 
-void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRPtr& linear_ir) const {
+void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRCPtr& linear_ir) const {
     const auto& loop_manager = linear_ir->get_loop_manager();
     m_config->buffer_scratchpad_size = linear_ir->get_static_buffer_scratchpad_size();
 
@@ -276,6 +280,11 @@ void RuntimeConfigurator::update_latest_shapes() {
     for (size_t i = 0; i < m_io_num; ++i) {
         m_latest_shapes[i] = m_io_descs[i]->get_shape();
     }
+}
+
+void RuntimeConfigurator::set_kernel_executor_table(std::shared_ptr<KernelExecutorTable> table) const {
+    OPENVINO_ASSERT(table, "Failed to update Kernel Executo Table: passed table is missed");
+    m_config->kernel_executor_table = std::move(table);
 }
 
 } // namespace snippets

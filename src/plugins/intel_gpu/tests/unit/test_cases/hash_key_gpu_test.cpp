@@ -71,11 +71,11 @@ public:
         const auto primitive_hash = primitve->hash();
         const auto params_hash = primitve->type->get_fake_aligned_params(*prim_inst->get_impl_params()).hash();
         if (!engine.get_device_info().supports_immad) {
-            ASSERT_EQ(primitive_hash, 14259723886449306729UL);
-            ASSERT_EQ(params_hash, 3365957578641948513UL);
+            ASSERT_EQ(primitive_hash, 8017451717095756666UL);
+            ASSERT_EQ(params_hash, 4374037685392472517UL);
         } else {
-            ASSERT_EQ(primitive_hash, 14259723886449306729UL);
-            ASSERT_EQ(params_hash, 9831190959346679696UL);
+            ASSERT_EQ(primitive_hash, 8017451717095756666UL);
+            ASSERT_EQ(params_hash, 17704411706121042861UL);
         }
     }
 
