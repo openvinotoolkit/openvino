@@ -17,6 +17,7 @@ JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params, bool seq
         jit.AddConstants({MakeJitConstant("INPUT_FORGET", true)});
     }
     jit.AddConstants({MakeJitConstant("DIRECTION", static_cast<int>(params.direction))});
+    jit.AddConstants({MakeJitConstant("GATE_NUM", 4)});
     if (sequential) {
         jit.AddConstants({MakeJitConstant("SEQUENCE", 1)});
         jit.AddConstants({MakeJitConstant("MAX_SEQ_LENGTH", params.inputs[0].Feature().v)});
