@@ -37,6 +37,12 @@ public:
     inline ze_context_handle_t getContext() const {
         return context;
     }
+    inline char* getGraphExtName() const {
+        return graphExtName;
+    } 
+    inline uint32_t getTargetVersion() const {
+        return targetVersion;
+    }
     inline ze_graph_dditable_ext_curr_t* getGraphDdiTable() const {
         return graph_dditable_ext_decorator.get();
     }
@@ -64,6 +70,8 @@ private:
     ze_context_handle_t context = nullptr;
     ze_driver_handle_t driver_handle = nullptr;
     ze_device_handle_t device_handle = nullptr;
+    char* graphExtName;
+    uint32_t targetVersion = 0;
 
     std::unique_ptr<ze_graph_dditable_ext_decorator> graph_dditable_ext_decorator;
     ze_command_queue_npu_dditable_ext_curr_t* _command_queue_npu_dditable_ext = nullptr;

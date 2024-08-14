@@ -37,68 +37,12 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> 
     _driverHandle = (ze_driver_handle_t)zeroBackend->getDriverHandle();
     ze_device_handle_t _deviceHandle = (ze_device_handle_t)zeroBackend->getDeviceHandle();
 
+    uint32_t targetVersion = zeroBackend->getTargetVersion();
+    char* graphExtName = zeroBackend->getGraphExtName();
+
     if (_driverHandle == nullptr) {
         OPENVINO_THROW("LevelZeroCompilerAdapter: Failed to get properties about zeDriver");
         return;
-    }
-
-    // query the extension properties
-    uint32_t count = 0;
-    result = zeDriverGetExtensionProperties(_driverHandle, &count, nullptr);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 zeDriverGetExtensionProperties get count",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
-    std::vector<ze_driver_extension_properties_t> extProps;
-    extProps.resize(count);
-    result = zeDriverGetExtensionProperties(_driverHandle, &count, extProps.data());
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 zeDriverGetExtensionProperties get properties",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
-    const char* graphExtName = nullptr;
-    uint32_t targetVersion = 0;
-    for (uint32_t i = 0; i < count; ++i) {
-        auto& property = extProps[i];
-
-        if (strncmp(property.name, ZE_GRAPH_EXT_NAME, strlen(ZE_GRAPH_EXT_NAME)) != 0) {
-            continue;
-        }
-
-        // If the driver version is latest, will just use its name.
-        if (property.version == ZE_GRAPH_EXT_VERSION_CURRENT) {
-            graphExtName = property.name;
-            targetVersion = property.version;
-            break;
-        }
-
-        // Use the latest version supported by the driver.
-        if (property.version > targetVersion) {
-            graphExtName = property.name;
-            targetVersion = property.version;
-        }
-    }
-
-    if (graphExtName == nullptr) {
-        OPENVINO_THROW("LevelZeroCompilerAdapter: Failed to find Graph extension in NPU Driver");
-    }
-
-    const uint16_t adapterMajorVersion = 1;
-    uint16_t driverMajorVersion = ZE_MAJOR_VERSION(targetVersion);
-    if (adapterMajorVersion != driverMajorVersion) {
-        OPENVINO_THROW("LevelZeroCompilerAdapter: adapterMajorVersion: ",
-                       adapterMajorVersion,
-                       " and driverMajorVersion: ",
-                       driverMajorVersion,
-                       " mismatch!");
     }
 
 #if defined(NPU_PLUGIN_DEVELOPER_BUILD)
