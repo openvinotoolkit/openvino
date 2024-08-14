@@ -27,11 +27,8 @@ running on an Intel® Core™ Ultra 7-165H based system, on built-in GPUs.
 
    .. tab-item:: OpenVINO Model Server
 
-      .. csv-table::
-         :class: modeldata stripe
-         :name: supportedModelsTable
-         :header-rows: 1
-         :file:  ../../_static/download/llm_models_ovms.csv
+      Model Server data is not ready yet. You can see a work in progress in the
+      `nightly version of the page <https://docs.openvino.ai/nightly/about-openvino/performance-benchmarks/generative-ai-performance.html>`__.
 
 
 
