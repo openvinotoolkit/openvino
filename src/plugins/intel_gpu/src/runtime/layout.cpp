@@ -333,12 +333,13 @@ void layout::set_partial_shape(const ov::PartialShape& size) {
 std::vector<tensor::value_type> layout::get_pitches() const {
     const auto& padded_dims = get_padded_dims();
 
+    std::vector<tensor::value_type> pitches(padded_dims.size(), size_t(1));
+    std::partial_sum(padded_dims.rbegin(), padded_dims.rend() - 1, pitches.rbegin() + 1, std::multiplies<size_t>());
+
     // reorder regarding to format
-    auto sizes = format_sizes(padded_dims, format);
+    auto fmt_pitches = format_sizes(pitches, format);
  
-    std::vector<tensor::value_type> pitches(sizes.size(), size_t(1));
-    std::partial_sum(sizes.rbegin(), sizes.rend() - 1, pitches.rbegin() + 1, std::multiplies<size_t>());
-    return pitches;
+    return fmt_pitches;
 }
 
 
