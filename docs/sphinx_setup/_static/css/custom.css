@@ -144,15 +144,11 @@ nav.bd-links .current>a {
 }
 
 a.current {
-    background-color: #76CEFF!important;
+    background-color: #daf2ff!important;
 }
 
 .bd-sidebar-primary label.toctree-toggle:hover {
-    background: #76CEFF!important;
-}
-
-a.current svg:not(:host).svg-inline--fa, svg:not(:root).svg-inline--fa {
-    color: black;
+    background: #daf2ff!important;
 }
 
 .bd-header .navbar-nav li a.nav-link {
