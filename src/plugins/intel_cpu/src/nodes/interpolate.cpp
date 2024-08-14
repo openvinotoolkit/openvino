@@ -1587,8 +1587,6 @@ size_t InterpolateKey::hash() const {
 }
 
 bool InterpolateKey::operator==(const InterpolateKey &rhs) const {
-    if (nodeAttrs.shapeCalcMode != rhs.nodeAttrs.shapeCalcMode)
-        return false;
     if (nodeAttrs.mode != rhs.nodeAttrs.mode)
         return false;
     if (nodeAttrs.coordTransMode != rhs.nodeAttrs.coordTransMode)
