@@ -24,7 +24,7 @@ OutputVector translate_sparse_tensor_dense_mat_mul_op(const NodeContext& node) {
     auto adjoint_a = node.get_attribute<bool>("adjoint_a", false);
     auto adjoint_b = node.get_attribute<bool>("adjoint_b", false);
 
-    // create dense a tensor
+    // create dense tensor
     auto zero_const = create_same_type_const_scalar<int32_t>(a_values, 0);
     ov::Output<ov::Node> a = make_shared<v3::Broadcast>(zero_const, a_shape);
     a = make_shared<v15::ScatterNDUpdate>(a, a_indices, a_values);
