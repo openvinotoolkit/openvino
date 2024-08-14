@@ -39,9 +39,7 @@ void LoweredPassTestsF::TearDown() {
 }
 
 ov::snippets::VectorDims get_default_subtensor() {
-    static const VectorDims default_subtensor{PortDescriptor::ServiceDimensions::FULL_DIM,
-                                              PortDescriptor::ServiceDimensions::FULL_DIM};
-    return default_subtensor;
+    return VectorDims(2, ov::snippets::utils::get_full_dim_value());
 }
 
 void init_expr_descriptors(const ov::snippets::lowered::ExpressionPtr& expr,
@@ -72,39 +70,17 @@ void init_expr_descriptors(const ov::snippets::lowered::ExpressionPtr& expr,
     for (size_t i = 0; i < n_inputs; ++i) {
         const auto& subtensor = subtensors.empty() ? get_default_subtensor() : subtensors[i];
         const auto& layout = layouts.empty() ? VectorDims{} : layouts[i];
-        const auto desc = std::make_shared<PortDescriptor>(pshape_to_vdims(node->get_input_partial_shape(i)), subtensor, layout);
+        const auto desc = std::make_shared<PortDescriptor>(node->input(i), subtensor, layout);
         PortDescriptorUtils::set_port_descriptor_ptr(node->input(i), desc);
         update_expr_desc(expr->get_input_port_descriptor(i), desc);
     }
     for (size_t i = 0; i < n_outputs; ++i) {
         const auto& subtensor = subtensors.empty() ? get_default_subtensor() : subtensors[i + n_inputs];
         const auto& layout = layouts.empty() ? VectorDims{} : layouts[i + n_inputs];
-        const auto desc = std::make_shared<PortDescriptor>(pshape_to_vdims(node->get_output_partial_shape(i)), subtensor, layout);
+        const auto desc = std::make_shared<PortDescriptor>(node->output(i), subtensor, layout);
         PortDescriptorUtils::set_port_descriptor_ptr(node->output(i), desc);
         update_expr_desc(expr->get_output_port_descriptor(i), desc);
     }
-}
-
-void create_and_add_unified_loop_info(const LinearIRPtr& linear_ir,
-                                      size_t work_amount,
-                                      size_t increment,
-                                      const std::vector<LoopPort>& entries,
-                                      const std::vector<LoopPort>& exits,
-                                      bool set_default_handlers) {
-    // Equal begin and end iterators are set to avoid expressions marking with new loop id
-    create_and_add_unified_loop_info(linear_ir, linear_ir->begin(), linear_ir->begin(), work_amount, increment, entries, exits, set_default_handlers);
-}
-
-void create_and_add_unified_loop_info(const LinearIRPtr& linear_ir,
-                                      ov::snippets::lowered::LinearIR::constExprIt loop_begin_pos,
-                                      ov::snippets::lowered::LinearIR::constExprIt loop_end_pos,
-                                      size_t work_amount,
-                                      size_t increment,
-                                      const std::vector<LoopPort>& entries,
-                                      const std::vector<LoopPort>& exits,
-                                      bool set_default_handlers) {
-    const auto& loop_manager = linear_ir->get_loop_manager();
-    loop_manager->mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, entries, exits, set_default_handlers);
 }
 
 }  // namespace snippets
