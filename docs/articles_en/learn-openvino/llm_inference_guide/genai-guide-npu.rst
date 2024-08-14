@@ -58,7 +58,7 @@ Run generation using OpenVINO GenAI
             #include <iostream>
 
             int main(int argc, char* argv[]) {
-               std::string model_path = argv[1]; // Defines path to model folder
+               std::string model_path = argv[1];
                ov::genai::LLMPipeline pipe(model_path, "NPU");
                std::cout << pipe.generate("What is OpenVINO?", ov::genai::max_new_tokens(100));
             }
