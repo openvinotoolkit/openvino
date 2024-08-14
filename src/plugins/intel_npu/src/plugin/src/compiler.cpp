@@ -50,10 +50,10 @@ ov::SoPtr<ICompiler> loadCompiler(const std::string& libpath) {
     return ov::SoPtr<ICompiler>(compiler, compilerSO);
 }
 
-ov::SoPtr<ICompiler> createCompilerAdapter(const Logger& log) {
+ov::SoPtr<ICompiler> createCompilerAdapter(std::shared_ptr<NPUBackends> npuBackends, const Logger& log) {
     log.info("Driver compiler will be used.");
 #ifdef ENABLE_DRIVER_COMPILER_ADAPTER
-    const auto compilerInterface = std::make_shared<driverCompilerAdapter::LevelZeroCompilerAdapter>();
+    const auto compilerInterface = std::make_shared<driverCompilerAdapter::LevelZeroCompilerAdapter>(npuBackends);
     return ov::SoPtr<ICompiler>(compilerInterface);
 #else
     OPENVINO_THROW("NPU Compiler Adapter is not enabled");
@@ -67,12 +67,12 @@ ov::SoPtr<ICompiler> createNPUCompiler(const Logger& log) {
     return loadCompiler(libPath);
 }
 
-ov::SoPtr<ICompiler> createCompilerImpl(ov::intel_npu::CompilerType compilerType, const Logger& log) {
+ov::SoPtr<ICompiler> createCompilerImpl(std::shared_ptr<NPUBackends> npuBackends, ov::intel_npu::CompilerType compilerType, const Logger& log) {
     switch (compilerType) {
     case ov::intel_npu::CompilerType::MLIR:
         return createNPUCompiler(log);
     case ov::intel_npu::CompilerType::DRIVER:
-        return createCompilerAdapter(log);
+        return createCompilerAdapter(npuBackends, log);
     default:
         OPENVINO_THROW("Invalid NPU_COMPILER_TYPE");
     }
@@ -80,11 +80,11 @@ ov::SoPtr<ICompiler> createCompilerImpl(ov::intel_npu::CompilerType compilerType
 
 }  // namespace
 
-ov::SoPtr<ICompiler> intel_npu::createCompiler(ov::intel_npu::CompilerType compilerType) {
+ov::SoPtr<ICompiler> intel_npu::createCompiler(std::shared_ptr<intel_npu::NPUBackends> npuBackends, ov::intel_npu::CompilerType compilerType) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "intel_npu::createCompiler");
     auto logger = Logger::global().clone("createCompiler");
     try {
-        return createCompilerImpl(compilerType, logger);
+        return createCompilerImpl(npuBackends, compilerType, logger);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Got an error during compiler creation: ", ex.what());
     } catch (...) {

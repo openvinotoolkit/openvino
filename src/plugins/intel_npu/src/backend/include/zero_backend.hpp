@@ -29,6 +29,9 @@ public:
     bool isCommandQueueExtSupported() const override;
 
     void* getContext() const override;
+    void* getDriverHandle() const;
+    void* getDeviceHandle() const;
+
     void updateInfo(const Config& config) override;
 
 private:

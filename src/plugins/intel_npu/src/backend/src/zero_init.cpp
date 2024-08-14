@@ -20,11 +20,6 @@ namespace intel_npu {
 
 const ze_driver_uuid_t ZeroInitStructsHolder::uuid = ze_intel_npu_driver_uuid;
 
-// // Define the static member
-ze_context_handle_t ZeroInitStructsHolder::context = nullptr;
-ze_driver_handle_t ZeroInitStructsHolder::driver_handle = nullptr;
-ze_device_handle_t ZeroInitStructsHolder::device_handle = nullptr;
-
 static std::tuple<uint32_t, std::string> queryDriverExtensionVersion(
     std::vector<ze_driver_extension_properties_t>& extProps,
     uint32_t count) {
