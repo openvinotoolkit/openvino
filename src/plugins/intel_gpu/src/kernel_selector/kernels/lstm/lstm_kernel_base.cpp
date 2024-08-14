@@ -26,11 +26,11 @@ JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params, bool seq
     if (sequential) {
         jit.AddConstants({MakeJitConstant("INPUT_SIZE", params.inputs[0].Y().v)});
         hidden_size = static_cast<int>(params.inputs[1].Y().v);
-        num_hidden_kernels = std::min({static_cast<int>(params.engineInfo.maxWorkGroupSize), static_cast<int>(out.X().v), 8});
+        num_hidden_kernels = std::min({static_cast<int>(params.engineInfo.maxWorkGroupSize), static_cast<int>(out.X().v)});
     } else {
         jit.AddConstants({MakeJitConstant("INPUT_SIZE", params.inputs[0].Feature().v)});
         hidden_size = static_cast<int>(params.inputs[1].Feature().v);
-        num_hidden_kernels = std::min({static_cast<int>(params.engineInfo.maxWorkGroupSize), static_cast<int>(out.Feature().v), 8});
+        num_hidden_kernels = std::min({static_cast<int>(params.engineInfo.maxWorkGroupSize), static_cast<int>(out.Feature().v)});
     }
     size_t size;
     if (sequential) {
@@ -106,11 +106,9 @@ KernelsData LSTMKernelBase::GetCommonKernelsData(const Params& params, bool sequ
     auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
     size_t num_hidden_kernels;
     if (sequential) {
-        num_hidden_kernels = static_cast<size_t>(std::min({params.engineInfo.maxWorkGroupSize, out.X().v, \
-        static_cast<size_t>(8)}));
+        num_hidden_kernels = static_cast<size_t>(std::min({params.engineInfo.maxWorkGroupSize, out.X().v}));
     } else {
-        num_hidden_kernels = static_cast<size_t>(std::min({params.engineInfo.maxWorkGroupSize, out.Feature().v, \
-        static_cast<size_t>(8)}));
+        num_hidden_kernels = static_cast<size_t>(std::min({params.engineInfo.maxWorkGroupSize, out.Feature().v}));
     }
     kernel.params.workGroups.global = {num_hidden_kernels, out.Batch().v, 1};
     kernel.params.workGroups.local = {num_hidden_kernels, 1, 1};

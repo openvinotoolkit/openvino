@@ -17,6 +17,7 @@
 #include "resample_inst.h"
 #include "loop_inst.h"
 #include "lstm_elt_inst.h"
+#include "lstm_cell_inst.h"
 #include "strided_slice_inst.h"
 #include "shape_of_inst.h"
 #include "non_max_suppression_inst.h"
@@ -495,7 +496,7 @@ bool crop_in_place_optimization::match(const program_node& node,
         }
         if (user->is_type<experimental_detectron_roi_feature_extractor>() && user->get_dependency_index(node) == 0)
             return false;
-        if (user->is_type<lstm_seq>())
+        if (user->is_type<lstm_seq>() || user->is_type<lstm_cell>())
             return false;
     }
 
