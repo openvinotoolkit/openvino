@@ -22,8 +22,6 @@
 #define CREATE_REDUCE(input, reduce_const, keep_dims)                                          \
     if (ov::is_type<ov::op::v1::ReduceSum>(reduce_orig))                                       \
         reduce_new = std::make_shared<ov::op::v1::ReduceSum>(input, reduce_const, keep_dims);  \
-    else if (ov::is_type<ov::op::v1::ReduceMean>(reduce_orig))                                 \
-        reduce_new = std::make_shared<ov::op::v1::ReduceMean>(input, reduce_const, keep_dims); \
     else if (ov::is_type<ov::op::v1::ReduceMin>(reduce_orig))                                  \
         reduce_new = std::make_shared<ov::op::v1::ReduceMin>(input, reduce_const, keep_dims);  \
     else if (ov::is_type<ov::op::v1::ReduceMax>(reduce_orig))                                  \
