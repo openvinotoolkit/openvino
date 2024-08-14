@@ -18,20 +18,20 @@ Template for MatcherPass transformation class
    :fragment: [graph_rewrite:template_transformation_hpp]
 
 .. tab-set::
-.. tab-item:: C++
-        :sync: cpp
 
-        .. doxygensnippet:: docs/articles_en/assets/snippets/template_pattern_transformation.cpp
-        :language: cpp
-        :fragment: [graph_rewrite:template_transformation_cpp]
+   .. tab-item:: C++
+      :sync: cpp
 
-.. tab-set::
+      .. doxygensnippet:: docs/articles_en/assets/snippets/template_pattern_transformation.cpp
+         :language: cpp
+         :fragment: [graph_rewrite:template_transformation_cpp]
+
    .. tab-item:: Python
       :sync: py
-
-    .. doxygensnippet:: docs/articles_en/assets/snippets/ov_matcher_pass.py
-        :language: py
-        :fragment: [matcher_pass:ov_matcher_pass_py]
+      
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_matcher_pass.py
+         :language: py
+         :fragment: [matcher_pass:ov_matcher_pass_py]
 
 To use ``ov::pass::MatcherPass``, you need to complete these steps:
 
