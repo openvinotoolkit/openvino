@@ -1190,6 +1190,10 @@ void ov::CoreImpl::register_plugin(const std::string& plugin,
         OPENVINO_THROW("Device name must not contain dot '.' symbol");
     }
 #if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
+    std::cout << "ov::util::get_absolute_file_path(ov::util::get_directory(plugin)): "
+              << ov::util::get_absolute_file_path(ov::util::get_directory(plugin)) << std::endl;
+    std::cout << "ov::util::get_directory(ov::util::get_absolute_file_path(plugin)): "
+              << ov::util::get_directory(ov::util::get_absolute_file_path(plugin)) << std::endl;
     if (fs::is_symlink(plugin))
         OPENVINO_ASSERT(ov::util::get_absolute_file_path(ov::util::get_directory(plugin)) ==
                             ov::util::get_directory(ov::util::get_absolute_file_path(plugin)),

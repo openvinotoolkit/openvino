@@ -42,6 +42,10 @@ inline std::string resolve_extension_path(const std::string& path) {
 
 inline std::vector<Extension::Ptr> load_extensions(const std::string& path) {
 #if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
+    std::cout << "ov::util::get_absolute_file_path(ov::util::get_directory(path)): "
+              << ov::util::get_absolute_file_path(ov::util::get_directory(path)) << std::endl;
+    std::cout << "ov::util::get_directory(ov::util::get_absolute_file_path(path)): "
+              << ov::util::get_directory(ov::util::get_absolute_file_path(path)) << std::endl;
     if (fs::is_symlink(path))
         OPENVINO_ASSERT(ov::util::get_absolute_file_path(ov::util::get_directory(path)) ==
                             ov::util::get_directory(ov::util::get_absolute_file_path(path)),
