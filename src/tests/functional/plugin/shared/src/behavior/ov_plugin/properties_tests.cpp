@@ -516,7 +516,7 @@ TEST_P(OVCheckChangePropComplieModleGetPropTests_DEVICE_ID, ChangeCorrectDeviceP
 }
 
 TEST_P(OVCheckChangePropComplieModleGetPropTests_InferencePrecision, ChangeCorrectProperties) {
-    if (target_device.find("mandatory") != std::string::npos) {
+    if (target_device.find("skip_") == 0) {
         GTEST_SKIP();
     }
     std::vector<ov::PropertyName> supported_properties;

@@ -88,12 +88,21 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckChangePropComplieModleGetPr
                 ::testing::Values(ov::AnyMap({}))),
         OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName);
 
+/* Skip SW plugins (meta-plugins) in mandatory test suite */
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory,
                          OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
-                         ::testing::Combine(::testing::Values(sw_plugin_in_target_device(ov::test::utils::target_device)
-                                                                  ? std::string("mandatory_mate_" +
-                                                                                ov::test::utils::target_device)
-                                                                  : ov::test::utils::target_device),
+                         ::testing::Combine(::testing::Values(sw_plugin_in_target_device(ov::test::utils::target_device) ?
+                                                                  std::string("skip_" + ov::test::utils::target_device) :
+                                                                  ov::test::utils::target_device),
+                                            ::testing::Values(ov::AnyMap({}))),
+                         OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName);
+
+/* Skip HW plugins in optional test suite */
+INSTANTIATE_TEST_SUITE_P(ov_plugin,
+                         OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
+                         ::testing::Combine(::testing::Values(sw_plugin_in_target_device(ov::test::utils::target_device) ?
+                                                                  ov::test::utils::target_device :
+                                                                  std::string("skip_" + ov::test::utils::target_device)),
                                             ::testing::Values(ov::AnyMap({}))),
                          OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName);
 
