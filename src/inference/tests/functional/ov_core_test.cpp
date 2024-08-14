@@ -102,14 +102,16 @@ TEST(CoreBaseTest, AddExtensionwithSymlinkInDiffPlace) {
                                                  std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
 
     // Symlink file & the real file doesn't locale in the diff place. Will throw
-    std::string symlink_for_extension_copy_file = "symlink_for_extension_copy_file";
+    fs::create_directory("test_link");
+    std::string symlink_for_extension_copy_file = "test_link/symlink_for_extension_copy_file";
 
     fs::create_symlink(openvino_template_extension, symlink_for_extension_copy_file);
     ov::Core core;
     EXPECT_NO_THROW(core.add_extension(openvino_template_extension));
     EXPECT_THROW(core.add_extension(symlink_for_extension_copy_file), std::runtime_error);
 
-    fs::remove(symlink_for_extension_copy_file);
+    fs::remove_all("test_link");
+    ASSERT_FALSE(ov::util::directory_exists("test_link"));
 }
 
 TEST(CoreBaseTest, AddExtensionwithSymlinkInSamePlace) {

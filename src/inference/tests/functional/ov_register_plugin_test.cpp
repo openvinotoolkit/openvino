@@ -134,13 +134,15 @@ TEST(RegisterPluginTests, registerPluginWithSymlinkInDiffPlace) {
     std::string libraryPath = ov::test::utils::get_mock_engine_path();
 
     // Symlink file & the real file doesn't locale in the diff place. Will throw
-    std::string symlink_for_plugin_file = "symlink_for_plugin_file";
+    fs::create_directory("test_link");
+    std::string symlink_for_plugin_file = "test_link/symlink_for_plugin_file";
 
     fs::create_symlink(libraryPath, symlink_for_plugin_file);
     ASSERT_THROW(core.register_plugin(symlink_for_plugin_file, "MOCK_HARDWARE"), ov::Exception);
-    EXPECT_NO_THROW(core.register_plugin(libraryPath, "MOCK_HARDWARE"));
+    EXPECT_NO_THROW(core.register_plugin(libraryPath, "MOCK_HARDWARE1"));
 
-    fs::remove(symlink_for_plugin_file);
+    fs::remove_all("test_link");
+    ASSERT_FALSE(ov::util::directory_exists("test_link"));
 }
 
 TEST(RegisterPluginTests, registerPluginWithSymlinkInSamePlace) {
