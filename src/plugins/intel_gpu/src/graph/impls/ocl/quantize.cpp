@@ -142,6 +142,7 @@ attach_quantize_impl::attach_quantize_impl() {
         format::bfwzyx,
         format::bfuwzyx,
         format::bfvuwzyx,
+        format::b_fs_yx_fsv16,
     };
 
     auto keys = implementation_map<quantize>::combine(types, formats);

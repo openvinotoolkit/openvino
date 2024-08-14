@@ -1,0 +1,243 @@
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Machine on which the tests would run'
+        type: string
+        required: true
+      affected-components:
+        description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
+        type: string
+        required: true
+      build-type:
+        description: 'OpenVINO build type, e.g., "Release"'
+        type: string
+        required: true
+
+permissions: read-all
+
+env:
+  PIP_CACHE_PATH: /mount/caches/pip/win
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  Build:
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: pwsh
+    runs-on: ${{ inputs.runner }}
+    env:
+      CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
+      CMAKE_GENERATOR: 'Ninja Multi-Config'
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows2022_x86_64_${{ inputs.build-type }}\\${{ github.base_ref || github.ref_name }}"
+      CCACHE_DIR: ${{ github.workspace }}\\ccache
+      CCACHE_MAXSIZE: 3G
+      OPENVINO_REPO: "${{ github.workspace }}\\openvino"
+      OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
+      INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
+      INSTALL_DIR_JS: "${{ github.workspace }}\\openvino_install\\js"
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
+      BUILD_DIR: "${{ github.workspace }}\\openvino_build"
+      ARTIFACTS_SHARE: "C:\\mount\\build-artifacts"
+      MANIFEST_PATH: "${{ github.workspace }}\\manifest.yml"
+      PRODUCT_TYPE: 'public_windows_vs2019_${{ inputs.build-type }}'
+    steps:
+      - name: Clone OpenVINO
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          path: 'openvino'
+          submodules: 'true'
+
+      - name: Clone OpenVINO Contrib
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          repository: 'openvinotoolkit/openvino_contrib'
+          path: 'openvino_contrib'
+          ref: 'master'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+          show-cache-info: 'true'
+
+      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
+        id: create_manifest
+        uses: ./openvino/.github/actions/create_manifest
+        with:
+          repos: |
+            ${{ env.OPENVINO_REPO }}
+            ${{ env.OPENVINO_CONTRIB_REPO }}
+          product_type: ${{ env.PRODUCT_TYPE }}
+          target_arch: 'intel64'
+          build_type: ${{ inputs.build-type }}
+          save_to: ${{ env.MANIFEST_PATH }}
+
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
+      # Dependencies
+      #
+
+      - name: Install python dependencies
+        run: |
+          # For Python API: build and wheel packaging
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
+
+          # For running ONNX frontend unit tests
+          python3 -m pip install --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
+
+          # For running TensorFlow frontend unit tests
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow/tests/requirements.txt
+
+          # For running TensorFlow Lite frontend unit tests
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow_lite/tests/requirements.txt
+
+          # Disabled because of CVS-95904
+          # For running Paddle frontend unit tests
+          # python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
+
+          # For getting rid of SSL issues during model downloading for unit tests
+          python3 -m pip install certifi
+
+      - name: Download and install ccache
+        run: |
+          Invoke-WebRequest -Uri 'https://github.com/ccache/ccache/releases/download/v4.9.1/ccache-4.9.1-windows-x86_64.zip' -OutFile 'ccache.zip'
+          Expand-Archive -Path 'ccache.zip' -DestinationPath 'C:\temp\ccache'
+          Move-Item -Path 'C:\temp\ccache\*' -Destination 'C:\ccache'
+          Add-Content -Path $env:GITHUB_PATH -Value "C:\ccache"
+
+      - name: Install build dependencies
+        run: |
+          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip -OutFile ninja-win.zip -MaximumRetryCount 10
+          Expand-Archive -Force ninja-win.zip
+          # Add it to the GitHub Path so it would be available in the subsequent steps
+          Add-Content -Path $env:GITHUB_PATH -Value "${{ github.workspace }}/ninja-win"
+
+      #
+      # Build
+      #
+
+      - name: Setup ccache
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-ccache
+
+      - name: Configure Developer Command Prompt for Microsoft Visual C++
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          toolset: 14.40
+
+      - name: Set SSL_CERT_FILE for model downloading for unit tests
+        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
+
+      - name: CMake configure
+        run: |
+          cmake -G "${{ env.CMAKE_GENERATOR }}" `
+            -DENABLE_CPPLINT=OFF `
+            -DBUILD_SHARED_LIBS=ON `
+            -DENABLE_TESTS=ON `
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
+            -DENABLE_STRICT_DEPENDENCIES=OFF `
+            -DENABLE_PYTHON=ON `
+            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
+            -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} `
+            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
+            -DOPENVINO_EXTRA_MODULES="${{ env.OPENVINO_CONTRIB_REPO }}/modules/custom_operations;${{ env.OPENVINO_CONTRIB_REPO }}/modules/java_api" `
+            -S ${{ env.OPENVINO_REPO }} `
+            -B ${{ env.BUILD_DIR }}
+
+      - name: Clean ccache stats
+        run: '& ccache --zero-stats'
+
+      - name: Cmake build - OpenVINO
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel --verbose
+
+      - name: Show ccache stats
+        run: '& ccache --show-stats'
+
+      - name: Cmake install - OpenVINO
+        run: |
+          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_TEST_DIR }} -DCOMPONENT=tests -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=python_wheels -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+
+      - name: Pack Artifacts
+        run: |
+          $file=Get-ChildItem -Path "${{ env.INSTALL_DIR }}"
+          $compress = @{
+            Path = $file
+            CompressionLevel = "Optimal"
+            DestinationPath = "${{ env.BUILD_DIR }}/openvino_package.zip"
+          }
+          Compress-Archive @compress
+
+          $file=Get-ChildItem -Path "${{ env.INSTALL_TEST_DIR }}"
+          $compress = @{
+            Path = $file
+            CompressionLevel = "Optimal"
+            DestinationPath = "${{ env.BUILD_DIR }}/openvino_tests.zip"
+          }
+          Compress-Archive @compress
+
+      - name: CMake configure, build and install - OpenVINO JS API
+        if: ${{ fromJSON(inputs.affected-components).JS_API }}
+        run: |
+          cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
+          cmake --build ${{ env.BUILD_DIR }} --parallel
+          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR_JS }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+
+      #
+      # Upload build artifacts and logs
+      #
+
+      - name: Upload openvino package
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        with:
+          name: openvino_package
+          path: ${{ env.BUILD_DIR }}/openvino_package.zip
+          if-no-files-found: 'error'
+
+      - name: Upload openvino tests package
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        with:
+          name: openvino_tests
+          path: ${{ env.BUILD_DIR }}/openvino_tests.zip
+          if-no-files-found: 'error'
+
+      - name: Upload openvino js package
+        if: ${{ fromJSON(inputs.affected-components).JS_API }}
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        with:
+          name: openvino_js_package
+          path: ${{ env.INSTALL_DIR_JS }}
+          if-no-files-found: 'error'
+
+      - name: Store artifacts to a shared drive
+        id: store_artifacts
+        if: ${{ always() }}
+        uses: ./openvino/.github/actions/store_artifacts
+        with:
+          artifacts: |
+            ${{ env.BUILD_DIR }}/openvino_package.zip
+            ${{ env.BUILD_DIR }}/openvino_tests.zip
+            ${{ env.MANIFEST_PATH }}
+          storage_dir: ${{ env.PRODUCT_TYPE }}
+          storage_root: ${{ env.ARTIFACTS_SHARE }}
