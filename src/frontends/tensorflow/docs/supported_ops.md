@@ -1150,7 +1150,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | SparseSparseMinimum                                     | NO                            |                               |
 | SparseSplit                                             | NO                            |                               |
 | SparseTensorDenseAdd                                    | NO                            |                               |
-| SparseTensorDenseMatMul                                 | NO                            |                               |
+| SparseTensorDenseMatMul                                 | YES                           |                               |
 | SparseTensorSliceDataset                                | NO                            |                               |
 | SparseTensorToCSRSparseMatrix                           | NO                            |                               |
 | SparseToDense                                           | YES                           |                               |
