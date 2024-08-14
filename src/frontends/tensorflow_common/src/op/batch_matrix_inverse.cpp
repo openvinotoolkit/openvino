@@ -21,18 +21,19 @@ OutputVector translate_batch_matrix_inverse_op(const NodeContext& node) {
     TENSORFLOW_OP_VALIDATION(node, rank >= 3, "BatchMatrixInverse input must have at least 3 dimensions");
 
     bool has_zero_dim = false;
-    if(input_shape.is_static()){
-        has_zero_dim = std::any_of(input_shape.begin(), input_shape.end() -2, [](const Dimension& dim) {return dim.is_static() && dim.get_length() == 0;});
+    if (input_shape.is_static()) {
+        has_zero_dim = std::any_of(input_shape.begin(), input_shape.end() - 2, [](const Dimension& dim) {
+            return dim.is_static() && dim.get_length() == 0;
+        });
     }
     std::shared_ptr<Node> result;
-    if(has_zero_dim) {
+    if (has_zero_dim) {
         result = input.get_node_shared_ptr();
+    } else {
+        bool adjoint = node.get_attribute<bool>("adjoint", false);
+        result = std::make_shared<ov::op::v14::Inverse>(input, adjoint);
     }
-    else{
-        bool adjoint = node.get_attribute<bool>("adjoint",false);
-        result = std::make_shared<ov::op::v14::Inverse>(input,adjoint);
-    }
-    
+
     set_node_name(node.get_name(), result);
     return {result};
 }
