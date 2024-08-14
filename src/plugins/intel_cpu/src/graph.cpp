@@ -798,8 +798,9 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
         if (region.size >= 0 || !one_of(region.type, MemoryRegion::RegionType::OUTPUT, MemoryRegion::RegionType::IO)) {
             return false;
         }
+        bool result = false;
         for (auto& edge : edge_clusters[region.id]) {
-            const auto child = edge->getChild();
+            auto child = edge->getChild();
             if (child->getType() == Type::Output && edge->getStatus() == Edge::Status::NeedAllocation) {
                 auto proxyMemBlock = std::make_shared<ProxyMemoryBlock>();
                 DEBUG_LOG("ProxyMemoryBlock ", proxyMemBlock, " ", this);
@@ -816,9 +817,10 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
                 }
                 // sometimes there are unused output ports.
                 OPENVINO_ASSERT(count <= 1, "CPU plugin cannot find output node. count ", count);
+                result = true;
             }
         }
-        return true;
+        return result;
     });
 
     memoryRegions.erase(it, memoryRegions.end());
