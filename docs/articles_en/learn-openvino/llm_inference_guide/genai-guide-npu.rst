@@ -46,7 +46,7 @@ Run generation using OpenVINO GenAI
          .. code-block:: python
 
             import openvino_genai as ov_genai
-            pipe = ov_genai.LLMPipeline("TinyLlama", "NPU")
+            pipe = ov_genai.LLMPipeline(model_path, "NPU")
             print(pipe.generate("What is OpenVINO?", max_new_tokens=100))
 
       .. tab-item:: C++
@@ -58,8 +58,8 @@ Run generation using OpenVINO GenAI
             #include <iostream>
 
             int main(int argc, char* argv[]) {
-               std::string model_path = argv[1];
-               ov::genai::LLMPipeline pipe("TinyLlama", "NPU");
+               std::string model_path = argv[1]; // Defines path to model folder
+               ov::genai::LLMPipeline pipe(model_path, "NPU");
                std::cout << pipe.generate("What is OpenVINO?", ov::genai::max_new_tokens(100));
             }
 
@@ -79,7 +79,7 @@ To achieve better performance at the expense of compilation time, you may try th
 
          plugin_config = { "NPU_COMPILATION_MODE_PARAMS": "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm" }
          pipeline_config = { "PREFILL_CONFIG": plugin_config, "GENERATE_CONFIG": plugin_config }
-         pipe = ov_genai.LLMPipeline("TinyLlama", "NPU", pipeline_config)
+         pipe = ov_genai.LLMPipeline(model_path, "NPU", pipeline_config)
 
    .. tab-item:: C++
       :sync: cpp
@@ -88,7 +88,7 @@ To achieve better performance at the expense of compilation time, you may try th
 
          ov::AnyMap plugin_config = { { "NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm" } };
          ov::AnyMap pipeline_config = { { "PREFILL_CONFIG",  plugin_config }, { "GENERATE_CONFIG", plugin_config } };
-         ov::genai::LLMPipeline pipe("TinyLlama", "NPU", pipeline_config);
+         ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
 
 
 Additional Resources
