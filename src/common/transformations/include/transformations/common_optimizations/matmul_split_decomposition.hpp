@@ -67,9 +67,10 @@ class ov::pass::MatmulGatherDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("MatmulGatherDecomposition", "0");
     MatmulGatherDecomposition();
-    void split_weights(const Output<Node>& weights,
+    bool split_weights(const Output<Node>& weights,
                        OutputVector& new_weights,
                        Output<Node>* bias,
                        OutputVector& new_bias,
-                       const bool transpos_b);
+                       const bool transpose_b);
+    const size_t decompose_num = 3;
 };

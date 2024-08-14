@@ -13,26 +13,21 @@
 #include <process.h>
 #endif
 
-#include "openvino/pass/manager.hpp"
-#include "openvino/core/preprocess/pre_post_process.hpp"
-#include "openvino/pass/serialize.hpp"
-#include "transformations/convert_precision.hpp"
-
-#include "template/properties.hpp"
-
-#include "common_test_utils/graph_comparator.hpp"
-
-
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "functional_test_utils/crash_handler.hpp"
-
+#include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/util/common_util.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/base/utils/compare_results.hpp"
 #include "shared_test_classes/base/utils/calculate_thresholds.hpp"
-
+#include "shared_test_classes/base/utils/compare_results.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
+#include "template/properties.hpp"
+#include "transformations/convert_precision.hpp"
 
 namespace ov {
 namespace test {
@@ -641,6 +636,32 @@ void SubgraphBaseTest::compare_models_param_res(const std::shared_ptr<ov::Model>
     if (!errors.str().empty()) {
         throw std::runtime_error(errors.str());
     }
+}
+
+inline std::string setToString(const std::unordered_set<std::string> s) {
+    return std::string("{") + ov::util::join(s) + "}";
+}
+
+void CheckNumberOfNodesWithTypeImpl(std::shared_ptr<const ov::Model> function,
+                                    const std::unordered_set<std::string>& nodeTypes,
+                                    size_t expectedCount) {
+    ASSERT_NE(nullptr, function);
+    size_t actualNodeCount = 0;
+    for (const auto& node : function->get_ops()) {
+        const auto& rtInfo = node->get_rt_info();
+        auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
+            auto it = rtInfo.find(paramName);
+            OPENVINO_ASSERT(rtInfo.end() != it);
+            return it->second.as<std::string>();
+        };
+
+        if (nodeTypes.count(getExecValue(ov::exec_model_info::LAYER_TYPE))) {
+            actualNodeCount++;
+        }
+    }
+
+    ASSERT_EQ(expectedCount, actualNodeCount)
+        << "Unexpected count of the node types '" << setToString(nodeTypes) << "' ";
 }
 
 }  // namespace test

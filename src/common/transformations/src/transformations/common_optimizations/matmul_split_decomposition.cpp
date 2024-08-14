@@ -13,30 +13,26 @@
 using namespace ov;
 using namespace ov::pass::pattern;
 
-void pass::MatmulGatherDecomposition::split_weights(const Output<Node>& weights,
+bool pass::MatmulGatherDecomposition::split_weights(const Output<Node>& weights,
                                                     OutputVector& new_weights,
                                                     Output<Node>* bias,
                                                     OutputVector& new_bias,
-                                                    const bool transpos_b) {
+                                                    const bool transpose_b) {
     // weights is static
     if (weights.get_partial_shape().size() != 2u) {
-        return;
+        return false;
     }
 
     if (bias) {
-        const auto& bias_shape = bias->get_partial_shape();
-        if (bias_shape.is_dynamic()) {
-            return;
-        }
-        auto bias_rank = bias_shape.rank().get_length();
+        const auto& bias_rank = bias->get_partial_shape().size();
         if (bias_rank != 3 && bias_rank != 1) {
-            return;
+            return false;
         }
     }
 
     // Decompose weights
-    auto axis = register_new_node(op::v0::Constant::create(element::i32, Shape{}, {transpos_b ? 0 : 1}));
-    auto split = register_new_node<op::v1::Split>(weights, axis, 3);
+    auto axis = register_new_node(op::v0::Constant::create(element::i32, Shape{}, {transpose_b ? 0 : 1}));
+    auto split = register_new_node<op::v1::Split>(weights, axis, decompose_num);
     for (auto& out : split->outputs()) {
         new_weights.emplace_back(out);
     }
@@ -44,20 +40,22 @@ void pass::MatmulGatherDecomposition::split_weights(const Output<Node>& weights,
     if (bias) {
         // Decompose bias
         auto axis2 = register_new_node(op::v0::Constant::create(element::i32, Shape{}, {-1}));  // axis -1
-        auto split2 = register_new_node<op::v1::Split>(*bias, axis2, 3);
+        auto split2 = register_new_node<op::v1::Split>(*bias, axis2, decompose_num);
         for (auto& out : split2->outputs()) {
             new_bias.emplace_back(out);
         }
     }
+    return true;
 }
 
 pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
     MATCHER_SCOPE(MatmulGatherDecomposition);
     auto input_pattern = any_input();
-    auto matmul_pattern = wrap_type<opset1::MatMul>({input_pattern, any_input()});
+    auto matmul_pattern = wrap_type<opset1::MatMul>({input_pattern, any_input(pattern::has_static_shape())},
+                                                    ov::pass::pattern::consumers_count(1));
 
     auto bias_pattern = wrap_type<opset1::Constant>();
-    auto add_pattern = wrap_type<opset1::Add>({matmul_pattern, bias_pattern});
+    auto add_pattern = wrap_type<opset1::Add>({matmul_pattern, bias_pattern}, ov::pass::pattern::consumers_count(1));
 
     auto reshape_productor_pattern = std::make_shared<pattern::op::Or>(OutputVector{matmul_pattern, add_pattern});
 
@@ -66,11 +64,12 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
     auto reshape_pattern =
         wrap_type<opset1::Reshape>({reshape_productor_pattern, any_input()}, ov::pass::pattern::rank_equals(5));
 
-    // Heuristics: there should be only 3 gathers to split
+    // Heuristics: there should be only decompose_num(3) gathers to split
     auto transpose_pattern =
-        wrap_type<opset1::Transpose>({reshape_pattern, any_input()}, ov::pass::pattern::consumers_count(3));
+        wrap_type<opset1::Transpose>({reshape_pattern, ov::pass::pattern::wrap_type<ov::opset1::Constant>()},
+                                     ov::pass::pattern::consumers_count(decompose_num));
     auto reshape2_pattern =
-        wrap_type<opset1::Reshape>({reshape_pattern, any_input()}, ov::pass::pattern::consumers_count(3));
+        wrap_type<opset1::Reshape>({reshape_pattern, any_input()}, ov::pass::pattern::consumers_count(decompose_num));
 
     auto reshape_or_transpose_pattern =
         std::make_shared<pattern::op::Or>(OutputVector{reshape2_pattern, transpose_pattern});
@@ -81,24 +80,41 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
 
         const auto matmul = pattern_map.at(matmul_pattern).get_node_shared_ptr();
         const auto weights = matmul->input_value(1);
-        if (!weights.get_partial_shape().is_static()) {
-            return false;
-        }
         const std::shared_ptr<ov::Node> add =
             pattern_map.count(add_pattern) ? pattern_map.at(add_pattern).get_node_shared_ptr() : nullptr;
 
+        if (as_type_ptr<opset1::MatMul>(matmul)->get_transpose_a()) {
+            return false;
+        }
         const bool& transpose_b = as_type_ptr<opset1::MatMul>(matmul)->get_transpose_b();
         const auto& reshape = pattern_map.at(reshape_pattern);
         const auto reshape_input1 = reshape.get_node_shared_ptr()->input_value(1);
 
+        // Check transpose order[2,0,3,1,4]
+        if (pattern_map.count(transpose_pattern)) {
+            const auto transpose = pattern_map.at(transpose_pattern).get_node_shared_ptr();
+            const auto transpose_order = as_type_ptr<opset1::Constant>(transpose->get_input_node_shared_ptr(1));
+            if (transpose_order) {
+                const std::vector<int32_t> expected_val = {2, 0, 3, 1, 4};
+                if (expected_val != transpose_order->cast_vector<int32_t>()) {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+
         NodeVector gathers, fake_quantizes;
-        gathers.resize(3);
-        fake_quantizes.resize(3);
+        gathers.resize(decompose_num);
+        fake_quantizes.resize(decompose_num);
         for (const auto& child : root_node->get_output_target_inputs(0)) {
             std::shared_ptr<ov::Node> fq = nullptr;
             auto gather = child.get_node()->shared_from_this();
             if (ov::is_type<opset1::FakeQuantize>(gather)) {
                 fq = gather;
+                if (fq->get_output_size() != 1u) {
+                    return false;
+                }
                 gather = gather->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
             }
             if (ov::is_type<ov::op::util::GatherBase>(gather)) {
@@ -142,8 +158,12 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
         if (add) {
             bias = pattern_map.at(bias_pattern);
         }
-        split_weights(weights, new_weights, (add != nullptr) ? &bias : nullptr, new_bias, transpose_b);
-        if (new_weights.size() != 3u || ((add != nullptr) && new_bias.size() != 3u)) {
+
+        if (!split_weights(weights, new_weights, (add != nullptr) ? &bias : nullptr, new_bias, transpose_b)) {
+            return false;
+        }
+
+        if (new_weights.size() != decompose_num || ((add != nullptr) && new_bias.size() != decompose_num)) {
             return false;
         }
 
@@ -152,7 +172,7 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
         const auto const_axis = register_new_node(op::v0::Constant::create(element::i32, Shape{}, {0}));
         const auto new_shape = register_new_node<op::v8::Gather>(reshape_input1, const_indices, const_axis);
         const auto& input = pattern_map.at(input_pattern);
-        for (size_t i = 0; i < 3u; i++) {
+        for (size_t i = 0; i < decompose_num; i++) {
             const auto new_mm = register_new_node<op::v0::MatMul>(input, new_weights[i], false, transpose_b);
             std::shared_ptr<ov::Node> reshape_productor = new_mm;
             if (add) {

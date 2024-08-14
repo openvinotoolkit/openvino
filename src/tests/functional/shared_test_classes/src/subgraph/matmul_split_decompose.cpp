@@ -4,13 +4,7 @@
 
 #include "shared_test_classes/subgraph/matmul_split_decompose.hpp"
 
-#include "common_test_utils/data_utils.hpp"
-#include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-#include "openvino/pass/manager.hpp"
-#include "openvino/runtime/exec_model_info.hpp"
-#include "transformations/common_optimizations/matmul_split_decomposition.hpp"
 
 namespace ov {
 namespace test {
