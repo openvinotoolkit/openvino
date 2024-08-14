@@ -861,8 +861,15 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::Validate>();
 
         auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
-        if (device_info.supports_immad) { // XXX: 1048576 is considered per-token
+        if (device_info.supports_immad) {
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
+                // per-token quantization is supported
+                if (dynamic_quantization_group_size != UINT64_MAX) {
+                    GPU_DEBUG_TRACE << "Dynamic quantization is disabled. Only PER_TOKEN quantization is supported. "
+                                    << dynamic_quantization_group_size << std::endl;
+                    return true;
+                }
+
                 if (root->get_input_node_shared_ptr(0)->get_element_type() == ov::element::Type_t::f32) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  Dynamic quantization is turned off because input type is not supported" << std::endl;
                     return true;

@@ -57,7 +57,8 @@ using MatmulWeightsDecompressionParams = std::tuple<ShapeParams,              //
                                                     bool,                     // decompression subtract
                                                     bool,                     // reshape on decompression constants
                                                     bool,                     // per-tensor zero-point
-                                                    uint64_t                  // dynamic_quantization_group_size
+                                                    uint64_t,                 // dynamic_quantization_group_size
+                                                    bool                      // Use new dyn_quan hint
                                                     >;
 
 class MatmulWeightsDecompression : public testing::WithParamInterface<MatmulWeightsDecompressionParams>,
@@ -72,6 +73,7 @@ public:
         bool reshape_on_decompression;
         bool per_tensor_zp;
         uint64_t dyn_quan_group_size;
+        bool test_hint;
 
         std::tie(shape_params,
                  weights_precision,
@@ -80,7 +82,8 @@ public:
                  decompression_sub,
                  reshape_on_decompression,
                  per_tensor_zp,
-                 dyn_quan_group_size) = obj.param;
+                 dyn_quan_group_size,
+                 test_hint) = obj.param;
 
         std::ostringstream result;
         result << "data_shape=";
@@ -97,6 +100,7 @@ public:
         result << "reshape_on_decompression=" << reshape_on_decompression << "_";
         result << "per_tensor_zp=" << per_tensor_zp << "_";
         result << "dyn_quan_group_size=" << dyn_quan_group_size;
+        result << "test_hints=" << test_hint;
 
         return result.str();
     }
@@ -244,6 +248,7 @@ protected:
         bool reshape_on_decompression;
         bool per_tensor_zp;
         uint64_t dyn_quan_group_size;
+        bool test_hint;
 
         std::tie(shape_params,
                  weights_precision,
@@ -252,7 +257,8 @@ protected:
                  decompression_sub,
                  reshape_on_decompression,
                  per_tensor_zp,
-                 dyn_quan_group_size) = GetParam();
+                 dyn_quan_group_size,
+                 test_hint) = GetParam();
 
         init_input_shapes({shape_params.data_shape, {{}, {{shape_params.weights_shape}}}});
 
@@ -275,7 +281,11 @@ protected:
             abs_threshold = 1e-4f;
         }
 
-        this->configuration.insert({ov::hint::dynamic_quantization_group_size(dyn_quan_group_size)});
+        // test both new hint (dynamic_quantization::group_size) and old hint(dynamic_quantization_group_size)
+        if (test_hint)
+            this->configuration.insert({ov::hint::dynamic_quantization::group_size(dyn_quan_group_size)});
+        else
+            this->configuration.insert({ov::hint::dynamic_quantization_group_size(dyn_quan_group_size)});
     }
 
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
@@ -328,7 +338,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
                                             ::testing::Values(true),
                                             ::testing::Values(true),
                                             ::testing::Values(false),
-                                            ::testing::Values(0)),
+                                            ::testing::Values(0),
+                                            ::testing::Values(true)),
                          MatmulWeightsDecompression::get_test_case_name);
 
 const std::vector<ShapeParams> input_shapes_corner_cases_basic = {
@@ -347,6 +358,7 @@ const std::vector<ShapeParams> input_shapes_corner_cases_big = {
 const std::vector<bool> add_decompression_sub = {true, false};
 const std::vector<bool> reshape_on_decompression = {true, false};
 const std::vector<bool> per_tensor_zp = {true, false};
+const std::vector<bool> test_hints = {true, false};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_basic,
                          MatmulWeightsDecompression,
@@ -357,7 +369,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_basic,
                                             ::testing::ValuesIn(add_decompression_sub),
                                             ::testing::ValuesIn(reshape_on_decompression),
                                             ::testing::ValuesIn(per_tensor_zp),
-                                            ::testing::Values(0)),
+                                            ::testing::Values(0),
+                                            ::testing::Values(true)),
                          MatmulWeightsDecompression::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(MatMulCompressedWeights_corner_cases_big,
@@ -369,7 +382,8 @@ INSTANTIATE_TEST_SUITE_P(MatMulCompressedWeights_corner_cases_big,
                                             ::testing::ValuesIn(add_decompression_sub),
                                             ::testing::ValuesIn(reshape_on_decompression),
                                             ::testing::ValuesIn(per_tensor_zp),
-                                            ::testing::Values(0)),
+                                            ::testing::Values(0),
+                                            ::testing::Values(true)),
                          MatmulWeightsDecompression::get_test_case_name);
 
 
@@ -385,7 +399,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan,
                                             ::testing::ValuesIn(add_decompression_sub),
                                             ::testing::Values(true),
                                             ::testing::Values(true),  // per_tensor_zp
-                                            ::testing::Values(UINT64_MAX)),
+                                            ::testing::Values(UINT64_MAX),
+                                            ::testing::ValuesIn(test_hints)),
                          MatmulWeightsDecompression::get_test_case_name);
 
 } // namespace

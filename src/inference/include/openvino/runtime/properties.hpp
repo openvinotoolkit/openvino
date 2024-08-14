@@ -571,6 +571,30 @@ static constexpr Property<ExecutionMode> execution_mode{"EXECUTION_MODE_HINT"};
  * might result in better accuracy, but the drawback is worse performance. Group size equal 0 means dynamic
  * quantization optimization is disabled.
  */
+namespace dynamic_quantization {
+struct GroupSize  {
+    using Base = std::tuple<uint64_t>;  //!< GroupSize is representable as uint64_t
+
+    constexpr GroupSize() : gs_num{0} {};
+
+    constexpr GroupSize(const uint64_t num_) : gs_num{num_} {}
+
+    constexpr operator uint64_t() const {
+        return gs_num;
+    }
+
+    uint64_t gs_num = 0;
+};
+
+static constexpr GroupSize PER_TOKEN{UINT64_MAX};
+
+static constexpr GroupSize DISABLED{0};
+
+static constexpr Property<GroupSize, PropertyMutability::RW> group_size{"DYNAMIC_QUANTIZATION_GROUP_SIZE"};
+
+} // namespace dynamic_quantization
+
+// keep it for compatibility
 static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size{
     "DYNAMIC_QUANTIZATION_GROUP_SIZE"};
 
