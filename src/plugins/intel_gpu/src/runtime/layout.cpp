@@ -375,7 +375,7 @@ size_t layout::get_linear_size() const {
     auto sizes = get_padded_dims();
 
     std::set<size_t> processed_dims;
-    const auto& blocks = format.block_sizes();
+    const auto& blocks = format.logic_block_sizes();
 
     for (size_t i = 0; i < blocks.size(); i++) {
         if (processed_dims.count(blocks[i].first))

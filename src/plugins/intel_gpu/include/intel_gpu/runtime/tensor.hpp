@@ -524,7 +524,7 @@ public:
         auto adjusted_coords = coord.sizes(fmt);
 
         // Extend N-dimensional format with B blocked dimensions to (N+B) sizes
-        for (const auto& block : fmt.legacy_block_sizes()) {
+        for (const auto& block : fmt.block_sizes()) {
             auto block_axis = block.first;
             auto block_size = block.second;
             auto external_axis = fmt.internal_to_external(block_axis);
