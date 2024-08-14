@@ -11,6 +11,9 @@
 #include "aarch64/jit_eltwise.hpp"
 #include "acl/acl_eltwise.hpp"
 #endif
+#if defined(OV_CPU_WITH_SHL)
+#include "shl/shl_eltwise.hpp"
+#endif
 
 #include "onednn/iml_type_mapper.h"
 #include "common/primitive_cache.hpp"
