@@ -223,7 +223,6 @@ private:
     static size_t getSpatialDimsNum(const Dim rank);
 
     bool hasPad = false;
-    InterpolateShapeCalcMode shapeCalcMode = InterpolateShapeCalcMode::sizes;
 
     bool isAxesSpecified = false;
     std::vector<int> axes;
