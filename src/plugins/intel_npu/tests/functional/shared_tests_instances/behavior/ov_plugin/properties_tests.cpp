@@ -196,8 +196,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_BehaviorTests_OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
     OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                       ::testing::ValuesIn(CorrectCompiledModelProperties),
-                       ::testing::Values(true)),
+                       ::testing::ValuesIn(CorrectCompiledModelProperties)),
     (ov::test::utils::appendPlatformTypeTestName<OVCheckChangePropComplieModleGetPropTests_InferencePrecision>));
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVCheckMetricsPropsTests_ModelDependceProps,

@@ -30,7 +30,6 @@ public:
 };
 
 using PropertiesParams = std::tuple<std::string, AnyMap>;
-using PropertiesParamsforMandatory = std::tuple<std::string, AnyMap, bool>;
 
 class OVPropertiesTests : public testing::WithParamInterface<PropertiesParams>, public OVPropertiesBase {
 public:
@@ -80,39 +79,11 @@ public:
     static std::vector<ov::AnyMap> getModelDependcePropertiesValues();
 };
 
-class OVCheckChangePropComplieModleGetPropTests_InferencePrecision
-    : public testing::WithParamInterface<PropertiesParamsforMandatory>,
-      public OVPropertiesBase {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<PropertiesParamsforMandatory> obj);
-
-    void SetUp() override;
-
-    void TearDown() override;
-
-    AnyMap compileModelProperties;
-    bool is_mandatory;
-
-    static std::vector<ov::AnyMap> getROMandatoryProperties(bool is_sw_device = false);
-    static std::vector<ov::AnyMap> getROOptionalProperties(bool is_sw_device = false);
-    static std::vector<ov::AnyMap> configureProperties(std::vector<std::string> props);
-
-    static std::vector<ov::AnyMap> getRWMandatoryPropertiesValues(const std::vector<std::string>& props = {},
-                                                                  bool is_sw_device = false);
-    static std::vector<ov::AnyMap> getWrongRWMandatoryPropertiesValues(const std::vector<std::string>& props = {},
-                                                                       bool is_sw_device = false);
-    static std::vector<ov::AnyMap> getRWOptionalPropertiesValues(const std::vector<std::string>& props = {},
-                                                                 bool is_sw_device = false);
-    static std::vector<ov::AnyMap> getWrongRWOptionalPropertiesValues(const std::vector<std::string>& props = {},
-                                                                      bool is_sw_device = false);
-
-    static std::vector<ov::AnyMap> getModelDependcePropertiesValues();
-};
-
 using OVCheckSetSupportedRWMetricsPropsTests = OVPropertiesTestsWithCompileModelProps;
 using OVCheckSetIncorrectRWMetricsPropsTests = OVPropertiesTestsWithCompileModelProps;
 using OVCheckGetSupportedROMetricsPropsTests = OVPropertiesTestsWithCompileModelProps;
 using OVCheckChangePropComplieModleGetPropTests_DEVICE_ID = OVPropertiesTestsWithCompileModelProps;
+using OVCheckChangePropComplieModleGetPropTests_InferencePrecision = OVPropertiesTestsWithCompileModelProps;
 using OVCheckMetricsPropsTests_ModelDependceProps = OVPropertiesTestsWithCompileModelProps;
 
 class OVClassSetDefaultDeviceIDPropTest : public OVPluginTestBase,
