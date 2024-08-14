@@ -148,6 +148,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"ScatterUpdate", Type::ScatterUpdate},
         {"ScatterElementsUpdate", Type::ScatterElementsUpdate},
         {"ScatterNDUpdate", Type::ScatterNDUpdate},
+        {"StringTensorPack", Type::StringTensorPack},
+        {"StringTensorUnpack", Type::StringTensorUnpack},
         {"Interpolate", Type::Interpolate},
         {"RandomUniform", Type::RandomUniform},
         {"ReduceL1", Type::Reduce},
@@ -312,6 +314,8 @@ std::string NameFromType(const Type type) {
         CASE(ScatterUpdate);
         CASE(ScatterElementsUpdate);
         CASE(ScatterNDUpdate);
+        CASE(StringTensorPack);
+        CASE(StringTensorUnpack);
         CASE(Interaction);
         CASE(Interpolate);
         CASE(Reduce);
