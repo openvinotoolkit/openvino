@@ -31,6 +31,8 @@ public:
     void* getContext() const override;
     void* getDriverHandle() const;
     void* getDeviceHandle() const;
+    char* getGraphExtName();
+    uint32_t getTargetVersion();
 
     void updateInfo(const Config& config) override;
 

@@ -669,7 +669,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
         bool profiling = localConfig.get<PERF_COUNT>();
-        printf (" Debug - KY compile_model from plugin call getCompiler\n");
         compiledModel = std::make_shared<CompiledModel>(model,
                                                         shared_from_this(),
                                                         device,
