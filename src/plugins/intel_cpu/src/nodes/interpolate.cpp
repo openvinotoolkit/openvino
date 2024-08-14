@@ -1564,7 +1564,6 @@ size_t InterpolateKey::hash() const {
 
     size_t seed = 0;
 
-    seed = hash_combine(seed, nodeAttrs.shapeCalcMode);
     seed = hash_combine(seed, nodeAttrs.mode);
     seed = hash_combine(seed, nodeAttrs.coordTransMode);
     seed = hash_combine(seed, nodeAttrs.nearestMode);
