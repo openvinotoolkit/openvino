@@ -1340,11 +1340,11 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_x) {
     auto& engine = get_test_engine();
 
     ov::Shape in_shape{1, 1, 4, 2};
-    tensor dyn_pad_dims({0, 0, 1, 0}, 0);
+    std::vector<tensor::value_type> dyn_pad_dims{0, 0, 0, 1};
     layout in_dynamic_layout{ov::PartialShape::dynamic(in_shape.size()),
                              data_types::f16,
                              format::bfyx,
-                             padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims.sizes() /*dynamic_pad_dim : x*/)};
+                             padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims /*dynamic_pad_dim : x*/)};
 
     std::vector<float> subtract_val = {};
     topology topology(input_layout("input", in_dynamic_layout),
@@ -1363,7 +1363,7 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_x) {
     auto input_mem = engine.allocate_memory({ov::PartialShape(in_shape),
                                              data_types::f16,
                                              format::bfyx,
-                                             padding({0, 0, 2, 0}, {0, 0, 1, 0}, 0.0f, dyn_pad_dims.sizes())});
+                                             padding({0, 0, 0, 2}, {0, 0, 0, 1}, 0.0f, dyn_pad_dims)});
     set_values<ov::float16>(input_mem, {
         ov::float16(0.f), ov::float16(0.f), // padding
         ov::float16(1.f), ov::float16(2.f), // data
@@ -2338,7 +2338,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16_padded)
 
     topology topology(
             input_layout("input", input->get_layout()),
-            reorder("reorder", input_info("input"), output_layout.with_padding(padding({ 0, 0, x_pad, y_pad, 0 }, 0.f))));
+            reorder("reorder", input_info("input"), output_layout.with_padding(padding({ 0, 0, z_pad, y_pad, x_pad }, 0.f))));
 
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
