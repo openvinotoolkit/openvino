@@ -7,7 +7,14 @@
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino.runtime import op, PartialShape, Type as OVType, OVAny
-from openvino.frontend.pytorch.utils import ivalue_to_constant, get_value_from_getattr, pt_to_ov_type_map, prepare_example_inputs_and_model, convert_quantized_tensor, graph_has_ops
+from openvino.frontend.pytorch.utils import (
+    ivalue_to_constant,
+    get_value_from_getattr,
+    pt_to_ov_type_map,
+    prepare_example_inputs_and_model,
+    convert_quantized_tensor,
+    graph_has_ops,
+)
 from openvino.runtime import opset11 as ops
 from openvino.frontend.pytorch import gptq
 from openvino.frontend.pytorch import patch_model
@@ -18,17 +25,18 @@ import torch
 import inspect
 
 
-class TorchScriptPythonDecoder (Decoder):
+class TorchScriptPythonDecoder(Decoder):
     def __init__(
-            self,
-            pt_module,
-            graph_element=None,
-            example_input=None,
-            alias_db=None,
-            shared_memory=True,
-            skip_freeze=False,
-            constant_cache=None,
-            module_extensions=None):
+        self,
+        pt_module,
+        graph_element=None,
+        example_input=None,
+        alias_db=None,
+        shared_memory=True,
+        skip_freeze=False,
+        constant_cache=None,
+        module_extensions=None,
+    ):
         super().__init__()
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
         self.m_decoders = []
@@ -59,7 +67,8 @@ class TorchScriptPythonDecoder (Decoder):
                     f"Couldn't get TorchScript module by {msg}. With exception:\n{e}\n{help_msg} "
                     "You can also provide TorchScript module that you obtained"
                     " yourself, please refer to PyTorch documentation: "
-                    "https://pytorch.org/tutorials/beginner/Intro_to_TorchScript_tutorial.html.")
+                    "https://pytorch.org/tutorials/beginner/Intro_to_TorchScript_tutorial.html."
+                )
             self.graph_element = pt_module.inlined_graph
             self.alias_db = self.graph_element.alias_db()
         else:
@@ -88,9 +97,10 @@ class TorchScriptPythonDecoder (Decoder):
     def _get_preserved_attributes(model) -> list:
         preserved_attributes = []
         for name, module in model.named_modules():
-            if hasattr(module, "weight"):
-                if module.weight is not None and getattr(module.weight, "dtype", None) in [torch.int8, torch.uint8, torch.float16, torch.bfloat16]:
-                    preserved_attributes.append(name)
+            compressed_types = [torch.int8, torch.uint8,
+                                torch.float16, torch.bfloat16]
+            if hasattr(module, "weight") and getattr(module.weight, "dtype", None) in compressed_types:
+                preserved_attributes.append(name)
         return preserved_attributes
 
     def _get_scripted_model(self, pt_module, example_inputs=None, skip_freeze=False):
@@ -99,7 +109,10 @@ class TorchScriptPythonDecoder (Decoder):
             pt_module.eval()
         input_signature = None
         input_parameters = None
-        if isinstance(pt_module, torch.nn.Module) and not isinstance(pt_module, (torch.jit._trace.TopLevelTracedModule, torch.jit._script.RecursiveScriptModule)):
+        if isinstance(pt_module, torch.nn.Module) and not isinstance(
+            pt_module, (torch.jit._trace.TopLevelTracedModule,
+                        torch.jit._script.RecursiveScriptModule)
+        ):
             # input params is dictionary contains input names and their signature values (type hints and default values if any)
             input_params = inspect.signature(pt_module.forward if hasattr(
                 pt_module, "forward") else pt_module.__call__).parameters
@@ -116,7 +129,7 @@ class TorchScriptPythonDecoder (Decoder):
                     example_inputs, input_params, pt_module)
 
                 # name of attribute in a patched module where the original forward method is kept
-                orig_forward_name = '_openvino_module_extension_patch_orig_forward'
+                orig_forward_name = "_openvino_module_extension_patch_orig_forward"
                 if self.module_extensions:
                     patch_model.patch_model(
                         pt_module, self.module_extensions, orig_forward_name)
@@ -128,9 +141,9 @@ class TorchScriptPythonDecoder (Decoder):
                         gptq_patched = True
                     except Exception as error:
                         print(
-                            '[ WARNING ] Failed patching of AutoGPTQ model. Error message:\n', error)
+                            "[ WARNING ] Failed patching of AutoGPTQ model. Error message:\n", error)
                         print(
-                            '[ WARNING ] Tracing of the model will likely be unsuccessful or incorrect')
+                            "[ WARNING ] Tracing of the model will likely be unsuccessful or incorrect")
                         gptq.unpatch_model(pt_module)
                         gptq_patched = False
 
@@ -143,10 +156,13 @@ class TorchScriptPythonDecoder (Decoder):
                     if self.module_extensions:
                         patch_model.unpatch_model(pt_module, orig_forward_name)
 
-            if not freeze_by_default and graph_has_ops(scripted.inlined_graph, ["prim::Uninitialized", "prim::unchecked_cast", "aten::append"]):
+            have_to_freeze_ops = ["prim::Uninitialized",
+                                  "prim::unchecked_cast", "aten::append"]
+            if not freeze_by_default and graph_has_ops(scripted.inlined_graph, have_to_freeze_ops):
                 # freeze models with unsupported ops
                 freeze_by_default = True
-            if freeze_by_default and graph_has_ops(scripted.inlined_graph, ["quantized", "aten::as_strided"]):
+            quantized_hint_ops = ["quantized", "aten::as_strided"]
+            if freeze_by_default and graph_has_ops(scripted.inlined_graph, quantized_hint_ops):
                 # do not freeze quantized models and can't freeze for aten::as_strided it will result in incorrect inference
                 freeze_by_default = False
             if freeze_by_default and not skip_freeze:
@@ -257,12 +273,14 @@ class TorchScriptPythonDecoder (Decoder):
     def visit_subgraph(self, node_visitor) -> None:
         # make sure topological order is satisfied
         for node in self.graph_element.nodes():
-            decoder = TorchScriptPythonDecoder(self.pt_module,
-                                               node,
-                                               alias_db=self.alias_db,
-                                               shared_memory=self._shared_memory,
-                                               constant_cache=self.constant_cache,
-                                               module_extensions=self.module_extensions)
+            decoder = TorchScriptPythonDecoder(
+                self.pt_module,
+                node,
+                alias_db=self.alias_db,
+                shared_memory=self._shared_memory,
+                constant_cache=self.constant_cache,
+                module_extensions=self.module_extensions,
+            )
             self.m_decoders.append(decoder)
             node_visitor(decoder)
 
@@ -282,22 +300,21 @@ class TorchScriptPythonDecoder (Decoder):
         return list(self.graph_element.blocks())
 
     def get_subgraph_decoder(self, index: int):
-        decoder = TorchScriptPythonDecoder(self.pt_module,
-                                           self.get_subgraphs()[index],
-                                           alias_db=self.alias_db,
-                                           shared_memory=self._shared_memory,
-                                           module_extensions=self.module_extensions)
+        decoder = TorchScriptPythonDecoder(
+            self.pt_module, self.get_subgraphs(
+            )[index], alias_db=self.alias_db, shared_memory=self._shared_memory, module_extensions=self.module_extensions
+        )
         self.m_decoders.append(decoder)
         return decoder
 
     def get_op_type(self) -> str:
         assert isinstance(
             self.graph_element, torch.Node), "Function can be called only when self.graph_element is of type torch.Node"
-        if self.graph_element.kind() == "prim::PythonOp" and callable(getattr(self.graph_element, 'pyobj', None)):
+        if self.graph_element.kind() == "prim::PythonOp" and callable(getattr(self.graph_element, "pyobj", None)):
             pyobj = self.graph_element.pyobj()
-            trampoline = getattr(pyobj, '__self__', None)
-            target_extension = getattr(trampoline, 'target_extension', None)
-            
+            trampoline = getattr(pyobj, "__self__", None)
+            target_extension = getattr(trampoline, "target_extension", None)
+
             if isinstance(target_extension, ModuleExtension):
                 target_op = target_extension.target_op
                 if callable(target_op):
@@ -348,8 +365,8 @@ class TorchScriptPythonDecoder (Decoder):
         self.constant_cache[name] = outputs
 
     def try_decode_get_attr(self):
-        pt_value, name = get_value_from_getattr(self.graph_element,
-                                                self.pt_module)
+        pt_value, name = get_value_from_getattr(
+            self.graph_element, self.pt_module)
         assert pt_value is not None, "Couldn't retrieve value from prim::GetAttr"
         if isinstance(pt_value, torch.ScriptObject):
             # We assume this is __torch__.torch.classes.quantized.Conv2dPackedParamsBase or __torch__.torch.classes.quantized.LinearPackedParamsBase
@@ -395,8 +412,8 @@ class TorchScriptPythonDecoder (Decoder):
             if name in self.constant_cache:
                 const = self.constant_cache[name]
             else:
-                const = ivalue_to_constant(pt_value,
-                                           shared_memory=self._shared_memory)
+                const = ivalue_to_constant(
+                    pt_value, shared_memory=self._shared_memory)
                 self._add_name_to_const_and_cache(const, name)
             return const
         else:
@@ -410,12 +427,11 @@ class TorchScriptPythonDecoder (Decoder):
         pt_value = self._raw_output(0)
         pt_type = pt_value.type()
         if isinstance(pt_type, torch.TensorType):
-            return ivalue_to_constant(pt_value.toIValue(),
-                                      shared_memory=self._shared_memory)
+            return ivalue_to_constant(pt_value.toIValue(), shared_memory=self._shared_memory)
         if isinstance(pt_type, torch.ListType):
             return self._as_constant_list(pt_value)
-        const = ivalue_to_constant(pt_value.toIValue(),
-                                   shared_memory=self._shared_memory)
+        const = ivalue_to_constant(
+            pt_value.toIValue(), shared_memory=self._shared_memory)
         if len(const) > 0:
             # set name corresponding to state_dict name
             const[0].get_node().set_friendly_name(
@@ -469,8 +485,8 @@ class TorchScriptPythonDecoder (Decoder):
             else:
                 in_node = r_input.node()
                 if in_node.kind() == "prim::GetAttr":
-                    pt_value, _ = get_value_from_getattr(in_node,
-                                                         self.pt_module)
+                    pt_value, _ = get_value_from_getattr(
+                        in_node, self.pt_module)
                     return pt_value is None
         return False
 
