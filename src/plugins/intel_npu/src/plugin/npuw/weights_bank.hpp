@@ -20,7 +20,7 @@ namespace weights {
 
 class Bank {
 public:
-    explicit Bank(const std::shared_ptr<const ov::ICore>& core) : m_core(core){}
+    explicit Bank(const std::shared_ptr<const ov::ICore>& core) : m_core(core) {}
 
     // Capture CPU version of the tensor
     ov::Tensor update(const ov::Tensor& tensor);
