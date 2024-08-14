@@ -204,7 +204,7 @@ void SyncInferRequest::set_async_request(ov::intel_gpu::AsyncInferRequest* async
 }
 
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
-    std::cout << "c++ log: " << port.get_node()->get_friendly_name() << std::endl;
+    // std::cout << "c++ log: " << port.get_node()->get_friendly_name() << std::endl;
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::set_tensor");
     const auto& port_info = find_port(port);
     size_t port_index = port_info.idx;
