@@ -17,6 +17,7 @@
 
 #include <gflags/gflags.h>
 
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -108,6 +109,10 @@ DEFINE_string(scale_values, "", scale_values_message);
 DEFINE_string(img_bin_precision, "", "Specify the precision of the binary input files. Eg: 'FP32,FP16,I32,I64,U8'");
 
 DEFINE_bool(run_test, false, "Run the test (compare current results with previously dumped)");
+DEFINE_string(
+    ref_dir,
+    "",
+    "A directory with reference blobs to compare with in run_test mode. Leave it empty to use the current folder.");
 DEFINE_string(mode, "", "Comparison mode to use");
 
 DEFINE_uint32(top_k, 1, "Top K parameter for 'classification' mode");
@@ -216,6 +221,8 @@ void parseCommandLine(int argc, char* argv[]) {
     std::cout << "    Mean_values [channel1,channel2,channel3]  " << FLAGS_mean_values << std::endl;
     std::cout << "    Scale_values [channel1,channel2,channel3] " << FLAGS_scale_values << std::endl;
     if (FLAGS_run_test) {
+        std::cout << "    Reference files direcotry:                "
+                  << (FLAGS_ref_dir.empty() ? "Current directory" : FLAGS_ref_dir) << std::endl;
         std::cout << "    Mode:             " << FLAGS_mode << std::endl;
         if (strEq(FLAGS_mode, "classification")) {
             std::cout << "    Top K:            " << FLAGS_top_k << std::endl;
@@ -2037,10 +2044,14 @@ static int runSingleImageTest() {
                     ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                     const auto blobFileName = ostr.str();
 
-                    std::cout << "Load reference output #" << outputInd << " from " << blobFileName << " as "
+                    std::filesystem::path fullPath = FLAGS_ref_dir;
+                    fullPath /= blobFileName;
+                    const auto blobFileFullName = fullPath.string();
+
+                    std::cout << "Load reference output #" << outputInd << " from " << blobFileFullName << " as "
                               << precision << std::endl;
 
-                    const ov::Tensor referenceTensor = loadTensor(precision, shape, blobFileName);
+                    const ov::Tensor referenceTensor = loadTensor(precision, shape, blobFileFullName);
                     referenceTensors.emplace(tensorName, referenceTensor);
 
                     // Determine the output layout

@@ -215,6 +215,10 @@ interface CoreConstructor {
  */
 interface Model {
   /**
+   * It returns a cloned model.
+   */
+  clone(): Model;
+  /**
    * It gets the friendly name for a model. If a friendly name is not set
    * via {@link Model.setFriendlyName}, a unique model name is returned.
    * @returns A string with a friendly name of the model.
@@ -234,6 +238,11 @@ interface Model {
    * It returns the number of the model outputs.
    */
   getOutputSize(): number;
+  /**
+   * It gets the element type of a specific output of the model.
+   * @param index The index of the output.
+   */
+  getOutputElementType(index: number): string;
   /**
    * It gets the input of the model.
    * If a model has more than one input, this method throws an exception.
