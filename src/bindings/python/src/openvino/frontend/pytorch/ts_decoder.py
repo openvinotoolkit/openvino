@@ -35,7 +35,7 @@ class TorchScriptPythonDecoder (Decoder):
         self._input_signature = None
         self._shared_memory = shared_memory
         self._input_is_list = False
-        self.constant_cache = constant_cache or {}
+        self.constant_cache = constant_cache if constant_cache is not None else dict()
         self.module_extensions = module_extensions
         self.config = None
         self.out_debug_name_overwrites = {}
@@ -293,20 +293,22 @@ class TorchScriptPythonDecoder (Decoder):
     def get_op_type(self) -> str:
         assert isinstance(
             self.graph_element, torch.Node), "Function can be called only when self.graph_element is of type torch.Node"
-        if self.graph_element.kind() == "prim::PythonOp":
-            if hasattr(self.graph_element, 'pyobj') and callable(self.graph_element.pyobj) and hasattr(self.graph_element.pyobj(), '__self__'):
-                trampoline = self.graph_element.pyobj().__self__
-                if hasattr(trampoline, 'target_extension') and isinstance(trampoline.target_extension, ModuleExtension):
-                    target_op = trampoline.target_extension.target_op
-                    if callable(target_op):
-                        target = target_op(trampoline.original_module)
-                    elif isinstance(target_op, str):
-                        target = target_op
-                    # TODO: Support target as a callable that will play a role of ConversionExtension for an entire module instead of a single op.
-                    # Without supporting target as a callable here, ConversionExtension functionality is still possible to implement
-                    # by combining two extensions: ModuleExtension that use temporary name as a target op and another extension of type ConversionExtension
-                    # that translates that particular temporary name to custom graph. But providing conversion code as a callable `target` is more convenient.
-                    return target
+        if self.graph_element.kind() == "prim::PythonOp" and callable(getattr(self.graph_element, 'pyobj', None)):
+            pyobj = self.graph_element.pyobj()
+            trampoline = getattr(pyobj, '__self__', None)
+            target_extension = getattr(trampoline, 'target_extension', None)
+            
+            if isinstance(target_extension, ModuleExtension):
+                target_op = target_extension.target_op
+                if callable(target_op):
+                    target = target_op(trampoline.original_module)
+                elif isinstance(target_op, str):
+                    target = target_op
+                # TODO: Support target as a callable that will play a role of ConversionExtension for an entire module instead of a single op.
+                # Without supporting target as a callable here, ConversionExtension functionality is still possible to implement
+                # by combining two extensions: ModuleExtension that use temporary name as a target op and another extension of type ConversionExtension
+                # that translates that particular temporary name to custom graph. But providing conversion code as a callable `target` is more convenient.
+                return target
         return self.graph_element.kind()
 
     def get_schema(self) -> str:
