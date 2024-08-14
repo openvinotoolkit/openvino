@@ -18,7 +18,7 @@ public:
     StringTensorUnpack() = default;
     /// \brief Constructs a StringTensorUnpack operation.
     ///
-    /// \param data Input strings encoded in utf-8 bytes
+    /// \param data Input of type element::string
     StringTensorUnpack(const Output<Node>& data);
 
     void validate_and_infer_types() override;
