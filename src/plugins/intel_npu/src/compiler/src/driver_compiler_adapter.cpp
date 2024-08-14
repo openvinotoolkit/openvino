@@ -11,11 +11,13 @@
 #include "ze_intel_npu_uuid.h"
 #include "zero_compiler_in_driver.hpp"
 #include "zero_init.hpp"
+#include "backends.hpp" 
+#include "zero_backend.hpp" 
 
 namespace intel_npu {
 namespace driverCompilerAdapter {
 
-LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompilerAdapter", Logger::global().level()) {
+LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> npuBackends) : _logger("LevelZeroCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize zeAPI start");
     auto result = zeInit(ZE_INIT_FLAG_VPU_ONLY);
     if (ZE_RESULT_SUCCESS != result) {
@@ -26,11 +28,14 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompile
                        std::hex,
                        uint64_t(result));
     }
-   
-    // Get shared obj from backend
-    ze_context_handle_t _context = ZeroInitStructsHolder::getContext();
-    _driverHandle = ZeroInitStructsHolder::getDriverHandle();
-    ze_device_handle_t _deviceHandle = ZeroInitStructsHolder::getDeviceHandle();
+
+    ov::SoPtr<intel_npu::IEngineBackend> soPtrBackend = npuBackends->getIEngineBackend();
+    std::shared_ptr<intel_npu::IEngineBackend> iEngineBackend = soPtrBackend._ptr; // Extract the raw pointer
+    std::shared_ptr<ZeroEngineBackend> zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(iEngineBackend);
+
+    ze_context_handle_t _context = (ze_context_handle_t)zeroBackend->getContext();
+    _driverHandle = (ze_driver_handle_t)zeroBackend->getDriverHandle();
+    ze_device_handle_t _deviceHandle = (ze_device_handle_t)zeroBackend->getDeviceHandle();
 
     if (_driverHandle == nullptr) {
         OPENVINO_THROW("LevelZeroCompilerAdapter: Failed to get properties about zeDriver");

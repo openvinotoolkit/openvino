@@ -8,6 +8,7 @@
 
 #include "intel_npu/al/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "backends.hpp" 
 
 namespace intel_npu {
 namespace driverCompilerAdapter {
@@ -18,7 +19,7 @@ namespace driverCompilerAdapter {
  */
 class LevelZeroCompilerAdapter final : public ICompiler {
 public:
-    LevelZeroCompilerAdapter();
+    LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> npuBackends);
 
     uint32_t getSupportedOpsetVersion() const override final;
 

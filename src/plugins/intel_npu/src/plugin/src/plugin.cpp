@@ -667,10 +667,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
-
     try {
         bool profiling = localConfig.get<PERF_COUNT>();
-
+        printf (" Debug - KY compile_model from plugin call getCompiler\n");
         compiledModel = std::make_shared<CompiledModel>(model,
                                                         shared_from_this(),
                                                         device,
@@ -804,7 +803,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
 ov::SoPtr<ICompiler> Plugin::getCompiler(const Config& config) const {
     auto compilerType = config.get<COMPILER_TYPE>();
-    return createCompiler(compilerType);
+    return createCompiler(_backends, compilerType);
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};
