@@ -52,6 +52,7 @@ inline std::vector<Extension::Ptr> load_extensions(const std::string& path) {
                         "Cannot load extension with symlink path:\"" + path + "\".");
 #endif
     const std::string resolved_path = resolve_extension_path(path);
+    std::cout << "resolved_path: " << resolved_path << std::endl;
     auto so = ov::util::load_shared_object(resolved_path.c_str());
     using CreateFunction = void(std::vector<Extension::Ptr>&);
     std::vector<Extension::Ptr> extensions;
