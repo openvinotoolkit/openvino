@@ -38,6 +38,9 @@ KERNEL(lstm_seq)(
         const int real_seq_length = 1;
     #endif
     for(int i=0;i<real_seq_length;i++){
+        if(i>0){
+            barrier(CLK_LOCAL_MEM_FENCE);
+        }
         unroll_for(int l=0;l<NUM_HIDDEN_TO_DO;l++){
             unroll_for(int k=0;k<gate_num;k++){
                 hidden_result[k][l] = 0;
@@ -123,10 +126,8 @@ KERNEL(lstm_seq)(
             hidden_state[OUTPUT_GET_INDEX_SAFE(b, hidden_idx, 0, 0)] = gate_output[3][l]*ACTIVATION_H(temp_cell_state[l], ACTIVATION_PARAMS_H);
         #endif
         #ifdef SEQUENCE
-            barrier(CLK_LOCAL_MEM_FENCE);
             hidden_history[OUTPUT_GET_INDEX_SAFE(b, 0, cur_history_idx, hidden_idx)] = hidden_state[OUTPUT1_GET_INDEX_SAFE(b, 0, hidden_idx, 0)];
         #endif
-            barrier(CLK_LOCAL_MEM_FENCE);
             if(i==real_seq_length-1){
                 #ifdef SEQUENCE
                     cell_state[OUTPUT2_GET_INDEX_SAFE(b, 0, hidden_idx, 0)] = temp_cell_state[l];
