@@ -18,8 +18,9 @@ set(NPU_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 include(cmake/features.cmake)
 
-if(MSVC AND BUILD_COMPILER_FOR_DRIVER)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+if(MSVC AND BUILD_COMPILER_FOR_DRIVER AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # When CMAKE_BUILD_TYPE is Release, to generate pdb and reduce lib sizes
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
         # /Zi flag is used for making debug info added to pdb files instead of the library itself
         # /DEBUG flag is used for adding PDB file to exe files, shared libraries, static libraries
         # /OPT:REF and /OPT:ICF are used for decreasing the size of PDB files
@@ -31,10 +32,10 @@ if(MSVC AND BUILD_COMPILER_FOR_DRIVER)
         set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF /INCREMENTAL:NO /CETCOMPAT /guard:cf")
         set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF /INCREMENTAL:NO /CETCOMPAT /guard:cf")
         set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF /INCREMENTAL:NO /CETCOMPAT /guard:cf")
-        # To unset the defined cached values cmake/developer_package/OpenVINODeveloperScriptsConfig.cmake for generation of pdb for each target
-        unset(CMAKE_PDB_OUTPUT_DIRECTORY CACHE)
-        unset(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY CACHE)
     endif()
+    # To unset the defined cached values in cmake/developer_package/OpenVINODeveloperScriptsConfig.cmake for generation of pdb for each target
+    unset(CMAKE_PDB_OUTPUT_DIRECTORY CACHE)
+    unset(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY CACHE)
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
