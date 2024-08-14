@@ -79,6 +79,7 @@ ov::Tensor Bank::get(const ov::Tensor& tensor, const std::string& device) {
     m_remote_ctx = m_core->get_default_context(device)._ptr;
     auto remote_tensor = m_remote_ctx->create_host_tensor(tensor.get_element_type(), tensor.get_shape());
     auto allocated_tensor = ov::make_tensor(remote_tensor);
+    tensor.copy_to(allocated_tensor);
     device_bank[tensor.data()] = allocated_tensor;
     return allocated_tensor;
 }
