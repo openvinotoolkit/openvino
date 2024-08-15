@@ -264,7 +264,7 @@ cldnn::padding prepare_padding::get_needed_padding_for_convolution(convolution_n
     //    round_up_to(left_padding + prev_prim_output_layout.spatial(0) + right_padding, 16));
     // right_padding = needed_buffer_size_x - left_padding - prev_prim_output_layout.spatial(0);
 
-    cldnn::padding needed_padding({0, 0, padding_begin_x, padding_begin_y, padding_begin_z}, {0, 0, padding_end_x, padding_end_y, padding_end_z}, 0);
+    cldnn::padding needed_padding({0, 0, padding_begin_z, padding_begin_y, padding_begin_x}, {0, 0, padding_end_z, padding_end_y, padding_end_x}, 0);
     needed_padding = padding::max(prev_prim_output_layout.data_padding, needed_padding);
 
     return needed_padding;
