@@ -82,7 +82,7 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
     // Exclude stride_slice primitive if it's input is big const ternsor, else CPU reference implementation
     // will lead to huge performance drop.
     if (node.is_type<strided_slice>() && node.get_dependency(0).is_constant() &&
-        node.get_dependency(0).get_output_layout().count() > 1024 * 1024) {
+        node.get_dependency(0).get_output_layout().count() > 128 * 1024) {
         return false;
     }
 
