@@ -170,11 +170,7 @@ std::map<ov::element::Type, float> ZeroDevice::getGops() const {
 }
 
 ov::device::Type ZeroDevice::getDeviceType() const {
-    if (device_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) {
-        return ov::device::Type::INTEGRATED;
-    } else {
-        return ov::device::Type::DISCRETE;
-    }
+    return ov::device::Type::INTEGRATED;
 }
 
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
