@@ -562,7 +562,6 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json/nlohmann_json
         PATTERN tests EXCLUDE
         PATTERN tools EXCLUDE
         PATTERN WORKSPACE.bazel EXCLUDE
-        PATTERN nlohmann_json.natvis EXCLUDE
         PATTERN wsjcpp.yml EXCLUDE)
 
 # restore state
