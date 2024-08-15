@@ -270,7 +270,7 @@ void set_values_per_batch_and_feature(cldnn::memory::ptr mem, std::vector<T> arg
         for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
             for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
                 for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
-                    unsigned int input_it = b*pitches[0] + f*pitches[1] + y*pitches[1 + 2] + x*pitches[0 + 2];
+                    unsigned int input_it = b*pitches[0] + f*pitches[1] + y*pitches[0 + 2] + x*pitches[1 + 2];
                     mem_ptr[input_it] = args[b*l.feature() + f];
                 }
             }

@@ -550,6 +550,16 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
     }
     std::string outer_order = get_external_order(order, is_weights, is_grouped);
 
+    std::vector<std::pair<size_t, int>> logic_block_sizes(inner_nblks);
+    for (int i = 0; i < inner_nblks; i++) {
+        auto c = internal_order[inner_idxs[i]];
+        auto pos = outer_order.find(c);
+        if (pos == std::string::npos)
+            throw std::domain_error(std::string("Unknown coord type: ") + c);
+
+        logic_block_sizes[i] = std::make_pair(pos, inner_blks[i]);
+    }
+
     format_traits traits;
     traits.batch_num = batch_num;
     traits.feature_num = feature_num;
@@ -559,6 +569,7 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
     traits.order = outer_order;
     traits.internal_order = internal_order;
     traits.block_sizes = block_sizes;
+    traits.logic_block_sizes = logic_block_sizes;
     traits.str = "custom";
 
     return traits;
