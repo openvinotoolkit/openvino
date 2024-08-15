@@ -39,7 +39,6 @@ private:
      * @brief Separate externals calls to separate class
      */
     std::shared_ptr<ICompiler> apiAdapter;
-    ze_driver_handle_t _driverHandle = nullptr;
     Logger _logger;
 };
 
