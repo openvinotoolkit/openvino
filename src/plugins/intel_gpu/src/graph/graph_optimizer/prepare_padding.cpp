@@ -74,13 +74,13 @@ void prepare_padding::run(program& p) {
                 auto needed_lpad = in_layout.data_padding.lower_size();
                 auto needed_upad = in_layout.data_padding.upper_size();
 
-                needed_lpad[2] = std::max(pb_x, needed_lpad[2]);   // spatial[0]
+                needed_lpad[2] = std::max(pb_z, needed_lpad[2]);   // spatial[0]
                 needed_lpad[3] = std::max(pb_y, needed_lpad[3]);
-                needed_lpad[4] = std::max(pb_z, needed_lpad[4]);
+                needed_lpad[4] = std::max(pb_x, needed_lpad[4]);
 
-                needed_upad[2] = std::max(pe_x, needed_upad[2]);   // spatial[0]
+                needed_upad[2] = std::max(pe_z, needed_upad[2]);   // spatial[0]
                 needed_upad[3] = std::max(pe_y, needed_upad[3]);
-                needed_upad[4] = std::max(pe_z, needed_upad[4]);
+                needed_upad[4] = std::max(pe_x, needed_upad[4]);
 
                 padding needed_padding(needed_lpad, needed_upad);
 
