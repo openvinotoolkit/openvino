@@ -267,6 +267,7 @@ OP_CONVERTER(translate_div_fx);
 OP_CONVERTER(translate_div_fx_);
 OP_CONVERTER(translate_embedding_bag_fx);
 OP_CONVERTER(translate_expand_fx);
+OP_CONVERTER(translate_eye_fx);
 OP_CONVERTER(translate_fake_quantize_per_channel_affine_fx);
 OP_CONVERTER(translate_fake_quantize_per_tensor_affine_fx);
 OP_CONVERTER(translate_full_fx);
@@ -839,6 +840,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.exp.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>},
         {"aten.expm1.default", op::translate_expm1},
         {"aten.expand.default", op::translate_expand_fx},
+        {"aten.eye.m", op::translate_eye_fx},
         {"aten.fake_quantize_per_channel_affine_cachemask.default", op::translate_fake_quantize_per_channel_affine_fx},
         {"aten.fill.Scalar", op::translate_fill},
         {"aten.fill_.Scalar", op::inplace_op<op::translate_fill>},
