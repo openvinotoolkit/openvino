@@ -67,7 +67,9 @@ ov::SoPtr<ICompiler> createNPUCompiler(const Logger& log) {
     return loadCompiler(libPath);
 }
 
-ov::SoPtr<ICompiler> createCompilerImpl(std::shared_ptr<NPUBackends> npuBackends, ov::intel_npu::CompilerType compilerType, const Logger& log) {
+ov::SoPtr<ICompiler> createCompilerImpl(std::shared_ptr<NPUBackends> npuBackends,
+                                        ov::intel_npu::CompilerType compilerType,
+                                        const Logger& log) {
     switch (compilerType) {
     case ov::intel_npu::CompilerType::MLIR:
         return createNPUCompiler(log);
@@ -80,7 +82,8 @@ ov::SoPtr<ICompiler> createCompilerImpl(std::shared_ptr<NPUBackends> npuBackends
 
 }  // namespace
 
-ov::SoPtr<ICompiler> intel_npu::createCompiler(std::shared_ptr<intel_npu::NPUBackends> npuBackends, ov::intel_npu::CompilerType compilerType) {
+ov::SoPtr<ICompiler> intel_npu::createCompiler(std::shared_ptr<intel_npu::NPUBackends> npuBackends,
+                                               ov::intel_npu::CompilerType compilerType) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "intel_npu::createCompiler");
     auto logger = Logger::global().clone("createCompiler");
     try {

@@ -48,7 +48,10 @@ using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
 template <typename TableExtension>
 class LevelZeroCompilerInDriver final : public ICompiler {
 public:
-    LevelZeroCompilerInDriver(const char* extName, ze_driver_handle_t driverHandle, ze_device_handle_t deviceHandle, ze_context_handle_t zeContext);
+    LevelZeroCompilerInDriver(const char* extName,
+                              ze_driver_handle_t driverHandle,
+                              ze_device_handle_t deviceHandle,
+                              ze_context_handle_t zeContext);
     LevelZeroCompilerInDriver(const LevelZeroCompilerInDriver&) = delete;
     LevelZeroCompilerInDriver& operator=(const LevelZeroCompilerInDriver&) = delete;
     ~LevelZeroCompilerInDriver() override;
@@ -178,13 +181,14 @@ private:
 
 template <typename TableExtension>
 LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(const char* extName,
-                                                                     ze_driver_handle_t driverHandle, ze_device_handle_t deviceHandle, ze_context_handle_t zeContext)
+                                                                     ze_driver_handle_t driverHandle,
+                                                                     ze_device_handle_t deviceHandle,
+                                                                     ze_context_handle_t zeContext)
     : _driverHandle(driverHandle),
       _logger("LevelZeroCompilerInDriver", Logger::global().level()) {
-    
     // Aceept context from adapter
     _context = zeContext;
-    _deviceHandle=deviceHandle;
+    _deviceHandle = deviceHandle;
 
     // Load our graph extension
     auto result =
@@ -200,7 +204,6 @@ LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(const char*
     if (ZE_RESULT_SUCCESS != result) {
         OPENVINO_THROW("Failed to get device. Error code: ", std::hex, result);
     }
-
 }
 
 }  // namespace driverCompilerAdapter
