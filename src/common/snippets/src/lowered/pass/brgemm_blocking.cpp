@@ -102,8 +102,11 @@ std::tuple<size_t, size_t, size_t> BrgemmBlockingBase::get_blocking_params(const
 
     const auto& m = *++out_preordered_dims.rbegin();
     const auto& n = *out_preordered_dims.rbegin();
-    const auto& k = *in_0_planar_dims.rbegin();
-    OPENVINO_ASSERT(k == *++in_1_planar_dims.rbegin(), "Brgemm input descriptors have different K dimension value.");
+    const auto& k0 = *in_0_planar_dims.rbegin();
+    const auto& k1 = *++in_1_planar_dims.rbegin();
+    OPENVINO_ASSERT(k0 == k1 || utils::is_dynamic_value(k0) || utils::is_dynamic_value(k1),
+                    "Brgemm input descriptors have incompatible K dimension value.");
+    const auto k = utils::is_dynamic_value(k0) ? k1 : k0;
 
     // Ticket: 113745
     // TODO: extend block size selection heuristics
