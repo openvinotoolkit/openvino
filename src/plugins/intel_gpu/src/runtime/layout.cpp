@@ -332,14 +332,23 @@ void layout::set_partial_shape(const ov::PartialShape& size) {
 
 std::vector<tensor::value_type> layout::get_pitches() const {
     const auto& padded_dims = get_padded_dims();
+    auto sizes = format_sizes(padded_dims, format);
 
-    std::vector<tensor::value_type> pitches(padded_dims.size(), size_t(1));
-    std::partial_sum(padded_dims.rbegin(), padded_dims.rend() - 1, pitches.rbegin() + 1, std::multiplies<size_t>());
+    std::vector<tensor::value_type> pitches_fmt(sizes.size(), size_t(1));
+    std::partial_sum(sizes.rbegin(), sizes.rend() - 1, pitches_fmt.rbegin() + 1, std::multiplies<tensor::value_type>());
 
-    // reorder regarding to format
-    auto fmt_pitches = format_sizes(pitches, format);
+    // reorder back to default format order
+    auto pitches = tensor(format, pitches_fmt).sizes(format::get_default_format(format.dimension(),
+                                                                                format::is_weights_format(format),
+                                                                                format::is_grouped(format)));
  
-    return fmt_pitches;
+    // std::cout << "=============layout::get_pitches [";
+    // std::copy(pitches.begin(), pitches.end(), std::ostream_iterator<tensor::value_type>(std::cout, ", "));
+    // std::cout << "] for format: " << format;
+    // std::cout << " and shape [";
+    // std::copy(padded_dims.begin(), padded_dims.end(), std::ostream_iterator<tensor::value_type>(std::cout, ", "));
+    // std::cout << "]" << std::endl;
+    return pitches;
 }
 
 
@@ -434,6 +443,11 @@ size_t layout::get_linear_size() const {
         std::multiplies<size_t>());
 
     GPU_DEBUG_LOG << total << std::endl;
+    // std::cout << "=========== layout::get_linear_size = " << total;
+    // std::cout << " for shape [";
+    // auto def_sizes = get_padded_dims();
+    // std::copy(def_sizes.begin(), def_sizes.end(), std::ostream_iterator<tensor::value_type>(std::cout, ", "));
+    // std::cout << "] and format " << this->format.to_string() << std::endl;
     return total;
 }
 
