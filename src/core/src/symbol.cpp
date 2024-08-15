@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <queue>
+#include <map>
 
 namespace ov {
 using WeakSymbol = std::weak_ptr<ov::Symbol>;
@@ -38,7 +39,7 @@ struct WeakSymbolVectorHash {
     }
 };
 
-using MathMap = std::unordered_map<WeakSymbolVector, WeakSymbol, WeakSymbolVectorHash>;
+using MathMap = std::map<WeakSymbolVector, WeakSymbol>;
 
 class ov::Symbol::Impl {
 public:
