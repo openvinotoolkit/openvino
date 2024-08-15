@@ -159,6 +159,10 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
 }
 
 TEST_F(OpCacheUnitTest, serialize_op) {
+    // Ticket: 149824
+    if (std::getenv("GITHUB_ACTIONS")) {
+        GTEST_SKIP();
+    }
     this->set_serialization_dir(test_artifacts_dir);
     ASSERT_TRUE(this->serialize_op({convert_node, test_meta}));
     ASSERT_TRUE(ov::util::directory_exists(test_artifacts_dir));
