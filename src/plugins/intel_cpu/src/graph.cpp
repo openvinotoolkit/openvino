@@ -495,6 +495,8 @@ void Graph::CreatePrimitivesAndExecConstants() const {
             continue;
         }
 
+        VERBOSE(node, getConfig().debugCaps.verbose);
+
         if (context->getWeightsCache()) {
             auto sharedOutputs = acquireSharedOutputs(node);
 
