@@ -357,8 +357,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     manager.set_per_pass_validation(false);
 
     // Decomposition
-    CPU_REGISTER_PASS_X64(manager, ov::pass::MatmulGatherDecomposition)
-    CPU_REGISTER_PASS_X64(manager, ov::pass::Validate);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::MatmulGatherDecomposition)
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
 
     if (useLpt)
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantizationSubgraph, defaultPrecisions);
