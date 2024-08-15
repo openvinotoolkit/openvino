@@ -267,6 +267,15 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
     } else {
         return "acl";
     }
+#elif defined(OV_CPU_WITH_SHL)
+    if ((eltwise_type == utils::EltwiseTypes::ADD) ||
+        (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
+        (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
+        (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
+        return "shl";
+    } else {
+        return "ref";
+    }
 #else
     return CPUTestsBase::getPrimitiveType();
 #endif
