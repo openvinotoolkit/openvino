@@ -1347,8 +1347,10 @@ public:
                                                               ov::Shape{{2, 2}},
                                                               input_generate);
         infer_request.set_input_tensor(tensor);
-        std::cout << "infer_request infer " << std::endl;
-        infer_request.infer();
+        for (int i = 0; i < 8; ++i) {
+            std::cout << "infer_request infer i: " << i << std::endl;
+            infer_request.infer();
+        }
         const ov::Tensor& output_tensor = infer_request.get_output_tensor();
         size_t count = M * N;
         for (size_t i = 0; i < count; i++) {
@@ -1481,7 +1483,7 @@ public:
 
         // std::cout << "infer_request infer " << std::endl;
         // for (int i = 0; i < 48; ++i) {
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < 8; ++i) {
             std::cout << "infer_request infer i: " << i << std::endl;
             infer_request.infer();
 
@@ -1540,7 +1542,7 @@ public:
 
         // std::cout << "infer_request infer " << std::endl;
         // for (int i = 0; i < 48; ++i) {
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < 8; ++i) {
             std::cout << "infer_request infer i: " << i << std::endl;
             infer_request.infer();
 

@@ -12,6 +12,12 @@ lzContext::~lzContext() {
     printf("INFO: Enter %s \n", __FUNCTION__);
     ze_result_t result;
 
+    if (kernelTsEvent) {
+        result = zeEventDestroy(kernelTsEvent);
+        CHECK_ZE_STATUS(result, "zeEventDestroy kernelTsEvent");
+        kernelTsEvent = nullptr;
+    }
+
     if (sharedBuf) {
         result = zeMemFree(context, sharedBuf);
         CHECK_ZE_STATUS(result, "zeMemFree sharedBuf");
@@ -45,6 +51,7 @@ lzContext::~lzContext() {
     pDevice = nullptr;
     pDriver = nullptr;
 }
+
 
 const char* lzContext::kernelSpvFile = nullptr;
 const char* lzContext::kernelFuncName = nullptr;
@@ -145,7 +152,7 @@ void lzContext::initTimeStamp() {
     eventDesc.signal = ZE_EVENT_SCOPE_FLAG_HOST;
     eventDesc.wait = ZE_EVENT_SCOPE_FLAG_HOST;
     result = zeEventCreate(eventPool, &eventDesc, &kernelTsEvent);
-    CHECK_ZE_STATUS(result, "zeEventPoolCreate");
+    CHECK_ZE_STATUS(result, "zeEventCreate kernelTsEvent");
 
     ze_host_mem_alloc_desc_t hostDesc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC};
     zeMemAllocHost(context, &hostDesc, sizeof(ze_kernel_timestamp_result_t), 1, &timestampBuffer);
@@ -191,6 +198,8 @@ int lzContext::initZe(int devIdx) {
     CHECK_ZE_STATUS(result, "zeContextCreate");
 
     // Create command list
+    auto start_cmd = std::chrono::high_resolution_clock::now();
+
     ze_command_list_desc_t descriptor_cmdlist = {};
     descriptor_cmdlist.stype = ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC;
     descriptor_cmdlist.pNext = nullptr;
@@ -198,6 +207,8 @@ int lzContext::initZe(int devIdx) {
     descriptor_cmdlist.commandQueueGroupOrdinal = 0;
     result = zeCommandListCreate(context, pDevice, &descriptor_cmdlist, &command_list);
     CHECK_ZE_STATUS(result, "zeCommandListCreate");
+
+    auto end_cmd_list = std::chrono::high_resolution_clock::now();
 
     // Create command queue
     ze_command_queue_desc_t descriptor_cmdqueue = {};
@@ -208,14 +219,25 @@ int lzContext::initZe(int devIdx) {
     descriptor_cmdqueue.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
     descriptor_cmdqueue.ordinal = 0;
     descriptor_cmdqueue.index = 0;
+
+    // // create Immediate command_list instead
+    // result = zeCommandListCreateImmediate(context, pDevice, &descriptor_cmdqueue, &command_list);
+    // CHECK_ZE_STATUS(result, "zeCommandListCreate");
     result = zeCommandQueueCreate(context, pDevice, &descriptor_cmdqueue, &command_queue);
     CHECK_ZE_STATUS(result, "zeCommandQueueCreate");
+
+    auto end_cmd_queue = std::chrono::high_resolution_clock::now();
 
     ze_device_properties_t properties = {};
     properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
     result = zeDeviceGetProperties(pDevice, &properties);
     CHECK_ZE_STATUS(result, "zeDeviceGetProperties");
     deviceProperties = properties;
+
+    int64_t ts_cmd_list = std::chrono::duration_cast<std::chrono::microseconds>(end_cmd_list - start_cmd).count();
+    int64_t ts_cmd_queue = std::chrono::duration_cast<std::chrono::microseconds>(end_cmd_queue - end_cmd_list).count();
+    printf("[runKernel] ts_cmd_list: %ld us\n", ts_cmd_list);
+    printf("[runKernel] ts_cmd_queue: %ld us\n", ts_cmd_queue);
 
     initTimeStamp();
 
@@ -339,17 +361,23 @@ void lzContext::readKernel(const char *spvFile, const char *funcName) {
 }
 
 int lzContext::initKernel() {
+    auto start_init = std::chrono::high_resolution_clock::now();
+
     ze_result_t result;
-    // Create module
-    ze_module_desc_t module_desc = {};
-    module_desc.stype = ZE_STRUCTURE_TYPE_MODULE_DESC;
-    module_desc.pNext = nullptr;
-    module_desc.format = ZE_MODULE_FORMAT_IL_SPIRV;
-    module_desc.inputSize = static_cast<uint32_t>(kernelSpvBin.size());
-    module_desc.pInputModule = reinterpret_cast<const uint8_t *>(kernelSpvBin.data());
-    module_desc.pBuildFlags = nullptr;
-    result = zeModuleCreate(context, pDevice, &module_desc, &module, nullptr);
-    CHECK_ZE_STATUS(result, "zeModuleCreate");
+
+    if (module == nullptr) {
+        // Create module
+        ze_module_desc_t module_desc = {};
+        module_desc.stype = ZE_STRUCTURE_TYPE_MODULE_DESC;
+        module_desc.pNext = nullptr;
+        module_desc.format = ZE_MODULE_FORMAT_IL_SPIRV;
+        module_desc.inputSize = static_cast<uint32_t>(kernelSpvBin.size());
+        module_desc.pInputModule = reinterpret_cast<const uint8_t *>(kernelSpvBin.data());
+        module_desc.pBuildFlags = nullptr;
+        result = zeModuleCreate(context, pDevice, &module_desc, &module, nullptr);
+        CHECK_ZE_STATUS(result, "zeModuleCreate");
+    }
+    auto end_create_module = std::chrono::high_resolution_clock::now();
 
     // Create kernel
     ze_kernel_desc_t function_desc = {};
@@ -359,6 +387,13 @@ int lzContext::initKernel() {
     function_desc.pKernelName = kernelFuncName;
     result = zeKernelCreate(module, &function_desc, &function);
     CHECK_ZE_STATUS(result, "zeKernelCreate");
+
+    auto end_create_kernel = std::chrono::high_resolution_clock::now();
+
+    int64_t ts_create_module = std::chrono::duration_cast<std::chrono::microseconds>(end_create_module - start_init).count();
+    int64_t ts_create_kernel = std::chrono::duration_cast<std::chrono::microseconds>(end_create_kernel - end_create_module).count();
+    printf("[runKernel] ts_create_module: %ld us\n", ts_create_module);
+    printf("[runKernel] ts_create_kernel: %ld us\n", ts_create_kernel);
 
     return 0;
 }
@@ -436,6 +471,9 @@ void lzContext::runKernel(const char *spvFile, const char *funcName, void *remot
     result = zeCommandQueueExecuteCommandLists(command_queue, 1, &command_list, nullptr);
     CHECK_ZE_STATUS(result, "zeCommandQueueExecuteCommandLists");
     auto end_queue_exec = std::chrono::high_resolution_clock::now();
+
+    // zeEventHostSynchronize(kernelTsEvent, UINT64_MAX);
+    // zeEventHostReset(kernelTsEvent);
 
     result = zeCommandQueueSynchronize(command_queue, UINT64_MAX);
     CHECK_ZE_STATUS(result, "zeCommandQueueSynchronize");

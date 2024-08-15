@@ -187,14 +187,11 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         auto w_rank = instance.get_network().get_program()->get_config().subStreamExecConfig.get_rank()[0];
         auto w_size = instance.get_network().get_program()->get_config().get_context_for_tp().size();
         auto id = sub_mem_mgr->get_memory_id(w_rank);
-        // printf("[sync_tensor_impl:%d] memory id: %d\n", w_rank, id);
         sub_mem_mgr->set_memory_used(id, w_rank);
 
-        // oclContext oclctx;
         oclContext& oclctx = oclContext::getInstance(w_rank);
-        // lzContext lzctx;
         lzContext& lzctx = lzContext::getInstance(w_rank);
-        // const size_t elemCount = 8 * 1024;
+        // const size_t elemCount = 8 * 1024; // level zero sendbuf limitation: 8KB
         get_contexts(instance, oclctx, lzctx, w_rank);
         end_contexts = std::chrono::high_resolution_clock::now();
 
@@ -265,14 +262,16 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                     printf("[sync_tensor_impl:%d] runKernel \n", w_rank);
                     lzctx.runKernel("./test_kernel_dg2.spv", "local_write_to_remote", remote_receive_buf, local_send_buf,
                         copy_len, srcOffsetX, srcOffsetY, strideX, strideY, groud_width);
+                    // printf("[sync_tensor_impl:%d] print local_send_buf \n", w_rank);
+                    // lzctx.printBuffer(local_send_buf);
 
                     end_p2p_kernel = std::chrono::high_resolution_clock::now();
-
-                    wait_list[idx] = 0;
 
                     std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
                     sub_mem_mgr->_memorys_table[id][w_rank].flag_written = true;
                     printf("[sync_tensor_impl:%d] set flag_written true \n", w_rank);
+
+                    wait_list[idx] = 0;
                 }
                 wait_size += wait_list[idx];
             }
