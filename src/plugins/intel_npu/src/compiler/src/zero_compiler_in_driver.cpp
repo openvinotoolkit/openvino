@@ -181,8 +181,7 @@ namespace driverCompilerAdapter {
 
 template <typename TableExtension>
 LevelZeroCompilerInDriver<TableExtension>::~LevelZeroCompilerInDriver() {
-    // printf("\n Debug - skip zero_cid destructor - zeContextDestroy(_context) ! \n");
-    // zeContextDestroy(_context) remove the shard _context from backend instead of here 
+    // zeContextDestroy(_context) remove the shared _context from backend instead of here
 }
 
 /**
@@ -609,10 +608,6 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQuery
                               buildFlags.c_str(),
                               ZE_GRAPH_FLAG_NONE};
 
-    if (_context == nullptr){
-        OPENVINO_THROW("L0 seriazlideIRModelAndQueryNetworkCreateV2 _context is nullptr");
-    }
-
     // Create querynetwork handle
     ze_result_t result = _graphDdiTableExt->pfnQueryNetworkCreate2(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
 
@@ -768,13 +763,8 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
                               buildFlags.c_str(),
                               flags};
 
-    if (_context == nullptr){
-        OPENVINO_THROW("L0 createGraph(ex version >= 1.5) _context is nullptr");
-    }
-
     // Create querynetwork handle
     auto result = _graphDdiTableExt->pfnCreate2(_context, _deviceHandle, &desc, graph);
-    
     if (ZE_RESULT_SUCCESS != result) {
         OPENVINO_THROW("L0 pfnCreate2",
                        " result: ",
@@ -890,28 +880,19 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
     auto networkMeta = getNetworkMeta(graphHandle);
     networkMeta.name = model->get_friendly_name();
 
-
-    // We dont destroy the graphHandle here, as it can be share for ZeroExecutor
-    //-------------------------
-    // result = _graphDdiTableExt->pfnDestroy(graphHandle);
-
-    // if (ZE_RESULT_SUCCESS != result) {
-    //     OPENVINO_THROW("Failed to compile network. L0 pfnDestroy",
-    //                    " result: ",
-    //                    ze_result_to_string(result),
-    //                    ", code 0x",
-    //                    std::hex,
-    //                    uint64_t(result));
-    // }
-    //-------------------------
-
     _logger.debug("compile end");
 
     auto networkDescription = NetworkDescription(std::move(blob), std::move(networkMeta));
 
-    // to test if return the same graphHandle to backend for ZeroExecutor, still able to work
-    void* graphHandleVoidPtr = static_cast<void*>(&graphHandle);
-    networkDescription.graphHandleVoidPtr = graphHandleVoidPtr;
+    // Store the graph handle as a void pointer, return the same graphHandle to backend for ZeroExecutor
+    try {
+        networkDescription.graphHandleVoidPtr = static_cast<void*>(new ze_graph_handle_t(graphHandle));
+        if (networkDescription.graphHandleVoidPtr == nullptr) {
+            OPENVINO_THROW("LevelZeroCompilerInDriver<TableExtension>::compile Failed to cast and allocate memory for graphHandleVoidPtr.");
+        }
+    } catch (const std::exception& e) {
+        OPENVINO_THROW("LevelZeroCompilerInDriver<TableExtension>::compile Failed to cast and allocate memory for graphHandleVoidPtr. ", e.what());
+    }
 
     return networkDescription;
 }

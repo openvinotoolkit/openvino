@@ -62,7 +62,6 @@ public:
         return mutable_command_list_version;
     }
 
-
 private:
     static const ze_driver_uuid_t uuid;
     Logger log;
