@@ -247,13 +247,13 @@ INSTANTIATE_TEST_SUITE_P(smoke, memory_desc_to_fmt_conversion_test,
         {
             {10, 20, 30, 40, 50}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::AcdeB24a2b, true,
             format_traits{
-                "custom", 1, 1, 2, 1, {0, 2, 3, 4, 1}, "giyxo", "oixy????g", {{0, 24}, {1, 2}}
+                "custom", 1, 1, 2, 1, {0, 2, 3, 4, 1}, "giyxo", "oixy????g", {{8, 24}, {0, 2}}
             }
         },
         {
             {10, 60, 70, 40, 50}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::aCBde4c8b8c4b, true,
             format_traits{
-                "custom", 1, 1, 2, 1, {0, 2, 1, 3, 4}, "gioyx", "oixy????g", {{2, 4}, {1, 8}, {2, 8}, {1, 4}}
+                "custom", 1, 1, 2, 1, {0, 2, 1, 3, 4}, "gioyx", "oixy????g", {{1, 4}, {0, 8}, {1, 8}, {0, 4}}
             }
         },
     }),
