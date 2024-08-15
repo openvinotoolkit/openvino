@@ -147,7 +147,7 @@ struct NetworkDescription final {
     NetworkMetadata metadata;
 
     // use to pass graphHandle from compiler to backend executor 
-    void* graphHandleVoidPtr;
+    void* graphHandleVoidPtr = nullptr;
 };
 
 /**
