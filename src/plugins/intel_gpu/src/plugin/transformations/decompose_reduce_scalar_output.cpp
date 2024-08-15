@@ -12,7 +12,6 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reduce_max.hpp"
-#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
@@ -33,42 +32,16 @@
 
 ov::intel_gpu::DecomposeReduceForScalarOutput::DecomposeReduceForScalarOutput() {
     auto check_reduce_shape = [=](Output<Node> output) -> bool {
-        auto reduce_shape = output.get_partial_shape();
+        const auto reduce = ov::as_type_ptr<op::util::ArithmeticReductionKeepDims>(output.get_node_shared_ptr());
+        const auto input_shape = reduce->input_value(0).get_partial_shape();
+        const auto reduce_shape = reduce->input_value(1).get_partial_shape();
         if (reduce_shape.is_dynamic() || reduce_shape.size() != 1) {
             return false;
-        } else if (reduce_shape.to_shape()[0] <= 1) {
+        } else if (reduce_shape.to_shape()[0] <= 1 || reduce_shape.to_shape()[0] != input_shape.size()) {
             return false;
         }
-        return true;
-    };
-    auto reduce_pattern = ov::pass::pattern::wrap_type<ov::op::v1::ReduceSum,
-                                                       ov::op::v1::ReduceMean,
-                                                       ov::op::v1::ReduceProd,
-                                                       ov::op::v1::ReduceMin,
-                                                       ov::op::v1::ReduceMax>(
-        {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_reduce_shape)});
-
-    // register callback
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        auto reduce_orig =
-            as_type_ptr<op::util::ArithmeticReductionKeepDims>(pattern_map.at(reduce_pattern).get_node_shared_ptr());
-        if (!reduce_orig || transformation_callback(reduce_orig))
-            return false;
-
-        const auto input_shape = reduce_orig->input_value(0).get_partial_shape();
-        const auto reduce_shape = reduce_orig->input_value(1).get_partial_shape();
-        if (reduce_shape.to_shape()[0] != input_shape.size())
-            return false;
-
-        auto dynamic_shape = false;
-        const auto output_shape = reduce_orig->get_output_partial_shape(0);
-        if (input_shape.is_dynamic() || output_shape.is_dynamic()) {
-            dynamic_shape = true;
-        }
-
-        std::shared_ptr<ov::op::util::ArithmeticReductionKeepDims> reduce_new = nullptr;
-        if (!dynamic_shape) {
+        const auto output_shape = reduce->get_output_partial_shape(0);
+        if (output_shape.is_static() && input_shape.is_static()) {
             // Output size decides at most how many EU threads can be used for this node execution,
             // less than 4 EU threads to execute a primitive will lead to poor performance.
             if (ov::shape_size(output_shape.to_shape()) > 4) {
@@ -79,14 +52,35 @@ ov::intel_gpu::DecomposeReduceForScalarOutput::DecomposeReduceForScalarOutput() 
             if (ov::shape_size(input_static_shape) < 64) {
                 return false;
             }
+        }
+        return true;
+    };
 
+    auto reduce_pattern = ov::pass::pattern::
+        wrap_type<ov::op::v1::ReduceSum, ov::op::v1::ReduceProd, ov::op::v1::ReduceMin, ov::op::v1::ReduceMax>(
+            {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+            check_reduce_shape);
+
+    // register callback
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto reduce_orig =
+            as_type_ptr<op::util::ArithmeticReductionKeepDims>(pattern_map.at(reduce_pattern).get_node_shared_ptr());
+        if (!reduce_orig || transformation_callback(reduce_orig))
+            return false;
+
+        const auto input_shape = reduce_orig->input_value(0).get_partial_shape();
+        const auto output_shape = reduce_orig->get_output_partial_shape(0);
+        bool dynamic_shape = input_shape.is_dynamic() || output_shape.is_dynamic();
+        std::shared_ptr<ov::op::util::ArithmeticReductionKeepDims> reduce_new = nullptr;
+        if (!dynamic_shape) {
             // Find out the the most length dimension
+            const auto input_static_shape = input_shape.to_shape();
             size_t max_dim = std::distance(input_static_shape.begin(),
                                            std::max_element(input_static_shape.begin(), input_static_shape.end()));
             if (input_static_shape[max_dim] == ov::shape_size(input_static_shape)) {
                 return false;
             }
-
             CREATE_REDUCE(reduce_orig->input_value(0),
                           ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {max_dim}),
                           true);
