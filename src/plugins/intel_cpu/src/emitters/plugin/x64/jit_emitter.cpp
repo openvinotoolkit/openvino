@@ -3,6 +3,7 @@
 //
 
 #include "jit_emitter.hpp"
+#include "jit_load_store_emitters.hpp"
 #include <vector>
 #include "utils/general_utils.h"
 #include "utils.hpp"
@@ -72,8 +73,15 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
     // For sse41 mask register has to be Xmm(0)
     if (host_isa_ == cpu::x64::sse41 && aux_vecs_count() > 0) {
         size_t idx = 0;
-        if (is_vec_input)
-            OV_CPU_JIT_EMITTER_ASSERT(std::find(in_idxs.begin(), in_idxs.end(), idx) == in_idxs.end(), "Xmm(0) cannot be input register in SSE41");
+        if (is_vec_input) {
+            auto storeEmitter = dynamic_cast<const jit_store_emitter *>(this);
+            if (storeEmitter != nullptr && in_idxs.size() == 2) {
+                OPENVINO_ASSERT(in_idxs[0] != idx, "xmm(0) cannot be input register in sse41");
+            } else {
+                OPENVINO_ASSERT(std::find(in_idxs.begin(), in_idxs.end(), idx) == in_idxs.end(), "xmm(0) cannot be input register in sse41");
+            }
+        }
+
         if (is_vec_output)
             OV_CPU_JIT_EMITTER_ASSERT(std::find(out_idxs.begin(), out_idxs.end(), idx) == out_idxs.end(), "Xmm(0) cannot be output register in SSE41");
         if (std::find(aux_vec_idxs.begin(), aux_vec_idxs.end(), idx) == aux_vec_idxs.end()) {
