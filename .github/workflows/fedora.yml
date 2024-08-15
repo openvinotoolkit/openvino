@@ -221,6 +221,7 @@ jobs:
           if-no-files-found: 'error'
 
   RPM_Packages:
+    name: RPM packages
     needs: [Docker, Build]
     timeout-minutes: 10
     defaults:
