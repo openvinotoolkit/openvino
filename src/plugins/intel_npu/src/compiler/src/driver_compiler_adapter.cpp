@@ -4,20 +4,21 @@
 
 #include "driver_compiler_adapter.hpp"
 
+#include "backends.hpp"
 #include "graph_transformations.hpp"
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "ze_intel_npu_uuid.h"
+#include "zero_backend.hpp"
 #include "zero_compiler_in_driver.hpp"
 #include "zero_init.hpp"
-#include "backends.hpp" 
-#include "zero_backend.hpp" 
 
 namespace intel_npu {
 namespace driverCompilerAdapter {
 
-LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> npuBackends) : _logger("LevelZeroCompilerAdapter", Logger::global().level()) {
+LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> npuBackends)
+    : _logger("LevelZeroCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize zeAPI start");
     auto result = zeInit(ZE_INIT_FLAG_VPU_ONLY);
     if (ZE_RESULT_SUCCESS != result) {
@@ -30,17 +31,25 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> 
     }
 
     ov::SoPtr<intel_npu::IEngineBackend> soPtrBackend = npuBackends->getIEngineBackend();
-    std::shared_ptr<intel_npu::IEngineBackend> iEngineBackend = soPtrBackend._ptr; // Extract the raw pointer
-    std::shared_ptr<ZeroEngineBackend> zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(iEngineBackend);
+    std::shared_ptr<intel_npu::IEngineBackend> iEngineBackend = soPtrBackend._ptr;  // Extract the raw pointer
+    std::shared_ptr<ZeroEngineBackend> zeroBackend = nullptr;
+    try {
+        zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(iEngineBackend);
+        if (!zeroBackend) {
+            OPENVINO_THROW("LevelZeroCompilerAdapter init failed to cast zeroBackend, zeroBackend is a nullptr");
+        }
+    } catch (const std::exception& e) {
+        OPENVINO_THROW("LevelZeroCompilerAdapter init failed to cast zeroBackend");
+    }
 
-    ze_context_handle_t _context = (ze_context_handle_t)zeroBackend->getContext();
-    _driverHandle = (ze_driver_handle_t)zeroBackend->getDriverHandle();
-    ze_device_handle_t _deviceHandle = (ze_device_handle_t)zeroBackend->getDeviceHandle();
+    ze_context_handle_t zeContext = (ze_context_handle_t)zeroBackend->getContext();
+    ze_driver_handle_t driverHandle = (ze_driver_handle_t)zeroBackend->getDriverHandle();
+    ze_device_handle_t deviceHandle = (ze_device_handle_t)zeroBackend->getDeviceHandle();
 
     uint32_t targetVersion = zeroBackend->getTargetVersion();
     char* graphExtName = zeroBackend->getGraphExtName();
 
-    if (_driverHandle == nullptr) {
+    if (driverHandle == nullptr) {
         OPENVINO_THROW("LevelZeroCompilerAdapter: Failed to get properties about zeDriver");
         return;
     }
@@ -71,24 +80,34 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> 
 
     if (ZE_GRAPH_EXT_VERSION_1_3 == targetVersion) {
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_3");
-        apiAdapter =
-            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_3_t>>(graphExtName, _driverHandle, _deviceHandle, _context);
+        apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_3_t>>(graphExtName,
+                                                                                              driverHandle,
+                                                                                              deviceHandle,
+                                                                                              zeContext);
     } else if (ZE_GRAPH_EXT_VERSION_1_4 == targetVersion) {
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_4");
-        apiAdapter =
-            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_4_t>>(graphExtName, _driverHandle, _deviceHandle, _context);
+        apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_4_t>>(graphExtName,
+                                                                                              driverHandle,
+                                                                                              deviceHandle,
+                                                                                              zeContext);
     } else if (ZE_GRAPH_EXT_VERSION_1_5 == targetVersion) {
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_5");
-        apiAdapter =
-            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_5_t>>(graphExtName, _driverHandle, _deviceHandle, _context);
+        apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_5_t>>(graphExtName,
+                                                                                              driverHandle,
+                                                                                              deviceHandle,
+                                                                                              zeContext);
     } else if (ZE_GRAPH_EXT_VERSION_1_6 == targetVersion) {
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_6");
-        apiAdapter =
-            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_6_t>>(graphExtName, _driverHandle, _deviceHandle, _context);
+        apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_6_t>>(graphExtName,
+                                                                                              driverHandle,
+                                                                                              deviceHandle,
+                                                                                              zeContext);
     } else {
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_2");
-        apiAdapter =
-            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_2_t>>(graphExtName, _driverHandle, _deviceHandle, _context);
+        apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_2_t>>(graphExtName,
+                                                                                              driverHandle,
+                                                                                              deviceHandle,
+                                                                                              zeContext);
     }
     _logger.debug("initialize zeAPI end");
 }
