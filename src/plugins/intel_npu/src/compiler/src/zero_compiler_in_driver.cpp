@@ -988,7 +988,7 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
         isShapeTensor = true;
     }
 
-    return {nameFromCompiler,
+    return {std::move(nameFromCompiler),
             precision,
             std::move(shapeFromCompiler),
             isStateInput,

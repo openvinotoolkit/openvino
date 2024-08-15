@@ -22,7 +22,12 @@ ZeroHostTensor::ZeroHostTensor(std::shared_ptr<ov::IRemoteContext> context,
                                                 ov::intel_npu::MemType::L0_INTERNAL_BUF)) {}
 
 void* ZeroHostTensor::data(const ov::element::Type&) const {
-    return m_impl->get_properties().find(ov::intel_npu::mem_handle.name())->second.as<void*>();
+    auto itrHandle = m_impl->get_properties().find(ov::intel_npu::mem_handle.name());
+    if (itrHandle == m_impl->get_properties().end()) {
+        OPENVINO_THROW("No parameter ", ov::intel_npu::mem_handle.name(), " found in parameters map");
+    }
+
+    return ov::Any(itrHandle->second).as<void*>();
 }
 
 const ov::element::Type& ZeroHostTensor::get_element_type() const {
