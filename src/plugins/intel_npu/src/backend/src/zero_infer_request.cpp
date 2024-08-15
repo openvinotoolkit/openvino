@@ -395,7 +395,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             set_tensor_data(tensor._ptr, foundPort.idx, foundPort.is_input());
         } else {
             _logger.debug("ZeroInferRequest::set_tensor - set new remote tensor");
-            set_remote_tensor_data(remoteTensor, foundPort.idx, foundPort.is_input());
+            set_remote_tensor_data(std::move(remoteTensor), foundPort.idx, foundPort.is_input());
         }
     }
 }
