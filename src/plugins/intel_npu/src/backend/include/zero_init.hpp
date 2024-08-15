@@ -39,7 +39,7 @@ public:
     }
     inline char* getGraphExtName() const {
         return graphExtName;
-    } 
+    }
     inline uint32_t getTargetVersion() const {
         return targetVersion;
     }

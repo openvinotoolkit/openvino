@@ -888,10 +888,13 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
     try {
         networkDescription.graphHandleVoidPtr = static_cast<void*>(new ze_graph_handle_t(graphHandle));
         if (networkDescription.graphHandleVoidPtr == nullptr) {
-            OPENVINO_THROW("LevelZeroCompilerInDriver<TableExtension>::compile Failed to cast and allocate memory for graphHandleVoidPtr.");
+            OPENVINO_THROW("LevelZeroCompilerInDriver<TableExtension>::compile Failed to cast and allocate memory for "
+                           "graphHandleVoidPtr.");
         }
     } catch (const std::exception& e) {
-        OPENVINO_THROW("LevelZeroCompilerInDriver<TableExtension>::compile Failed to cast and allocate memory for graphHandleVoidPtr. ", e.what());
+        OPENVINO_THROW("LevelZeroCompilerInDriver<TableExtension>::compile Failed to cast and allocate memory for "
+                       "graphHandleVoidPtr. ",
+                       e.what());
     }
 
     return networkDescription;
