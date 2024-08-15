@@ -63,15 +63,11 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
                                      _initStructs->getCommandQueueDdiTable(),
                                      _config,
                                      _group_ordinal);
-    try {
-        _graph = *static_cast<ze_graph_handle_t*>(_networkDesc->graphHandleVoidPtr);
-    } catch (const std::exception& e) {
-        _logger.error("Failed to get graph handle from network description, ", e.what());
-    }
 
     // _graph is a nullptr for CIP path
     // _graph will get graphHandle from compiler for CiD path
-    if (_graph == nullptr) {
+    if (_networkDesc->graphHandleVoidPtr == nullptr) {
+        _logger.debug("_networkDesc->graphHandleVoidPtr is nulltpr");
         _logger.debug("ZeroExecutor::ZeroExecutor - create graph");
         OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_GRAPH, itt::domains::LevelZeroBackend, "Executor::ZeroExecutor", "graphCreate");
 
@@ -85,6 +81,13 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
         zeroUtils::throwOnFail(
             "pfnCreate",
             _graph_ddi_table_ext->pfnCreate(_initStructs->getContext(), _initStructs->getDevice(), &desc, &_graph));
+    } else {
+        _logger.debug("_networkDesc->graphHandleVoidPtr is not nulltpr");
+        try {
+            _graph = *static_cast<ze_graph_handle_t*>(_networkDesc->graphHandleVoidPtr);
+        } catch (const std::exception& e) {
+            _logger.error("Failed to get graph handle from network description, ", e.what());
+        }
     }
 
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetProperties");
