@@ -5,8 +5,8 @@
 #include "openvino/core/symbol.hpp"
 
 #include <algorithm>
-#include <queue>
 #include <map>
+#include <queue>
 
 namespace ov {
 using WeakSymbol = std::weak_ptr<ov::Symbol>;
