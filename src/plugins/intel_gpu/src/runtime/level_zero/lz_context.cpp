@@ -200,15 +200,13 @@ int lzContext::initZe(int devIdx) {
     // Create command list
     auto start_cmd = std::chrono::high_resolution_clock::now();
 
-    ze_command_list_desc_t descriptor_cmdlist = {};
-    descriptor_cmdlist.stype = ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC;
-    descriptor_cmdlist.pNext = nullptr;
-    descriptor_cmdlist.flags = 0;
-    descriptor_cmdlist.commandQueueGroupOrdinal = 0;
-    result = zeCommandListCreate(context, pDevice, &descriptor_cmdlist, &command_list);
-    CHECK_ZE_STATUS(result, "zeCommandListCreate");
-
-    auto end_cmd_list = std::chrono::high_resolution_clock::now();
+    // ze_command_list_desc_t descriptor_cmdlist = {};
+    // descriptor_cmdlist.stype = ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC;
+    // descriptor_cmdlist.pNext = nullptr;
+    // descriptor_cmdlist.flags = 0;
+    // descriptor_cmdlist.commandQueueGroupOrdinal = 0;
+    // result = zeCommandListCreate(context, pDevice, &descriptor_cmdlist, &command_list);
+    // CHECK_ZE_STATUS(result, "zeCommandListCreate");
 
     // Create command queue
     ze_command_queue_desc_t descriptor_cmdqueue = {};
@@ -220,9 +218,11 @@ int lzContext::initZe(int devIdx) {
     descriptor_cmdqueue.ordinal = 0;
     descriptor_cmdqueue.index = 0;
 
-    // // create Immediate command_list instead
-    // result = zeCommandListCreateImmediate(context, pDevice, &descriptor_cmdqueue, &command_list);
-    // CHECK_ZE_STATUS(result, "zeCommandListCreate");
+    // create Immediate command_list instead
+    result = zeCommandListCreateImmediate(context, pDevice, &descriptor_cmdqueue, &command_list);
+    CHECK_ZE_STATUS(result, "zeCommandListCreate");
+    auto end_cmd_list = std::chrono::high_resolution_clock::now();
+
     result = zeCommandQueueCreate(context, pDevice, &descriptor_cmdqueue, &command_queue);
     CHECK_ZE_STATUS(result, "zeCommandQueueCreate");
 
@@ -456,31 +456,31 @@ void lzContext::runKernel(const char *spvFile, const char *funcName, void *remot
     CHECK_ZE_STATUS(result, "zeCommandListAppendLaunchKernel");
     auto end_append_kernel = std::chrono::high_resolution_clock::now();
 
-    result = zeCommandListAppendBarrier(command_list, nullptr, 0, nullptr);
-    CHECK_ZE_STATUS(result, "zeCommandListAppendBarrier");
+    // result = zeCommandListAppendBarrier(command_list, nullptr, 0, nullptr);
+    // CHECK_ZE_STATUS(result, "zeCommandListAppendBarrier");
     auto end_append_barrier = std::chrono::high_resolution_clock::now();
 
-    result = zeCommandListAppendQueryKernelTimestamps(command_list, 1u, &kernelTsEvent, timestampBuffer, nullptr, nullptr, 0u, nullptr);
-    CHECK_ZE_STATUS(result, "zeCommandListAppendQueryKernelTimestamps");
+    // result = zeCommandListAppendQueryKernelTimestamps(command_list, 1u, &kernelTsEvent, timestampBuffer, nullptr, nullptr, 0u, nullptr);
+    // CHECK_ZE_STATUS(result, "zeCommandListAppendQueryKernelTimestamps");
     auto end_append_ts = std::chrono::high_resolution_clock::now();
 
-    result = zeCommandListClose(command_list);
-    CHECK_ZE_STATUS(result, "zeCommandListClose");
+    // result = zeCommandListClose(command_list);
+    // CHECK_ZE_STATUS(result, "zeCommandListClose");
     auto end_list_close = std::chrono::high_resolution_clock::now();
 
-    result = zeCommandQueueExecuteCommandLists(command_queue, 1, &command_list, nullptr);
-    CHECK_ZE_STATUS(result, "zeCommandQueueExecuteCommandLists");
+    // result = zeCommandQueueExecuteCommandLists(command_queue, 1, &command_list, nullptr);
+    // CHECK_ZE_STATUS(result, "zeCommandQueueExecuteCommandLists");
     auto end_queue_exec = std::chrono::high_resolution_clock::now();
 
-    // zeEventHostSynchronize(kernelTsEvent, UINT64_MAX);
-    // zeEventHostReset(kernelTsEvent);
+    zeEventHostSynchronize(kernelTsEvent, UINT64_MAX);
+    zeEventHostReset(kernelTsEvent);
 
-    result = zeCommandQueueSynchronize(command_queue, UINT64_MAX);
-    CHECK_ZE_STATUS(result, "zeCommandQueueSynchronize");
+    // result = zeCommandQueueSynchronize(command_queue, UINT64_MAX);
+    // CHECK_ZE_STATUS(result, "zeCommandQueueSynchronize");
     auto end_queue_sync = std::chrono::high_resolution_clock::now();
 
-    result = zeCommandListReset(command_list);
-    CHECK_ZE_STATUS(result, "zeCommandListReset");
+    // result = zeCommandListReset(command_list);
+    // CHECK_ZE_STATUS(result, "zeCommandListReset");
     auto end_list_reset = std::chrono::high_resolution_clock::now();
 
     ze_kernel_timestamp_result_t *kernelTsResults = reinterpret_cast<ze_kernel_timestamp_result_t *>(timestampBuffer);
