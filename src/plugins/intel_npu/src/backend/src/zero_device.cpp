@@ -96,25 +96,21 @@ std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
 
 std::string ZeroDevice::getName() const {
 //    KMD is setting usDeviceID from VpuFamilyID.h
-#define NPU_3700_DEVICE_ID   0x6240
 #define NPU_3720_P_DEVICE_ID 0x7D1D
 #define NPU_3720_S_DEVICE_ID 0xAD1D
 #define NPU_4000_DEVICE_ID   0x643E
 
     std::string name;
     switch (device_properties.deviceId) {
-    case NPU_3700_DEVICE_ID:
-        name = "3700";
-        break;
     case NPU_3720_P_DEVICE_ID:
     case NPU_3720_S_DEVICE_ID:
         name = ov::intel_npu::Platform::NPU3720;
         break;
     case NPU_4000_DEVICE_ID:
-        name = "4000";
+        name = ov::intel_npu::Platform::NPU4000;
         break;
     default:
-        name = "AUTO_DETECT";
+        name = ov::intel_npu::Platform::AUTO_DETECT;
     }
 
     return name;
