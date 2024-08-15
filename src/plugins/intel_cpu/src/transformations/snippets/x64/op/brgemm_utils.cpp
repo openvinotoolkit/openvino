@@ -99,7 +99,9 @@ size_t get_repacking_buffer_size(const ov::snippets::lowered::ExpressionPtr& cop
         // Low precision repacking writes the result by m_brgemmVNNIFactor * m_inner_n_block blocks
         // despite the actual size of the input data. Because of that we have to round-up the allocation shape to always have enough memory allocated.
         // For the details, please see 'copy_4x64' and 'copy_2x32' implementations and usage in onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
-        return N_dim * rnd_up(k_blk, brgemm_utils::compute_vnni_factor(precision));
+        const auto brgemmVNNIFactor = brgemm_utils::compute_vnni_factor(precision);
+        OPENVINO_ASSERT(brgemmVNNIFactor > 0, "brgemmVNNIFactor value must be positive.");
+        return N_dim * rnd_up(k_blk, brgemmVNNIFactor);
     }
 }
 

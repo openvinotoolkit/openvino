@@ -57,6 +57,7 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
     m_inner_N_tail = m_N_blk % m_inner_N_block;
     m_brgemmVNNIFactor = compute_vnni_factor(m_brg_weight_etype);
 
+    OV_CPU_JIT_EMITTER_ASSERT(m_brgemmVNNIFactor > 0, "brgemmVNNIFactor value must be positive.");
     OV_CPU_JIT_EMITTER_ASSERT(m_K_blk == m_K || m_K_blk % m_brgemmVNNIFactor == 0,
                               "K Block size (", m_K_blk, "), which is not divisible by brgemmVNNIFactor (",
                               m_brgemmVNNIFactor, ") and not equal to K dimension (", m_K,
