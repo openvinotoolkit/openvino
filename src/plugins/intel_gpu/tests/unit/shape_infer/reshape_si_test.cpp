@@ -223,12 +223,12 @@ INSTANTIATE_TEST_SUITE_P(smoke, squeeze_test,
             layout{ov::PartialShape{}, data_types::f32, format::bfyx}
         },
         {
-            layout{ov::PartialShape{1, 1, 10, 20, 30}, data_types::f32, format::bfzyx, get_pad(format::bfyx, {2, 3}, true)},
+            layout{ov::PartialShape{1, 1, 10, 20, 30}, data_types::f32, format::bfzyx, get_pad(format::bfzyx, {3, 4}, true)},
             layout{ov::PartialShape{1}, data_types::i64, format::bfyx}, {1}, ov::PartialShape::dynamic(4),
             layout{ov::PartialShape{1, 10, 20, 30}, data_types::f32, format::bfyx, get_pad(format::bfyx, {2, 3}, true)},
         },
         {
-            layout{ov::PartialShape{1, 1, 10, 1, 30}, data_types::f32, format::bfzyx, get_pad(format::bfyx, {2, 3}, true)},
+            layout{ov::PartialShape{1, 1, 10, 1, 30}, data_types::f32, format::bfzyx, get_pad(format::bfzyx, {3, 4}, true)},
             layout{ov::PartialShape{1}, data_types::i64, format::bfyx}, {3}, ov::PartialShape::dynamic(4),
             layout{ov::PartialShape{1, 1, 10, 30}, data_types::f32, format::bfyx}, // pad is removed
         }
