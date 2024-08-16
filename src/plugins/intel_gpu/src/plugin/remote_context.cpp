@@ -217,7 +217,7 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory(const ov::ele
 }
 
 std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::create_buffer(const ov::element::Type type, const ov::Shape& shape) {
-    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, TensorType::BT_BUF_INTERNAL, nullptr, 0, 0);
+    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, TensorType::BT_BUF_INTERNAL);
 }
 
 std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::create_usm(const ov::element::Type type, const ov::Shape& shape, TensorType alloc_type) {
