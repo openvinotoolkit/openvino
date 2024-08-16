@@ -20,7 +20,7 @@ ov_status_e ov_shape_create(const int64_t rank, const int64_t* dims, ov_shape_t*
     }
 
     try {
-        std::unique_ptr<int64_t> _dims(new int64_t[rank]);
+        std::unique_ptr<int64_t[]> _dims(new int64_t[rank]);
         shape->dims = _dims.release();
         if (dims) {
             std::memcpy(shape->dims, dims, rank * sizeof(int64_t));
