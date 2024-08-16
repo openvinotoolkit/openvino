@@ -152,10 +152,10 @@ private:
     }
 
     void allocate() override {
-        if(m_workspace) m_workspace->resize(m_totalSize);
+        if (m_workspace) m_workspace->resize(m_totalSize);
     }
     void release() override {
-        if(m_workspace) m_workspace->free();
+        if (m_workspace) m_workspace->free();
     }
 
 private:
@@ -351,13 +351,13 @@ MemoryControl::MemoryBlockMap MemoryControl::insert(const std::vector<MemoryRegi
 }
 
 void MemoryControl::allocateMemory() {
-    for(auto&& handler : m_handlers) {
+    for (auto&& handler : m_handlers) {
         handler->allocate();
     }
 }
 
 void MemoryControl::releaseMemory() {
-    for(auto&& handler : m_handlers) {
+    for (auto&& handler : m_handlers) {
         handler->release();
     }
 }
