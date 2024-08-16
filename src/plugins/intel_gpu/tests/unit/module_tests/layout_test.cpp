@@ -80,11 +80,7 @@ TEST_P(data_layout_test, size_check) {
         ASSERT_EQ(ordered_dims[i], p.size[p.expected_order[i]]);
     }
 
-    if (p.expected_pitches.size() > 0) {
-        ASSERT_EQ(l.get_pitches(), p.expected_pitches);
-    } else {
-        l.get_pitches();
-    }
+    ASSERT_EQ(l.get_pitches(), p.expected_pitches);
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke, data_layout_test,
@@ -130,7 +126,7 @@ TEST_P(weights_layout_test, size_check) {
         }
     }
 
-    auto l = layout(p.dt, p.fmt, tensor{default_fmt, p.size});
+    auto l = layout(p.dt, p.fmt, tensor{default_fmt, p.size}, p.padd);
 
     size_t expected_count = std::accumulate(p.size.begin(), p.size.end(), 1, std::multiplies<tensor::value_type>());
     size_t expected_bytes_count = std::accumulate(p.expected_aligned_size.begin(),
@@ -184,16 +180,22 @@ TEST_P(weights_layout_test, size_check) {
         ASSERT_EQ(ordered_dims[i], dims[p.expected_order[i]]);
         ASSERT_EQ(ordered_dims[i], p.size[p.expected_order[i]]);
     }
+
+    if (p.expected_pitches.size() > 0)
+        ASSERT_EQ(l.get_pitches(), p.expected_pitches);
+    else {
+        l.get_pitches();
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke, weights_layout_test,
     testing::ValuesIn(std::vector<layout_test_params>{
-        {data_types::f32, format::oiyx, {2, 15, 3, 5}, {2, 15, 3, 5}, {0, 1, 2, 3}},
-        {data_types::f32, format::ioyx, {2, 15, 3, 5}, {2, 15, 3, 5}, {1, 0, 2, 3}},
-        {data_types::f32, format::yxio, {2, 15, 3, 5}, {2, 15, 3, 5}, {2, 3, 1, 0}},
-        {data_types::f32, format::goiyx, {4, 2, 15, 3, 5}, {4, 2, 15, 3, 5}, {0, 1, 2, 3, 4}},
-        {data_types::f32, format::goizyx, {4, 2, 15, 3, 5, 6}, {4, 2, 15, 3, 5, 6}, {0, 1, 2, 3, 4, 5}},
-        {data_types::f32, format::giozyx, {4, 2, 15, 3, 5, 6}, {4, 2, 15, 3, 5, 6}, {0, 2, 1, 3, 4, 5}},
+        {data_types::f32, format::oiyx, {2, 15, 3, 5}, {2, 15, 3, 5}, {0, 1, 2, 3}, {}, {225, 15, 5, 1}},
+        {data_types::f32, format::ioyx, {2, 15, 3, 5}, {2, 15, 3, 5}, {1, 0, 2, 3}, {}, {15, 30, 5, 1}},
+        {data_types::f32, format::yxio, {2, 15, 3, 5}, {2, 15, 3, 5}, {2, 3, 1, 0}, {}, {1, 2, 150, 30}},
+        {data_types::f32, format::goiyx, {4, 2, 15, 3, 5}, {4, 2, 15, 3, 5}, {0, 1, 2, 3, 4}, {}, {450, 225, 15, 5, 1}},
+        {data_types::f32, format::goizyx, {4, 2, 15, 3, 5, 6}, {4, 2, 15, 3, 5, 6}, {0, 1, 2, 3, 4, 5}, {}, {2700, 1350, 90, 30, 6, 1}},
+        {data_types::f32, format::giozyx, {4, 2, 15, 3, 5, 6}, {4, 2, 15, 3, 5, 6}, {0, 2, 1, 3, 4, 5}, {}, {2700, 90, 180, 30, 6, 1}},
     }));
 
 
