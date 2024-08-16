@@ -11,6 +11,7 @@
 #include "intel_npu/al/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "zero_executor.hpp"
 
 namespace intel_npu {
 namespace driverCompilerAdapter {
@@ -104,6 +105,8 @@ private:
                              ze_graph_compiler_version_info_t compilerVersion) const;
     std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t& compilerVersion) const;
 
+    void processInputOutputDescriptors(ze_graph_argument_properties_3_t arg, uint32_t index);
+
     template <typename T = TableExtension, typename std::enable_if_t<NotSupportArgumentMetadata(T), bool> = true>
     void getMetadata(TableExtension* graphDdiTableExt,
                      ze_graph_handle_t graphHandle,
@@ -174,6 +177,10 @@ private:
     ze_driver_handle_t _driverHandle = nullptr;
     ze_device_handle_t _deviceHandle = nullptr;
     ze_context_handle_t _context = nullptr;
+
+    mutable ze_graph_properties_t _props{};
+    std::vector<intel_npu::ZeroExecutor::ArgumentDescriptor> inputDescriptors;
+    std::vector<intel_npu::ZeroExecutor::ArgumentDescriptor> outputDescriptors;
 
     TableExtension* _graphDdiTableExt = nullptr;
     Logger _logger;

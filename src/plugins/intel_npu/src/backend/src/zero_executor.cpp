@@ -81,34 +81,41 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
         zeroUtils::throwOnFail(
             "pfnCreate",
             _graph_ddi_table_ext->pfnCreate(_initStructs->getContext(), _initStructs->getDevice(), &desc, &_graph));
+
+        OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetProperties");
+        zeroUtils::throwOnFail("pfnGetProperties", _graph_ddi_table_ext->pfnGetProperties(_graph, &_props));
+        auto targetDriverExtVersion = _initStructs->getDriverExtVersion();
+        if (targetDriverExtVersion <= ZE_GRAPH_EXT_VERSION_1_1) {
+            OPENVINO_THROW("Incompatibility between the NPU plugin and driver! The driver version is too old, please "
+                           "update the driver version");
+        }
+
+        OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetArgumentProperties3");
+        _logger.debug("ZeroExecutor::ZeroExecutor - performing pfnGetArgumentProperties3");
+        for (uint32_t index = 0; index < _props.numGraphArgs; ++index) {
+            ze_graph_argument_properties_3_t arg3;
+            zeroUtils::throwOnFail("pfnGetArgumentProperties3",
+                                   _graph_ddi_table_ext->pfnGetArgumentProperties3(_graph, index, &arg3));
+
+            if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
+                _input_descriptors.push_back(ArgumentDescriptor{arg3, index});
+            } else {
+                _output_descriptors.push_back(ArgumentDescriptor{arg3, index});
+            }
+        }
+
     } else {
         _logger.debug("_networkDesc->graphHandleVoidPtr is not nulltpr");
         try {
             _graph = *static_cast<ze_graph_handle_t*>(_networkDesc->graphHandleVoidPtr);
+            // from compiler
+            _props = *static_cast<ze_graph_properties_t*>(_networkDesc->propsVoidPtr);
+            _input_descriptors =
+                *static_cast<std::vector<intel_npu::ZeroExecutor::ArgumentDescriptor>*>(_networkDesc->inputDescriptors);
+            _output_descriptors = *static_cast<std::vector<intel_npu::ZeroExecutor::ArgumentDescriptor>*>(
+                _networkDesc->outputDescriptors);
         } catch (const std::exception& e) {
-            _logger.error("Failed to get graph handle from network description, ", e.what());
-        }
-    }
-
-    OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetProperties");
-    zeroUtils::throwOnFail("pfnGetProperties", _graph_ddi_table_ext->pfnGetProperties(_graph, &_props));
-    auto targetDriverExtVersion = _initStructs->getDriverExtVersion();
-    if (targetDriverExtVersion <= ZE_GRAPH_EXT_VERSION_1_1) {
-        OPENVINO_THROW("Incompatibility between the NPU plugin and driver! The driver version is too old, please "
-                       "update the driver version");
-    }
-
-    OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetArgumentProperties3");
-    _logger.debug("ZeroExecutor::ZeroExecutor - performing pfnGetArgumentProperties3");
-    for (uint32_t index = 0; index < _props.numGraphArgs; ++index) {
-        ze_graph_argument_properties_3_t arg3;
-        zeroUtils::throwOnFail("pfnGetArgumentProperties3",
-                               _graph_ddi_table_ext->pfnGetArgumentProperties3(_graph, index, &arg3));
-
-        if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
-            _input_descriptors.push_back(ArgumentDescriptor{arg3, index});
-        } else {
-            _output_descriptors.push_back(ArgumentDescriptor{arg3, index});
+            _logger.error("Failed to get cast and get obj from network description return from compiler, ", e.what());
         }
     }
 

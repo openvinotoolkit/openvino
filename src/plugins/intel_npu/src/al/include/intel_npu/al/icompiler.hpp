@@ -148,6 +148,9 @@ struct NetworkDescription final {
 
     // use to pass graphHandle from compiler to backend executor
     void* graphHandleVoidPtr = nullptr;
+    void* propsVoidPtr = nullptr;
+    void* inputDescriptors = nullptr;
+    void* outputDescriptors = nullptr;
 };
 
 /**
