@@ -342,19 +342,16 @@ ov_status_e ov_infer_request_get_profiling_info(const ov_infer_request_t* infer_
 }
 
 void ov_profiling_info_list_free(ov_profiling_info_list_t* profiling_infos) {
-    if (!profiling_infos) {
+    if (!profiling_infos || !profiling_infos->profiling_infos) {
         return;
     }
     for (size_t i = 0; i < profiling_infos->size; i++) {
-        if (profiling_infos->profiling_infos[i].node_name)
-            delete[] profiling_infos->profiling_infos[i].node_name;
-        if (profiling_infos->profiling_infos[i].exec_type)
-            delete[] profiling_infos->profiling_infos[i].exec_type;
-        if (profiling_infos->profiling_infos[i].node_type)
-            delete[] profiling_infos->profiling_infos[i].node_type;
+        delete[] profiling_infos->profiling_infos[i].node_name;
+        delete[] profiling_infos->profiling_infos[i].exec_type;
+        delete[] profiling_infos->profiling_infos[i].node_type;
     }
-    if (profiling_infos->profiling_infos)
-        delete[] profiling_infos->profiling_infos;
+    
+    delete[] profiling_infos->profiling_infos;
     profiling_infos->profiling_infos = nullptr;
     profiling_infos->size = 0;
 }
