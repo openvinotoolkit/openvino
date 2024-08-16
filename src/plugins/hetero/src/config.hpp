@@ -38,7 +38,7 @@ struct Configuration {
 
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
 
-    std::vector<std::function<std::string(const std::string&)>> crypto_callback;
+    CRYPTO_CALLBACK crypto_callback;
 
     ov::AnyMap device_properties;
 };

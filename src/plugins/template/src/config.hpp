@@ -48,7 +48,7 @@ struct Configuration {
 
     ov::hint::Priority model_priority = ov::hint::Priority::DEFAULT;
 
-    std::vector<std::function<std::string(const std::string&)>> cache_crypto;
+    CRYPTO_CALLBACK cache_crypto;
 };
 // ! [configuration:header]
 

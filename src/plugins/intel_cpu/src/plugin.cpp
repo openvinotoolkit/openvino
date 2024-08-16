@@ -600,9 +600,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& networkMo
 
     std::function<std::string(const std::string&)> decrypt;
     if (config.count(ov::cache_crypto_callback.name())) {
-        auto crypto_callback = config.at(ov::cache_crypto_callback.name())
-                                   .as<std::vector<std::function<std::string(const std::string&)>>>();
-        decrypt = crypto_callback[1];
+        auto crypto_callback = config.at(ov::cache_crypto_callback.name()).as<CRYPTO_CALLBACK>();
+        decrypt = crypto_callback.decrypt;
     }
 
     if (!decrypt) {

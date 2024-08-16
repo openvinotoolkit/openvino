@@ -900,9 +900,9 @@ void CompileModelWithCacheCryptoTest::SetUp() {
     ovModelWithName funcPair;
     targetDevice = GetParam();
     target_device = targetDevice;
-    std::vector<std::function<std::string(const std::string&)>> cache_crypto;
-    cache_crypto.push_back(ov::util::codec_xor);
-    cache_crypto.push_back(ov::util::codec_xor);
+    CRYPTO_CALLBACK cache_crypto;
+    cache_crypto.encrypt = ov::util::codec_xor;
+    cache_crypto.decrypt = ov::util::codec_xor;
     configuration.insert(ov::cache_crypto_callback(cache_crypto));
     APIBaseTest::SetUp();
     std::stringstream ss;
