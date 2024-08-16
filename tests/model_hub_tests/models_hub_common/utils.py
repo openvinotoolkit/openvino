@@ -14,6 +14,8 @@ from models_hub_common.constants import test_device
 def parse_list_file(file_name: str):
     with open(file_name, 'r') as f_in:
         for model_info in f_in:
+            if not model_info:
+                continue
             model_info = model_info.strip()
             # skip comment in model scope file
             if not model_info or model_info.startswith('#'):
@@ -45,7 +47,6 @@ def get_models_list(file_name: str):
             assert False, \
                 f'Incorrect model info fields {items}. It must contain either 2 or 4 or more than 4 fields.'
     return models
-
 
 def get_skipped_model_links(file_name: str):
     return {line_items[1] for line_items in parse_list_file(file_name)}
