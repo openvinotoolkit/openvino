@@ -46,10 +46,7 @@ ov::SoPtr<ov::ITensor> TupleRemoteContextImpl::create_host_tensor(const ov::elem
 ov::SoPtr<ov::IRemoteTensor> TupleRemoteContextImpl::create_tensor(const ov::element::Type& type, const ov::Shape& shape, const ov::AnyMap& params) {
     std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors;
     for (auto& item : m_contexts) {
-        if (item.first == "0") {
-            continue;
-        }
-        std::cout << item.first << std::endl;
+        // std::cout << item.first << std::endl;
         auto a = item.second->create_tensor(type, shape, params);
         tensors.emplace_back(a);
     }

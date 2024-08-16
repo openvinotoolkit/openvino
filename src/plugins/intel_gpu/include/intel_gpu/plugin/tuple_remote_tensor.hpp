@@ -49,10 +49,6 @@ public:
     bool deallocate() noexcept;
 
     bool is_allocated() const noexcept;
-    bool is_surface() const noexcept;
-    bool is_shared() const noexcept;
-    cldnn::memory::ptr get_memory() const;
-    cldnn::memory::ptr get_original_memory() const;
 
     void set_memory(cldnn::memory::ptr memory, size_t actual_size);
 
@@ -61,33 +57,8 @@ public:
 
 private:
     std::shared_ptr<TupleRemoteContextImpl> m_context;
-
-    ov::element::Type m_element_type;
-    ov::Shape m_shape;
-    // std::vector<std::shared_ptr<RemoteContextImpl>> m_contexts;
-
-    // std::vector<ov::element::Type> m_element_types;
-
-    std::vector<ov::Shape> m_shapes;
-    ov::Strides m_strides{};
-    ov::AnyMap m_properties;
-
-    cldnn::memory::ptr m_memory_object = nullptr;
-    cldnn::layout m_layout;
-    TensorType m_mem_type;
-
-    cldnn::shared_handle m_mem;
-    cldnn::shared_surface m_surf;
-    uint32_t m_plane;
-    size_t m_hash = 0;
     std::vector<ov::SoPtr<ov::IRemoteTensor>> m_tensors;
-
-    bool supports_caching() const;
-    void update_hash();
-    void update_strides();
-    void update_properties();
-
-    static TensorType allocation_type_to_tensor_type(cldnn::allocation_type t);
+    std::vector<std::shared_ptr<RemoteTensorImpl>> m_remote_tensors;
 };
 
 }  // namespace intel_gpu

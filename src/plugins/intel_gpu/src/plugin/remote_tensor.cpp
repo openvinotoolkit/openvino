@@ -31,8 +31,7 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
                                    TensorType mem_type,
                                    cldnn::shared_handle mem,
                                    cldnn::shared_surface surf,
-                                   uint32_t plane,
-                                   bool is_virtual)
+                                   uint32_t plane)
     : m_context(context)
     , m_element_type(element_type)
     , m_shape(shape)
@@ -41,10 +40,8 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
     , m_mem(mem)
     , m_surf(surf)
     , m_plane(plane) {
-    if (!is_virtual) {
-        update_hash();
-        allocate();
-    }
+    update_hash();
+    allocate();
 }
 
 RemoteTensorImpl::~RemoteTensorImpl() {

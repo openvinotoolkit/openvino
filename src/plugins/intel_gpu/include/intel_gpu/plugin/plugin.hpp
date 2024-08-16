@@ -52,7 +52,6 @@ private:
     std::shared_ptr<ov::threading::MessageManager> m_msg_manager;
 
     mutable std::map<std::string, RemoteContextImpl::Ptr> contexts_for_tp;
-    mutable bool enable_tp;
 
 public:
     Plugin();

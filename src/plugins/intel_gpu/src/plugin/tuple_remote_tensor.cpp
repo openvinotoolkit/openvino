@@ -2,40 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/remote_context.hpp"
-#include "intel_gpu/plugin/remote_tensor.hpp"
 #include "intel_gpu/plugin/tuple_remote_tensor.hpp"
-#include "intel_gpu/plugin/plugin.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/runtime/memory_caps.hpp"
 
 #include <memory>
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/plugin.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/remote_tensor.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/runtime/memory_caps.hpp"
 namespace ov {
 namespace intel_gpu {
 
-TensorType TupleRemoteTensorImpl::allocation_type_to_tensor_type(cldnn::allocation_type t) {
-    switch (t) {
-    case cldnn::allocation_type::cl_mem: return TensorType::BT_BUF_INTERNAL;
-    case cldnn::allocation_type::usm_host: return TensorType::BT_USM_HOST_INTERNAL;
-    case cldnn::allocation_type::usm_device: return TensorType::BT_USM_DEVICE_INTERNAL;
-    default: return TensorType::BT_EMPTY;
-    }
-
-    return TensorType::BT_EMPTY;
-}
-
 TupleRemoteTensorImpl::TupleRemoteTensorImpl(std::shared_ptr<TupleRemoteContextImpl> context, std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors)
     : m_context(context)
-    , m_element_type(tensors[0]->get_element_type()) {
-    // , m_shape(shape)
-    // , m_layout(cldnn::layout{ov::PartialShape{shape}, element_type, cldnn::format::get_default_format(shape.size())})
-    // , m_mem_type(mem_type)
-    // , m_mem(mem)
-    // , m_surf(surf)
-    // , m_plane(plane)
-    m_tensors = tensors;
+    , m_tensors(tensors) {
+    for (auto& tensor : m_tensors) {
+        auto remote_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(tensor._ptr);
+        m_remote_tensors.emplace_back(remote_tensor);
+    }
 }
 
 TupleRemoteTensorImpl::~TupleRemoteTensorImpl() {
@@ -47,271 +33,61 @@ ov::SoPtr<ov::IRemoteTensor> TupleRemoteTensorImpl::get_tensor(int index) const 
 }
 
 const ov::element::Type& TupleRemoteTensorImpl::get_element_type() const {
-    return m_element_type;
+    return m_tensors[0]->get_element_type();
 }
 
 const ov::Shape& TupleRemoteTensorImpl::get_shape() const {
-    return m_shape;
-}
-
-void TupleRemoteTensorImpl::update_strides() {
-    if (m_element_type.bitwidth() < 8)
-        return;
-    auto& shape = get_shape();
-    m_strides.clear();
-    if (!shape.empty()) {
-        m_strides.resize(shape.size());
-        m_strides.back() = shape.back() == 0 ? 0 : m_element_type.size();
-        std::copy(shape.rbegin(), shape.rend() - 1, m_strides.rbegin() + 1);
-        std::partial_sum(m_strides.rbegin(), m_strides.rend(), m_strides.rbegin(), std::multiplies<size_t>());
-    }
+    return m_tensors[0]->get_shape();
 }
 
 const ov::Strides& TupleRemoteTensorImpl::get_strides() const {
-    return m_strides;
+    return m_tensors[0]->get_strides();
 }
 
 const AnyMap& TupleRemoteTensorImpl::get_properties() const {
-    return m_properties;
+    return m_tensors[0]->get_properties();
 }
 
- void TupleRemoteTensorImpl::set_shape(ov::Shape shape) {
-    m_layout.set_partial_shape(ov::PartialShape{shape});
-    m_shape = shape;
-
-    if (ov::shape_size(shape) > m_memory_object->count()) {
-        GPU_DEBUG_TRACE_DETAIL << "Remote realloc" << std::endl;
-        OPENVINO_ASSERT(!is_shared(), "Cannot call set_shape for Tensor created on top of preallocated memory if shape was increased.");
-        if (!deallocate()) {
-            OPENVINO_THROW("Cannot deallocate tensor while an attempt to enlarge tensor area in set_shape.");
-        }
-
-        allocate();
-    } else {
-        update_strides();
+void TupleRemoteTensorImpl::set_shape(ov::Shape shape) {
+    for (auto& tensor : m_tensors) {
+        tensor->set_shape(shape);
     }
 }
 
 bool TupleRemoteTensorImpl::deallocate() noexcept {
-    m_memory_object.reset();
-    return m_memory_object == nullptr;
+    bool deallocate = true;
+    for (auto& tensor : m_remote_tensors) {
+        deallocate &= tensor->deallocate();
+    }
+    return deallocate;
 }
 
 bool TupleRemoteTensorImpl::is_allocated() const noexcept {
-    return m_memory_object != nullptr;
+    bool is_allocated = true;
+    for (auto& tensor : m_remote_tensors) {
+        is_allocated &= tensor->is_allocated();
+    }
+    return is_allocated;
 }
 
 void TupleRemoteTensorImpl::allocate() {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "RemoteTensorImpl::Allocate");
-
-    auto context = std::dynamic_pointer_cast<RemoteContextImpl>(m_context);
-    auto enable_caching = supports_caching();
-
-    if (is_surface()) {
-        m_layout.format = cldnn::format::nv12;  // Other formats are not supported
+    for (auto& tensor : m_remote_tensors) {
+        tensor->allocate();
     }
-
-    if (enable_caching) {
-        m_memory_object = context->try_get_cached_memory(m_hash);
-        if (m_memory_object) {
-            update_properties();
-            update_strides();
-            return;
-        }
-    }
-
-    auto& engine = context->get_engine();
-
-    // Currently, clDeviceMemAllocINTEL returns memory address allocated to other input blob if the current blob is empty
-    // W/A for this issue:
-    // Allocate with non-empty shape and then reinterprete with original shape
-    auto shape_copy = m_shape;
-    for (auto &i : shape_copy) {
-        if (i == 0)
-            i = 1;
-    }
-
-    m_layout.set_partial_shape(shape_copy);
-
-    const bool reset = false;
-
-    switch (m_mem_type) {
-    case TensorType::BT_BUF_INTERNAL: {
-        m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::cl_mem, reset);
-        break;
-    }
-    case TensorType::BT_USM_HOST_INTERNAL: {
-        m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::usm_host, reset);
-        break;
-    }
-    case TensorType::BT_USM_DEVICE_INTERNAL: {
-        m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::usm_device, reset);
-        break;
-    }
-    case TensorType::BT_BUF_SHARED: {
-        m_memory_object = engine.share_buffer(m_layout, m_mem);
-        break;
-    }
-    case TensorType::BT_USM_SHARED: {
-        m_memory_object = engine.share_usm(m_layout, m_mem);
-        break;
-    }
-#ifdef _WIN32
-    case TensorType::BT_SURF_SHARED: {
-        m_memory_object = engine.share_surface(m_layout, m_mem, m_plane);
-        break;
-    }
-    case TensorType::BT_DX_BUF_SHARED: {
-        m_memory_object = engine.share_dx_buffer(m_layout, m_mem);
-        break;
-    }
-#else
-    case TensorType::BT_SURF_SHARED: {
-        m_memory_object = engine.share_surface(m_layout, m_surf, m_plane);
-        break;
-    }
-#endif
-    case TensorType::BT_IMG_SHARED: {
-        m_memory_object = engine.share_image(m_layout, m_mem);
-        break;
-    }
-    default:
-        m_memory_object.reset();
-    }
-
-    update_properties();
-    update_strides();
-
-    if (enable_caching)
-        context->add_to_cache(m_hash, m_memory_object);
 }
 
 const std::string& TupleRemoteTensorImpl::get_device_name() const {
     return m_context->get_device_name();
 }
 
-bool TupleRemoteTensorImpl::is_shared() const noexcept {
-    return m_mem_type == TensorType::BT_BUF_SHARED ||
-           m_mem_type == TensorType::BT_USM_SHARED ||
-           m_mem_type == TensorType::BT_IMG_SHARED ||
-           m_mem_type == TensorType::BT_SURF_SHARED ||
-           m_mem_type == TensorType::BT_DX_BUF_SHARED;
-}
-
-bool TupleRemoteTensorImpl::supports_caching() const {
-    return is_shared();
-}
-
-void TupleRemoteTensorImpl::update_hash() {
-    if (supports_caching()) {
-        m_hash = cldnn::hash_combine(0, m_mem);
-        m_hash = cldnn::hash_combine(m_hash, m_surf);
-        m_hash = cldnn::hash_combine(m_hash, m_plane);
-        m_hash = cldnn::hash_combine(m_hash, m_shape.size());
-        m_hash = cldnn::hash_combine(m_hash, m_element_type.hash());
-        for (const auto& d : m_shape) {
-            m_hash = cldnn::hash_combine(m_hash, d);
-        }
-    }
-}
-
-bool TupleRemoteTensorImpl::is_surface() const noexcept {
-    return m_mem_type == TensorType::BT_SURF_SHARED ||
-           m_mem_type == TensorType::BT_IMG_SHARED;
-}
-
-cldnn::memory::ptr TupleRemoteTensorImpl::get_memory() const {
-    auto engine = m_memory_object->get_engine();
-    return engine->reinterpret_buffer(*m_memory_object, m_layout);
-}
-
-cldnn::memory::ptr TupleRemoteTensorImpl::get_original_memory() const {
-    return m_memory_object;
-}
-
 void TupleRemoteTensorImpl::set_memory(cldnn::memory::ptr memory, size_t actual_size) {
-    auto engine = m_memory_object->get_engine();
-    m_layout = memory->get_layout();
-    m_shape = m_layout.get_shape();
-
-    auto actual_layout = m_layout;
-    actual_layout.set_partial_shape({ov::Dimension(actual_size)});
-    m_memory_object = engine->reinterpret_buffer(*memory, actual_layout);
-
-    update_properties();
-    update_strides();
+    for (auto& tensor : m_remote_tensors) {
+        tensor->set_memory(memory, actual_size);
+    }
 }
 
 std::shared_ptr<TupleRemoteContextImpl> TupleRemoteTensorImpl::get_context() const {
     return m_context;
-}
-
-void TupleRemoteTensorImpl::update_properties() {
-    OPENVINO_ASSERT(is_allocated(), "[GPU] Can't initialize RemoteTensorImpl parameters as memory was not allocated");
-    auto params = m_memory_object->get_internal_params();
-
-    switch (m_mem_type) {
-    case TensorType::BT_BUF_INTERNAL:
-    case TensorType::BT_BUF_SHARED:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::OCL_BUFFER),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::mem_handle(params.mem),
-        };
-        break;
-    case TensorType::BT_USM_SHARED:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_USER_BUFFER),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::mem_handle(params.mem),
-        };
-        break;
-    case TensorType::BT_USM_HOST_INTERNAL:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_HOST_BUFFER),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::mem_handle(params.mem),
-        };
-        break;
-    case TensorType::BT_USM_DEVICE_INTERNAL:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_DEVICE_BUFFER),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::mem_handle(params.mem),
-        };
-        break;
-
-#ifdef _WIN32
-    case TensorType::BT_DX_BUF_SHARED:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::DX_BUFFER),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::va_device(params.user_device),
-            ov::intel_gpu::mem_handle(params.mem),
-            ov::intel_gpu::dev_object_handle(params.surface),
-        };
-        break;
-#endif
-    case TensorType::BT_IMG_SHARED:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::OCL_IMAGE2D),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::mem_handle(params.mem),
-        };
-        break;
-    case TensorType::BT_SURF_SHARED:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::VA_SURFACE),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::va_device(params.user_device),
-            ov::intel_gpu::mem_handle(params.mem),
-            ov::intel_gpu::dev_object_handle(params.surface),
-            ov::intel_gpu::va_plane(params.plane),
-        };
-        break;
-    default:
-        OPENVINO_THROW("[GPU] Unsupported shared object type ", static_cast<int>(m_mem_type));
-    }
 }
 
 }  // namespace intel_gpu

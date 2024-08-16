@@ -37,8 +37,7 @@ public:
                      TensorType mem_type = TensorType::BT_BUF_INTERNAL,
                      cldnn::shared_handle mem = nullptr,
                      cldnn::shared_surface surf = 0,
-                     uint32_t plane = 0,
-                     bool is_virtual = false);
+                     uint32_t plane = 0);
 
     ~RemoteTensorImpl() override;
     const AnyMap& get_properties() const override;

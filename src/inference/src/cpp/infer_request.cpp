@@ -194,11 +194,6 @@ Tensor InferRequest::get_tensor(const std::string& name) {
 }
 
 Tensor InferRequest::get_input_tensor(size_t idx) {
-    // std::cout << "idx: " << idx << std::endl;
-    // std::cout << "_impl->get_inputs(): " << _impl->get_inputs().size() << std::endl;
-    // for (auto& item : _impl->get_inputs()) {
-    //     std::cout << item.get_node()->get_friendly_name() << std::endl;
-    // }
     OV_INFER_REQ_CALL_STATEMENT({ return get_tensor(_impl->get_inputs().at(idx)); });
 }
 

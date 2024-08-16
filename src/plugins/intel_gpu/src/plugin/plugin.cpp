@@ -207,7 +207,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
         if (config.get_context_for_tp().size() > 1) {
             std::cout << "***************************** enable tp *****************************\n";
-            enable_tp = 1;
             config.enableSubStreams = true;
             config.streamsRankTable = get_rank_table();
         }
@@ -249,7 +248,7 @@ std::shared_ptr<RemoteContextImpl> Plugin::get_default_context(const std::string
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) const {
-    if (enable_tp) {
+    if (contexts_for_tp.size() > 1) {
         auto contexts = get_default_contexts();
         auto tuple_context = std::make_shared<ov::intel_gpu::TupleRemoteContextImpl>(contexts_for_tp);
         return tuple_context;
