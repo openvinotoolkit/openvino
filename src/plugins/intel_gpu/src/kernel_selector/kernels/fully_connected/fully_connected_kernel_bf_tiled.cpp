@@ -325,7 +325,8 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
         if (!params.is_shape_agnostic && batch == 1) {
             // Tuning for Meteor Lake
             size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
-            if (output_f / 2 <= min_num_threads && params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
+//            if (output_f / 2 <= min_num_threads && params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
+            if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
                 GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: Set ofm_tile 1. (output_f : " << output_f
                     << ", computeUnitsCount : " << params.engineInfo.computeUnitsCount
                     << " min_num_threads : " << min_num_threads << ")" << std::endl;
@@ -693,6 +694,8 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
         weights_layout = WeightsLayout::os_iyx_osv64;
     }
 
+    if (fc_params.weights.IFM().v == 13696 && fc_params.weights.OFM().v == 4096)
+        weights_layout = WeightsLayout::os_iyx_osv16;
     KernelsData kernels_data;
     if (should_dynamic_quantize(fc_params)) {
         // Use seperate 2 kernels for dynamic quantizing : quantizing_kernel + fc_kernel
