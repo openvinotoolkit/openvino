@@ -31,6 +31,11 @@ protected:
      */
     void update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) override;
     /**
+     * @brief Update tensor rank based on master shape
+     * @param master_shape Master shape
+     */
+    void update_tensor_rank(const ov::snippets::VectorDims& master_shape) override;
+    /**
      * @brief Initializes tensor rank of config
      * @param linear_ir LinearIR
      */
@@ -41,7 +46,7 @@ protected:
      */
     void update_loop_args(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const;
 
-    const size_t rank6D = 6;
+    static const size_t rank6D;
 };
 
 }   // namespace intel_cpu

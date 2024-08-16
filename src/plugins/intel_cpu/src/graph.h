@@ -245,6 +245,7 @@ private:
     void EnforceInferencePrecision();
     void EnforceBF16();
     void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
+    void insertConvert(EdgePtr& edge);
     void allocateIntermediateTensors();
     void releaseIntermediateTensors();
 

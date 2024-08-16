@@ -48,6 +48,7 @@ enum class InterpolateShapeCalcMode {
 };
 
 struct InterpolateAttrs {
+    InterpolateShapeCalcMode shapeCalcMode = InterpolateShapeCalcMode::sizes;
     InterpolateMode mode = InterpolateMode::nearest;
     InterpolateCoordTransMode coordTransMode = InterpolateCoordTransMode::half_pixel;
     InterpolateNearestMode nearestMode = InterpolateNearestMode::round_prefer_floor;

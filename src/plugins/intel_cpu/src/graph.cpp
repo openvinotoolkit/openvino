@@ -5,6 +5,7 @@
 #include "graph.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <limits>
 #include <map>
 #include <memory>
@@ -491,6 +492,8 @@ void Graph::CreatePrimitivesAndExecConstants() const {
             continue;
         }
 
+        VERBOSE(node, getConfig().debugCaps.verbose);
+
         if (context->getWeightsCache()) {
             auto sharedOutputs = acquireSharedOutputs(node);
 
@@ -551,59 +554,65 @@ void Graph::insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<st
     InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
 }
 
-void Graph::ResolveEdgeConflicts() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveEdgeConflicts");
+void Graph::insertConvert(EdgePtr& edge) {
+    const auto& inDesc = edge->getInputDesc();
+    const auto& outDesc = edge->getOutputDesc();
 
-    ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
+    std::string convertName = edge->getParent()->getName() + "_" +
+        inDesc.getPrecision().get_type_name() + "_" + outDesc.getPrecision().get_type_name();
 
+    auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
+                                                       convertName, context);
+    convertNode->setDescs(inDesc, outDesc);
+    InsertNode(edge, convertNode, true);
+}
+
+static std::unordered_set<std::string> getUniqueLayerNames(const std::vector<NodePtr>& graphNodes) {
     std::unordered_set<std::string> uniqueLayerNames;
+    uniqueLayerNames.reserve(graphNodes.size());
+
     for (auto node : graphNodes) {
         uniqueLayerNames.insert(node->getName());
     }
 
-    auto updateEdge = [&](ptrdiff_t& i) {
-        graphEdges.erase(graphEdges.begin() + i);
-        i--;
-        numberOfEdges--;
-    };
+    return uniqueLayerNames;
+}
 
-    for (ptrdiff_t i = 0; i < numberOfEdges; i++) {
-        auto edge = graphEdges[i];
-        auto reorderStatus = graphEdges[i]->needReorder();
-        DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", reorderStatus);
-        if (reorderStatus == Edge::ReorderStatus::Regular) {
-            Edge::ReorderStatus reorderStatusInternal = Edge::ReorderStatus::Regular;
-            // Check if there is a reorder that needs the precision conversion
-            if (edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
-                    !isReorderAvailable(edge->getInputPortDesc()->getMemDesc(),
-                                        edge->getOutputPortDesc()->getMemDesc(),
-                                        this->getEngine())) {
-                // If we are here, then we need to insert Convert, because there are no reorders that support such type conversion
-                const auto& inDesc = edge->getInputDesc();
-                const auto& outDesc = edge->getOutputDesc();
+void Graph::ResolveEdgeConflicts() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveEdgeConflicts");
 
-                std::string convertName = edge->getParent()->getName() + "_" +
-                                          inDesc.getPrecision().get_type_name() + "_" + outDesc.getPrecision().get_type_name();
+    std::unordered_set<std::string> uniqueLayerNames = getUniqueLayerNames(graphNodes);
 
-                auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
-                                                                   convertName, context);
-                convertNode->setDescs(inDesc, outDesc);
-                InsertNode(edge, convertNode, true);
+    /* When inserting convert / reorder, two new edges are added (pushed to the end) to the graphEdges.
+       So use a plain for loop, to handle newly inserted edges as well */
+    for (size_t i = 0; i < graphEdges.size(); i++) {
+        auto& edge = graphEdges[i];
+        auto reorderStatus = edge->needReorder();
+        DEBUG_LOG(*edge, " reorderStatus = ", reorderStatus);
 
-                //Check if reorder is still needed
-                reorderStatusInternal = convertNode->getChildEdgeAt(0)->needReorder();
-                if (reorderStatusInternal != Edge::ReorderStatus::No)
-                    edge = convertNode->getChildEdgeAt(0);
+        switch (reorderStatus) {
+        case Edge::ReorderStatus::Regular: {
+            if (reorderStatus == Edge::ReorderStatus::Regular &&
+                edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
+                !isReorderAvailable(edge->getInputPortDesc()->getMemDesc(),
+                                    edge->getOutputPortDesc()->getMemDesc(),
+                                    this->getEngine())) {
+                // just insert convert. If layout reorder is still needed, it will be inserted later in the traverse
+                insertConvert(edge);
+            } else {
+                insertReorder(edge, false, uniqueLayerNames);
             }
-            if (reorderStatusInternal != Edge::ReorderStatus::No) {
-                insertReorder(edge, reorderStatusInternal == Edge::ReorderStatus::Optimized, uniqueLayerNames);
-            }
-            updateEdge(i);
-        } else if (reorderStatus == Edge::ReorderStatus::Optimized) {
+            break;
+        }
+        case Edge::ReorderStatus::Optimized:
             insertReorder(edge, true, uniqueLayerNames);
-            updateEdge(i);
+            break;
+        case Edge::ReorderStatus::No:
+            break;
         }
     }
+
+    RemoveDroppedEdges();
 }
 
 void Graph::ResolveComplexInplaceConflicts() {
@@ -611,10 +620,7 @@ void Graph::ResolveComplexInplaceConflicts() {
 
     ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
 
-    std::unordered_set<std::string> uniqueLayerNames;
-    for (auto node : graphNodes) {
-        uniqueLayerNames.insert(node->getName());
-    }
+    std::unordered_set<std::string> uniqueLayerNames = getUniqueLayerNames(graphNodes);
 
     auto updateEdge = [&](ptrdiff_t& i) {
         graphEdges.erase(graphEdges.begin() + i);
