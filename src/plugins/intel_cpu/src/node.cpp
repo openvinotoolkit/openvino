@@ -566,8 +566,10 @@ void Node::updateShapes() {
                     if (mem->getShape().hasZeroDims()) {
                         continue;
                     }
-                    if (nullptr == mem->getData()) {
-                        mem->getMemoryBlock()->resize(mem->getSize()); // TODO: conceptually this is a very bad solution
+                    // TODO: conceptually this is a very bad solution
+                    auto block = mem->getMemoryBlock();
+                    if (nullptr == block->getRawPtr()) {
+                        block->resize(mem->getSize());
                     }
                 }
             }
