@@ -74,13 +74,29 @@ void prepare_padding::run(program& p) {
                 auto needed_lpad = in_layout.data_padding.lower_size();
                 auto needed_upad = in_layout.data_padding.upper_size();
 
-                needed_lpad[2] = std::max(pb_z, needed_lpad[2]);   // spatial[0]
-                needed_lpad[3] = std::max(pb_y, needed_lpad[3]);
-                needed_lpad[4] = std::max(pb_x, needed_lpad[4]);
+                if (padding_begin.size() >= 3) {
+                    needed_lpad[2] = std::max(pb_z, needed_lpad[2]);
+                    needed_lpad[3] = std::max(pb_y, needed_lpad[3]);
+                    needed_lpad[4] = std::max(pb_x, needed_lpad[4]);
+                } else if (padding_begin.size() >= 2) {
+                    needed_lpad[2] = std::max(pb_y, needed_lpad[2]);
+                    needed_lpad[3] = std::max(pb_x, needed_lpad[3]);
+                } else if (padding_begin.size() >= 1) {
+                    needed_lpad[2] = std::max(pb_x, needed_lpad[2]);
+                    needed_upad[2] = std::max(pe_x, needed_upad[2]);
+                }
 
-                needed_upad[2] = std::max(pe_z, needed_upad[2]);   // spatial[0]
-                needed_upad[3] = std::max(pe_y, needed_upad[3]);
-                needed_upad[4] = std::max(pe_x, needed_upad[4]);
+                if (padding_end.size() >= 3) {
+                    needed_upad[2] = std::max(pe_z, needed_upad[2]);
+                    needed_upad[3] = std::max(pe_y, needed_upad[3]);
+                    needed_upad[4] = std::max(pe_x, needed_upad[4]);
+                } else if (padding_end.size() >= 2) {
+                    needed_upad[2] = std::max(pe_y, needed_upad[2]);
+                    needed_upad[3] = std::max(pe_x, needed_upad[3]);
+                } else if (padding_end.size() >= 1) {
+                    needed_lpad[2] = std::max(pb_x, needed_lpad[2]);
+                    needed_upad[2] = std::max(pe_x, needed_upad[2]);
+                }
 
                 padding needed_padding(needed_lpad, needed_upad);
 
@@ -264,7 +280,13 @@ cldnn::padding prepare_padding::get_needed_padding_for_convolution(convolution_n
     //    round_up_to(left_padding + prev_prim_output_layout.spatial(0) + right_padding, 16));
     // right_padding = needed_buffer_size_x - left_padding - prev_prim_output_layout.spatial(0);
 
-    cldnn::padding needed_padding({0, 0, padding_begin_z, padding_begin_y, padding_begin_x}, {0, 0, padding_end_z, padding_end_y, padding_end_x}, 0);
+    cldnn::padding needed_padding = padding();
+    if (padding_begin.size() >= 3)
+        needed_padding = padding({0, 0, padding_begin_z, padding_begin_y, padding_begin_x}, {0, 0, padding_end_z, padding_end_y, padding_end_x}, 0);
+    else if (padding_begin.size() >= 2)
+        needed_padding = padding({0, 0, padding_begin_y, padding_begin_x}, {0, 0, padding_end_y, padding_end_x}, 0);
+    else if (padding_begin.size() >= 1)
+        needed_padding = padding({0, 0, padding_begin_x}, {0, 0, padding_end_x}, 0);
     needed_padding = padding::max(prev_prim_output_layout.data_padding, needed_padding);
 
     return needed_padding;
