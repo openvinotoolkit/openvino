@@ -113,6 +113,8 @@ jobs:
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/xbyak
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/ocl/icd_loader
           popd
 
       - name: Clone vcpkg
