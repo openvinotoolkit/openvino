@@ -2495,3 +2495,99 @@ TEST(OVRemoteContextGPU, smoke_RemoteTensorSetShape) {
     OV_ASSERT_NO_THROW(remote_tensor.set_shape({1, 3, 4, 5}));
     OV_ASSERT_NO_THROW(remote_tensor.set_shape({3, 3, 4, 5}));
 }
+
+TEST(OVRemoteTensorGPU, smoke_RoiRemoteTensor) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    auto core = ov::Core();
+    auto context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+
+    auto host_tensor_ref = ov::Tensor(ov::element::f32, ov::Shape{3, 2, 3, 4});
+    for (size_t i = 0; i < host_tensor_ref.get_size(); i++) {
+        auto data_ptr = host_tensor_ref.data<float>();
+        data_ptr[i] = i + 0.0;
+    }
+
+    // Host Tensor to Remote Tensor
+    auto remote_tensor = context.create_tensor(ov::element::f32, ov::Shape{3, 2, 3, 4});
+    remote_tensor.copy_from(host_tensor_ref);
+
+    {
+        auto host_tensor = ov::Tensor(ov::element::f32, ov::Shape{3, 2, 3, 4});
+        remote_tensor.copy_to(host_tensor);
+
+        for (size_t i = 0; i < host_tensor.get_size(); i++) {
+            auto data_ptr_ref = host_tensor_ref.data<float>();
+            auto data_ptr = host_tensor.data<float>();
+            ASSERT_EQ(data_ptr_ref[i], data_ptr[i]);
+        }
+    }
+
+    // Remote Tensor to Remote Tensor
+    auto new_remote_tensor = context.create_tensor(ov::element::f32, ov::Shape{3, 2, 3, 4});
+    remote_tensor.copy_to(new_remote_tensor);
+
+    {
+        auto host_tensor = ov::Tensor(ov::element::f32, ov::Shape{3, 2, 3, 4});
+        new_remote_tensor.copy_to(host_tensor);
+
+        for (size_t i = 0; i < host_tensor.get_size(); i++) {
+            auto data_ptr_ref = host_tensor_ref.data<float>();
+            auto data_ptr = host_tensor.data<float>();
+            ASSERT_EQ(data_ptr_ref[i], data_ptr[i]);
+        }
+    }
+
+    // Update reference values
+    for (size_t i = 0; i < host_tensor_ref.get_size(); i++) {
+        auto data_ptr = host_tensor_ref.data<float>();
+        data_ptr[i] = i + 0.1;
+    }
+
+    auto roi_host_tensor_ref = ov::Tensor(host_tensor_ref, {1, 0, 0, 0}, {3, 2, 3, 4});
+    auto roi_remote_tensor = ov::RemoteTensor(remote_tensor, {1, 0, 0, 0}, {3, 2, 3, 4});
+
+    // Host ROI Tensor to Remote ROI Tensor
+    roi_host_tensor_ref.copy_to(roi_remote_tensor);
+
+    {
+        auto host_tensor = ov::Tensor(ov::element::f32, ov::Shape{2, 2, 3, 4});
+        roi_remote_tensor.copy_to(host_tensor);
+
+        auto host_tensor_ref_new = ov::Tensor(ov::element::f32, ov::Shape{2, 2, 3, 4});
+        roi_host_tensor_ref.copy_to(host_tensor_ref_new);
+
+        for (size_t i = 0; i < host_tensor.get_size(); i++) {
+            auto data_ptr_ref = host_tensor_ref_new.data<float>();
+            auto data_ptr = host_tensor.data<float>();
+            ASSERT_EQ(data_ptr_ref[i], data_ptr[i]) << i;
+        }
+    }
+
+    // Update reference values
+    for (size_t i = 0; i < host_tensor_ref.get_size(); i++) {
+        auto data_ptr = host_tensor_ref.data<float>();
+        data_ptr[i] = i + 0.2;
+    }
+
+    roi_host_tensor_ref = ov::Tensor(host_tensor_ref, {1, 0, 0, 2}, {3, 2, 3, 4});
+    roi_remote_tensor = ov::RemoteTensor(remote_tensor, {1, 0, 0, 2}, {3, 2, 3, 4});
+
+    // Host ROI Tensor to Remote ROI Tensor
+    roi_remote_tensor.copy_from(roi_host_tensor_ref);
+
+    {
+        auto host_tensor = ov::Tensor(ov::element::f32, ov::Shape{2, 2, 3, 2});
+        roi_remote_tensor.copy_to(host_tensor);
+
+        auto host_tensor_ref_new = ov::Tensor(ov::element::f32, ov::Shape{2, 2, 3, 2});
+        roi_host_tensor_ref.copy_to(host_tensor_ref_new);
+
+        for (size_t i = 0; i < host_tensor.get_size(); i++) {
+            auto data_ptr_ref = host_tensor_ref_new.data<float>();
+            auto data_ptr = host_tensor.data<float>();
+            ASSERT_EQ(data_ptr_ref[i], data_ptr[i]) << i;
+        }
+    }
+}

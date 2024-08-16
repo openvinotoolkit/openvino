@@ -14,6 +14,13 @@ namespace py = pybind11;
 void regclass_RemoteTensor(py::module m) {
     py::class_<RemoteTensorWrapper, std::shared_ptr<RemoteTensorWrapper>> cls(m, "RemoteTensor");
 
+    cls.def(py::init([](RemoteTensorWrapper& tensor_wrapper, ov::Coordinate& begin, ov::Coordinate& end) {
+                return RemoteTensorWrapper(ov::RemoteTensor(tensor_wrapper.tensor, begin, end));
+            }),
+            py::arg("remote_tensor"),
+            py::arg("begin"),
+            py::arg("end"));
+
     cls.def(
         "get_device_name",
         [](RemoteTensorWrapper& self) {
@@ -44,12 +51,61 @@ void regclass_RemoteTensor(py::module m) {
 
     cls.def(
         "copy_to",
-        [](RemoteTensorWrapper& self, py::object& dst) {
-            Common::utils::raise_not_implemented();
+        [](RemoteTensorWrapper& self, RemoteTensorWrapper& dst) {
+            self.tensor.copy_to(dst.tensor);
         },
         R"(
-        This method is not implemented.
+        Copy tensor's data to a destination tensor. The destination tensor should have the same element type and shape.
     )");
+
+    cls.def(
+        "copy_to",
+        [](RemoteTensorWrapper& self, ov::Tensor& dst) {
+            self.tensor.copy_to(dst);
+        },
+        R"(
+        Copy tensor's data to a destination tensor. The destination tensor should have the same element type and shape.
+    )");
+
+    cls.def(
+        "copy_from",
+        [](RemoteTensorWrapper& self, RemoteTensorWrapper& src) {
+            self.tensor.copy_from(src.tensor);
+        },
+        R"(
+        Copy source tensor's data to this tensor. Tensors should have the same element type and shape.
+    )");
+
+    cls.def(
+        "copy_from",
+        [](RemoteTensorWrapper& self, ov::Tensor& src) {
+            self.tensor.copy_from(src);
+        },
+        R"(
+        Copy source tensor's data to this tensor. Tensors should have the same element type and shape.
+    )");
+
+    cls.def(
+        "get_shape",
+        [](RemoteTensorWrapper& self) {
+            return self.tensor.get_shape();
+        },
+        R"(
+        Gets Tensor's shape.
+
+        :rtype: openvino.runtime.Shape
+    )");
+
+    cls.def(
+        "get_byte_size",
+        [](RemoteTensorWrapper& self) {
+            return self.tensor.get_byte_size();
+        },
+        R"(
+        Gets Tensor's size in bytes.
+
+        :rtype: int
+        )");
 
     cls.def_property_readonly(
         "data",

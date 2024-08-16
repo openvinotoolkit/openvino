@@ -129,13 +129,12 @@ TEST_P(copy_and_read_buffer, basic) {
             break;
         }
         case allocation_type::usm_device: {
-            auto casted = std::dynamic_pointer_cast<ocl::gpu_usm>(cldnn_mem_src);
             auto host_buf = _engine->allocate_memory(linear_layout, allocation_type::usm_host);
             {
                 cldnn::mem_lock<float> lock(host_buf, stream);
                 std::copy(src_buffer.begin(), src_buffer.end(), lock.data());
             }
-            casted->copy_from(stream, *host_buf, true);
+            cldnn_mem_src->copy_from(stream, *host_buf, true);
             break;
         }
         default:
@@ -288,17 +287,15 @@ TEST_P(copy_between_gpu_buffer_and_gpu_usm, basic) {
         // Fill dst memory
         switch (p.type) {
         case allocation_type::usm_host:
-        case allocation_type::usm_shared: 
+        case allocation_type::usm_shared:
         case allocation_type::usm_device:
         {
-            auto casted = std::dynamic_pointer_cast<ocl::gpu_usm>(mem_dst);
-            auto ev = casted->copy_from(stream, *usm_host_src, true);
+            auto ev = mem_dst->copy_from(stream, *usm_host_src, true);
             ev->wait();
             break;
         }
         case allocation_type::cl_mem: {
-            auto casted = std::dynamic_pointer_cast<ocl::gpu_buffer>(mem_dst);
-            auto ev = casted->copy_from(stream, *usm_host_src, true);
+            auto ev = mem_dst->copy_from(stream, *usm_host_src, true);
             ev->wait();
             break;
         }
@@ -315,7 +312,7 @@ TEST_P(copy_between_gpu_buffer_and_gpu_usm, basic) {
             std::memcpy(dst_buffer.data(), lock.data(), values_bytes_count);
             break;
         }
-        case allocation_type::usm_device: 
+        case allocation_type::usm_device:
         case allocation_type::cl_mem: {
             auto host_buf = _engine->allocate_memory(linear_layout, allocation_type::usm_host);
             host_buf->copy_from(stream, *mem_dst);
@@ -369,17 +366,15 @@ TEST_P(offset_usm_copy, basic) {
         // Fill dst memory
         switch (p.type) {
         case allocation_type::usm_host:
-        case allocation_type::usm_shared: 
+        case allocation_type::usm_shared:
         case allocation_type::usm_device:
         {
-            auto casted = std::dynamic_pointer_cast<ocl::gpu_usm>(mem_dst);
-            auto ev = casted->copy_from(stream, usm_host_src->buffer_ptr(), true, 32, 32);
+            auto ev = mem_dst->copy_from(stream, usm_host_src->buffer_ptr(), 0, 32, mem_dst->size(), true);
             ev->wait();
             break;
         }
         case allocation_type::cl_mem: {
-            auto casted = std::dynamic_pointer_cast<ocl::gpu_buffer>(mem_dst);
-            auto ev = casted->copy_from(stream, usm_host_src->buffer_ptr(), true, 32, 32);
+            auto ev = mem_dst->copy_from(stream, usm_host_src->buffer_ptr(), 0, 32, mem_dst->size(), true);
             ev->wait();
             break;
         }
@@ -396,7 +391,7 @@ TEST_P(offset_usm_copy, basic) {
             std::memcpy(dst_buffer.data(), lock.data(), values_bytes_count);
             break;
         }
-        case allocation_type::usm_device: 
+        case allocation_type::usm_device:
         case allocation_type::cl_mem: {
             auto host_buf = _engine->allocate_memory(linear_layout, allocation_type::usm_host);
             host_buf->copy_from(stream, *mem_dst);

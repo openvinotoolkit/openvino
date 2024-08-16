@@ -13,6 +13,11 @@
 
 namespace ov {
 
+RemoteTensor::RemoteTensor(const RemoteTensor& owner, const Coordinate& begin, const Coordinate& end) {
+    _impl = make_tensor(std::dynamic_pointer_cast<ov::IRemoteTensor>(owner._impl), begin, end);
+    _so = owner._so;
+}
+
 void RemoteTensor::type_check(const Tensor& tensor, const std::map<std::string, std::vector<std::string>>& type_info) {
     OPENVINO_ASSERT(tensor, "Could not check empty tensor type");
     auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(get_tensor_impl(tensor)._ptr);
@@ -53,6 +58,16 @@ AnyMap RemoteTensor::get_params() const {
     } catch (...) {
         OPENVINO_THROW("Unexpected exception");
     }
+}
+
+void RemoteTensor::copy_to(ov::Tensor& dst) const {
+    auto remote_tensor_impl = std::dynamic_pointer_cast<ov::IRemoteTensor>(_impl);
+    remote_tensor_impl->copy_to(get_tensor_impl(dst)._ptr);
+}
+
+void RemoteTensor::copy_from(const ov::Tensor& src) {
+    auto remote_tensor_impl = std::dynamic_pointer_cast<ov::IRemoteTensor>(_impl);
+    remote_tensor_impl->copy_from(get_tensor_impl(src)._ptr);
 }
 
 std::string RemoteTensor::get_device_name() const {

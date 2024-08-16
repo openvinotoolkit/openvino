@@ -9,6 +9,7 @@
 
 #include "openvino/runtime/tensor.hpp"
 #include "pyopenvino/core/common.hpp"
+#include "pyopenvino/core/remote_tensor.hpp"
 
 namespace py = pybind11;
 
@@ -156,7 +157,7 @@ void regclass_Tensor(py::module m) {
             R"(
                 Constructs Tensor using port from node.
                 Type and shape will be taken from the port.
-     
+
                 :param port: Output port from a node.
                 :type param: openvino.runtime.Output
              )");
@@ -185,7 +186,7 @@ void regclass_Tensor(py::module m) {
             R"(
             Constructs Tensor using port from node.
             Type and shape will be taken from the port.
-    
+
             :param port: Output port from a node.
             :type param: openvino.runtime.ConstOutput
             )");
@@ -392,9 +393,29 @@ void regclass_Tensor(py::module m) {
     )");
 
     cls.def(
+        "copy_to",
+        [](ov::Tensor& self, RemoteTensorWrapper& dst) {
+            return self.copy_to(dst.tensor);
+        },
+        py::arg("target_tensor"),
+        R"(
+        Copy tensor's data to a destination tensor. The destination tensor should have the same element type and shape.
+    )");
+
+    cls.def(
         "copy_from",
         [](ov::Tensor& self, ov::Tensor& source) {
             return source.copy_to(self);
+        },
+        py::arg("source"),
+        R"(
+        Copy source tensor's data to this tensor. Tensors should have the same element type and shape.
+    )");
+
+    cls.def(
+        "copy_from",
+        [](ov::Tensor& self, RemoteTensorWrapper& source) {
+            return source.tensor.copy_to(self);
         },
         py::arg("source"),
         R"(
@@ -436,7 +457,7 @@ void regclass_Tensor(py::module m) {
             &ov::Tensor::is_continuous,
             R"(
         Reports whether the tensor is continuous or not.
-        :return: True if the tensor is continuous, otherwise False. 
+        :return: True if the tensor is continuous, otherwise False.
         :rtype: bool
     )");
 
