@@ -106,12 +106,8 @@ public:
     }
 
     void register_front_end(const std::string& name, const std::string& library_path) {
-#if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
-        if (fs::is_symlink(library_path))
-            OPENVINO_ASSERT(ov::util::get_absolute_file_path(ov::util::get_directory(library_path)) ==
-                                ov::util::get_directory(ov::util::get_absolute_file_path(library_path)),
-                            "Cannot registe plugin with symlink path:\"" + library_path + "\".");
-#endif
+        OPENVINO_ASSERT(!ov::util::is_symlink_in_different_path(library_path),
+                        "Cannot registe plugin with symlink path:\"" + library_path + "\".");
         auto lib_path = ov::util::from_file_path(ov::util::get_plugin_path(library_path));
         PluginInfo plugin;
         plugin.m_file_path = lib_path;
