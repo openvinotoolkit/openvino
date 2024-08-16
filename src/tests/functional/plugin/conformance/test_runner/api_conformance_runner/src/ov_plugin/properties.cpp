@@ -88,23 +88,13 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckChangePropComplieModleGetPr
                 ::testing::Values(ov::AnyMap({}))),
         OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName);
 
-/* Skip SW plugins (meta-plugins) in mandatory test suite */
-INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory,
-                         OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
-                         ::testing::Combine(::testing::Values(sw_plugin_in_target_device(ov::test::utils::target_device) ?
-                                                                  std::string("skip_" + ov::test::utils::target_device) :
-                                                                  ov::test::utils::target_device),
-                                            ::testing::Values(ov::AnyMap({}))),
-                         OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName);
-
-/* Skip HW plugins in optional test suite */
-INSTANTIATE_TEST_SUITE_P(ov_plugin,
-                         OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
-                         ::testing::Combine(::testing::Values(sw_plugin_in_target_device(ov::test::utils::target_device) ?
-                                                                  ov::test::utils::target_device :
-                                                                  std::string("skip_" + ov::test::utils::target_device)),
-                                            ::testing::Values(ov::AnyMap({}))),
-                         OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName);
+/* Add mandatory_ to HW plugin test cases */
+using mandatory_OVCheckChangePropComplieModleGetPropTests_InferencePrecision = OVCheckChangePropComplieModleGetPropTests_InferencePrecision
+INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, sw_plugin_in_target_device(ov::test::utils::target_device) ?OVCheckChangePropComplieModleGetPropTests_InferencePrecision : mandatory_OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
+        ::testing::Combine(
+                ::testing::Values(ov::test::utils::target_device),
+                ::testing::Values(ov::AnyMap({}))),
+        OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckMetricsPropsTests_ModelDependceProps,
         ::testing::Combine(
