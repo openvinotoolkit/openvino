@@ -77,4 +77,4 @@ ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 
 # OneAPI env
-RUN echo 'source /opt/intel/oneapi/setvars.sh &> /dev/null' >> /root/.bashrc;
+RUN echo 'source /opt/intel/oneapi/setvars.sh &> /dev/null' >> /etc/environment;
