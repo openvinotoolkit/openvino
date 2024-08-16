@@ -90,7 +90,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckChangePropComplieModleGetPr
 
 /* Add mandatory_ to HW plugin test cases */
 using mandatory_OVCheckChangePropComplieModleGetPropTests_InferencePrecision = OVCheckChangePropComplieModleGetPropTests_InferencePrecision
-INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, sw_plugin_in_target_device(ov::test::utils::target_device) ?OVCheckChangePropComplieModleGetPropTests_InferencePrecision : mandatory_OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
+INSTANTIATE_TEST_SUITE_P(ov_plugin, sw_plugin_in_target_device(ov::test::utils::target_device) ?OVCheckChangePropComplieModleGetPropTests_InferencePrecision : mandatory_OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
         ::testing::Combine(
                 ::testing::Values(ov::test::utils::target_device),
                 ::testing::Values(ov::AnyMap({}))),
