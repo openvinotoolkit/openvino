@@ -442,6 +442,21 @@ network::network(program::ptr program, stream::ptr stream, uint16_t stream_id, o
 
 network::~network() {
     GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
+        if (tp_host_times["fc"].size() >= 2) {
+            double first = static_cast<double>(tp_host_times["fc"][0]);
+            double avg = static_cast<double>(
+                std::accumulate(tp_host_times["fc"].begin() + 1, tp_host_times["fc"].end(), (size_t)0, std::plus<size_t>()));
+            avg /= (tp_host_times["fc"].size() - 1);
+            std::string resolution = " us";
+            if (avg > 1000.0) {
+                resolution = " ms";
+                avg /= 1000.0;
+                first /= 1000.0;
+            }
+            GPU_DEBUG_COUT << "Network[" << net_id << "] First infer total fc host time: " << first << resolution << std::endl;
+            GPU_DEBUG_COUT << "Network[" << net_id << "] total fc avg host time: " << avg << resolution << std::endl;
+        }
+
         if (tp_host_times["sync_tensor"].size() >= 2) {
             double first = static_cast<double>(tp_host_times["sync_tensor"][0]);
             double avg = static_cast<double>(
@@ -1099,13 +1114,15 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     std::vector<std::string> ts_items = {"ts_exec", "ts_event_wait", "ts_ctxs", "ts_sync_wait", "ts_sendbuf",
         "ts_pre_p2p", "ts_p2p_kernel", "ts_post_p2p"};
 
+    tp_host_times["fc"];
     tp_host_times["sync_tensor"];
     tp_host_times["concat"];
+    tp_host_times_each_iter["fc"];
     tp_host_times_each_iter["sync_tensor"];
     tp_host_times_each_iter["concat"];
     for (auto& inst : _exec_order) {
         auto start = std::chrono::high_resolution_clock::now();
-        if (inst->get_node().is_type<sync_tensor>() || inst->get_node().is_type<concatenation>()) {
+        if (inst->get_node().is_type<fully_connected>() || inst->get_node().is_type<sync_tensor>() || inst->get_node().is_type<concatenation>()) {
             start = std::chrono::high_resolution_clock::now();
         }
         // Load binary dump for input layers
@@ -1252,10 +1269,12 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                 }
             }
         }
-        if (inst->get_node().is_type<sync_tensor>() || inst->get_node().is_type<concatenation>()) {
+        if (inst->get_node().is_type<fully_connected>() || inst->get_node().is_type<sync_tensor>() || inst->get_node().is_type<concatenation>()) {
             auto end = std::chrono::high_resolution_clock::now();
             GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
-                if (inst->get_node().is_type<sync_tensor>()) {
+                if (inst->get_node().is_type<fully_connected>()) {
+                    tp_host_times_each_iter["fc"].push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+                } else if (inst->get_node().is_type<sync_tensor>()) {
                     tp_host_times_each_iter["sync_tensor"].push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
                     // more profile for sync_tensor details
                     std::map<std::string, std::vector<int64_t>>& timestamps = inst->get_host_timestamps();
@@ -1270,6 +1289,12 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     }
     // statistic for each iter
     GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
+        if (tp_host_times_each_iter["fc"].size() >= 1) {
+            const auto begin = std::begin(tp_host_times_each_iter["fc"]);
+            const auto end = std::end(tp_host_times_each_iter["fc"]);
+            tp_host_times["fc"].push_back(std::accumulate(begin, end, (size_t)0, std::plus<size_t>()));
+        }
+
         if (tp_host_times_each_iter["sync_tensor"].size() >= 1) {
             const auto begin = std::begin(tp_host_times_each_iter["sync_tensor"]);
             const auto end = std::end(tp_host_times_each_iter["sync_tensor"]);

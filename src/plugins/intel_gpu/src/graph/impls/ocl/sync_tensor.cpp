@@ -140,6 +140,7 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         // cl_command_queue cl_queue = clQueue();
         cl::Buffer clBuf = std::dynamic_pointer_cast<const ocl::gpu_buffer>(instance.output_memory_ptr(idx))->get_buffer();
         cl_mem clbuf = clBuf();
+        printf("[ocl_to_lz:%d] clbuf: %p \n", rank, clbuf);
 
         cl_int err;
         // print clbuf
@@ -151,7 +152,7 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         err = clGetMemObjectInfo(clbuf, CL_MEM_ALLOCATION_HANDLE_INTEL, sizeof(nativeHandle), &nativeHandle, NULL);
         CHECK_OCL_ERROR(err, "clGetMemObjectInfo - CL_MEM_ALLOCATION_HANDLE_INTEL failed");
         // printf("[ocl_to_lz] nativeHandle: %ld, 0x%lx \n", nativeHandle, nativeHandle);
-        void *lzptr = lzctx.createFromHandle(nativeHandle, size);
+        void* lzptr = lzctx.createFromHandle(nativeHandle, size);
 
         // printf("[ocl_to_lz:%d] print output lzptr\n", rank);
         // printLZBuff(lzctx, lzptr, size);
@@ -220,18 +221,23 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         // std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
         // sub_mem_mgr->_memorys_table[id][w_rank].flag = false;
 
-        void *send_buf = ocl_to_lz(instance, stream, w_rank, oclctx, lzctx, copy_len, w_rank);
-        printf("[sync_tensor_impl:%d] send_buf: %p\n", w_rank, send_buf);
-        void *receive_buf = ocl_to_lz(instance, stream, copy_rank, oclctx, lzctx, copy_len, w_rank);
-        printf("[sync_tensor_impl:%d] receive_buf: %p\n", w_rank, receive_buf);
+        if (sub_mem_mgr->_memorys_table[id][w_rank].MAX_COPY_LEN < copy_len) {
+            printf("[sync_tensor_impl:%d] MAX_COPY_LEN1: %ld \n", w_rank, sub_mem_mgr->_memorys_table[id][w_rank].MAX_COPY_LEN);
 
-        // sub_mem_mgr->_memorys_table[id][w_rank].send_buf = send_buf;
-        // sub_mem_mgr->_memorys_table[id][w_rank].send_buf = receive_buf;
+            void *send_buf = ocl_to_lz(instance, stream, w_rank, oclctx, lzctx, copy_len, w_rank);
+            printf("[sync_tensor_impl:%d] send_buf: %p\n", w_rank, send_buf);
+            void *receive_buf = ocl_to_lz(instance, stream, copy_rank, oclctx, lzctx, copy_len, w_rank);
+            printf("[sync_tensor_impl:%d] receive_buf: %p\n", w_rank, receive_buf);
 
-        {
+            sub_mem_mgr->_memorys_table[id][w_rank].MAX_COPY_LEN = copy_len;
+            printf("[sync_tensor_impl:%d] MAX_COPY_LEN2: %ld \n", w_rank, sub_mem_mgr->_memorys_table[id][w_rank].MAX_COPY_LEN);
+
             std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
             sub_mem_mgr->_memorys_table[id][w_rank].send_buf = send_buf;
             sub_mem_mgr->_memorys_table[id][w_rank].receive_buf = receive_buf;
+        }
+        {
+            std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
             sub_mem_mgr->_memorys_table[id][w_rank].flag = true;
         }
         end_sendbuf = std::chrono::high_resolution_clock::now();

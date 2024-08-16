@@ -225,7 +225,6 @@ int lzContext::initZe(int devIdx) {
 
     result = zeCommandQueueCreate(context, pDevice, &descriptor_cmdqueue, &command_queue);
     CHECK_ZE_STATUS(result, "zeCommandQueueCreate");
-
     auto end_cmd_queue = std::chrono::high_resolution_clock::now();
 
     ze_device_properties_t properties = {};
