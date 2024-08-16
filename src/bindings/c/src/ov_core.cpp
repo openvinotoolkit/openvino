@@ -263,16 +263,14 @@ ov_status_e ov_core_get_available_devices(const ov_core_t* core, ov_available_de
 }
 
 void ov_available_devices_free(ov_available_devices_t* devices) {
-    if (!devices) {
+    if (!devices || !devices->devices)
         return;
     }
     for (size_t i = 0; i < devices->size; i++) {
-        if (devices->devices[i]) {
-            delete[] devices->devices[i];
-        }
+        delete[] devices->devices[i];
     }
-    if (devices->devices)
-        delete[] devices->devices;
+
+    delete[] devices->devices;
     devices->devices = nullptr;
     devices->size = 0;
 }
@@ -327,20 +325,16 @@ ov_status_e ov_core_get_versions_by_device_name(const ov_core_t* core,
 }
 
 void ov_core_versions_free(ov_core_version_list_t* versions) {
-    if (!versions) {
+    if (!versions || !versions->versions) {
         return;
     }
     for (size_t i = 0; i < versions->size; i++) {
-        if (versions->versions[i].device_name)
-            delete[] versions->versions[i].device_name;
-        if (versions->versions[i].version.buildNumber)
-            delete[] versions->versions[i].version.buildNumber;
-        if (versions->versions[i].version.description)
-            delete[] versions->versions[i].version.description;
+        delete[] versions->versions[i].device_name;
+        delete[] versions->versions[i].version.buildNumber;
+        delete[] versions->versions[i].version.description;
     }
 
-    if (versions->versions)
-        delete[] versions->versions;
+    delete[] versions->versions;
     versions->versions = nullptr;
 }
 
