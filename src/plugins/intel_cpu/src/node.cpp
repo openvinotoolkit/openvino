@@ -568,7 +568,7 @@ void Node::updateShapes() {
                     }
                     // TODO: conceptually this is a very bad solution
                     auto block = mem->getMemoryBlock();
-                    if (nullptr == block->getRawPtr()) {
+                    if (nullptr == block->getRawPtr() && mem->isDefined()) {
                         block->resize(mem->getSize());
                     }
                 }
