@@ -67,6 +67,8 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                 break;
             }
         }
+        instance.output_memory(w_rank).copy_from(stream, instance.input_memory());
+        // a turn-around to copy usm device memory out, in case issues brought by un-lock
         sub_mem_mgr->_memorys_table[id][w_rank].send_buf = instance.output_memory(w_rank).buffer_ptr();
         sub_mem_mgr->_memorys_table[id][w_rank].flag = true;
         std::vector<int> wait_list(w_size, 1);

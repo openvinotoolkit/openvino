@@ -53,8 +53,8 @@ void sync_tensor_inst::on_execute() {
 
 void sync_tensor_inst::update_output_memory() {
     if (!can_be_optimized()) {
-        auto my_rank = get_impl_params()->w_rank;
-        _outputs[my_rank] = input_memory_ptr();
+        // auto my_rank = get_impl_params()->w_rank;
+        // _outputs[my_rank] = input_memory_ptr();
         return;
     }
     // do nothing for now

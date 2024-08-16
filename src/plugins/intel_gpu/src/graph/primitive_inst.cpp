@@ -2150,7 +2150,15 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
 
     auto alloc_type = use_lockable_memory ? lockable_mem_type
                     : !usm_device_allocatable ? lockable_mem_type : allocation_type::usm_device;
-
+    if (_node.is_type<fully_connected>()) {
+        auto flag = false;
+        for (auto &iter : _node.get_users()) {
+            if (iter->is_output())
+                flag = true;
+        }
+        if (!flag)
+            alloc_type = allocation_type::usm_device; // for test only
+    }
     if (is_internal) {
         bool is_reorder_weights = _node.is_type<reorder>() && _node.as<reorder>().get_primitive()->weights_reorder_params;
         if (_node.can_be_optimized() || is_reorder_weights) {
@@ -2201,8 +2209,8 @@ std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* up
         auto skip_alloc = [&](int index) {
             if (out_layouts[index].is_dynamic() && !out_layouts[index].has_upper_bound())
                 return true;
-            else if (_node->is_type<sync_tensor>() && static_cast<int>(index) == updated_params->w_rank)
-                return true;
+            //else if (_node->is_type<sync_tensor>() && static_cast<int>(index) == updated_params->w_rank)
+            //    return true;
             return false;
         };
         if (skip_alloc(i)) {
