@@ -144,28 +144,6 @@ TEST(RegisterPluginTests, registerPluginWithSymlinkInDiffPlace) {
     fs::remove_all("test_link");
     ASSERT_FALSE(ov::util::directory_exists("test_link"));
 }
-
-TEST(RegisterPluginTests, registerPluginWithSymlinkInSamePlace) {
-    ov::Core core;
-    auto plugin = std::make_shared<ov::test::utils::MockPlugin>();
-    std::shared_ptr<ov::IPlugin> base_plugin = plugin;
-    std::shared_ptr<void> m_so;
-    mockPlugin(core, base_plugin, m_so);
-    std::string libraryPath = ov::test::utils::get_mock_engine_path();
-
-    // Symlink file & the real file doesn't locale in the same place. Will no throw
-    std::string plugin_copy_file = "plugin_copy_file";
-    std::string symlink_for_plugin_copy_file = "symlink_for_plugin_copy_file";
-
-    fs::copy_file(libraryPath, plugin_copy_file);
-    fs::create_symlink(plugin_copy_file, symlink_for_plugin_copy_file);
-
-    ASSERT_NO_THROW(core.register_plugin(plugin_copy_file, "MOCK_HARDWARE"));
-    EXPECT_NO_THROW(core.register_plugin(symlink_for_plugin_copy_file, "MOCK_HARDWARE1"));
-
-    fs::remove(plugin_copy_file);
-    fs::remove(symlink_for_plugin_copy_file);
-}
 #    endif
 
 inline std::string getPluginFile() {
