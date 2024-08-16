@@ -945,7 +945,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             const auto& input = dep.first;
             auto input_layout = input->get_output_layout();
             // Change input data type of concat node from input format to output format
-            if (input_layout.format != output_layout.format) {
+            if (concat_node.get_preferred_impl_type() != cldnn::impl_types::onednn && output_layout.format != input_layout.format) {
                 auto new_layout = input_layout;
                 new_layout.format = output_layout.format;
                 auto new_input = rf.get_reorder(input->id(), dep.second, input_layout, new_layout);
