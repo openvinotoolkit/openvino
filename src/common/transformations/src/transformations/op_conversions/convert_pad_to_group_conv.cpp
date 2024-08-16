@@ -64,7 +64,7 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
             return a < 0;
         };
         if (std::any_of(pad_begin.begin(), pad_begin.end(), pred) ||
-            std::any_of(pad_begin.begin(), pad_begin.end(), pred)) {
+            std::any_of(pad_end.begin(), pad_end.end(), pred)) {
             return false;
         }
 
@@ -74,7 +74,9 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
                         [](ptrdiff_t value) {
                             return value != 0;
                         }) ||
-            std::any_of(pad_end.begin(), pad_end.begin() + 2, [](ptrdiff_t value) {
+            std::any_of(pad_end.begin(),
+                        pad_end.begin() + 2,
+                        [](ptrdiff_t value) {
                 return value != 0;
             })) {
             return false;
