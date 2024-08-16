@@ -22,7 +22,7 @@ ov_status_e ov_partial_shape_create(const int64_t rank,
     }
 
     try {
-        std::unique_ptr<ov_dimension_t> _dims(new ov_dimension_t[rank]);
+        std::unique_ptr<ov_dimension_t[]> _dims(new ov_dimension_t[rank]);
         partial_shape_obj->dims = _dims.release();
         std::memcpy(partial_shape_obj->dims, dims, rank * sizeof(ov_dimension_t));
         partial_shape_obj->rank.max = rank;
@@ -50,7 +50,7 @@ ov_status_e ov_partial_shape_create_dynamic(const ov_rank_t rank,
                 return ov_status_e::INVALID_C_PARAM;
             }
             auto size = rank.max;
-            std::unique_ptr<ov_dimension_t> _dims(new ov_dimension_t[size]);
+            std::unique_ptr<ov_dimension_t[]> _dims(new ov_dimension_t[size]);
             partial_shape_obj->dims = _dims.release();
             std::memcpy(partial_shape_obj->dims, dims, size * sizeof(ov_dimension_t));
         }
@@ -67,7 +67,7 @@ ov_status_e ov_partial_shape_create_static(const int64_t rank,
     }
 
     try {
-        std::unique_ptr<ov_dimension_t> _dims(new ov_dimension_t[rank]);
+        std::unique_ptr<ov_dimension_t[]> _dims(new ov_dimension_t[rank]);
         partial_shape_obj->dims = _dims.release();
         partial_shape_obj->rank.max = rank;
         partial_shape_obj->rank.min = rank;
@@ -122,7 +122,7 @@ ov_status_e ov_shape_to_partial_shape(const ov_shape_t shape, ov_partial_shape_t
         partial_shape->rank.min = shape.rank;
         partial_shape->rank.max = shape.rank;
         auto size = shape.rank;
-        std::unique_ptr<ov_dimension_t> _dims(new ov_dimension_t[size]);
+        std::unique_ptr<ov_dimension_t[]> _dims(new ov_dimension_t[size]);
         partial_shape->dims = _dims.release();
         for (auto i = 0; i < size; i++) {
             partial_shape->dims[i].min = shape.dims[i];
