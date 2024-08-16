@@ -103,10 +103,10 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::Fake
 }
 
 bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2) {
-    if (d1 == d2 || d1 == 1 || is_dynamic_value(d2)) {
+    if (d1 == d2 || d1 == 1 || (is_dynamic_value(d1) && d2 != 1)) {
         dst = d2;
         return true;
-    } else if (d2 == 1 || is_dynamic_value(d1)) {
+    } else if (d2 == 1 || is_dynamic_value(d2)) {
         dst = d1;
         return true;
     }
