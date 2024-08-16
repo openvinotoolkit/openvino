@@ -452,7 +452,8 @@ struct CPUStreamsExecutor::Impl {
     }
 
     void Defer(Task task) {
-        auto& stream = *(_streams.local());
+        auto local = _streams.local();
+        auto &stream = *local;
         stream._taskQueue.push(std::move(task));
         if (!stream._execute) {
             stream._execute = true;
