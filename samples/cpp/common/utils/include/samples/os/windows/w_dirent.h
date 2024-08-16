@@ -90,8 +90,7 @@ public:
     }
 
     ~DIR() {
-        if (!next)
-            delete next;
+        delete next;
         next = nullptr;
         FindClose(hFind);
     }
