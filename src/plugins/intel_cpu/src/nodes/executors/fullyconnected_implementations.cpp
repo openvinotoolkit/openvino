@@ -90,7 +90,7 @@ static const TypeMapping aclFCTypeMapping {
 
 static const TypeMapping aclLowpFCTypeMapping {
     // {src, wei, bia, dst}                  pt<src, wei, bias, dst>
-    {{_i8, _i8, _any, _f32},                 pt(just<i8>(), just<i8>(), just<i32>(), just<f32>())}
+    {{_i8, _i8, _any, _f32},                 pt(just<i8>(), just<i8>(), just<f32>(), just<f32>())}
 };
 
 static const MappingNotation dnnlConvolutionMappingNotation {
@@ -396,7 +396,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             },
             // acceptsShapes
             [](const MemoryArgs& memory) -> bool {
-                // @todo create syntactic sugar (functor) for shape agnostic lambda
                 return true;
             },
             // create

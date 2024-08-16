@@ -27,11 +27,10 @@ std::string MatMulTransformation::getTestCaseName(const testing::TestParamInfo<M
     result <<
         precision << "_" <<
         targetDevice << "_" <<
-        "IN1=" << testValues.inputShape1 << "_" <<
+        testValues.inputShape1 << "_" <<
         testValues.fqOnData1 << "_" <<
-        "IN2=" << testValues.inputShape2 << "_" <<
-        testValues.fqOnData2 << "_" <<
-        testValues.requantization;
+        testValues.inputShape2 << "_" <<
+        testValues.fqOnData2;
 
     return result.str();
 }
@@ -46,12 +45,11 @@ void MatMulTransformation::SetUp() {
     init_input_shapes({ testValues.inputShape1, testValues.inputShape2 });
 
     function = ov::builder::subgraph::MatMulFunction::getOriginal(
-        ov::element::f16, // precision,
+        precision,
         testValues.inputShape1,
         testValues.fqOnData1,
         testValues.inputShape2,
-        testValues.fqOnData2,
-        testValues.requantization);
+        testValues.fqOnData2);
 
     ov::pass::InitNodeInfo().run_on_model(function);
 }
@@ -61,13 +59,10 @@ void MatMulTransformation::run() {
 
     LayerTransformation::run();
 
-    const auto& actualType = get_runtime_precision_by_type("MatMul");
-    const auto expected = std::get<3>(GetParam());
-    EXPECT_EQ(expected.expectedRuntimePrecision, actualType);
+    const auto params = std::get<3>(GetParam());
+    const auto actualType = get_runtime_precision(params.expectedKernelName);
 
-    const auto& actualPrimitiveType = get_property_by_type("MatMul", "primitiveType");
-    const auto expectedPrimitiveType = "gemm_acl_i8";
-    EXPECT_EQ(expectedPrimitiveType, actualPrimitiveType);
+    EXPECT_EQ(actualType, params.expectedRuntimePrecision);
 }
 
 TEST_P(MatMulTransformation, CompareWithRefImpl) {

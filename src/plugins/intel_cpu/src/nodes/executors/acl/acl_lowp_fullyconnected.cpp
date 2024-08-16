@@ -4,19 +4,16 @@
 
 #include "acl_lowp_fullyconnected.hpp"
 
+#include "acl_weights.hpp"
 #include "arm_compute/runtime/NEON/functions/NEGEMMLowpMatrixMultiplyCore.h"
-
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include "nodes/common/cpu_convert.h"
 #include "nodes/executors/acl/acl_utils.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
-#include "utils/debug_capabilities.h"
 #include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/implementation_utils.hpp"
-#include "acl_weights.hpp"
-#include "acl_utils.hpp"
-
-#include "nodes/common/cpu_convert.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
+#include "utils/debug_capabilities.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -41,9 +38,7 @@ static void initFCAttrs(const FCAttrs &attrs,
                         arm_compute::GEMMInfo& fullyConnectedLayerInfo,
                         const PostOps &postOps) {
     aclTensorAttrs.hasLayoutTypeNHWC = memory.at(ARG_SRC)->getDescPtr()->hasLayoutType(LayoutType::nspc);
-    //fullyConnectedLayerInfo.weights_trained_layout = getAclDataLayoutByMemoryDesc(memory.at(ARG_WEI)->getDescPtr());
     aclfcAttrs.inputPrecision = memory.at(ARG_SRC)->getDescPtr()->getPrecision();
-    //fullyConnectedLayerInfo.transpose_weights = false;
     aclfcAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
 
     if (!postOps.empty()) {
@@ -86,11 +81,6 @@ void ACLLowpFullyConnectedExecutor::updateTensorsShapes(ACLShapes& aclMemoryShap
 }
 
 arm_compute::Status ACLLowpFullyConnectedExecutor::validateTensorsInfo(const ACLInfos & aclMemoryInfos) {
-    // TODO: debug only
-    //const auto src0 = aclMemoryInfos[ACLArgs::ACL_SRC_0].get();
-    //const auto src1 = aclMemoryInfos[ACLArgs::ACL_WEI].get();
-    //const auto dst = aclMemoryInfos[ACLArgs::ACL_DST].get();
-
     auto &tensor_info = aclMemoryInfos[ACLArgs::ACL_SRC_0];
     if (dequantizationScales.empty()) {
         tensor_info->set_quantization_info(arm_compute::QuantizationInfo(1.f));
@@ -104,7 +94,7 @@ arm_compute::Status ACLLowpFullyConnectedExecutor::validateTensorsInfo(const ACL
     const auto matMulValid = arm_compute::NEGEMMLowpMatrixMultiplyCore::validate(
             aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
             aclMemoryInfos[ACLArgs::ACL_WEI].get(),
-            nullptr, //aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
+            aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
             aclMemoryInfos[ACLArgs::ACL_DST].get(),
             gemmInfo);
     return matMulValid;
@@ -126,7 +116,6 @@ ACLFunction ACLLowpFullyConnectedExecutor::configureFunction(const ACLTensors & 
     return gemm;
 }
 
-// TODO: move to ACLLowpExecutor
 std::shared_ptr<arm_compute::TensorInfo> ACLLowpFullyConnectedExecutor::initTensorInfo(
         const arm_compute::TensorShape& tensorShape,
         const arm_compute::DataType& dataType,

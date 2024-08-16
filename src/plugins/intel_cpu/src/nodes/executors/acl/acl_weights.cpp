@@ -4,13 +4,11 @@
 
 #include "acl_fullyconnected.hpp"
 #include "acl_utils.hpp"
+#include "nodes/common/cpu_convert.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
-#include "utils/debug_capabilities.h"
-#include "nodes/executors/debug_messages.hpp"
-#include "nodes/executors/implementation_utils.hpp"
-#include "nodes/common/cpu_convert.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "utils/debug_capabilities.h"
 
 namespace ov {
 namespace intel_cpu {

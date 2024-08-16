@@ -725,11 +725,7 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
                 }),
             PrecisionsRestriction::create<ov::opset1::MatMul>({
                     {{0}, {ov::element::u8, ov::element::i8}},
-#if defined(OPENVINO_ARCH_ARM64)
-                    {{1}, {ov::element::u8, ov::element::i8}}
-#else
                     {{1}, {ov::element::i8}}
-#endif
                 }),
             PrecisionsRestriction::create<ov::opset5::LSTMSequence>({
                     {{0, 1}, {ov::element::u8}}
