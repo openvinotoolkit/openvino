@@ -233,11 +233,11 @@ void SyncInferRequest::change_default_ptr() {
         auto output = outputNodesMap.find(it.first);
         OPENVINO_ASSERT(outputNodesMap.end() != output, "Cannot find output tensor with index: ", it.first);
         auto parentEdge = output->second->getParentEdgeAt(0);
-        if (parentEdge->getMemory().getData() == static_cast<void*>(it.second->data()))
+        void* const outputRawPtr = parentEdge->getMemory().getData();
+        if (outputRawPtr == static_cast<void*>(it.second->data()))
             continue;
 
         bool canBeInPlace = true;
-        void* defaultPtr = parentEdge->getMemory().getData();
         // Cannot be in-place after concat because concat is using different ptrs without offsets
         auto parent = parentEdge->getParent();
         NodePtr previousParent;
@@ -259,7 +259,7 @@ void SyncInferRequest::change_default_ptr() {
                 if (!e)
                     OPENVINO_THROW("Node ", parent->getName(), " contains empty parent edge");
 
-                if (e->getMemory().getData() == defaultPtr) {
+                if (parent_port == parent->inPlaceInputPort(e->getOutputNum())) {
                     parent = e->getParent();
                     parent_port = e->getInputNum();
                     break;
