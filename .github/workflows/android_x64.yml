@@ -91,7 +91,7 @@ jobs:
       ANDROID_NDK_HOME: '/deps/android_tools/ndk-bundle'
       ANDROID_SDK_VERSION: 29
       ANDROID_ABI_CONFIG: x86_64
-      VCPKG_TARGET_TRIPLET: x86-android
+      VCPKG_TARGET_TRIPLET: x64-android
       VCPKG_DEFAULT_BINARY_CACHE: '/mount/caches/ccache/android_x64/vcpkg_cache'
       VCPKG_FORCE_SYSTEM_BINARIES: '1'
       SCCACHE_AZURE_KEY_PREFIX: android_x64
