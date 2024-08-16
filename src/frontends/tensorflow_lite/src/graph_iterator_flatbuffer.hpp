@@ -27,7 +27,7 @@ struct TensorInfo {
 };
 
 template <typename T>
-std::basic_string<T> get_model_extension() {}
+std::basic_string<T> get_model_extension();
 template <>
 std::basic_string<char> get_model_extension<char>();
 
