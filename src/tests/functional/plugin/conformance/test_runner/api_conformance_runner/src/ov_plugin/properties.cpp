@@ -88,17 +88,15 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckChangePropComplieModleGetPr
                 ::testing::Values(ov::AnyMap({}))),
         OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName);
 
-/* Add mandatory_ to HW plugin test cases */
-using mandatory_OVCheckChangePropComplieModleGetPropTests_InferencePrecision = OVCheckChangePropComplieModleGetPropTests_InferencePrecision
-INSTANTIATE_TEST_SUITE_P(ov_plugin,
-        sw_plugin_in_target_device(ov::test::utils::target_device) ?
-                OVCheckChangePropComplieModleGetPropTests_InferencePrecision : mandatory_OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
+/* Add prefix mandatory_ to suffix (getTestCaseName) of HW plugin test cases */
+INSTANTIATE_TEST_SUITE_P(ov_plugin,  OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
         ::testing::Combine(
                 ::testing::Values(ov::test::utils::target_device),
                 ::testing::Values(ov::AnyMap({}))),
-       sw_plugin_in_target_device(ov::test::utils::target_device) ?
-                OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName :
-                mandatory_OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName);
+        [&](const testing::TestParamInfo<PropertiesParams>& info) {
+          std::string name = OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName(info);
+          return sw_plugin_in_target_device(ov::test::utils::target_device) ? "" : "mandatory_" + name;
+        });
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckMetricsPropsTests_ModelDependceProps,
         ::testing::Combine(
