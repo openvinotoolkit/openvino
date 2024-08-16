@@ -323,32 +323,33 @@ void run_eltwise_bool_generic_test(cldnn::eltwise_mode mode)
     generic_eltwise_int_test<int8_t, int8_t>(test_inputs_fmt, 1, 1, input_size.first, input_size.second, mode, 0, 0, 0, 0, -2, 2, -2, 2);
 }
 
-template <cldnn::eltwise_mode TMODE>
-void run_eltwise_int_shift_generic_test() {
-    static_assert(TMODE == eltwise_mode::right_shift || TMODE == eltwise_mode::left_shift,
-                  "Only right_shift amd left_shift mode is supported for this test");
+void run_eltwise_int_shift_generic_test(cldnn::eltwise_mode mode) {
+    OPENVINO_ASSERT(mode == eltwise_mode::right_shift || mode == eltwise_mode::left_shift,
+                    "Only right_shift amd left_shift mode is supported for this test");
     cldnn::format test_inputs_fmt = cldnn::format::bfyx;
     const int dim_size = 227;
 
-#define ELTWISE_INT_TEST_CASES(type)                                                                   \
-    generic_eltwise_int_test<type, type>(                                                              \
-        test_inputs_fmt,                                                                               \
-        1,                                                                                             \
-        1,                                                                                             \
-        dim_size,                                                                                      \
-        dim_size,                                                                                      \
-        TMODE,                                                                                         \
-        0,                                                                                             \
-        0,                                                                                             \
-        0,                                                                                             \
-        0,                                                                                             \
-        (TMODE == eltwise_mode::right_shift ? static_cast<int>(std::numeric_limits<type>::min()) : 0), \
-        (TMODE == eltwise_mode::right_shift ? static_cast<int>(std::numeric_limits<type>::max()) : 0), \
-        (TMODE == eltwise_mode::right_shift ? 0 : static_cast<int>(std::numeric_limits<type>::min())), \
-        (TMODE == eltwise_mode::right_shift ? sizeof(type) * 8 : static_cast<int>(std::numeric_limits<type>::max())));
+#define ELTWISE_INT_TEST_CASES(type)                                                             \
+    generic_eltwise_int_test<type, type>(test_inputs_fmt,                                        \
+                                         1,                                                      \
+                                         1,                                                      \
+                                         dim_size,                                               \
+                                         dim_size,                                               \
+                                         mode,                                                   \
+                                         0,                                                      \
+                                         0,                                                      \
+                                         0,                                                      \
+                                         0,                                                      \
+                                         0,                                                      \
+                                         static_cast<int>(std::numeric_limits<type>::max()) / 2, \
+                                         0,                                                      \
+                                         ((sizeof(type) * 8) - 1) / 2);
 
     ELTWISE_INT_TEST_CASES(int8_t);
+    ELTWISE_INT_TEST_CASES(uint8_t);
     ELTWISE_INT_TEST_CASES(int32_t);
+    ELTWISE_INT_TEST_CASES(uint32_t);
+    ELTWISE_INT_TEST_CASES(int64_t);
 
 #undef ELTWISE_INT_TEST_CASES
 }
@@ -3944,12 +3945,12 @@ TEST(eltwise_gpu_bool, eltwise_or) {
     run_eltwise_bool_generic_test(cldnn::eltwise_mode::logic_or);
 }
 
-TEST(eltwise_gpu_bool, eltwise_right_shift) {
-    run_eltwise_int_shift_generic_test<cldnn::eltwise_mode::right_shift>();
+TEST(eltwise_gpu, eltwise_right_shift) {
+    run_eltwise_int_shift_generic_test(cldnn::eltwise_mode::right_shift);
 }
 
-TEST(eltwise_gpu_bool, eltwise_left_shift) {
-    run_eltwise_int_shift_generic_test<cldnn::eltwise_mode::left_shift>();
+TEST(eltwise_gpu, eltwise_left_shift) {
+    run_eltwise_int_shift_generic_test(cldnn::eltwise_mode::left_shift);
 }
 
 TEST(eltwise_gpu, eltwise_div) {
