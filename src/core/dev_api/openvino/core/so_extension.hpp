@@ -33,6 +33,7 @@ inline std::string resolve_extension_path(const std::string& path) {
     std::string retvalue;
     try {
         const std::string absolute_path = ov::util::get_absolute_file_path(path);
+        std::cout << "absolute_path: " << absolute_path << std::endl;
         retvalue = ov::util::file_exists(absolute_path) ? absolute_path : path;
     } catch (const std::runtime_error&) {
         retvalue = path;
