@@ -1013,7 +1013,7 @@ bool primitive_inst::update_impl(bool use_async_compilation) {
             }
         }
         if (!cached_impl) {
-            if (!_node->is_type<fully_connected>() && (_dynamic_impl || is_current_impl_dynamic)) {
+            if (_dynamic_impl || is_current_impl_dynamic) {
                 if (use_async_compilation) {
                     auto& compilation_context = prog->get_compilation_context();
                     compilation_context.push_task(updated_params, [this, &compilation_context, updated_params]() {
