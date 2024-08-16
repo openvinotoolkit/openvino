@@ -59,23 +59,17 @@ void ValidateExpandedLoops::validate_loop_information(const LinearIR& linear_ir)
         const auto& current_unified_loop_info = expanded_loop_info->get_unified_loop_info();
         INFORMATIVE_ASSERT(current_unified_loop_info, "expects non nullptr UnifiedLoopInfo in ExpandedLoopInfo");
 
-
-        if (initializated_info_map.count(current_unified_loop_info) == 0) {
-            auto& current_info = initializated_info_map[current_unified_loop_info];
-
-            INFORMATIVE_ASSERT(current_unified_loop_info->get_input_count() == expanded_loop_info->get_input_count() &&
-                               current_unified_loop_info->get_output_count() == expanded_loop_info->get_output_count(),
-                               "incompatible loop ports with UnifiedLoopInfo");
-
-            current_info.work_amount = 0;
-            current_info.num_ports = expanded_loop_info->get_input_count() + expanded_loop_info->get_output_count();
-            current_info.finalization_offsets.clear();
+        auto& current_info = initializated_info_map[current_unified_loop_info];
+        if (current_info.num_ports == 0) { // the info was just default constructed
+            current_info.num_ports = current_unified_loop_info->get_input_count() + current_unified_loop_info->get_output_count();
             current_info.finalization_offsets.resize(current_info.num_ports, 0);
         }
 
-        auto& current_info = initializated_info_map[current_unified_loop_info];
+        INFORMATIVE_ASSERT(current_unified_loop_info->get_input_count() == expanded_loop_info->get_input_count() &&
+                           current_unified_loop_info->get_output_count() == expanded_loop_info->get_output_count(),
+                           "incompatible loop ports with UnifiedLoopInfo");
+
         current_info.work_amount = utils::dynamic_safe_add(current_info.work_amount, expanded_loop_info->get_work_amount());
-        INFORMATIVE_ASSERT(current_unified_loop_info, "expects non nullptr current UnifiedLoopInfo");
         INFORMATIVE_ASSERT(current_unified_loop_info->get_ptr_increments() == expanded_loop_info->get_ptr_increments(),
                            "incompatible pointer increments with UnifiedLoopInfo");
 

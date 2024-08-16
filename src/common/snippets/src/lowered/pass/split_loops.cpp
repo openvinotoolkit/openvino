@@ -155,7 +155,7 @@ bool SplitLoops::TransformInnerSplitLoop::run(LinearIR& linear_ir, LinearIR::con
         // There is already ExpandedLoopInfo
         const auto& inner_expanded_loop_info = loop_manager->get_loop_info<ExpandedLoopInfo>(inner_loop_end->get_id());
         const auto inner_unified_loop_info = ov::as_type_ptr<InnerSplittedUnifiedLoopInfo>(inner_expanded_loop_info->get_unified_loop_info());
-        if (!inner_unified_loop_info)
+        if (!inner_unified_loop_info || inner_unified_loop_info->get_outer_splitted_loop_info() != outer_loop_info->get_unified_loop_info())
             continue;
 
         OPENVINO_ASSERT(current_dim_idx == inner_unified_loop_info->get_dim_idx(), "Incorrect processing dim index of splitted loops");

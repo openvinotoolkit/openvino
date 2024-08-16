@@ -18,36 +18,14 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-namespace {
-LoopInfoPtr clone_loop_info(const LoopInfoPtr& loop_info, const ExpressionMap& expr_map, std::map<LoopInfoPtr, LoopInfoPtr>& cloned_map) {
-    if (cloned_map.count(loop_info))
-        return cloned_map.at(loop_info);
-
-    LoopInfoPtr cloned = nullptr;
-    if (const auto inner_splitted_loop_info = ov::as_type_ptr<InnerSplittedUnifiedLoopInfo>(loop_info)) {
-        auto new_outer = clone_loop_info(inner_splitted_loop_info->get_outer_splitted_loop_info(), expr_map, cloned_map);
-        cloned = inner_splitted_loop_info->clone_with_new_expr(expr_map, new_outer);
-    } else if (const auto expanded = ov::as_type_ptr<ExpandedLoopInfo>(loop_info)) {
-        auto new_unified = ov::as_type_ptr<UnifiedLoopInfo>(clone_loop_info(expanded->get_unified_loop_info(), expr_map, cloned_map));
-        cloned = expanded->clone_with_new_expr(expr_map, new_unified);
-    } else if (const auto unified = ov::as_type_ptr<UnifiedLoopInfo>(loop_info)) {
-        cloned = unified->clone_with_new_expr(expr_map);
-    } else {
-        OPENVINO_THROW("Undefined LoopInfo type");
-    }
-    cloned_map[loop_info] = cloned;
-    return cloned;
-}
-}  // namespace
-
 std::shared_ptr<LoopManager> LoopManager::clone_with_new_expr(const ExpressionMap& expr_map) const {
     auto new_loop_manager = std::make_shared<LoopManager>();
     // To fully cloned all LoopInfo we have to create this map [old LoopInfo -> cloned LoopInfo],
     // because some LoopInfo types contains pointer to another LoopInfo
     // so we should recurrently make a cloning of LoopInfos'
-    std::map<LoopInfoPtr, LoopInfoPtr> cloned_loop_info_map; // [ old - > cloned ]
+    LoopInfoMap loop_info_map; // [ old - > cloned ]
     for (const auto& id_info : m_map)
-        new_loop_manager->m_map.insert({id_info.first, clone_loop_info(id_info.second, expr_map, cloned_loop_info_map)});
+        new_loop_manager->m_map.insert({id_info.first, id_info.second->clone_with_new_expr(expr_map, loop_info_map)});
     new_loop_manager->next_id = next_id;
     return new_loop_manager;
 }

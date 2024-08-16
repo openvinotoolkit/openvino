@@ -65,20 +65,19 @@ void RuntimeConfigurator::initialization(const lowered::LinearIRCPtr& linear_ir)
     m_optimizer.init(linear_ir, m_io_descs, m_in_num);
 
     // InnerSplittedLoops should be inited after OuterSplittedLoops
-    m_ordered_loop_ids.clear();
-    size_t offset = 0;
     const auto& loop_map = linear_ir->get_loop_manager()->get_map();
+    m_ordered_loop_ids.clear();
+    m_ordered_loop_ids.reserve(loop_map.size());
+    std::vector<size_t> loops_must_be_last;
     for (const auto& p : loop_map) {
         const auto loop_id = p.first;
         const auto& expanded_loop_info = ov::as_type_ptr<lowered::ExpandedLoopInfo>(p.second);
         OPENVINO_ASSERT(expanded_loop_info, "UpdateLoopInfo expects ExpandedLoopInfo in LoopManager");
-        if (ov::is_type<lowered::InnerSplittedUnifiedLoopInfo>(expanded_loop_info->get_unified_loop_info())) {
-            m_ordered_loop_ids.push_back(loop_id);
-        } else {
-            m_ordered_loop_ids.insert(m_ordered_loop_ids.begin() + offset, loop_id);
-            ++offset;
-        }
+        const auto& unified_loop_info = expanded_loop_info->get_unified_loop_info();
+        auto& collection = ov::is_type<lowered::InnerSplittedUnifiedLoopInfo>(unified_loop_info) ? loops_must_be_last : m_ordered_loop_ids;
+        collection.push_back(loop_id);
     }
+    m_ordered_loop_ids.insert(m_ordered_loop_ids.end(), loops_must_be_last.cbegin(), loops_must_be_last.cend());
 }
 
 void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
@@ -238,10 +237,9 @@ void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRC
     m_config->buffer_scratchpad_size = linear_ir->get_static_buffer_scratchpad_size();
 
     auto is_not_executed = [&loop_manager](const lowered::ExpressionPtr& buffer_expr) {
-        for (const auto& loop_id : buffer_expr->get_loop_ids())
-            if (loop_manager->get_loop_info(loop_id)->get_work_amount() == 0)
-                return true;
-        return false;
+        const auto& loop_ids = buffer_expr->get_loop_ids();
+        return std::any_of(loop_ids.cbegin(), loop_ids.cend(),
+                          [&loop_manager](size_t loop_id) { return loop_manager->get_loop_info(loop_id)->get_work_amount() == 0; });
     };
 
     for (const auto& p : m_dynamic_buffer_clusters) {

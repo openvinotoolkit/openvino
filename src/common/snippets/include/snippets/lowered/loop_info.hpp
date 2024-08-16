@@ -12,6 +12,9 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
+class LoopInfo;
+using LoopInfoMap = std::map<LoopInfo*, std::shared_ptr<LoopInfo>>;
+
 /**
  * @interface LoopInfo
  * @brief The base class that contains the common information about a Loop in Linear Intermediate Representation (Linear IR):
@@ -26,6 +29,14 @@ public:
     LoopInfo(size_t work_amount, size_t increment, const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits);
     LoopInfo(size_t work_amount, size_t increment, const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits);
     virtual ~LoopInfo() = default;
+
+    /**
+     * @brief Clone LoopInfo with new Expressions
+     * @param expr_map map of new and old expressions
+     * @param loop_map map of new and old LoopInfo.
+     * @return the copy
+     */
+    virtual std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map, LoopInfoMap& loop_map) const = 0;
 
     /**
      * @brief Check if some parameters of Loop are dynamic (undefined)
@@ -214,11 +225,12 @@ public:
                     const SpecificIterationHandlers& handlers = SpecificIterationHandlers());
 
     /**
-     * @brief Clone LoopInfo with new expressions
+     * @brief Clone LoopInfo with new Expressions
      * @param expr_map map of new and old expressions
+     * @param loop_map map of new and old LoopInfo.
      * @return the copy
      */
-    std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map) const;
+    std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map, LoopInfoMap& loop_map) const override;
 
     /**
      * @brief Check if some parameters of Loop are dynamic (undefined)
@@ -371,12 +383,14 @@ public:
                                  const SpecificIterationHandlers& handlers, LoopInfoPtr outer_splitted_loop_info);
 
     /**
-     * @brief Clone LoopInfo with new expressions
+     * @brief Clone LoopInfo with new Expressions
      * @param expr_map map of new and old expressions
-     * @param new_outer_splitted_loop_info new outer splitted loop info
+     * @param loop_map map of new and old LoopInfo.
+     *        If `loop_map` contains cloned outer splitted loop -info, we take it from there.
+     *        Otherwise we manually clone it and add to this map.
      * @return the copy
      */
-    std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map, LoopInfoPtr new_outer_splitted_loop_info) const;
+    std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map, LoopInfoMap& loop_map) const override;
 
     /**
      * @brief Returns work amount of the Loop.
@@ -420,12 +434,14 @@ public:
                      std::vector<int64_t> ptr_increments, std::vector<int64_t> final_offsets, std::vector<int64_t> data_sizes,
                      SpecificLoopIterType type, UnifiedLoopInfoPtr unified_loop_info, bool evaluate_once = false);
     /**
-     * @brief Clone LoopInfo with new expressions
+     * @brief Clone LoopInfo with new Expressions
      * @param expr_map map of new and old expressions
-     * @param new_unified_loop_info new unified loop info
+     * @param loop_map map of new and old LoopInfo.
+     *        If `loop_map` contains cloned unified loop -info, we take it from there.
+     *        Otherwise we manually clone it and add to this map.
      * @return the copy
      */
-    std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map, UnifiedLoopInfoPtr new_unified_loop_info) const;
+    std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map, LoopInfoMap& loop_map) const override;
 
     /**
      * @brief Check if some parameters of Loop are dynamic (undefined)
