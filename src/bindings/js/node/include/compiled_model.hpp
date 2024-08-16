@@ -71,6 +71,22 @@ public:
     /** @brief Exports the compiled model to bytes/output stream. */
     Napi::Value export_model(const Napi::CallbackInfo& info);
 
+    /**
+     * @brief Sets properties for current compiled model.
+     * @param info Contains information about the environment and passed arguments,
+     * this method accepts only one argument of type object.
+     * @return Napi::Undefined
+     */
+    Napi::Value set_property(const Napi::CallbackInfo& info);
+
+    /**
+     * @brief Gets property for current compiled model.
+     * @param info Contains information about the environment and passed arguments,
+     * this method accepts only one argument of type string.
+     * @return A Napi::Value
+     */
+    Napi::Value get_property(const Napi::CallbackInfo& info);
+
 private:
     /** @brief Gets node of a compiled model specified in CallbackInfo. */
     Napi::Value get_node(const Napi::CallbackInfo& info,
