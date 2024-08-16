@@ -29,7 +29,7 @@ struct typed_primitive_sycl_impl : public typed_primitive_impl<PType> {
 
     typed_primitive_sycl_impl()
         : typed_primitive_impl<PType>({}, "undef"),
-          _engine(nullptr){
+          _engine(nullptr) {
     }
 
     bool is_cpu() const override { return false; }
