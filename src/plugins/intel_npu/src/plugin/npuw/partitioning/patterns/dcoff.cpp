@@ -790,6 +790,112 @@ CWAI3::CWAI3(CWAI3::Results scales) {
 // Implementation TBD
 
 }  // namespace SymmZP
+
+//------------------------------------------------------------------------------
+// Pattern: ASymmZP, weights with asymmetric quantization
+//
+namespace AsymmZP {
+// As seen in asymmetric TinyLlama:
+// Since it is ASymm, all zero points for all blocks have different
+// values so they will be Parameters but not Constants.
+//
+// In the diagram below, pattern on the left is identified and
+// is modified to pattern in the right if type is promoted to f16
+//
+//   "tensor"     "zero point" "scale"
+//   Parameter:A  Parameter:B  Parameter:C  >    Parameter:A
+//         u4        u4        f16          >       f16     <Const>
+//         :         :          :           >        :         :
+//         V         :         :            >        V         V
+//        Convert  Convert    :             >       Reshape|Convert
+//           f16    f16      :              >
+//            :      :      :               >
+//            V      V     :                >
+//            Subtract    :                 >
+//              f16      :                  >
+//               :      :                   >
+//               V      V                   >
+//               Multiply                   >
+//               fp16  <Const>              >
+//                  :     :                 >
+//                  V     V                 >
+//              Reshape|Convert             >
+//                    :                     >
+//                    V                     >
+//
+DCOFFPassReshape::DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref) {
+    auto paramA = opp::wrap_type<ov::op::v0::Parameter>();
+    auto paramB = opp::wrap_type<ov::op::v0::Parameter>();
+    auto paramC = opp::wrap_type<ov::op::v0::Parameter>();
+    auto cvtA = opp::wrap_type<ov::op::v0::Convert>({paramA});
+    auto cvtB = opp::wrap_type<ov::op::v0::Convert>({paramB});
+    auto subtr = opp::wrap_type<ov::op::v1::Subtract>({cvtA, cvtB});
+    auto mulply = opp::wrap_type<ov::op::v1::Multiply>({subtr, paramC});
+
+    auto scalar = opp::wrap_type<ov::op::v0::Constant>();
+    auto reshpe = opp::wrap_type<ov::op::v1::Reshape>({mulply, scalar});
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto matched_nodeA = node_to_output.at(paramA).get_node_shared_ptr();
+        auto matched_nodeB = node_to_output.at(paramB).get_node_shared_ptr();
+        auto matched_nodeC = node_to_output.at(paramC).get_node_shared_ptr();
+
+        NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeA));
+        NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeB));
+        NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeC));
+
+        auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
+        auto matched_paramB = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeB);
+        auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
+
+        if (ov::element::u4  == matched_paramA->get_element_type() &&
+            ov::element::u4  == matched_paramB->get_element_type() &&
+            ov::element::f16 == matched_paramC->get_element_type()) {
+            LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << dcoff_type);
+            matched_paramA->set_element_type(dcoff_type);
+
+            if (dcoff_mode == DCOffMode::CAST_SCALE) {
+                NPUW_ASSERT(dcoff_type == ov::element::f16);
+
+                LOG_DEBUG("Matched: " << matched_paramB << " - value to remove...");
+                LOG_DEBUG("Matched: " << matched_paramC << " - parameter to remove...");
+                LOG_BLOCK();
+
+                // Extra transformation here:
+                // - remove Subtract + Multiply,
+                // - mark paramC for removal.
+                // Reshape will be reconnected to Convert directly
+
+                // Record mapping from the Scale coeff parameter to the Real weight parameter
+                pref.get().zerops[matched_paramA] = matched_paramB;
+                pref.get().scales[matched_paramC] = matched_paramA;
+
+                // Disconnect Multiply and Convert from their outputs
+                auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
+                auto matched_convrt = node_to_output.at(cvtA).get_node_shared_ptr();
+                auto drop_outputs = [](std::shared_ptr<ov::Node> node) {
+                    for (auto&& node_outputs : node->outputs()) {
+                        for (auto&& node_reader_port : node_outputs.get_target_inputs()) {
+                            node_outputs.remove_target_input(node_reader_port);
+                        }
+                    }
+                };
+                LOG_DEBUG("Dropping the connections...");
+                drop_outputs(matched_mulply);
+                drop_outputs(matched_convrt);
+
+                LOG_DEBUG("Reconnecting the Root...");
+                auto matched_reshpe = node_to_output.at(reshpe).get_node_shared_ptr();
+                matched_reshpe->input(0).replace_source_output(matched_paramA);
+            }
+            LOG_DEBUG("Done");
+        }
+        return false;  // root node hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(reshpe, "TagDCOFFReshape"), std::move(callback));
+}
+}  // namespace AsymmZP
 }  // namespace patterns
 }  // namespace npuw
 }  // namespace ov

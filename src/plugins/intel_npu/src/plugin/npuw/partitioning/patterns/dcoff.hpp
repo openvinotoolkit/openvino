@@ -160,6 +160,14 @@ public:
 
 }  // namespace SymmZP
 
+namespace AsymmZP {
+class DCOFFPassReshape : public ov::pass::MatcherPass {
+public:
+    DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
+};
+
+}  // namespace AsymmZP
+
 }  // namespace patterns
 }  // namespace npuw
 }  // namespace ov
