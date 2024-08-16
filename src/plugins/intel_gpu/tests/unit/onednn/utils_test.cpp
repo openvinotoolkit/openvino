@@ -230,7 +230,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, memory_desc_to_fmt_conversion_test,
         {
             {64, 64, 8, 8}, dnnl::memory::data_type::u8, dnnl::memory::format_tag::BAcd4b8a8b4a, false,
             format_traits{
-                "custom", 1, 1, 2, 0, {1, 0, 2, 3}, "ioyx", "oixy?", {{1, 4}, {0, 8}, {1, 8}, {0, 4}}, {{0, 4}, {1, 8}, {0, 8}, {1, 4}}
+                "custom", 1, 1, 2, 0, {1, 0, 2, 3}, "ioyx", "oixy?", {{1, 4}, {0, 8}, {1, 8}, {0, 4}}, {{1, 4}, {0, 8}, {1, 8}, {0, 4}}
             }
         },
         {
@@ -242,19 +242,19 @@ INSTANTIATE_TEST_SUITE_P(smoke, memory_desc_to_fmt_conversion_test,
         {
             {65, 32, 8, 8}, dnnl::memory::data_type::u8, dnnl::memory::format_tag::BAcd4b8a8b4a, false,  // same format as above but different sizes
             format_traits{
-                "custom", 1, 1, 2, 0, {1, 0, 2, 3}, "ioyx", "oixy?", {{1, 4}, {0, 8}, {1, 8}, {0, 4}}, {{0, 4}, {1, 8}, {0, 8}, {1, 4}}
+                "custom", 1, 1, 2, 0, {1, 0, 2, 3}, "ioyx", "oixy?", {{1, 4}, {0, 8}, {1, 8}, {0, 4}}, {{1, 4}, {0, 8}, {1, 8}, {0, 4}}
             }
         },
         {
             {10, 20, 30, 40, 50}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::AcdeB24a2b, true,
             format_traits{
-                "custom", 1, 1, 2, 1, {0, 2, 3, 4, 1}, "giyxo", "oixy????g", {{0, 24}, {1, 2}}, {{4, 24}, {1, 2}}
+                "custom", 1, 1, 2, 1, {0, 2, 3, 4, 1}, "giyxo", "oixy????g", {{0, 24}, {1, 2}}, {{1, 24}, {2, 2}}
             }
         },
         {
             {10, 60, 70, 40, 50}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::aCBde4c8b8c4b, true,
             format_traits{
-                "custom", 1, 1, 2, 1, {0, 2, 1, 3, 4}, "gioyx", "oixy????g", {{2, 4}, {1, 8}, {2, 8}, {1, 4}}, {{4, 4}, {1, 8}, {4, 8}, {1, 4}}
+                "custom", 1, 1, 2, 1, {0, 2, 1, 3, 4}, "gioyx", "oixy????g", {{2, 4}, {1, 8}, {2, 8}, {1, 4}}, {{4, 4}, {2, 8}, {4, 8}, {2, 4}}
             }
         },
     }),

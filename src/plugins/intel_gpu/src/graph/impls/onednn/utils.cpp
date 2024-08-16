@@ -557,7 +557,7 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
         if (pos == std::string::npos)
             throw std::domain_error(std::string("Unknown coord type: ") + c);
 
-        logic_block_sizes[i] = std::make_pair(pos, inner_blks[i]);
+        logic_block_sizes[i] = std::make_pair(order[pos], inner_blks[i]);
     }
 
     format_traits traits;
