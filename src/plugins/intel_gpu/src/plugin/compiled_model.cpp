@@ -101,38 +101,16 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                 configs_for_tp[i].subStreamExecConfig = std::move(streamExecutorConfig);
                 auto model_clone = model->clone();
                 // ov::serialize(model_clone, "./model_pa_o.xml", "./model_pa_o.bin");
-                //ov::pass::Manager manager;
-                // manager.register_pass<PagedAttentionSplitInput>(m_config.get_context_for_tp().size(), i);
-                // manager.run_passes(model_clone);
+                ov::pass::Manager manager;
+                manager.register_pass<PagedAttentionSplitInput>(m_config.get_context_for_tp().size(), i);
+                manager.run_passes(model_clone);
                 // ov::pass::VisualizeTree("pa_slice.svg").run_on_model(model_clone);
                 // ov::serialize(model_clone, "./model_pa.xml", "./model_pa.bin");
-
-
-                // auto print_shape = [&](const std::shared_ptr<ov::Node>& m_data) {
-                //     std::cout << m_data->get_friendly_name() << ": '";
-                //     for (size_t shape_id = 0; shape_id < m_data->get_output_partial_shape(0).size(); shape_id++) {
-                //         if (!m_data->get_output_partial_shape(0)[shape_id].is_dynamic()) {
-                //             int64_t len = m_data->get_output_partial_shape(0)[shape_id].get_length();
-                //             std::cout << len << ", ";
-                //         } else {
-                //             std::cout << "?" << ", ";
-                //         }
-                //     }
-                //     std::cout << "'\n";
-                // };
-                // std::cout << "#####################################################################################\n";
-                // for (auto& item : model_clone->get_ordered_ops()) {
-                //     if (item->get_friendly_name().find("Slice") == 0) {
-                //         print_shape(item);
-                //     }
-                // }
-                // std::cout << "#####################################################################################\n";
-
                 // tp related
-                //if (config.get_context_for_tp().size() > 1)
+                // if (config.get_context_for_tp().size() > 1)
                 //    manager.register_pass<ov::intel_gpu::TensorParallelFusion>(config.get_context_for_tp().size(), i);
-                //manager.register_pass<ov::pass::ConstantFolding>();
-                //manager.run_passes(model_clone);
+                // // manager.register_pass<ov::pass::ConstantFolding>();
+                // manager.run_passes(model_clone);
                 // ov::serialize(model_clone, "bell_saved_" + std::to_string(i) + ".xml");
                 m_sub_compiled_models.push_back(std::make_shared<CompiledModel>(
                     model_clone, plugin, m_config.get_context_for_tp()[i].as<RemoteContextImpl::Ptr>(), configs_for_tp[i], m_sub_memory_manager));

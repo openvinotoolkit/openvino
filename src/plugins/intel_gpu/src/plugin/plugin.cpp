@@ -197,13 +197,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             return rank_table;
         };
         config.register_device_context_for_tp(context);
+        contexts_for_tp.insert({device_id, context});
         auto device_ptr = context->get_engine().get_device();
         for (auto& iter : m_device_map) {
-            if (iter.first != device_id && iter.second->get_info().dev_type == device_ptr->get_info().dev_type) 
+            if (iter.first != device_id && iter.second->get_info().dev_type == device_ptr->get_info().dev_type) {
                 config.register_device_context_for_tp(get_default_context(iter.first));
+                contexts_for_tp.insert({iter.first, get_default_context(iter.first)});
+            }
         }
         if (config.get_context_for_tp().size() > 1) {
             std::cout << "***************************** enable tp *****************************\n";
+            enable_tp = 1;
             config.enableSubStreams = true;
             config.streamsRankTable = get_rank_table();
         }
@@ -238,31 +242,21 @@ ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_pr
     return std::make_shared<RemoteContextImpl>(get_default_contexts(), remote_properties);
 }
 
-// ov::SoPtr<ov::intel_gpu::TupleRemoteTensorImpl> Plugin::make_tuple_tensor(std::shared_ptr<ov::intel_gpu::RemoteTensorImpl> tensor1, std::shared_ptr<ov::intel_gpu::RemoteTensorImpl> tensor2) const {
-//     auto a = std::make_shared<ov::intel_gpu::TupleRemoteTensorImpl>(tensor1, tensor2);
-//     // return std::make_shared<ov::IRemoteTensor>(a);
-//     return a;
-// }
-
-
 std::shared_ptr<RemoteContextImpl> Plugin::get_default_context(const std::string& device_id) const {
-    std::cout << "c++ get_default_context: " << device_id << std::endl;
     auto contexts = get_default_contexts();
     OPENVINO_ASSERT(contexts.count(device_id), "[GPU] Context was not initialized for ", device_id, " device");
     return contexts.at(device_id);
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) const {
-    std::string device_id = m_default_device_id;
-
-    if (params.find(ov::device::id.name()) != params.end())
-        device_id = params.at(ov::device::id.name()).as<std::string>();
-    if (device_id == "-1") {
+    if (enable_tp) {
         auto contexts = get_default_contexts();
-        auto tuple_context = std::make_shared<ov::intel_gpu::TupleRemoteContextImpl>(contexts);
-        std::cout << "call tuple contedxt\n";
+        auto tuple_context = std::make_shared<ov::intel_gpu::TupleRemoteContextImpl>(contexts_for_tp);
         return tuple_context;
     }
+    std::string device_id = m_default_device_id;
+    if (params.find(ov::device::id.name()) != params.end())
+        device_id = params.at(ov::device::id.name()).as<std::string>();
 
     return get_default_context(device_id);
 }
