@@ -167,11 +167,31 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_int4_const) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_int4_input) {
+    const auto model = convert_model("int4_input.onnx");
+    auto test_case = test::TestCase(model);
+    test_case.add_input<uint8_t>({0xEF, 0x01, 0x70});
+    test_case.add_expected_output<int64_t>({5});
+    test_case.add_expected_output<uint8_t>({0xEF, 0x01, 0x70});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_uint4_const) {
     auto model = convert_model("uint4_const.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_expected_output(std::vector<int64_t>{4});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_uint4_input) {
+    const auto model = convert_model("uint4_input.onnx");
+    auto test_case = test::TestCase(model);
+    test_case.add_input<uint8_t>({0x01, 0xF0});
+    test_case.add_expected_output<int64_t>({3});
+    test_case.add_expected_output<uint8_t>({0x01, 0xF0});
+
     test_case.run();
 }
 

@@ -13,6 +13,7 @@
 #include "exceptions.hpp"
 #include "onnx_common/utils.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
@@ -281,24 +282,13 @@ private:
     std::shared_ptr<ov::op::v0::Constant> make_ov_constant(const ov::element::Type& type) const {
         std::shared_ptr<ov::op::v0::Constant> constant{nullptr};
         auto data = get_data<T>();
-        auto data_size = data.size();
-        switch (type) {
-        case ov::element::i4:
-        case ov::element::u4:
-            data_size *= 2;  // Each byte contains 2 data items
-            break;
+        auto element_count = data.size();
+        if(ov::element::is_nibble_type(type)) {
+            element_count *= 2;  // Each byte contains 2 data items
         }
-        if (data_size == shape_size(m_shape)) {
-            switch (type) {
-            case ov::element::i4:
-            case ov::element::u4:
-                constant = std::make_shared<ov::op::v0::Constant>(type, m_shape, data.data());
-                break;
-            default:
-                constant = std::make_shared<ov::op::v0::Constant>(type, m_shape, data);
-                break;
-            }
-        } else if (data_size == 0 && m_shape.size() == 0) {
+        if (element_count == shape_size(m_shape)) {
+            constant = std::make_shared<ov::op::v0::Constant>(type, m_shape, data.data());
+        } else if (element_count == 0 && m_shape.size() == 0) {
             constant = common::make_failsafe_constant(type);
         } else {
             FRONT_END_THROW("Tensor shape doesn't match data size");
