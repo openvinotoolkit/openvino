@@ -39,6 +39,8 @@ def get_skipped_model_links(filename: str):
     with open(filename) as f:
         for model_info in f:
             model_info = model_info.strip()
+            if not model_info:
+                continue
             model_name, model_link = model_info.split(',')
             links.add(model_link)
     return links
