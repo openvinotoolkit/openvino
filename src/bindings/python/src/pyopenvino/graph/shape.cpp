@@ -72,9 +72,6 @@ void regclass_graph_Shape(py::module m) {
         return compareShape(self, tpl);
     });
 
-    // Common function to compare shape with list or tuple
-    
-
     shape.def("__getitem__", [](const ov::Shape& v, py::slice& slice) {
         size_t start, stop, step, slicelength;
         if (!slice.compute(v.size(), &start, &stop, &step, &slicelength)) {
