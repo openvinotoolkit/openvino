@@ -33,7 +33,6 @@ inline std::string resolve_extension_path(const std::string& path) {
     std::string retvalue;
     try {
         const std::string absolute_path = ov::util::get_absolute_file_path(path);
-        std::cout << "absolute_path: " << absolute_path << std::endl;
         retvalue = ov::util::file_exists(absolute_path) ? absolute_path : path;
     } catch (const std::runtime_error&) {
         retvalue = path;
@@ -43,17 +42,12 @@ inline std::string resolve_extension_path(const std::string& path) {
 
 inline std::vector<Extension::Ptr> load_extensions(const std::string& path) {
 #if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
-    std::cout << "ov::util::get_absolute_file_path(ov::util::get_directory(path)): "
-              << ov::util::get_absolute_file_path(ov::util::get_directory(path)) << std::endl;
-    std::cout << "ov::util::get_directory(ov::util::get_absolute_file_path(path)): "
-              << ov::util::get_directory(ov::util::get_absolute_file_path(path)) << std::endl;
     if (fs::is_symlink(path))
         OPENVINO_ASSERT(ov::util::get_absolute_file_path(ov::util::get_directory(path)) ==
                             ov::util::get_directory(ov::util::get_absolute_file_path(path)),
                         "Cannot load extension with symlink path:\"" + path + "\".");
 #endif
     const std::string resolved_path = resolve_extension_path(path);
-    std::cout << "resolved_path: " << resolved_path << std::endl;
     auto so = ov::util::load_shared_object(resolved_path.c_str());
     using CreateFunction = void(std::vector<Extension::Ptr>&);
     std::vector<Extension::Ptr> extensions;
