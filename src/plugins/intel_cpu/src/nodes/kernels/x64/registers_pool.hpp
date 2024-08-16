@@ -225,6 +225,8 @@ private:
             return idx;
         } else if (std::is_same<TReg, Xbyak::Opmask>::value) {
             return getFreeOpmask(requestedIdx);
+        } else {
+            static_assert(sizeof(TReg*) == 0, "Undefined behavior");
         }
     }
 
