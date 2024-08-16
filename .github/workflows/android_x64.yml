@@ -1,4 +1,4 @@
-name: Android ARM64 with vcpkg
+name: Android x64 with vcpkg
 on:
   workflow_dispatch:
   pull_request:
@@ -10,7 +10,7 @@ on:
 
 concurrency:
   # github.ref is not unique in post-commit
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-android-arm64-vcpkg
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-android-x64-vcpkg
   cancel-in-progress: true
 
 permissions: read-all
@@ -90,11 +90,11 @@ jobs:
       ANDROID_TOOLS: '/deps/android_tools'
       ANDROID_NDK_HOME: '/deps/android_tools/ndk-bundle'
       ANDROID_SDK_VERSION: 29
-      ANDROID_ABI_CONFIG: arm64-v8a
-      VCPKG_TARGET_TRIPLET: arm64-android
-      VCPKG_DEFAULT_BINARY_CACHE: '/mount/caches/ccache/android_arm64/vcpkg_cache'
+      ANDROID_ABI_CONFIG: x86_64
+      VCPKG_TARGET_TRIPLET: x86-android
+      VCPKG_DEFAULT_BINARY_CACHE: '/mount/caches/ccache/android_x64/vcpkg_cache'
       VCPKG_FORCE_SYSTEM_BINARIES: '1'
-      SCCACHE_AZURE_KEY_PREFIX: android_arm64
+      SCCACHE_AZURE_KEY_PREFIX: android_x64
     if: "!needs.smart_ci.outputs.skip_workflow"
     steps:
       - name: Clone OpenVINO
@@ -139,7 +139,7 @@ jobs:
           mkdir -p ${VCPKG_DEFAULT_BINARY_CACHE}
           ${VCPKG_ROOT}/bootstrap-vcpkg.sh
           # patch vcpkg default toolchain to build only Release configuration
-          echo "set(VCPKG_BUILD_TYPE release)" >> ${VCPKG_ROOT}/triplets/arm64-android.cmake
+          echo "set(VCPKG_BUILD_TYPE release)" >> ${VCPKG_ROOT}/triplets/x64-android.cmake
 
       - name: CMake - configure
         run: |
@@ -186,7 +186,7 @@ jobs:
           if-no-files-found: 'ignore'
 
   Overall_Status:
-    name: ci/gha_overall_status_android_arm64
+    name: ci/gha_overall_status_android_x64
     needs: [Smart_CI, Build]
     if: ${{ always() }}
     runs-on: ubuntu-latest
