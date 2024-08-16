@@ -203,9 +203,9 @@ struct QKVProjection::Impl {
             });
             m += BM;
             pA += BM * strideA;
-            dst0 += BM * stride_0 / sizeof(ov::bfloat16);
-            dst1 += BM * stride_1 / sizeof(ov::bfloat16);
-            dst2 += BM * stride_2 / sizeof(ov::bfloat16);
+            dst0 += BM * stride_0;
+            dst1 += BM * stride_1;
+            dst2 += BM * stride_2;
         }
     }
 };

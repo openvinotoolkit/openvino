@@ -244,7 +244,7 @@ struct LLMMLP::Impl {
         int strideC = dstStrides[dstStrides.size() - 2] * sizeof(ov::bfloat16);
 
         for (int m = 0; m < M;) {
-            int BM = std::min(M - m, 512);
+            int BM = std::min(M - m, 256);
             setM(BM);
 
             gate_up.runGateUp(pA, strideA, BM, m_actUp.ptr<ov::bfloat16>(), m_actUp.stride_bytes(0), m_config, m_tempC);
