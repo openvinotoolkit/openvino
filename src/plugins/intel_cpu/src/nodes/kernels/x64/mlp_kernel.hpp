@@ -126,12 +126,16 @@ struct Work {
     template <typename T>
     void setup(T* p_weight, int stride) {
         auto& mkernel = get_MKernel();
-        auto num_blk_K = (k1 - k0) / blk_K_size;
-        auto* pw = p_weight + n0 * stride / sizeof(T) + k0;
+        auto num_blk_K = (k1 - k0 + blk_K_size - 1) / blk_K_size;
+        auto* pw = p_weight + n0 * stride / sizeof(T);
 
+        // weight is divided along K dimension into equal size blk_K_size, except last block.
         weights.resize(num_blk_K);
-        for (int k = 0; k < num_blk_K; k++) {
-            mkernel.prepareB(weights[k], pw + k * blk_K_size, stride, BN, blk_K_size);
+        for (int k = k0, ki = 0; k < k1;) {
+            auto subK = std::min(blk_K_size, k1 - k);
+            mkernel.prepareB(weights[ki], pw + k, stride, BN, subK);
+            k += subK;
+            ki ++;
         }
 
         for (int Mtails = 0; Mtails < 32; Mtails++) {
@@ -152,7 +156,7 @@ struct Work {
     void run(int M, uint8_t* pA, int strideA, PlainTensor& C) {
         auto& mkernel = get_MKernel();
 
-        int num_blk_K = (k1 - k0) / blk_K_size;
+        int num_blk_K = weights.size();
 
         auto Mtails = M % 32;
         auto Mbody = M - Mtails;

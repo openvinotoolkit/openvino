@@ -43,21 +43,19 @@ public:
         // prepare weights, split N among threads
         // in unit of 32
         OPENVINO_ASSERT((N % 32) == 0);
-        OPENVINO_ASSERT((K % blk_K_size) == 0);
+        OPENVINO_ASSERT((K % 32) == 0);
         auto nthr = parallel_get_max_threads();
         auto num_blk_N = N / 32;
-        auto num_blk_K = K / blk_K_size;
         works.resize(nthr);
 
         do_splitK = _do_splitK;
         auto K_splits = do_splitK ? 2 : 1;
         // split task on more cores is better on TBB
-        auto valid_nthr = nthr / K_splits;
+        auto valid_nthr = do_splitK ? (nthr / 2) : nthr;
         auto blkN_per_thread = (num_blk_N) / valid_nthr;
         auto blkN_leftover = num_blk_N - (blkN_per_thread * valid_nthr);
         auto start_blkN = 0;
         used_nthr = 0;
-        auto blkK_per_thread = (num_blk_K + K_splits - 1) / K_splits;
 
         for (int ithr = 0; ithr < nthr; ithr += K_splits) {
             auto blkN = std::min(num_blk_N - start_blkN, blkN_per_thread);
@@ -67,23 +65,39 @@ public:
             }
             if (blkN) {
                 auto shared_atomic = std::make_shared<std::atomic_int>(0);
-                auto start_blkK = 0;
-                for (int ik = 0; ik < K_splits; ik++) {
-                    auto blk_K = std::min(num_blk_K - start_blkK, blkK_per_thread);
-
-                    auto& work = works[ithr + ik];
-
+                if (!do_splitK) {
+                    auto& work = works[ithr];
                     work.sync_flag = shared_atomic;
                     work.blk_K_size = blk_K_size;
 
                     work.n0 = (start_blkN)*32;
                     work.n1 = (start_blkN + blkN) * 32;
                     work.BN = blkN * 32;
-                    work.k0 = start_blkK * blk_K_size;
-                    work.k1 = (start_blkK + blk_K) * blk_K_size;
-
-                    start_blkK += blk_K;
+                    work.k0 = 0;
+                    work.k1 = K;
                     used_nthr++;
+                } else {
+                    // split K dimension in unit of 32 evenly among 2 worker-threads
+                    auto start_blkK = 0;
+                    auto num_blk_K = K / 32;
+                    auto blkK_per_thread = (num_blk_K + 1) / 2;
+                    for (int ik = 0; ik < K_splits; ik++) {
+                        auto blk_K = std::min(num_blk_K - start_blkK, blkK_per_thread);
+
+                        auto& work = works[ithr + ik];
+
+                        work.sync_flag = shared_atomic;
+                        work.blk_K_size = blk_K_size;
+
+                        work.n0 = (start_blkN)*32;
+                        work.n1 = (start_blkN + blkN) * 32;
+                        work.BN = blkN * 32;
+                        work.k0 = start_blkK * 32;
+                        work.k1 = (start_blkK + blk_K) * 32;
+
+                        start_blkK += blk_K;
+                        used_nthr++;
+                    }
                 }
             }
 
@@ -321,12 +335,12 @@ bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
             }
             auto down_size = down_proj_w_pshape[0].get_length();
             auto up_size = down_proj_w_pshape[1].get_length();
-            if ((down_size % 256) != 0) {
-                errorMessage = "LLMMLPNode down_proj size is not multiple of 256";
+            if (down_size % 32) {
+                errorMessage = "LLMMLPNode down_proj size is not multiple of 32";
                 return false;
             }
-            if (up_size % 256) {
-                errorMessage = "LLMMLPNode up_proj size is not multiple of 256";
+            if (up_size % 32) {
+                errorMessage = "LLMMLPNode up_proj size is not multiple of 32";
                 return false;
             }
         } else {
