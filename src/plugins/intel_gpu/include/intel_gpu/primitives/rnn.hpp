@@ -197,6 +197,8 @@ struct lstm_seq : public primitive_base<lstm_seq> {
     }
 
     bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
         auto rhs_casted = downcast<const lstm_seq>(rhs);
         return params == rhs_casted.params && output_data_types == rhs_casted.output_data_types;
     }

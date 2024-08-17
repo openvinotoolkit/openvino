@@ -41,6 +41,8 @@ struct lstm_cell : public primitive_base<lstm_cell> {
     }
 
     bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
         auto rhs_casted = downcast<const lstm_cell>(rhs);
         return params == rhs_casted.params;
     }
