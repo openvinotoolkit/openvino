@@ -200,15 +200,15 @@ struct LLMMLP::Impl {
         auto K = w_gate.size(1);
         auto N = w_gate.size(0);
         static PlainTensor w_gate_up;
-        w_gate_up.resize<ov::bfloat16>({static_cast<size_t>(2 * N), static_cast<size_t>(K)});
+        w_gate_up.resize<ov::float16>({static_cast<size_t>(2 * N), static_cast<size_t>(K)});
         for (size_t n = 0; n < N; n += 16) {
             for (size_t i = 0; i < 16; i++)
-                memcpy(w_gate_up.ptr_v(2 * n + i, 0), w_gate.ptr_v(n + i, 0), K * sizeof(ov::bfloat16));
+                memcpy(w_gate_up.ptr_v(2 * n + i, 0), w_gate.ptr_v(n + i, 0), K * sizeof(ov::float16));
             for (size_t i = 0; i < 16; i++)
-                memcpy(w_gate_up.ptr_v(2 * n + 16 + i, 0), w_up.ptr_v(n + i, 0), K * sizeof(ov::bfloat16));
+                memcpy(w_gate_up.ptr_v(2 * n + 16 + i, 0), w_up.ptr_v(n + i, 0), K * sizeof(ov::float16));
         }
-        gate_up.setup(w_gate_up.ptr<ov::bfloat16>(), w_gate_up.stride_bytes(0), N * 2, K);
-        down.setup(w_down.ptr<ov::bfloat16>(), w_down.stride_bytes(0), K, N, true);
+        gate_up.setup(w_gate_up.ptr<ov::float16>(), w_gate_up.stride_bytes(0), N * 2, K);
+        down.setup(w_down.ptr<ov::float16>(), w_down.stride_bytes(0), K, N, true);
 
         m_tempC.resize(parallel_get_max_threads());
         m_N = N;
@@ -292,7 +292,7 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
         return;
 
     auto rtPrecision = ov::element::bf16;
-    auto weightPrecision = ov::element::bf16;
+    auto weightPrecision = ov::element::f16;
 
     // initialize input ports
     std::vector<PortConfigurator> inPortConfigs;

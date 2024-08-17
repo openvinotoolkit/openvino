@@ -223,6 +223,7 @@ void MKernel::prepareB(PlainTensor& ret, T* p_weight, int stride, int N, int K) 
 }
 
 template void MKernel::prepareB<ov::bfloat16>(PlainTensor& ret, ov::bfloat16* p_weight, int stride, int N, int K);
+template void MKernel::prepareB<ov::float16>(PlainTensor& ret, ov::float16* p_weight, int stride, int N, int K);
 
 // run L2 cache blocking kernel with size:
 //    [BM, BK]*[BK, BN] => [BM, BN]

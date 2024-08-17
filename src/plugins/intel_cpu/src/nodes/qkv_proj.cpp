@@ -61,12 +61,12 @@ struct QKVProjection::Impl {
         OPENVINO_ASSERT((K % blk_K_size) == 0);
         auto nthr = parallel_get_max_threads();
         auto num_blk_K = K / blk_K_size;
-        int stride = K * sizeof(ov::bfloat16);
+        int stride = K * sizeof(ov::float16);
 
         works.resize(nthr);
 
         int cur_work_id = 0;
-        auto create_works = [&](ov::bfloat16* pw, int output_id, int N, int valid_nthr) {
+        auto create_works = [&](ov::float16* pw, int output_id, int N, int valid_nthr) {
             // split task on more cores is better on TBB
             OPENVINO_ASSERT((N % 32) == 0);
             auto num_blk_N = N / 32;
@@ -99,9 +99,9 @@ struct QKVProjection::Impl {
         auto proj_size2 = static_cast<int>(w2.size(0));
         auto n_group_workers = allocate_workers({proj_size0, proj_size1, proj_size2}, nthr);
 
-        create_works(w0.ptr<ov::bfloat16>(), 0, proj_size0, n_group_workers[0]);
-        create_works(w1.ptr<ov::bfloat16>(), 1, proj_size1, n_group_workers[1]);
-        create_works(w2.ptr<ov::bfloat16>(), 2, proj_size2, n_group_workers[2]);
+        create_works(w0.ptr<ov::float16>(), 0, proj_size0, n_group_workers[0]);
+        create_works(w1.ptr<ov::float16>(), 1, proj_size1, n_group_workers[1]);
+        create_works(w2.ptr<ov::float16>(), 2, proj_size2, n_group_workers[2]);
 
         DEBUG_LOG("QKVProj hidden_size=", K, " proj_sizes=",
                     proj_size0, ",", proj_size1, ",", proj_size2,
@@ -240,14 +240,14 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
         return;
 
     auto rtPrecision = ov::element::bf16;
-    auto weightPrecision = ov::element::bf16;
+    auto weightPrecision = ov::element::f16;
 
     // initialize input ports
     std::vector<PortConfigurator> inPortConfigs;
     inPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getInputShapeAtPort(0), false, -1);      // input
-    inPortConfigs.emplace_back(LayoutType::ncsp, weightPrecision, getInputShapeAtPort(1), false, -1);  // gate
-    inPortConfigs.emplace_back(LayoutType::ncsp, weightPrecision, getInputShapeAtPort(2), false, -1);  // up
-    inPortConfigs.emplace_back(LayoutType::ncsp, weightPrecision, getInputShapeAtPort(3), false, -1);  // down
+    inPortConfigs.emplace_back(LayoutType::ncsp, weightPrecision, getInputShapeAtPort(1), false, -1);  // q_proj
+    inPortConfigs.emplace_back(LayoutType::ncsp, weightPrecision, getInputShapeAtPort(2), false, -1);  // k_proj
+    inPortConfigs.emplace_back(LayoutType::ncsp, weightPrecision, getInputShapeAtPort(3), false, -1);  // v_proj
 
     // initialize output port
     std::vector<PortConfigurator> outPortConfigs;

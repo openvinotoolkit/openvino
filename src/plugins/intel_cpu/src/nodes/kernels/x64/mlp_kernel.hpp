@@ -111,7 +111,7 @@ struct Work {
     int BN = 0;
     int blk_K_size = 0;
     int output_id;
-    ov::bfloat16* p_raw_weights;
+    ov::float16* p_raw_weights;
     operator bool() {
         return BN > 0;
     }
