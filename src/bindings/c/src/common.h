@@ -34,7 +34,7 @@
 #define GET_PROPERTY_FROM_ARGS_LIST                                                                            \
     std::string property_key = va_arg(args_ptr, char*);                                                        \
     if (property_key == ov::cache_crypto_callback.name()) {                                                    \
-        ov_crypto_callback* _value = va_arg(args_ptr, ov_crypto_callback*);                                    \
+        ov_encryption_callbacks* _value = va_arg(args_ptr, ov_encryption_callbacks*);                          \
         auto encrypt_func = _value->encrypt_func;                                                              \
         auto decrypt_func = _value->decrypt_func;                                                              \
         std::function<std::string(const std::string&)> encrypt_value = [encrypt_func](const std::string& in) { \
@@ -42,7 +42,7 @@
             std::string out_str;                                                                               \
             encrypt_func(in.c_str(), in.length(), nullptr, &out_size);                                         \
             if (out_size > 0) {                                                                                \
-                std::unique_ptr<char> output_ptr(new char[out_size]);                                          \
+                std::unique_ptr<char[]> output_ptr(new char[out_size]);                                        \
                 if (output_ptr) {                                                                              \
                     char* output = output_ptr.get();                                                           \
                     encrypt_func(in.c_str(), in.length(), output, &out_size);                                  \
@@ -56,7 +56,7 @@
             std::string out_str;                                                                               \
             decrypt_func(in.c_str(), in.length(), nullptr, &out_size);                                         \
             if (out_size > 0) {                                                                                \
-                std::unique_ptr<char> output_ptr(new char[out_size]);                                          \
+                std::unique_ptr<char[]> output_ptr(new char[out_size]);                                        \
                 if (output_ptr) {                                                                              \
                     char* output = output_ptr.get();                                                           \
                     decrypt_func(in.c_str(), in.length(), output, &out_size);                                  \
@@ -65,8 +65,8 @@
             }                                                                                                  \
             return out_str;                                                                                    \
         };                                                                                                     \
-        ov::CRYPTO_CALLBACK crypto_callback{encrypt_value, decrypt_value};                                     \
-        property[property_key] = crypto_callback;                                                              \
+        ov::EncryptionCallbacks encryption_callbacks{encrypt_value, decrypt_value};                            \
+        property[property_key] = encryption_callbacks;                                                         \
     } else {                                                                                                   \
         std::string _value = va_arg(args_ptr, char*);                                                          \
         ov::Any value = _value;                                                                                \

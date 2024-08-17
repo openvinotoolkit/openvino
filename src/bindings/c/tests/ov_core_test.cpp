@@ -602,7 +602,7 @@ TEST_P(ov_core_test, ov_core_import_model_with_crypto) {
     }
 
     const char* key = ov_property_key_cache_crypto_callback;
-    ov_crypto_callback crypto_callback{codec_xor, codec_xor};
+    ov_encryption_callbacks encryption_callbacks{codec_xor, codec_xor};
 
     ov_compiled_model_t* compiled_model = nullptr;
     OV_EXPECT_OK(ov_core_compile_model_from_file(core,
@@ -611,7 +611,7 @@ TEST_P(ov_core_test, ov_core_import_model_with_crypto) {
                                                  2,
                                                  &compiled_model,
                                                  key,
-                                                 &crypto_callback));
+                                                 &encryption_callbacks));
     EXPECT_NE(nullptr, compiled_model);
 
     std::string export_path = TestDataHelpers::get_exported_blob_file_name();

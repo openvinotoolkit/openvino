@@ -373,9 +373,9 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::cache_crypto_callback.name()) {
             try {
-                auto crypto_callback = val.as<CRYPTO_CALLBACK>();
-                cacheEncrypt = crypto_callback.encrypt;
-                cacheDecrypt = crypto_callback.decrypt;
+                auto encryption_callbacks = val.as<EncryptionCallbacks>();
+                cacheEncrypt = encryption_callbacks.encrypt;
+                cacheDecrypt = encryption_callbacks.decrypt;
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ", ov::cache_crypto_callback.name());
             }

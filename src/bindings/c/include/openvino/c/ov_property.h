@@ -108,7 +108,7 @@ OPENVINO_C_VAR(const char*)
 ov_property_key_cache_mode;
 
 /**
- * @brief Write-only property<ov_crypto_callback*> to set encryption/decryption function for model cache.
+ * @brief Write-only property<ov_encryption_callbacks*> to set encryption/decryption function for model cache.
  * If ov_property_key_cache_crypto_callback is set, model cache will be encrypted/decrypted when saving/loading model
  * cache. ov_property_key_cache_crypto_callback is enabled in ov_core_compile_model_* only
  * @ingroup ov_property_c_api

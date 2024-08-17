@@ -784,7 +784,7 @@ inline std::istream& operator>>(std::istream& is, CacheMode& mode) {
  */
 static constexpr Property<CacheMode, PropertyMutability::RW> cache_mode{"CACHE_MODE"};
 
-struct CRYPTO_CALLBACK {
+struct EncryptionCallbacks {
     std::function<std::string(const std::string&)> encrypt;
     std::function<std::string(const std::string&)> decrypt;
 };
@@ -797,7 +797,7 @@ struct CRYPTO_CALLBACK {
  * - Second value of the struct is decryption function.
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<CRYPTO_CALLBACK, PropertyMutability::WO> cache_crypto_callback{"CACHE_CRYPTO_CALLBACK"};
+static constexpr Property<EncryptionCallbacks, PropertyMutability::WO> cache_crypto_callback{"CACHE_CRYPTO_CALLBACK"};
 
 /**
  * @brief Read-only property to provide information about a range for streams on platforms where streams are supported.

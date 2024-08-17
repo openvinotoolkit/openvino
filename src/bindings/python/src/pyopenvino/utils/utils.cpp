@@ -255,13 +255,13 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
     for (const auto& property : properties) {
         if (property.first == ov::cache_crypto_callback.name()) {
             auto property_value = property.second;
+            if (!py::isinstance<py::list>(property_value)) {
+                OPENVINO_THROW("The value type of ov::cache_crypto_callback property is expected list");
+            }
             std::function<std::string(const std::string&)> encrypt_func =
                 [property_value](const std::string& in_str) -> std::string {
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
-                if (!py::isinstance<py::list>(property_value)) {
-                    OPENVINO_THROW("The value type of ov::cache_crypto_callback property is expected list");
-                }
                 auto _list = property_value.cast<py::list>();
                 return _list[0](in_str).cast<std::string>();
             };
@@ -270,14 +270,11 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
                 [property_value](const std::string& in_str) -> std::string {
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
-                if (!py::isinstance<py::list>(property_value)) {
-                    OPENVINO_THROW("The value type of ov::cache_crypto_callback property is expected list");
-                }
                 auto _list = property_value.cast<py::list>();
                 return _list[1](in_str).cast<std::string>();
             };
-            ov::CRYPTO_CALLBACK crypto_callback{encrypt_func, decrypt_func};
-            properties_to_cpp[property.first] = crypto_callback;
+            ov::EncryptionCallbacks encryption_callbacks{encrypt_func, decrypt_func};
+            properties_to_cpp[property.first] = encryption_callbacks;
         } else {
             properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
         }

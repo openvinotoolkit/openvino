@@ -48,7 +48,7 @@ struct Configuration {
 
     ov::hint::Priority model_priority = ov::hint::Priority::DEFAULT;
 
-    CRYPTO_CALLBACK cache_crypto;
+    EncryptionCallbacks encryption_callbacks;
 };
 // ! [configuration:header]
 

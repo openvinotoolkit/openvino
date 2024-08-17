@@ -215,7 +215,7 @@ typedef void (*crypto_func)(const char*, const size_t, char*, size_t*);
 typedef struct {
     crypto_func encrypt_func;  // encryption function pointer
     crypto_func decrypt_func;  // decryption function pointer
-} ov_crypto_callback;
+} ov_encryption_callbacks;
 
 /**
  * @brief Print the error info.
