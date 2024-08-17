@@ -37,6 +37,16 @@ consists of the following steps:
    performance <#benchmark-quantized-sparse-inference-performance>`__
 -  `When this might be helpful <#when-this-might-be-helpful>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -46,13 +56,6 @@ Prerequisites
 
     %pip install -q "openvino>=2023.1.0"
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git" "torch>=2.1" datasets onnx transformers>=4.33.0 --extra-index-url https://download.pytorch.org/whl/cpu
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Imports
 -------
@@ -67,18 +70,6 @@ Imports
     from optimum.intel.openvino import OVModelForSequenceClassification
     from transformers import AutoTokenizer, pipeline
     from huggingface_hub import hf_hub_download
-
-
-.. parsed-literal::
-
-    2024-07-13 03:25:40.698595: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-07-13 03:25:40.733249: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-07-13 03:25:41.315473: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
-      torch.utils._pytree._register_pytree_node(
-
 
 Download, quantize and sparsify the model, using Hugging Face Optimum API
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -110,17 +101,6 @@ model card on Hugging Face.
 
     print(outputs)
 
-
-.. parsed-literal::
-
-    Compiling the model to CPU ...
-
-
-.. parsed-literal::
-
-    [{'label': 'negative', 'score': 0.9982142448425293}]
-
-
 For benchmarking, we will use OpenVINO’s benchmark application and put
 the IRs into a single folder.
 
@@ -137,15 +117,6 @@ the IRs into a single folder.
     # copy IRs to the folder
     shutil.copy(ov_ir_xml_path, quantized_sparse_dir)
     shutil.copy(ov_ir_bin_path, quantized_sparse_dir)
-
-
-
-
-.. parsed-literal::
-
-    'bert_80pc_sparse_quantized_ir/openvino_model.bin'
-
-
 
 Benchmark quantized dense inference performance
 -----------------------------------------------
@@ -174,97 +145,6 @@ as an example. It is recommended to tune based on your applications.
 
     !benchmark_app -m $quantized_sparse_dir/openvino_model.xml -shape "input_ids[1,64],attention_mask[1,64],token_type_ids[1,64]" -load_config $quantized_sparse_dir/perf_config.json
 
-
-.. parsed-literal::
-
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-
-
-.. parsed-literal::
-
-    [Step 1/11] Parsing and validating input arguments
-    [ INFO ] Parsing input parameters
-    [Step 2/11] Loading OpenVINO Runtime
-    [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
-    [ INFO ]
-    [ INFO ] Device info:
-    [ INFO ] CPU
-    [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
-    [ INFO ]
-    [ INFO ]
-    [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
-    [Step 4/11] Reading model files
-    [ INFO ] Loading model files
-    [ INFO ] Read model took 62.05 ms
-    [ INFO ] Original model I/O parameters:
-    [ INFO ] Model inputs:
-    [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
-    [ INFO ]     attention_mask (node: attention_mask) : i64 / [...] / [?,?]
-    [ INFO ]     token_type_ids (node: token_type_ids) : i64 / [...] / [?,?]
-    [ INFO ] Model outputs:
-    [ INFO ]     logits (node: logits) : f32 / [...] / [?,2]
-    [Step 5/11] Resizing model to match image sizes and given batch
-    [ INFO ] Model batch size: 1
-    [ INFO ] Reshaping model: 'input_ids': [1,64], 'attention_mask': [1,64], 'token_type_ids': [1,64]
-    [ INFO ] Reshape model took 28.43 ms
-    [Step 6/11] Configuring input of the model
-    [ INFO ] Model inputs:
-    [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
-    [ INFO ]     attention_mask (node: attention_mask) : i64 / [...] / [1,64]
-    [ INFO ]     token_type_ids (node: token_type_ids) : i64 / [...] / [1,64]
-    [ INFO ] Model outputs:
-    [ INFO ]     logits (node: logits) : f32 / [...] / [1,2]
-    [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1005.52 ms
-    [Step 8/11] Querying optimal runtime parameters
-    [ INFO ] Model:
-    [ INFO ]   NETWORK_NAME: torch_jit
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
-    [ INFO ]   NUM_STREAMS: 4
-    [ INFO ]   INFERENCE_NUM_THREADS: 4
-    [ INFO ]   PERF_COUNT: NO
-    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]   PERFORMANCE_HINT: THROUGHPUT
-    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]   ENABLE_CPU_PINNING: True
-    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
-    [ INFO ]   MODEL_DISTRIBUTION_POLICY: set()
-    [ INFO ]   ENABLE_HYPER_THREADING: True
-    [ INFO ]   EXECUTION_DEVICES: ['CPU']
-    [ INFO ]   CPU_DENORMALS_OPTIMIZATION: False
-    [ INFO ]   LOG_LEVEL: Level.NO
-    [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
-    [ INFO ]   DYNAMIC_QUANTIZATION_GROUP_SIZE: 32
-    [ INFO ]   KV_CACHE_PRECISION: <Type: 'float16'>
-    [ INFO ]   AFFINITY: Affinity.CORE
-    [Step 9/11] Creating infer requests and preparing input tensors
-    [ WARNING ] No input files were given for input 'input_ids'!. This input will be filled with random values!
-    [ WARNING ] No input files were given for input 'attention_mask'!. This input will be filled with random values!
-    [ WARNING ] No input files were given for input 'token_type_ids'!. This input will be filled with random values!
-    [ INFO ] Fill input 'input_ids' with random values
-    [ INFO ] Fill input 'attention_mask' with random values
-    [ INFO ] Fill input 'token_type_ids' with random values
-    [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
-    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 27.14 ms
-    [Step 11/11] Dumping statistics report
-    [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            9192 iterations
-    [ INFO ] Duration:         60045.59 ms
-    [ INFO ] Latency:
-    [ INFO ]    Median:        25.82 ms
-    [ INFO ]    Average:       25.87 ms
-    [ INFO ]    Min:           24.44 ms
-    [ INFO ]    Max:           40.26 ms
-    [ INFO ] Throughput:   153.08 FPS
-
-
 Benchmark quantized sparse inference performance
 ------------------------------------------------
 
@@ -292,97 +172,6 @@ for which a layer will be enabled.
 .. code:: ipython3
 
     !benchmark_app -m $quantized_sparse_dir/openvino_model.xml -shape "input_ids[1,64],attention_mask[1,64],token_type_ids[1,64]" -load_config $quantized_sparse_dir/perf_config_sparse.json
-
-
-.. parsed-literal::
-
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-
-
-.. parsed-literal::
-
-    [Step 1/11] Parsing and validating input arguments
-    [ INFO ] Parsing input parameters
-    [Step 2/11] Loading OpenVINO Runtime
-    [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
-    [ INFO ]
-    [ INFO ] Device info:
-    [ INFO ] CPU
-    [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
-    [ INFO ]
-    [ INFO ]
-    [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
-    [Step 4/11] Reading model files
-    [ INFO ] Loading model files
-    [ INFO ] Read model took 89.36 ms
-    [ INFO ] Original model I/O parameters:
-    [ INFO ] Model inputs:
-    [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
-    [ INFO ]     attention_mask (node: attention_mask) : i64 / [...] / [?,?]
-    [ INFO ]     token_type_ids (node: token_type_ids) : i64 / [...] / [?,?]
-    [ INFO ] Model outputs:
-    [ INFO ]     logits (node: logits) : f32 / [...] / [?,2]
-    [Step 5/11] Resizing model to match image sizes and given batch
-    [ INFO ] Model batch size: 1
-    [ INFO ] Reshaping model: 'input_ids': [1,64], 'attention_mask': [1,64], 'token_type_ids': [1,64]
-    [ INFO ] Reshape model took 28.62 ms
-    [Step 6/11] Configuring input of the model
-    [ INFO ] Model inputs:
-    [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
-    [ INFO ]     attention_mask (node: attention_mask) : i64 / [...] / [1,64]
-    [ INFO ]     token_type_ids (node: token_type_ids) : i64 / [...] / [1,64]
-    [ INFO ] Model outputs:
-    [ INFO ]     logits (node: logits) : f32 / [...] / [1,2]
-    [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1091.53 ms
-    [Step 8/11] Querying optimal runtime parameters
-    [ INFO ] Model:
-    [ INFO ]   NETWORK_NAME: torch_jit
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
-    [ INFO ]   NUM_STREAMS: 4
-    [ INFO ]   INFERENCE_NUM_THREADS: 4
-    [ INFO ]   PERF_COUNT: NO
-    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]   PERFORMANCE_HINT: THROUGHPUT
-    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]   ENABLE_CPU_PINNING: True
-    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
-    [ INFO ]   MODEL_DISTRIBUTION_POLICY: set()
-    [ INFO ]   ENABLE_HYPER_THREADING: True
-    [ INFO ]   EXECUTION_DEVICES: ['CPU']
-    [ INFO ]   CPU_DENORMALS_OPTIMIZATION: False
-    [ INFO ]   LOG_LEVEL: Level.NO
-    [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 0.75
-    [ INFO ]   DYNAMIC_QUANTIZATION_GROUP_SIZE: 32
-    [ INFO ]   KV_CACHE_PRECISION: <Type: 'float16'>
-    [ INFO ]   AFFINITY: Affinity.CORE
-    [Step 9/11] Creating infer requests and preparing input tensors
-    [ WARNING ] No input files were given for input 'input_ids'!. This input will be filled with random values!
-    [ WARNING ] No input files were given for input 'attention_mask'!. This input will be filled with random values!
-    [ WARNING ] No input files were given for input 'token_type_ids'!. This input will be filled with random values!
-    [ INFO ] Fill input 'input_ids' with random values
-    [ INFO ] Fill input 'attention_mask' with random values
-    [ INFO ] Fill input 'token_type_ids' with random values
-    [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
-    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 28.28 ms
-    [Step 11/11] Dumping statistics report
-    [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            9176 iterations
-    [ INFO ] Duration:         60035.45 ms
-    [ INFO ] Latency:
-    [ INFO ]    Median:        25.86 ms
-    [ INFO ]    Average:       25.90 ms
-    [ INFO ]    Min:           23.07 ms
-    [ INFO ]    Max:           41.68 ms
-    [ INFO ] Throughput:   152.84 FPS
-
 
 When this might be helpful
 --------------------------

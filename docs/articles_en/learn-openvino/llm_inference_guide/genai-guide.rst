@@ -1,8 +1,15 @@
-Run LLMs with OpenVINO GenAI Flavor
-=====================================
+Run LLM Inference on OpenVINO with the GenAI Flavor
+===============================================================================================
 
 .. meta::
    :description: Learn how to use the OpenVINO GenAI flavor to execute LLM models.
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   genai-guide-npu
+
 
 This guide will show you how to integrate the OpenVINO GenAI flavor into your application, covering
 loading a model and passing the input context to receive generated text. Note that the vanilla flavor of OpenVINO
@@ -184,7 +191,7 @@ mark a conversation session, as you can see in these simple examples:
          import openvino_genai as ov_genai
          pipe = ov_genai.LLMPipeline(model_path)
 
-         pipe.set_generation_cofnig({'max_new_tokens': 100)
+         pipe.set_generation_config({'max_new_tokens': 100)
 
          pipe.start_chat()
          while True:
@@ -209,7 +216,7 @@ mark a conversation session, as you can see in these simple examples:
 
             ov::genai::GenerationConfig config = pipe.get_generation_config();
             config.max_new_tokens = 100;
-            pipe.set_generation_cofnig(config)
+            pipe.set_generation_config(config)
 
             pipe.start_chat();
             for (size_t i = 0; i < questions.size(); i++) {
