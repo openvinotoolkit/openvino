@@ -11,7 +11,7 @@ class TestBatchMatrixInverse(CommonTFLayerTest):
         assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
         x_shape = inputs_info['x:0']
         inputs_data = {}
-        inputs_data['x:0'] = self._generate_invertible_matrices(x_shape)
+        inputs_data['x:0'] = self._generate_invertible_matrices(x_shape).astype(self.input_type)
         return inputs_data
     
     def _generate_invertible_matrices(self, input_shape):
@@ -73,9 +73,10 @@ class TestBatchMatrixInverse(CommonTFLayerTest):
     def test_batch_matrix_inverse_basic(self, input_shape, input_type, adjoint, 
                                         ie_device, precision, ir_version, 
                                         temp_dir, use_legacy_frontend):
+        self.input_type = input_type
         self._test(*self.create_batch_matrix_inverse_net(
             input_shape=input_shape,
-            data_type=tf.as_dtype(input_type),
+            data_type=input_type,
             adjoint=adjoint
         ), ie_device, precision, ir_version, temp_dir=temp_dir,
            use_legacy_frontend=use_legacy_frontend)
