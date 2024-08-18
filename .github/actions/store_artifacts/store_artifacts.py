@@ -6,39 +6,21 @@ from __future__ import annotations
 import argparse
 import logging
 import os
-import re
 import sys
-import git
 import shutil
 from contextlib import contextmanager
 from pathlib import Path
 
+sys.path.append(str(Path(__file__).parents[1]))
+from common import artifact_utils, action_utils
+
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Returns product components changed in a given PR or commit')
-    parser.add_argument('-e', '--event_name', help='Name of GitHub event', required=False)
-    parser.add_argument('-b', '--branch_name', help='Name of GitHub branch', required=False)
-    parser.add_argument('-s', '--commit_sha', help='Commit hash for which artifacts were generated', required=False)
+    parser = argparse.ArgumentParser(description='Stores given artifacts on a shared drive')
     parser.add_argument('-a', '--artifacts', type=str, help='Paths to artifacts to store (files/dirs)', required=True)
-    parser.add_argument('--storage_dir', help='Directory name to store artifacts in', required=True)
-    parser.add_argument('--storage_root', help='Root path of the storage to place artifacts to', required=True)
+    artifact_utils.add_common_args(parser)
     args = parser.parse_args()
     return args
-
-
-def init_logger():
-    logging.basicConfig(level=logging.DEBUG,
-                        format='%(asctime)s %(name)-15s %(levelname)-8s %(message)s',
-                        datefmt='%m-%d-%Y %H:%M:%S')
-
-
-def set_github_output(name: str, value: str, github_output_var_name: str = 'GITHUB_OUTPUT'):
-    """Sets output variable for a GitHub Action"""
-    logger = logging.getLogger(__name__)
-    # In an environment variable "GITHUB_OUTPUT" GHA stores path to a file to write outputs to
-    with open(os.environ.get(github_output_var_name), 'a+') as file:
-        logger.info(f"Add {name}={value} to {github_output_var_name}")
-        print(f'{name}={value}', file=file)
 
 
 @contextmanager
@@ -80,24 +62,14 @@ def rotate_dir(directory: Path) -> bool:
 
 
 def main():
-    init_logger()
+    action_utils.init_logger()
     logger = logging.getLogger(__name__)
     args = parse_args()
 
-    event_name = args.event_name or os.getenv('GITHUB_EVENT_NAME')
-    branch_name = args.branch_name or os.getenv('GITHUB_BASE_REF') or os.getenv('GITHUB_REF_NAME')
-
-    # TODO: return, once we decide to get rid of post-commit and choose artifacts generated for a merged PR in queue?
-    # merge_queue_matcher = re.search(r'gh-readonly-queue/(.*?)/pr-', branch_name)
-    # if merge_queue_matcher:
-    #     branch_name = merge_queue_matcher.group(1)
-
-    commit_hash = args.commit_sha or os.getenv('PR_HEAD_SHA') or os.getenv('GITHUB_SHA')
-    event_type = 'pre_commit' if event_name == 'pull_request' else 'commit'
     storage_root = args.storage_root or os.getenv('ARTIFACTS_SHARE')
-
-    storage = Path(storage_root) / 'dldt' / branch_name / event_type / commit_hash / args.storage_dir
-    set_github_output("artifacts_storage_path", str(storage))
+    storage = artifact_utils.get_storage_dir(args.storage_dir, args.commit_sha, args.storage_root, args.branch_name,
+                                             args.event_name)
+    action_utils.set_github_output("artifacts_storage_path", str(storage))
 
     logger.info(f"Storing artifacts to {storage}")
     rotate_dir(storage)  # TODO: use more stable approach to handle storing artifacts from re-runs
@@ -123,6 +95,14 @@ def main():
         workflow_link = f"{github_server}/{os.getenv('GITHUB_REPOSITORY')}/actions/runs/{os.getenv('GITHUB_RUN_ID')}"
         with open(storage / 'workflow_link.txt', 'w') as file:
             file.write(workflow_link)
+
+    latest_artifacts_for_branch = artifact_utils.get_latest_artifacts_link(args.storage_dir, args.storage_root,
+                                                                           args.branch_name, args.event_name)
+    # Overwrite path to "latest" built artifacts only if a given commit is the head of a given branch
+    if args.event_name != 'pull_request' and args.commit_sha == os.getenv('GITHUB_SHA'):
+        # TODO: lock to avoid corruption in case of a parallel build (unlikely event for now, but still)
+        with open(latest_artifacts_for_branch, 'w') as file:
+            file.write(str(storage.relative_to(storage_root)))
 
     logger.debug(f"Copying finished")
     (storage / 'copying_finished').touch()

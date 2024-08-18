@@ -14,8 +14,10 @@
 #include "openvino/op/atan.hpp"
 #include "openvino/op/atanh.hpp"
 #include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
 #include "openvino/op/bitwise_not.hpp"
 #include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/cos.hpp"
@@ -97,6 +99,7 @@ TF_OP_CONVERTER(translate_iterator_get_next_op);
 TF_OP_CONVERTER(translate_iterator_op);
 TF_OP_CONVERTER(translate_lookup_table_import_op);
 TF_OP_CONVERTER(translate_lookup_table_find_op);
+TF_OP_CONVERTER(translate_lookup_table_size_op);
 TF_OP_CONVERTER(translate_loop_cond_op);
 TF_OP_CONVERTER(translate_merge_op);
 TF_OP_CONVERTER(translate_mergev2checkpoint_op);
@@ -172,6 +175,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"BitwiseAnd", CreatorFunction(translate_binary_op<v13::BitwiseAnd>)},
         {"BitwiseOr", CreatorFunction(translate_binary_op<v13::BitwiseOr>)},
         {"BitwiseXor", CreatorFunction(translate_binary_op<v13::BitwiseXor>)},
+        {"RightShift", CreatorFunction(translate_binary_op<v15::BitwiseRightShift>)},
+        {"LeftShift", CreatorFunction(translate_binary_op<v15::BitwiseLeftShift>)},
         {"Div", CreatorFunction(translate_div_op)},
         {"Equal", CreatorFunction(translate_binary_op<v1::Equal>)},
         {"FloorMod", CreatorFunction(translate_binary_op<v1::FloorMod>)},
@@ -301,6 +306,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"LookupTableImportV2", CreatorFunction(translate_lookup_table_import_op)},
         {"LookupTableInsert", CreatorFunction(translate_no_op)},
         {"LookupTableInsertV2", CreatorFunction(translate_no_op)},
+        {"LookupTableSize", CreatorFunction(translate_lookup_table_size_op)},
+        {"LookupTableSizeV2", CreatorFunction(translate_lookup_table_size_op)},
         {"LRN", CreatorFunction(translate_lrn_op)},
         {"MatMul", CreatorFunction(translate_mat_mul_op)},
         {"MatrixBandPart", CreatorFunction(translate_matrix_band_part_op)},
@@ -363,7 +370,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SaveV2", CreatorFunction(translate_no_op)},
         {"ScatterNd", CreatorFunction(translate_scatter_nd_op)},
         {"SegmentSum", CreatorFunction(translate_segment_sum_op)},
-        {"SparseToDense", CreatorFunction(translate_sparse_to_dense_op)},
         {"Select", CreatorFunction(translate_select_op)},
         {"SelectV2", CreatorFunction(translate_select_v2_op)},
         {"Shape", CreatorFunction(translate_shape_op)},
@@ -374,6 +380,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Softmax", CreatorFunction(translate_softmax_op)},
         {"SpaceToDepth", CreatorFunction(translate_space_to_depth_op)},
         {"SparseReshape", CreatorFunction(translate_sparse_reshape_op)},
+        {"SparseTensorDenseMatMul", CreatorFunction(translate_sparse_tensor_dense_mat_mul_op)},
+        {"SparseToDense", CreatorFunction(translate_sparse_to_dense_op)},
         {"Split", CreatorFunction(translate_split_op)},
         {"SplitV", CreatorFunction(translate_split_v_op)},
         {"StopGradient", CreatorFunction(translate_identity_op)},

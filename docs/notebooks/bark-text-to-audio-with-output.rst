@@ -71,6 +71,16 @@ is used to act as an audio representation.
 
 -  `Interactive demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -81,20 +91,6 @@ Prerequisites
     %pip install -q "torch" "torchvision" "torchaudio" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.1.0" "gradio>=4.19"
     %pip install -q "git+https://github.com/suno-ai/bark.git" --extra-index-url https://download.pytorch.org/whl/cpu
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
-    [notice] A new release of pip is available: 23.3.2 -> 24.0
-    [notice] To update, run: pip install --upgrade pip
-    Note: you may need to restart the kernel to use updated packages.
-
-    [notice] A new release of pip is available: 23.3.2 -> 24.0
-    [notice] To update, run: pip install --upgrade pip
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Download and Convert models
 ---------------------------
