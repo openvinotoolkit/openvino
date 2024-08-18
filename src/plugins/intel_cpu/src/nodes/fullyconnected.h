@@ -74,6 +74,11 @@ private:
     ExecutorPtr createExecutor();
     void fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr);
 
+    void initTensorParallelConfig(const GraphContext::CPtr context);
+    void needPrepareParamsForTensorParallel();
+    void initTensorParallelSync();
+    void execTensorParallelSync();
+
     FCAttrs attrs;
     PostOps postOps;
     MemoryArgs memory;

@@ -60,9 +60,7 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     return true;
 }
 
-FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, FCShapeInferFactory(op)),
-      errorPrefix("FullyConnected node with name '" + getName() + "'") {
+void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr context) {
     if (context->getCPUStreamExecutor()) {
         if (!context->getCPUStreamExecutor()->get_rank().empty()) {
             // init w_rank and w_size
@@ -73,7 +71,13 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
             sub_memory = context->getSubMemory();
         }
     }
+}
+
+FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, FCShapeInferFactory(op)),
+      errorPrefix("FullyConnected node with name '" + getName() + "'") {
     std::string errorMessage;
+    initTensorParallelConfig(context);
     if (!isSupportedOperation(op, errorMessage))
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
 }
@@ -85,7 +89,7 @@ bool FullyConnected::canBeExecutedInInt8() const {
     return one_of(srcType, ov::element::u8, ov::element::i8) && weiType == ov::element::i8;
 }
 
-ExecutorPtr FullyConnected::createExecutor() {
+void FullyConnected::needPrepareParamsForTensorParallel() {
     if (enable_tensor_parallel) {
         // must call in dynamic
         const auto dstMemoryBuffer = getDstMemoryAtPort(0);
@@ -113,6 +117,9 @@ ExecutorPtr FullyConnected::createExecutor() {
         cached_dst->redefineDesc(memory_desc);
         memory[ARG_DST] = cached_dst;
     }
+}
+
+ExecutorPtr FullyConnected::createExecutor() {
     const auto& executor = factory->make(memory);
     getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
 
@@ -120,10 +127,11 @@ ExecutorPtr FullyConnected::createExecutor() {
 }
 
 void FullyConnected::prepareParams() {
+    needPrepareParamsForTensorParallel();
     executor = createExecutor();
 }
 
-void FullyConnected::execute(dnnl::stream strm) {
+void FullyConnected::initTensorParallelSync() {
     if (enable_tensor_parallel) {
         id = sub_memory->get_memory_id(w_rank);
         sub_memory->set_memory_used(id, w_rank);
@@ -140,11 +148,9 @@ void FullyConnected::execute(dnnl::stream strm) {
             }
         }
     }
+}
 
-    {
-        executor->execute(memory);
-    }
-
+void FullyConnected::execTensorParallelSync() {
     if (enable_tensor_parallel) {
         // dst
         auto dst = getDstMemoryAtPort(0);
@@ -216,6 +222,13 @@ void FullyConnected::execute(dnnl::stream strm) {
             sub_memory->_use_count[id]++;
         }
     }
+}
+void FullyConnected::execute(dnnl::stream strm) {
+    initTensorParallelSync();
+
+    executor->execute(memory);
+
+    execTensorParallelSync();
 }
 
 void FullyConnected::executeDynamicImpl(dnnl::stream strm) {
