@@ -78,11 +78,9 @@ cl_int set_kernel_arg(ocl_kernel_type& kernel, uint32_t idx, cldnn::memory::cptr
 void set_arguments_impl(ocl_kernel_type& kernel,
                         const arguments_desc& args,
                         const kernel_arguments_data& data) {
-    // std::cout << "[debug] ocl_stream set_arguments_impl enter, args.size: " << args.size() << std::endl;
     using args_t = argument_desc::Types;
     using scalar_t = scalar_desc::Types;
     for (uint32_t i = 0; i < static_cast<uint32_t>(args.size()); i++) {
-        // std::cout << "[debug] ocl_stream set_arguments_impl for loop: " << i << std::endl;
         cl_int status = CL_INVALID_ARG_VALUE;
         switch (args[i].t) {
             case args_t::INPUT:
@@ -260,7 +258,6 @@ QueueTypes ocl_stream::detect_queue_type(void *queue_handle) {
 }
 
 void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) {
-    // std::cout << "[debug] ocl_stream set_arguments" << std::endl;
     static std::mutex m;
     std::lock_guard<std::mutex> guard(m);
 
@@ -270,9 +267,7 @@ void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args
 
     try {
         GPU_DEBUG_TRACE_DETAIL << "Set arguments for primitive: " << args_desc.layerID << " (" << kernel.get_id() << " = " << kern.get() << ")\n";
-        // std::cout << "[debug] ocl_stream set_arguments_impl start " << std::endl;
         set_arguments_impl(kern, args_desc.arguments, args);
-        // std::cout << "[debug] ocl_stream set_arguments_impl end " << std::endl;
     } catch (cl::Error const& err) {
         OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }

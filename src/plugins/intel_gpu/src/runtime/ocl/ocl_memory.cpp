@@ -613,7 +613,6 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* host_ptr, bool blockin
         dst_ptr = reinterpret_cast<void*>(tmp_dst_ptr);
     }
     data_size = (data_size == 0) ? _bytes_count : data_size;
-    // printf("[ocl memory] gpu_usm _bytes_count: %ld, data_size: %ld\n", _bytes_count, data_size);
     auto ev = blocking ? stream.create_user_event(true) : stream.create_base_event();
     cl::Event* ev_ocl = blocking ? nullptr : &downcast<ocl_event>(ev.get())->get();
     try {

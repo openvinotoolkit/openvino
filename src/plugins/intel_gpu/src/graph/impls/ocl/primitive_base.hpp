@@ -201,7 +201,6 @@ protected:
                                                                         "[GPU] Likely some issue with empty tensor handling happened");
 
         stream& stream = instance.get_network().get_stream();
-
         for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
             if (_kernel_data.kernels[kd_idx].skip_execution) {
                 continue;

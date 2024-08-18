@@ -33,7 +33,6 @@ std::vector<layout> sync_tensor_inst::calc_output_layouts(sync_tensor_node const
     std::vector<layout> out_layouts;
     for (size_t i = 0; i < desc->num_outputs; i++) {
         auto out_type = impl_param.get_input_layout(0).data_type;
-        auto format = impl_param.get_output_layout(i).format;
         out_layouts.push_back(layout(output_shapes[i], out_type, impl_param.get_output_layout(i).format));
     }
 
@@ -41,13 +40,10 @@ std::vector<layout> sync_tensor_inst::calc_output_layouts(sync_tensor_node const
 }
 
 template std::vector<layout> sync_tensor_inst::calc_output_layouts<ov::PartialShape>(sync_tensor_node const& node, const kernel_impl_params& impl_param);
-
 std::string sync_tensor_inst::to_string(const sync_tensor_node& node) {
     auto node_info = node.desc_to_json();
     std::stringstream primitive_description;
-
     node_info->dump(primitive_description);
-
     return primitive_description.str();
 }
 

@@ -1826,7 +1826,6 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
         allocate_memory = _mem_allocated = available_allocate_memory(_impl_params->output_layouts);
     }
 
-    // std::cout << "[primitive_inst] if allocate_memory: " << allocate_memory << std::endl;
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // synchronization, The output memory of such primitive will be fused with mutable_data
@@ -2147,15 +2146,12 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
         has_any_cpu_user_not_shape_of(_node.get_users()) ||
         !_engine.supports_allocation(allocation_type::usm_device) ||
         (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu);
-        // // lockable memory for FC is TP enabled, as we need to do allreduce/allgather for outputs, to be optimized further
+        // lockable memory for FC is TP enabled, as we need to do allreduce/allgather for outputs, to be optimized further
         // (_node.is_type<fully_connected>() && _node.as<fully_connected>().w_size != 1);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
 
     auto alloc_type = use_lockable_memory ? lockable_mem_type
                     : !usm_device_allocatable ? lockable_mem_type : allocation_type::usm_device;
-    // if (_node.is_type<sync_tensor>()) {
-    //     alloc_type = allocation_type::usm_host;
-    // }
 
     if (_node.is_type<fully_connected>() && _node.as<fully_connected>().w_size != 1) {
         alloc_type = allocation_type::cl_mem;
