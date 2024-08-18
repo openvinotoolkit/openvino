@@ -316,6 +316,40 @@ int64_t get_dim_stride(const lowered::ExpressionPort& expr_port, size_t idx) {
     return get_stride(dim_idx, expr_port.get_descriptor_ptr()->get_shape());
 }
 
+void visit_path(const lowered::ExpressionPtr& expr,
+                std::unordered_set<lowered::ExpressionPtr>& visited,
+                std::function<void(lowered::ExpressionPtr)> func,
+                bool visit_parent_path) {
+    std::deque<lowered::ExpressionPtr> exprs{expr};
+
+    auto continue_traversal = [&](const lowered::ExpressionPtr& expr) {
+        if (visited.count(expr) == 0) {
+            exprs.push_front(expr);
+            visited.insert(expr);
+        }
+    };
+
+    while (!exprs.empty()) {
+        auto curr_expr = exprs.front();
+        exprs.pop_front();
+        func(curr_expr);
+
+        if (visit_parent_path) {
+            for (const auto& input_connector : curr_expr->get_input_port_connectors()) {
+                const auto& parent_expr = input_connector->get_source().get_expr();
+                continue_traversal(parent_expr);
+            }
+        } else {
+            for (const auto& output_connector : curr_expr->get_output_port_connectors()) {
+                for (const auto& consumer : output_connector->get_consumers()) {
+                    const auto& consumer_expr = consumer.get_expr();
+                    continue_traversal(consumer_expr);
+                }
+            }
+        }
+    }
+}
+
 } // namespace utils
 } // namespace snippets
 } // namespace ov
