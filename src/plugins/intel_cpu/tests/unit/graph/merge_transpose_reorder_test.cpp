@@ -308,7 +308,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Run_MergeTransposeReorderWithReshape,
 
 }  // namespace
 
-TEST(MergeTransposeReorderWithReshape_InplaceConflict, smoke_Run_MergeTransposeReorderWithReshape_InplaceConflict) {
+TEST(MergeTransposeReorder, smoke_InplaceConflict) {
     /*  Initial graph:
                   Parameter(Layout: nspc)
                    /                 \
@@ -338,10 +338,10 @@ TEST(MergeTransposeReorderWithReshape_InplaceConflict, smoke_Run_MergeTransposeR
 
     std::unique_ptr<Graph> graph = std::unique_ptr<Graph>(new Graph());
 
-    const ov::Shape testShape{1, 128, 128, 128};
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 128, 128, 128})};
+    const ov::Shape testShape{1, 8, 8, 8};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 8, 8, 8})};
 
-    auto shape_constant = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32, ov::Shape{3}, std::vector<int64_t>{1, 128, 16384});
+    auto shape_constant = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32, ov::Shape{3}, std::vector<int64_t>{1, 8, 64});
     auto reshape_node = std::make_shared<ov::op::v1::Reshape>(params[0], shape_constant, true);
     auto order_constant = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
     auto transpose_node = std::make_shared<ov::op::v1::Transpose>(reshape_node, order_constant);
@@ -349,34 +349,20 @@ TEST(MergeTransposeReorderWithReshape_InplaceConflict, smoke_Run_MergeTransposeR
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose_node),
                              std::make_shared<ov::op::v0::Result>(params[0])};
 
-    auto getStrides = [](const std::vector<size_t>& dims) {
-        std::vector<size_t> result(dims.size());
-        result[dims.size() - 1] = 1;
-        for (int i = dims.size() - 2; i >= 0; --i) {
-            result[i] = result[i + 1] * dims[i + 1];
-        }
-        return result;
-    };
-    const std::vector<size_t> srcStrides = getStrides(std::vector<size_t>{1, 128, 128, 128});
-    const ov::intel_cpu::CpuBlockedMemoryDesc inDesc(ov::element::Type_t::f32,
-                                                     ov::intel_cpu::Shape(std::vector<int64_t>{1, 128, 128, 128}),
-                                                     std::vector<size_t>{1, 128, 128, 128},
-                                                     std::vector<size_t>{0, 2, 3, 1},
-                                                     0,
-                                                     std::vector<size_t>(4, 0),
-                                                     srcStrides);
-    auto inputNode = std::make_shared<node::Input>(inDesc.clone(), "Input0", "Parameter", context);
+    auto nspcCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
+    auto inDesc = nspcCreator->createSharedDesc(ov::element::Type_t::f32, ov::intel_cpu::Shape(ov::intel_cpu::VectorDims{1, 8, 8, 8}));
+    auto inputNode = std::make_shared<node::Input>(inDesc->clone(), "Input0", "Parameter", context);
 
     auto shapeConst = std::make_shared<node::Input>(shape_constant, context);
     auto reshapeNode = std::make_shared<node::Reshape>(reshape_node, context);
     auto orderConst = std::make_shared<node::Input>(order_constant, context);
     auto transposeNode = std::make_shared<node::Transpose>(transpose_node, context);
     auto dummyNode0 = std::make_shared<cpu_unit_test::DummyNode>(
-        ov::Shape{1, 16384, 128}, ov::element::Type_t::f32, "Dummy0", "DummyNode", context, LayoutType::ncsp, Edge::LOOK::LOOK_UP, true);
+        ov::Shape{1, 64, 8}, ov::element::Type_t::f32, "Dummy0", "DummyNode", context, LayoutType::ncsp, Edge::LOOK::LOOK_UP, true);
     auto outputNode0 = std::make_shared<node::Input>(results[0], context);
 
     auto dummyNode1 = std::make_shared<cpu_unit_test::DummyNode>(
-        ov::Shape{1, 128, 128, 128}, ov::element::Type_t::f32, "Dummy1", "DummyNode", context, LayoutType::nspc, Edge::LOOK::LOOK_UP, true);
+        ov::Shape{1, 8, 8, 8}, ov::element::Type_t::f32, "Dummy1", "DummyNode", context, LayoutType::nspc, Edge::LOOK::LOOK_UP, true);
     auto outputNode1 = std::make_shared<node::Input>(results[1], context);
 
     std::vector<NodePtr> graphNodes;
@@ -403,7 +389,12 @@ TEST(MergeTransposeReorderWithReshape_InplaceConflict, smoke_Run_MergeTransposeR
     for (auto &node : nodesSet) graphNodes.emplace_back(node);
 
     graph->CreateGraph(graphNodes, graphEdges, context, "test_graph");
+    auto expected_reorder_node0 = dummyNode0->getParentEdgeAt(0)->getParent();
+    auto expected_reorder_node1 = dummyNode1->getParentEdgeAt(0)->getParent();
 
-    ASSERT_EQ(dummyNode1->getParentEdgeAt(0)->getParent()->getType(), Type::Reorder);
-    ASSERT_EQ(dummyNode0->getParentEdgeAt(0)->getParent()->getType(), Type::Reorder);
+    ASSERT_EQ(expected_reorder_node0->getType(), Type::Reorder);
+    ASSERT_EQ(expected_reorder_node1->getType(), Type::Reorder);
+    auto merged_reorder = std::dynamic_pointer_cast<node::Reorder>(expected_reorder_node0);
+    ASSERT_TRUE(merged_reorder != nullptr);
+    ASSERT_TRUE(merged_reorder->getOptimized());
 }
