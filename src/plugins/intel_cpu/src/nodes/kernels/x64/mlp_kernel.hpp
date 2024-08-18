@@ -65,7 +65,11 @@ public:
 
     // weight is supposed to be of shape[N, K], stride in unit of bytes
     template <typename T>
-    void prepareB(PlainTensor& ret, T* p_weight, int stride, int N, int K);
+    void prepareB(PlainTensor& ret, ov::bfloat16* dst, T* p_weight, int stride, int N, int K);
+
+    // interleaving two weights into one in unit of 16-column
+    template <typename T>
+    void prepareB(PlainTensor& ret, ov::bfloat16* dst, T* p_weight1, T* p_weight2, int stride, int N, int K);
 
     // to save push/pop: do not use `abi_save_gpr_regs`
     uint8_t* prefetch_next_A_addr;
@@ -124,7 +128,7 @@ struct Work {
 
     // input : weight [N, K], setup repacks range of N [n_start, n_end)
     template <typename T>
-    void setup(T* p_weight, int stride) {
+    void setup(ov::bfloat16* dst, T* p_weight, int stride) {
         auto& mkernel = get_MKernel();
         auto num_blk_K = (k1 - k0 + blk_K_size - 1) / blk_K_size;
         auto* pw = p_weight + n0 * stride / sizeof(T);
@@ -133,7 +137,30 @@ struct Work {
         weights.resize(num_blk_K);
         for (int k = k0, ki = 0; k < k1;) {
             auto subK = std::min(blk_K_size, k1 - k);
-            mkernel.prepareB(weights[ki], pw + k, stride, BN, subK);
+            mkernel.prepareB(weights[ki], dst, pw + k, stride, BN, subK);
+            dst += BN*subK;
+            k += subK;
+            ki ++;
+        }
+
+        for (int Mtails = 0; Mtails < 32; Mtails++) {
+            mkernel.tile_config_M(m_tcfg[Mtails], Mtails == 0 ? 32 : Mtails);
+        }
+    }
+
+    template <typename T>
+    void setup(ov::bfloat16* dst, T* p_weight1, T* p_weight2, int stride) {
+        auto& mkernel = get_MKernel();
+        auto num_blk_K = (k1 - k0 + blk_K_size - 1) / blk_K_size;
+        auto* pw1 = p_weight1 + (n0/2) * stride / sizeof(T);
+        auto* pw2 = p_weight2 + (n0/2) * stride / sizeof(T);
+
+        // weight is divided along K dimension into equal size blk_K_size, except last block.
+        weights.resize(num_blk_K);
+        for (int k = k0, ki = 0; k < k1;) {
+            auto subK = std::min(blk_K_size, k1 - k);
+            mkernel.prepareB(weights[ki], dst, pw1 + k, pw2 + k, stride, BN, subK);
+            dst += BN*subK;
             k += subK;
             ki ++;
         }
@@ -197,6 +224,23 @@ struct Work {
             do_accumulation = true;
         }
         m_tile_configer.do_config(nullptr);
+    }
+};
+
+// allocate weight memory in bigger trunck can benefit from HugePage (with much less page-fault effort)
+struct WeightBuffer {
+    PlainTensor buffer;
+    std::vector<size_t> offsets;
+    void alloc(std::vector<Work>& works) {
+        size_t weight_cnt = 0;
+        for(auto& work : works) {
+            offsets.push_back(weight_cnt);
+            weight_cnt += (work.n1 - work.n0) * (work.k1 - work.k0);
+        }
+        buffer.resize<ov::bfloat16>({weight_cnt});
+    }
+    ov::bfloat16* get(int work_id) {
+        return buffer.ptr<ov::bfloat16>() + offsets[work_id];
     }
 };
 

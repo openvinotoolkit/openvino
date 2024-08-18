@@ -14,6 +14,8 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/plain_tensor.hpp"
 
+#include "/home/tingqian/tingqian/aboutSHW/include/linux_perf.hpp"
+
 #if defined(OPENVINO_ARCH_X86_64)
 #include "kernels/x64/mlp_kernel.hpp"
 #endif
@@ -23,6 +25,8 @@ namespace intel_cpu {
 namespace node {
 
 #if defined(OPENVINO_ARCH_X86_64)
+static ReduceAdd2bh jit_reduce2bh_1(false);
+static ReduceAdd2bh jit_reduce2bh_2(true);
 
 class Linear {
 public:
@@ -30,6 +34,8 @@ public:
 
     int used_nthr = 0;
     bool do_splitK = false;
+
+    WeightBuffer wbuffer;
 
     Linear() {}
 
@@ -106,19 +112,19 @@ public:
 
         DEBUG_LOG("Linear N,K=", N, ",", K, " used_nthr=", used_nthr, "  do_splitK=", do_splitK);
 
+        wbuffer.alloc(works);
+
+        auto prof = LinuxPerf::Profile("down_work.setup");
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
-                work.setup(p_weight, stride);
+                work.setup(wbuffer.get(ithr), p_weight, stride);
             }
         });
         DEBUG_LOG("   setup is done. weight @ ", static_cast<void*>(p_weight));
     }
 
     void run(uint8_t* pA, int strideA, int M, ov::bfloat16* dstC, int strideC, std::vector<PlainTensor>& m_tempC) {
-        static ReduceAdd2bh jit_reduce2bh_1(false);
-        static ReduceAdd2bh jit_reduce2bh_2(true);
-
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             auto& workC = m_tempC[ithr];
@@ -144,15 +150,83 @@ public:
             }
         });
     }
+};
+
+static GateUpCombine jit_gateup_silu(dnnl_eltwise_swish);
+static GateUpCombine jit_gateup_gelu(dnnl_eltwise_gelu_tanh);
+
+class LinearGateUp {
+public:
+    std::vector<Work> works;
+
+    int used_nthr = 0;
+
+    LinearGateUp() {}
+
+    WeightBuffer wbuffer;
+
+    // weight [N, K]
+    // Gate & Up are interleaved in N dimension: 16-gate / 16-up
+    // and post-ops will compute  silu(gate)*up in unit of 16 elements
+    // and store out as bfloat16.
+    template <typename T>
+    void setup(T* p_weight_gate, T* p_weight_up, int stride, int N, int K) {
+        const int blk_K_size = 256;
+        // prepare weights, split N among threads
+        // in unit of 32
+        OPENVINO_ASSERT((N % 32) == 0);
+        OPENVINO_ASSERT((K % 32) == 0);
+        auto nthr = parallel_get_max_threads();
+        auto num_blk_N = N / 32;
+        works.resize(nthr);
+
+        // split task on more cores is better on TBB
+        auto valid_nthr = nthr;
+        auto blkN_per_thread = (num_blk_N) / valid_nthr;
+        auto blkN_leftover = num_blk_N - (blkN_per_thread * valid_nthr);
+        auto start_blkN = 0;
+        used_nthr = 0;
+
+        for (int ithr = 0; ithr < nthr; ithr ++) {
+            auto blkN = std::min(num_blk_N - start_blkN, blkN_per_thread);
+            if (blkN_leftover > 0) {
+                blkN_leftover--;
+                blkN++;
+            }
+            if (blkN) {
+                auto shared_atomic = std::make_shared<std::atomic_int>(0);
+                auto& work = works[ithr];
+                work.sync_flag = shared_atomic;
+                work.blk_K_size = blk_K_size;
+
+                work.n0 = (start_blkN)*32;
+                work.n1 = (start_blkN + blkN) * 32;
+                work.BN = blkN * 32;
+                work.k0 = 0;
+                work.k1 = K;
+                used_nthr++;
+            }
+
+            start_blkN += blkN;
+        }
+        wbuffer.alloc(works);
+
+        DEBUG_LOG("Linear N,K=", N, ",", K, " used_nthr=", used_nthr);
+        auto prof = LinuxPerf::Profile("gate_up_work.setup");
+        ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
+            auto& work = works[ithr];
+            if (work) {
+                work.setup(wbuffer.get(ithr), p_weight_gate, p_weight_up, stride);
+            }
+        });
+        DEBUG_LOG("   setup is done. weight @ ", static_cast<void*>(p_weight_gate));
+    }
 
     // gate & up are interleaved: 16 gates + 16 up
     void runGateUp(uint8_t* pA, int strideA, int M,
                    ov::bfloat16* dstC, int strideC,
                    const LLMMLPNode::Config& config,
                    std::vector<PlainTensor>& m_tempC) {
-        static GateUpCombine jit_gateup_silu(dnnl_eltwise_swish);
-        static GateUpCombine jit_gateup_gelu(dnnl_eltwise_gelu_tanh);
-
         GateUpCombine* jit_gateup;
         if (config.act == LLMMLPNode::ACT_FN::GELU)
             jit_gateup = &jit_gateup_gelu;
@@ -182,7 +256,7 @@ struct LLMMLP::Impl {
     MemoryPtr m_scratchMem;
     uint8_t* m_scratch_base = nullptr;
 
-    Linear gate_up;
+    LinearGateUp gate_up;
     Linear down;
     int m_N;
     int m_M = 0;
@@ -199,15 +273,8 @@ struct LLMMLP::Impl {
         // [N, K] [N, K] interleave (16-16-...) into [2*N, K]
         auto K = w_gate.size(1);
         auto N = w_gate.size(0);
-        static PlainTensor w_gate_up;
-        w_gate_up.resize<ov::float16>({static_cast<size_t>(2 * N), static_cast<size_t>(K)});
-        for (size_t n = 0; n < N; n += 16) {
-            for (size_t i = 0; i < 16; i++)
-                memcpy(w_gate_up.ptr_v(2 * n + i, 0), w_gate.ptr_v(n + i, 0), K * sizeof(ov::float16));
-            for (size_t i = 0; i < 16; i++)
-                memcpy(w_gate_up.ptr_v(2 * n + 16 + i, 0), w_up.ptr_v(n + i, 0), K * sizeof(ov::float16));
-        }
-        gate_up.setup(w_gate_up.ptr<ov::float16>(), w_gate_up.stride_bytes(0), N * 2, K);
+        OPENVINO_ASSERT(w_gate.stride_bytes(0) == w_up.stride_bytes(0));
+        gate_up.setup(w_gate.ptr<ov::float16>(), w_up.ptr<ov::float16>(), w_up.stride_bytes(0), N * 2, K);
         down.setup(w_down.ptr<ov::float16>(), w_down.stride_bytes(0), K, N, true);
 
         m_tempC.resize(parallel_get_max_threads());
@@ -215,6 +282,7 @@ struct LLMMLP::Impl {
     }
 
     void setM(int M) {
+        auto prof = LinuxPerf::Profile("Impl::setM");
         uint8_t* cur_scratch_base = nullptr;
         if (m_scratchMem)
             cur_scratch_base = m_scratchMem->getDataAs<uint8_t>();
@@ -261,8 +329,15 @@ struct LLMMLP::Impl {
             int BM = std::min(M - m, 256);
             setM(BM);
 
-            gate_up.runGateUp(pA, strideA, BM, m_actUp.ptr<ov::bfloat16>(), m_actUp.stride_bytes(0), m_config, m_tempC);
-            down.run(reinterpret_cast<uint8_t*>(m_actUp.ptr<ov::bfloat16>()), m_actUp.stride_bytes(0), BM, dstC, strideC, m_tempC);
+            
+            {
+                auto prof = LinuxPerf::Profile("runGateUp", m);
+                gate_up.runGateUp(pA, strideA, BM, m_actUp.ptr<ov::bfloat16>(), m_actUp.stride_bytes(0), m_config, m_tempC);
+            }
+            {
+                auto prof = LinuxPerf::Profile("down", m);
+                down.run(reinterpret_cast<uint8_t*>(m_actUp.ptr<ov::bfloat16>()), m_actUp.stride_bytes(0), BM, dstC, strideC, m_tempC);
+            }
 
             m += BM;
             pA += BM * strideA;
@@ -309,17 +384,20 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
 }
 
 void LLMMLP::prepareParams() {
+}
+
+void LLMMLP::execute(dnnl::stream strm) {
+    MAYBE_UNUSED(strm);
     if (!m_pimpl) {
+        auto prof = LinuxPerf::Profile("LLMMLP::create");
         m_pimpl = std::make_shared<Impl>(getSrcMemoryAtPort(1),
                                          getSrcMemoryAtPort(2),
                                          getSrcMemoryAtPort(3),
                                          m_mlp_config,
                                          context->getScratchPad());
     }
-}
 
-void LLMMLP::execute(dnnl::stream strm) {
-    MAYBE_UNUSED(strm);
+    auto prof = LinuxPerf::Profile("LLMMLP::execute");
     m_pimpl->execute(this);
 }
 

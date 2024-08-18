@@ -6,6 +6,8 @@
 #include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
 #include "mlp_utils.hpp"
 
+#include "/home/tingqian/tingqian/aboutSHW/include/linux_perf.hpp"
+
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu::x64;
@@ -168,11 +170,39 @@ void MKernel::tile_config_M(TileConfig& tile_cfg, int M) {
                     });
 }
 
+class FP16ToBF16Kernel : public dnnl::impl::cpu::x64::jit_generator {
+public:
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(FP16ToBF16Kernel)
+    FP16ToBF16Kernel() : jit_generator("FP16ToBF16Kernel") {
+        create_kernel();
+    }
+
+    void generate() override {
+        Xbyak::Label loop_begin;
+        Xbyak::Reg64 src = abi_param1;
+        for(int i = 0; i < 16; i++) {
+            vcvtph2ps(zmm0, ptr[src]);
+            vcvtph2ps(zmm1, ptr[src + 32]);
+            vcvtne2ps2bf16(zmm2, zmm1, zmm0);
+            vmovups(ptr[src], zmm2);
+            lea(src, ptr[src + 64]);
+        }
+
+        ret();
+    }
+};
+
+static FP16ToBF16Kernel fp16_to_bf16;
+
 template <typename T>
 void MKernel::repackB(ov::bfloat16* dst, T* src, int N_stride, int N, int K) {
-    if (N == 16 && K == 32 && std::is_same<T, ov::bfloat16>::value) {
+    //auto prof = LinuxPerf::Profile("repackB");
+    if (N == 16 && K == 32 && (std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value)) {
         // SIMD optimized version
         ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst, src, N_stride * sizeof(T));
+        if (std::is_same<T, ov::float16>::value) {
+            fp16_to_bf16(dst);
+        }
         return;
     }
 
@@ -197,17 +227,19 @@ void MKernel::repackB(ov::bfloat16* dst, T* src, int N_stride, int N, int K) {
 }
 
 template <typename T>
-void MKernel::prepareB(PlainTensor& ret, T* p_weight, int stride, int N, int K) {
+void MKernel::prepareB(PlainTensor& ret, ov::bfloat16* dst, T* p_weight, int stride, int N, int K) {
     OPENVINO_ASSERT((N % 32) == 0);
     OPENVINO_ASSERT((K % 32) == 0);
+    auto prof = LinuxPerf::Profile("repackB");
     // weight matrix is in unit of [N/32, Kx32]
-    ret.resize<ov::bfloat16>({static_cast<size_t>(N / 32), static_cast<size_t>(K * 32)});
+    ret.resize<ov::bfloat16>({static_cast<size_t>(N / 32), static_cast<size_t>(K * 32)}, dst);
 
     auto N_stride = stride / sizeof(T);
     for (int n = 0, blkn = 0; n < N; n += 32, blkn++) {
-        for (int k = 0, blkk = 0; k < K; k += 32, blkk++) {
+        auto* dst_base = ret.ptr<ov::bfloat16>(blkn, 0);
+        for (int k = 0, blkk = 0; k < K; k += 32, blkk++, dst_base += 1024) {
             // two adjacent 32x16 (512) block of weight: dst0 & dst1
-            auto* dst0 = ret.ptr<ov::bfloat16>(blkn, blkk * 1024);
+            auto* dst0 = dst_base;
             auto* dst1 = dst0 + 16 * 32;
             auto valid_k = (K - k) < 32 ? (K - k) : 32;
 
@@ -222,8 +254,36 @@ void MKernel::prepareB(PlainTensor& ret, T* p_weight, int stride, int N, int K) 
     }
 }
 
-template void MKernel::prepareB<ov::bfloat16>(PlainTensor& ret, ov::bfloat16* p_weight, int stride, int N, int K);
-template void MKernel::prepareB<ov::float16>(PlainTensor& ret, ov::float16* p_weight, int stride, int N, int K);
+// interleaving two weights into one in unit of 16-column
+template <typename T>
+void MKernel::prepareB(PlainTensor& ret, ov::bfloat16* dst, T* p_weight1, T* p_weight2, int stride, int N, int K) {
+    OPENVINO_ASSERT((N % 32) == 0);
+    OPENVINO_ASSERT((K % 32) == 0);
+    // weight matrix is in unit of [N/32, Kx32]
+    auto prof = LinuxPerf::Profile("repackB2");
+    ret.resize<ov::bfloat16>({static_cast<size_t>(N / 32), static_cast<size_t>(K * 32)}, dst);
+
+    auto N_stride = stride / sizeof(T);
+    auto N2 = N / 2;
+    for (int n = 0, blkn = 0; n < N2; n += 16, blkn++) {
+        for (int k = 0, blkk = 0; k < K; k += 32, blkk++) {
+            // two adjacent 32x16 (512) block of weight: dst0 & dst1
+            auto* dst0 = ret.ptr<ov::bfloat16>(blkn, blkk * 1024);
+            auto* dst1 = dst0 + 16 * 32;
+            auto valid_k = (K - k) < 32 ? (K - k) : 32;
+
+            auto* src0 = p_weight1 + n * N_stride + k;
+            auto valid_n0 = (N2 - n) < 16 ? (N2 - n) : 16;
+            repackB<T>(dst0, src0, N_stride, valid_n0, valid_k);
+
+            auto* src1 = p_weight2 + n * N_stride + k;
+            repackB<T>(dst1, src1, N_stride, valid_n0, valid_k);
+        }
+    }
+}
+
+template void MKernel::prepareB<ov::float16>(PlainTensor& ret, ov::bfloat16* dst, ov::float16* p_weight, int stride, int N, int K);
+template void MKernel::prepareB<ov::float16>(PlainTensor& ret, ov::bfloat16* dst, ov::float16* p_weight1, ov::float16* p_weight2, int stride, int N, int K);
 
 // run L2 cache blocking kernel with size:
 //    [BM, BK]*[BK, BN] => [BM, BN]

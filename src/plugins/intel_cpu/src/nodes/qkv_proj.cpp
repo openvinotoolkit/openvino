@@ -14,6 +14,7 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/plain_tensor.hpp"
 
+#include "/home/tingqian/tingqian/aboutSHW/include/linux_perf.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -50,6 +51,8 @@ struct QKVProjection::Impl {
     MemoryPtr m_scratchMem;
     uint8_t* m_scratch_base = nullptr;
     int m_M;
+
+    WeightBuffer wbuffer;
 
     Impl(QKVProjection * pnode, DnnlScratchPadPtr scrachPad) : m_node(pnode), m_scrachPad(scrachPad) {
         PlainTensor w0(pnode->getSrcMemoryAtPort(1));
@@ -106,10 +109,14 @@ struct QKVProjection::Impl {
         DEBUG_LOG("QKVProj hidden_size=", K, " proj_sizes=",
                     proj_size0, ",", proj_size1, ",", proj_size2,
                     " used_nthr=", cur_work_id);
+        
+        wbuffer.alloc(works);
+
+        auto prof = LinuxPerf::Profile("Impl_work::setup");
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
-                work.setup(work.p_raw_weights, stride);
+                work.setup(wbuffer.get(ithr), work.p_raw_weights, stride);
             }
         });
 
@@ -218,12 +225,14 @@ struct QKVProjection::Impl {
 
 void QKVProjection::prepareParams() {
     if (!m_pimpl) {
+        auto prof = LinuxPerf::Profile("QKVProjection::create");
         m_pimpl = std::make_shared<Impl>(this, context->getScratchPad());
     }
 }
 
 void QKVProjection::execute(dnnl::stream strm) {
     MAYBE_UNUSED(strm);
+    auto prof = LinuxPerf::Profile("QKVProjection::execute");
     m_pimpl->execute();
 }
 
