@@ -181,7 +181,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     outputs_equal = True
     if outputs:
         # TODO: Remove this line when new 'cut' helper is introduced
-        raise_exception_for_input_output_cut(input_model.get_outputs(), outputs, False)
+        # raise_exception_for_input_output_cut(input_model.get_outputs(), outputs, False)
 
         outputs_equal = check_places_are_same(input_model.get_outputs(), outputs)
     log.debug('Inputs are same: {}, outputs are same: {}'.format(
