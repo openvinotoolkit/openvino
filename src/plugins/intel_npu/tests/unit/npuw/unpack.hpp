@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
-
 #include <gmock/gmock-matchers.h>
 #include <gtest/gtest.h>
 #include <immintrin.h>
@@ -80,8 +78,8 @@ inline uint16_t int2hfloat(int8_t x)
 
 void unpack(const int8_t* in, int8_t* out, int size) {
     for (int i = 0; i < size / 2; i++) {
-        *(out++) = upc(hi4(*in));
         *(out++) = upc(lo4(*in));
+        *(out++) = upc(hi4(*in));
         in++;
     }
 }
@@ -90,8 +88,8 @@ void unpack_i4f16(const int8_t* in, int8_t* out, int size) {
     uint16_t *hFloatOut = reinterpret_cast<uint16_t *>(out);
 
     for (int i = 0; i < size / 2; i++) {
-        *(hFloatOut++) = int2hfloat(upc(hi4(*in)));
         *(hFloatOut++) = int2hfloat(upc(lo4(*in)));
+        *(hFloatOut++) = int2hfloat(upc(hi4(*in)));
         in++;
     }
 }
@@ -533,5 +531,6 @@ namespace details {
         const std::vector<ShapesInitializer>& container) {
     return ::testing::ValuesIn(container.begin(), container.end());
 }
-} // namespace detail
-} // anonymous namespace
+
+}  // namespace details
+}  // anonymous namespace
