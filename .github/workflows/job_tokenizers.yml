@@ -126,7 +126,9 @@ jobs:
 
       - name: Build tokenizers wheel (Windows)
         if: runner.os == 'Windows'
+        shell: pwsh
         run: |
+          ${{ env.INSTALL_DIR }}/setupvars.ps1
           python3 -m pip wheel -v --no-deps --wheel-dir ${env:EXTENSION_BUILD_DIR} --find-links ${env:INSTALL_DIR}/tools ${env:OPENVINO_TOKENIZERS_REPO}
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: '4'
