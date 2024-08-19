@@ -543,6 +543,14 @@ std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape &di
     return {memory::format_tag::any};
 }
 
+static void fetchRawMemory(const MemoryPtr& mem) {
+    // TODO: conceptually this is a very bad solution
+    auto block = mem->getMemoryBlock();
+    if (mem->isDefined()) {
+        block->resize(mem->getSize());
+    }
+}
+
 void Node::updateShapes() {
     OPENVINO_ASSERT(isDynamicNode(),
                     "Node::updateShapes() is called to a static shape node of type: ",
@@ -556,7 +564,10 @@ void Node::updateShapes() {
                     redefineOutputMemory(result.dims);
                 }
             } else {
-                //check the memory is allocated and try to reallocate
+                //guard check for internal dynamic nodes to avoid possible overestimation of the required memory size
+                if (shapeInference && FULL_PORT_MASK == shapeInference->get_port_mask())
+                    return;
+
                 for (auto&& edge : getChildEdges()) {
                     auto edge_ptr = edge.lock();
                     CPU_NODE_ASSERT(edge_ptr, " has null edge");
@@ -566,11 +577,7 @@ void Node::updateShapes() {
                     if (mem->getShape().hasZeroDims()) {
                         continue;
                     }
-                    // TODO: conceptually this is a very bad solution
-                    auto block = mem->getMemoryBlock();
-                    if (nullptr == block->getRawPtr() && mem->isDefined()) {
-                        block->resize(mem->getSize());
-                    }
+                    fetchRawMemory(mem);
                 }
             }
         } catch (const std::exception& exp) {
@@ -646,6 +653,9 @@ void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_
 
     const auto& curr_desc = edges[0]->getMemory().getDesc();
     if (curr_desc.getShape().isStatic() && curr_desc.getShape().getStaticDims() == new_shape) {
+        for (auto&& edge : edges) {
+            fetchRawMemory(edge->getMemoryPtr());
+        }
         return;
     }
 
