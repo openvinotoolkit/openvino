@@ -364,8 +364,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
     return sparseRate >= minSparseRate;
 }
 
-void FullyConnected::initSupportedPrimitiveDescriptors() {
-    attrs.withBias = getOriginalInputsNumber() == 3;
+void FullyConnected::needUpdateDQScaleForTensorParallel(std::vector<float>& dequantizationScales) {
     if (tp_cfg.enable_tensor_parallel) {
         auto split_parts = [](int len, int n) {
             int average = len / n;
@@ -378,10 +377,16 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
         auto split_offset = tp_cfg.w_rank * split_lens[0];
         std::vector<float> newDQScales(split_lens[tp_cfg.w_rank]);
         std::copy(DQScales.begin() + split_offset, DQScales.begin() + split_offset + split_lens[tp_cfg.w_rank], newDQScales.begin());
-        attrs.dequantizationScales = newDQScales;
-    } else {
-        attrs.dequantizationScales = getDQScales();
+        dequantizationScales = newDQScales;
     }
+}
+
+void FullyConnected::initSupportedPrimitiveDescriptors() {
+    attrs.withBias = getOriginalInputsNumber() == 3;
+
+    attrs.dequantizationScales = getDQScales();
+    needUpdateDQScaleForTensorParallel(attrs.dequantizationScales);
+
     attrs.sparseWeights = useSparseWeightsDecompression(getParentEdgeAt(WEIGHTS_ID)->getParent(),
                                                         getOriginalInputPrecisionAtPort(DATA_ID),
                                                         context->getConfig().fcSparseWeiDecompressionRate);

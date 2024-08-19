@@ -93,6 +93,7 @@ private:
     void needUpdateScaleForTensorParallel();
     void needSplitZeroPointForTensorParallel(const MemoryCPtr& memory);
     void needUpdateZeroPointForTensorParallel();
+    void needUpdateDQScaleForTensorParallel(std::vector<float>& dequantizationScales);
 
     FCAttrs attrs;
     PostOps postOps;
