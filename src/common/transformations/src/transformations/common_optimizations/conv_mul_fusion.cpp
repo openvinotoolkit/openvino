@@ -15,6 +15,33 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+// Check the constant shape is compatible. The compatible shapes are:
+// [], [1], [1, 1], [1, 1, 1] etc. and [1, C, 1, 1] & [1, C, 1]
+static bool const_shape_compatible(const ov::PartialShape& const_shape, int C) {
+    if (!const_shape.is_static()) {
+        return false;
+    }
+
+    if (is_scalar(const_shape)) {
+        return true;
+    }
+
+    const int C_dim = 1;
+    for (int i = 0; i < const_shape.rank().get_length(); ++i) {
+        if (i == C_dim) {
+            if (const_shape[i] != C && const_shape[i] != 1) {
+                return false;
+            }
+        } else {
+            if (const_shape[i] != 1) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 ov::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
     MATCHER_SCOPE(ConvolutionMultiplyFusion);
     auto input = pattern::any_input();
@@ -38,15 +65,8 @@ ov::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
 
         bool is_scalar_multiplier(shape_size(const_shape) == 1);
 
-        // Check that constant has shape [1, C, 1, 1] where the number of 1 is equal to
-        // the number of spatial dimensions or it's a scalar. That means that Constant
-        // applied per channel and can be fused into Convolution weights.
-        // Also Constant shape rank must be less or equal Convolution output shape
-        // otherwise fusion will break output broadcasting
-        auto expected_shape = PartialShape{weights_rank, 1};
-        expected_shape[1] = channel_dim;
-
-        if (!PartialShape::merge_into(expected_shape, const_shape)) {
+        // Check for const shape to be compatible
+        if (!const_shape_compatible(const_shape, channel_dim)) {
             return false;
         }
 
@@ -102,15 +122,8 @@ ov::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
 
         bool is_scalar_multiplier(shape_size(const_shape) == 1);
 
-        // Check that constant has shape [1, C (G * O), 1, 1] where the number of 1 is equal to
-        // the number of spatial dimensions. That means that Constant applied per
-        // channel and can be fused into Convolution weights.
-        // Also Constant shape rank must be less or equal Convolution output shape
-        // otherwise fusion will break output broadcasting
-        auto expected_shape = PartialShape{weights_rank - 1, 1};
-        expected_shape[1] = G * O;
-
-        if (!PartialShape::merge_into(expected_shape, const_shape)) {
+        // Check for const shape to be compatible (C = G * O)
+        if (!const_shape_compatible(const_shape, G * O)) {
             return false;
         }
 
@@ -190,15 +203,8 @@ ov::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMultiply
 
         bool is_scalar_multiplier(shape_size(const_shape) == 1);
 
-        // Check that constant has shape [1, C, 1, 1] where the number of 1 is equal to
-        // the number of spatial dimensions. That means that Constant applied per
-        // channel and can be fused into Convolution weights.
-        // Also Constant shape rank must be less or equal Convolution output shape
-        // otherwise fusion will break output broadcasting
-        auto expected_shape = PartialShape{weights_rank, 1};
-        expected_shape[1] = channel_dim;
-
-        if (!PartialShape::merge_into(expected_shape, const_shape)) {
+        // Check for const shape to be compatible
+        if (!const_shape_compatible(const_shape, channel_dim)) {
             return false;
         }
 
@@ -272,10 +278,11 @@ ov::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpropDa
         // channel and can be fused into Convolution weights.
         // Also Constant shape rank must be less or equal Convolution output shape
         // otherwise fusion will break output broadcasting
-        auto expected_shape = PartialShape{weights_rank - 1, 1};
+        auto expected_shape = Shape(weights_rank - 1, 1);
         expected_shape[1] = G * O;
 
-        if (!PartialShape::merge_into(expected_shape, const_shape)) {
+        // Check for const shape to be compatible (C = G * O)
+        if (!const_shape_compatible(const_shape, G * O)) {
             return false;
         }
 
