@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include "openvino/util/env_util.hpp"
 #ifdef CPU_DEBUG_CAPS
 
 #include <string>
@@ -20,7 +21,6 @@
 
 namespace ov {
 namespace intel_cpu {
-
 
 // OV_CPU_DEBUG_LOG controls DEBUG_LOGs to output
 //
@@ -263,6 +263,7 @@ struct EnforceInferPrcDebug {
     }
 };
 
+bool getEnvBool(const char* name);
 #else // !CPU_DEBUG_CAPS
 
 #define CPU_DEBUG_CAP_ENABLE(...)

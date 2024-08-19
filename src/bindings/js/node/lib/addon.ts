@@ -215,6 +215,10 @@ interface CoreConstructor {
  */
 interface Model {
   /**
+   * It returns a cloned model.
+   */
+  clone(): Model;
+  /**
    * It gets the friendly name for a model. If a friendly name is not set
    * via {@link Model.setFriendlyName}, a unique model name is returned.
    * @returns A string with a friendly name of the model.
@@ -234,6 +238,11 @@ interface Model {
    * It returns the number of the model outputs.
    */
   getOutputSize(): number;
+  /**
+   * It gets the element type of a specific output of the model.
+   * @param index The index of the output.
+   */
+  getOutputElementType(index: number): string;
   /**
    * It gets the input of the model.
    * If a model has more than one input, this method throws an exception.
@@ -297,6 +306,12 @@ interface CompiledModel {
   /** It gets all outputs of a compiled model. */
   outputs: Output[];
   /**
+   * It gets the property for the current compiled model.
+   * @param propertyName A string to get the property value.
+   * @returns The property value.
+   */
+  getProperty(propertyName: string): string | number | boolean;
+  /**
    * It creates an inference request object used to infer the compiled model.
    * @return {InferRequest}
    */
@@ -344,7 +359,15 @@ interface CompiledModel {
    * @returns {Output} A compiled model input.
    */
   input(name: string): Output;
-
+   /**
+   * It sets properties for the current compiled model. Properties
+   * can be retrieved via {@link CompiledModel.getProperty}.
+   * @param property An object with the key-value pairs.
+   * (property name, property value)
+   */
+   setProperty(properties: {
+      [propertyName: string]: string | number | boolean
+    }): void;
 }
 
 /**

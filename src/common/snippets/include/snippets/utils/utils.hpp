@@ -21,6 +21,26 @@ namespace ov {
 namespace snippets {
 namespace utils {
 
+/* --- Special values --- */
+template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+constexpr inline T get_dynamic_value() {
+    return std::numeric_limits<T>::max();
+}
+template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+constexpr inline bool is_dynamic_value(T value) {
+    return value == get_dynamic_value<T>();
+}
+
+// This value means full dimension
+// For example, for the subtensor it means that scheduling should be by full dimension
+constexpr inline size_t get_full_dim_value() {
+    return get_dynamic_value<size_t>() - 1;
+}
+constexpr inline bool is_full_dim_value(size_t value) {
+    return value == get_full_dim_value();
+}
+/* ---------------------- */
+
 // Get non-scalar Constant count that will be created after FakeQuantize decomposition.
 // This count is needed to know exact count of non-scalar Constants during tokenization.
 auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) -> size_t;
@@ -57,16 +77,6 @@ template <typename T, typename U>
 inline T div_up(const T a, const U b) {
     OPENVINO_ASSERT(b != 0, "Divider must not be zero");
     return static_cast<T>((a + b - 1) / b);
-}
-
-template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
-constexpr inline T get_dynamic_value() {
-    return std::numeric_limits<T>::max();
-}
-
-template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
-constexpr inline bool is_dynamic_value(T value) {
-    return value == get_dynamic_value<T>();
 }
 
 inline bool is_dynamic_vdims(const VectorDims& shape) {
@@ -116,6 +126,10 @@ bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2);
 
 VectorDims pshape_to_vdims(const PartialShape&);
 ov::PartialShape vdims_to_pshape(const VectorDims&);
+
+inline size_t dimension_to_size_t(const ov::Dimension& dim) {
+    return dim.is_dynamic() ? snippets::utils::get_dynamic_value<VectorDims::value_type>() : static_cast<size_t>(dim.get_length());
+}
 
 // dim_idx starts from the layout end: dim_idx = 0 -> last element in layout (layout.back())
 inline size_t get_input_dim_idx(const std::vector<size_t>& layout, size_t dim_idx) {
@@ -204,6 +218,11 @@ VectorDims get_planar_vdims(const snippets::lowered::ExpressionPort& expr_port);
  * @return preordered shape: `shape[i]` = `planar_shape[order[i]]` where `shape` is shape before applying the order.
  */
 VectorDims get_preordered_vdims(const snippets::lowered::ExpressionPort& expr_port);
+/**
+ * @brief Returns subtensor projected on current shape: FULL_DIM subtensor values are replaced with actual shape value
+ * @param expr_port Port whose subtensor should be processed
+ */
+VectorDims get_projected_subtensor(const snippets::lowered::ExpressionPort& expr_port);
 /* --------------------------- */
 
 /**
@@ -255,6 +274,19 @@ std::shared_ptr<ov::Node> get_leaf_node_of_first_parent_shape_infer_seq(const st
  */
 
 int64_t get_dim_stride(const lowered::ExpressionPort& expr_port, size_t idx = 1);
+
+/**
+ * @brief Traverses path starting from "expr", and calls "func" for each expression.
+ * Traversal direction is defined by "visit_parent_path"
+ * @param expr The expr from which path is started.
+ * @param visited Set of expressions which were visited.
+ * @param func The function which is called for each visited node.
+ * @param visit_parent_path if true, parent nodes are visited. Otherwise, consumers are visited.
+ */
+void visit_path(const lowered::ExpressionPtr& expr,
+                std::unordered_set<lowered::ExpressionPtr>& visited,
+                std::function<void(lowered::ExpressionPtr)> func,
+                bool visit_parent_path);
 
 } // namespace utils
 } // namespace snippets

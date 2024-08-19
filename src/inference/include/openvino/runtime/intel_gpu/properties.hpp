@@ -123,6 +123,15 @@ static constexpr Property<int64_t> available_device_mem{"AVAILABLE_DEVICE_MEM_SI
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
 static constexpr Property<bool> enable_sdpa_optimization{"GPU_ENABLE_SDPA_OPTIMIZATION"};
+
+/**
+ * @brief Turning on this property enables kernels reuse between implementations, resulting in a lower memory footprint.
+ * However, as a drawback, OpenCL set_arguments() call will be made more often, resulting in higher host pressure
+ * and slower execution in some host-bottleneck cases.
+ * This property is available only for single-stream scenarios and will be ignored in other cases.
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<bool> enable_kernels_reuse{"GPU_ENABLE_KERNELS_REUSE"};
 }  // namespace hint
 
 /**

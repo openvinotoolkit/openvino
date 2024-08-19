@@ -4,6 +4,8 @@
 
 #include "test_utils.h"
 
+#include "openvino/reference/scatter_elements_update.hpp"
+
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/scatter_elements_update.hpp>
 #include <intel_gpu/runtime/memory.hpp>
@@ -15,26 +17,6 @@
 using namespace cldnn;
 using namespace ::tests;
 
-#ifdef OPENVINO_STATIC_LIBRARY
-namespace ov {
-namespace reference {
-using Reduction = ov::op::v12::ScatterElementsUpdate::Reduction;
-
-template<typename DataType, typename IndicesType>
-void scatter_elem_update(const DataType *input_data,
-                         const IndicesType *indices,
-                         const DataType *updates,
-                         const int64_t axis,
-                         DataType *out_buf,
-                         const Shape &data_shape,
-                         const Shape &indices_shape,
-                         const Reduction reduction_type = Reduction::NONE,
-                         const bool use_init_val = true);
-}
-}
-#else
-#include "openvino/reference/scatter_elements_update.hpp"
-#endif
 
 template <typename T>
 void test_d2411_axisF(bool is_caching_test) {

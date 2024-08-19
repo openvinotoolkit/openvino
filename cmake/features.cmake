@@ -8,7 +8,7 @@
 
 ov_option (ENABLE_PROXY "Proxy plugin for OpenVINO Runtime" ON)
 
-if(WIN32 AND AARCH64 AND OV_COMPILER_IS_CLANG)
+if(WIN32 AND AARCH64 AND NOT CMAKE_CL_64)
     set(ENABLE_INTEL_CPU_DEFAULT OFF)
 else()
     set(ENABLE_INTEL_CPU_DEFAULT ON)
@@ -34,9 +34,8 @@ endif()
 
 ov_dependent_option (ENABLE_INTEL_GPU "GPU OpenCL-based plugin for OpenVINO Runtime" ${ENABLE_INTEL_GPU_DEFAULT} "X86_64 OR AARCH64;NOT APPLE;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
 
-if (ANDROID OR MINGW OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0) OR (NOT BUILD_SHARED_LIBS AND ENABLE_INTEL_CPU))
-    # oneDNN doesn't support old compilers and android builds for now, so we'll build GPU plugin without oneDNN
-    # also, in case of static build CPU's and GPU's oneDNNs will conflict, so we are disabling GPU's one in this case
+if (ANDROID OR MINGW OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
+    # oneDNN doesn't support old compilers and Android builds for now, so we'll build GPU plugin without oneDNN
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
 else()
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
@@ -51,6 +50,7 @@ else()
 endif()
 
 ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ${ENABLE_INTEL_NPU_DEFAULT} "X86 OR X86_64;NOT APPLE" OFF)
+ov_dependent_option (ENABLE_INTEL_NPU_INTERNAL "NPU plugin internal components for OpenVINO runtime" ON "ENABLE_INTEL_NPU" OFF)
 
 ov_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
 ov_dependent_option (ENABLE_NPU_DEBUG_CAPS "enable NPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_NPU" OFF)
@@ -92,10 +92,7 @@ else()
     set(THREADING_DEFAULT "TBB")
 endif()
 
-set(THREADING_OPTIONS "TBB" "TBB_AUTO" "SEQ")
-if(NOT APPLE)
-    list(APPEND THREADING_OPTIONS "OMP")
-endif()
+set(THREADING_OPTIONS "TBB" "TBB_AUTO" "SEQ" "OMP")
 
 set(THREADING "${THREADING_DEFAULT}" CACHE STRING "Threading")
 set_property(CACHE THREADING PROPERTY STRINGS ${THREADING_OPTIONS})
@@ -141,7 +138,18 @@ ov_option(ENABLE_OV_JAX_FRONTEND "Enable JAX FrontEnd" ON)
 ov_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ov_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ov_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
-ov_dependent_option(ENABLE_SNAPPY_COMPRESSION "Enables compression support for TF FE" ON
+
+if(WIN32 AND AARCH64 AND CMAKE_CL_64)
+    # Failed: openvino/src/bindings/js/node/thirdparty/node-lib.def: no such file or directory
+    set(ENABLE_JS_DEFAULT OFF)
+    # Some flags for building are failed on clang-cl win arm in snappy compression lib
+    set(ENABLE_SNAPPY_COMPRESSION_DEFAULT OFF)
+else()
+    set(ENABLE_JS_DEFAULT ON)
+    set(ENABLE_SNAPPY_COMPRESSION_DEFAULT ON)
+endif()
+
+ov_dependent_option(ENABLE_SNAPPY_COMPRESSION "Enables compression support for TF FE" ${ENABLE_SNAPPY_COMPRESSION_DEFAULT}
     "ENABLE_OV_TF_FRONTEND" OFF)
 
 ov_dependent_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON "ENABLE_TESTS;ENABLE_OV_ONNX_FRONTEND" OFF)
@@ -186,10 +194,7 @@ ov_dependent_option (ENABLE_SYSTEM_PROTOBUF "Enables use of system Protobuf" OFF
 ov_dependent_option (ENABLE_SYSTEM_SNAPPY "Enables use of system version of Snappy" OFF
     "ENABLE_SNAPPY_COMPRESSION" OFF)
 
-ov_dependent_option (ENABLE_PYTHON_PACKAGING "Enables packaging of Python API in APT / YUM" OFF
-    "ENABLE_PYTHON;UNIX" OFF)
-
-ov_dependent_option(ENABLE_JS "Enables JS API building" ON "NOT ANDROID;NOT EMSCRIPTEN" OFF)
+ov_dependent_option(ENABLE_JS "Enables JS API building" ${ENABLE_JS_DEFAULT} "NOT ANDROID;NOT EMSCRIPTEN" OFF)
 
 ov_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
 
