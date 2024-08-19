@@ -120,32 +120,34 @@ inline void init_work_amount(const LoopInfoPtr& loop_info) {
 }
 }  // namespace
 
-void InitLoops::init_loop_info(const UnifiedLoopInfoPtr& loop_info, const size_t loop_id, bool only_runtime_args) {
-    OPENVINO_ASSERT(loop_info != nullptr, "UnifiedLoopInfo is nullptr, nothing to initialize");
-    if (!loop_info->is_work_amount_const())
-        init_work_amount(loop_info);
+void InitLoops::update_compile_parameters(const UnifiedLoopInfoPtr& loop_info, size_t loop_id) {
+    OPENVINO_ASSERT(loop_info != nullptr, "UnifiedLoopInfo is nullptr, nothing to update");
+    loop_info->iterate_through_infos(
+        [loop_id](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& ptr_shifts_params) {
+            init_is_incremented(loop_port, loop_id);
+            ptr_shifts_params.data_size = get_data_size(loop_port);
+        });
+}
 
+void InitLoops::update_data_pointer_shifts(const UnifiedLoopInfoPtr& loop_info) {
+    OPENVINO_ASSERT(loop_info != nullptr, "UnifiedLoopInfo is nullptr, nothing to update");
     const auto work_amount = loop_info->get_work_amount();
     const auto input_count = loop_info->get_input_count();
     const auto output_count = loop_info->get_output_count();
 
-    auto init_runtime_parameters = [&work_amount, &input_count, &output_count](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& ptr_shifts_params) {
+    auto update_shifts = [&work_amount, &input_count, &output_count](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& ptr_shifts_params) {
         ptr_shifts_params.ptr_increment = get_ptr_increment(loop_port, work_amount,
                                                             loop_port.expr_port->get_type() == ExpressionPort::Input ? input_count : output_count);
         ptr_shifts_params.finalization_offset = get_finalization_offset(work_amount, ptr_shifts_params.ptr_increment);
     };
+    loop_info->iterate_through_infos(update_shifts);
+}
 
-    auto init_all_parameters = [loop_id, &init_runtime_parameters](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& ptr_shifts_params) {
-        init_is_incremented(loop_port, loop_id);
-        ptr_shifts_params.data_size = get_data_size(loop_port);
-        init_runtime_parameters(loop_port, ptr_shifts_params);
-    };
-
-    if (only_runtime_args) {
-        loop_info->iterate_through_infos(init_runtime_parameters);
-    } else {
-        loop_info->iterate_through_infos(init_all_parameters);
-    }
+void InitLoops::update_runtime_parameters(const UnifiedLoopInfoPtr& loop_info) {
+    OPENVINO_ASSERT(loop_info != nullptr, "UnifiedLoopInfo is nullptr, nothing to update");
+    if (!loop_info->is_work_amount_const())
+        init_work_amount(loop_info);
+    update_data_pointer_shifts(loop_info);
 }
 
 bool InitLoops::run(LinearIR& linear_ir) {
@@ -156,7 +158,10 @@ bool InitLoops::run(LinearIR& linear_ir) {
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto& loops = loop_manager->get_map();
     for (const auto& loop : loops) {
-        init_loop_info(ov::as_type_ptr<UnifiedLoopInfo>(loop.second), loop.first);
+        const auto& loop_id = loop.first;
+        const auto& loop_info = ov::as_type_ptr<UnifiedLoopInfo>(loop.second);
+        update_compile_parameters(loop_info, loop_id);
+        update_runtime_parameters(loop_info);
     }
 
     return true;
