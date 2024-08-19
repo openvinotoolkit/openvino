@@ -17,7 +17,7 @@
 
 // Check the constant shape is compatible. The compatible shapes are:
 // [], [1], [1, 1], [1, 1, 1] etc. and [1, C, 1, 1] & [1, C, 1]
-static bool const_shape_compatible(const ov::PartialShape& const_shape, int C) {
+static bool const_shape_compatible(const ov::PartialShape& const_shape, const ov::Dimension& C) {
     if (!const_shape.is_static()) {
         return false;
     }
@@ -29,7 +29,7 @@ static bool const_shape_compatible(const ov::PartialShape& const_shape, int C) {
     const int C_dim = 1;
     for (int i = 0; i < const_shape.rank().get_length(); ++i) {
         if (i == C_dim) {
-            if (const_shape[i] != C && const_shape[i] != 1) {
+            if (const_shape[i] != C.get_length() && const_shape[i] != 1) {
                 return false;
             }
         } else {
