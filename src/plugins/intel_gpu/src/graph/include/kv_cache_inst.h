@@ -54,26 +54,23 @@ public:
 
     int32_t get_prealloc_iter_num() override;
 
-    static void update_pad(layout& l, int64_t pad, int64_t sequence_axis_legacy) {
+    static void update_pad(layout& l, int64_t pad, int64_t sequence_axis) {
         const auto& dyn_pad_dims = l.data_padding.get_dynamic_pad_dims();
         const auto& lower_padd = l.data_padding.lower_size();
         auto upper_padd = l.data_padding.upper_size();
-        upper_padd[sequence_axis_legacy] = pad;
+        upper_padd[sequence_axis] = pad;
         l.data_padding = padding(lower_padd, upper_padd, 0.f, dyn_pad_dims);
     }
 
-    static int64_t get_sequence_axis_legacy(int64_t sequence_axis, size_t past_layout_rank) {
-        auto sequence_axis_legacy = sequence_axis;
-        if (sequence_axis_legacy < 0)
-            sequence_axis_legacy = past_layout_rank + sequence_axis_legacy;
-        return sequence_axis_legacy;
+    static int64_t get_sequence_axis(int64_t sequence_axis, size_t past_layout_rank) {
+        return sequence_axis >= 0 ? sequence_axis : past_layout_rank + sequence_axis;
     }
 
-    static int64_t get_max_pad(const layout& target_layout, size_t buffer_size, int64_t legacy_sequence_axis, std::string target_name = "") {
+    static int64_t get_max_pad(const layout& target_layout, size_t buffer_size, int64_t sequence_axis, std::string target_name = "") {
         if (buffer_size == 0)
             return 0;
         const size_t total_elements = target_layout.count();
-        const int64_t concat_axis_size = target_layout.get_tensor().sizes()[legacy_sequence_axis];
+        const int64_t concat_axis_size = target_layout.get_shape()[sequence_axis];
         const int64_t sequence_element_size = total_elements / concat_axis_size;
         const int64_t max_sequence_elements = buffer_size / sequence_element_size;
         auto max_pad = std::max<int64_t>(max_sequence_elements - concat_axis_size, 0);
