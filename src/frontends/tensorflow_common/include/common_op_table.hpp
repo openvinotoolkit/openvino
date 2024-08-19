@@ -44,7 +44,6 @@ OP_CONVERTER(translate_atan2_op);
 OP_CONVERTER(translate_avg_pool_op);
 OP_CONVERTER(translate_batch_mat_mul_op);
 OP_CONVERTER(translate_batch_mat_mul_with_type_op);
-OP_CONVERTER(translate_batch_matrix_inverse_op);
 OP_CONVERTER(translate_batch_to_space_nd_op);
 OP_CONVERTER(translate_bias_add_op);
 OP_CONVERTER(translate_bincount_op);
