@@ -21,10 +21,11 @@ std::vector<TRShape> shape_infer(const SliceScatter* op,
     using DimType = typename T::value_type;
     const auto& num_of_inputs = input_shapes.size();
 
-    NODE_VALIDATION_CHECK(op,
-                          num_of_inputs == 5 || num_of_inputs == 6,
-                          "SliceScatter has to have 5 or 6 inputs. Got: ",
-                          num_of_inputs);
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           num_of_inputs == 5 || num_of_inputs == 6,
+                           "SliceScatter has to have 5 or 6 inputs. Got: ",
+                           num_of_inputs);
     const auto input_shape = input_shapes[0];
     const auto& data_rank = input_shape.rank();
     auto output_shape = input_shapes[0];
@@ -41,20 +42,22 @@ std::vector<TRShape> shape_infer(const SliceScatter* op,
     for (size_t i = 2; i < input_shapes.size(); ++i) {
         const auto& shape = input_shapes[i];
         const auto& shape_rank = shape.rank();
-        NODE_VALIDATION_CHECK(op,
-                              shape_rank.compatible(1),
-                              "SliceScatter `",
-                              shape_names[i - 2],
-                              "` input must be a 1D tensor. Got rank: ",
-                              shape_rank);
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               shape_rank.compatible(1),
+                               "SliceScatter `",
+                               shape_names[i - 2],
+                               "` input must be a 1D tensor. Got rank: ",
+                               shape_rank);
 
         if (output_shape.rank().is_static()) {
-            NODE_VALIDATION_CHECK(op,
-                                  shape_rank.is_dynamic() || static_cast<int64_t>(shape[0].get_min_length()) <=
-                                                                 output_shape.rank().get_length(),
-                                  "SliceScatter `",
-                                  shape_names[i - 2],
-                                  "` input dim size can't be bigger than `data` or `updates` rank.");
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   shape_rank.is_dynamic() || static_cast<int64_t>(shape[0].get_min_length()) <=
+                                                                  output_shape.rank().get_length(),
+                                   "SliceScatter `",
+                                   shape_names[i - 2],
+                                   "` input dim size can't be bigger than `data` or `updates` rank.");
         }
     }
 
@@ -62,8 +65,9 @@ std::vector<TRShape> shape_infer(const SliceScatter* op,
     const auto& stop_shape = input_shapes[3];
     const auto& step_shape = input_shapes[4];
 
-    NODE_VALIDATION_CHECK(
+    NODE_SHAPE_INFER_CHECK(
         op,
+        input_shapes,
         start_shape.compatible(stop_shape) && start_shape.compatible(step_shape) && stop_shape.compatible(step_shape),
         "SliceScatter `start`, `stop`, `step` inputs must have compatible shapes.");
     // compute constant values of begin, end, and strides if possible
@@ -72,20 +76,24 @@ std::vector<TRShape> shape_infer(const SliceScatter* op,
     const auto steps = get_input_const_data_as<TRShape, int64_t>(op, 4, ta);
     if (step_shape.is_static() && steps) {
         for (typename DimType::value_type i = 0; i < step_shape[0].get_length(); i++) {
-            NODE_VALIDATION_CHECK(op, (*steps)[i] != 0, "SliceScatter step values must be non-zero.");
+            NODE_SHAPE_INFER_CHECK(op, input_shapes, (*steps)[i] != 0, "SliceScatter step values must be non-zero.");
         }
     }
     slice::AxesMap axes_map;
     if (input_shapes.size() > 5) {
-        NODE_VALIDATION_CHECK(
+        NODE_SHAPE_INFER_CHECK(
             op,
+            input_shapes,
             input_shapes[5].compatible(start_shape),
             "SliceScatter `axes` input must have compatible shape with `start`, `stop`, `step` inputs.");
         auto axes = get_input_const_data_as<TRShape, int64_t>(op, 5, ta);
         if (axes && data_rank.is_static()) {
             ov::util::try_normalize_axes(*axes, data_rank, *op);
             axes_map.add(*axes);
-            NODE_VALIDATION_CHECK(op, axes_map.is_valid, "SliceScatter values in `axes` input must be unique.");
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   axes_map.is_valid,
+                                   "SliceScatter values in `axes` input must be unique.");
         }
     } else if (start) {
         axes_map.generate_n(start->size());
@@ -93,7 +101,8 @@ std::vector<TRShape> shape_infer(const SliceScatter* op,
     auto axis_it = axes_map.m.cbegin();
 
     if (output_shape.rank().is_static()) {
-        auto expected_updates_shape = output_shape;
+        std::vector<DimType> expected_updates_shape_vector;
+        expected_updates_shape_vector.reserve(output_shape.size());
         for (size_t dim_idx = 0; dim_idx < output_shape.size(); ++dim_idx) {
             const DimType& input_dim = output_shape[dim_idx];
 
@@ -101,25 +110,27 @@ std::vector<TRShape> shape_infer(const SliceScatter* op,
                 const auto& i = axis_it->second;
                 if (start && stop && steps) {
                     const auto& step = (*steps)[i];
-                    expected_updates_shape[dim_idx] = slice::make_dim(input_dim, (*start)[i], (*stop)[i], step);
+                    expected_updates_shape_vector.push_back(slice::make_dim(input_dim, (*start)[i], (*stop)[i], step));
                 } else {
-                    expected_updates_shape[dim_idx] = DimType{0, input_dim.get_max_length()};
+                    expected_updates_shape_vector.push_back(DimType{0, input_dim.get_max_length()});
                 }
                 ++axis_it;
             } else if (axes_map.is_valid) {
                 // dimension not on axes list, no change
-                expected_updates_shape[dim_idx] = input_dim;
+                expected_updates_shape_vector.push_back(input_dim);
             } else {
                 // axes are unknow so any dimension can be sliced
-                expected_updates_shape[dim_idx] = DimType{0, input_dim.get_max_length()};
+                expected_updates_shape_vector.push_back(DimType{0, input_dim.get_max_length()});
             }
         }
-        NODE_VALIDATION_CHECK(op,
-                              input_shapes[1].compatible(expected_updates_shape),
-                              "SliceScatter updates of shape ",
-                              input_shapes[1],
-                              " are not compatible with expected slice shape ",
-                              expected_updates_shape);
+        T expected_updates_shape{expected_updates_shape_vector};
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               input_shapes[1].compatible(expected_updates_shape),
+                               "SliceScatter updates of shape ",
+                               input_shapes[1],
+                               " are not compatible with expected slice shape ",
+                               expected_updates_shape);
     }
 
     return {output_shape};
