@@ -34,8 +34,9 @@ SliceScatter::SliceScatter(const Output<Node>& data,
 void SliceScatter::validate_and_infer_types() {
     OV_OP_SCOPE(v15_SliceScatter_validate_and_infer_types);
     for (size_t i = 2; i < get_input_size(); ++i) {
+        const auto shapes_element_type = get_input_element_type(i);
         NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(i).is_integral_number(),
+                              shapes_element_type.is_dynamic() || shapes_element_type.is_integral_number(),
                               "SliceScatter `",
                               slice::shape_names[i - 2],
                               "` input type must be integer.");

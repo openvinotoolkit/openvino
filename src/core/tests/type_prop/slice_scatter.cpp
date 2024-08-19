@@ -701,6 +701,20 @@ TEST_F(TypePropSliceScatterTest, all_params_dynamic) {
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
 }
 
+TEST_F(TypePropSliceScatterTest, all_params_dynamic_dynamic_types) {
+    const auto data = std::make_shared<Parameter>(element::dynamic, PartialShape::dynamic());
+    const auto updates = std::make_shared<Parameter>(element::dynamic, PartialShape::dynamic());
+    const auto start = std::make_shared<Parameter>(element::dynamic, PartialShape::dynamic());
+    const auto stop = std::make_shared<Parameter>(element::dynamic, PartialShape::dynamic());
+    const auto step = std::make_shared<Parameter>(element::dynamic, PartialShape::dynamic());
+    const auto axes = std::make_shared<Parameter>(element::dynamic, PartialShape::dynamic());
+    const auto op = make_op(data, updates, start, stop, step, axes);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_input_size(), 6);
+    EXPECT_EQ(op->get_output_element_type(0), element::dynamic);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
 TEST_F(TypePropSliceScatterTest, all_params_dynamic_with_axes) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
     const auto updates = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
@@ -739,6 +753,20 @@ TEST_F(TypePropSliceScatterTest, all_params_static) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_input_size(), 5);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({5, 5, 5}));
+}
+
+TEST_F(TypePropSliceScatterTest, all_params_static_types_dynamic) {
+    const auto data = std::make_shared<Parameter>(element::dynamic, PartialShape{5, 5, 5});
+    const auto updates = std::make_shared<Parameter>(element::dynamic, PartialShape{5, 1, 2});
+    const auto start = std::make_shared<Parameter>(element::dynamic, PartialShape{3});
+    const auto stop = std::make_shared<Parameter>(element::dynamic, PartialShape{3});
+    const auto step = std::make_shared<Parameter>(element::dynamic, PartialShape{3});
+    const auto axes = std::make_shared<Parameter>(element::dynamic, PartialShape{3});
+    const auto op = make_op(data, updates, start, stop, step, axes);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_input_size(), 6);
+    EXPECT_EQ(op->get_output_element_type(0), element::dynamic);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({5, 5, 5}));
 }
 
