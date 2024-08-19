@@ -236,18 +236,17 @@ public:
     OPENVINO_RTTI("MarkFloatingPointRange", "0");
     MarkFloatingPointRange() {
         MATCHER_SCOPE(MarkFloatingPointRange);
-        auto exp_pattern = pattern::wrap_type<ov::op::v4::Range>();
 
-        // through this nodes
-        const std::shared_ptr<Node> range_propagating_nodes = pattern::wrap_type<ov::op::v0::Convert,
-                                                                                 ov::op::v1::Greater,
-                                                                                 ov::op::v1::GreaterEqual,
-                                                                                 ov::op::v1::Less,
-                                                                                 ov::op::v1::LessEqual,
-                                                                                 ov::op::v1::Reshape,
-                                                                                 ov::op::v4::Range,
-                                                                                 ov::op::v0::Squeeze,
-                                                                                 ov::op::v0::Unsqueeze>();
+        // through these nodes
+        const auto range_propagating_nodes = pattern::wrap_type<ov::op::v0::Convert,
+                                                                ov::op::v1::Greater,
+                                                                ov::op::v1::GreaterEqual,
+                                                                ov::op::v1::Less,
+                                                                ov::op::v1::LessEqual,
+                                                                ov::op::v1::Reshape,
+                                                                ov::op::v4::Range,
+                                                                ov::op::v0::Squeeze,
+                                                                ov::op::v0::Unsqueeze>();
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
