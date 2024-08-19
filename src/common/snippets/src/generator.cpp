@@ -51,9 +51,11 @@ LoweringResult Generator::generate(const lowered::LinearIRPtr& linear_ir, const 
     }
     result.compiled_snippet = target->get_snippet();
     result.kernel_executor_table = target->get_runtime_configurator()->get_kernel_executor_table();
-    // Some kernel executors might've been registered during code emission.
+    // In static case some kernel executors might've been registered during code emission.
     // We need to update them, so appropriate kernels will be compiled.
-    result.kernel_executor_table->update_state(linear_ir);
+    // In dynamic case it should be handled by RuntimeConfigurator
+    if (!linear_ir->is_dynamic())
+        result.kernel_executor_table->update_state(linear_ir);
 
     return result;
 }

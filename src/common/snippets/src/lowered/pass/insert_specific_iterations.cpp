@@ -91,14 +91,13 @@ size_t InsertSpecificIterations::get_decomposed_loop_increment(const UnifiedLoop
                                                                size_t remaining_work_amount) {
     OPENVINO_ASSERT(unified_loop_info, "UnifiedLoopInfo is missed!");
     const auto increment = unified_loop_info->get_increment();
-    const auto is_dynamic = utils::is_dynamic_value(remaining_work_amount);
 
     switch (type) {
         case (SpecificLoopIterType::FIRST_ITER):
         case (SpecificLoopIterType::MAIN_BODY):
             return increment;
         case(SpecificLoopIterType::LAST_ITER):
-            return is_dynamic ? 1 : remaining_work_amount;
+            return remaining_work_amount;
         default:
             OPENVINO_THROW("Unknown SpecificLoopIterType!");
     }
@@ -167,10 +166,9 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir, LinearIR::constExp
         if (is_decomposed_loop_needed(unified_loop_info, iter_type, remaining_work_amount)) {
             const auto work_amount = get_decomposed_loop_work_amount(unified_loop_info, iter_type, remaining_work_amount);
             const auto increment = get_decomposed_loop_increment(unified_loop_info, iter_type, remaining_work_amount);
-            const auto evaluate_once = !utils::is_dynamic_value(work_amount) && work_amount == increment;
             // Update remaining Loop work amount
             // Note: if work_amount is unknown and increment = 1, it means that a loop will iterate by whole work_amount
-            if (!is_wa_dynamic || increment == 1) {
+            if (!is_wa_dynamic || increment == 1 || iter_type == SpecificLoopIterType::LAST_ITER) {
                 remaining_work_amount -= work_amount;
             }
 
@@ -200,7 +198,7 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir, LinearIR::constExp
             const auto decomposed_loop_info = std::make_shared<ExpandedLoopInfo>(work_amount, increment,
                                                                                  decomposed_loop_entry_ports, decomposed_loop_exit_ports,
                                                                                  decomposed_ptr_increments, decomposed_finalization_offsets,
-                                                                                 decomposed_data_sizes, iter_type, unified_loop_info, false, evaluate_once);
+                                                                                 decomposed_data_sizes, iter_type, unified_loop_info);
             init_decomposed_loop(linear_ir, decomposed_loop_begin_it, decomposed_loop_end_it, decomposed_loop_info, loop_id, decomposed_loop_end);
 
             decomposed = true;

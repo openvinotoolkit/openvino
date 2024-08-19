@@ -37,6 +37,10 @@ public:
         return get_type_info().name;
     }
 
+#ifdef SNIPPETS_DEBUG_CAPS
+    virtual std::string to_string() const;
+#endif
+
     size_t tensor_rank = 0;
     size_t tile_rank = 0;
 
@@ -214,7 +218,8 @@ protected:
     std::vector<snippets::lowered::PortDescriptorPtr> m_io_descs = {};
     std::vector<size_t> m_io_data_sizes = {};
     // [cluster_id -> buffer expressions ]
-    std::map<size_t, std::set<lowered::ExpressionPtr>> m_dynamic_buffer_clusters;
+    std::map<size_t, std::set<lowered::ExpressionPtr>> m_dynamic_buffer_clusters = {};
+    std::vector<size_t> m_ordered_loop_ids = {};
 
     std::vector<ov::snippets::VectorDims> m_latest_shapes = {};
 };

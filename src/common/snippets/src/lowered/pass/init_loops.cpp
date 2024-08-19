@@ -88,8 +88,11 @@ inline int64_t get_ptr_increment(const LoopPort& loop_port, size_t work_amount, 
 }
 
 inline int64_t get_finalization_offset(size_t work_amount, int64_t ptr_increment) {
-    return utils::is_dynamic_value(work_amount) || utils::is_dynamic_value(ptr_increment) ? utils::get_dynamic_value<int64_t>()
-                                                                                          : -1 * ptr_increment * work_amount;
+    if (ptr_increment == 0 || work_amount == 0)
+        return 0;
+    if (utils::is_dynamic_value(work_amount) || utils::is_dynamic_value(ptr_increment))
+        return utils::get_dynamic_value<int64_t>();
+    return -1 * ptr_increment * work_amount;
 }
 
 inline int64_t get_data_size(const LoopPort& loop_port) {
@@ -145,7 +148,7 @@ void InitLoops::update_data_pointer_shifts(const UnifiedLoopInfoPtr& loop_info) 
 
 void InitLoops::update_runtime_parameters(const UnifiedLoopInfoPtr& loop_info) {
     OPENVINO_ASSERT(loop_info != nullptr, "UnifiedLoopInfo is nullptr, nothing to update");
-    if (!loop_info->is_work_amount_const())
+    if (!ov::is_type<InnerSplittedUnifiedLoopInfo>(loop_info))
         init_work_amount(loop_info);
     update_data_pointer_shifts(loop_info);
 }

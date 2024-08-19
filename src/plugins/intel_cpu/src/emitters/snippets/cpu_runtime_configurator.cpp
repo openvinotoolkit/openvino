@@ -12,6 +12,27 @@ namespace intel_cpu {
 
 const size_t CPURuntimeConfigurator::rank6D = 6;
 
+#ifdef SNIPPETS_DEBUG_CAPS
+std::string CPURuntimeConfig::to_string() const {
+    std::stringstream out;
+    out << RuntimeConfig::to_string();
+    out << "Loop Parameters:" << "\n";
+    for (size_t i = 0; i < loop_args.size(); ++i) {
+        const auto& loop = loop_args[i];
+        out << "\t[" << i << "] WA: " << loop.m_work_amount << "\n";
+        out << "\tPointer Increments: ";
+        for (int64_t j = 0; j < loop.m_num_data_ptrs; ++j)
+            out << loop.m_ptr_increments[j] << " ";
+        out << "\n";
+        out << "\tFinalization offsets: ";
+        for (int64_t j = 0; j < loop.m_num_data_ptrs; ++j)
+            out << loop.m_finalization_offsets[j] << " ";
+        out << "\n";
+    }
+    return out.str();
+}
+#endif
+
 CPURuntimeConfigurator::CPURuntimeConfigurator() : ov::snippets::RuntimeConfigurator(std::make_shared<CPURuntimeConfig>()) {
 }
 
