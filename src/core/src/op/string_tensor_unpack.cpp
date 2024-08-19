@@ -27,7 +27,6 @@ void StringTensorUnpack::validate_and_infer_types() {
                           data_element_type);
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
-    std::cout << "\n\n" << output_shapes[2] << "\n\n";
     set_output_type(0, ov::element::i32, output_shapes[0]);
     set_output_type(1, ov::element::i32, output_shapes[1]);
     set_output_type(2, ov::element::u8, output_shapes[2]);

@@ -5,12 +5,13 @@
 #include "string_tensor_unpack.h"
 #include "openvino/reference/string_tensor_unpack.hpp"
 #include "openvino/op/string_tensor_unpack.hpp"
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 StringTensorUnpack::StringTensorUnpack(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, PortMask(0))) {
+    : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -52,6 +53,15 @@ bool StringTensorUnpack::needPrepareParams() const {
 }
 
 void StringTensorUnpack::executeDynamicImpl(dnnl::stream strm) {
+    const auto& srcMemory = getSrcMemoryAtPort(0);
+    const auto& srcDataDims = srcMemory->getStaticDims();
+    const auto& srcData = srcMemory->getDataAs<std::string>();
+    Dim stringCount = std::accumulate(srcDataDims.begin(), srcDataDims.end(), 1, std::multiplies<Dim>());
+    size_t totalCharLength = 0;
+    for (Dim i = 0; i < stringCount; ++i) {
+        totalCharLength += srcData[i].length();
+    }
+    redefineOutputMemory({ srcDataDims, srcDataDims, {totalCharLength}});
     execute(strm);
 }
 

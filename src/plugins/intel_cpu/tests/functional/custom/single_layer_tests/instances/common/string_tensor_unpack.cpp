@@ -16,7 +16,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_StringTensorUnpackLayoutTest, StringTensorUnpackL
                 ::testing::Combine(
                         ::testing::ValuesIn(StringTensorUnpackParamsVector),
                         ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_i32"})),
+                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_string"})),
                 StringTensorUnpackLayerCPUTest::getTestCaseName);
 }  // namespace StringTensorUnpack
 }  // namespace test

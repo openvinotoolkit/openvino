@@ -78,7 +78,28 @@ TEST_P(StringTensorUnpackLayerCPUTest, CompareWithRefs) {
 const std::vector<StringTensorUnpackSpecificParams> StringTensorUnpackParamsVector = {
     StringTensorUnpackSpecificParams {
         InputShape{{}, {{3}}}
-    }
+    },
+    StringTensorUnpackSpecificParams {
+        InputShape{{}, {{1, 1, 13}}}
+    },
+    StringTensorUnpackSpecificParams {
+        InputShape{{}, {{100, 10}}}
+    },
+    StringTensorUnpackSpecificParams {
+        InputShape{{}, {{3, 8, 12, 8, 4}}}
+    },
+    StringTensorUnpackSpecificParams {
+        InputShape{{-1}, {{3}}}
+    },
+    StringTensorUnpackSpecificParams {
+        InputShape{{-1, -1, -1}, {{1, 1, 13}}}
+    },
+    StringTensorUnpackSpecificParams {
+        InputShape{{-1, 10}, {{100, 10}}}
+    },
+    StringTensorUnpackSpecificParams {
+        InputShape{{-1, {7, 9}, 12, {1, 20}}, {{3, 8, 12, 8, 4}}}
+    },
 };
 
 }  // namespace StringTensorUnpack

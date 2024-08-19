@@ -31,7 +31,6 @@ std::vector<TRShape> shape_infer(const StringTensorUnpack* op,
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
     const auto& data_shape = input_shapes[0];
     auto output_shapes = std::vector<TRShape>{data_shape, data_shape};
-    // TODO: make sure length() isn't called on dynamic dim
     if (const auto string_data = util::get_string_tensor(op, tensor_accessor)) {
         const auto string_count = string_data.get_size();
         const auto tensor_data = string_data.data<std::string>();
@@ -40,10 +39,8 @@ std::vector<TRShape> shape_infer(const StringTensorUnpack* op,
             total_length += (*it).length();
         }
         output_shapes.emplace_back(TRShape{static_cast<typename TRShape::value_type>(total_length)});
-        std::cout << "\nData output dimension: {" << total_length << "}\n";
     } else {
         output_shapes.emplace_back(ov::PartialShape{ov::Dimension::dynamic()});
-        std::cout << "\nData output dimension is dynamic\n";
     }
 
     return output_shapes;
