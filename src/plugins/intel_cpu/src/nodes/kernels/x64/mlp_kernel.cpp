@@ -6,8 +6,6 @@
 #include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
 #include "mlp_utils.hpp"
 
-#include "/home/tingqian/tingqian/aboutSHW/include/linux_perf.hpp"
-
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu::x64;
