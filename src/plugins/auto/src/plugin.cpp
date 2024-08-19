@@ -567,10 +567,10 @@ std::list<DeviceInformation> Plugin::get_valid_device(
                 CPU.push_back(device_info);
             } else {
                 is_excluded = true;
-                LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%d]",
+                LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%s]",
                               device_info.device_name.c_str(),
                               std::to_string(device_utilization["Total"]).c_str(),
-                              utilization_threshold);
+                              std::to_string(utilization_threshold).c_str());
             }
         } else if (device_info.device_name.find("GPU") == 0) {
             // checking utilization
@@ -603,10 +603,10 @@ std::list<DeviceInformation> Plugin::get_valid_device(
                 }
             } else {
                 is_excluded = true;
-                LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%d]",
+                LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%s]",
                               device_info.device_name.c_str(),
                               std::to_string(device_utilization[device_luid]).c_str(),
-                              utilization_threshold);
+                              std::to_string(utilization_threshold).c_str());
             }
         } else {
             // checking utilization
@@ -637,10 +637,10 @@ std::list<DeviceInformation> Plugin::get_valid_device(
 
                 if (utilization >= utilization_threshold) {
                     is_excluded = true;
-                    LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%d]",
+                    LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%s]",
                                   device_info.device_name.c_str(),
                                   std::to_string(utilization).c_str(),
-                                  utilization_threshold);
+                                  std::to_string(utilization_threshold).c_str());
                 } else {
                     Others.push_back(device_info);
                 }
