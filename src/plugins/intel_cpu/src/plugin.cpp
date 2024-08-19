@@ -18,8 +18,6 @@
 #include "utils/precision_support.h"
 #include "weights_cache.hpp"
 
-#include "transformations/cpu_opset/common/op/fully_connected.hpp"
-
 #if defined(__linux__)
 #    include <signal.h>
 #    include <sys/auxv.h>
@@ -298,11 +296,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     transformations.Snippets();
 
     transformations.CpuSpecificOpSet();
-
-    // In tensor parallel case:
-    // If a model is with a large fc, do not update conf.numSubStreams.
-    // If not, set 0 to conf.numSubStreams, which means turning off tensor parallel for this model.
-    update_stream_with_weights(cloned_model, conf);
 
     DEBUG_LOG(PrintableModel(*cloned_model, "cpu_"));
 
