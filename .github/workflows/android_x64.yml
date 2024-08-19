@@ -113,8 +113,13 @@ jobs:
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
-            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/xbyak
-            git submodule update --init --recursive -- ${OPENVINO_REPO}/thirdparty/ocl
+#            git submodule update --init -- ${OPENVINO_REPO}/src/plugins
+#            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/zlib
+#            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
+#            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
+#            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
+#            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/xbyak
+#            git submodule update --init --recursive -- ${OPENVINO_REPO}/thirdparty/ocl
           popd
 
       - name: Clone vcpkg
@@ -145,7 +150,6 @@ jobs:
 
       - name: CMake - configure
         run: |
-          export CC=gcc && export CXX=g++
           cmake \
             -G '${{ env.CMAKE_GENERATOR }}' \
             -DENABLE_INTEL_GPU=ON \
@@ -180,7 +184,7 @@ jobs:
         run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake - build
-        run: export CC=gcc && export CXX=g++ && cmake --build ${BUILD_DIR} --parallel
+        run: cmake --build ${BUILD_DIR} --parallel
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
