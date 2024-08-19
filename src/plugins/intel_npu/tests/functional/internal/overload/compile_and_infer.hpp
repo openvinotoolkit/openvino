@@ -183,6 +183,29 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeDelayedExecutor) {
     }
 }
 
+TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeUpdateAfterCompilation) {
+    if (isCommandQueueExtSupported()) {
+        configuration[workload_type.name()] = WorkloadType::DEFAULT;
+        OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
+
+        ASSERT_EQ(execNet.get_property(workload_type.name()).as<WorkloadType>(), WorkloadType::DEFAULT);
+        ov::AnyMap modelConfiguration;
+        modelConfiguration[workload_type.name()] = WorkloadType::EFFICIENT;
+        OV_ASSERT_NO_THROW(execNet.set_property(modelConfiguration));
+        ASSERT_EQ(execNet.get_property(workload_type.name()).as<WorkloadType>(), WorkloadType::EFFICIENT);
+        ov::InferRequest req;
+        OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+        bool is_called = false;
+        OV_ASSERT_NO_THROW(req.set_callback([&](std::exception_ptr exception_ptr) {
+            ASSERT_EQ(exception_ptr, nullptr);
+            is_called = true;
+        }));
+        OV_ASSERT_NO_THROW(req.start_async());
+        OV_ASSERT_NO_THROW(req.wait());
+        ASSERT_TRUE(is_called);
+    }
+}
+
 using OVCompileAndInferRequestTurbo = OVCompileAndInferRequest;
 
 TEST_P(OVCompileAndInferRequestTurbo, CompiledModelTurbo) {

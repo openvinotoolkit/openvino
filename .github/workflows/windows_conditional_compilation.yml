@@ -169,6 +169,7 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
             -DENABLE_PROFILING_ITT=ON `
             -DSELECTIVE_BUILD=COLLECT `
+            -DENABLE_FASTER_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
             -DCMAKE_TOOLCHAIN_FILE=${{ env.ONECORE_TOOLCHAIN }} `
             -S ${{ env.OPENVINO_REPO }} `
