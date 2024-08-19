@@ -560,7 +560,7 @@ bool fuse_type_to_range_v4(const std::shared_ptr<ov::Node>& node, const precisio
         return false;
     const auto& to = it->second;
     if (auto range = ov::as_type_ptr<ov::op::v4::Range>(node)) {
-        if (to.is_integral_number() || to.is_real()) {
+        if (!fp16_compression_is_disabled(node) && (to.is_integral_number() || to.is_real())) {
             range->set_output_type(to);
             return true;
         }
