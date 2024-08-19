@@ -19,7 +19,7 @@ describe('ov.InferRequest tests', () => {
   const core = new ov.Core();
   const model = core.readModelSync(testXml);
   const compiledModel = core.compileModelSync(model, 'CPU');
-  
+
   const inferRequest = compiledModel.createInferRequest();
   const inferRequestAsync = compiledModel.createInferRequest();
 

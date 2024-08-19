@@ -20,7 +20,7 @@ describe('Tests for reading model.', () => {
   const modelStr = fs.readFileSync(modelPath, 'utf8');
   const weightsFile = fs.readFileSync(weightsPath);
   const weightsTensor = new ov.Tensor(ov.element.u8, [weightsFile.buffer.byteLength], new Uint8Array(weightsFile.buffer));
-  
+
   const core = new ov.Core();
 
   describe('Core.readModeSync', () => {
@@ -40,7 +40,7 @@ describe('Tests for reading model.', () => {
       assert.throws(
         () => core.readModelSync(core),
         /'readModelSync' method called with incorrect parameters./,
-    )
+      );
     });
 
     it('readModelSync(modelString, weightsTensor) ', () => {

@@ -12,7 +12,7 @@ describe('ov.js basic tests.', () => {
   before( async () => {
     await checkTestModel(testModels.testModelFP32);
   });
-  
+
   const testXml = getModelPath().xml;
   const core = new ov.Core();
   const model = core.readModelSync(testXml);
@@ -52,7 +52,6 @@ describe('ov.js basic tests.', () => {
 
   });
 
-
   it('CompiledModel type', () => {
     assert.ok(compiledModel instanceof ov.CompiledModel);
   });
@@ -81,7 +80,7 @@ describe('ov.js basic tests.', () => {
     });
 
     it('compileModelSync(model, device, config) throws when config is a string', () => {
-    const expectedMsg = ("'compileModelSync' method called with incorrect parameters.\n" +
+      const expectedMsg = ('\'compileModelSync\' method called with incorrect parameters.\n' +
       'Provided signature: (object, string, string) \n' +
       'Allowed signatures:\n' +
       '- (string, string)\n' +
@@ -103,7 +102,7 @@ describe('ov.js basic tests.', () => {
     });
 
     it('compileModelSync(model) throws if the number of arguments is invalid', () => {
-    const expectedMsg = ("'compileModelSync' method called with incorrect parameters.\n" +
+      const expectedMsg = ('\'compileModelSync\' method called with incorrect parameters.\n' +
       'Provided signature: (object) \n' +
       'Allowed signatures:\n' +
       '- (string, string)\n' +
@@ -145,7 +144,7 @@ describe('ov.js basic tests.', () => {
     it('compileModel(model, device, config) throws when config isn\'t an object', () => {
       assert.throws(
         () => core.compileModel(model, 'CPU', 'string').then(),
-      "Argument #3 must be an Object."
+        'Argument #3 must be an Object.'
       );
     });
 

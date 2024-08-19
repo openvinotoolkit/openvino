@@ -43,12 +43,12 @@ describe('PartialShape', () => {
   it('Should return array with dimensions for dynamic shape', () => {
     const partialShape = new ov.PartialShape(staticShape);
 
-    assert.deepStrictEqual(partialShape.getDimensions(), [1,3,224,224]);
+    assert.deepStrictEqual(partialShape.getDimensions(), [1, 3, 224, 224]);
   });
 
   it('Should return array with dimensions for dynamic shape', () => {
     const partialShape = new ov.PartialShape(dynamicShape);
 
-    assert.deepStrictEqual(partialShape.getDimensions(), [-1,-1,[1,3],224]);
+    assert.deepStrictEqual(partialShape.getDimensions(), [-1, -1, [1, 3], 224]);
   });
 });

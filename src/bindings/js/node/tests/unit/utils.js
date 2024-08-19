@@ -8,8 +8,8 @@ const { downloadFile, checkIfDirectoryExists } = require('../../scripts/download
 const modelDir = 'tests/unit/test_models/';
 const testModels = {
   testModelFP32: {
-    xml: `test_model_fp32.xml`,
-    bin: `test_model_fp32.bin`,
+    xml: 'test_model_fp32.xml',
+    bin: 'test_model_fp32.bin',
     xmlURL:
     'https://raw.githubusercontent.com/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.xml',
     binURL:
@@ -55,7 +55,7 @@ async function checkTestModel(model) {
   const model_path = path.join(baseArtifactsDir, model.xml);
   const modelExists = await checkIfDirectoryExists(model_path);
   if ( !modelExists ) {
-    console.log("\n\nTestModel cannot be found.\nPlease run `npm run test_setup`.\n\n");
+    console.log('\n\nTestModel cannot be found.\nPlease run `npm run test_setup`.\n\n');
     process.exit(1);
-  } 
+  }
 }
