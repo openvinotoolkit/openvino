@@ -11,37 +11,45 @@ import numpy as np
 from models_hub_common.constants import test_device
 
 
-def get_models_list(file_name: str):
-    models = []
-    with open(file_name) as f:
-        for model_info in f:
+def parse_list_file(file_name: str):
+    with open(file_name, 'r') as f_in:
+        for model_info in f_in:
+            if not model_info:
+                continue
             model_info = model_info.strip()
             # skip comment in model scope file
-            if model_info.startswith('#'):
+            if not model_info or model_info.startswith('#'):
                 continue
-            mark = None
-            reason = None
-            assert len(model_info.split(',')) == 2 or len(model_info.split(',')) == 4, \
-                "Incorrect model info `{}`. It must contain either 2 or 4 fields.".format(model_info)
-            if len(model_info.split(',')) == 2:
-                model_name, model_link = model_info.split(',')
-            elif len(model_info.split(',')) == 4:
-                model_name, model_link, mark, reason = model_info.split(',')
-            models.append((model_name, model_link, mark, reason))
+            yield model_info.split(',')
 
+
+def get_models_list(file_name: str):
+    models = []
+    for line_items in parse_list_file(file_name):
+        if len(line_items) == 2:
+            model_name, model_link = line_items
+            models.append((model_name, model_link, None, None))
+        elif len(line_items) == 4:
+            model_name, model_link, mark, reason = line_items
+            models.append((model_name, model_link, mark, reason))
+        elif len(line_items) > 4:
+            model_name, model_link, mark, reason = line_items[:4]
+            if not mark:
+                mark = None
+            if not reason:
+                reason = None
+            other = line_items[4:]
+            transformations = [item[8:] for item in other if item.startswith('ts_name:')]
+            layers = [item[6:] for item in other if item.startswith('layer:')]
+            models.append((model_name, model_link, mark, reason, transformations, layers))
+        else:
+            items = ','.join(line_items)
+            assert False, \
+                f'Incorrect model info fields {items}. It must contain either 2 or 4 or more than 4 fields.'
     return models
 
-
-def get_skipped_model_links(filename: str):
-    links = set()
-    if not os.path.exists(filename):
-        return links
-    with open(filename) as f:
-        for model_info in f:
-            model_info = model_info.strip()
-            model_name, model_link = model_info.split(',')
-            links.add(model_link)
-    return links
+def get_skipped_model_links(file_name: str):
+    return {line_items[1] for line_items in parse_list_file(file_name)}
 
 
 def get_models_list_not_skipped(model_list_file: str, skip_list_file: str):
