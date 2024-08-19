@@ -24,12 +24,7 @@ KERNEL(lstm_seq)(
 {
     const uint b = get_global_id(1);
     const uint local_idx = get_local_id(0);
-     
     const uint weight_offsets[4] = {GEMM_OFFSET_F, GEMM_OFFSET_I, GEMM_OFFSET_Z, GEMM_OFFSET_O};
-    ACCUMULATOR_TYPE hidden_result;
-    ACCUMULATOR_TYPE input_result;
-    ACCUMULATOR_TYPE gate_output[GATE_NUM];
-    ACCUMULATOR_TYPE temp_cell_state;
     #ifdef SEQUENCE
         const uint real_seq_length = sequence_lengths[INPUT6_GET_INDEX_SAFE(b, 0, 0, 0)];
     #else
@@ -52,10 +47,11 @@ KERNEL(lstm_seq)(
             if (hidden_idx >= HIDDEN_SIZE) {
                 continue;
             }
+            ACCUMULATOR_TYPE gate_output[GATE_NUM];
             unroll_for(uint k=0;k<GATE_NUM;++k){
                 
-                hidden_result = 0;
-                input_result = 0;
+                ACCUMULATOR_TYPE hidden_result = 0;
+                ACCUMULATOR_TYPE input_result = 0;
                 const uint weight_idx = hidden_idx+weight_offsets[k];
                 unroll_for(uint j=0;j<HIDDEN_SIZE;++j) {
                     if(i==0){
@@ -100,7 +96,7 @@ KERNEL(lstm_seq)(
                         break;
                 }
             }
-
+            ACCUMULATOR_TYPE temp_cell_state;
             if (i==0){
                 #ifdef SEQUENCE
                     temp_cell_state = gate_output[0]*initial_cell_state[INPUT2_GET_INDEX_SAFE(b, 0, hidden_idx, 0)] + gate_output[1]*gate_output[2];
