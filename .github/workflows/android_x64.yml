@@ -143,43 +143,20 @@ jobs:
           # patch vcpkg default toolchain to build only Release configuration
           echo "set(VCPKG_BUILD_TYPE release)" >> ${VCPKG_ROOT}/triplets/x64-android.cmake
 
-#      - name: CMake - configure
-#        run: |
-#          cmake \
-#            -G '${{ env.CMAKE_GENERATOR }}' \
-#            -DENABLE_INTEL_GPU=ON \
-#            -DENABLE_TESTS=ON \
-#            -DENABLE_SYSTEM_OPENCL=ON \
-#            -DENABLE_SYSTEM_PROTOBUF=ON \
-#            -DENABLE_SYSTEM_PUGIXML=ON \
-#            -DENABLE_SYSTEM_SNAPPY=ON \
-#            -DENABLE_SYSTEM_TBB=ON \
-#            -DENABLE_INTEL_NPU=OFF \
-#            -DENABLE_PYTHON=OFF \
-#            -DENABLE_SYSTEM_FLATBUFFERS=ON \
-#            -DANDROID_ABI=${{ env.ANDROID_ABI_CONFIG }} \
-#            -DANDROID_STL=c++_shared \
-#            -DANDROID_PLATFORM=${{ env.ANDROID_SDK_VERSION }} \
-#            -DVCPKG_TARGET_TRIPLET=${{ env.VCPKG_TARGET_TRIPLET }} \
-#            -DVCPKG_HOST_TRIPLET=x64-linux-release \
-#            -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
-#            -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake \
-#            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
-#            -DENABLE_STRICT_DEPENDENCIES=OFF \
-#            -DCMAKE_VERBOSE_MAKEFILE=ON \
-#            -DENABLE_CONFORMANCE_PGQL=ON \
-#            -DENABLE_LTO=ON \
-#            -DBUILD_nvidia_plugin=OFF \
-#            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
-#            -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
-#            -S ${OPENVINO_REPO} \
-#            -B ${BUILD_DIR}
-
       - name: CMake - configure
         run: |
           cmake \
+            -G '${{ env.CMAKE_GENERATOR }}' \
+            -DENABLE_INTEL_GPU=ON \
+            -DENABLE_TESTS=ON \
+            -DENABLE_SYSTEM_OPENCL=ON \
+            -DENABLE_SYSTEM_PROTOBUF=ON \
+            -DENABLE_SYSTEM_PUGIXML=ON \
+            -DENABLE_SYSTEM_SNAPPY=ON \
+            -DENABLE_SYSTEM_TBB=ON \
             -DENABLE_INTEL_NPU=OFF \
             -DENABLE_PYTHON=OFF \
+            -DENABLE_SYSTEM_FLATBUFFERS=ON \
             -DANDROID_ABI=${{ env.ANDROID_ABI_CONFIG }} \
             -DANDROID_STL=c++_shared \
             -DANDROID_PLATFORM=${{ env.ANDROID_SDK_VERSION }} \
