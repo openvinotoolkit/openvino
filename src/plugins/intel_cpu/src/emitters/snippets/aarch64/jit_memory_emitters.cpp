@@ -17,36 +17,22 @@ using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-jit_memory_emitter::jit_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr, emitter_in_out_map in_out_type)
-    : jit_emitter(h, isa) {
-    in_out_type_ = in_out_type;
-
+jit_memory_emitter::jit_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     src_prc = n->get_input_element_type(0);
     dst_prc = n->get_output_element_type(0);
-
-    const auto& memory_access = std::dynamic_pointer_cast<ov::snippets::modifier::MemoryAccess>(expr->get_node());
-    if (in_out_type_ == emitter_in_out_map::gpr_to_vec) {
-        OV_CPU_JIT_EMITTER_ASSERT(memory_access->is_memory_access_input_port(0), "Must be input port - memory access");
-        count = memory_access->get_input_count();
-        byte_offset = memory_access->get_input_offset();
-    } else if (in_out_type_ == emitter_in_out_map::vec_to_gpr) {
-        OV_CPU_JIT_EMITTER_ASSERT(memory_access->is_memory_access_output_port(0), "Must be output port - memory access");
-        count = memory_access->get_output_count();
-        byte_offset = memory_access->get_output_offset();
-    } else {
-        OV_CPU_JIT_EMITTER_THROW("Unsupported in_out_type");
-    }
 }
 
-jit_load_memory_emitter::jit_load_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
-    : jit_memory_emitter(h, isa, expr, emitter_in_out_map::gpr_to_vec) {
+jit_load_memory_emitter::jit_load_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_memory_emitter(h, isa, expr) {
     bool is_supported_precision = one_of(src_prc, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
                                   (src_prc == dst_prc || one_of(dst_prc, ov::element::f32, ov::element::i32));
     OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
 
     const auto load = std::dynamic_pointer_cast<snippets::op::Load>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(load != nullptr, "Expects Load expression");
+    count = load->get_count();
+    byte_offset = load->get_offset();
+    in_out_type_ = emitter_in_out_map::gpr_to_vec;
     load_emitter.reset(new jit_load_emitter(h, isa, src_prc, dst_prc, count, byte_offset));
 }
 
@@ -71,7 +57,7 @@ void jit_load_memory_emitter::emit_data() const {
 }
 
 jit_load_broadcast_emitter::jit_load_broadcast_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
-    : jit_memory_emitter(h, isa, expr, emitter_in_out_map::gpr_to_vec) {
+    : jit_memory_emitter(h, isa, expr) {
     OV_CPU_JIT_EMITTER_ASSERT(src_prc == dst_prc, "Only support equal input and output types but gets ",
                               src_prc.get_type_name(),
                               " and ",
@@ -80,6 +66,8 @@ jit_load_broadcast_emitter::jit_load_broadcast_emitter(jit_generator* h, cpu_isa
 
     const auto broadcast_load = std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(broadcast_load != nullptr, "Expects BroadcastLoad expression");
+    byte_offset = broadcast_load->get_offset();
+    in_out_type_ = emitter_in_out_map::gpr_to_vec;
 }
 
 void jit_load_broadcast_emitter::emit_impl(const std::vector<size_t>& in,
@@ -100,12 +88,16 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t> &in, const s
     h->uni_ld1rw(dst.s, src, byte_offset);
 }
 
-jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
-    : jit_memory_emitter(h, isa, expr, emitter_in_out_map::vec_to_gpr) {
+jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_memory_emitter(h, isa, expr) {
     bool is_supported_precision = one_of(dst_prc, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
                                   (src_prc == dst_prc || one_of(src_prc, ov::element::f32, ov::element::i32));
     OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
 
+    const auto store = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
+    OV_CPU_JIT_EMITTER_ASSERT(store != nullptr, "Expects Store expression");
+    count = store->get_count();
+    byte_offset = store->get_offset();
+    in_out_type_ = emitter_in_out_map::vec_to_gpr;
     if (ov::is_type<ov::intel_cpu::StoreConvertTruncation>(expr->get_node())) {
         store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, byte_offset, arithmetic_mode::truncation));
     } else if (ov::is_type<ov::intel_cpu::StoreConvertSaturation>(expr->get_node())) {

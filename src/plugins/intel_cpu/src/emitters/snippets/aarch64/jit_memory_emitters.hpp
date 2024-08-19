@@ -13,8 +13,9 @@ namespace aarch64 {
 
 class jit_memory_emitter : public jit_emitter  {
 public:
-    jit_memory_emitter(dnnl::impl::cpu::aarch64::jit_generator* h, dnnl::impl::cpu::aarch64::cpu_isa_t isa,
-                       const ov::snippets::lowered::ExpressionPtr& expr, emitter_in_out_map in_out_type);
+    jit_memory_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+                  dnnl::impl::cpu::aarch64::cpu_isa_t isa,
+                  const ov::snippets::lowered::ExpressionPtr& expr);
 
 protected:
     ov::element::Type src_prc;
