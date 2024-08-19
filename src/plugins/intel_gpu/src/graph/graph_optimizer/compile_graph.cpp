@@ -77,6 +77,12 @@ void compile_graph::run(program& p) {
                 if (w_layout.spatial(0) != 1 || w_layout.spatial(1) != 1) {
                     change_initial_impl = false;
                 }
+
+                // OneDNN convolution requires activations zero points of int32 type, and the data is converted while executing choose_impl.
+                // If this task is done in the async compilation queue, it could result in wrong calculation of cldnn shape-agnostic kernels.
+                if (node->as<convolution>().activations_zero_points_term()) {
+                    change_initial_impl = false;
+                }
             }
         }
 
