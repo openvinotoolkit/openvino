@@ -81,11 +81,6 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
             size_t padded_size = src_stride[i] / src_stride[i + 1];
             size_t non_padded_size = src_stride_no_pad[i] / src_stride_no_pad[i + 1];
             int32_t pad_dim_legacy = i + 1;
-            if (pad_dim_legacy >= 2) {
-                int32_t spatial_axis = pad_dim_legacy - 2;
-                int32_t spatial_size = std::max<int32_t>(static_cast<int32_t>(src_rank), 4) - 2;
-                pad_dim_legacy = spatial_size - spatial_axis - 1 + 2;
-            }
             upper_pad[pad_dim_legacy] = static_cast<int32_t>(padded_size) - static_cast<int32_t>(non_padded_size);
         }
     }

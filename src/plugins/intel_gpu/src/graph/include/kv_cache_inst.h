@@ -66,12 +66,6 @@ public:
         auto sequence_axis_legacy = sequence_axis;
         if (sequence_axis_legacy < 0)
             sequence_axis_legacy = past_layout_rank + sequence_axis_legacy;
-        if (sequence_axis_legacy >= 2) {
-            auto spatial_axis = sequence_axis_legacy - 2;
-            // Default and minimum number of dimensions is 4
-            auto spatial_size = std::max<size_t>(past_layout_rank, 4) - 2;
-            sequence_axis_legacy = spatial_size - spatial_axis - 1 + 2;
-        }
         return sequence_axis_legacy;
     }
 
