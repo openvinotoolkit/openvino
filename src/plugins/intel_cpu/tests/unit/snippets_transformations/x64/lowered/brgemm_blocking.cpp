@@ -3,11 +3,12 @@
 //
 
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
-#include "transformations/tpp/x64/pass/lowered/brgemm_tpp_blocking.hpp"
+#ifdef SNIPPETS_LIBXSMM_TPP
+    #include "transformations/tpp/x64/pass/lowered/brgemm_tpp_blocking.hpp"
+#endif
 
 #include "lir_test_utils.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
@@ -24,14 +25,21 @@ using namespace ov::snippets;
 using BRGEMM_TYPE = intel_cpu::brgemm_utils::BRGEMM_TYPE;
 
 namespace {
-
-SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_size) {
+enum class BACKEND_TYPE{CPU, TPP};
+SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_size, BACKEND_TYPE backend = BACKEND_TYPE::CPU) {
     auto handlers = BrgemmBlockingBase::get_default_blocking_loop_handlers(work_amount, block_size);
+    switch (backend) {
 #ifdef SNIPPETS_LIBXSMM_TPP
-    handlers.register_pass<SpecificLoopIterType::FIRST_ITER, ov::intel_cpu::tpp::pass::BrgemmTPPBlocking::SetBrgemmBeta>();
-#else
-    handlers.register_pass<SpecificLoopIterType::FIRST_ITER, ov::intel_cpu::pass::BrgemmCPUBlocking::DummyPass>();
+        case BACKEND_TYPE::TPP:
+            handlers.register_pass<SpecificLoopIterType::FIRST_ITER, ov::intel_cpu::tpp::pass::BrgemmTPPBlocking::SetBrgemmBeta>();
+            break;
 #endif
+        case BACKEND_TYPE::CPU:
+            handlers.register_pass<SpecificLoopIterType::FIRST_ITER, ov::intel_cpu::pass::BrgemmCPUBlocking::DummyPass>();
+            break;
+        default:
+            OPENVINO_THROW("Unsupported code generator backend type");
+    }
     return handlers;
 }
 
@@ -39,7 +47,8 @@ void create_brgemm_loop_infos(const LinearIRPtr& linear_ir,
                               const ExpressionPtr& brgemm_expr,
                               size_t m = 0, size_t m_blk = 0,
                               size_t k = 0, size_t k_blk = 0,
-                              size_t n = 0, size_t n_blk = 0) {
+                              size_t n = 0, size_t n_blk = 0,
+                              BACKEND_TYPE backend = BACKEND_TYPE::CPU) {
     const bool k_block = k != 0 && k_blk != 0;
     const bool n_block = k != 0 && k_blk != 0;
     const bool m_block = m != 0 && m_blk != 0;
@@ -49,7 +58,7 @@ void create_brgemm_loop_infos(const LinearIRPtr& linear_ir,
                 std::vector<LoopPort>{LoopPort(brgemm_expr->get_input_port(0)),
                                       LoopPort(brgemm_expr->get_input_port(1), true, 1)},
                 std::vector<LoopPort>{LoopPort(brgemm_expr->get_output_port(0), false)},
-                get_k_loop_handlers(k, k_block));
+                get_k_loop_handlers(k, k_block, backend));
         linear_ir->get_loop_manager()->add_loop_info(loop_info);
     }
     if (n_block) {
@@ -328,7 +337,7 @@ TEST_F(BrgemmTPPBlockingTest, TPPFloating) {
                                                                    layout_a, layout_b, layout_c);
         const auto& brgemm_expr = *brgemm.first;
         init_expr_descriptors(brgemm_expr, {{m_blk, k_blk}, {k_blk, n_blk}, {m_blk, n_blk}}, {layout_a, layout_b, layout_c});
-        create_brgemm_loop_infos(linear_ir_ref, brgemm_expr, 384, m_blk, 1024, k_blk, 384, n_blk);
+        create_brgemm_loop_infos(linear_ir_ref, brgemm_expr, 384, m_blk, 1024, k_blk, 384, n_blk, BACKEND_TYPE::TPP);
         brgemm_expr->set_loop_ids({2, 1, 0});
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
     }
