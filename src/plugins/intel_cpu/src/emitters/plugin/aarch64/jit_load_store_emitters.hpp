@@ -12,7 +12,7 @@ namespace intel_cpu {
 namespace aarch64 {
 
 // Arithmetic modes for data type conversion in store_emitter
-enum arithmetic_mode {
+enum class arithmetic_mode {
     saturation,
     truncation
 };
