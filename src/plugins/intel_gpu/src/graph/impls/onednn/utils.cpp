@@ -516,7 +516,7 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
 
     std::vector<std::pair<size_t, int>> block_sizes(inner_nblks);
     for (int i = 0; i < inner_nblks; i++) {
-        block_sizes[i] = std::make_pair(inner_idxs[i], inner_blks[i]);
+        block_sizes[i] = std::make_pair(inner_idxs[i] + (is_grouped && inner_idxs[i] == 0 ? 9 : 0) + (is_grouped ? -1 : 0), inner_blks[i]);
     }
 
     // all fmts has at least batch and feature dim for now
