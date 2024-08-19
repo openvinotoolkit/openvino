@@ -431,7 +431,7 @@ Output<Node> compute_broadcast_args(const Output<Node>& shape1, const Output<Nod
     return broadcasted_shape->output(0);
 }
 
-shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> rgb_to_hsv(const shared_ptr<Node>& images) {
+shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> rgb_to_hsv(const ov::Output<ov::Node>& images) {
     // image format conversion based on
     // https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/kernels/image/adjust_saturation_op.cc
     auto const_zero_f_ = create_same_type_const_scalar<float>(images, 0.0f);
