@@ -84,6 +84,7 @@ private:
     void fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr);
 
     void initTensorParallelConfig(const GraphContext::CPtr context);
+    void needUpdateTensorParalelConfig();
     void needPrepareParamsForTensorParallel();
     void initTensorParallelSync();
     void execTensorParallelSync();

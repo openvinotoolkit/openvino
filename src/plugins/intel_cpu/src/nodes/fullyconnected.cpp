@@ -435,33 +435,33 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
 }
 
 void FullyConnected::needSplitMemoryForTensorParallel() {
-    auto src = getSrcMemoryAtPort(DATA_ID);
-    auto wgt = getSrcMemoryAtPort(WEIGHTS_ID);
-    auto dst = getDstMemoryAtPort(0);
-	// src
-	memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
-	// wgt
-	// split N direction
-	cached_splited_weight = attrs.weightsNonTransposed ? split_vertical(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size)
-							: split_horizontal(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size);
-	memory[ARG_WEI] = cached_splited_weight;
-
-	// bias
-	if (attrs.withBias) {
-		auto bias = getSrcMemoryAtPort(BIAS_ID);
-		auto select_bias = split_horizontal(context->getEngine(), bias, 0, tp_cfg.w_rank, tp_cfg.w_size);
-		cached_splited_bias = select_bias;
-	} else {
-		cached_splited_bias = MemoryDescUtils::makeEmptyMemory(context);
-	}
-
-	memory[ARG_BIAS] = cached_splited_bias;
-
-	// dst
-	memory[ARG_DST] = getDstMemoryAtPort(0);
-	cached_dst = split_horizontal(context->getEngine(), dst, -1, tp_cfg.w_rank, tp_cfg.w_size, false);
+    if (tp_cfg.enable_tensor_parallel) {
+        auto src = getSrcMemoryAtPort(DATA_ID);
+        auto wgt = getSrcMemoryAtPort(WEIGHTS_ID);
+        auto dst = getDstMemoryAtPort(0);
+        // src
+        memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
+        // wgt
+        // split N direction
+        cached_splited_weight = attrs.weightsNonTransposed ? split_vertical(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                    : split_horizontal(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size);
+        memory[ARG_WEI] = cached_splited_weight;
+        // bias
+        if (attrs.withBias) {
+            auto bias = getSrcMemoryAtPort(BIAS_ID);
+            auto select_bias = split_horizontal(context->getEngine(), bias, 0, tp_cfg.w_rank, tp_cfg.w_size);
+            cached_splited_bias = select_bias;
+        } else {
+            cached_splited_bias = MemoryDescUtils::makeEmptyMemory(context);
+        }
+        memory[ARG_BIAS] = cached_splited_bias;
+        // dst
+        memory[ARG_DST] = getDstMemoryAtPort(0);
+        cached_dst = split_horizontal(context->getEngine(), dst, -1, tp_cfg.w_rank, tp_cfg.w_size, false);
+    }
 }
-void FullyConnected::createPrimitive() {
+
+void FullyConnected::needUpdateTensorParalelConfig() {
     // tensor parallel should be disabled in two conditions.
     // 1. weight shape is dynamic
     // 2. last dim can be splited.
@@ -473,15 +473,16 @@ void FullyConnected::createPrimitive() {
             tp_cfg.enable_tensor_parallel = false;
         }
     }
+}
+void FullyConnected::createPrimitive() {
+    needUpdateTensorParalelConfig();
 
-    if (tp_cfg.enable_tensor_parallel) {
-        needSplitMemoryForTensorParallel();
-    } else {
-        memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
-        memory[ARG_WEI] = getSrcMemoryAtPort(WEIGHTS_ID);
-        memory[ARG_BIAS] = attrs.withBias ? getSrcMemoryAtPort(BIAS_ID) : MemoryDescUtils::makeEmptyMemory(context);
-        memory[ARG_DST] = getDstMemoryAtPort(0);
-    }
+    memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
+    memory[ARG_WEI] = getSrcMemoryAtPort(WEIGHTS_ID);
+    memory[ARG_BIAS] = attrs.withBias ? getSrcMemoryAtPort(BIAS_ID) : MemoryDescUtils::makeEmptyMemory(context);
+    memory[ARG_DST] = getDstMemoryAtPort(0);
+
+    needSplitMemoryForTensorParallel();
     // @todo should we preconfigure only for dynamic shapes?
     // Since for static shapes primitive is created in scope of compile_model() anyway
     factory->preconfigure(memory);
