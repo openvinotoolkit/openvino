@@ -65,7 +65,7 @@ static bool should_dynamic_quantize(const fully_connected_params& params) {
 
             if (iter != layers.end()) {
                 dynamic_quantization_group_size = quantize_grp_size;
-                GPU_DEBUG_LOG << "Found specified Fully-connected layer [" << params.layerID << "]. Enable Dynamic-quantize." << std::endl;
+                GPU_DEBUG_COUT << "Found specified Fully-connected layer [" << params.layerID << "]. Enable Dynamic-quantize." << std::endl;
             } else {
                 dynamic_quantization_group_size = 0;
             }
