@@ -9,6 +9,9 @@ namespace ov {
 namespace snippets {
 namespace pass {
 
+Manager::Manager(std::shared_ptr<ov::pass::PassConfig> pass_config, std::string name)
+    : ov::pass::Manager(std::move(pass_config), std::move(name)) {}
+
 std::shared_ptr<Manager::PassBase> Manager::register_pass_instance(const PassPosition& position,
                                                                    const std::shared_ptr<PassBase>& pass) {
     pass->set_pass_config(m_pass_config);

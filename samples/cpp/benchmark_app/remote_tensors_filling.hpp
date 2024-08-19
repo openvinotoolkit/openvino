@@ -5,14 +5,13 @@
 #pragma once
 
 #if defined(HAVE_GPU_DEVICE_MEM_SUPPORT)
-#    define HAVE_DEVICE_MEM_SUPPORT
 #    include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
 #endif
 #include "utils.hpp"
 
 namespace gpu {
 
-#ifdef HAVE_DEVICE_MEM_SUPPORT
+#ifdef HAVE_GPU_DEVICE_MEM_SUPPORT
 using BufferType = cl::Buffer;
 
 struct OpenCL {
@@ -67,3 +66,12 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
 std::map<std::string, ov::Tensor> get_remote_output_tensors(const ov::CompiledModel& compiledModel,
                                                             std::map<std::string, ::gpu::BufferType>& clBuffer);
 }  // namespace gpu
+
+namespace npu {
+
+std::map<std::string, ov::TensorVector> get_remote_input_tensors(
+    const std::map<std::string, std::vector<std::string>>& inputFiles,
+    const std::vector<benchmark_app::InputsInfo>& app_inputs_info,
+    const ov::CompiledModel& compiledModel,
+    size_t num_requests);
+}  // namespace npu

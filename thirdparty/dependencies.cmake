@@ -539,23 +539,14 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags
         PATTERN src/gflags_completions.sh EXCLUDE
         PATTERN WORKSPACE EXCLUDE)
 
-file(GLOB zlib_sources ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/zlib/*.c
-                        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/zlib/*.h)
-install(FILES ${zlib_sources}
-        DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib/zlib
-        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-        ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/CMakeLists.txt
-        DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib
-        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-        ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
-
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json/nlohmann_json
         DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
         COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
         ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL}
+        PATTERN BUILD.bazel EXCLUDE
         PATTERN ChangeLog.md EXCLUDE
         PATTERN CITATION.cff EXCLUDE
+        PATTERN .cirrus.yml EXCLUDE
         PATTERN .clang-format EXCLUDE
         PATTERN .clang-tidy EXCLUDE
         PATTERN docs EXCLUDE
@@ -565,16 +556,13 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json/nlohmann_json
         PATTERN .lgtm.yml EXCLUDE
         PATTERN Makefile EXCLUDE
         PATTERN meson.build EXCLUDE
+        PATTERN Package.swift EXCLUDE
         PATTERN README.md EXCLUDE
         PATTERN .reuse EXCLUDE
         PATTERN tests EXCLUDE
         PATTERN tools EXCLUDE
+        PATTERN WORKSPACE.bazel EXCLUDE
         PATTERN wsjcpp.yml EXCLUDE)
-
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy
-        DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-        ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
 
 # restore state
 
