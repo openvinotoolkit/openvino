@@ -17,6 +17,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
 #include "utils_quantize.hpp"
@@ -52,20 +53,25 @@ void write_u4_data(void* array, size_t index, uint32_t data) {
 };
 
 GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
-    auto const_1 = wrap_type<v0::Constant>();
+    auto const_1 = wrap_type<v0::Constant>();//Parameter
     auto const_2 = wrap_type<v0::Constant>();
     auto unsqueeze_1 = wrap_type<v0::Unsqueeze>({const_1, const_2});
     auto const_abs = wrap_type<v0::Constant>();
     auto abs = wrap_type<v0::Abs>({const_abs});
-    auto broadcast_3 = wrap_type<ov::op::v3::Broadcast>({unsqueeze_1, abs});
-    auto const_6 = wrap_type<v0::Constant>();
-    auto const_7 = wrap_type<v0::Constant>();
-    auto unsqueeze_2 = wrap_type<v0::Unsqueeze>({const_6, const_7});
-    auto bitwise_right_shift = wrap_type<ov::op::util::FrameworkNode>({broadcast_3, unsqueeze_2});
+    auto broadcast = wrap_type<ov::op::v3::Broadcast>({unsqueeze_1, abs});
+    auto const_3 = wrap_type<v0::Constant>();//Parameter
+    auto const_4 = wrap_type<v0::Constant>();
+    auto unsqueeze_2 = wrap_type<v0::Unsqueeze>({const_3, const_4});
+    auto bitwise_right_shift = wrap_type<ov::op::util::FrameworkNode>({broadcast, unsqueeze_2});
     auto convert_1 = wrap_type<v0::Convert>({bitwise_right_shift});
-    auto const_8 = wrap_type<v0::Constant>();
-    auto convert_2 = wrap_type<v0::Convert>({const_8});
-    auto bitwise_and = wrap_type<ov::op::v13::BitwiseAnd>({convert_1, convert_2});
+    auto const_5 = wrap_type<v0::Constant>();
+    auto convert_3 = wrap_type<v0::Convert>({bitwise_right_shift});
+    auto convert_4 = wrap_type<v0::Convert>({const_5});
+    auto add = wrap_type<v1::Add>({convert_3, convert_4});
+    auto add_or_convert = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{add, convert_1});
+    auto const_6 = wrap_type<v0::Constant>();
+    auto convert_2 = wrap_type<v0::Convert>({const_6});
+    auto bitwise_and = wrap_type<ov::op::v13::BitwiseAnd>({add_or_convert, convert_2});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         auto bitwise_and = m.get_match_root();
@@ -131,22 +137,23 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
 };
 
 GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
-    auto const_1_1 = wrap_type<v0::Constant>();
-    auto convert_1 = wrap_type<v0::Convert>({const_1_1});
-    auto const_1_2 = wrap_type<v0::Constant>();
-    auto convert_2 = wrap_type<v0::Convert>({const_1_2});
-    auto add = wrap_type<v1::Add>({convert_1, convert_2});
+    auto const_1 = wrap_type<v0::Constant>();
+    auto convert_1 = wrap_type<v0::Convert>({const_1});
     auto const_2 = wrap_type<v0::Constant>();
-    auto reshape_1 = wrap_type<v1::Reshape>({add, const_2});
-    auto const_3_1 = wrap_type<v0::Constant>();
-    auto convert_4 = wrap_type<v0::Convert>({const_3_1});
-    auto const_3_2 = wrap_type<v0::Constant>();
-    auto reshape_2 = wrap_type<v1::Reshape>({convert_4, const_3_2});
+    auto convert_2 = wrap_type<v0::Convert>({const_2});
+    auto add = wrap_type<v1::Add>({convert_1, convert_2});
+    auto const_3 = wrap_type<v0::Constant>();
+    auto add_or_convert = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{add, convert_1});
+    auto reshape_1 = wrap_type<v1::Reshape>({add_or_convert, const_3});
+    auto const_4 = wrap_type<v0::Constant>();
+    auto convert_4 = wrap_type<v0::Convert>({const_4});
+    auto const_5 = wrap_type<v0::Constant>();
+    auto reshape_2 = wrap_type<v1::Reshape>({convert_4, const_5});
     auto subtract = wrap_type<v1::Subtract>({reshape_2, reshape_1});
     auto convert_3 = wrap_type<v0::Convert>({subtract});
-    auto const_4_1 = wrap_type<v0::Constant>();
-    auto const_4_2 = wrap_type<v0::Constant>();
-    auto reshape_3 = wrap_type<v1::Reshape>({const_4_1, const_4_2});
+    auto const_6 = wrap_type<v0::Constant>();
+    auto const_7 = wrap_type<v0::Constant>();
+    auto reshape_3 = wrap_type<v1::Reshape>({const_6, const_7});
 
     auto mult = wrap_type<v1::Multiply>({reshape_3, convert_3});
 
@@ -156,7 +163,10 @@ GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
             return false;
         }
         const auto& pattern_map = m.get_pattern_value_map();
-        auto convert_2_node = pattern_map.at(convert_2).get_node_shared_ptr();
+        std::shared_ptr<ov::Node> convert_2_node = nullptr;
+        if (pattern_map.find(convert_2) != pattern_map.end()) {
+            convert_2_node = pattern_map.at(convert_2).get_node_shared_ptr();
+        }
         auto convert_1_node = pattern_map.at(convert_1).get_node_shared_ptr();
         auto convert_4_node = pattern_map.at(convert_4).get_node_shared_ptr();
         auto reshape_node = pattern_map.at(reshape_1).get_node_shared_ptr();
@@ -169,17 +179,20 @@ GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
             return false;
         }
         auto add_in0_ptr = add_input0_const->get_data_ptr<uint8_t>();
-        auto convert_2_input_const =
-            std::dynamic_pointer_cast<v0::Constant>(convert_2_node->get_input_node_shared_ptr(0));
-        auto add_in1_ptr = convert_2_input_const->get_data_ptr<uint8_t>();
-        if (!add_in1_ptr)
-            return false;
+        uint32_t add_val = 0;
+        if (convert_2_node) {
+            auto convert_2_input_const =
+                std::dynamic_pointer_cast<v0::Constant>(convert_2_node->get_input_node_shared_ptr(0));
+            auto add_in1_ptr = convert_2_input_const->get_data_ptr<uint8_t>();
+            if (!add_in1_ptr)
+                return false;
+            add_val = (uint32_t)(add_in1_ptr[0] & 0x0F);
+        }
         auto add_in0_shape = add_input0_const->get_shape();
         auto static_shape_1 = reshape_node->get_shape();
         size_t add_in0_size = shape_size(add_in0_shape);
         auto add_replace_const = std::make_shared<v0::Constant>(element::f32, static_shape_1);
         auto add_replace_ptr = const_cast<float*>(reinterpret_cast<const float*>(add_replace_const->get_data_ptr()));
-        uint32_t add_val = (uint32_t)(add_in1_ptr[0] & 0x0F);
 
         if (!add_replace_ptr || (add_in0_size != shape_size(add_replace_const->get_shape()))) {
             return false;
