@@ -75,7 +75,6 @@ struct StringTensorPackContext {
 
 template<typename T_idx>
 struct StringTensorPack::StringTensorPackExecute {
-    //using T_index = typename std::tuple_element<1, T>::type;
     void operator()(StringTensorPackContext& ctx) {
             ctx.node.executeImpl<T_idx>();
         }
