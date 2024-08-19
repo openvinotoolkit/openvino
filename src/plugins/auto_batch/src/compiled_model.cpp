@@ -64,6 +64,7 @@ CompiledModel::GetWorkerInferRequest() const {
             workerRequestPtr->_infer_request_batched._so = m_compiled_model_with_batch._so;
         workerRequestPtr->_batch_size = m_device_info.device_batch_size;
         workerRequestPtr->_completion_tasks.resize(workerRequestPtr->_batch_size);
+        workerRequestPtr->_is_wakeup = false;
         workerRequestPtr->_infer_request_batched->set_callback(
             [workerRequestPtr](std::exception_ptr exceptionPtr) mutable {
                 if (exceptionPtr)
@@ -74,14 +75,19 @@ CompiledModel::GetWorkerInferRequest() const {
                     workerRequestPtr->_completion_tasks[c]();
                 }
                 // reset the timeout
+                workerRequestPtr->_is_wakeup = true;
                 workerRequestPtr->_cond.notify_one();
             });
 
         workerRequestPtr->_thread = std::thread([workerRequestPtr, this] {
             while (1) {
                 std::cv_status status;
-                std::unique_lock<std::mutex> lock(workerRequestPtr->_mutex);
-                status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(m_time_out));
+                {
+                    std::unique_lock<std::mutex> lock(workerRequestPtr->_mutex);
+                    status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(m_time_out));
+                    if ((status != std::cv_status::timeout) && (workerRequestPtr->_is_wakeup == false))
+                        continue;
+                }
                 if (m_terminate) {
                     break;
                 } else {
