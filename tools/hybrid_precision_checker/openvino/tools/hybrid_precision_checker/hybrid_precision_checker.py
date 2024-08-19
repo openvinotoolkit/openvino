@@ -146,7 +146,7 @@ class ModelRunner:
         exec_time = 0
         iteration = 0
         times = []
-        start_time = datetime.utcnow()
+        start_time = datetime.now()
         in_fly = set()
         while data_queue.has_next_input():
             processed_frames += 1

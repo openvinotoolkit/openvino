@@ -68,10 +68,14 @@ def search_loop(path_to_model, path_to_model_bin, data_shape, data_queue, res_qu
     # first round bf16 evaluation
     runner_bf16, _ = init_model(
         path_to_model, path_to_model_bin, "bf16", data_shape, 16)
+    
     res_queue_bf16, perfs_count_list_bf16 = hyper_checker_infer(
         runner_bf16, data_queue)
+    
     right, total = results_cmp.compare_results(res_queue_fp32, res_queue_bf16)
+    
     accuracy_loss = 1.0 - right*1.0/total
+    
     bf16_list, average_time = parser_perf_counters(perfs_count_list_bf16)
 
     searcher.init_searcher(bf16_list)

@@ -29,7 +29,7 @@ class FP32FallbackSearcher:
         return False
 
     def next_config(self):
-        # logger.debug(f"%%%  best_config={best_config}   {len(potential_bf16_ops_list)} round to search %%%")
+        # logger.debug(f"%%%  best_config={self.best_config}   {len(self.potential_bf16_ops_list)} round to search %%%")
         if len(self.potential_bf16_ops_list) == 0:
             return None
         potential_force_fp32_set = self.force_use_fp32_ops.copy()
