@@ -49,10 +49,10 @@ using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
 template <typename TableExtension>
 class LevelZeroCompilerInDriver final : public ICompiler {
 public:
-    LevelZeroCompilerInDriver(const char* extName,
-                              ze_driver_handle_t driverHandle,
+    LevelZeroCompilerInDriver(ze_driver_handle_t driverHandle,
                               ze_device_handle_t deviceHandle,
-                              ze_context_handle_t zeContext);
+                              ze_context_handle_t zeContext,
+                              ze_graph_dditable_ext_last_t* graph_ddi_table_ext);
     LevelZeroCompilerInDriver(const LevelZeroCompilerInDriver&) = delete;
     LevelZeroCompilerInDriver& operator=(const LevelZeroCompilerInDriver&) = delete;
     ~LevelZeroCompilerInDriver() override;
@@ -187,30 +187,16 @@ private:
 };
 
 template <typename TableExtension>
-LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(const char* extName,
-                                                                     ze_driver_handle_t driverHandle,
+LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(ze_driver_handle_t driverHandle,
                                                                      ze_device_handle_t deviceHandle,
-                                                                     ze_context_handle_t zeContext)
+                                                                     ze_context_handle_t zeContext,
+                                                                     ze_graph_dditable_ext_last_t* graph_ddi_table_ext)
     : _driverHandle(driverHandle),
+      _graphDdiTableExt(reinterpret_cast<TableExtension*>(graph_ddi_table_ext)),
       _logger("LevelZeroCompilerInDriver", Logger::global().level()) {
     // Aceept context from adapter
     _context = zeContext;
     _deviceHandle = deviceHandle;
-
-    // Load our graph extension
-    auto result =
-        zeDriverGetExtensionFunctionAddress(_driverHandle, extName, reinterpret_cast<void**>(&_graphDdiTableExt));
-
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("Failed to initialize zeDriver. Error code: ", std::hex, result);
-    }
-
-    uint32_t deviceCount = 1;
-    // Get our target device
-    result = zeDeviceGet(_driverHandle, &deviceCount, &_deviceHandle);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("Failed to get device. Error code: ", std::hex, result);
-    }
 }
 
 }  // namespace driverCompilerAdapter

@@ -167,7 +167,6 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     }
 
     // Load our graph extension
-    ze_graph_dditable_ext_last_t* graph_ddi_table_ext = nullptr;
     zeroUtils::throwOnFail("zeDriverGetExtensionFunctionAddress",
                            zeDriverGetExtensionFunctionAddress(driver_handle,
                                                                graph_ext_name.c_str(),
@@ -210,27 +209,8 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     // Copy the contents of the string to the char array
     std::strcpy(graphExtName, graph_ext_name.c_str());
 
-    for (uint32_t i = 0; i < count; ++i) {
-        auto& property = extProps[i];
-
-        if (strncmp(property.name, ZE_GRAPH_EXT_NAME, strlen(ZE_GRAPH_EXT_NAME)) != 0) {
-            continue;
-        }
-
-        // If the driver version is latest, will just use its name.
-        if (property.version == ZE_GRAPH_EXT_VERSION_CURRENT) {
-            targetVersion = property.version;
-            break;
-        }
-
-        // Use the latest version supported by the driver.
-        if (property.version > targetVersion) {
-            targetVersion = property.version;
-        }
-    }
-
     const uint16_t adapterMajorVersion = 1;
-    uint16_t driverMajorVersion = ZE_MAJOR_VERSION(targetVersion);
+    uint16_t driverMajorVersion = ZE_MAJOR_VERSION(driver_ext_version);
     if (adapterMajorVersion != driverMajorVersion) {
         OPENVINO_THROW("ze_init.cpp: adapterMajorVersion: ",
                        adapterMajorVersion,
@@ -243,15 +223,15 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     auto adapterManualConfig = std::getenv("ADAPTER_MANUAL_CONFIG");
     if (adapterManualConfig != nullptr) {
         if (strcmp(adapterManualConfig, "ZE_extension_graph_1_6") == 0) {
-            targetVersion = ZE_GRAPH_EXT_VERSION_1_6;
+            driver_ext_version = ZE_GRAPH_EXT_VERSION_1_6;
         } else if (strcmp(adapterManualConfig, "ZE_extension_graph_1_5") == 0) {
-            targetVersion = ZE_GRAPH_EXT_VERSION_1_5;
+            driver_ext_version = ZE_GRAPH_EXT_VERSION_1_5;
         } else if (strcmp(adapterManualConfig, "ZE_extension_graph_1_4") == 0) {
-            targetVersion = ZE_GRAPH_EXT_VERSION_1_4;
+            driver_ext_version = ZE_GRAPH_EXT_VERSION_1_4;
         } else if (strcmp(adapterManualConfig, "ZE_extension_graph_1_3") == 0) {
-            targetVersion = ZE_GRAPH_EXT_VERSION_1_3;
+            driver_ext_version = ZE_GRAPH_EXT_VERSION_1_3;
         } else if (strcmp(adapterManualConfig, "ZE_extension_graph_1_2") == 0) {
-            targetVersion = ZE_GRAPH_EXT_VERSION_1_2;
+            driver_ext_version = ZE_GRAPH_EXT_VERSION_1_2;
         } else {
             OPENVINO_THROW("Using unsupported ADAPTER_MANUAL_CONFIG!");
         }
