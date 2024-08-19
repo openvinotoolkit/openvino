@@ -254,6 +254,7 @@ private:
     void EnforceInferencePrecision();
     void EnforceBF16();
     void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
+    int GetNumaNodeId() const;
 };
 
 using GraphPtr = std::shared_ptr<Graph>;
