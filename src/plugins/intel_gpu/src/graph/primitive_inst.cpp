@@ -28,6 +28,7 @@
 #include "read_value_inst.h"
 #include "kv_cache_inst.h"
 #include "condition_inst.h"
+#include "paged_attention_inst.h"
 #include "gather_inst.h"
 #include "broadcast_inst.h"
 #include "dynamic_quantize_inst.h"
@@ -395,6 +396,12 @@ void primitive_inst::update_shape() {
 
         auto dep_mem = dep->output_memory_ptr(dep_port);
         memory_deps.insert({i, dep_mem});
+
+        // Ignore shape infer dependency for input_layout when processing paged_attention nodes
+        if (get_node().is_type<paged_attention>() && dep->get_node().is_type<input_layout>()) {
+            continue;
+        }
+
         if (!get_node().is_type<shape_of>() && !dep->get_node().is_in_shape_of_subgraph()) {
             has_runtime_deps = true;
 
@@ -832,7 +839,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     {
         if (_impl == nullptr)
             return ev;
-        const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
+        const auto& ibuf_layouts = _impl->get_internal_buffer_layouts(*_impl_params);
         if (ibuf_layouts.empty())
             return ev;
         GPU_DEBUG_CODE(std::string memalloc_info = "");
@@ -1813,6 +1820,12 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
         allocate_memory = _mem_allocated = available_allocate_memory(_impl_params->output_layouts);
     }
 
+    // Do not allocate zero buffers for constant and reuse memory from program node
+    // if (_is_constant && get_output_layout().count() == 0) {
+    //     _outputs[0] = node.as<data>().get_attached_memory_ptr();
+    //     allocate_memory = false;
+    // }
+
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // synchronization, The output memory of such primitive will be fused with mutable_data
@@ -1863,7 +1876,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
 memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return nullptr;
-    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
+    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts(*_impl_params);
     if (ibuf_layouts.empty())
         return nullptr;
 
@@ -1904,10 +1917,13 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     }
     // allocate intermediate memory for the updated layout of buffer
     auto layout = ibuf_layouts[idx];
-    GPU_DEBUG_LOG << "[" << _node->id() << ": internal buf " << idx << "]" << std::endl;
     auto alloc_type = allocation_type::unknown;
+    const auto& lockable_buffers_indexes = _impl->get_lockable_internal_buffers(*_impl_params);
+    auto need_lockable_allocation = lockable_buffers_indexes.find(idx) != lockable_buffers_indexes.end();
+    GPU_DEBUG_LOG << "[" << _node->id() << ": internal buf " << idx << "] "
+                  << layout.to_short_string() << " need_lockable_allocation=" << need_lockable_allocation << std::endl;
     if ((int64_t)available_device_mem_size - (int64_t)layout.bytes_count() >= 0 &&
-        (input_device_mem || _node->get_preferred_impl_type() == impl_types::onednn)) {
+        (input_device_mem || _node->get_preferred_impl_type() == impl_types::onednn) && !need_lockable_allocation) {
         // scratchpad memory type enforces to device mem.
         GPU_DEBUG_LOG << " input is device mem and available device mem size (" << available_device_mem_size
                       << ") > requested memory (" << layout.bytes_count() << " )" << std::endl;
@@ -1940,7 +1956,7 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
 void primitive_inst::allocate_internal_buffers(bool reset) {
     if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return;
-    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
+    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts(*_impl_params);
     if (ibuf_layouts.empty())
         return;
 

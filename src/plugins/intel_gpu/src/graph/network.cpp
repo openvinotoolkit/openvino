@@ -26,6 +26,7 @@
 #include "primitive_inst.h"
 #include "input_layout_inst.h"
 #include "fully_connected_inst.h"
+#include "paged_attention_inst.h"
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
 #include "mutable_data_inst.h"
@@ -747,13 +748,25 @@ std::string network::get_primitive_info(const primitive_id& id) const {
     return node.type()->to_string(node);
 }
 
-bool network::is_cpu_impl(const primitive_id& id) const {
+bool network::does_node_need_lockable_output(const primitive_id& id) const {
     auto prim_inst = find_primitive(id);
 
     OPENVINO_ASSERT(prim_inst, "[GPU] Can't get implementation type, since topology ",
                                "doesn't contain primitive with requested id: ", id);
 
-    return prim_inst->get_impl() ? prim_inst->get_impl()->is_cpu() : true;
+    const auto& node = prim_inst->get_node();
+    if (node.is_type<input_layout>()) {
+        for (const auto& user : node.get_users()) {
+            const auto& lockable_input_ids = user->get_lockable_input_ids();
+            if (lockable_input_ids.count(user->get_dependency_index(node))) {
+                return true;
+            }
+        }
+
+        return false;
+    } else {
+        return prim_inst->get_impl() ? prim_inst->get_impl()->is_cpu() : true;
+    }
 }
 
 std::string network::get_implementation_info(const primitive_id& id) const {
@@ -1515,8 +1528,10 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
     if (!get_engine().get_device_info().has_separate_cache)
         return;
 
-
     if (node.is_shape_infer_dep())
+        return;
+
+    if (inst_mem.count() == 0)
         return;
 
     if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {

@@ -150,7 +150,7 @@ protected:
         return args;
     }
 
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+    std::vector<layout> get_internal_buffer_layouts_impl(const kernel_impl_params& /*params*/) const override {
         const auto& prim_params = static_cast<const kernel_selector::border_params&>(*_kernel_data.params);
         std::vector<layout> layouts;
 
