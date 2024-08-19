@@ -145,6 +145,7 @@ jobs:
 
       - name: CMake - configure
         run: |
+          export CC=gcc && export CXX=g++
           cmake \
             -G '${{ env.CMAKE_GENERATOR }}' \
             -DENABLE_INTEL_GPU=ON \
@@ -179,7 +180,7 @@ jobs:
         run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake - build
-        run: cmake --build ${BUILD_DIR} --parallel
+        run: export CC=gcc && export CXX=g++ && cmake --build ${BUILD_DIR} --parallel
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
