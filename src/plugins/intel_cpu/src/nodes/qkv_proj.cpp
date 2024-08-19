@@ -14,7 +14,6 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/plain_tensor.hpp"
 
-#include "/home/tingqian/tingqian/aboutSHW/include/linux_perf.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -45,12 +44,11 @@ static std::vector<int> allocate_workers(const std::vector<int>& grouped_works, 
 
 struct QKVProjection::Impl {
     std::vector<Work> works;
-    std::vector<PlainTensor> m_tempC;
     QKVProjection * m_node;
     DnnlScratchPadPtr m_scrachPad;
     MemoryPtr m_scratchMem;
     uint8_t* m_scratch_base = nullptr;
-    int m_M;
+    int m_M = 0;
 
     WeightBuffer wbuffer;
 
@@ -112,15 +110,12 @@ struct QKVProjection::Impl {
         
         wbuffer.alloc(works);
 
-        auto prof = LinuxPerf::Profile("Impl_work::setup");
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 work.setup(wbuffer.get(ithr), work.p_raw_weights, stride);
             }
         });
-
-        m_tempC.resize(nthr);
     }
 
     void setM(int M) {
@@ -131,20 +126,23 @@ struct QKVProjection::Impl {
         if (m_M < M || cur_scratch_base != m_scratch_base) {
             size_t total_scratch_size = 0;
             std::vector<size_t> scratch_offsets;
-            std::vector<size_t> scratch_C_sizes;
-            for (size_t ithr = 0; ithr < m_tempC.size(); ithr++) {
-                scratch_offsets.push_back(total_scratch_size);
-                auto max_C_size = works[ithr].get_C_size(M);
-                scratch_C_sizes.push_back(max_C_size);
-                total_scratch_size += max_C_size * sizeof(float);
+            for(auto& work : works) {
+                if (work) {
+                    scratch_offsets.push_back(total_scratch_size);
+                    auto C_size = work.set_C(M, reinterpret_cast<float*>(cur_scratch_base));
+                    total_scratch_size += C_size;
+                }
             }
 
             auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, Shape{total_scratch_size});
             m_scratchMem = m_scrachPad->createScratchPadMem(newMemDesc);
 
             m_scratch_base = m_scratchMem->getDataAs<uint8_t>();
-            for (size_t ithr = 0; ithr < m_tempC.size(); ithr++) {
-                m_tempC[ithr].resize<float>({1, scratch_C_sizes[ithr]}, reinterpret_cast<float*>(m_scratch_base + scratch_offsets[ithr]));
+            for (size_t ithr = 0; ithr < works.size(); ithr++) {
+                auto& work = works[ithr];
+                if (work) {
+                    work.set_C(M, reinterpret_cast<float*>(m_scratch_base + scratch_offsets[ithr]));
+                }
             }
 
             m_M = M;
@@ -178,13 +176,12 @@ struct QKVProjection::Impl {
 
             ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
                 auto& work = works[ithr];
-                auto& C = m_tempC[ithr];
-                if (work.BN > 0) {
-                    work.run(BM, pA, strideA, C);
+                if (work) {
+                    work.run(BM, pA, strideA);
 
                     // compress accumulation result into target
-                    auto* src = C.ptr<float>();
-                    auto stride_src = C.stride(0);
+                    auto* src = work.m_C.ptr<float>();
+                    auto stride_src = work.m_C.stride(0);
                     ov::bfloat16* dst = nullptr;
                     int stride_dst = 0;
                     if (work.output_id == 0) {
@@ -225,14 +222,12 @@ struct QKVProjection::Impl {
 
 void QKVProjection::prepareParams() {
     if (!m_pimpl) {
-        auto prof = LinuxPerf::Profile("QKVProjection::create");
         m_pimpl = std::make_shared<Impl>(this, context->getScratchPad());
     }
 }
 
 void QKVProjection::execute(dnnl::stream strm) {
     MAYBE_UNUSED(strm);
-    auto prof = LinuxPerf::Profile("QKVProjection::execute");
     m_pimpl->execute();
 }
 

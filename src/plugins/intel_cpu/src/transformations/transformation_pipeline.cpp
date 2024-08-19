@@ -828,8 +828,8 @@ void Transformations::PostLpt() {
     auto can_use_amx_bf16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) && (inferencePrecision == element::bf16);
     if (can_use_amx_bf16) {
         //auto has_paged_attention = op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model);
-        auto has_paged_attention = std::getenv("HAS_PA") ? true : false;
-        if (has_paged_attention) {
+        auto has_paged_attention = std::getenv("HAS_PA") ? atoi(std::getenv("HAS_PA")) : 0;
+        if (has_paged_attention & 1) {
             CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
             CPU_SET_CALLBACK_X64(postLPTPassManager,
                 [](const_node_ptr &node) -> bool {
@@ -844,7 +844,7 @@ void Transformations::PostLpt() {
         if (concurrency == 0)
             concurrency = parallel_get_max_threads();
         if (concurrency >= 3) {
-            if (has_paged_attention) {
+            if (has_paged_attention & 2) {
                 CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
                 CPU_SET_CALLBACK_X64(postLPTPassManager,
                     [](const_node_ptr &node) -> bool {
@@ -855,6 +855,7 @@ void Transformations::PostLpt() {
             }
         }
     }
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::PrintModel, "_model.cpp");
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
     // markup Rope Input when BF16/F16 inference.

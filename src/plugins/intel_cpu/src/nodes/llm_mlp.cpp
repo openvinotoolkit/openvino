@@ -14,8 +14,6 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/plain_tensor.hpp"
 
-#include "/home/tingqian/tingqian/aboutSHW/include/linux_perf.hpp"
-
 #if defined(OPENVINO_ARCH_X86_64)
 #include "kernels/x64/mlp_kernel.hpp"
 #endif
@@ -114,7 +112,6 @@ public:
 
         wbuffer.alloc(works);
 
-        auto prof = LinuxPerf::Profile("down_work.setup");
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
@@ -124,19 +121,19 @@ public:
         DEBUG_LOG("   setup is done. weight @ ", static_cast<void*>(p_weight));
     }
 
-    void run(uint8_t* pA, int strideA, int M, ov::bfloat16* dstC, int strideC, std::vector<PlainTensor>& m_tempC) {
+    void run(uint8_t* pA, int strideA, int M, ov::bfloat16* dstC, int strideC) {
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
-            auto& workC = m_tempC[ithr];
+            auto& workC = work.m_C;
             if (work) {
-                work.run(M, pA, strideA, workC);
+                work.run(M, pA, strideA);
 
                 if (do_splitK) {
                     auto sync_id = work.sync_flag->fetch_add(1);
                     // (0,1) (2,3)
                     if (sync_id & 1) {
                         auto peer_ithr = (ithr & 1) ? (ithr - 1) : (ithr + 1);
-                        auto& peerC = m_tempC[peer_ithr];
+                        auto& peerC = works[peer_ithr].m_C;
                         // the other one has finished, we can do the reduce sum
                         jit_reduce2bh_2.call(workC.ptr<float>(), peerC.ptr<float>(), workC.stride(0),
                                              dstC + work.n0, strideC / sizeof(*dstC),
@@ -212,7 +209,6 @@ public:
         wbuffer.alloc(works);
 
         DEBUG_LOG("Linear N,K=", N, ",", K, " used_nthr=", used_nthr);
-        auto prof = LinuxPerf::Profile("gate_up_work.setup");
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
@@ -225,8 +221,7 @@ public:
     // gate & up are interleaved: 16 gates + 16 up
     void runGateUp(uint8_t* pA, int strideA, int M,
                    ov::bfloat16* dstC, int strideC,
-                   const LLMMLPNode::Config& config,
-                   std::vector<PlainTensor>& m_tempC) {
+                   const LLMMLPNode::Config& config) {
         GateUpCombine* jit_gateup;
         if (config.act == LLMMLPNode::ACT_FN::GELU)
             jit_gateup = &jit_gateup_gelu;
@@ -237,12 +232,11 @@ public:
 
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
-            auto& workC = m_tempC[ithr];
-            if (work.BN > 0) {
-                work.run(M, pA, strideA, workC);
+            if (work) {
+                work.run(M, pA, strideA);
                 // K reduce is done, results of [M, BN] sub-block is ready in L2.
                 // combine Gate & Up
-                jit_gateup->call(workC.ptr<float>(), workC.stride(0),
+                jit_gateup->call(work.m_C.ptr<float>(), work.m_C.stride(0),
                                  dstC + (work.n0 / 2), strideC / sizeof(*dstC),
                                  M, work.BN);
             }
@@ -263,7 +257,6 @@ struct LLMMLP::Impl {
 
     // MLP is not supposed to run in parallel
     PlainTensor m_actUp;
-    std::vector<PlainTensor> m_tempC;
 
     // [M, K] x [N, K] => [M, N] x [K, N] => [M, K]
     // w_gate/w_up : [N, K]
@@ -277,12 +270,10 @@ struct LLMMLP::Impl {
         gate_up.setup(w_gate.ptr<ov::float16>(), w_up.ptr<ov::float16>(), w_up.stride_bytes(0), N * 2, K);
         down.setup(w_down.ptr<ov::float16>(), w_down.stride_bytes(0), K, N, true);
 
-        m_tempC.resize(parallel_get_max_threads());
         m_N = N;
     }
 
     void setM(int M) {
-        auto prof = LinuxPerf::Profile("Impl::setM");
         uint8_t* cur_scratch_base = nullptr;
         if (m_scratchMem)
             cur_scratch_base = m_scratchMem->getDataAs<uint8_t>();
@@ -290,12 +281,13 @@ struct LLMMLP::Impl {
         if (m_M < M || cur_scratch_base != m_scratch_base) {
             size_t total_scratch_size = M * m_N * sizeof(ov::bfloat16);
             std::vector<size_t> scratch_offsets;
-            std::vector<size_t> scratch_C_sizes;
-            for (size_t ithr = 0; ithr < m_tempC.size(); ithr++) {
+            auto nthr = parallel_get_max_threads();
+            for (int ithr = 0; ithr < nthr; ithr++) {
                 scratch_offsets.push_back(total_scratch_size);
-                auto max_C_size = std::max(gate_up.works[ithr].get_C_size(M), down.works[ithr].get_C_size(M));
-                scratch_C_sizes.push_back(max_C_size);
-                total_scratch_size += max_C_size * sizeof(float);
+                auto C1_size = gate_up.works[ithr].set_C(M, reinterpret_cast<float*>(cur_scratch_base));
+                auto C2_size = down.works[ithr].set_C(M, reinterpret_cast<float*>(cur_scratch_base));
+                auto max_C_size = std::max(C1_size, C2_size);
+                total_scratch_size += max_C_size;
             }
 
             auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, Shape{total_scratch_size});
@@ -304,8 +296,10 @@ struct LLMMLP::Impl {
             m_scratch_base = m_scratchMem->getDataAs<uint8_t>();
             m_actUp.resize<ov::bfloat16>({static_cast<size_t>(M), static_cast<size_t>(m_N)}, reinterpret_cast<ov::bfloat16*>(m_scratch_base));
 
-            for (size_t ithr = 0; ithr < m_tempC.size(); ithr++) {
-                m_tempC[ithr].resize<float>({1, scratch_C_sizes[ithr]}, reinterpret_cast<float*>(m_scratch_base + scratch_offsets[ithr]));
+            for (int ithr = 0; ithr < nthr; ithr++) {
+                auto C_base = reinterpret_cast<float*>(m_scratch_base + scratch_offsets[ithr]);
+                gate_up.works[ithr].set_C(M, C_base);
+                down.works[ithr].set_C(M, C_base);
             }
             m_M = M;
         }
@@ -328,16 +322,8 @@ struct LLMMLP::Impl {
         for (int m = 0; m < M;) {
             int BM = std::min(M - m, 256);
             setM(BM);
-
-            
-            {
-                auto prof = LinuxPerf::Profile("runGateUp", m);
-                gate_up.runGateUp(pA, strideA, BM, m_actUp.ptr<ov::bfloat16>(), m_actUp.stride_bytes(0), m_config, m_tempC);
-            }
-            {
-                auto prof = LinuxPerf::Profile("down", m);
-                down.run(reinterpret_cast<uint8_t*>(m_actUp.ptr<ov::bfloat16>()), m_actUp.stride_bytes(0), BM, dstC, strideC, m_tempC);
-            }
+            gate_up.runGateUp(pA, strideA, BM, m_actUp.ptr<ov::bfloat16>(), m_actUp.stride_bytes(0), m_config);
+            down.run(reinterpret_cast<uint8_t*>(m_actUp.ptr<ov::bfloat16>()), m_actUp.stride_bytes(0), BM, dstC, strideC);
 
             m += BM;
             pA += BM * strideA;
@@ -384,20 +370,17 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
 }
 
 void LLMMLP::prepareParams() {
-}
-
-void LLMMLP::execute(dnnl::stream strm) {
-    MAYBE_UNUSED(strm);
     if (!m_pimpl) {
-        auto prof = LinuxPerf::Profile("LLMMLP::create");
         m_pimpl = std::make_shared<Impl>(getSrcMemoryAtPort(1),
                                          getSrcMemoryAtPort(2),
                                          getSrcMemoryAtPort(3),
                                          m_mlp_config,
                                          context->getScratchPad());
     }
+}
 
-    auto prof = LinuxPerf::Profile("LLMMLP::execute");
+void LLMMLP::execute(dnnl::stream strm) {
+    MAYBE_UNUSED(strm);
     m_pimpl->execute(this);
 }
 

@@ -196,7 +196,6 @@ static FP16ToBF16Kernel fp16_to_bf16;
 
 template <typename T>
 void MKernel::repackB(ov::bfloat16* dst, T* src, int N_stride, int N, int K) {
-    //auto prof = LinuxPerf::Profile("repackB");
     if (N == 16 && K == 32 && (std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value)) {
         // SIMD optimized version
         ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst, src, N_stride * sizeof(T));
@@ -230,7 +229,6 @@ template <typename T>
 void MKernel::prepareB(PlainTensor& ret, ov::bfloat16* dst, T* p_weight, int stride, int N, int K) {
     OPENVINO_ASSERT((N % 32) == 0);
     OPENVINO_ASSERT((K % 32) == 0);
-    auto prof = LinuxPerf::Profile("repackB");
     // weight matrix is in unit of [N/32, Kx32]
     ret.resize<ov::bfloat16>({static_cast<size_t>(N / 32), static_cast<size_t>(K * 32)}, dst);
 
@@ -260,7 +258,6 @@ void MKernel::prepareB(PlainTensor& ret, ov::bfloat16* dst, T* p_weight1, T* p_w
     OPENVINO_ASSERT((N % 32) == 0);
     OPENVINO_ASSERT((K % 32) == 0);
     // weight matrix is in unit of [N/32, Kx32]
-    auto prof = LinuxPerf::Profile("repackB2");
     ret.resize<ov::bfloat16>({static_cast<size_t>(N / 32), static_cast<size_t>(K * 32)}, dst);
 
     auto N_stride = stride / sizeof(T);

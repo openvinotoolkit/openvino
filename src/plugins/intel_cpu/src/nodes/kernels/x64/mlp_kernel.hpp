@@ -173,24 +173,28 @@ struct Work {
     ov::Extensions::Cpu::TileConfig m_tcfg[32];
     AutoTileConfiger m_tile_configer;
 
-    size_t get_C_size(int M) {
+    PlainTensor m_C;
+
+    size_t set_C(int M, float * ext_buff) {
         auto Mtails = M % 32;
         auto Mbody = M - Mtails;
         auto C_M = Mbody + (Mtails ? 32 : 0);
-        return C_M * BN;
+        m_C.resize<float>({static_cast<size_t>(C_M), static_cast<size_t>(BN)}, ext_buff);
+        return C_M * BN * sizeof(float);
     }
 
-    void run(int M, uint8_t* pA, int strideA, PlainTensor& C) {
+    void run(int M, uint8_t* pA, int strideA) {
         auto& mkernel = get_MKernel();
 
         int num_blk_K = weights.size();
 
         auto Mtails = M % 32;
         auto Mbody = M - Mtails;
-
         auto C_M = Mbody + (Mtails ? 32 : 0);
-        C.resize<float>({static_cast<size_t>(C_M), static_cast<size_t>(BN)});
-        auto pC = reinterpret_cast<uint8_t*>(C.ptr_v());
+
+        auto C_stride_bytes = BN * sizeof(float);
+        OPENVINO_ASSERT(C_M * C_stride_bytes <= m_C.stride_bytes(0) * m_C.size(0));
+        auto pC = reinterpret_cast<uint8_t*>(m_C.ptr_v());
 
         pA += k0 * sizeof(ov::bfloat16);
         bool do_accumulation = false;
@@ -205,7 +209,7 @@ struct Work {
                             strideA,
                             blockB,
                             pC,
-                            C.stride_bytes(0),
+                            C_stride_bytes,
                             reinterpret_cast<uint8_t*>(blockB1.ptr_v()),
                             do_accumulation);
             }
@@ -216,8 +220,8 @@ struct Work {
                             pA + ki * blk_K_size * sizeof(ov::bfloat16) + Mbody * strideA,
                             strideA,
                             blockB,
-                            pC + Mbody * C.stride_bytes(0),
-                            C.stride_bytes(0),
+                            pC + Mbody * C_stride_bytes,
+                            C_stride_bytes,
                             reinterpret_cast<uint8_t*>(blockB1.ptr_v()),
                             do_accumulation);
             }
