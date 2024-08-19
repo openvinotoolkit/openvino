@@ -53,6 +53,7 @@ public:
     std::map<int, int> _numaid_mapping_table;
     std::mutex _cpu_mutex;
     int _socket_idx = 0;
+    bool _hbm_enabled = false;
 };
 
 CPU& cpu_info();
@@ -70,6 +71,7 @@ CPU& cpu_info();
 void parse_node_info_linux(const std::vector<std::string> node_info_table,
                            const int& _numa_nodes,
                            int& _sockets,
+                           bool& _hbm_enabled,
                            std::vector<std::vector<int>>& _proc_type_table,
                            std::vector<std::vector<int>>& _cpu_mapping_table);
 
@@ -91,6 +93,7 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                             int& _numa_nodes,
                             int& _sockets,
                             int& _cores,
+                            bool& _hbm_enabled,
                             std::vector<std::vector<int>>& _proc_type_table,
                             std::vector<std::vector<int>>& _cpu_mapping_table);
 
@@ -112,6 +115,7 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
                            int& _numa_nodes,
                            int& _sockets,
                            int& _cores,
+                           bool& _hbm_enabled,
                            std::vector<std::vector<int>>& _proc_type_table,
                            std::vector<std::vector<int>>& _cpu_mapping_table);
 
