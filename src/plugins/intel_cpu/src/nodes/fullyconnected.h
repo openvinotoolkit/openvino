@@ -22,6 +22,15 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+// tensor parallel config
+struct FCTensorParallelConfig {
+    int w_rank = -1;
+    int w_size = -1;
+    int id = 0;
+    bool enable_tensor_parallel = false;
+    std::shared_ptr<SubMemoryManager> sub_memory = nullptr;
+};
+
 class FullyConnected : public Node {
 public:
     FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
@@ -78,6 +87,11 @@ private:
     void needPrepareParamsForTensorParallel();
     void initTensorParallelSync();
     void execTensorParallelSync();
+    void needSplitMemoryForTensorParallel();
+    void needSplitScaleForTensorParallel(const MemoryCPtr& memory);
+    void needUpdateScaleForTensorParallel();
+    void needSplitZeroPointForTensorParallel(const MemoryCPtr& memory);
+    void needUpdateZeroPointForTensorParallel();
 
     FCAttrs attrs;
     PostOps postOps;
@@ -86,20 +100,12 @@ private:
     ExecutorPtr executor = nullptr;
     std::string errorPrefix;
 
-    // tensor parallel
-    int w_rank = -1;
-    int w_size = -1;
-    int id = 0;
-    std::shared_ptr<SubMemoryManager> sub_memory = nullptr;
-    bool enable_tensor_parallel = false;
+    FCTensorParallelConfig tp_cfg;
     MemoryPtr cached_splited_weight = nullptr;
     MemoryPtr cached_splited_bias = nullptr;
     MemoryPtr cached_scale = nullptr;
     MemoryPtr cached_zeropoint = nullptr;
     MemoryPtr cached_dst = nullptr;
-    // cache sub_dst
-    // std::vector<MemoryPtr> cur_dst_vec;
-    Shape dst_shape;
     MemoryDescPtr memory_desc;
 };
 
