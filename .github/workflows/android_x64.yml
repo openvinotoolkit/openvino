@@ -154,6 +154,7 @@ jobs:
             -DENABLE_SYSTEM_PUGIXML=ON \
             -DENABLE_SYSTEM_SNAPPY=ON \
             -DENABLE_SYSTEM_TBB=ON \
+            -DENABLE_INTEL_NPU=OFF \
             -DENABLE_SYSTEM_FLATBUFFERS=ON \
             -DANDROID_ABI=${{ env.ANDROID_ABI_CONFIG }} \
             -DANDROID_PLATFORM=${{ env.ANDROID_SDK_VERSION }} \
