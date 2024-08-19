@@ -60,20 +60,23 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     return true;
 }
 
+void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr context) {
+    if (context->getCPUStreamExecutor()) {
+        if (!context->getCPUStreamExecutor()->get_rank().empty()) {
+            // init tp_cfg.w_rank and tp_cfg.w_size
+            tp_cfg.w_rank = context->getCPUStreamExecutor()->get_rank()[0];
+            tp_cfg.w_size = ov::threading::message_manager()->get_num_sub_streams();
+            tp_cfg.enable_tensor_parallel = tp_cfg.w_size > 1 ? true : false;
+            tp_cfg.sub_memory = context->getSubMemory();
+        }
+    }
+}
+
 FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, FCShapeInferFactory(op)),
       errorPrefix("FullyConnected node with name '" + getName() + "'") {
-    if (context->getCPUStreamExecutor()) {
-        if (!context->getCPUStreamExecutor()->get_rank().empty()) {
-            // init w_rank and w_size
-            w_rank = context->getCPUStreamExecutor()->get_rank()[0];
-            w_size = ov::threading::message_manager()->get_num_sub_streams();
-            // cur_dst_vec = std::vector<MemoryPtr>(w_size, nullptr);
-            enable_tensor_parallel = w_size > 1 ? true : false;
-            sub_memory = context->getSubMemory();
-        }
-    }
     std::string errorMessage;
+    initTensorParallelConfig(context);
     if (!isSupportedOperation(op, errorMessage))
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
 }
@@ -85,8 +88,8 @@ bool FullyConnected::canBeExecutedInInt8() const {
     return one_of(srcType, ov::element::u8, ov::element::i8) && weiType == ov::element::i8;
 }
 
-ExecutorPtr FullyConnected::createExecutor() {
-    if (enable_tensor_parallel) {
+void FullyConnected::needPrepareParamsForTensorParallel() {
+    if (tp_cfg.enable_tensor_parallel) {
         // must call in dynamic
         const auto dstMemoryBuffer = getDstMemoryAtPort(0);
 
@@ -98,21 +101,24 @@ ExecutorPtr FullyConnected::createExecutor() {
         };
 
         int dim = -1;
-        dst_shape = dstMemoryBuffer->getShape();
+        auto dst_shape = dstMemoryBuffer->getShape();
         auto dst_desc = dstMemoryBuffer->getDescPtr();
         auto dims = dst_shape.getDims();
         if (dim < 0) {
             dim += dims.size();
         }
-        assert(dims[dim] >= w_size);
-        auto splited_dim_vec = split_parts(dims[dim], w_size);
+        assert(dims[dim] >= tp_cfg.w_size);
+        auto splited_dim_vec = split_parts(dims[dim], tp_cfg.w_size);
 
         VectorDims new_dims = dims;
-        new_dims[dim] = splited_dim_vec[w_rank];
+        new_dims[dim] = splited_dim_vec[tp_cfg.w_rank];
         memory_desc = dst_desc->cloneWithNewDims(new_dims, true);
         cached_dst->redefineDesc(memory_desc);
         memory[ARG_DST] = cached_dst;
     }
+}
+
+ExecutorPtr FullyConnected::createExecutor() {
     const auto& executor = factory->make(memory);
     getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
 
@@ -120,32 +126,31 @@ ExecutorPtr FullyConnected::createExecutor() {
 }
 
 void FullyConnected::prepareParams() {
+    needPrepareParamsForTensorParallel();
     executor = createExecutor();
 }
 
-void FullyConnected::execute(dnnl::stream strm) {
-    if (enable_tensor_parallel) {
-        id = sub_memory->get_memory_id(w_rank);
-        sub_memory->set_memory_used(id, w_rank);
+void FullyConnected::initTensorParallelSync() {
+    if (tp_cfg.enable_tensor_parallel) {
+        tp_cfg.id = tp_cfg.sub_memory->get_memory_id(tp_cfg.w_rank);
+        tp_cfg.sub_memory->set_memory_used(tp_cfg.id, tp_cfg.w_rank);
         while (true) {
-            std::lock_guard<std::mutex> lock(sub_memory->_flagMutex);
-            if (sub_memory->_use_count[id] == w_size) {
-                sub_memory->_use_count[id] = 0;
-                for (int i = 0; i < w_size; i++) {
-                    sub_memory->_memorys_table[id][i].flag = false;
+            std::lock_guard<std::mutex> lock(tp_cfg.sub_memory->_flagMutex);
+            if (tp_cfg.sub_memory->_use_count[tp_cfg.id] == tp_cfg.w_size) {
+                tp_cfg.sub_memory->_use_count[tp_cfg.id] = 0;
+                for (int i = 0; i < tp_cfg.w_size; i++) {
+                    tp_cfg.sub_memory->_memorys_table[tp_cfg.id][i].flag = false;
                 }
             }
-            if (sub_memory->_use_count[id] == 0) {
+            if (tp_cfg.sub_memory->_use_count[tp_cfg.id] == 0) {
                 break;
             }
         }
     }
+}
 
-    {
-        executor->execute(memory);
-    }
-
-    if (enable_tensor_parallel) {
+void FullyConnected::execTensorParallelSync() {
+    if (tp_cfg.enable_tensor_parallel) {
         // dst
         auto dst = getDstMemoryAtPort(0);
         auto dst_ptr = static_cast<uint8_t*>(dst->getData());
@@ -172,18 +177,18 @@ void FullyConnected::execute(dnnl::stream strm) {
         // the steps need to copy.
         const size_t count = (mem_size / channel_size);
 
-        auto splited_dim_vec = split_parts(dims[dim], w_size);
+        auto splited_dim_vec = split_parts(dims[dim], tp_cfg.w_size);
         const auto strideSize = splited_dim_vec[0] * prec.size();
 
-        sub_memory->_memorys_table[id][w_rank].send_buf = cur_dst->getData();
-        sub_memory->_memorys_table[id][w_rank].flag = true;
+        tp_cfg.sub_memory->_memorys_table[tp_cfg.id][tp_cfg.w_rank].send_buf = cur_dst->getData();
+        tp_cfg.sub_memory->_memorys_table[tp_cfg.id][tp_cfg.w_rank].flag = true;
 
-        std::vector<int> wait_list(w_size, 1);
+        std::vector<int> wait_list(tp_cfg.w_size, 1);
         while (true) {
             int wait_size = 0;
-            for (int idx = 0; idx < w_size; idx++) {
-                if (wait_list[idx] > 0 && sub_memory->_memorys_table[id][idx].flag) {
-                    auto new_ptr = static_cast<uint8_t*>(sub_memory->_memorys_table[id][idx].send_buf);
+            for (int idx = 0; idx < tp_cfg.w_size; idx++) {
+                if (wait_list[idx] > 0 && tp_cfg.sub_memory->_memorys_table[tp_cfg.id][idx].flag) {
+                    auto new_ptr = static_cast<uint8_t*>(tp_cfg.sub_memory->_memorys_table[tp_cfg.id][idx].send_buf);
                     const auto copySize = splited_dim_vec[idx] * prec.size();    // bytes of half selected dim.
                     const size_t unloop = 8;
                     size_t step = count / unloop;
@@ -212,10 +217,17 @@ void FullyConnected::execute(dnnl::stream strm) {
             }
         }
         {
-            std::lock_guard<std::mutex> lock(sub_memory->_flagMutex);
-            sub_memory->_use_count[id]++;
+            std::lock_guard<std::mutex> lock(tp_cfg.sub_memory->_flagMutex);
+            tp_cfg.sub_memory->_use_count[tp_cfg.id]++;
         }
     }
+}
+void FullyConnected::execute(dnnl::stream strm) {
+    initTensorParallelSync();
+
+    executor->execute(memory);
+
+    execTensorParallelSync();
 }
 
 void FullyConnected::executeDynamicImpl(dnnl::stream strm) {
@@ -354,7 +366,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
 
 void FullyConnected::initSupportedPrimitiveDescriptors() {
     attrs.withBias = getOriginalInputsNumber() == 3;
-    if (enable_tensor_parallel) {
+    if (tp_cfg.enable_tensor_parallel) {
         auto split_parts = [](int len, int n) {
             int average = len / n;
             std::vector<int> parts(n, average);
@@ -362,10 +374,10 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
             return parts;
         };
         auto DQScales = getDQScales();
-        auto split_lens = split_parts(DQScales.size(), w_size);
-        auto split_offset = w_rank * split_lens[0];
-        std::vector<float> newDQScales(split_lens[w_rank]);
-        std::copy(DQScales.begin() + split_offset, DQScales.begin() + split_offset + split_lens[w_rank], newDQScales.begin());
+        auto split_lens = split_parts(DQScales.size(), tp_cfg.w_size);
+        auto split_offset = tp_cfg.w_rank * split_lens[0];
+        std::vector<float> newDQScales(split_lens[tp_cfg.w_rank]);
+        std::copy(DQScales.begin() + split_offset, DQScales.begin() + split_offset + split_lens[tp_cfg.w_rank], newDQScales.begin());
         attrs.dequantizationScales = newDQScales;
     } else {
         attrs.dequantizationScales = getDQScales();
@@ -404,13 +416,8 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
         {ARG_DST, dstDescs[0]},
     };
 
-    if (enable_tensor_parallel && cached_scale) {
-        attrs.decompressionMultiplyPtr = cached_scale;
-    }
-
-    if (enable_tensor_parallel && cached_zeropoint) {
-        attrs.decompressionSubtractPtr = cached_zeropoint;
-    }
+    needUpdateScaleForTensorParallel();
+    needUpdateZeroPointForTensorParallel();
 
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
     factory = std::make_shared<ExecutorFactory<FCAttrs, node::FullyConnected>>(attrs, postOps, executionContext, descs);
@@ -427,53 +434,55 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
 }
 
-void FullyConnected::createPrimitive() {
-    auto src = getSrcMemoryAtPort(DATA_ID);
-    auto wgt = getSrcMemoryAtPort(WEIGHTS_ID);
-    auto dst = getDstMemoryAtPort(0);
-    // tensor parallel should be disabled in two conditions.
-    // 1. weight shape is dynamic
-    // 2. last dim can be splited.
-    // 3. set 6600000 as a threshold to filter small weight
-    if (enable_tensor_parallel) {
-        auto shape = wgt->getShape();
-        if (shape.isDynamic()) {
-            enable_tensor_parallel = false;
-        } else if (shape.getDims()[0] < static_cast<size_t>(w_size) || shape.getElementsCount() < 6600000) {
-            enable_tensor_parallel = false;
-        }
-    }
-
-    if (enable_tensor_parallel) {
+void FullyConnected::needSplitMemoryForTensorParallel() {
+    if (tp_cfg.enable_tensor_parallel) {
+        auto src = getSrcMemoryAtPort(DATA_ID);
+        auto wgt = getSrcMemoryAtPort(WEIGHTS_ID);
+        auto dst = getDstMemoryAtPort(0);
         // src
         memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
         // wgt
         // split N direction
-        cached_splited_weight = attrs.weightsNonTransposed ? split_vertical(context->getEngine(), wgt, 0, w_rank, w_size)
-                                : split_horizontal(context->getEngine(), wgt, 0, w_rank, w_size);
+        cached_splited_weight = attrs.weightsNonTransposed ? split_vertical(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                    : split_horizontal(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size);
         memory[ARG_WEI] = cached_splited_weight;
-
         // bias
         if (attrs.withBias) {
             auto bias = getSrcMemoryAtPort(BIAS_ID);
-            auto select_bias = split_horizontal(context->getEngine(), bias, 0, w_rank, w_size);
+            auto select_bias = split_horizontal(context->getEngine(), bias, 0, tp_cfg.w_rank, tp_cfg.w_size);
             cached_splited_bias = select_bias;
         } else {
             cached_splited_bias = MemoryDescUtils::makeEmptyMemory(context);
         }
-
         memory[ARG_BIAS] = cached_splited_bias;
-
         // dst
         memory[ARG_DST] = getDstMemoryAtPort(0);
-        cached_dst = split_horizontal(context->getEngine(), dst, -1, w_rank, w_size, false);
-        dst_shape = dst->getShape();
-    } else {
-        memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
-        memory[ARG_WEI] = getSrcMemoryAtPort(WEIGHTS_ID);
-        memory[ARG_BIAS] = attrs.withBias ? getSrcMemoryAtPort(BIAS_ID) : MemoryDescUtils::makeEmptyMemory(context);
-        memory[ARG_DST] = getDstMemoryAtPort(0);
+        cached_dst = split_horizontal(context->getEngine(), dst, -1, tp_cfg.w_rank, tp_cfg.w_size, false);
     }
+}
+
+void FullyConnected::needUpdateTensorParalelConfig() {
+    // tensor parallel should be disabled in two conditions.
+    // 1. weight shape is dynamic
+    // 2. last dim can be splited.
+    if (tp_cfg.enable_tensor_parallel) {
+        auto shape = getSrcMemoryAtPort(WEIGHTS_ID)->getShape();
+        if (shape.isDynamic()) {
+            tp_cfg.enable_tensor_parallel = false;
+        } else if (shape.getDims()[0] < static_cast<size_t>(tp_cfg.w_size)) {
+            tp_cfg.enable_tensor_parallel = false;
+        }
+    }
+}
+void FullyConnected::createPrimitive() {
+    needUpdateTensorParalelConfig();
+
+    memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
+    memory[ARG_WEI] = getSrcMemoryAtPort(WEIGHTS_ID);
+    memory[ARG_BIAS] = attrs.withBias ? getSrcMemoryAtPort(BIAS_ID) : MemoryDescUtils::makeEmptyMemory(context);
+    memory[ARG_DST] = getDstMemoryAtPort(0);
+
+    needSplitMemoryForTensorParallel();
     // @todo should we preconfigure only for dynamic shapes?
     // Since for static shapes primitive is created in scope of compile_model() anyway
     factory->preconfigure(memory);
@@ -497,27 +506,47 @@ ov::element::Type FullyConnected::getRuntimePrecision() const {
     return getMaxPrecision(srcTypes);
 }
 
-void FullyConnected::fuseDecompressionMultiply(const MemoryCPtr& memory) {
-    attrs.decompressionMultiplyPtr = memory;
-    if (enable_tensor_parallel && !cached_scale) {
-        auto scale_mem = std::const_pointer_cast<IMemory>(memory);
-        cached_scale = attrs.weightsNonTransposed ? split_vertical(context->getEngine(), scale_mem, 0, w_rank, w_size)
-                       : split_horizontal(context->getEngine(), scale_mem, 0, w_rank, w_size);
+void FullyConnected::needUpdateScaleForTensorParallel() {
+    if (tp_cfg.enable_tensor_parallel && cached_scale) {
+        attrs.decompressionMultiplyPtr = cached_scale;
     }
 }
 
-void FullyConnected::fuseDecompressionSubtract(const MemoryCPtr& memory) {
-    attrs.decompressionSubtractPtr = memory;
-    if (enable_tensor_parallel && !cached_zeropoint) {
+void FullyConnected::needSplitScaleForTensorParallel(const MemoryCPtr& memory) {
+    if (tp_cfg.enable_tensor_parallel && !cached_scale) {
+        auto scale_mem = std::const_pointer_cast<IMemory>(memory);
+        cached_scale = attrs.weightsNonTransposed ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                       : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+    }
+}
+
+void FullyConnected::needUpdateZeroPointForTensorParallel() {
+    if (tp_cfg.enable_tensor_parallel && cached_zeropoint) {
+        attrs.decompressionSubtractPtr = cached_zeropoint;
+    }
+}
+
+void FullyConnected::needSplitZeroPointForTensorParallel(const MemoryCPtr& memory) {
+    if (tp_cfg.enable_tensor_parallel && !cached_zeropoint) {
         auto zeropoint_mem = std::const_pointer_cast<IMemory>(memory);
         auto element_num = memory->getSize() / memory->getPrecision().size();
         if (element_num == 1) {
             cached_zeropoint = zeropoint_mem;
         } else {
-            cached_zeropoint = attrs.weightsNonTransposed ? split_vertical(context->getEngine(), zeropoint_mem, 0, w_rank, w_size)
-                                : split_horizontal(context->getEngine(), zeropoint_mem, 0, w_rank, w_size);
+            cached_zeropoint = attrs.weightsNonTransposed ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                                : split_horizontal(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
         }
     }
+}
+
+void FullyConnected::fuseDecompressionMultiply(const MemoryCPtr& memory) {
+    attrs.decompressionMultiplyPtr = memory;
+    needSplitScaleForTensorParallel(memory);
+}
+
+void FullyConnected::fuseDecompressionSubtract(const MemoryCPtr& memory) {
+    attrs.decompressionSubtractPtr = memory;
+    needSplitZeroPointForTensorParallel(memory);
 }
 
 }  // namespace node
