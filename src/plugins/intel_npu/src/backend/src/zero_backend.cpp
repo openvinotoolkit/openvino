@@ -80,8 +80,8 @@ char* ZeroEngineBackend::getGraphExtName() {
     return _instance->getGraphExtName();
 }
 
-uint32_t ZeroEngineBackend::getTargetVersion() {
-    return _instance->getTargetVersion();
+ze_graph_dditable_ext_last_t* ZeroEngineBackend::getGraphDDITableExt() {
+    return _instance->getGraphDDITableExt();
 }
 
 void ZeroEngineBackend::updateInfo(const Config& config) {
