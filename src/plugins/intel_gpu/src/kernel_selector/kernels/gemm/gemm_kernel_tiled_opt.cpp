@@ -213,6 +213,19 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_K_PADDING", 1));
         if (has_dynamic_n_padding)
             jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_N_PADDING", 1));
+
+        auto hasDynamicPad = [](DataTensor dt) -> bool {
+            auto dims = dt.GetDims();
+            for (auto d : dims) {
+                if (d.pad.is_dynamic)
+                    return true;
+            }
+            return false;
+        };
+        if (hasDynamicPad(params.inputs[0]))
+            jit.AddConstant(MakeJitConstant("INPUT0_HAS_PADDING", 1));
+        if (hasDynamicPad(params.inputs[1]))
+            jit.AddConstant(MakeJitConstant("INPUT1_HAS_PADDING", 1));
     } else {
         auto get_transposed_dim_size = [](const kernel_selector::DataTensor &data_tensor,
                                           const std::vector<int64_t>& dims_order, const std::string dim) {
