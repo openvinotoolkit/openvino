@@ -1494,12 +1494,19 @@ void primitive_inst::do_runtime_in_place_crop() {
                 if (!crop_in_place_optimization::match(u->get_node(), *u->_impl_params, pred_layout, true)) {
                     u->set_can_be_optimized(false);
                     GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
-                    return;
+                    continue;
                 }
 
                 auto crop_axis = u->_impl_params->typed_desc<crop>()->axis;
                 auto offsets = u->_impl_params->input_offsets[0];
                 if (crop_in_place_optimization::can_crop_be_optimized_along_feature(crop_layout, pred_layout)) {
+                    // TODO: If crop is optimized out w/ data padding along feature and crop's user is reshape
+                    // manual dynamic padding update to reshape output layout is not currently supported
+                    if (user_info.first) {
+                        u->set_can_be_optimized(false);
+                        GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
+                        continue;
+                    }
                     crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, pred_layout, offsets, crop_axis, true);
                 } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
                     crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout, pred_layout, user_info, offsets, crop_axis, true);
@@ -1511,7 +1518,7 @@ void primitive_inst::do_runtime_in_place_crop() {
                 } else {
                     u->set_can_be_optimized(false);
                     GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
-                    return;
+                    continue;
                 }
                 u->_impl_params->output_layouts[0] = crop_layout;
                 u->set_can_be_optimized(true);
