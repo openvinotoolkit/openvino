@@ -263,7 +263,7 @@ ov_status_e ov_core_get_available_devices(const ov_core_t* core, ov_available_de
 }
 
 void ov_available_devices_free(ov_available_devices_t* devices) {
-    if (!devices || !devices->devices)
+    if (!devices || !devices->devices) {
         return;
     }
     for (size_t i = 0; i < devices->size; i++) {
