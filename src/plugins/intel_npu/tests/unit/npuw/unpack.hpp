@@ -63,7 +63,8 @@ ushort float_to_half(const float x) {
 inline uint16_t int2hfloat(int8_t x)
 {
     float inputFl32 = static_cast<float>(x);
-    unsigned int fltInt32 = *reinterpret_cast<unsigned int*>(&inputFl32);
+    void* inputFl32_ptr = &inputFl32;  // To prevent strict-aliasing error
+    unsigned int fltInt32 = *reinterpret_cast<unsigned int*>(inputFl32_ptr);
     unsigned short fltInt16;
 
     fltInt16 = (fltInt32 >> 31) << 5;
@@ -495,9 +496,9 @@ protected:
         const uint16_t * pScale_f16 = reinterpret_cast<uint16_t*>(scale->data());
         const float * pScale_f32 = reinterpret_cast<float*>(scale->data());
 
-        for (int c = 0; c < C; ++c) {
-            for (int h = 0; h < H; ++h) {
-                for (int w = 0; w < W; ++w) {
+        for (size_t c = 0; c < C; ++c) {
+            for (size_t h = 0; h < H; ++h) {
+                for (size_t w = 0; w < W; ++w) {
                     int input_index =  w + W * h + W * H * c;
                     int scale_index = w + W * c;
                     float ref_scaled = pFloatRef[input_index] - zeropValue;

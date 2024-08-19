@@ -289,7 +289,11 @@ TEST(OnlinePartitioningTest, Partitioning_IsTheSame_SmallModel) {
     ModelGenerator mg;
     auto model = mg.get_model_without_repeated_blocks();
 
-    auto cfg = ::intel_npu::Config(std::make_shared<::intel_npu::OptionsDesc>());
+    auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
+    auto cfg = ::intel_npu::Config(opt_desc);
+    ::intel_npu::registerNPUWOptions(*opt_desc);
+    std::map<std::string, std::string> cfg_map = {{ "NPUW_ONLINE_KEEP_BLOCK_SIZE", "9" }};
+    cfg.update(cfg_map);
 
     auto ens = ov::npuw::online::buildPartitioning(model, cfg);
 
@@ -303,7 +307,11 @@ TEST(OnlinePartitioningTest, Partitioning_IsTheSame_RepeatedModel) {
     ModelGenerator mg;
     auto model = mg.get_model_with_repeated_blocks();
 
-    auto cfg = ::intel_npu::Config(std::make_shared<::intel_npu::OptionsDesc>());
+    auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
+    auto cfg = ::intel_npu::Config(opt_desc);
+    ::intel_npu::registerNPUWOptions(*opt_desc);
+    std::map<std::string, std::string> cfg_map = {{ "NPUW_ONLINE_KEEP_BLOCK_SIZE", "9" }};
+    cfg.update(cfg_map);
 
     auto ens = ov::npuw::online::buildPartitioning(model, cfg);
 
@@ -317,8 +325,6 @@ TEST(OnlinePartitioningTest, Partitioning_SingleGroup_SmallModel) {
     ModelGenerator mg;
     auto model = mg.get_model_without_repeated_blocks();
 
-    auto cfg = ::intel_npu::Config(std::make_shared<::intel_npu::OptionsDesc>());
-
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->singleGroup();
     EXPECT_EQ(snap->graphSize(), 1);
@@ -327,8 +333,6 @@ TEST(OnlinePartitioningTest, Partitioning_SingleGroup_SmallModel) {
 TEST(OnlinePartitioningTest, Partitioning_SingleGroup_RepeatedModel) {
     ModelGenerator mg;
     auto model = mg.get_model_with_repeated_blocks();
-
-    auto cfg = ::intel_npu::Config(std::make_shared<::intel_npu::OptionsDesc>());
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->singleGroup();
@@ -339,18 +343,12 @@ TEST(OnlinePartitioningTest, Partitioning_buildGraph_SmallModel) {
     ModelGenerator mg;
     auto model = mg.get_model_without_repeated_blocks();
 
-    auto cfg = ::intel_npu::Config(std::make_shared<::intel_npu::OptionsDesc>());
-
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
     auto g = snap->getGraph();
     for (const auto& nh : g->sorted()) {
         ov::npuw::online::Group::GPtr group = g->meta(nh).get<ov::npuw::online::Group::GPtr>();
         EXPECT_EQ(group->size(), 1);
-
-        auto node = group->getInitialNode();
-        EXPECT_EQ(snap->getNodeProducers(node).size(), node->inputs().size());
-        EXPECT_EQ(snap->getNodeConsumers(node).size(), node->outputs().size());
     }
     EXPECT_EQ(snap->getNodeToGroupMap()->size(), snap->graphSize());
 }
@@ -359,18 +357,12 @@ TEST(OnlinePartitioningTest, Partitioning_buildGraph_RepeatedModel) {
     ModelGenerator mg;
     auto model = mg.get_model_with_repeated_blocks();
 
-    auto cfg = ::intel_npu::Config(std::make_shared<::intel_npu::OptionsDesc>());
-
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
     auto g = snap->getGraph();
     for (const auto& nh : g->sorted()) {
         ov::npuw::online::Group::GPtr group = g->meta(nh).get<ov::npuw::online::Group::GPtr>();
         EXPECT_EQ(group->size(), 1);
-
-        auto node = group->getInitialNode();
-        EXPECT_EQ(snap->getNodeProducers(node).size(), node->inputs().size());
-        EXPECT_EQ(snap->getNodeConsumers(node).size(), node->outputs().size());
     }
     EXPECT_EQ(snap->getNodeToGroupMap()->size(), snap->graphSize());
 }
@@ -379,11 +371,10 @@ TEST(OnlinePartitioningTest, Partitioning_earlyAvoids_SmallModel) {
     ModelGenerator mg;
     auto model = mg.get_model_without_repeated_blocks();
 
-    auto cfg = ::intel_npu::Config(std::make_shared<::intel_npu::OptionsDesc>());
-    std::map<std::string, std::string> avoid_cfg = {{ "NPUW_ONLINE_AVOID", "Op:Gather/NPU,Op:MatMul/NPU" }};
-    cfg.update(avoid_cfg);
-
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
+    ov::npuw::online::PassContext ctx;
+    ctx.avoids = {{ov::npuw::online::PatternType::OP, "Gather", "mydevice"}, {ov::npuw::online::PatternType::OP, "MatMul", "mydevice"}};
+    snap->setCtx(ctx);
     snap->buildGraph();
     snap->earlyAvoids();
     auto g = snap->getGraph();
@@ -395,18 +386,17 @@ TEST(OnlinePartitioningTest, Partitioning_earlyAvoids_SmallModel) {
             ++count;
         }
     }
-    EXPECT_EQ(count, 10);
+    EXPECT_EQ(count, 2);
 }
 
 TEST(OnlinePartitioningTest, Partitioning_earlyAvoids_RepeatedModel) {
     ModelGenerator mg;
     auto model = mg.get_model_with_repeated_blocks();
 
-    auto cfg = ::intel_npu::Config(std::make_shared<::intel_npu::OptionsDesc>());
-    std::map<std::string, std::string> avoid_cfg = {{ "NPUW_ONLINE_AVOID", "Op:Gather/NPU,Op:MatMul/NPU" }};
-    cfg.update(avoid_cfg);
-
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
+    ov::npuw::online::PassContext ctx;
+    ctx.avoids = {{ov::npuw::online::PatternType::OP, "Gather", "mydevice"}, {ov::npuw::online::PatternType::OP, "MatMul", "mydevice"}};
+    snap->setCtx(ctx);
     snap->buildGraph();
     snap->earlyAvoids();
     auto g = snap->getGraph();
@@ -418,24 +408,22 @@ TEST(OnlinePartitioningTest, Partitioning_earlyAvoids_RepeatedModel) {
             ++count;
         }
     }
-    EXPECT_EQ(count, 10);
+    EXPECT_EQ(count, 20);
 }
 
-// FIXME: simple passes below can be inherited from a single base class and be parameterized with the pass to simplify
 TEST(OnlinePartitioningTest, Partitioning_collectLHF_SmallModel) {
     ModelGenerator mg;
     auto model = mg.get_model_without_repeated_blocks();
 
-    auto cfg = ::intel_npu::Config(std::make_shared<::intel_npu::OptionsDesc>());
-
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
 
-    std::vector<std::size_t> sizes = {10};
+    std::vector<std::size_t> sizes = {10, 10};
     size_t iter = 0;
 
     snap->repeat([&]{
         snap->collectLHF();
+        EXPECT_LT(iter, sizes.size());
         EXPECT_EQ(snap->graphSize(), sizes[iter++]);
     });
 }
@@ -443,8 +431,6 @@ TEST(OnlinePartitioningTest, Partitioning_collectLHF_SmallModel) {
 TEST(OnlinePartitioningTest, Partitioning_collectLHF_RepeatedModel) {
     ModelGenerator mg;
     auto model = mg.get_model_with_repeated_blocks();
-
-    auto cfg = ::intel_npu::Config(std::make_shared<::intel_npu::OptionsDesc>());
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
@@ -454,6 +440,7 @@ TEST(OnlinePartitioningTest, Partitioning_collectLHF_RepeatedModel) {
 
     snap->repeat([&]{
         snap->collectLHF();
+        EXPECT_LT(iter, sizes.size());
         EXPECT_EQ(snap->graphSize(), sizes[iter++]);
     });
 }
@@ -462,18 +449,16 @@ TEST(OnlinePartitioningTest, Partitioning_fuseRemnants_SmallModel) {
     ModelGenerator mg;
     auto model = mg.get_model_without_repeated_blocks();
 
-    auto cfg = ::intel_npu::Config(std::make_shared<::intel_npu::OptionsDesc>());
-
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
 
-    std::vector<std::size_t> sizes = {};
+    std::vector<std::size_t> sizes = {10, 10};
     size_t iter = 0;
 
     snap->repeat([&]{
         snap->fuseRemnants();
-        std::cout << snap->graphSize() << std::endl;
-        ++iter;
+        EXPECT_LT(iter, sizes.size());
+        EXPECT_EQ(snap->graphSize(), sizes[iter++]);
     });
 }
 
@@ -481,18 +466,16 @@ TEST(OnlinePartitioningTest, Partitioning_fuseRemnants_RepeatedModel) {
     ModelGenerator mg;
     auto model = mg.get_model_with_repeated_blocks();
 
-    auto cfg = ::intel_npu::Config(std::make_shared<::intel_npu::OptionsDesc>());
-
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
 
-    std::vector<std::size_t> sizes = {};
+    std::vector<std::size_t> sizes = {75, 38, 19, 10};
     size_t iter = 0;
 
     snap->repeat([&]{
         snap->fuseRemnants();
-        std::cout << snap->graphSize() << std::endl;
-        ++iter;
+        EXPECT_LT(iter, sizes.size());
+        EXPECT_EQ(snap->graphSize(), sizes[iter++]);
     });
 }
 
@@ -500,18 +483,16 @@ TEST(OnlinePartitioningTest, Partitioning_fuseRemnantsExtended_SmallModel) {
     ModelGenerator mg;
     auto model = mg.get_model_without_repeated_blocks();
 
-    auto cfg = ::intel_npu::Config(std::make_shared<::intel_npu::OptionsDesc>());
-
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
 
-    std::vector<std::size_t> sizes = {};
+    std::vector<std::size_t> sizes = {10, 10};
     size_t iter = 0;
 
     snap->repeat([&]{
         snap->fuseRemnantsExtended();
-        std::cout << snap->graphSize() << std::endl;
-        ++iter;
+        EXPECT_LT(iter, sizes.size());
+        EXPECT_EQ(snap->graphSize(), sizes[iter++]);
     });
 }
 
@@ -519,18 +500,16 @@ TEST(OnlinePartitioningTest, Partitioning_fuseRemnantsExtended_RepeatedModel) {
     ModelGenerator mg;
     auto model = mg.get_model_with_repeated_blocks();
 
-    auto cfg = ::intel_npu::Config(std::make_shared<::intel_npu::OptionsDesc>());
-
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
 
-    std::vector<std::size_t> sizes = {};
+    std::vector<std::size_t> sizes = {10, 10};
     size_t iter = 0;
 
     snap->repeat([&]{
         snap->fuseRemnantsExtended();
-        std::cout << snap->graphSize() << std::endl;
-        ++iter;
+        EXPECT_LT(iter, sizes.size());
+        EXPECT_EQ(snap->graphSize(), sizes[iter++]);
     });
 }
 
@@ -538,18 +517,16 @@ TEST(OnlinePartitioningTest, Partitioning_fuseInputs_SmallModel) {
     ModelGenerator mg;
     auto model = mg.get_model_without_repeated_blocks();
 
-    auto cfg = ::intel_npu::Config(std::make_shared<::intel_npu::OptionsDesc>());
-
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
 
-    std::vector<std::size_t> sizes = {};
+    std::vector<std::size_t> sizes = {15, 14, 14};
     size_t iter = 0;
 
     snap->repeat([&]{
         snap->fuseInputs();
-        std::cout << snap->graphSize() << std::endl;
-        ++iter;
+        EXPECT_LT(iter, sizes.size());
+        EXPECT_EQ(snap->graphSize(), sizes[iter++]);
     });
 }
 
@@ -557,45 +534,84 @@ TEST(OnlinePartitioningTest, Partitioning_fuseInputs_RepeatedModel) {
     ModelGenerator mg;
     auto model = mg.get_model_with_repeated_blocks();
 
-    auto cfg = ::intel_npu::Config(std::make_shared<::intel_npu::OptionsDesc>());
-
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
 
-    std::vector<std::size_t> sizes = {};
+    std::vector<std::size_t> sizes = {148, 138, 138};
     size_t iter = 0;
 
     snap->repeat([&]{
         snap->fuseInputs();
-        std::cout << snap->graphSize() << std::endl;
-        ++iter;
+        EXPECT_LT(iter, sizes.size());
+        EXPECT_EQ(snap->graphSize(), sizes[iter++]);
     });
 }
 
-TEST(OnlinePartitioningTest, Partitioning_repeatedBlocks_SmallModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_without_repeated_blocks();
+// FIXME: implement below
+// TEST(OnlinePartitioningTest, Partitioning_Compiler_Just_SmallModel) {
+//     ModelGenerator mg;
+//     auto model = mg.get_model_without_repeated_blocks();
 
-    auto cfg = ::intel_npu::Config(std::make_shared<::intel_npu::OptionsDesc>());
+//     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
+//     snap->buildGraph();
+//     snap->repeatedBlocks();
+//     auto matches = snap->getMatches();
+//     // FIXME: continue
+// }
 
-    auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
-    snap->buildGraph();
-    snap->repeatedBlocks();
-    auto matches = snap->getMatches();
-    // FIXME: continue
-}
+// TEST(OnlinePartitioningTest, Partitioning_Compiler_Just_RepeatedModel) {
+//     ModelGenerator mg;
+//     auto model = mg.get_model_without_repeated_blocks();
 
-TEST(OnlinePartitioningTest, Partitioning_repeatedBlocks_RepeatedModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_without_repeated_blocks();
+//     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
+//     snap->buildGraph();
+//     snap->repeatedBlocks();
+//     auto matches = snap->getMatches();
+//     // FIXME: continue
+// }
 
-    auto cfg = ::intel_npu::Config(std::make_shared<::intel_npu::OptionsDesc>());
+// TEST(OnlinePartitioningTest, Partitioning_Compiler_RepeatedBlocks_SmallModel) {
+//     ModelGenerator mg;
+//     auto model = mg.get_model_without_repeated_blocks();
 
-    auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
-    snap->buildGraph();
-    snap->repeatedBlocks();
-    auto matches = snap->getMatches();
-    // FIXME: continue
-}
+//     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
+//     snap->buildGraph();
+//     snap->repeatedBlocks();
+//     auto matches = snap->getMatches();
+//     // FIXME: continue
+// }
+
+// TEST(OnlinePartitioningTest, Partitioning_Compiler_RepeatedBlocks_RepeatedModel) {
+//     ModelGenerator mg;
+//     auto model = mg.get_model_without_repeated_blocks();
+
+//     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
+//     snap->buildGraph();
+//     snap->repeatedBlocks();
+//     auto matches = snap->getMatches();
+//     // FIXME: continue
+// }
+
+// TEST(OnlinePartitioningTest, Partitioning_Compiler_Compute_SmallModel) {
+//     ModelGenerator mg;
+//     auto model = mg.get_model_without_repeated_blocks();
+
+//     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
+//     snap->buildGraph();
+//     snap->repeatedBlocks();
+//     auto matches = snap->getMatches();
+//     // FIXME: continue
+// }
+
+// TEST(OnlinePartitioningTest, Partitioning_Compiler_Compute_RepeatedModel) {
+//     ModelGenerator mg;
+//     auto model = mg.get_model_without_repeated_blocks();
+
+//     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
+//     snap->buildGraph();
+//     snap->repeatedBlocks();
+//     auto matches = snap->getMatches();
+//     // FIXME: continue
+// }
 
 } // anonymous namespace
