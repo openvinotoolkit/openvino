@@ -33,14 +33,14 @@
 ov::intel_gpu::DecomposeReduceForScalarOutput::DecomposeReduceForScalarOutput() {
     auto check_reduce_shape = [=](Output<Node> output) -> bool {
         const auto reduce = ov::as_type_ptr<op::util::ArithmeticReductionKeepDims>(output.get_node_shared_ptr());
-        const auto input_shape = reduce->input_value(0).get_partial_shape();
-        const auto reduce_shape = reduce->input_value(1).get_partial_shape();
+        auto& input_shape = reduce->input_value(0).get_partial_shape();
+        auto& reduce_shape = reduce->input_value(1).get_partial_shape();
         if (reduce_shape.is_dynamic() || reduce_shape.size() != 1) {
             return false;
         } else if (reduce_shape.to_shape()[0] <= 1 || reduce_shape.to_shape()[0] != input_shape.size()) {
             return false;
         }
-        const auto output_shape = reduce->get_output_partial_shape(0);
+        auto& output_shape = reduce->get_output_partial_shape(0);
         if (output_shape.is_static() && input_shape.is_static()) {
             // Output size decides at most how many EU threads can be used for this node execution,
             // less than 4 EU threads to execute a primitive will lead to poor performance.
@@ -69,8 +69,8 @@ ov::intel_gpu::DecomposeReduceForScalarOutput::DecomposeReduceForScalarOutput() 
         if (!reduce_orig || transformation_callback(reduce_orig))
             return false;
 
-        const auto input_shape = reduce_orig->input_value(0).get_partial_shape();
-        const auto output_shape = reduce_orig->get_output_partial_shape(0);
+        auto& input_shape = reduce_orig->input_value(0).get_partial_shape();
+        auto& output_shape = reduce_orig->get_output_partial_shape(0);
         bool dynamic_shape = input_shape.is_dynamic() || output_shape.is_dynamic();
         std::shared_ptr<ov::op::util::ArithmeticReductionKeepDims> reduce_new = nullptr;
         if (!dynamic_shape) {
