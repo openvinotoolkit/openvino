@@ -68,7 +68,7 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
         context.mutate_input(0, add);
     return {add};
 };
-}
+}  // namespace
 
 OutputVector translate_add(const NodeContext& context) {
     return translate_add_common(context, false);

@@ -57,7 +57,7 @@ OutputVector translate_div_common(const NodeContext& context,
         context.mutate_input(0, res);
     return {res};
 };
-}
+}  // namespace
 
 OutputVector translate_div(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
