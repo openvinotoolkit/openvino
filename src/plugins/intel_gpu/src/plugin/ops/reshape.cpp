@@ -31,8 +31,10 @@ static void CreateCommonReshapeOp(ProgramBuilder& p, const std::shared_ptr<ov::N
         std::vector<int64_t> output_pattern = {};
         if (second_const_input != nullptr) {
             output_pattern = second_const_input->cast_vector<int64_t>();
-            if (mode == cldnn::reshape::reshape_mode::unsqueeze || mode == cldnn::reshape::reshape_mode::squeeze) {
+            if (mode == cldnn::reshape::reshape_mode::unsqueeze) {
                 ov::util::try_normalize_axes(output_pattern, op->get_output_partial_shape(0).rank(), *op);
+            } else if (mode == cldnn::reshape::reshape_mode::squeeze) {
+                ov::util::try_normalize_axes(output_pattern, op->get_input_partial_shape(0).rank(), *op);
             }
         }
 
