@@ -206,7 +206,7 @@ bool isSuitableConvert(const std::shared_ptr<const Node>& node) {
     auto isSuitableChild = [](const std::shared_ptr<const Node>& node) {
         for (const auto &out : node->outputs()) {
             const auto &child = out.get_node_shared_ptr();
-            if (!ov::is_type<ov::op::v3::ReadValue>(child))
+            if (!ov::is_type<ov::op::v3::Assign>(child))
                 return false;
         }
         return true;
