@@ -13,51 +13,51 @@ Prerequisites
 
 Install required dependencies:
 
-   .. code-block:: console
+.. code-block:: console
 
-   python -m venv npu-env
-   npu-env\Scripts\activate
-   pip install optimum-intel nncf==2.11 onnx==1.16.1
-   pip install --pre openvino openvino-tokenizers openvino-genai --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+python -m venv npu-env
+npu-env\Scripts\activate
+pip install optimum-intel nncf==2.11 onnx==1.16.1
+pip install --pre openvino openvino-tokenizers openvino-genai --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
    
 Export an LLM model via Hugging Face Optimum-Intel
 ##################################################
 
 A chat-tuned TinyLlama model is used in this example. The following conversion & optimization settings are recommended when using the NPU:
 
-   .. code-block:: python
+.. code-block:: python
 
-      optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --group-size 128 --ratio 1.0 TinyLlama
+optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --group-size 128 --ratio 1.0 TinyLlama
 
 Run generation using OpenVINO GenAI
 ###################################
 
 Use the following code snippet to perform generation with OpenVINO GenAI API:
 
-   .. tab-set::
+.. tab-set::
 
-      .. tab-item:: Python
-         :sync: py
+   .. tab-item:: Python
+      :sync: py
 
-         .. code-block:: python
+      .. code-block:: python
 
-            import openvino_genai as ov_genai
-            pipe = ov_genai.LLMPipeline(model_path, "NPU")
-            print(pipe.generate("The Sun is yellow because", max_new_tokens=100))
+         import openvino_genai as ov_genai
+         pipe = ov_genai.LLMPipeline(model_path, "NPU")
+         print(pipe.generate("The Sun is yellow because", max_new_tokens=100))
 
-      .. tab-item:: C++
-         :sync: cpp
+   .. tab-item:: C++
+      :sync: cpp
 
-         .. code-block:: cpp
+      .. code-block:: cpp
 
-            #include "openvino/genai/llm_pipeline.hpp"
-            #include <iostream>
+         #include "openvino/genai/llm_pipeline.hpp"
+         #include <iostream>
 
-            int main(int argc, char* argv[]) {
-               std::string model_path = argv[1];
-               ov::genai::LLMPipeline pipe(model_path, "NPU");
-               std::cout << pipe.generate("The Sun is yellow because", ov::genai::max_new_tokens(100));
-            }
+         int main(int argc, char* argv[]) {
+            std::string model_path = argv[1];
+            ov::genai::LLMPipeline pipe(model_path, "NPU");
+            std::cout << pipe.generate("The Sun is yellow because", ov::genai::max_new_tokens(100));
+         }
 
 Additional configuration options
 ################################
