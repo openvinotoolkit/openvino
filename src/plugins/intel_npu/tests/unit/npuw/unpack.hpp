@@ -62,6 +62,7 @@ ushort float_to_half(const float x) {
 
 inline uint16_t int2hfloat(int8_t x)
 {
+    // warning: ‘inputFl32’ is used uninitialized [-Wuninitialized]
     float inputFl32 = static_cast<float>(x);
     void* inputFl32_ptr = &inputFl32;  // To prevent strict-aliasing error
     unsigned int fltInt32 = *reinterpret_cast<unsigned int*>(inputFl32_ptr);
