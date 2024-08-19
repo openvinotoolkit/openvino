@@ -15,10 +15,10 @@ Install required dependencies:
 
 .. code-block:: console
 
-python -m venv npu-env
-npu-env\Scripts\activate
-pip install optimum-intel nncf==2.11 onnx==1.16.1
-pip install --pre openvino openvino-tokenizers openvino-genai --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+   python -m venv npu-env
+   npu-env\Scripts\activate
+   pip install optimum-intel nncf==2.11 onnx==1.16.1
+   pip install --pre openvino openvino-tokenizers openvino-genai --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
    
 Export an LLM model via Hugging Face Optimum-Intel
 ##################################################
@@ -27,7 +27,7 @@ A chat-tuned TinyLlama model is used in this example. The following conversion &
 
 .. code-block:: python
 
-optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --group-size 128 --ratio 1.0 TinyLlama
+   optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --group-size 128 --ratio 1.0 TinyLlama
 
 Run generation using OpenVINO GenAI
 ###################################
