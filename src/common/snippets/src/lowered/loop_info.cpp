@@ -213,7 +213,7 @@ std::shared_ptr<LoopInfo> UnifiedLoopInfo::clone_with_new_expr(const ExpressionM
 
 void UnifiedLoopInfo::apply(const std::function<void(const LoopInfoPtr&)>& func, LoopInfoSet& applied_loops) {
     if (applied_loops.count(this) == 0) {
-        func(this->shared_from_this());
+        func(shared_from_this());
         applied_loops.insert(this);
     }
 }
@@ -389,7 +389,7 @@ std::shared_ptr<LoopInfo> InnerSplittedUnifiedLoopInfo::clone_with_new_expr(cons
 void InnerSplittedUnifiedLoopInfo::apply(const std::function<void(const LoopInfoPtr&)>& func, LoopInfoSet& applied_loops) {
     if (applied_loops.count(this) == 0) {
         m_outer_splitted_loop_info->apply(func, applied_loops);
-        func(this->shared_from_this());
+        func(shared_from_this());
         applied_loops.insert(this);
     }
 }
@@ -439,7 +439,7 @@ std::shared_ptr<LoopInfo> ExpandedLoopInfo::clone_with_new_expr(const Expression
 void ExpandedLoopInfo::apply(const std::function<void(const LoopInfoPtr&)>& func, LoopInfoSet& applied_loops) {
     if (applied_loops.count(this) == 0) {
         m_unified_loop_info->apply(func, applied_loops);
-        func(this->shared_from_this());
+        func(shared_from_this());
         applied_loops.insert(this);
     }
 }
