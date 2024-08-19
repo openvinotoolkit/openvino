@@ -32,7 +32,7 @@ public:
     void* getDriverHandle() const;
     void* getDeviceHandle() const;
     char* getGraphExtName();
-    uint32_t getTargetVersion();
+    ze_graph_dditable_ext_last_t* getGraphDDITableExt();
 
     void updateInfo(const Config& config) override;
 

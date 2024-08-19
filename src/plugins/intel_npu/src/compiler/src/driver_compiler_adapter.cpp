@@ -19,16 +19,7 @@ namespace driverCompilerAdapter {
 
 LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> npuBackends)
     : _logger("LevelZeroCompilerAdapter", Logger::global().level()) {
-    _logger.debug("initialize zeAPI start");
-    auto result = zeInit(ZE_INIT_FLAG_VPU_ONLY);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 initialize zeAPI",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
+    _logger.debug("initialize LevelZeroCompilerAdapter start");
 
     ov::SoPtr<intel_npu::IEngineBackend> soPtrBackend = npuBackends->getIEngineBackend();
     std::shared_ptr<intel_npu::IEngineBackend> iEngineBackend = soPtrBackend._ptr;  // Extract the raw pointer
@@ -42,51 +33,52 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> 
         OPENVINO_THROW("LevelZeroCompilerAdapter init failed to cast zeroBackend");
     }
 
+    uint32_t driverExtVersion = zeroBackend->getDriverExtVersion();
+
     ze_context_handle_t zeContext = (ze_context_handle_t)zeroBackend->getContext();
     ze_driver_handle_t driverHandle = (ze_driver_handle_t)zeroBackend->getDriverHandle();
     ze_device_handle_t deviceHandle = (ze_device_handle_t)zeroBackend->getDeviceHandle();
-
-    uint32_t targetVersion = zeroBackend->getTargetVersion();
     char* graphExtName = zeroBackend->getGraphExtName();
+    ze_graph_dditable_ext_last_t* graph_ddi_table_ext = zeroBackend->getGraphDDITableExt();
 
     if (driverHandle == nullptr) {
         OPENVINO_THROW("LevelZeroCompilerAdapter: Failed to get properties about zeDriver");
         return;
     }
 
-    switch (targetVersion) {
+    switch (driverExtVersion) {
     case ZE_GRAPH_EXT_VERSION_1_3:
-        apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_3_t>>(graphExtName,
-                                                                                              driverHandle,
+        apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_3_t>>(driverHandle,
                                                                                               deviceHandle,
-                                                                                              zeContext);
+                                                                                              zeContext,
+                                                                                              graph_ddi_table_ext);
         break;
     case ZE_GRAPH_EXT_VERSION_1_4:
-        apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_4_t>>(graphExtName,
-                                                                                              driverHandle,
+        apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_4_t>>(driverHandle,
                                                                                               deviceHandle,
-                                                                                              zeContext);
+                                                                                              zeContext,
+                                                                                              graph_ddi_table_ext);
         break;
     case ZE_GRAPH_EXT_VERSION_1_5:
-        apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_5_t>>(graphExtName,
-                                                                                              driverHandle,
+        apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_5_t>>(driverHandle,
                                                                                               deviceHandle,
-                                                                                              zeContext);
+                                                                                              zeContext,
+                                                                                              graph_ddi_table_ext);
         break;
     case ZE_GRAPH_EXT_VERSION_1_6:
-        apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_6_t>>(graphExtName,
-                                                                                              driverHandle,
+        apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_6_t>>(driverHandle,
                                                                                               deviceHandle,
-                                                                                              zeContext);
+                                                                                              zeContext,
+                                                                                              graph_ddi_table_ext);
         break;
     default:
-        apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_2_t>>(graphExtName,
-                                                                                              driverHandle,
+        apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_2_t>>(driverHandle,
                                                                                               deviceHandle,
-                                                                                              zeContext);
+                                                                                              zeContext,
+                                                                                              graph_ddi_table_ext);
         break;
     }
-    _logger.info("initialize LevelZeroCompilerAdapter complete, using ext_version :  %s", targetVersion);
+    _logger.info("initialize LevelZeroCompilerAdapter complete, using ext_version :  %s", driverExtVersion);
 }
 
 uint32_t LevelZeroCompilerAdapter::getSupportedOpsetVersion() const {
