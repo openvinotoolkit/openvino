@@ -12,6 +12,7 @@ Prerequisites
 #############
 
 Install required dependencies:
+
    .. code-block:: console
 
    python -m venv npu-env
@@ -32,6 +33,7 @@ Run generation using OpenVINO GenAI
 ###################################
 
 Use the following code snippet to perform generation with OpenVINO GenAI API:
+
    .. tab-set::
 
       .. tab-item:: Python
