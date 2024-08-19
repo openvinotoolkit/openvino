@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/pass/MatcherPass.hpp"
@@ -15,7 +14,7 @@
 namespace ov {
 namespace pass {
 
-class PositionIDsReplacer;
+class TRANSFORMATIONS_API PositionIDsReplacer;
 
 }  // namespace pass
 }  // namespace ov

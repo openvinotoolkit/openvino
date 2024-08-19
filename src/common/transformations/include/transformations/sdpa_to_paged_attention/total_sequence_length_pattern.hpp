@@ -15,7 +15,7 @@
 namespace ov {
 namespace pass {
 
-class TotalSequenceLengthPattern;
+class TRANSFORMATIONS_API TotalSequenceLengthPattern;
 
 }  // namespace pass
 }  // namespace ov

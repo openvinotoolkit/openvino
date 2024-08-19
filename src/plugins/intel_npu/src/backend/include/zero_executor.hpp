@@ -7,6 +7,8 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
+#include <mutex>
+
 #include "intel_npu/utils/logger/logger.hpp"
 #include "npu.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -34,6 +36,8 @@ public:
 
     void setArgumentValue(uint32_t argi_, const void* argv_) const;
     void setWorkloadType(const ov::WorkloadType workloadType) const override;
+    void mutexLock() const;
+    void mutexUnlock() const;
     inline ze_graph_handle_t graph() const {
         return _graph;
     }
@@ -49,11 +53,11 @@ public:
     inline const uint32_t& get_group_ordinal() const {
         return _group_ordinal;
     }
-    inline const std::unordered_map<std::string, ArgumentDescriptor>& inputs_desc_map() const {
-        return _inputs_desc_map;
+    inline const std::vector<ArgumentDescriptor>& get_input_descriptors() const {
+        return _input_descriptors;
     }
-    inline const std::unordered_map<std::string, ArgumentDescriptor>& outputs_desc_map() const {
-        return _outputs_desc_map;
+    inline const std::vector<ArgumentDescriptor>& get_output_descriptors() const {
+        return _output_descriptors;
     }
 
 private:
@@ -70,10 +74,12 @@ private:
     ze_graph_handle_t _graph = nullptr;
     ze_graph_properties_t _props{};
 
-    std::unordered_map<std::string, ArgumentDescriptor> _inputs_desc_map;
-    std::unordered_map<std::string, ArgumentDescriptor> _outputs_desc_map;
+    std::vector<ArgumentDescriptor> _input_descriptors;
+    std::vector<ArgumentDescriptor> _output_descriptors;
 
     std::array<std::shared_ptr<CommandQueue>, stage::COUNT> _command_queues;
+
+    mutable std::mutex _mutex;
 };
 
 }  // namespace intel_npu

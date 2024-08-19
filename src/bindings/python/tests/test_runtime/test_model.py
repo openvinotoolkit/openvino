@@ -204,6 +204,82 @@ def test_replace_parameter():
     assert model.get_parameter_index(param1) == -1
 
 
+def test_get_sink_index(device):
+    input_shape = PartialShape([2, 2])
+    param = ops.parameter(input_shape, dtype=np.float64, name="data")
+    relu1 = ops.relu(param, name="relu1")
+    relu1.get_output_tensor(0).set_names({"relu_t1"})
+    model = Model(relu1, [param], "TestModel")
+
+    # test get_sink_index with openvino.runtime.Node argument
+    assign = ops.assign()
+    assign2 = ops.assign()
+    assign3 = ops.assign()
+    model.add_sinks([assign, assign2, assign3])
+    assign_nodes = model.sinks
+    assert model.get_sink_index(assign_nodes[2]) == 2
+    assert model.get_sink_index(relu1) == -1
+
+    # test get_sink_index with openvino.runtime.Output argument
+    assign4 = ops.assign(relu1, "assign4")
+    model.add_sinks([assign4])
+    assert model.get_sink_index(assign4.output(0)) == 3
+
+    # check exceptions
+    with pytest.raises(TypeError) as e:
+        model.get_sink_index(0)
+    assert (
+        "Incorrect argument type. Sink node is expected as argument." in str(e.value)
+    )
+
+
+def test_model_sink_ctors():
+    input_data = ops.parameter([2, 2], name="input_data", dtype=np.float32)
+    rv = ops.read_value("var_id_667", np.float32, [2, 2])
+    add = ops.add(rv, input_data, name="MemoryAdd")
+    node = ops.assign(add, "var_id_667")
+    res = ops.result(add, "res")
+
+    # Model(List[openvino._pyopenvino.op.Result], List[ov::Output<ov::Node>],
+    # List[openvino._pyopenvino.op.Parameter], str = '')
+    model = Model(results=[res], sinks=[node.output(0)], parameters=[input_data], name="TestModel")
+    model.validate_nodes_and_infer_types()
+    sinks = ["Assign"]
+    assert sinks == [sink.get_type_name() for sink in model.get_sinks()]
+    assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
+
+    # Model(List[ov::Output<ov::Node>, List[ov::Output<ov::Node>],
+    # List[openvino._pyopenvino.op.Parameter], str = '')
+    model = Model(results=[res.output(0)], sinks=[node.output(0)], parameters=[input_data], name="TestModel")
+    model.validate_nodes_and_infer_types()
+    assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
+    assert sinks == [sink.get_type_name() for sink in model.get_sinks()]
+
+    var_info = VariableInfo()
+    var_info.data_shape = PartialShape([2, 2])
+    var_info.data_type = Type.f32
+    var_info.variable_id = "v1"
+    variable_1 = Variable(var_info)
+    rv = ops.read_value(variable_1)
+    add = ops.add(rv, input_data, name="MemoryAdd")
+    assign = ops.assign(add, variable_1)
+    res = ops.result(add, "res")
+
+    # Model(List[openvino._pyopenvino.op.Result], List[ov::Output<ov::Node>],
+    # List[openvino._pyopenvino.op.Parameter], List[openvino._pyopenvino.op.util.Variable], str = '')
+    model = Model(results=[res], sinks=[assign.output(0)], parameters=[input_data], variables=[variable_1], name="TestModel")
+    model.validate_nodes_and_infer_types()
+    assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
+    assert sinks == [sink.get_type_name() for sink in model.get_sinks()]
+
+    # Model(List[ov::Output<ov::Node>, List[ov::Output<ov::Node>],
+    # List[openvino._pyopenvino.op.Parameter], List[openvino._pyopenvino.op.util.Variable], str = '')
+    model = Model(results=[res.output(0)], sinks=[assign.output(0)], parameters=[input_data], variables=[variable_1], name="TestModel")
+    model.validate_nodes_and_infer_types()
+    assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
+    assert sinks == [sink.get_type_name() for sink in model.get_sinks()]
+
+
 @pytest.mark.parametrize(("args1", "args2", "expectation", "raise_msg"), [
     (Tensor("float32", Shape([2, 1])),
      [Tensor(np.array([2, 1], dtype=np.float32).reshape(2, 1)),

@@ -366,7 +366,7 @@ def random_uniform(
         "output_type": output_type,
         "global_seed": global_seed,
         "op_seed": op_seed,
-        "alignment": alignment.lower()
+        "alignment": alignment.lower(),
     }
     return _get_node_factory_opset8().create("RandomUniform", inputs, attributes)
 

@@ -71,11 +71,11 @@ public:
         const auto primitive_hash = primitve->hash();
         const auto params_hash = primitve->type->get_fake_aligned_params(*prim_inst->get_impl_params()).hash();
         if (!engine.get_device_info().supports_immad) {
-            ASSERT_EQ(primitive_hash, 14259723886449306729UL);
-            ASSERT_EQ(params_hash, 3365957578641948513UL);
+            ASSERT_EQ(primitive_hash, 8017451717095756666UL);
+            ASSERT_EQ(params_hash, 4374037685392472517UL);
         } else {
-            ASSERT_EQ(primitive_hash, 14259723886449306729UL);
-            ASSERT_EQ(params_hash, 9831190959346679696UL);
+            ASSERT_EQ(primitive_hash, 8017451717095756666UL);
+            ASSERT_EQ(params_hash, 17704411706121042861UL);
         }
     }
 
@@ -190,7 +190,9 @@ public:
         auto padded_input_layout = input->get_layout();
         padded_input_layout.data_padding = padding();
         topology.add(reorder("reorder", input_info("input"), padded_input_layout));
-        topology.add(reshape(key_prim_id, input_info("reorder"), tensor( 1, 1, 4, 1 ), cldnn::reshape::reshape_mode::base, padding({0, 0, 2, 2})));
+        auto reshape_prim = reshape(key_prim_id, input_info("reorder"), tensor( 1, 1, 4, 1 ), cldnn::reshape::reshape_mode::base);
+        reshape_prim.output_paddings = {padding({0, 0, 2, 2})};
+        topology.add(reshape_prim);
 
         cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         const auto  prim_inst = net->get_primitive(key_prim_id);

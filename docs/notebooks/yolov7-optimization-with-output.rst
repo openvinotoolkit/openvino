@@ -68,6 +68,16 @@ The tutorial consists of the following steps:
 -  `Compare Performance of the Original and Quantized
    Models <#compare-performance-of-the-original-and-quantized-models>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Get Pytorch model
 -----------------
 
@@ -107,10 +117,6 @@ Prerequisites
 
 .. parsed-literal::
 
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    descript-audiotools 0.7.2 requires protobuf<3.20,>=3.9.2, but you have protobuf 3.20.3 which is incompatible.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.3.1+cpu which is incompatible.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.1+cpu which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -142,9 +148,9 @@ Prerequisites
     Cloning into 'yolov7'...
     remote: Enumerating objects: 1197, done.[K
     remote: Total 1197 (delta 0), reused 0 (delta 0), pack-reused 1197[K
-    Receiving objects: 100% (1197/1197), 74.23 MiB | 28.87 MiB/s, done.
+    Receiving objects: 100% (1197/1197), 74.23 MiB | 24.61 MiB/s, done.
     Resolving deltas: 100% (519/519), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/yolov7-optimization/yolov7
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/yolov7-optimization/yolov7
 
 
 .. code:: ipython3
@@ -169,7 +175,7 @@ Prerequisites
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/yolov7-optimization/yolov7/model/yolov7-tiny.pt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/yolov7-optimization/yolov7/model/yolov7-tiny.pt')
 
 
 
@@ -189,7 +195,7 @@ result,
 .. parsed-literal::
 
     Namespace(agnostic_nms=False, augment=False, classes=None, conf_thres=0.25, device='', exist_ok=False, img_size=640, iou_thres=0.45, name='exp', no_trace=False, nosave=False, project='runs/detect', save_conf=False, save_txt=False, source='inference/images/horses.jpg', update=False, view_img=False, weights=['model/yolov7-tiny.pt'])
-    YOLOR 🚀 v0.1-128-ga207844 torch 2.3.1+cpu CPU
+    YOLOR 🚀 v0.1-128-ga207844 torch 2.2.2+cpu CPU
 
     Fusing layers...
     Model Summary: 200 layers, 6219709 parameters, 229245 gradients, 13.7 GFLOPS
@@ -197,9 +203,9 @@ result,
      traced_script_module saved!
      model is traced!
 
-    5 horses, Done. (74.1ms) Inference, (0.9ms) NMS
+    5 horses, Done. (87.3ms) Inference, (0.8ms) NMS
      The image with the result is saved in: runs/detect/exp/horses.jpg
-    Done. (0.081s)
+    Done. (0.095s)
 
 
 .. code:: ipython3
@@ -296,19 +302,19 @@ an end2end ONNX model, you can check this
 
     Import onnx_graphsurgeon failure: No module named 'onnx_graphsurgeon'
     Namespace(batch_size=1, conf_thres=0.25, device='cpu', dynamic=False, dynamic_batch=False, end2end=False, fp16=False, grid=True, img_size=[640, 640], include_nms=False, int8=False, iou_thres=0.45, max_wh=None, simplify=False, topk_all=100, weights='model/yolov7-tiny.pt')
-    YOLOR 🚀 v0.1-128-ga207844 torch 2.3.1+cpu CPU
+    YOLOR 🚀 v0.1-128-ga207844 torch 2.2.2+cpu CPU
 
     Fusing layers...
     Model Summary: 200 layers, 6219709 parameters, 6219709 gradients, 13.7 GFLOPS
 
-    Starting TorchScript export with torch 2.3.1+cpu...
+    Starting TorchScript export with torch 2.2.2+cpu...
     TorchScript export success, saved as model/yolov7-tiny.torchscript.pt
     CoreML export failure: No module named 'coremltools'
 
-    Starting TorchScript-Lite export with torch 2.3.1+cpu...
+    Starting TorchScript-Lite export with torch 2.2.2+cpu...
     TorchScript-Lite export success, saved as model/yolov7-tiny.torchscript.ptl
 
-    Starting ONNX export with onnx 1.16.1...
+    Starting ONNX export with onnx 1.16.2...
     ONNX export success, saved as model/yolov7-tiny.onnx
 
     Export complete (2.59s). Visualize with https://github.com/lutzroeder/netron.
@@ -722,7 +728,7 @@ Create dataloader
 
 .. parsed-literal::
 
-    val: Scanning 'coco/val2017' images and labels... 4952 found, 48 missing, 0 empty, 0 corrupted: 100%|██████████| 5000/5000 [00:01<00:00, 2506.92it/s]
+    val: Scanning 'coco/val2017' images and labels... 4952 found, 48 missing, 0 empty, 0 corrupted: 100%|██████████| 5000/5000 [00:01<00:00, 2653.36it/s]
 
 
 Define validation function
@@ -985,10 +991,10 @@ asymmetric quantization of activations.
 
 .. parsed-literal::
 
-    2024-07-02 03:44:42.740146: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-07-02 03:44:42.772348: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-08-07 04:26:20.774330: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-07 04:26:20.805570: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-07-02 03:44:43.355364: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-08-07 04:26:21.390481: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -1152,18 +1158,18 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
+    [ INFO ] Build ................................. 2024.4.0-16249-d604f1d8b2a
     [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
+    [ INFO ] Build ................................. 2024.4.0-16249-d604f1d8b2a
     [ INFO ]
     [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 12.95 ms
+    [ INFO ] Read model took 13.29 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
@@ -1177,7 +1183,7 @@ models.
     [ INFO ] Model outputs:
     [ INFO ]     output (node: output) : f32 / [...] / [1,25200,85]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 265.12 ms
+    [ INFO ] Compile model took 251.84 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: main_graph
@@ -1214,17 +1220,17 @@ models.
     [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 44.77 ms
+    [ INFO ] First inference took 44.86 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            11700 iterations
-    [ INFO ] Duration:         120095.00 ms
+    [ INFO ] Count:            11676 iterations
+    [ INFO ] Duration:         120068.42 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        61.32 ms
-    [ INFO ]    Average:       61.44 ms
-    [ INFO ]    Min:           35.90 ms
-    [ INFO ]    Max:           81.91 ms
-    [ INFO ] Throughput:   97.42 FPS
+    [ INFO ]    Median:        61.30 ms
+    [ INFO ]    Average:       61.56 ms
+    [ INFO ]    Min:           44.00 ms
+    [ INFO ]    Max:           129.89 ms
+    [ INFO ] Throughput:   97.24 FPS
 
 
 .. code:: ipython3
@@ -1240,18 +1246,18 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
+    [ INFO ] Build ................................. 2024.4.0-16249-d604f1d8b2a
     [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
+    [ INFO ] Build ................................. 2024.4.0-16249-d604f1d8b2a
     [ INFO ]
     [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 18.92 ms
+    [ INFO ] Read model took 19.30 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
@@ -1265,7 +1271,7 @@ models.
     [ INFO ] Model outputs:
     [ INFO ]     output (node: output) : f32 / [...] / [1,25200,85]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 488.21 ms
+    [ INFO ] Compile model took 402.86 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: main_graph
@@ -1302,15 +1308,15 @@ models.
     [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 23.94 ms
+    [ INFO ] First inference took 24.17 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            34572 iterations
-    [ INFO ] Duration:         120027.52 ms
+    [ INFO ] Count:            32682 iterations
+    [ INFO ] Duration:         120017.62 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        20.63 ms
-    [ INFO ]    Average:       20.72 ms
-    [ INFO ]    Min:           14.83 ms
-    [ INFO ]    Max:           39.17 ms
-    [ INFO ] Throughput:   288.03 FPS
+    [ INFO ]    Median:        21.89 ms
+    [ INFO ]    Average:       21.92 ms
+    [ INFO ]    Min:           16.63 ms
+    [ INFO ]    Max:           39.51 ms
+    [ INFO ] Throughput:   272.31 FPS
 

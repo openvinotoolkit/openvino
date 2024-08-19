@@ -218,6 +218,26 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 full_code += ss;
 
             b.hash_value = std::hash<std::string>()(full_code);
+
+            std::string dump_sources_dir = "";
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(!debug_config->dump_sources.empty()) {
+                dump_sources_dir = debug_config->dump_sources;
+            }
+
+            // Add -g -s to build options to allow IGC assembly dumper to associate assembler sources with corresponding OpenCL kernel code lines
+            // Should be used with the IGC_ShaderDump option
+            if (!dump_sources_dir.empty()) {
+                std::string current_dump_file_name = dump_sources_dir;
+                if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
+                    current_dump_file_name += '/';
+
+                current_dump_file_name += "clDNN_program_" + std::to_string(_prog_id) + "_bucket_" + std::to_string(b.bucket_id)
+                                        + "_part_" + std::to_string(b.batch_id) + "_" + std::to_string(b.hash_value) + ".cl";
+
+                b.options += " -g -s " + current_dump_file_name;
+            }
+
             all_batches->push_back(b);
         }
     }
@@ -413,7 +433,8 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
 kernel::ptr kernels_cache::get_kernel_from_cached_kernels(std::string id) const {
     auto res = _cached_kernels.find(id);
     OPENVINO_ASSERT(_cached_kernels.end() != res, "[GPU] Kernel " + id + " not found in the cached kernel cache!");
-    return res->second->clone();
+
+    return res->second->clone(_reuse_kernels);
 }
 
 std::vector<kernel::ptr> kernels_cache::get_kernels(kernel_impl_params params) const {
@@ -431,7 +452,7 @@ std::vector<kernel::ptr> kernels_cache::get_kernels(kernel_impl_params params) c
     for (auto& k : res->second) {
         auto& kernel_ptr = k.first;
         auto kernel_part_idx = k.second;
-        kernels[kernel_part_idx] = kernel_ptr->clone();
+        kernels[kernel_part_idx] = kernel_ptr->clone(_reuse_kernels);
     }
     return kernels;
 }

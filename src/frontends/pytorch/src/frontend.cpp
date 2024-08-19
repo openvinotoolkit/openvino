@@ -10,6 +10,7 @@
 #include "openvino/frontend/pytorch/extension/conversion.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 #include "place.hpp"
 #include "pt_framework_node.hpp"
@@ -160,6 +161,10 @@ std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& mo
     for (auto&& op : unconverted_ops) {
         if (m_telemetry) {
             m_telemetry->send_event("error_cause", "pytorch_" + op.first);
+            auto cropped_message = ov::util::filter_lines_by_prefix(op.second, get_pytorch_prefix());
+            if (cropped_message.size()) {
+                m_telemetry->send_event("error_info", cropped_message);
+            }
         }
     }
     bool is_conversion_successful = unconverted_ops.size() == 0 && norm_err.empty();
@@ -240,7 +245,7 @@ std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("Frontend:Pytorch:normalize");
 
     // GPTQ transformations need to be executed before other passes
     // Once the GPTQ patterns are modified by other transformations,
@@ -287,7 +292,14 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::QuantizedNodeRemover>();
     manager.register_pass<ov::frontend::pytorch::pass::SoftmaxReshapeElimination>();
-    manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>();
+
+    // Check if model is symmetrically quantized
+    bool sym = false;
+    if (model->has_rt_info("symmetric_quantization")) {
+        sym = model->get_rt_info()["symmetric_quantization"].as<bool>();
+    }
+    manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>(sym);
+
     manager.register_pass<ov::frontend::pytorch::pass::ReversepropResolver>();
     manager.register_pass<ov::frontend::pytorch::pass::MovePackThroughLstm>();
     manager.register_pass<ov::frontend::pytorch::pass::RemovePackingOps>();

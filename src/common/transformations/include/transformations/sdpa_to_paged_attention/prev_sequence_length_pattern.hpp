@@ -15,7 +15,7 @@
 namespace ov {
 namespace pass {
 
-class PrevSequenceLengthPattern;
+class TRANSFORMATIONS_API PrevSequenceLengthPattern;
 
 }  // namespace pass
 }  // namespace ov

@@ -42,8 +42,10 @@ protected:
             in_symbols.push_back(std::make_shared<Symbol>());
 
         auto exp_symbols = in_symbols;
-        const auto n_axis = ov::util::normalize_axis("", axis, p_shape.rank());
-        exp_symbols[n_axis] = nullptr;
+        const auto rank = p_shape.rank();
+        if (rank.is_static()) {
+            exp_symbols[ov::util::try_normalize_axis(axis, rank)] = nullptr;
+        }
 
         return {in_symbols, exp_symbols};
     }

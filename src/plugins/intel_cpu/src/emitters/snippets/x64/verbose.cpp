@@ -88,11 +88,8 @@ std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter *emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_brgemm_emitter"
        <<  emitter->m_kernel_executor->to_string()
-       << " m_load_offset_a:" << emitter->m_load_offset_a
-       << " m_load_offset_b:" << emitter->m_load_offset_b
-       << " m_load_offset_scratch:" << emitter->m_load_offset_scratch
-       << " m_store_offset_c:" << emitter->m_store_offset_c
-       << " m_with_scratch:" << emitter->m_with_scratch;
+       << " m_memory_offset:" << vector_to_string(emitter->m_memory_offsets)
+       << " m_buffer_ids:" << vector_to_string(emitter->m_buffer_ids);
 
     return ss.str();
 }

@@ -22,7 +22,9 @@ namespace pass {
 class TRANSFORMATIONS_API MarkDequantizationSubgraph : public MatcherPass {
 public:
     OPENVINO_RTTI("MarkDequantizationSubgraph", "0");
-    MarkDequantizationSubgraph(const element::TypeVector& precisions, const bool fold_subtract_const = false);
+    MarkDequantizationSubgraph(const element::TypeVector& precisions,
+                               const bool fold_subtract_const = false,
+                               const bool fold_multiply_const = true);
 };
 }  // namespace pass
 }  // namespace ov
