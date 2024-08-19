@@ -87,7 +87,7 @@ async function downloadRuntime(destinationPath, config = { force: false, ignoreI
     await fs.mkdir(tempDirectoryPath);
 
     console.log('Downloading OpenVINO runtime archive...');
-    await downloadFile(runtimeArchiveUrl, filename, tempDirectoryPath, config.proxy);
+    await downloadFile(runtimeArchiveUrl, tempDirectoryPath, filename, config.proxy);
     console.log('OpenVINO runtime archive downloaded.');
 
     await removeDirectory(destinationPath);
@@ -210,7 +210,7 @@ async function removeDirectory(path) {
  * @param {string} [proxy=null] - (Optional) The proxy URL.
  * @returns {Promise<void>}
  */
-function downloadFile(url, filename, destination, proxy = null) {
+function downloadFile(url, destination, filename, proxy = null) {
   const timeout = 5000;
   const fullPath = path.resolve(destination, filename);
   const file = createWriteStream(fullPath);
@@ -281,4 +281,4 @@ function unarchive(tarFilePath, dest) {
   });
 }
 
-module.exports = { downloadRuntime };
+module.exports = { downloadRuntime, downloadFile, checkIfDirectoryExists };
