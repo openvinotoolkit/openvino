@@ -110,8 +110,7 @@ TEST(CoreBaseTest, AddExtensionwithSymlinkInDiffPlace) {
     EXPECT_NO_THROW(core.add_extension(openvino_template_extension));
     EXPECT_THROW(core.add_extension(symlink_for_extension_copy_file), std::runtime_error);
 
-    fs::remove_all("test_link");
-    ASSERT_FALSE(ov::util::directory_exists("test_link"));
+    ASSERT_TRUE(fs::remove_all("test_link"));
 }
 #    endif
 #endif

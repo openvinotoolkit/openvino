@@ -107,7 +107,7 @@ public:
 
     void register_front_end(const std::string& name, const std::string& library_path) {
         OPENVINO_ASSERT(!ov::util::is_symlink_in_different_path(library_path),
-                        "Cannot registe plugin with symlink path:\"" + library_path + "\".");
+                        "Cannot register plugin with symlink path: \"" + library_path + "\".");
         auto lib_path = ov::util::from_file_path(ov::util::get_plugin_path(library_path));
         PluginInfo plugin;
         plugin.m_file_path = lib_path;
