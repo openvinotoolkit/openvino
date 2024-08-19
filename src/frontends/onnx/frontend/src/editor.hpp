@@ -54,6 +54,11 @@ public:
                              const bool enable_mmap = false,
                              frontend::ExtensionHolder extensions = {});
 
+    explicit ONNXModelEditor(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+                             const std::string& path = {},
+                             const bool enable_mmap = false,
+                             frontend::ExtensionHolder extensions = {});
+
     /// \brief Modifies the in-memory representation of the model by setting
     ///        custom input types for all inputs specified in the provided map.
     ///

@@ -4,6 +4,7 @@
 #include "load_from.hpp"
 
 #include <gtest/gtest.h>
+#include <onnx/onnx_pb.h>
 
 #include <fstream>
 
@@ -61,3 +62,30 @@ INSTANTIATE_TEST_SUITE_P(ONNXLoadTest,
                          FrontEndLoadFromTest,
                          ::testing::Values(getTestData()),
                          FrontEndLoadFromTest::getTestCaseName);
+
+TEST_P(FrontEndLoadFromTest, testLoadFromModelProto) {
+    const auto path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "abs.onnx"});
+    std::ifstream ifs(path, std::ios::in | std::ios::binary);
+    ASSERT_TRUE(ifs.is_open()) << "Could not open an ifstream for the model path: " << path;
+    std::vector<std::string> frontends;
+    FrontEnd::Ptr fe;
+
+    {
+        auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>();
+        ASSERT_TRUE(model_proto->ParseFromIstream(&ifs)) << "Could not parse ModelProto from file: " << path;
+
+        ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_model(model_proto))
+            << "Could not create the ONNX FE using a ModelProto object";
+        ASSERT_NE(m_frontEnd, nullptr);
+        ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(model_proto)) << "Could not load the model";
+        ASSERT_NE(m_inputModel, nullptr);
+    }
+
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel))
+        << "Could not convert the model to OV representation";
+    ASSERT_NE(model, nullptr);
+
+    ASSERT_TRUE(model->get_ordered_ops().size() > 0);
+}

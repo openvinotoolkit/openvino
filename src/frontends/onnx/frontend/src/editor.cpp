@@ -343,6 +343,18 @@ ONNXModelEditor::ONNXModelEditor(std::istream& model_stream,
                   delete impl;
               }} {}
 
+ONNXModelEditor::ONNXModelEditor(std::shared_ptr<ModelProto> model_proto,
+                                 const std::string& model_path,
+                                 const bool enable_mmap,
+                                 frontend::ExtensionHolder extensions)
+    : m_model_path{model_path},
+      m_mmap_cache{enable_mmap ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>()
+                               : nullptr},
+      m_extensions{std::move(extensions)},
+      m_pimpl{new ONNXModelEditor::Impl{model_proto}, [](Impl* impl) {
+                  delete impl;
+              }} {}
+
 const std::string& ONNXModelEditor::model_path() const {
     return m_model_path;
 }
