@@ -16,6 +16,7 @@ JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params, bool seq
     if (params.input_forget) {
         jit.AddConstants({MakeJitConstant("INPUT_FORGET", true)});
     }
+    jit.AddConstants({MakeJitConstant("VEC_SIZE", 4)});
     jit.AddConstants({MakeJitConstant("DIRECTION", static_cast<int>(params.direction))});
     jit.AddConstants({MakeJitConstant("GATE_NUM", 4)});
     if (sequential) {
