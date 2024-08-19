@@ -174,7 +174,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     inputs_equal = True
     if user_shapes:
         # TODO: Remove this line when new 'cut' helper is introduced
-        raise_exception_for_input_output_cut(model_inputs, user_shapes, True)
+        # raise_exception_for_input_output_cut(model_inputs, user_shapes, True)
 
         inputs_equal = check_places_are_same(model_inputs, user_shapes)
 
