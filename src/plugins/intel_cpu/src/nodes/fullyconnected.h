@@ -29,6 +29,11 @@ struct FCTensorParallelConfig {
     int id = 0;
     bool enable_tensor_parallel = false;
     std::shared_ptr<SubMemoryManager> sub_memory = nullptr;
+    MemoryPtr cached_splited_weight = nullptr;
+    MemoryPtr cached_splited_bias = nullptr;
+    MemoryPtr cached_scale = nullptr;
+    MemoryPtr cached_zeropoint = nullptr;
+    MemoryPtr cached_dst = nullptr;
 };
 
 class FullyConnected : public Node {
@@ -103,12 +108,6 @@ private:
     std::string errorPrefix;
 
     FCTensorParallelConfig tp_cfg;
-    MemoryPtr cached_splited_weight = nullptr;
-    MemoryPtr cached_splited_bias = nullptr;
-    MemoryPtr cached_scale = nullptr;
-    MemoryPtr cached_zeropoint = nullptr;
-    MemoryPtr cached_dst = nullptr;
-    MemoryDescPtr memory_desc;
 };
 
 }  // namespace node
