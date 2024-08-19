@@ -113,6 +113,17 @@ bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2) {
     return false;
 }
 
+bool merge_dynamic_dim(size_t& dst, const size_t& d1, const size_t& d2) {
+    if (d1 == d2 || is_dynamic_value(d1)) {
+        dst = d2;
+        return true;
+    } else if (is_dynamic_value(d2)) {
+        dst = d1;
+        return true;
+    }
+    return false;
+}
+
 VectorDims pshape_to_vdims(const PartialShape& pshape) {
     VectorDims result;
     result.reserve(pshape.size());

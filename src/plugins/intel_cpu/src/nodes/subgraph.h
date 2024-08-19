@@ -122,7 +122,9 @@ public:
     SubgraphExecutor(const std::shared_ptr<Subgraph::SubgraphAttrs>& snippet_attrs,
                      const std::shared_ptr<Subgraph::SubgraphCodeGenerator>& snippet,
                      const std::vector<ptrdiff_t>& start_offset_in,
-                     const std::vector<ptrdiff_t>& start_offset_out);
+                     const std::vector<ptrdiff_t>& start_offset_out,
+                     const std::shared_ptr<CPURuntimeConfig>& snippet_config,
+                     const DnnlScratchPadPtr& scratchpad);
     virtual ~SubgraphExecutor() = default;
 
     virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
@@ -133,7 +135,10 @@ protected:
     void parallel_forNd(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
                         const std::function<void(jit_snippets_call_args&, const size_t*)>& caller);
 
-    virtual void init_runtime_params(const std::shared_ptr<CPURuntimeConfig>& snippet_config, const DnnlScratchPadPtr& scratchpad);
+    inline void update_scratchpad_ptr(void*& scratchpad_ptr, size_t ithr) {
+        if (m_buffer_scratchpad_size > 0)
+            scratchpad_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + ithr * m_buffer_scratchpad_size;
+    }
 
     std::shared_ptr<snippets::Schedule> m_schedule;
     // Holds index of output used as in execution domain

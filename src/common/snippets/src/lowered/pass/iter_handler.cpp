@@ -50,12 +50,12 @@ bool UpdateMemoryAccessCounts::run(LinearIR& linear_ir, LinearIR::constExprIt be
 
 std::shared_ptr<pass::PassBase> UpdateMemoryAccessCounts::merge(const std::shared_ptr<pass::PassBase>& other) {
     if (!other)
-        return std::make_shared<UpdateMemoryAccessCounts>(*this);
+        return this->shared_from_this();
     const auto casted_pass = ov::as_type_ptr<UpdateMemoryAccessCounts>(other);
-    size_t broadcasted_count;
-    if (!casted_pass || !ov::snippets::utils::broadcast_merge_dim(broadcasted_count, m_count, casted_pass->m_count))
+    size_t merged_count;
+    if (!casted_pass || !ov::snippets::utils::merge_dynamic_dim(merged_count, m_count, casted_pass->m_count))
         return nullptr;
-    return std::make_shared<UpdateMemoryAccessCounts>(broadcasted_count);
+    return std::make_shared<UpdateMemoryAccessCounts>(merged_count);
 }
 
 SetFillOffset::SetFillOffset(size_t offset) : RangedPass(), m_offset(offset) {}
@@ -72,12 +72,12 @@ bool SetFillOffset::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linear
 
 std::shared_ptr<pass::PassBase> SetFillOffset::merge(const std::shared_ptr<pass::PassBase>& other) {
     if (!other)
-        return std::make_shared<SetFillOffset>(*this);
+        return this->shared_from_this();
     const auto casted_pass = ov::as_type_ptr<SetFillOffset>(other);
-    size_t broadcasted_offset;
-    if (!casted_pass || !ov::snippets::utils::broadcast_merge_dim(broadcasted_offset, m_offset, casted_pass->m_offset))
+    size_t merged_offset;
+    if (!casted_pass || !ov::snippets::utils::merge_dynamic_dim(merged_offset, m_offset, casted_pass->m_offset))
         return nullptr;
-    return std::make_shared<SetFillOffset>(broadcasted_offset);
+    return std::make_shared<SetFillOffset>(merged_offset);
 }
 
 bool SetLoopIncrementOne::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {

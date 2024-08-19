@@ -74,9 +74,7 @@ public:
                            const std::vector<ptrdiff_t>& start_offset_out,
                            const std::shared_ptr<CPURuntimeConfig>& snippet_config,
                            const DnnlScratchPadPtr& scratchpad)
-    : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out) {
-        init_runtime_params(snippet_config, scratchpad);
-    }
+    : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out, snippet_config, scratchpad) {}
 
     void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override  {
         const auto& callable = m_schedule->get_callable<kernel>();
@@ -106,8 +104,7 @@ protected:
         for (size_t i = 0; i < dstMemPtrs.size(); i++)
             call_args.dst_ptrs[i] = dstMemPtrs[i]->getDataAs<uint8_t>() + m_start_offset_out[i];
 
-        if (m_buffer_scratchpad_size > 0)
-            call_args.buffer_scratchpad_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + ithr * m_buffer_scratchpad_size;
+        update_scratchpad_ptr(call_args.buffer_scratchpad_ptr, ithr);
     }
 };
 
@@ -120,8 +117,11 @@ public:
                                        const std::vector<ptrdiff_t>& start_offset_out,
                                        const std::shared_ptr<CPURuntimeConfig>& snippet_config,
                                        const DnnlScratchPadPtr& scratchpad)
-    : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out) {
-        init_runtime_params(snippet_config, scratchpad);
+    : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out, snippet_config, scratchpad) {
+        buffer_offsets = snippet_config->buffer_cluster_offsets;
+        data_offsets = snippet_config->io_data_offsets;
+        loop_args = snippet_config->loop_args;
+        reset_exec_table_state = snippet_config->kernel_executor_table->get_state_reset();
     }
 
     void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override {
@@ -160,8 +160,7 @@ protected:
         call_args.register_loops(loop_args);
         std::copy(buffer_offsets.cbegin(), buffer_offsets.cend(), call_args.buffer_offsets);
 
-        if (m_buffer_scratchpad_size > 0)
-            call_args.buffer_scratchpad_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + ithr * m_buffer_scratchpad_size;
+        update_scratchpad_ptr(call_args.buffer_scratchpad_ptr, ithr);
     }
 
     inline void init_original_ptrs(const std::vector<MemoryPtr>& srcMemPtrs, const std::vector<MemoryPtr>& dstMemPtrs,
@@ -195,14 +194,6 @@ protected:
             call_args.dst_ptrs[i] = i_ptr;
         }
     }
-
-    void init_runtime_params(const std::shared_ptr<CPURuntimeConfig>& snippet_config,  const DnnlScratchPadPtr& scratchpad) override {
-        SubgraphExecutor::init_runtime_params(snippet_config, scratchpad);
-        buffer_offsets = snippet_config->buffer_cluster_offsets;
-        data_offsets = snippet_config->io_data_offsets;
-        loop_args = snippet_config->loop_args;
-        reset_exec_table_state = snippet_config->kernel_executor_table->get_state_reset();
-    };
 
     std::vector<size_t> buffer_offsets = {};
     std::vector<std::vector<size_t>> data_offsets = {};
@@ -876,18 +867,12 @@ Subgraph::SubgraphCodeGenerator::SubgraphCodeGenerator(const std::shared_ptr<Sub
 Subgraph::SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<Subgraph::SubgraphAttrs>& snippet_attrs,
                                              const std::shared_ptr<SubgraphCodeGenerator>& snippet,
                                              const std::vector<ptrdiff_t>& start_offset_in,
-                                             const std::vector<ptrdiff_t>& start_offset_out)
+                                             const std::vector<ptrdiff_t>& start_offset_out,
+                                             const std::shared_ptr<CPURuntimeConfig>& snippet_config,
+                                             const DnnlScratchPadPtr& scratchpad)
     : m_schedule(snippet->get()), m_start_offset_in(start_offset_in), m_start_offset_out(start_offset_out) {
     OPENVINO_ASSERT(m_schedule, "Schedule is empty!");
-#if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
-    const auto target = std::dynamic_pointer_cast<const CPUTargetMachine>(snippet_attrs->snippet->get_generator()->get_target_machine());
-    enabled_segfault_detector = target && target->debug_config.enable_segfault_detector;
-#endif
-}
-
-void Subgraph::SubgraphExecutor::init_runtime_params(const std::shared_ptr<CPURuntimeConfig>& snippet_config, const DnnlScratchPadPtr& scratchpad) {
     OPENVINO_ASSERT(snippet_config, "Runtime Config is empty!");
-
     init_parallel_domain(snippet_config, m_parallel_exec_domain);
 
     m_harness_work_amount = std::accumulate(m_parallel_exec_domain.cbegin(), m_parallel_exec_domain.cend(), size_t(1), std::multiplies<size_t>());
@@ -899,6 +884,11 @@ void Subgraph::SubgraphExecutor::init_runtime_params(const std::shared_ptr<CPURu
     const auto buffer_shape = intel_cpu::Shape{static_cast<size_t>(m_nthreads), m_buffer_scratchpad_size};
     const auto memory_desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, buffer_shape);
     m_buffer_scratchpad = scratchpad->createScratchPadMem(memory_desc);
+
+#if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
+    const auto target = std::dynamic_pointer_cast<const CPUTargetMachine>(snippet_attrs->snippet->get_generator()->get_target_machine());
+    enabled_segfault_detector = target && target->debug_config.enable_segfault_detector;
+#endif
 }
 
 #if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
