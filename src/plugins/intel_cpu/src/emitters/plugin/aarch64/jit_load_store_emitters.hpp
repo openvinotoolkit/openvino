@@ -6,6 +6,7 @@
 
 #include "jit_emitter.hpp"
 #include "cpu/aarch64/jit_generator.hpp"
+#include "emitters/plugin/aarch64/jit_conversion_emitters.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -39,6 +40,8 @@ private:
     size_t get_aux_gprs_count() const override;
     size_t get_aux_vecs_count() const override;
 
+    std::unique_ptr<jit_convert_emitter> convert_emitter = nullptr;
+
     std::string name_;
     int load_num_;  // the element number to load
     int byte_offset_;
@@ -68,12 +71,13 @@ private:
     size_t get_aux_gprs_count() const override;
     size_t get_aux_vecs_count() const override;
 
+    std::unique_ptr<jit_convert_emitter> convert_emitter = nullptr;
+
     std::string name_;
     int store_num_;  // the element number to store
     int byte_offset_;
     ov::element::Type src_prc_;
     ov::element::Type dst_prc_;
-    arithmetic_mode mode_ = arithmetic_mode::saturation;
 };
 
 }   // namespace aarch64

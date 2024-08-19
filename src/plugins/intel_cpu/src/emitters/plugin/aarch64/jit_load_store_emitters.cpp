@@ -5,7 +5,6 @@
 #include "jit_load_store_emitters.hpp"
 #include "cpu/aarch64/cpu_isa_traits.hpp"
 #include "emitters/utils.hpp"
-#include "utils.hpp"
 
 using namespace Xbyak_aarch64;
 
@@ -20,7 +19,9 @@ jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::aarch64::jit_generator *host
                                    ov::element::Type src_prc, ov::element::Type dst_prc, int load_num, int byte_offset,
                                    ov::element::Type exec_prc, emitter_in_out_map in_out_type)
 : jit_emitter(host, host_isa, exec_prc, in_out_type), name_("unknown"), load_num_(load_num), byte_offset_(byte_offset),
-              src_prc_(src_prc), dst_prc_(dst_prc) {}
+              src_prc_(src_prc), dst_prc_(dst_prc) {
+    convert_emitter.reset(new jit_convert_truncation_emitter(host, host_isa, src_prc, dst_prc, exec_prc));
+}
 
 void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
@@ -135,67 +136,22 @@ void jit_load_emitter::emit_isa(const std::vector<size_t> &in_idxs, const std::v
 
     switch (src_prc_) {
         case ov::element::f32:
-            load_qbyte<isa>(in_idxs, src_prc_ == dst_prc_ ? out_idxs : aux_vec_idxs);
-            switch (dst_prc_) {
-                case ov::element::f32:
-                    break;
-                case ov::element::i32:
-                    cvt_f32_to_i32<isa>(h, aux_vec_idxs, out_idxs);
-                    break;
-                default:
-                    OV_CPU_JIT_EMITTER_THROW("Unsupported output type: ", dst_prc_.get_type_name());
-            }
-            break;
         case ov::element::i32:
             load_qbyte<isa>(in_idxs, src_prc_ == dst_prc_ ? out_idxs : aux_vec_idxs);
-            switch (dst_prc_) {
-                case ov::element::f32:
-                    cvt_i32_to_f32<isa>(h, aux_vec_idxs, out_idxs);
-                    break;
-                case ov::element::i32:
-                    break;
-                default:
-                    OV_CPU_JIT_EMITTER_THROW("Unsupported output type: ", dst_prc_.get_type_name());
-            }
             break;
         case ov::element::f16:
             load_dbyte<isa>(in_idxs, src_prc_ == dst_prc_ ? out_idxs : aux_vec_idxs);
-            switch (dst_prc_) {
-                case ov::element::f32:
-                    cvt_f16_to_f32<isa>(h, aux_vec_idxs, out_idxs);
-                    break;
-                case ov::element::i32:
-                    cvt_f16_to_f32<isa>(h, aux_vec_idxs, aux_vec_idxs);
-                    cvt_f32_to_i32<isa>(h, aux_vec_idxs, out_idxs);
-                    break;
-                case ov::element::f16:
-                    break;
-                default:
-                    OV_CPU_JIT_EMITTER_THROW("Unsupported output type: ", dst_prc_.get_type_name());
-            }
             break;
         case ov::element::i8:
         case ov::element::u8:
             load_byte<isa>(in_idxs, src_prc_ == dst_prc_ ? out_idxs : aux_vec_idxs);
-            switch (dst_prc_) {
-                case ov::element::f32:
-                    cvt_byte_to_dbyte<isa>(h, aux_vec_idxs, aux_vec_idxs, src_prc_.is_signed());
-                    cvt_dbyte_to_i32<isa>(h, aux_vec_idxs, aux_vec_idxs, src_prc_.is_signed());
-                    cvt_i32_to_f32<isa>(h, aux_vec_idxs, out_idxs);
-                    break;
-                case ov::element::i32:
-                    cvt_byte_to_dbyte<isa>(h, aux_vec_idxs, aux_vec_idxs, src_prc_.is_signed());
-                    cvt_dbyte_to_i32<isa>(h, aux_vec_idxs, out_idxs, src_prc_.is_signed());
-                    break;
-                case ov::element::i8:
-                case ov::element::u8:
-                    break;
-                default:
-                    OV_CPU_JIT_EMITTER_THROW("Unsupported output type: ", dst_prc_.get_type_name());
-            }
             break;
         default:
             OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", src_prc_.get_type_name());
+    }
+
+    if (src_prc_ != dst_prc_) {
+        convert_emitter->emit_code(aux_vec_idxs, out_idxs);
     }
 }
 
@@ -217,7 +173,15 @@ jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::aarch64::jit_generator *ho
                                      ov::element::Type src_prc, ov::element::Type dst_prc, int store_num, int byte_offset,
                                      arithmetic_mode mode, ov::element::Type exec_prc, emitter_in_out_map in_out_type)
     : jit_emitter(host, host_isa, exec_prc, in_out_type), name_("unknown"), store_num_(store_num), byte_offset_(byte_offset),
-                  src_prc_(src_prc), dst_prc_(dst_prc), mode_(mode) {}
+                  src_prc_(src_prc), dst_prc_(dst_prc) {
+    if (mode == arithmetic_mode::truncation) {
+        convert_emitter.reset(new jit_convert_truncation_emitter(host, host_isa, src_prc, dst_prc, exec_prc));
+    } else if (mode == arithmetic_mode::saturation) {
+        convert_emitter.reset(new jit_convert_saturation_emitter(host, host_isa, src_prc, dst_prc, exec_prc));
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Unsupported Convert emitter.");
+    }
+}
 
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
@@ -331,65 +295,20 @@ void jit_store_emitter::emit_isa(const std::vector<size_t> &in_idxs, const std::
     OV_CPU_JIT_EMITTER_ASSERT(store_num_ <= static_cast<int>((get_vec_length() / dst_prc_.size())),
                               "Unexpected number of elements to store.");
 
+    if (src_prc_ != dst_prc_) {
+        convert_emitter->emit_code(in_idxs, aux_vec_idxs);
+    }
+
     switch (dst_prc_) {
         case ov::element::f32:
-            switch (src_prc_) {
-                case ov::element::f32:
-                    break;
-                case ov::element::i32:
-                    cvt_i32_to_f32<isa>(h, in_idxs, aux_vec_idxs);
-                    break;
-                default:
-                    OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", src_prc_.get_type_name());
-            }
-            store_qbyte<isa>(src_prc_ == dst_prc_ ? in_idxs : aux_vec_idxs, out_idxs);
-            break;
         case ov::element::i32:
-            switch (src_prc_) {
-                case ov::element::f32:
-                    cvt_f32_to_i32<isa>(h, in_idxs, aux_vec_idxs);
-                    break;
-                case ov::element::i32:
-                    break;
-                default:
-                    OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", src_prc_.get_type_name());
-            }
             store_qbyte<isa>(src_prc_ == dst_prc_ ? in_idxs : aux_vec_idxs, out_idxs);
             break;
         case ov::element::f16:
-            switch (src_prc_) {
-                case ov::element::f32:
-                    cvt_f32_to_f16<isa>(h, in_idxs, aux_vec_idxs);
-                    break;
-                case ov::element::i32:
-                    cvt_i32_to_f32<isa>(h, in_idxs, aux_vec_idxs);
-                    cvt_f32_to_f16<isa>(h, aux_vec_idxs, aux_vec_idxs);
-                    break;
-                case ov::element::f16:
-                    break;
-                default:
-                    OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", src_prc_.get_type_name());
-            }
             store_dbyte<isa>(src_prc_ == dst_prc_ ? in_idxs : aux_vec_idxs, out_idxs);
             break;
         case ov::element::i8:
         case ov::element::u8:
-            switch (src_prc_) {
-                case ov::element::f32:
-                    cvt_f32_to_i32<isa>(h, in_idxs, aux_vec_idxs);
-                    cvt_i32_to_dbyte<isa>(h, aux_vec_idxs, aux_vec_idxs, dst_prc_.is_signed(), mode_ == arithmetic_mode::saturation);
-                    cvt_dbyte_to_byte<isa>(h, aux_vec_idxs, aux_vec_idxs, dst_prc_.is_signed(), mode_ == arithmetic_mode::saturation);
-                    break;
-                case ov::element::i32:
-                    cvt_i32_to_dbyte<isa>(h, in_idxs, aux_vec_idxs, dst_prc_.is_signed(), mode_ == arithmetic_mode::saturation);
-                    cvt_dbyte_to_byte<isa>(h, aux_vec_idxs, aux_vec_idxs, dst_prc_.is_signed(), mode_ == arithmetic_mode::saturation);
-                    break;
-                case ov::element::i8:
-                case ov::element::u8:
-                    break;
-                default:
-                    OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", src_prc_.get_type_name());
-            }
             store_byte<isa>(src_prc_ == dst_prc_ ? in_idxs : aux_vec_idxs, out_idxs);
             break;
         default:
