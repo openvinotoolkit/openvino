@@ -70,7 +70,6 @@ size_t ComputeBufferAllocationSize::get_allocation_size(const LoopManagerPtr& lo
         auto it = std::find_if(output_ports.begin(), output_ports.end(), hard_equal);
         // [149219] : Try to find original loop port if this LoopInfo is cloned after InsertSpecificIterations
         //            and ports are not mapped on the original ExpressionPorts
-        // Note: this check is needed only in Splitted Loops
         if (it == output_ports.end()) {
             it = std::find_if(output_ports.begin(), output_ports.end(), soft_equal);
             OPENVINO_ASSERT(it != output_ports.end(), "compute_allocation_shape: output port of parent loop can not be found");

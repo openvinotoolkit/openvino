@@ -201,11 +201,21 @@ UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount, size_t increment,
 }
 
 std::shared_ptr<LoopInfo> UnifiedLoopInfo::clone_with_new_expr(const ExpressionMap& expr_map, LoopInfoMap& loop_map) const {
-    const auto& new_input_ports = clone_loop_ports(expr_map, m_input_ports);
-    const auto& new_output_ports = clone_loop_ports(expr_map, m_output_ports);
+    if (loop_map.count(this) == 0) {
+        const auto& new_input_ports = clone_loop_ports(expr_map, m_input_ports);
+        const auto& new_output_ports = clone_loop_ports(expr_map, m_output_ports);
 
-    return std::make_shared<UnifiedLoopInfo>(m_work_amount, m_increment, new_input_ports, new_output_ports,
-                                             m_input_port_descs, m_output_port_descs, m_handlers);
+        loop_map[this] = std::make_shared<UnifiedLoopInfo>(m_work_amount, m_increment, new_input_ports, new_output_ports,
+                                                           m_input_port_descs, m_output_port_descs, m_handlers);
+    }
+    return loop_map.at(this);
+}
+
+void UnifiedLoopInfo::apply(const std::function<void(const LoopInfoPtr&)>& func, LoopInfoSet& applied_loops) {
+    if (applied_loops.count(this) == 0) {
+        func(this->shared_from_this());
+        applied_loops.insert(this);
+    }
 }
 
 bool UnifiedLoopInfo::is_dynamic() const {
@@ -364,16 +374,24 @@ InnerSplittedUnifiedLoopInfo::InnerSplittedUnifiedLoopInfo(size_t increment, con
 }
 
 std::shared_ptr<LoopInfo> InnerSplittedUnifiedLoopInfo::clone_with_new_expr(const ExpressionMap& expr_map, LoopInfoMap& loop_map) const {
-    if (loop_map.count(m_outer_splitted_loop_info.get()) == 0)
-        loop_map[m_outer_splitted_loop_info.get()] = m_outer_splitted_loop_info->clone_with_new_expr(expr_map, loop_map);
+    if (loop_map.count(this) == 0) {
+        auto cloned_outer_splitted_loop_info = m_outer_splitted_loop_info->clone_with_new_expr(expr_map, loop_map);
+        const auto& new_input_ports = clone_loop_ports(expr_map, m_input_ports);
+        const auto& new_output_ports = clone_loop_ports(expr_map, m_output_ports);
 
-    const auto cloned_outer_splitted_loop_info = loop_map.at(m_outer_splitted_loop_info.get());
-    const auto& new_input_ports = clone_loop_ports(expr_map, m_input_ports);
-    const auto& new_output_ports = clone_loop_ports(expr_map, m_output_ports);
+        loop_map[this] = std::make_shared<InnerSplittedUnifiedLoopInfo>(m_increment, new_input_ports, new_output_ports,
+                                                                        m_input_port_descs, m_output_port_descs, m_handlers,
+                                                                        std::move(cloned_outer_splitted_loop_info));
+    }
+    return loop_map.at(this);
+}
 
-    return std::make_shared<InnerSplittedUnifiedLoopInfo>(m_increment, new_input_ports, new_output_ports,
-                                                          m_input_port_descs, m_output_port_descs, m_handlers,
-                                                          std::move(cloned_outer_splitted_loop_info));
+void InnerSplittedUnifiedLoopInfo::apply(const std::function<void(const LoopInfoPtr&)>& func, LoopInfoSet& applied_loops) {
+    if (applied_loops.count(this) == 0) {
+        m_outer_splitted_loop_info->apply(func, applied_loops);
+        func(this->shared_from_this());
+        applied_loops.insert(this);
+    }
 }
 
 size_t InnerSplittedUnifiedLoopInfo::get_work_amount() const {
@@ -406,16 +424,24 @@ ExpandedLoopInfo::ExpandedLoopInfo(size_t work_amount, size_t increment,
 }
 
 std::shared_ptr<LoopInfo> ExpandedLoopInfo::clone_with_new_expr(const ExpressionMap& expr_map, LoopInfoMap& loop_map) const {
-    if (loop_map.count(m_unified_loop_info.get()) == 0)
-        loop_map[m_unified_loop_info.get()] = m_unified_loop_info->clone_with_new_expr(expr_map, loop_map);
+    if (loop_map.count(this) == 0) {
+        auto cloned_unified_loop_info = ov::as_type_ptr<UnifiedLoopInfo>(m_unified_loop_info->clone_with_new_expr(expr_map, loop_map));
+        const auto& new_input_ports = clone_loop_ports(expr_map, m_input_ports);
+        const auto& new_output_ports = clone_loop_ports(expr_map, m_output_ports);
 
-    const auto cloned_unified_loop_info = ov::as_type_ptr<UnifiedLoopInfo>(loop_map.at(m_unified_loop_info.get()));
-    const auto& new_input_ports = clone_loop_ports(expr_map, m_input_ports);
-    const auto& new_output_ports = clone_loop_ports(expr_map, m_output_ports);
+        loop_map[this] = std::make_shared<ExpandedLoopInfo>(m_work_amount, m_increment, new_input_ports, new_output_ports,
+                                                            m_ptr_increments, m_finalization_offsets, m_data_sizes, m_type,
+                                                            std::move(cloned_unified_loop_info), m_evaluate_once);
+    }
+    return loop_map.at(this);
+}
 
-    return std::make_shared<ExpandedLoopInfo>(m_work_amount, m_increment, new_input_ports, new_output_ports,
-                                              m_ptr_increments, m_finalization_offsets, m_data_sizes, m_type,
-                                              std::move(cloned_unified_loop_info), m_evaluate_once);
+void ExpandedLoopInfo::apply(const std::function<void(const LoopInfoPtr&)>& func, LoopInfoSet& applied_loops) {
+    if (applied_loops.count(this) == 0) {
+        m_unified_loop_info->apply(func, applied_loops);
+        func(this->shared_from_this());
+        applied_loops.insert(this);
+    }
 }
 
 bool ExpandedLoopInfo::is_dynamic() const {

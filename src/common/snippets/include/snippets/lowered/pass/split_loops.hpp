@@ -32,13 +32,13 @@ namespace pass {
 class SplitLoops : public RangedPass {
 public:
     OPENVINO_RTTI("SplitLoops", "RangedPass")
-    SplitLoops();
+    SplitLoops() = default;
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
-
-    static void split(LinearIR& linear_ir, size_t loop_to_split_id, size_t outer_increment);
 
 private:
     static bool can_be_split(const UnifiedLoopInfoPtr& current, const UnifiedLoopInfoPtr& target);
+
+    static void split(LinearIR& linear_ir, size_t loop_to_split_id, size_t outer_increment);
 
     /**
      * @interface TransformInnerSplitLoop

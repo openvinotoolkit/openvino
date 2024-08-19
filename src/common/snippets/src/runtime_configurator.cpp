@@ -185,17 +185,19 @@ void RuntimeConfigurator::init_buffer_info(const lowered::LinearIRCPtr& linear_i
 
 void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_ir,
                                            LoopInfoRuntimeParamsMap& initializated_info_map) const {
-    const auto& loop_manager = linear_ir->get_loop_manager();
-    for (const auto& loop_id : m_ordered_loop_ids) {
-        const auto& expanded_loop_info = loop_manager->get_loop_info<lowered::ExpandedLoopInfo>(loop_id);
-        OPENVINO_ASSERT(expanded_loop_info, "UpdateLoopInfo expects ExpandedLoopInfo in LoopManager");
+    lowered::LoopInfoSet updated_loops;
+    std::function<void(const lowered::LoopInfoPtr& loop_info)> update_loop_info;
 
-        // First visiting of unified (whole) loop
-        const auto& current_unified_loop_info = expanded_loop_info->get_unified_loop_info();
-        if (initializated_info_map.count(current_unified_loop_info) == 0) {
-            lowered::pass::InitLoops::update_runtime_parameters(current_unified_loop_info);
-            initializated_info_map[current_unified_loop_info] = compute_runtime_params(current_unified_loop_info);
+    auto update_unified_loop_info = [&](const lowered::UnifiedLoopInfoPtr& unified_loop_info) {
+        if (initializated_info_map.count(unified_loop_info) == 0) {
+            lowered::pass::InitLoops::update_runtime_parameters(unified_loop_info);
+            initializated_info_map[unified_loop_info] = compute_runtime_params(unified_loop_info);
         }
+    };
+
+    auto update_expanded_loop_info = [&](const lowered::ExpandedLoopInfoPtr& expanded_loop_info) {
+        const auto& current_unified_loop_info = expanded_loop_info->get_unified_loop_info();
+        current_unified_loop_info->apply(update_loop_info, updated_loops);
 
         auto& initializated_info = initializated_info_map.at(current_unified_loop_info);
         auto& current_work_amount = initializated_info.work_amount;
@@ -209,7 +211,7 @@ void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_i
             expanded_loop_info->set_work_amount(0);
             if (expanded_loop_info->is_evaluate_once())
                 expanded_loop_info->set_increment(0);
-            continue;
+            return;
         }
 
         const auto work_amount =
@@ -229,6 +231,23 @@ void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_i
             expanded_loop_info->update_ptr_increments(ptr_increments);
         }
         expanded_loop_info->update_finalization_offsets(updated_finalization_offsets);
+    };
+
+    update_loop_info = [&](const lowered::LoopInfoPtr& loop_info) {
+        if (const auto unified_loop_info = ov::as_type_ptr<lowered::UnifiedLoopInfo>(loop_info)) {
+            update_unified_loop_info(unified_loop_info);
+        } else if (const auto expanded_loop_info = ov::as_type_ptr<lowered::ExpandedLoopInfo>(loop_info)) {
+            update_expanded_loop_info(expanded_loop_info);
+        } else {
+            OPENVINO_THROW("Failed to update loop info: unknown type!");
+        }
+    };
+
+    const auto& loop_map = linear_ir->get_loop_manager()->get_map();
+    for (const auto& p : loop_map) {
+        const auto& expanded_loop_info = ov::as_type_ptr<lowered::ExpandedLoopInfo>(p.second);
+        OPENVINO_ASSERT(expanded_loop_info, "UpdateLoopInfo expects ExpandedLoopInfo in LoopManager");
+        expanded_loop_info->apply(update_loop_info, updated_loops);
     }
 }
 

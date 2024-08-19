@@ -26,7 +26,7 @@ std::vector<size_t> get_reordered_loop_ids(const LoopManagerPtr& loop_manager) {
     auto sorter = [&](size_t lhs, size_t rhs) {
         const auto lhs_last_expr = loop_manager->get_loop_info(lhs)->get_output_ports().back().expr_port->get_expr();
         const auto rhs_last_expr = loop_manager->get_loop_info(rhs)->get_output_ports().back().expr_port->get_expr();
-        // If LoopEnd is the same expression - first executive Loop has inner ID in expression loop IDs.
+        // If last output loop ports are the same expressions - first executive Loop has inner ID in expression loop IDs.
         if (lhs_last_expr == rhs_last_expr) {
             for (const auto& id : lhs_last_expr->get_loop_ids()) {
                 if (id == lhs) return false;

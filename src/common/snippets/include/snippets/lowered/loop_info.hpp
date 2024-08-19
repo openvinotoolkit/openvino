@@ -13,7 +13,9 @@ namespace snippets {
 namespace lowered {
 
 class LoopInfo;
-using LoopInfoMap = std::map<LoopInfo*, std::shared_ptr<LoopInfo>>;
+using LoopInfoMap = std::unordered_map<const LoopInfo*, std::shared_ptr<LoopInfo>>;
+using LoopInfoSet = std::unordered_set<const LoopInfo*>;
+using LoopInfoPtr = std::shared_ptr<LoopInfo>;
 
 /**
  * @interface LoopInfo
@@ -21,7 +23,7 @@ using LoopInfoMap = std::map<LoopInfo*, std::shared_ptr<LoopInfo>>;
  *        work amount of the Loop, step of loop counter increment, input and output ports of the Loop.
  * @ingroup snippets
  */
-class LoopInfo {
+class LoopInfo : public std::enable_shared_from_this<LoopInfo> {
 public:
     enum {UNDEFINED_DIM_IDX = std::numeric_limits<size_t>::max()};
 
@@ -37,6 +39,13 @@ public:
      * @return the copy
      */
     virtual std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map, LoopInfoMap& loop_map) const = 0;
+
+    /**
+     * @brief Apply the passed function to the current LoopInfo
+     * @param func function for applying
+     * @param applied_loops set of already updated loops
+     */
+    virtual void apply(const std::function<void(const LoopInfoPtr&)>& func, LoopInfoSet& applied_loops) = 0;
 
     /**
      * @brief Check if some parameters of Loop are dynamic (undefined)
@@ -182,7 +191,6 @@ protected:
     std::vector<LoopPort> m_input_ports = {};
     std::vector<LoopPort> m_output_ports = {};
 };
-using LoopInfoPtr = std::shared_ptr<LoopInfo>;
 
 /**
  * @interface UnifiedLoopInfo
@@ -231,6 +239,13 @@ public:
      * @return the copy
      */
     std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map, LoopInfoMap& loop_map) const override;
+
+    /**
+     * @brief Apply the passed function on the current LoopInfo.
+     * @param func function for applying
+     * @param applied_loops set of already updated loops
+     */
+    void apply(const std::function<void(const LoopInfoPtr&)>& func, LoopInfoSet& applied_loops) override;
 
     /**
      * @brief Check if some parameters of Loop are dynamic (undefined)
@@ -393,6 +408,13 @@ public:
     std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map, LoopInfoMap& loop_map) const override;
 
     /**
+     * @brief Apply the passed function on OuterSplittedLoopInfo and then on the current LoopInfo.
+     * @param func function for applying
+     * @param applied_loops set of already updated loops
+     */
+    void apply(const std::function<void(const LoopInfoPtr&)>& func, LoopInfoSet& applied_loops) override;
+
+    /**
      * @brief Returns work amount of the Loop.
      * @return m_work_amount
      */
@@ -442,6 +464,13 @@ public:
      * @return the copy
      */
     std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map, LoopInfoMap& loop_map) const override;
+
+    /**
+     * @brief Apply the passed function on UnifiedLoopInfo and then on the current LoopInfo.
+     * @param func function for applying
+     * @param applied_loops set of already updated loops
+     */
+    void apply(const std::function<void(const LoopInfoPtr&)>& func, LoopInfoSet& applied_loops) override;
 
     /**
      * @brief Check if some parameters of Loop are dynamic (undefined)

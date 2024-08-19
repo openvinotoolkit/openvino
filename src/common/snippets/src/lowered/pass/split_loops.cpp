@@ -17,8 +17,6 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-SplitLoops::SplitLoops() : RangedPass() {}
-
 bool SplitLoops::can_be_split(const UnifiedLoopInfoPtr& loop_to_split, const UnifiedLoopInfoPtr& loop_to_fuse) {
     OPENVINO_ASSERT(loop_to_split != nullptr && loop_to_fuse != nullptr, "LoopInfo is nullptr!");
     const auto current_dim_idx = loop_to_split->get_dim_idx();

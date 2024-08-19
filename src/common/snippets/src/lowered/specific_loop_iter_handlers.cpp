@@ -20,7 +20,7 @@ SpecificIterationHandlers::SpecificIterationHandlers(size_t loop_work_amount, si
         if (!utils::is_dynamic_value(loop_work_amount)) {
             last_iter_increment = loop_work_amount % loop_increment;
         } else if (utils::is_dynamic_value(loop_work_amount) && processing_dim_idx == 0) {
-            // Last Iterations of Loop processed last dimensions with Eltwise nodes inside should have increment = 1
+            // [149935] : Last Iterations of Loop processed last dimensions with Eltwise nodes inside should have increment = 1
             last_iter_increment = 1;
         }
         if (last_iter_increment != 0) {
