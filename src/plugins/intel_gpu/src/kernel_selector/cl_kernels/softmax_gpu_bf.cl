@@ -109,7 +109,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
             unroll_for (int j = 0; j < OPT_BLOCK_SIZE; j++)
             {
                 my_chunk[input_idx+j] = vec_tmp[j];
-		my_maximum = max(my_maximum, vec_tmp[j]);
+                my_maximum = max(my_maximum, vec_tmp[j]);
             }
         }
 
@@ -338,7 +338,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
             unroll_for (int j = 0; j < OPT_BLOCK_SIZE; j++)
             {
                 output[aligned_data_offset + get_sub_group_local_id() + (input_idx + j) * get_sub_group_size()] = vec_tmp[j];
-		my_maximum = max(my_maximum, vec_tmp[j]);
+                my_maximum = max(my_maximum, vec_tmp[j]);
             }
         }
 
@@ -346,29 +346,29 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         {
             BLOCK_TYPE vec_tmp = BLOCK_READ(input, aligned_data_offset + input_idx * get_sub_group_size());
             output[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()] = vec_tmp;
-	    my_maximum = max(my_maximum, vec_tmp);
+            my_maximum = max(my_maximum, vec_tmp);
         }
     }
 
     for (; input_idx < items_num; input_idx++)
     {
-        output[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()]
-        = input[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()];
-	my_maximum = max(my_maximum, input[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()]);
+        INPUT0_TYPE tmp = input[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()];
+        output[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()] = tmp;
+        my_maximum = max(my_maximum, tmp);
     }
 
     if (in_data_set_idx < aligned_offset)
     {
         INPUT0_TYPE tmp = input[data_set_offset + in_data_set_idx];
         output[data_set_offset + in_data_set_idx] = tmp;
-	my_maximum = max(my_maximum, tmp);
+        my_maximum = max(my_maximum, tmp);
     }
 
     if (in_data_set_idx < actual_leftovers)
     {
         INPUT0_TYPE tmp = input[leftover_idx];
         output[leftover_idx] = tmp;
-	my_maximum = max(my_maximum, tmp);
+        my_maximum = max(my_maximum, tmp);
     }
 
     my_maximum = sub_group_reduce_max(my_maximum);
