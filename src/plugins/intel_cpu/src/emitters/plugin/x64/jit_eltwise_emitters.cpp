@@ -702,7 +702,7 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs,
 
     // caller obligation to save k-regs as callee may use them
     size_t n_k_regs_to_save = 8;
-    if (isa == x64::avx512_core || isa == x64::avx512_core) {
+    if (isa == x64::avx512_core) {
         h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
         for (size_t i = 0; i < n_k_regs_to_save; ++i) {
             if (x64::mayiuse(x64::avx512_core))
@@ -751,7 +751,7 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs,
     h->add(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
 
     // restore k registers
-    if (isa == x64::avx512_core || isa == x64::avx512_core) {
+    if (isa == x64::avx512_core) {
         for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
             if (x64::mayiuse(x64::avx512_core))
                 h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
@@ -1606,7 +1606,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
 
         // caller obligation to save k-regs as callee may use them
         size_t n_k_regs_to_save = 8;
-        if (isa == x64::avx512_core || isa == x64::avx512_core) {
+        if (isa == x64::avx512_core) {
             h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
             for (size_t i = 0; i < n_k_regs_to_save; ++i) {
                 if (x64::mayiuse(x64::avx512_core))
@@ -1655,7 +1655,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
         h->add(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
 
         // restore k registers
-        if (isa == x64::avx512_core || isa == x64::avx512_core) {
+        if (isa == x64::avx512_core) {
             for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
                 if (x64::mayiuse(x64::avx512_core))
                     h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);

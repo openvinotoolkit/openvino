@@ -36,13 +36,22 @@ static constexpr ov::Property<std::string> devices{"NPUW_DEVICES"};
  */
 static constexpr ov::Property<std::string> submodel_device{"NPUW_SUBMODEL_DEVICE"};
 
+/**
+ * @brief
+ * Type: std::string.
+ * Specify bank name to utilize for a particular model.
+ * Possible values: any std::string as a name.
+ * Default value: empty.
+ */
+static constexpr ov::Property<std::string> weights_bank{"NPUW_WEIGHTS_BANK"};
+
 namespace partitioning {
 namespace online {
 /**
  * @brief
  * Type: std::string.
  * Specify which partitioning pipeline to run.
- * Possible values: "NONE", "INIT", "JUST", "REP".
+ * Possible values: "NONE", "INIT", "JUST", "REP", "COMPUTE".
  * Default value: "REP".
  */
 static constexpr ov::Property<std::string> pipeline{"NPUW_ONLINE_PIPELINE"};
@@ -60,14 +69,58 @@ static constexpr ov::Property<std::string> avoid{"NPUW_ONLINE_AVOID"};
 
 /**
  * @brief
+ * Type: std::string.
+ * Isolates predefined pattern(s) to compile and run separately from other isolated tags and no tags.
+ * Only compatible with online partitioning.
+ * Possible values: comma-separated list of layer or pattern name slash tag, e.g.
+ *                  "Op:Select/compute2,P:DQMatMulGQ/compute,P:DQMatMulCW/compute,P:RMSNorm/compute".
+ * Default value: empty.
+ */
+static constexpr ov::Property<std::string> isolate{"NPUW_ONLINE_ISOLATE"};
+
+/**
+ * @brief
+ * Type: std::string.
+ * Make a specific tag introduced via NPUW_ONLINE_ISOLATE a non-foldable one.
+ * Only compatible with online partitioning.
+ * Possible values: comma-separated list of tags, e.g.
+ *                  "compute,compute2".
+ * Default value: empty.
+ */
+static constexpr ov::Property<std::string> nofold{"NPUW_ONLINE_NO_FOLD"};
+
+/**
+ * @brief
  * Type: std::size_t.
  * Lower boundary of partition graph size the plugin can generate.
  * Used to control fusion term criteria in online partitioning.
- * WO for online partitioning.
+ * Only compatible with online partitioning.
  * Possible values: Integer >= 10.
  * Default value: 10.
  */
 static constexpr ov::Property<std::size_t> min_size{"NPUW_ONLINE_MIN_SIZE"};
+
+/**
+ * @brief
+ * Type: std::size_t.
+ * Sets the minimum number of repeating groups of the same pattern the plugin will keep in the partitioning.
+ * Used to control fusion term criteria in online partitioning.
+ * Only compatible with online partitioning.
+ * Possible values: Integer > 0.
+ * Default value: 10.
+ */
+static constexpr ov::Property<std::size_t> keep_blocks{"NPUW_ONLINE_KEEP_BLOCKS"};
+
+/**
+ * @brief
+ * Type: std::size_t.
+ * Sets the minimum group size (in layers) within the same pattern the plugin will keep in the partitioning.
+ * Used to control fusion term criteria in online partitioning.
+ * Only compatible with online partitioning.
+ * Possible values: Integer > 0.
+ * Default value: 10.
+ */
+static constexpr ov::Property<std::size_t> keep_block_size{"NPUW_ONLINE_KEEP_BLOCK_SIZE"};
 
 /**
  * @brief

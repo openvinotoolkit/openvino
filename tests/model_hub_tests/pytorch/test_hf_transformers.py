@@ -5,7 +5,6 @@ import os
 
 from datasets import Audio, load_dataset
 from huggingface_hub import hf_hub_download, model_info
-from huggingface_hub.utils import HfHubHTTPError, LocalEntryNotFoundError
 from PIL import Image
 import pytest
 import torch
@@ -56,7 +55,7 @@ class TestTransformersModel(TestTorchConvertModel):
         url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         self.image = Image.open(requests.get(url, stream=True).raw)
 
-    @retry(3, exceptions=(HfHubHTTPError, LocalEntryNotFoundError), delay=1)
+    @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, name, type):
         name, _, name_suffix = name.partition(':')
 
@@ -476,7 +475,8 @@ class TestTransformersModel(TestTorchConvertModel):
                 example = {"past_values": torch.rand(1, model.config.context_length,
                                                      model.config.num_input_channels)}
             else:
-                example = (torch.randint(1, 1000, [1, 100]),)
+                vocab_size = getattr(model.config, "vocab_size", 1000)
+                example = (torch.randint(1, vocab_size, [1, 100]),)
         if len({"seamless_m4t", "whisper", "speech_to_text", "speech-encoder-decoder"}.intersection(mi.tags)):
             example["decoder_input_ids"] = torch.randint(0, 1000, [1, 20])
             example["decoder_attention_mask"] = torch.ones(
