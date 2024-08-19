@@ -37,62 +37,52 @@ const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
  * Note that a stored compiled model does not hold the original IR model within it. The only related information
  * which may be extracted is the original model's "parameter"/"result" nodes. Thus, we need to build a dummy model
  * starting from these fields in order to satisfy the API.
- * @param parameterDescriptors Describes the input nodes.
- * @param resultDescriptors Describes the output nodes.
- * @param inputNames The names of the inputs registered in the order given by the model.
- * @param outputNames The names of the outputs registered in the order given by the model.
- * @param isBatchingSupported Newer driver versions support batching mode on the plugin.
+ *
+ * @param inputDescriptors Describes the input nodes.
+ * @param outputDescriptors Describes the output nodes.
+ * @returns The dummy "ov::Model" composed of "parameter" and "result" nodes built using the given descriptors.
  */
-std::shared_ptr<ov::Model> create_dummy_model(const IONodeDescriptorMap& parameterDescriptors,
-                                              const IONodeDescriptorMap& resultDescriptors,
-                                              const std::vector<std::string>& inputNames,
-                                              const std::vector<std::string>& outputNames,
-                                              bool isBatchingSupported) {
+std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& inputDescriptors,
+                                              const std::vector<IODescriptor>& outputDescriptors) {
     ov::ParameterVector parameters;
     ov::NodeVector results;
 
-    for (const std::string& inputName : inputNames) {
-        const IONodeDescriptor& parameterDescriptor = parameterDescriptors.at(inputName);
+    for (const IODescriptor& inputDescriptor : inputDescriptors) {
+        if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor) {
+            continue;
+        }
 
-        std::shared_ptr<ov::op::v0::Parameter> parameter = [&] {
-            if (isBatchingSupported) {
-                return std::make_shared<ov::op::v0::Parameter>(parameterDescriptor.precision,
-                                                               parameterDescriptor.originalShape);
-            }
-            return std::make_shared<ov::op::v0::Parameter>(parameterDescriptor.precision,
-                                                           parameterDescriptor.transposedShape);
-        }();
+        std::shared_ptr<ov::op::v0::Parameter> parameter = std::make_shared<ov::op::v0::Parameter>(
+            inputDescriptor.precision,
+            inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
+                                                         : inputDescriptor.shapeFromCompiler);
 
-        parameter->set_friendly_name(parameterDescriptor.currentNodeName);
-        parameter->output(0).get_tensor().set_names(parameterDescriptor.outputTensorNames);
+        parameter->set_friendly_name(inputDescriptor.nodeFriendlyName);
+        parameter->output(0).get_tensor().set_names(inputDescriptor.outputTensorNames);
         parameters.push_back(parameter);
     }
 
-    // The "result" nodes require a parent node in order to satisfy the legacy API naming conventions as well (in
-    // the 1.0 API, the name of an output is given by the parent of the "result" node). Additionally, a dummy shape for
+    // The "result" nodes require a parent node in order to satisfy the API conventions. Additionally, a dummy shape for
     // the "Constant" node was required since the specific constructor does not accept "ov::PartialShape" values (a
     // constant can't have dynamic shape). The dummy tensor was also brought in order to register the correct,
     // potentially dynamic, output shape.
-    for (const std::string& outputName : outputNames) {
-        const IONodeDescriptor& resultDescriptor = resultDescriptors.at(outputName);
-        std::shared_ptr<ov::Node> constantDummy =
-            std::make_shared<ov::op::v0::Constant>(resultDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
-        constantDummy->set_friendly_name(resultDescriptor.legacyName);
+    for (const IODescriptor& outputDescriptor : outputDescriptors) {
+        if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor) {
+            continue;
+        }
 
-        const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy = [&] {
-            if (isBatchingSupported) {
-                return std::make_shared<ov::descriptor::Tensor>(resultDescriptor.precision,
-                                                                resultDescriptor.originalShape,
-                                                                resultDescriptor.outputTensorNames);
-            }
-            return std::make_shared<ov::descriptor::Tensor>(resultDescriptor.precision,
-                                                            resultDescriptor.transposedShape,
-                                                            resultDescriptor.outputTensorNames);
-        }();
+        std::shared_ptr<ov::Node> constantDummy =
+            std::make_shared<ov::op::v0::Constant>(outputDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
+
+        const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy = std::make_shared<ov::descriptor::Tensor>(
+            outputDescriptor.precision,
+            outputDescriptor.shapeFromIRModel.has_value() ? *outputDescriptor.shapeFromIRModel
+                                                          : outputDescriptor.shapeFromCompiler,
+            outputDescriptor.outputTensorNames);
 
         std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(constantDummy);
         result->output(0).set_tensor_ptr(tensorDummy);
-        result->set_friendly_name(resultDescriptor.currentNodeName);
+        result->set_friendly_name(outputDescriptor.nodeFriendlyName);
         results.push_back(result);
     }
 
@@ -611,17 +601,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // ... 2 - this request is NOT coming from NPUW,
     // activate the NPUW path
     auto useNpuwKey = ov::intel_npu::use_npuw.name();
-    if (properties.count(useNpuwKey) && properties.at(useNpuwKey).as<bool>()) {
-        // CACHE_DIR isn't supported with NPU_USE_NPUW
-        if (properties.count(ov::cache_dir.name()) || !_globalConfig.get<CACHE_DIR>().empty()) {
-            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with NPU_USE_NPUW");
+    ov::AnyMap localProperties = properties;
+    if (localProperties.count(useNpuwKey)) {
+        if (localProperties.at(useNpuwKey).as<bool>() == true) {
+            // CACHE_DIR isn't supported with NPU_USE_NPUW
+            if (localProperties.count(ov::cache_dir.name()) || !_globalConfig.get<CACHE_DIR>().empty()) {
+                OPENVINO_THROW("Option 'CACHE_DIR' is not supported with NPU_USE_NPUW");
+            }
+            return std::make_shared<ov::npuw::CompiledModel>(model->clone(), shared_from_this(), localProperties);
+        } else {
+            // NPUW is disabled, remove the key from the properties
+            localProperties.erase(useNpuwKey);
         }
-        return std::make_shared<ov::npuw::CompiledModel>(model->clone(), shared_from_this(), properties);
     }
 
-    const std::map<std::string, std::string> propertiesMap = any_copy(properties);
-    auto localConfig = merge_configs(_globalConfig, propertiesMap);
-    _logger.setLevel(localConfig.get<LOG_LEVEL>());
+    const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
+    auto localConfig = merge_configs(_globalConfig, localPropertiesMap);
+    update_log_level(localPropertiesMap);
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
@@ -756,11 +752,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         auto meta = compiler->parse(blob, localConfig);
         meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
 
-        const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(meta.parameters,
-                                                                         meta.results,
-                                                                         meta.inputNames,
-                                                                         meta.outputNames,
-                                                                         _backends->isBatchingSupported());
+        const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(meta.inputs, meta.outputs);
 
         bool profiling = localConfig.get<PERF_COUNT>();
 

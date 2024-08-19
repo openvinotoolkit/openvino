@@ -174,62 +174,6 @@ std::string rankToLegacyLayoutString(const size_t rank) {
     }
 }
 
-size_t zeLayoutToRank(const ze_graph_argument_layout_t layout) {
-    switch (layout) {
-    case ZE_GRAPH_ARGUMENT_LAYOUT_C:
-        return 1;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_CN:
-        return 2;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_HW:
-        return 2;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NC:
-        return 2;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_CHW:
-        return 3;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NCHW:
-        return 4;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NHWC:
-        return 4;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW:
-        return 5;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC:
-        return 5;
-    default:
-        // TODO #-30200 Extend to support all cases
-        return 0;
-    }
-}
-
-/**
- * @brief Transposes the original shape value according to given layout.
- */
-std::vector<size_t> reshapeByLayout(const std::vector<size_t>& originalDimensions,
-                                    const ze_graph_argument_layout_t layout) {
-    std::vector<size_t> order;
-    std::vector<size_t> reshapedDimensions;
-
-    switch (layout) {
-    case ZE_GRAPH_ARGUMENT_LAYOUT_CN:
-        order = NC_TO_CN_LAYOUT_DIMENSIONS_ORDER;
-        break;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NHWC:
-        order = NCHW_TO_NHWC_LAYOUT_DIMENSIONS_ORDER;
-        break;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC:
-        order = NCDHW_TO_NDHWC_LAYOUT_DIMENSIONS_ORDER;
-        break;
-    default:
-        // TODO #-30200 Extend to support all cases
-        return originalDimensions;
-    }
-
-    for (const size_t& orderElement : order) {
-        reshapedDimensions.push_back(originalDimensions[orderElement]);
-    }
-
-    return reshapedDimensions;
-}
-
 }  // namespace
 
 namespace intel_npu {
@@ -311,7 +255,8 @@ SerializedIR LevelZeroCompilerInDriver<TableExtension>::serializeIR(
 }
 
 template <typename TableExtension>
-std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std::shared_ptr<const ov::Model>& model) {
+std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std::shared_ptr<const ov::Model>& model,
+                                                                       const bool useIndices) {
     const ov::ParameterVector& parameters = model->get_parameters();
     const ov::ResultVector& results = model->get_results();
 
@@ -324,21 +269,32 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
     inputsLayoutSS << INPUTS_LAYOUTS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
 
     if (!parameters.empty()) {
-        const std::string& firstInputName = parameters.at(0)->get_friendly_name();
+        size_t parameterIndex = 0;
 
         for (const std::shared_ptr<ov::op::v0::Parameter>& parameter : parameters) {
-            const std::string& name = parameter->get_friendly_name();
             const ov::element::Type& precision = parameter->get_element_type();
             const size_t rank = parameter->get_shape().size();
 
-            if (name != firstInputName) {
+            if (parameterIndex != 0) {
                 inputsPrecisionSS << VALUES_SEPARATOR;
                 inputsLayoutSS << VALUES_SEPARATOR;
             }
 
-            inputsPrecisionSS << name << NAME_VALUE_SEPARATOR << ovPrecisionToLegacyPrecisionString(precision);
-            // Ticket: E-88902
-            inputsLayoutSS << name << NAME_VALUE_SEPARATOR << rankToLegacyLayoutString(rank);
+            if (useIndices) {
+                inputsPrecisionSS << parameterIndex;
+                inputsLayoutSS << parameterIndex;
+            } else {
+                const std::string& name = parameter->get_friendly_name();
+
+                inputsPrecisionSS << name;
+                // Ticket: E-88902
+                inputsLayoutSS << name;
+            }
+
+            inputsPrecisionSS << NAME_VALUE_SEPARATOR << ovPrecisionToLegacyPrecisionString(precision);
+            inputsLayoutSS << NAME_VALUE_SEPARATOR << rankToLegacyLayoutString(rank);
+
+            ++parameterIndex;
         }
     }
 
@@ -348,20 +304,31 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
     outputsPrecisionSS << OUTPUTS_PRECISIONS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
     outputsLayoutSS << OUTPUTS_LAYOUTS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
 
-    const std::string& firstOutputName = results.at(0)->get_input_node_ptr(0)->get_friendly_name();
+    size_t resultIndex = 0;
 
     for (const std::shared_ptr<ov::op::v0::Result>& result : results) {
-        const std::string& name = result->get_input_node_ptr(0)->get_friendly_name();
         const ov::element::Type_t precision = result->get_element_type();
         const size_t rank = result->get_shape().size();
 
-        if (name != firstOutputName) {
+        if (resultIndex != 0) {
             outputsPrecisionSS << VALUES_SEPARATOR;
             outputsLayoutSS << VALUES_SEPARATOR;
         }
 
-        outputsPrecisionSS << name << NAME_VALUE_SEPARATOR << ovPrecisionToLegacyPrecisionString(precision);
-        outputsLayoutSS << name << NAME_VALUE_SEPARATOR << rankToLegacyLayoutString(rank);
+        if (useIndices) {
+            outputsPrecisionSS << resultIndex;
+            outputsLayoutSS << resultIndex;
+        } else {
+            const std::string& name = result->get_input_node_ptr(0)->get_friendly_name();
+
+            outputsPrecisionSS << name;
+            outputsLayoutSS << name;
+        }
+
+        outputsPrecisionSS << NAME_VALUE_SEPARATOR << ovPrecisionToLegacyPrecisionString(precision);
+        outputsLayoutSS << NAME_VALUE_SEPARATOR << rankToLegacyLayoutString(rank);
+
+        ++resultIndex;
     }
 
     outputsPrecisionSS << VALUE_DELIMITER;
@@ -808,8 +775,9 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreat
     ze_graph_format_t format = ZE_GRAPH_FORMAT_NGRAPH_LITE;
 
     std::string buildFlags;
+    const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
 
-    buildFlags += serializeIOInfo(model);
+    buildFlags += serializeIOInfo(model, useIndices);
     buildFlags += " ";
     buildFlags += serializeConfig(config, const_cast<ze_graph_compiler_version_info_t&>(compilerVersion));
 
@@ -977,112 +945,68 @@ uint32_t LevelZeroCompilerInDriver<TableExtension>::getSupportedOpsetVersion() c
     return maxOpsetVersion;
 }
 
-template <typename TableExtension>
-template <typename T>
-void LevelZeroCompilerInDriver<TableExtension>::getLayoutOrStateDescriptor(IONodeDescriptorMap& parameters,
-                                                                           IONodeDescriptorMap& results,
-                                                                           IONodeDescriptorMap& states,
-                                                                           std::vector<std::string>& stateNames,
-                                                                           const T& arg) const {
-    std::string legacyName = arg.name;
-
-    // The layout may differ from the default one only when using significantly older drivers. In order to accommodate
-    // this case, an extra attribute needs to be stored which holds the transposed shape.
-    const std::vector<size_t> originalDimensions(arg.dims, arg.dims + zeLayoutToRank(arg.deviceLayout));
-    const std::vector<size_t> reshapedDimensions = reshapeByLayout(originalDimensions, arg.deviceLayout);
-    const ov::Shape shape = ov::Shape(reshapedDimensions);
-
-    if (!isStateInputName(legacyName) && !isStateOutputName(legacyName)) {
-        if (arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
-            _logger.info("getLayoutOrStateDescriptor Found input \"%s\"", legacyName.c_str());
-
-            parameters[legacyName].transposedShape = shape;
-        }
-        if (arg.type == ZE_GRAPH_ARGUMENT_TYPE_OUTPUT) {
-            _logger.info("getLayoutOrStateDescriptor Found output \"%s\"", legacyName.c_str());
-
-            results[legacyName].transposedShape = shape;
-        }
-    } else if (isStateInputName(legacyName)) {
-        // The inputs and outputs of the state nodes share the same metadata, thus we'll consider only the the inputs
-        // here
-        legacyName = legacyName.substr(READVALUE_PREFIX.length());
-        _logger.info("getLayoutOrStateDescriptor Found state variable \"%s\"", legacyName.c_str());
-
-        const ov::element::Type_t precision = toOVElementType(arg.devicePrecision);
-
-        stateNames.push_back(legacyName);
-        states[legacyName] = {legacyName, "", {}, precision, shape, shape};
-    }
-}
-
 /**
- * @brief Extracts the parameter/result (i.e. input/output) descriptors from Level Zero specific structures into
- * OpenVINO specific ones.
- * @param nodeDescriptors The map in which the result shall be stored.
- * @param names The I/O identifiers shall be stored here in the order found within the compiled model.
- * @param metadata The Level Zero structure fomr which the descriptors will be extracted.
+ * @brief Extracts the I/O metadata from Level Zero specific structures and converts them into OpenVINO specific ones.
+ *
+ * @param arg The main Level Zero structure from which most metadata will be extracted.
+ * @param metadata The secondary Level Zero structure from which metadata will be extracted. More specifically, the
+ * argument is used for populating "shapeFromIRModel". Not providing this argument will lead to an empty value for the
+ * referenced attribute.
+ * @returns A descriptor object containing the metadata converted in OpenVINO specific structures.
  */
-static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
-                              std::vector<std::string>& names,
-                              ze_graph_argument_properties_3_t& arg) {
+static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
+                                    const std::optional<ze_graph_argument_metadata_t>& metadata) {
     ov::element::Type_t precision = toOVElementType(arg.devicePrecision);
-    ov::Shape shape;
+    ov::Shape shapeFromCompiler, shapeFromIRModel;
     std::unordered_set<std::string> outputTensorNames;
 
     for (uint32_t id = 0; id < arg.associated_tensor_names_count; id++) {
         outputTensorNames.insert(arg.associated_tensor_names[id]);
     }
-
     for (uint32_t id = 0; id < arg.dims_count; id++) {
-        shape.push_back(arg.dims[id]);
+        shapeFromCompiler.push_back(arg.dims[id]);
+    }
+    if (metadata.has_value()) {
+        for (uint32_t id = 0; id < metadata->shape_size; id++) {
+            shapeFromIRModel.push_back(metadata->shape[id]);
+        }
     }
 
-    const std::string& legacyName = arg.name;
-
-    names.push_back(arg.debug_friendly_name);
-    nodeDescriptors[arg.debug_friendly_name] =
-        {legacyName, arg.debug_friendly_name, std::move(outputTensorNames), precision, shape, shape};
-}
-
-static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
-                              std::vector<std::string>& names,
-                              ze_graph_argument_properties_3_t& arg,
-                              ze_graph_argument_metadata_t& metadata) {
-    ov::element::Type_t precision = toOVElementType(arg.devicePrecision);
-    ov::Shape transposedShape, originalShape;
-    std::unordered_set<std::string> outputTensorNames;
-
-    for (uint32_t id = 0; id < arg.associated_tensor_names_count; id++) {
-        outputTensorNames.insert(arg.associated_tensor_names[id]);
+    // Flags will be used instead of indices for informing the type of the current entry
+    std::string nameFromCompiler = arg.name;
+    bool isStateInput = false;
+    bool isStateOutput = false;
+    bool isShapeTensor = false;
+    if (isStateInputName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(READVALUE_PREFIX.length());
+        isStateInput = true;
+    } else if (isStateOutputName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(ASSIGN_PREFIX.length());
+        isStateOutput = true;
+    } else if (isShapeTensorName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(SHAPE_TENSOR_PREFIX.length());
+        isShapeTensor = true;
     }
 
-    for (uint32_t id = 0; id < arg.dims_count; id++) {
-        transposedShape.push_back(arg.dims[id]);
-    }
-
-    for (uint32_t id = 0; id < metadata.shape_size; id++) {
-        originalShape.push_back(metadata.shape[id]);
-    }
-
-    const std::string& legacyName = arg.name;
-
-    names.push_back(arg.debug_friendly_name);
-    nodeDescriptors[arg.debug_friendly_name] =
-        {legacyName, arg.debug_friendly_name, std::move(outputTensorNames), precision, originalShape, transposedShape};
+    return {std::move(nameFromCompiler),
+            precision,
+            std::move(shapeFromCompiler),
+            isStateInput,
+            isStateOutput,
+            isShapeTensor,
+            std::nullopt,
+            arg.debug_friendly_name,
+            std::move(outputTensorNames),
+            metadata.has_value() ? std::optional(shapeFromIRModel) : std::nullopt};
 }
 
 template <typename TableExtension>
-template <typename T, std::enable_if_t<NotSupportOriginalShape(T), bool>>
+template <typename T, std::enable_if_t<NotSupportArgumentMetadata(T), bool>>
 void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* graphDdiTableExt,
                                                             ze_graph_handle_t graphHandle,
                                                             uint32_t index,
-                                                            std::vector<std::string>& inputNames,
-                                                            std::vector<std::string>& outputNames,
-                                                            std::vector<std::string>& stateNames,
-                                                            IONodeDescriptorMap& parameters,
-                                                            IONodeDescriptorMap& results,
-                                                            IONodeDescriptorMap& states) const {
+                                                            std::vector<IODescriptor>& inputs,
+                                                            std::vector<IODescriptor>& outputs) const {
     ze_graph_argument_properties_3_t arg;
     auto result = graphDdiTableExt->pfnGetArgumentProperties3(graphHandle, index, &arg);
     if (ZE_RESULT_SUCCESS != result) {
@@ -1094,30 +1018,26 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* grap
                        uint64_t(result));
     }
 
-    if (!isStateInputName(arg.name) && !isStateOutputName(arg.name)) {
-        if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type) {
-            getNodeDescriptor(parameters, inputNames, arg);
-        }
-
-        if (ZE_GRAPH_ARGUMENT_TYPE_OUTPUT == arg.type) {
-            getNodeDescriptor(results, outputNames, arg);
-        }
+    switch (arg.type) {
+    case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
+        inputs.push_back(getIODescriptor(arg, std::nullopt));
+    } break;
+    case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
+        outputs.push_back(getIODescriptor(arg, std::nullopt));
+    } break;
+    default: {
+        OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_3_t object: ", arg.type);
     }
-
-    getLayoutOrStateDescriptor(parameters, results, states, stateNames, arg);
+    }
 }
 
 template <typename TableExtension>
-template <typename T, std::enable_if_t<!NotSupportOriginalShape(T), bool>>
+template <typename T, std::enable_if_t<!NotSupportArgumentMetadata(T), bool>>
 void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* graphDdiTableExt,
                                                             ze_graph_handle_t graphHandle,
                                                             uint32_t index,
-                                                            std::vector<std::string>& inputNames,
-                                                            std::vector<std::string>& outputNames,
-                                                            std::vector<std::string>& stateNames,
-                                                            IONodeDescriptorMap& parameters,
-                                                            IONodeDescriptorMap& results,
-                                                            IONodeDescriptorMap& states) const {
+                                                            std::vector<IODescriptor>& inputs,
+                                                            std::vector<IODescriptor>& outputs) const {
     ze_graph_argument_properties_3_t arg;
     auto result = graphDdiTableExt->pfnGetArgumentProperties3(graphHandle, index, &arg);
     if (ZE_RESULT_SUCCESS != result) {
@@ -1129,7 +1049,9 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* grap
                        uint64_t(result));
     }
 
-    if (!isStateInputName(arg.name) && !isStateOutputName(arg.name)) {
+    std::optional<ze_graph_argument_metadata_t> optionalMetadata = std::nullopt;
+
+    if (!isStateInputName(arg.name) && !isStateOutputName(arg.name) && !isShapeTensorName(arg.name)) {
         ze_graph_argument_metadata_t metadata;
         result = graphDdiTableExt->pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
         if (ZE_RESULT_SUCCESS != result) {
@@ -1141,16 +1063,20 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* grap
                            uint64_t(result));
         }
 
-        if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type) {
-            getNodeDescriptor(parameters, inputNames, arg, metadata);
-        }
-
-        if (ZE_GRAPH_ARGUMENT_TYPE_OUTPUT == arg.type) {
-            getNodeDescriptor(results, outputNames, arg, metadata);
-        }
+        optionalMetadata = std::optional(metadata);
     }
 
-    getLayoutOrStateDescriptor(parameters, results, states, stateNames, arg);
+    switch (arg.type) {
+    case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
+        inputs.push_back(getIODescriptor(arg, optionalMetadata));
+    } break;
+    case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
+        outputs.push_back(getIODescriptor(arg, optionalMetadata));
+    } break;
+    default: {
+        OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_3_t object: ", arg.type);
+    }
+    }
 }
 
 template <typename TableExtension>
@@ -1171,18 +1097,12 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::getNetworkMeta(ze_gra
     NetworkMetadata meta;
 
     for (uint32_t index = 0; index < graphProperties.numGraphArgs; ++index) {
-        getMetadata(_graphDdiTableExt,
-                    graphHandle,
-                    index,
-                    meta.inputNames,
-                    meta.outputNames,
-                    meta.stateNames,
-                    meta.parameters,
-                    meta.results,
-                    meta.states);
+        getMetadata(_graphDdiTableExt, graphHandle, index, meta.inputs, meta.outputs);
     }
     // TODO: support this information in CiD [track: E#33479]
     meta.numStreams = 1;
+    meta.bindRelatedDescriptors();
+
     return meta;
 }
 

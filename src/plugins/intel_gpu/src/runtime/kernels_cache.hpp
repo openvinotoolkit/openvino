@@ -107,6 +107,8 @@ private:
     bool is_cache_enabled() const;
     size_t get_max_kernels_per_batch() const;
 
+    bool _reuse_kernels = false;
+
 public:
     explicit kernels_cache(engine& engine,
                            const ExecutionConfig& config,
@@ -115,6 +117,9 @@ public:
                            const std::map<std::string, std::string>& batch_headers = {});
     kernel::ptr get_kernel_from_cached_kernels(std::string id) const;
     std::vector<kernel::ptr> get_kernels(kernel_impl_params params) const;
+
+    void set_kernels_reuse(bool reuse_kernels) { _reuse_kernels = reuse_kernels; }
+    bool get_kernels_reuse() const { return _reuse_kernels; }
 
     bool validate_simple_kernel_execution(kernel::ptr kernel);
 
