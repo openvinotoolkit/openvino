@@ -242,20 +242,23 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     size_t output_b = bf_size.first;
     size_t output_f = bf_size.second;
 
-    if (params.compressed &&
-        (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
-        tparams.tile_ofm != 2)
-        return false;
+//    if (params.compressed &&
+//        (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
+//        tparams.tile_ofm != 2) {
+//        std::cout << " return 0" << std::endl;
+//        return false;
+//    }
 
     auto batch_size = params.is_shape_agnostic ? Align(output_b, tparams.tile_b) : output_b;
     if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0)
         return false;
+
     if (CeilDiv(output_f, tparams.tile_ofm * simd) % tparams.dispatch_fsv != 0)
         return false;
 
     // Same result can be achieved with smaller tile_ofm.
-    if (output_f <= (tparams.tile_ofm / 2) * simd)
-        return false;
+//    if (output_f <= (tparams.tile_ofm / 2) * simd)
+//        return false;
     // No weights layout for such huge tile ofm.
     if (tparams.tile_ofm * simd > 64)
         return false;
@@ -270,9 +273,9 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
         if ((tparams.tile_b != required_tile_b) && !is_i4_u4)
             return false;
 
-        const auto required_tile_ofm = 2;
-        if (tparams.tile_ofm != required_tile_ofm)
-            return false;
+//        const auto required_tile_ofm = 2;
+//        if (tparams.tile_ofm != required_tile_ofm)
+//            return false;
 
         if (params.weights.GetDType() != WeightsType::INT4 && params.weights.GetDType() != WeightsType::UINT4)
             return false;
@@ -501,7 +504,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
 
 
     if (dispatchData.use_slm) {
-        OPENVINO_ASSERT(dispatchData.tile_n == 2, "[GPU] Unsupported TILE_OFM size for SLM kernel configuration");
+//        OPENVINO_ASSERT(dispatchData.tile_n == 2, "[GPU] Unsupported TILE_OFM size for SLM kernel configuration");
         OPENVINO_ASSERT(weights_dt == WeightsType::INT4 || weights_dt == WeightsType::UINT4, "[GPU] Unsupported FC weights type for SLM kernel configuration");
 
         auto lws_batches = dispatchData.lws[2];
