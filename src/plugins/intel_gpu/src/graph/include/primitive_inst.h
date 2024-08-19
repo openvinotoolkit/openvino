@@ -52,7 +52,8 @@ struct primitive_impl {
         primitive_impl(nullptr, std::move(kernel_name), is_dynamic) {}
     virtual ~primitive_impl() = default;
 
-    virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
+    virtual std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params& params) const = 0;
+    virtual std::set<size_t> get_lockable_internal_buffers(const kernel_impl_params& params) const { return {}; }
     virtual void set_node_params(const program_node&) {}
     virtual const std::string& get_type_info() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
@@ -485,11 +486,11 @@ private:
         return execute_impl(event, reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
-    std::vector<layout> get_internal_buffer_layouts() const override {
-        return get_internal_buffer_layouts_impl();
+    std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params& params) const override {
+        return get_internal_buffer_layouts_impl(params);
     }
 
-    virtual std::vector<layout> get_internal_buffer_layouts_impl() const {
+    virtual std::vector<layout> get_internal_buffer_layouts_impl(const kernel_impl_params& params) const {
         return {};
     }
 

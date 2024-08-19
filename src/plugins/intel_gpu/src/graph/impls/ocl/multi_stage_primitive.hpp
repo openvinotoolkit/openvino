@@ -54,6 +54,7 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         this->can_reuse_memory = other.can_reuse_memory;
         this->can_share_kernels = other.can_share_kernels;
         this->_kernel_name = other._kernel_name;
+        this->can_reuse_memory = other.can_reuse_memory;
         this->_is_dynamic = other._is_dynamic;
     }
 
@@ -154,7 +155,7 @@ protected:
         return _kernels;
     }
 
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+    std::vector<layout> get_internal_buffer_layouts_impl(const kernel_impl_params& /*params*/) const override {
         std::vector<layout> layouts;
         for (auto& kd : _kernels_data) {
             if (kd.internalBufferSizes.empty())

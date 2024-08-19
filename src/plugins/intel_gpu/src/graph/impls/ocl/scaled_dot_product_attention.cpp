@@ -52,7 +52,7 @@ struct scaled_dot_product_attention_impl : multi_stage_primitive<scaled_dot_prod
     }
 
 protected:
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+    std::vector<layout> get_internal_buffer_layouts_impl(const kernel_impl_params& /*params*/) const override {
         // TODO: current implementation is supposed to have the same kernel version for both indirect/default paths,
         // considering this, we may assume that both indirect/default kernels have absolutely the same intermediate
         // buffers number and its' sizes (since update_dispatch_data is called for both kernels too), and
