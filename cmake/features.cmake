@@ -49,7 +49,7 @@ else()
     set(ENABLE_INTEL_NPU_DEFAULT OFF)
 endif()
 
-ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ${ENABLE_INTEL_NPU_DEFAULT} "(X86 OR X86_64) AND (WIN32 OR LINUX);NOT APPLE" OFF)
+ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ${ENABLE_INTEL_NPU_DEFAULT} "(X86 OR X86_64) AND (WIN32 OR LINUX)" OFF)
 ov_dependent_option (ENABLE_INTEL_NPU_INTERNAL "NPU plugin internal components for OpenVINO runtime" ON "ENABLE_INTEL_NPU" OFF)
 
 ov_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
