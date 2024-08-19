@@ -86,7 +86,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         return std::make_shared<InputModel>(*stream, enable_mmap, m_extensions);
     }
     if (variants[0].is<ModelProtoPtr>()) {
-        return std::make_shared<InputModel>(variants[0].as<ModelProtoPtr>(), "", false, m_extensions);
+        return std::make_shared<InputModel>(variants[0].as<ModelProtoPtr>(), m_extensions);
     }
     return nullptr;
 }

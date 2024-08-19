@@ -54,9 +54,12 @@ public:
                              const bool enable_mmap = false,
                              frontend::ExtensionHolder extensions = {});
 
-    explicit ONNXModelEditor(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-                             const std::string& path = {},
-                             const bool enable_mmap = false,
+    /// \brief Creates an editor from a ModelProto. The model_proto is
+    ///        stored in m_model_proto member variable.
+    ///
+    /// \param model_proto A shared pointer on ModelProto object.
+    /// \param extensions Holder for custom extensions (like custom ops).
+    ONNXModelEditor(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                              frontend::ExtensionHolder extensions = {});
 
     /// \brief Modifies the in-memory representation of the model by setting

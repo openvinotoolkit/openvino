@@ -33,10 +33,7 @@ public:
                const bool enable_mmap = false,
                ExtensionHolder extensions = {});
 #endif
-    InputModel(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-               const std::string& path,
-               const bool enable_mmap = false,
-               ExtensionHolder extensions = {});
+    InputModel(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, ExtensionHolder extensions = {});
 
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const override;
