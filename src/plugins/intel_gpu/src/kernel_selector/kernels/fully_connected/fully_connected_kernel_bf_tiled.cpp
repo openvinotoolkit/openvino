@@ -341,7 +341,7 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
             if (preferred_kernel_type != KernelType::DEFAULT) {
                 if (params.is_shape_agnostic && !should_dynamic_quantize(params)) {
                     if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
-                        selector.Case(tune_params(16, 1, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
+                        selector.Case(tune_params(16, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
                                 .Case(tune_params(16, 1, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
                     } else {
                         selector.Case(tune_params(16, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
@@ -495,6 +495,8 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
     }
     if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2)
+        jit.AddConstant(MakeJitConstant("W_IDX", "fi * TILE_K + kii"));
+    else if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16 && dispatchData.use_slm)
         jit.AddConstant(MakeJitConstant("W_IDX", "fi * TILE_K + kii"));
     else
         jit.AddConstant(MakeJitConstant("W_IDX", "kii * TILE_OFM + fi"));
