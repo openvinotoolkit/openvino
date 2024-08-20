@@ -18,7 +18,7 @@ JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params, bool seq
     }
     jit.AddConstants({MakeJitConstant("VEC_SIZE", 8)});
     jit.AddConstants({MakeJitConstant("DIRECTION", static_cast<int>(params.direction))});
-    const uint gate_num = 4;
+    const unsigned int gate_num = 4;
     jit.AddConstants({MakeJitConstant("GATE_NUM", gate_num)});
     if (sequential) {
         jit.AddConstants({MakeJitConstant("SEQUENCE", 1)});
@@ -122,7 +122,7 @@ KernelsData LSTMKernelBase::GetCommonKernelsData(const Params& params, bool sequ
         assert(!divide_gates);
         num_hidden_kernels = static_cast<size_t>(std::min({params.engineInfo.maxWorkGroupSize, out.Feature().v}));
     }
-    const uint gate_num = 4;
+    const unsigned int gate_num = 4;
     if (divide_gates) {
         kernel.params.workGroups.global = {num_hidden_kernels, out.Batch().v, gate_num};
         kernel.params.workGroups.local = {num_hidden_kernels, 1, gate_num};
