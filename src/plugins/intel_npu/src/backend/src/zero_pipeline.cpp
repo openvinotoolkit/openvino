@@ -35,8 +35,9 @@ Pipeline::Pipeline(const Config& config,
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::IntegratedPipeline::IntegratedPipeline");
     _logger.debug("IntegratedPipeline - initialize started");
 
-    if (profiling_pool.create())
+    if (profiling_pool.create()) {
         profiling_query.create(profiling_pool._handle);
+    }
 
     _command_lists.reserve(numberOfCommandLists);
     _events.reserve(numberOfCommandLists);
