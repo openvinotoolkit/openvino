@@ -6,8 +6,10 @@
 
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
 #include "openvino/op/bitwise_not.hpp"
 #include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/erf.hpp"
@@ -17,8 +19,6 @@
 #include "openvino/op/power.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/bitwise_right_shift.hpp"
-#include "openvino/op/bitwise_left_shift.hpp"
 
 namespace ov {
 namespace test {
