@@ -48,6 +48,11 @@ public:
         FRONT_END_NOT_IMPLEMENTED(get_input);
     }
 
+    /// \brief Returns the input by reference. The reference value can be changed by consuming operation
+    virtual Output<Node> get_input_by_reference(int idx) const {
+        FRONT_END_NOT_IMPLEMENTED(get_input_by_reference);
+    }
+
     /// \brief Returns values from Constant input with the given index as ov::Any.
     ///        Throws an exception if the input cannot be represented as Constant.
     virtual Any get_values_from_const_input(int idx) const {
