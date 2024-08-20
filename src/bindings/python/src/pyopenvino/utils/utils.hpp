@@ -48,6 +48,8 @@ namespace utils {
 
     std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string, py::object>& properties);
 
+    bool is_string_null_terminated(const char* item);
+
     std::string convert_path_to_string(const py::object& path);
 
     void deprecation_warning(const std::string& function_name, const std::string& version = std::string(), const std::string& message = std::string(), int stacklevel=2);
