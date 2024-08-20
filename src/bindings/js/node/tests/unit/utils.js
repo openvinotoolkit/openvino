@@ -37,21 +37,23 @@ async function downloadTestModel(model) {
   const baseArtifactsDir = './tests/unit/test_models';
   const modelPath = path.join(baseArtifactsDir, model.xml);
   const modelExists = await checkIfDirectoryExists(modelPath);
-  if ( !modelExists ) {
-    const { env } = process;
-    const proxyUrl = env.http_proxy || env.HTTP_PROXY || env.npm_config_proxy;
+  if ( modelExists ) return;
+  
+  const { env } = process;
+  const proxyUrl = env.http_proxy || env.HTTP_PROXY || env.npm_config_proxy;
 
-    await downloadFile(model.xmlURL, baseArtifactsDir, model.xml, proxyUrl);
-    await downloadFile(model.binURL, baseArtifactsDir, model.bin, proxyUrl);
-  }
+  await downloadFile(model.xmlURL, baseArtifactsDir, model.xml, proxyUrl);
+  await downloadFile(model.binURL, baseArtifactsDir, model.bin, proxyUrl);
+
 }
 
 async function checkTestModel(model) {
   const baseArtifactsDir = './tests/unit/test_models';
   const modelPath = path.join(baseArtifactsDir, model.xml);
   const modelExists = await checkIfDirectoryExists(modelPath);
-  if ( !modelExists ) {
-    console.log('\n\nTestModel cannot be found.\nPlease run `npm run test_setup`.\n\n');
-    process.exit(1);
-  }
+  if ( modelExists ) return;
+
+  console.log('\n\nTestModel cannot be found.\nPlease run `npm run test_setup`.\n\n');
+  process.exit(1);
+
 }
