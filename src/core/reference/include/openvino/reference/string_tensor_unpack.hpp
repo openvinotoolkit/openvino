@@ -8,10 +8,10 @@
 namespace ov {
 namespace reference {
 inline void string_tensor_unpack(const std::string* data,
-                          int32_t* out_begins,
-                          int32_t* out_ends,
-                          uint8_t* out_symbols,
-                          const size_t element_count) {
+                                 int32_t* out_begins,
+                                 int32_t* out_ends,
+                                 uint8_t* out_symbols,
+                                 const size_t element_count) {
     int32_t offset = 0;
     for (size_t i = 0; i < element_count; ++i) {
         out_begins[i] = offset;
