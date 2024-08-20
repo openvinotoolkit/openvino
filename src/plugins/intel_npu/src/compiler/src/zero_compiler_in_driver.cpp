@@ -337,7 +337,8 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
 template <typename TableExtension>
 void LevelZeroCompilerInDriver<TableExtension>::release(std::shared_ptr<const NetworkDescription> networkDescription) {
     if (networkDescription->metadata.graphHandle != nullptr) {
-        result = _graphDdiTableExt->pfnDestroy(networkDescription->metadata.graphHandle);
+        ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription->metadata.graphHandle);
+        auto result = _graphDdiTableExt->pfnDestroy(graphHandle);
 
         if (ZE_RESULT_SUCCESS != result) {
             _logger.error("Failed to release graph handle. L0 pfnDestroy",
@@ -359,7 +360,7 @@ void LevelZeroCompilerInDriver<TableExtension>::fillCompiledNetwork(
         // Get blob size first
         size_t blobSize = -1;
 
-        result = _graphDdiTableExt->pfnGetNativeBinary(graphHandle, &blobSize, nullptr);
+        auto result = _graphDdiTableExt->pfnGetNativeBinary(graphHandle, &blobSize, nullptr);
 
         OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
                         "Failed to compile network. L0 pfnGetNativeBinary get blob size",
@@ -385,7 +386,8 @@ void LevelZeroCompilerInDriver<TableExtension>::fillCompiledNetwork(
                         ". ",
                         getLatestBuildError());
 
-        networkDescription->compiledNetwork = std::move(blob);
+        auto networkDesp = const_cast<NetworkDescription*>(networkDescription.get());
+        networkDesp->compiledNetwork = std::move(blob);
     }
 }
 
