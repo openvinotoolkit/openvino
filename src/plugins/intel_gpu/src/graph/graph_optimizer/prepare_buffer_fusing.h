@@ -82,7 +82,7 @@ struct crop_in_place_optimization : pattern_match_optimization_typed<crop_in_pla
                                                            bool is_runtime);
     static void update_in_place_crop_padding_simple_data_format(layout& crop_layout,
                                                                 layout& pred_layout,
-                                                                std::vector<layout>& user_layouts,
+                                                                std::pair<const program_node*, layout>& user_info,
                                                                 const tensor offsets,
                                                                 size_t crop_axis,
                                                                 bool is_runtime);

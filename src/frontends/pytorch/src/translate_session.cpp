@@ -9,7 +9,6 @@
 #include "input_model.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 #include "place.hpp"
 #include "pt_framework_node.hpp"
@@ -225,7 +224,8 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             }
         };
 
-        FRONT_END_GENERAL_CHECK(pytorch_model->get_subgraph_size() == 1, "Model should have exactly 1 subgraph.");
+        FRONT_END_GENERAL_CHECK(pytorch_model->decoder_type_name() != "ts" || pytorch_model->get_subgraph_size() == 1,
+                                "Model should have exactly 1 subgraph for TorchScript.");
         pytorch_model->visit_subgraph(node_visitor);
 
         ResultVector results;
@@ -314,12 +314,6 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
         OPENVINO_DEBUG("No translator found for: ", context.get_op_type(), "\n");
     } catch (std::exception& e) {
         exception = e.what();
-        if (m_telemetry) {
-            auto cropped_message = ov::util::filter_lines_by_prefix(exception, get_pytorch_prefix());
-            if (cropped_message.size()) {
-                m_telemetry->send_event("error_info", cropped_message);
-            }
-        }
     } catch (...) {
         exception = "Unknown exception type.";
     }
@@ -368,10 +362,7 @@ void TranslateSession::encode_tensor_name(Output<Node> output,
 
 namespace {
 bool is_number(const std::string& s) {
-    std::string::const_iterator it = s.begin();
-    while (it != s.end() && std::isdigit(*it))
-        ++it;
-    return !s.empty() && it == s.end();
+    return !s.empty() && std::all_of(s.begin(), s.end(), ::isdigit);
 }
 }  // namespace
 

@@ -122,7 +122,7 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
         } else {
             auto rank = main_node->get_output_partial_shape(0).rank();
             non_negative_axes =
-                ov::util::normalize_axes(main_node->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
+                ov::util::try_get_normalized_axis_vector(unsqueeze_axes->get_tensor_view(), rank, *main_node);
         }
         auto ts_order_values = transpose_info.transpose_const->cast_vector<size_t>();
 
@@ -192,7 +192,7 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
         } else {
             auto rank = main_node->get_output_partial_shape(0).rank();
             non_negative_axes =
-                ov::util::normalize_axes(main_node->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
+                util::try_get_normalized_axis_vector(unsqueeze_axes->get_tensor_view(), rank, *main_node);
         }
 
         auto transpose_order_values = transpose_order->cast_vector<size_t>();
