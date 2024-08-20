@@ -162,6 +162,10 @@ std::shared_ptr<ov::Node> hsv_to_rgb(const ov::Output<ov::Node>& h,
                                      const ov::Output<ov::Node>& s,
                                      const ov::Output<ov::Node>& v);
 
+ov::Output<ov::Node> create_dense_tensor(const ov::Output<ov::Node>& indices,
+                                         const ov::Output<ov::Node>& shape,
+                                         const ov::Output<ov::Node>& values);
+
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
