@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const path = require('path');
+const fs = require('node:fs/promises');
 const { downloadFile, checkIfDirectoryExists } = require('../../scripts/download_runtime');
 
 const modelDir = 'tests/unit/test_models/';
@@ -34,16 +35,26 @@ function getModelPath(isFP16=false) {
 }
 
 async function downloadTestModel(model) {
-  const baseArtifactsDir = './tests/unit/test_models';
-  const modelPath = path.join(baseArtifactsDir, model.xml);
-  const modelExists = await checkIfDirectoryExists(modelPath);
-  if ( modelExists ) return;
-  
-  const { env } = process;
-  const proxyUrl = env.http_proxy || env.HTTP_PROXY || env.npm_config_proxy;
+  const modelsDir = './tests/unit/test_models';
+  try {
+    const ifModelsDirectoryExists = await checkIfDirectoryExists(modelsDir);
+    if (!ifModelsDirectoryExists) {
+      await fs.mkdir(modelDir);
+    }
 
-  await downloadFile(model.xmlURL, baseArtifactsDir, model.xml, proxyUrl);
-  await downloadFile(model.binURL, baseArtifactsDir, model.bin, proxyUrl);
+    const modelPath = path.join(modelsDir, model.xml);
+    const modelExists = await checkIfDirectoryExists(modelPath);
+    if ( modelExists ) return;
+
+    const { env } = process;
+    const proxyUrl = env.http_proxy || env.HTTP_PROXY || env.npm_config_proxy;
+
+    await downloadFile(model.xmlURL, modelsDir, model.xml, proxyUrl);
+    await downloadFile(model.binURL, modelsDir, model.bin, proxyUrl);
+  } catch(error) {
+    console.error(`Failed to download the model: ${error}.`);
+    throw error;
+  }
 
 }
 
