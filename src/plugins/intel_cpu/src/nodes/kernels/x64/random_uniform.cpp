@@ -634,7 +634,6 @@ template class PhiloxGenerator<x64::sse41>;
 //////////////// MERSENNE TWISTER GENERATOR ////////////////////
 
 #define GET_OFF(field) offsetof(MersenneTwisterGeneratorCallArgs, field)
-
 template <x64::cpu_isa_t isa>
 MersenneTwisterGenerator<isa>::MersenneTwisterGenerator(const GeneratorCompileParams& jcp) :
     JitKernel(jit_name(), jcp, isa) {}
@@ -646,9 +645,11 @@ void MersenneTwisterGenerator<isa>::generate() {
 
     r64_dst = getReg64();
     r64_work_amount = getReg64();
+    r64_optimization_enabled = getReg64();
 
     mov(r64_work_amount, ptr[r64_params + GET_OFF(work_amount)]);
     mov(r64_dst,  ptr[r64_params + GET_OFF(dst_ptr)]);
+    mov(r64_optimization_enabled, ptr[r64_params + GET_OFF(optimization_enabled)]);
 
     initVectors();
     process();
@@ -670,9 +671,23 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
     v_mask = getVmm();
     v_divisor = getVmm();
 
-    // Initialize constants
-    BROADCAST_R(vpbroadcastd, v_mask, r32_aux, (1 << std::numeric_limits<float>::digits) - 1)
-    BROADCAST_R(vpbroadcastd, v_divisor, r32_aux, 1.0f / (1 << std::numeric_limits<float>::digits))
+    // Initialize constants based on the requested data type
+    switch (m_output_prc) {
+        case element::f32:
+            BROADCAST_R(vpbroadcastd, v_mask, r32_aux, (1 << std::numeric_limits<float>::digits) - 1)
+            BROADCAST_R(vpbroadcastd, v_divisor, r32_aux, 1.0f / (1 << std::numeric_limits<float>::digits))
+            break;
+        case element::f16:
+            BROADCAST_R(vpbroadcastd, v_mask, r32_aux, (1 << std::numeric_limits<float16>::digits) - 1)
+            BROADCAST_R(vpbroadcastd, v_divisor, r32_aux, 1.0f / (1 << std::numeric_limits<float16>::digits))
+            break;
+        case element::bf16:
+            BROADCAST_R(vpbroadcastd, v_mask, r32_aux, (1 << 8) - 1)
+            BROADCAST_R(vpbroadcastd, v_divisor, r32_aux, 1.0f / (1 << 8))
+            break;
+        default:
+            break;
+    }
 
     BROADCAST_P(vpbroadcastd, v_min, r64_aux, min_ptr)
     BROADCAST_P(vpbroadcastd, v_range, r64_aux, range_ptr)
@@ -809,9 +824,27 @@ void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne(const Vmm& v_res
     // Case for int64
     L(int64_case);
     {
-        // Convert to int64 and store result
-        movdqu(ptr[r64_dst], v_result);
-        jmp(end);
+        Label optimized, non_optimized;
+
+        // Check if optimization is enabled
+        cmp(r64_optimization_enabled, 1);
+        je(optimized);
+
+        // Non-optimized case
+        L(non_optimized);
+        {
+            // Convert to int64 and store result
+            movdqu(ptr[r64_dst], v_result);
+            jmp(end);
+        }
+
+        // Optimized case
+        L(optimized);
+        {
+            // Convert to int64 with optimization and store result
+            movdqu(ptr[r64_dst], v_result);
+            jmp(end);
+        }
     }
 
     L(end);

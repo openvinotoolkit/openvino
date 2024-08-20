@@ -129,15 +129,18 @@ private:
     RegistersPool::Reg<Xbyak::Reg64> r64_step;
     RegistersPool::Reg<Xbyak::Reg64> r64_work_amount;
     RegistersPool::Reg<Xbyak::Reg64> r64_elements_remaining;
+    RegistersPool::Reg<Xbyak::Reg64> r64_optimization_enabled;
 
 
     const Xbyak::Reg64 r64_params = Xbyak::Reg64(dnnl::impl::cpu::x64::abi_param_regs[0]);
 
-    // Vector registers.
+    // Vector registers for input storage.
     RegistersPool::Reg<Vmm> v_dst;
     RegistersPool::Reg<Vmm> v_state;
     RegistersPool::Reg<Vmm> v_min;
     RegistersPool::Reg<Vmm> v_range;
+
+    // Vector registers for generation.
     RegistersPool::Reg<Vmm> v_result;
     RegistersPool::Reg<Vmm> v_result_bitshift_11;
     RegistersPool::Reg<Vmm> v_result_bitshift_7;
@@ -149,17 +152,6 @@ private:
     //Vector registers for conversion.
     RegistersPool::Reg<Vmm> v_mask;
     RegistersPool::Reg<Vmm> v_divisor;
-    RegistersPool::Reg<Vmm> v_min_elements;
-    RegistersPool::Reg<Vmm> v_4_elements;
-    RegistersPool::Reg<Vmm> v_2_elements;
-    RegistersPool::Reg<Vmm> v_convert_0;
-    RegistersPool::Reg<Vmm> v_convert_1;
-    RegistersPool::Reg<Vmm> v_convert_2;
-    RegistersPool::Reg<Vmm> v_convert_3;
-
-    // Constants registers
-    RegistersPool::Reg<Vmm> v_const_1;
-    RegistersPool::Reg<Vmm> v_const_2;
 
 
     void initVectors();

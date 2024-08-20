@@ -717,7 +717,6 @@ inline void convertToOutputTypeMersenne(const uint32_t* in,
             out[i] = static_cast<int64_t>(((static_cast<uint64_t>(in[i * 2]) << 32) + in[i * 2 + 1]) % range + min);
         }       
     }
-
 }
 } // namespace
 
@@ -748,7 +747,7 @@ void RandomUniform::computeMersenneTwister(void* out, size_t out_el_num) {
 
                 kernel::random_uniform::MersenneTwisterGeneratorCallArgs args;
 
-                args.dst_ptr     = (out_u8 + params.dst_shift); // incorrect
+                args.dst_ptr     = (out_u8 + state_id * MERSENNE_STATE_N * m_output_prc.size() + params.dst_shift); // incorrect
                 args.state_ptr   = &mersenne_state;
                 args.min_ptr     = &m_min_val;
                 args.range_ptr   = &m_range_val;
