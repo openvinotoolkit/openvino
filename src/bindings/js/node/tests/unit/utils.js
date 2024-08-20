@@ -38,15 +38,12 @@ async function downloadTestModel(model) {
   const baseArtifactsDir = './tests/unit/test_models';
   const model_path = path.join(baseArtifactsDir, model.xml);
   const modelExists = await checkIfDirectoryExists(model_path);
-  if ( modelExists ) {
-    console.log('Model exists.');
-  } else {
+  if ( !modelExists ) {
     const { env } = process;
     const proxyUrl = env.http_proxy || env.HTTP_PROXY || env.npm_config_proxy;
 
     await downloadFile(model.xmlURL, baseArtifactsDir, model.xml, proxyUrl);
     await downloadFile(model.binURL, baseArtifactsDir, model.bin, proxyUrl);
-    console.log('Model downloaded.');
   }
 }
 

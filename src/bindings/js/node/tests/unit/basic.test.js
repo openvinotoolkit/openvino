@@ -7,7 +7,7 @@ const assert = require('assert');
 const { describe, it, before } = require('node:test');
 const { testModels, getModelPath, checkTestModel } = require('./utils.js');
 
-describe('ov.js basic tests.', () => {
+describe('ov basic tests.', () => {
 
   before( async () => {
     await checkTestModel(testModels.testModelFP32);

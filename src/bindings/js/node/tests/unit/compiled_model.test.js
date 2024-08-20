@@ -4,8 +4,14 @@
 
 const { addon: ov } = require('../..');
 const assert = require('assert');
-const { describe, it } = require('node:test');
-const { getModelPath } = require('./utils.js');
+const { describe, it, before } = require('node:test');
+const { testModels, getModelPath, checkTestModel } = require('./utils.js');
+
+describe('ov.CompiledModel tests', () => {
+
+  before( async () => {
+    await checkTestModel(testModels.testModelFP32);
+  });
 
 const testXml = getModelPath().xml;
 const core = new ov.Core();
@@ -75,4 +81,5 @@ describe('setProperty() / getProperty()', () => {
       assert.doesNotThrow(() => compiledModel.setProperty({}));
     });
   });
+});
 });
