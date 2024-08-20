@@ -1546,6 +1546,16 @@ bool primitive_inst::has_inner_networks() const {
 }
 
 event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
+    auto end_wait_event = std::chrono::high_resolution_clock::now();
+    auto end_impl_exec = std::chrono::high_resolution_clock::now();
+    auto end_subgraph_exec = std::chrono::high_resolution_clock::now();
+    auto end_do_runtime = std::chrono::high_resolution_clock::now();
+    auto end_check_skip = std::chrono::high_resolution_clock::now();
+    auto end_update_shape = std::chrono::high_resolution_clock::now();
+    auto end_in_place_concat = std::chrono::high_resolution_clock::now();
+    auto end_pre = std::chrono::high_resolution_clock::now();
+    auto start = std::chrono::high_resolution_clock::now();
+
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("primitive_inst::execute: " + id()));
     const auto& primitive_id = id();
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
@@ -1561,9 +1571,14 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     const auto orig_outputs = _outputs;
     std::vector<event::ptr> dependencies;
     if ((is_dynamic() || _node->is_in_shape_of_subgraph()) && !has_inner_networks()) {
+        end_pre = std::chrono::high_resolution_clock::now();
+
         do_runtime_in_place_concat();
+        end_in_place_concat = std::chrono::high_resolution_clock::now();
+
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
+        end_update_shape = std::chrono::high_resolution_clock::now();
 
         bool can_skip_execution = false;
         if (_impl_params->output_layouts[0].count() == 0) {
@@ -1592,6 +1607,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
             update_shape_done_by_other = false; // reset
             return ev;
         }
+        end_check_skip = std::chrono::high_resolution_clock::now();
 
         // Check successor reorder if layouts are same
         // Need to set can_be_optimized for user reorder at predecessor because
@@ -1604,6 +1620,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         do_runtime_skip_strided_slice();
         do_runtime_skip_broadcast();
         do_runtime_in_place_crop();
+        end_do_runtime = std::chrono::high_resolution_clock::now();
 
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_exec: " + id()));
@@ -1622,6 +1639,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
             GPU_DEBUG_TRACE_DETAIL << "[Start] Executing unfused subgraph of " << id() << std::endl;
             auto outputs = subgraph->execute(events);
             GPU_DEBUG_TRACE_DETAIL << "[End] Finished executing unfused subgraph of " << id() << std::endl;
+            end_subgraph_exec = std::chrono::high_resolution_clock::now();
 
             auto last_fd = _impl_params->fused_desc.back();
             auto last_prim_id = last_fd.desc->id;
@@ -1654,6 +1672,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     }
     update_shape_done_by_other = false; // reset
     OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
+    auto end_dependencies1 = std::chrono::high_resolution_clock::now();
 
     std::function<bool(const cldnn::primitive_inst*)> has_dynamic_dependencies_insts =
         [&has_dynamic_dependencies_insts](const cldnn::primitive_inst* prim_inst) {
@@ -1676,7 +1695,10 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
             set_arguments();
         }
     }
+
+    auto end_set_arguments = std::chrono::high_resolution_clock::now();
     on_execute();
+    auto end_on_execute = std::chrono::high_resolution_clock::now();
 
     if (!_node->is_type<condition>() && !_node->is_type<loop>()) {
         for (size_t i = 0; i < _outputs.size(); ++i) {
@@ -1722,10 +1744,12 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         auto grouped_ev = get_network().get_stream().group_events(dependencies);
         dependencies = {grouped_ev};
     }
+    auto end_dependencies2 = std::chrono::high_resolution_clock::now();
 
     {
         GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::inference);
         auto ev = _impl->execute(dependencies, *this);
+        end_impl_exec = std::chrono::high_resolution_clock::now();
 
         GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
             get_network().get_stream().wait_for_events({ev});
@@ -1738,6 +1762,56 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                     }
                 }
             }
+        }
+        end_wait_event = std::chrono::high_resolution_clock::now();
+
+        auto end = std::chrono::high_resolution_clock::now();
+
+        int64_t ts_pre = std::chrono::duration_cast<std::chrono::microseconds>(end_pre - start).count();
+        int64_t ts_in_place_concat = std::chrono::duration_cast<std::chrono::microseconds>(end_in_place_concat - end_pre).count();
+        int64_t ts_update_shape = std::chrono::duration_cast<std::chrono::microseconds>(end_update_shape - end_in_place_concat).count();
+        int64_t ts_check_skip = std::chrono::duration_cast<std::chrono::microseconds>(end_check_skip - end_update_shape).count();
+        int64_t ts_do_runtime = std::chrono::duration_cast<std::chrono::microseconds>(end_do_runtime - end_check_skip).count();
+        int64_t ts_subgraph_exec = std::chrono::duration_cast<std::chrono::microseconds>(end_subgraph_exec - end_do_runtime).count();
+        int64_t ts_dependencies1 = std::chrono::duration_cast<std::chrono::microseconds>(end_dependencies1 - end_subgraph_exec).count();
+        int64_t ts_dependencies1_check = std::chrono::duration_cast<std::chrono::microseconds>(end_dependencies1 - end_do_runtime).count();
+        int64_t ts_set_args = std::chrono::duration_cast<std::chrono::microseconds>(end_set_arguments - end_dependencies1).count();
+        int64_t ts_on_exec = std::chrono::duration_cast<std::chrono::microseconds>(end_on_execute - end_set_arguments).count();
+        int64_t ts_dependencies2 = std::chrono::duration_cast<std::chrono::microseconds>(end_dependencies2 - end_on_execute).count();
+        int64_t ts_impl_exec = std::chrono::duration_cast<std::chrono::microseconds>(end_impl_exec - end_dependencies2).count();
+        int64_t ts_wait_event = std::chrono::duration_cast<std::chrono::microseconds>(end_wait_event - end_impl_exec).count();
+        int64_t ts_end = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        std::cout << "[debug] primitive_inst node: " << primitive_id << " ts_pre: " << ts_pre << " us" << std::endl;
+        std::cout << "[debug] primitive_inst node: " << primitive_id << " ts_in_place_concat: " << ts_in_place_concat << " us" << std::endl;
+        std::cout << "[debug] primitive_inst node: " << primitive_id << " ts_update_shape: " << ts_update_shape << " us" << std::endl;
+        std::cout << "[debug] primitive_inst node: " << primitive_id << " ts_check_skip: " << ts_check_skip << " us" << std::endl;
+        std::cout << "[debug] primitive_inst node: " << primitive_id << " ts_do_runtime: " << ts_do_runtime << " us" << std::endl;
+        std::cout << "[debug] primitive_inst node: " << primitive_id << " ts_subgraph_exec: " << ts_subgraph_exec << " us" << std::endl;
+        std::cout << "[debug] primitive_inst node: " << primitive_id << " ts_dependencies1: " << ts_dependencies1 << " us" << std::endl;
+        std::cout << "[debug] primitive_inst node: " << primitive_id << " ts_dependencies1_check: " << ts_dependencies1_check << " us" << std::endl;
+        std::cout << "[debug] primitive_inst node: " << primitive_id << " ts_set_args: " << ts_set_args << " us" << std::endl;
+        std::cout << "[debug] primitive_inst node: " << primitive_id << " ts_on_exec: " << ts_on_exec << " us" << std::endl;
+        std::cout << "[debug] primitive_inst node: " << primitive_id << " ts_dependencies2: " << ts_dependencies2 << " us" << std::endl;
+        std::cout << "[debug] primitive_inst node: " << primitive_id << " ts_impl_exec: " << ts_impl_exec << " us" << std::endl;
+        std::cout << "[debug] primitive_inst node: " << primitive_id << " ts_wait_event: " << ts_wait_event << " us" << std::endl;
+        std::cout << "[debug] primitive_inst node: " << primitive_id << " ts_end: " << ts_end << " us" << std::endl;
+
+        if (_node->is_type<concatenation>()) {
+            std::map<std::string, std::vector<int64_t>>& timestamps = get_host_timestamps();
+            timestamps["concat_ts_pre"].push_back(ts_pre);
+            timestamps["concat_ts_in_place_concat"].push_back(ts_in_place_concat);
+            timestamps["concat_ts_update_shape"].push_back(ts_update_shape);
+            timestamps["concat_ts_check_skip"].push_back(ts_check_skip);
+            timestamps["concat_ts_do_runtime"].push_back(ts_do_runtime);
+            timestamps["concat_ts_subgraph_exec"].push_back(ts_subgraph_exec);
+            timestamps["concat_ts_dependencies1"].push_back(ts_dependencies1);
+            timestamps["concat_ts_dependencies1_check"].push_back(ts_dependencies1_check);
+            timestamps["concat_ts_set_args"].push_back(ts_set_args);
+            timestamps["concat_ts_on_exec"].push_back(ts_on_exec);
+            timestamps["concat_ts_dependencies2"].push_back(ts_dependencies2);
+            timestamps["concat_ts_impl_exec"].push_back(ts_impl_exec);
+            timestamps["concat_ts_wait_event"].push_back(ts_wait_event);
+            timestamps["concat_ts_end"].push_back(ts_end);
         }
 
         return ev;
@@ -2153,12 +2227,15 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     auto alloc_type = use_lockable_memory ? lockable_mem_type
                     : !usm_device_allocatable ? lockable_mem_type : allocation_type::usm_device;
 
+    std::cout << "[debug] node: " << _node.id() << " allocate_output alloc_type1: " << alloc_type << std::endl;
+
     if (_node.is_type<fully_connected>() && _node.as<fully_connected>().w_size != 1) {
         alloc_type = allocation_type::cl_mem;
     }
     if (_node.is_type<sync_tensor>()) {
         alloc_type = allocation_type::cl_mem;
     }
+    std::cout << "[debug] node: " << _node.id() << " allocate_output alloc_type2: " << alloc_type << std::endl;
 
     if (is_internal) {
         bool is_reorder_weights = _node.is_type<reorder>() && _node.as<reorder>().get_primitive()->weights_reorder_params;

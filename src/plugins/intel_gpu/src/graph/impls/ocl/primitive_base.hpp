@@ -234,6 +234,11 @@ protected:
 
     event::ptr execute_impl(const std::vector<event::ptr>& events,
                             typed_primitive_inst<PType>& instance) override {
+        auto end_enqueue = std::chrono::high_resolution_clock::now();
+        auto start = std::chrono::high_resolution_clock::now();
+        // auto kernel_name = get_kernel_name();
+        auto kernel_name = "test";
+
         stream& stream = instance.get_network().get_stream();
         if (instance.can_be_optimized()) {
             return aggregate_events(events, stream, false, instance.is_output());
@@ -265,7 +270,16 @@ protected:
                                    << "lws=[" << lws[0] << ", " << lws[1] << ", " << lws[2] << "]"
                                    << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
 
+            auto end_pre = std::chrono::high_resolution_clock::now();
+            int64_t ts_pre = std::chrono::duration_cast<std::chrono::microseconds>(end_pre - start).count();
+            std::cout << "[debug] primitive_base ocl kernel_name: " << kernel_name << " i: " << kd_idx << " ts_pre: " << ts_pre << " us" << std::endl;
+
             auto ev = stream.enqueue_kernel(*_kernels[kd_idx], params, args, tmp_events, needs_completion_event);
+            auto end_enqueue = std::chrono::high_resolution_clock::now();
+
+            int64_t ts_enqueue = std::chrono::duration_cast<std::chrono::microseconds>(end_enqueue - end_pre).count();
+            std::cout << "[debug] primitive_base ocl kernel_name: " << kernel_name << " i: " << kd_idx << " ts_enqueue: " << ts_enqueue << " us" << std::endl;
+
             if (_kernel_data.needs_sub_kernels_sync) {
                 tmp_events = {ev};
             }
@@ -276,6 +290,13 @@ protected:
             return aggregate_events(tmp_events, stream);
 
         bool group_events = (all_events.size() > 1);
+        auto end = std::chrono::high_resolution_clock::now();
+
+        int64_t ts_post = std::chrono::duration_cast<std::chrono::microseconds>(end - end_enqueue).count();
+        int64_t ts_end = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        std::cout << "[debug] primitive_base ocl kernel_name: " << kernel_name << " ts_post: " << ts_post << " us" << std::endl;
+        std::cout << "[debug] primitive_base ocl kernel_name: " << kernel_name << " ts_end: " << ts_end << " us" << std::endl;
+
         return aggregate_events(all_events, stream, group_events);
     }
 
