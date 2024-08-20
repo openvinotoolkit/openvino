@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -171,6 +171,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     // }}}
 
     // Sort out how to handle weights bank and unpack
+    auto& wbank = m_npuw_model->m_weights_bank;
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_VERB("Trying to preemptively set tensors for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -193,7 +194,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
             // No update required to this tensor in runtime - so it can be set only once
             if (!comp_model_desc.update_required[cidx]) {
-                request->set_tensor(iport, ov::get_tensor_impl(closure));
+                request->set_tensor(iport, ov::get_tensor_impl(wbank->get(closure, *func_desc.device_it)));
             }
         }  // for(closure)
         LOG_VERB("DONE");

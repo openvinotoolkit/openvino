@@ -65,7 +65,7 @@ const std::vector<std::string>& Metrics::GetSupportedConfigKeys() const {
 }
 
 // TODO each backend may support different optimization capabilities
-const std::vector<std::string>& Metrics::GetOptimizationCapabilities() const {
+const std::vector<std::string> Metrics::GetOptimizationCapabilities() const {
     return _optimizationCapabilities;
 }
 
