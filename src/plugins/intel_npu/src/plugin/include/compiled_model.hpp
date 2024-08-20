@@ -49,7 +49,7 @@ public:
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const std::shared_ptr<const NetworkDescription>& networkDescription,
                   const std::shared_ptr<IDevice>& device,
-                  const std::optional<ov::SoPtr<ICompiler>>& compiler,
+                  const ov::SoPtr<ICompiler>& compiler,
                   const Config& config);
 
     CompiledModel(const CompiledModel&) = delete;
@@ -95,7 +95,7 @@ private:
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
 
-    ov::SoPtr<ICompiler> _compiler;
+    const ov::SoPtr<ICompiler> _compiler;
 };
 
 }  //  namespace intel_npu
