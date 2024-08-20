@@ -111,7 +111,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | BatchMatrixDeterminant                                  | NO                            |                               |
 | BatchMatrixDiag                                         | NO                            |                               |
 | BatchMatrixDiagPart                                     | NO                            |                               |
-| BatchMatrixInverse                                      | NO                            |                               |
+| BatchMatrixInverse                                      | YES                           |                               |
 | BatchMatrixSetDiag                                      | NO                            |                               |
 | BatchMatrixSolve                                        | NO                            |                               |
 | BatchMatrixSolveLs                                      | NO                            |                               |
