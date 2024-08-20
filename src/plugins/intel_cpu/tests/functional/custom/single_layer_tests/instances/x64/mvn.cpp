@@ -19,18 +19,11 @@ const std::vector<bool> normalizeVariance = {
        false
 };
 
-std::vector<ElementType> inpPrc = {
-        ElementType::bf16
-};
-std::vector<ElementType> outPrc = {
-        ElementType::bf16
-};
-
-std::vector<CPUSpecificParams> cpuParams_4D = {
+std::vector<CPUSpecificParams> cpuParams_4D_blocked = {
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {})
 };
 
-std::vector<CPUSpecificParams> cpuParams_5D = {
+std::vector<CPUSpecificParams> cpuParams_5D_blocked = {
         CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {})
 };
 
@@ -64,8 +57,8 @@ const auto Mvn3D = ::testing::Combine(
            ::testing::ValuesIn(epsilon())),
        ::testing::Values(emptyCPUSpec),
        ::testing::ValuesIn(fusingParamsSet),
-       ::testing::ValuesIn(inpPrc),
-       ::testing::ValuesIn(outPrc),
+       ::testing::Values(ElementType::bf16),
+       ::testing::Values(ElementType::bf16),
        ::testing::ValuesIn(additionalConfig()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn3D, MvnLayerCPUTest, Mvn3D, MvnLayerCPUTest::getTestCaseName);
@@ -89,8 +82,8 @@ const auto Mvn1D = ::testing::Combine(
                ::testing::ValuesIn(epsilon())),
        ::testing::Values(emptyCPUSpec),
        ::testing::ValuesIn(fusingUnaryEltwiseParamsSet),
-       ::testing::ValuesIn(inpPrc),
-       ::testing::ValuesIn(outPrc),
+       ::testing::Values(ElementType::bf16),
+       ::testing::Values(ElementType::bf16),
        ::testing::ValuesIn(additionalConfig()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn1D, MvnLayerCPUTest, Mvn1D, MvnLayerCPUTest::getTestCaseName);
@@ -106,8 +99,8 @@ const auto Mvn2D = ::testing::Combine(
                ::testing::ValuesIn(epsilon())),
        ::testing::Values(emptyCPUSpec),
        ::testing::ValuesIn(fusingParamsSet),
-       ::testing::ValuesIn(inpPrc),
-       ::testing::ValuesIn(outPrc),
+       ::testing::Values(ElementType::bf16),
+       ::testing::Values(ElementType::bf16),
        ::testing::ValuesIn(additionalConfig()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn2D, MvnLayerCPUTest, Mvn2D, MvnLayerCPUTest::getTestCaseName);
@@ -123,8 +116,8 @@ const auto Mvn2DTrans = ::testing::Combine(
                ::testing::ValuesIn(epsilon())),
        ::testing::Values(emptyCPUSpec),
        ::testing::ValuesIn(fusingUnaryEltwiseParamsSet),
-       ::testing::ValuesIn(inpPrc),
-       ::testing::ValuesIn(outPrc),
+       ::testing::Values(ElementType::bf16),
+       ::testing::Values(ElementType::bf16),
        ::testing::ValuesIn(additionalConfig()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn2DTrans, MvnLayerCPUTest, Mvn2DTrans, MvnLayerCPUTest::getTestCaseName);
@@ -139,8 +132,8 @@ const auto Mvn2DStatic = ::testing::Combine(
                ::testing::ValuesIn(epsilon())),
        ::testing::Values(emptyCPUSpec),
        ::testing::ValuesIn(fusingParamsSetStaticShape),
-       ::testing::ValuesIn(inpPrc),
-       ::testing::ValuesIn(outPrc),
+       ::testing::Values(ElementType::bf16),
+       ::testing::Values(ElementType::bf16),
        ::testing::ValuesIn(additionalConfig()));
 
 const auto Mvn3DStatic = ::testing::Combine(
@@ -153,8 +146,8 @@ const auto Mvn3DStatic = ::testing::Combine(
            ::testing::ValuesIn(epsilon())),
        ::testing::Values(emptyCPUSpec),
        ::testing::ValuesIn(fusingParamsSetStaticShape),
-       ::testing::ValuesIn(inpPrc),
-       ::testing::ValuesIn(outPrc),
+       ::testing::Values(ElementType::bf16),
+       ::testing::Values(ElementType::bf16),
        ::testing::ValuesIn(additionalConfig()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn3D_Static, MvnLayerCPUTest, Mvn3DStatic, MvnLayerCPUTest::getTestCaseName);
@@ -167,10 +160,10 @@ const auto Mvn4DStatic = ::testing::Combine(
                ::testing::Values(false),
                ::testing::ValuesIn(normalizeVariance),
                ::testing::ValuesIn(epsilon())),
-       ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
+       ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_blocked)),
        ::testing::ValuesIn(fusingParamsSetStaticShape),
-       ::testing::ValuesIn(inpPrc),
-       ::testing::ValuesIn(outPrc),
+       ::testing::Values(ElementType::bf16),
+       ::testing::Values(ElementType::bf16),
        ::testing::ValuesIn(additionalConfig()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D_Static, MvnLayerCPUTest, Mvn4DStatic, MvnLayerCPUTest::getTestCaseName);
@@ -198,7 +191,7 @@ const auto Mvn4DStaticCTails = ::testing::Combine(
                ::testing::Values(false),
                ::testing::ValuesIn(normalizeVariance),
                ::testing::ValuesIn(epsilon())),
-       ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
+       ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_blocked)),
        ::testing::Values(emptyFusingSpec),
        ::testing::Values(ElementType::f32),
        ::testing::Values(ElementType::f32),
@@ -215,10 +208,10 @@ const auto Mvn5DStatic = ::testing::Combine(
                ::testing::Values(false),
                ::testing::ValuesIn(normalizeVariance),
                ::testing::ValuesIn(epsilon())),
-       ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
+       ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_blocked)),
        ::testing::ValuesIn(fusingParamsSetStaticShape),
-       ::testing::ValuesIn(inpPrc),
-       ::testing::ValuesIn(outPrc),
+       ::testing::Values(ElementType::bf16),
+       ::testing::Values(ElementType::bf16),
        ::testing::ValuesIn(additionalConfig()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn5D_Static, MvnLayerCPUTest, Mvn5DStatic, MvnLayerCPUTest::getTestCaseName);
@@ -246,6 +239,46 @@ const auto MvnSmallSpatial = ::testing::Combine(
        ::testing::ValuesIn(additionalConfig()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_MvnSmallSpatial, MvnLayerCPUTest, MvnSmallSpatial, MvnLayerCPUTest::getTestCaseName);
+
+const std::vector<CPUSpecificParams> cpuParams_4D_nspc = {
+    CPUSpecificParams({nhwc}, {nhwc}, {}, {})
+};
+
+const std::vector<CPUSpecificParams> cpuParams_5D_nspc = {
+    CPUSpecificParams({ndhwc}, {ndhwc}, {}, {})
+};
+
+const auto Mvn4D_no_across_channels_nspc = ::testing::Combine(
+       ::testing::Combine(
+               ::testing::ValuesIn(inputShapes_4D()),
+               ::testing::Values(ElementType::f32),
+               ::testing::ValuesIn(emptyReductionAxes()),
+               ::testing::Values(false),
+               ::testing::ValuesIn(normalizeVariance),
+               ::testing::ValuesIn(epsilon())),
+       ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_nspc)),
+       ::testing::Values(emptyFusingSpec),
+       ::testing::ValuesIn(inpPrc()),
+       ::testing::ValuesIn(outPrc()),
+       ::testing::ValuesIn(additionalConfig()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D_no_across_channels_nspc, MvnLayerCPUTest, Mvn4D_no_across_channels_nspc, MvnLayerCPUTest::getTestCaseName);
+
+const auto Mvn5D_no_across_channels_nspc = ::testing::Combine(
+       ::testing::Combine(
+               ::testing::ValuesIn(inputShapes_5D()),
+               ::testing::Values(ElementType::f32),
+               ::testing::ValuesIn(emptyReductionAxes()),
+               ::testing::Values(false),
+               ::testing::ValuesIn(normalizeVariance),
+               ::testing::ValuesIn(epsilon())),
+       ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_nspc)),
+       ::testing::Values(emptyFusingSpec),
+       ::testing::ValuesIn(inpPrc()),
+       ::testing::ValuesIn(outPrc()),
+       ::testing::ValuesIn(additionalConfig()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn5D_no_across_channels_nspc, MvnLayerCPUTest, Mvn5D_no_across_channels_nspc, MvnLayerCPUTest::getTestCaseName);
 
 }  // namespace
 }  // namespace MVN
