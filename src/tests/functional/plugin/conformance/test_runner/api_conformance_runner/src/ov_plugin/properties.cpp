@@ -6,6 +6,11 @@
 #include "base/ov_behavior_test_utils.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "ov_api_conformance_helpers.hpp"
+#define ADD_MANDATORY_PREFIX(GET_TEST_NAME)                                                           \
+    [&](const testing::TestParamInfo<PropertiesParams>& info) {                                       \
+        std::string name = GET_TEST_NAME(info);                                                       \
+        return sw_plugin_in_target_device(ov::test::utils::target_device) ? "" : "mandatory_" + name; \
+    }
 
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
@@ -89,14 +94,11 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckChangePropComplieModleGetPr
         OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName);
 
 /* Add prefix mandatory_ to suffix (getTestCaseName) of HW plugin test cases */
-INSTANTIATE_TEST_SUITE_P(ov_plugin,  OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
-        ::testing::Combine(
-                ::testing::Values(ov::test::utils::target_device),
-                ::testing::Values(ov::AnyMap({}))),
-        [&](const testing::TestParamInfo<PropertiesParams>& info) {
-          std::string name = OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName(info);
-          return sw_plugin_in_target_device(ov::test::utils::target_device) ? "" : "mandatory_" + name;
-        });
+INSTANTIATE_TEST_SUITE_P(
+    ov_plugin,
+    OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
+    ::testing::Combine(::testing::Values(ov::test::utils::target_device), ::testing::Values(ov::AnyMap({}))),
+    ADD_MANDATORY_PREFIX(OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckMetricsPropsTests_ModelDependceProps,
         ::testing::Combine(
