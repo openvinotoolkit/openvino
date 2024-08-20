@@ -95,4 +95,22 @@ TEST(CoreBaseTest, LoadOVFolderOverCWPathPluginXML) {
     remove_plugin_xml(ov_file_path);
 }
 
+#    if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
+TEST(CoreBaseTest, AddExtensionwithSymlinkInDiffPlace) {
+    std::string openvino_template_extension =
+        ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
+                                                 std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
+
+    // Symlink file & the real file doesn't locale in the diff place. Will throw
+    fs::create_directory("test_link");
+    std::string symlink_for_extension_copy_file = "test_link/symlink_for_extension_copy_file";
+
+    fs::create_symlink(openvino_template_extension, symlink_for_extension_copy_file);
+    ov::Core core;
+    EXPECT_NO_THROW(core.add_extension(openvino_template_extension));
+    EXPECT_THROW(core.add_extension(symlink_for_extension_copy_file), std::runtime_error);
+
+    ASSERT_TRUE(fs::remove_all("test_link"));
+}
+#    endif
 #endif
