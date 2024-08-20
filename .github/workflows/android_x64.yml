@@ -101,19 +101,20 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           path: 'openvino'
+          submodules: 'true'
 
       - name: Get VCPKG version and put it into GitHub ENV
         run: echo VCPKG_VERSION=$(cat ${OPENVINO_REPO}/vcpkg.json | python3 -c "import sys, json; print(json.load(sys.stdin)['builtin-baseline'])") >> $GITHUB_ENV
 
-      - name: Init submodules for non vcpkg dependencies
-        run: |
-          pushd ${OPENVINO_REPO}
-            git submodule update --init -- ${OPENVINO_REPO}/src/plugins
-            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/zlib
-            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
-            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
-            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
-          popd
+#      - name: Init submodules for non vcpkg dependencies
+#        run: |
+#          pushd ${OPENVINO_REPO}
+#            git submodule update --init -- ${OPENVINO_REPO}/src/plugins
+#            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/zlib
+#            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
+#            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
+#            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
+#          popd
 
       - name: Clone vcpkg
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
