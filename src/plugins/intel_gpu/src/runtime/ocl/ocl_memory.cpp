@@ -149,7 +149,8 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
 
     switch (src_mem.get_allocation_type()) {
         case allocation_type::usm_host:
-        case allocation_type::usm_shared: {
+        case allocation_type::usm_shared:
+        case allocation_type::usm_device: {
             // If other is gpu_usm, down cast to gpu_buffer is not possible.
             // But it can read as host ptr if it's allocation type is either usm_host or usm_shared.
             auto usm_mem = downcast<const gpu_usm>(&src_mem);
@@ -170,7 +171,6 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
 
             return result_event;
         }
-        case allocation_type::usm_device:
         default:
             OPENVINO_THROW("[GPU] Unsupported buffer type for gpu_buffer::copy_from() function");
     }
@@ -570,8 +570,6 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
     auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
 
     if (src_mem.get_allocation_type() == allocation_type::cl_mem) {
-        OPENVINO_ASSERT(get_allocation_type() != allocation_type::usm_device, "[GPU] Unsupported allocation type for gpu_usm::copy_from() function");
-
         auto cl_mem_buffer = downcast<const gpu_buffer>(&src_mem);
         auto dst_ptr = reinterpret_cast<char*>(buffer_ptr());
 
@@ -583,7 +581,12 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
 
         TRY_CATCH_CL_ERROR(cl_stream->get_usm_helper().enqueue_memcpy(cl_stream->get_cl_queue(), dst_ptr, src_ptr, size, blocking, nullptr, cl_event));
     } else {
-        OPENVINO_THROW("[GPU] Unsupported allocation type for gpu_usm::copy_from() function");
+        std::vector<char> tmp_buf;
+        tmp_buf.resize(size);
+        src_mem.copy_to(stream, tmp_buf.data(), src_offset, 0, size, true);
+
+        GPU_DEBUG_TRACE_DETAIL << "Suboptimal copy call from " << src_mem.get_allocation_type() << " to " << get_allocation_type() << "\n";
+        return copy_from(stream, tmp_buf.data(), 0, 0, size, blocking);
     }
 
     return result_event;

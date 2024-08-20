@@ -382,6 +382,13 @@ public:
         auto owner_remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(m_owner);
 
         if (std::dynamic_pointer_cast<RoiRemoteTensor>(dst)) {
+            OPENVINO_ASSERT(get_shape() == dst->get_shape(),
+                            "Cannot copy to RoiRemoteTensor. Shapes are not equal. (src: ",
+                            get_shape(),
+                            " != dst: ",
+                            dst->get_shape(),
+                            ")");
+
             auto dst_roi_remote_tensor = std::dynamic_pointer_cast<RoiRemoteTensor>(dst);
             owner_remote_tensor->copy_to(dst_roi_remote_tensor->m_owner,
                                          m_offset,
@@ -394,6 +401,13 @@ public:
 
     void copy_from(const std::shared_ptr<const ov::ITensor>& src) override {
         auto owner_remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(m_owner);
+
+        OPENVINO_ASSERT(src->get_shape() == get_shape(),
+                        "Cannot copy to RoiRemoteTensor. Shapes are not equal. (src: ",
+                        src->get_shape(),
+                        " != dst: ",
+                        get_shape(),
+                        ")");
 
         if (std::dynamic_pointer_cast<const RoiRemoteTensor>(src)) {
             const auto src_roi_remote_tensor = std::dynamic_pointer_cast<const RoiRemoteTensor>(src);

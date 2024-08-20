@@ -108,6 +108,21 @@ static void copy_roi(const mem_wrapper& src_mem,
     const size_t start_axis = 0;
     copy_roi_recursively(src_mem, dst_mem, start_axis, src_offset, dst_offset, roi_shape, src_strides, dst_strides, roi_strides);
 }
+
+static void validate_and_check_shapes(const std::shared_ptr<const ov::ITensor>& src, const std::shared_ptr<ov::ITensor>& dst) {
+    OPENVINO_ASSERT(src->get_element_type() == dst->get_element_type(),
+                    "[GPU] Tensor element types are not equal. (src: ",
+                    src->get_element_type(),
+                    " != dst: ",
+                    dst->get_element_type(),
+                    ")");
+    OPENVINO_ASSERT(src->get_element_type().bitwidth() >= 8, "[GPU] Unsupported element type for copying: ", src->get_element_type());
+
+    const auto& shape = src->get_shape();
+    if (shape != dst->get_shape()) {
+        dst->set_shape(shape);
+    }
+}
 }  // namespace
 
 TensorType RemoteTensorImpl::allocation_type_to_tensor_type(cldnn::allocation_type t) {
@@ -164,17 +179,26 @@ void RemoteTensorImpl::copy_to(const std::shared_ptr<ov::ITensor>& dst,
                                size_t src_offset,
                                size_t dst_offset,
                                ov::Shape roi_shape) const {
+    validate_and_check_shapes(shared_from_this(), dst);
+
     auto& stream = m_context->get_engine().get_service_stream();
     auto dst_remote_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(dst);
 
     ov::Strides roi_strides;
     calculate_strides(roi_strides, roi_shape, m_element_type);
     if (dst_remote_tensor != nullptr) {
+        GPU_DEBUG_TRACE_DETAIL << "Copying from RemoteTensor (" << get_memory()->get_allocation_type() << ") to RemoteTensor ("
+                               << dst_remote_tensor->get_memory()->get_allocation_type() << "), src_offset=" << src_offset << ", dst_offset="
+                               << dst_offset << ", roi_shape=" << roi_shape << "\n";
+
         auto src_mem = mem_wrapper(stream, get_memory(), nullptr);
         auto dst_mem = mem_wrapper(stream, dst_remote_tensor->get_memory(), nullptr);
 
         copy_roi(src_mem, dst_mem, src_offset, dst_offset, get_strides(), dst->get_strides(), roi_strides, get_shape(), dst->get_shape(), roi_shape);
     } else {
+        GPU_DEBUG_TRACE_DETAIL << "Copying from RemoteTensor (" << get_memory()->get_allocation_type() << ") to host tensor, src_offset="
+                               << src_offset << ", dst_offset=" << dst_offset << ", roi_shape=" << roi_shape << "\n";
+
         OPENVINO_ASSERT(!std::dynamic_pointer_cast<ov::IRemoteTensor>(dst), "[GPU] Unsupported Remote Tensor type");
 
         auto src_mem = mem_wrapper(stream, get_memory(), nullptr);
@@ -188,17 +212,26 @@ void RemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& src,
                                  size_t src_offset,
                                  size_t dst_offset,
                                  ov::Shape roi_shape) {
+    validate_and_check_shapes(src, shared_from_this());
+
     auto& stream = m_context->get_engine().get_service_stream();
     auto src_remote_tensor = std::dynamic_pointer_cast<const RemoteTensorImpl>(src);
 
     ov::Strides roi_strides;
     calculate_strides(roi_strides, roi_shape, m_element_type);
     if (src_remote_tensor != nullptr) {
+        GPU_DEBUG_TRACE_DETAIL << "Copying from RemoteTensor (" << src_remote_tensor->get_memory()->get_allocation_type() << ") to RemoteTensor ("
+                               << get_memory()->get_allocation_type() << "), src_offset=" << src_offset << ", dst_offset="
+                               << dst_offset << ", roi_shape=" << roi_shape << "\n";
+
         auto src_mem = mem_wrapper(stream, src_remote_tensor->get_memory(), nullptr);
         auto dst_mem = mem_wrapper(stream, get_memory(), nullptr);
 
         copy_roi(src_mem, dst_mem, src_offset, dst_offset, src->get_strides(), get_strides(), roi_strides, src->get_shape(), get_shape(), roi_shape);
     } else {
+        GPU_DEBUG_TRACE_DETAIL << "Copying from host tensor to RemoteTensor (" << get_memory()->get_allocation_type() << ", src_offset="
+                               << src_offset << ", dst_offset=" << dst_offset << ", roi_shape=" << roi_shape << "\n";
+
         OPENVINO_ASSERT(!std::dynamic_pointer_cast<const ov::IRemoteTensor>(src), "[GPU] Unsupported Remote Tensor type");
 
         auto src_mem = mem_wrapper(stream, nullptr, src->data());
@@ -212,7 +245,7 @@ const AnyMap& RemoteTensorImpl::get_properties() const {
     return m_properties;
 }
 
- void RemoteTensorImpl::set_shape(ov::Shape shape) {
+void RemoteTensorImpl::set_shape(ov::Shape shape) {
     m_layout.set_partial_shape(ov::PartialShape{shape});
     m_shape = shape;
 
