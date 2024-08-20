@@ -6,6 +6,7 @@
 #include "defs.hpp"
 
 // Operations
+#include "openvino/op/constant.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset2.hpp"
 #include "openvino/opsets/opset3.hpp"
@@ -36,6 +37,7 @@
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.hpp"
+#include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
@@ -157,6 +159,7 @@
 #include "nodes/scaled_attn.h"
 #include "nodes/llm_mlp.h"
 #include "nodes/qkv_proj.h"
+#include "nodes/rms_norm.h"
 #include "dnnl.hpp"
 #if defined(OPENVINO_ARCH_ARM64)
 #include "cpu/aarch64/cpu_isa_traits.hpp"
@@ -852,6 +855,14 @@ void Transformations::PostLpt() {
     }
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion);
+    CPU_SET_CALLBACK_X64(postLPTPassManager,
+        [](const std::shared_ptr<const ov::Node>& node) -> bool {
+            std::string errorMsg;
+            return node::RMSNorm::isSupportedOperation(node, errorMsg);
+        },
+        ov::pass::RMSFusion);
+
     // markup Rope Input when BF16/F16 inference.
     if (one_of(inferencePrecision, ov::element::bf16, ov::element::f16))
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkRopeInputsToKeepInMixedPrecision);

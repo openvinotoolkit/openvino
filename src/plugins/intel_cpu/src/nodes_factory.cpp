@@ -80,6 +80,7 @@
 #include "nodes/reorg_yolo.h"
 #include "nodes/reshape.h"
 #include "nodes/reverse_sequence.h"
+#include "nodes/rms_norm.h"
 #include "nodes/rnn.h"
 #include "nodes/roi_align.h"
 #include "nodes/roi_align_rotated.h"
@@ -218,6 +219,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(QKVProjection, Type::QKVProjection);
     INTEL_CPU_NODE(MHA, Type::MHA);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
+    INTEL_CPU_NODE(RMSNorm, Type::RMSNorm);
 #endif
 }
 
