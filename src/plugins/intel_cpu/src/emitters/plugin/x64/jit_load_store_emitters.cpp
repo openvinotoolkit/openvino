@@ -676,7 +676,7 @@ void jit_store_emitter::emit_data() const {
 }
 
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
-    const int offset = in_idxs.size() == 2 ? in_idxs[1] : 0;
+    const int offset = out_idxs.size() == 2 ? out_idxs[1] : 0;
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(static_cast<int>(in_idxs[0]), Reg64(out_idxs[0]), offset);
     } else if (host_isa_ == cpu::x64::avx2) {
