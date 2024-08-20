@@ -12,7 +12,7 @@ inputs:
     description: "Name under which to upload provided OpenVINO build artifacts, set automatically by default"
     required: false
   commit_packages_to_provide:
-    description: "Comma-separated list of OpenVINO packages from post-commit to provide, all available by default"
+    description: "Comma-separated list of OpenVINO packages from post-commit to provide ('all' to get everything)"
     required: false
   commit_build_key:
     description: 'public_linux_ubuntu_20_04_release | public_linux_ubuntu_22_04_release | 
@@ -87,9 +87,10 @@ runs:
         trigger_repo_sha: ${{ env.OV_REVISION }}
         branch_name: ${{ inputs.branch_name }}
         artifacts_key: ${{ inputs.ov_artifact_name || inputs.commit_build_key }}
-        to_restore: ${{ inputs.commit_packages_to_provide }}
+        to_restore: ${{ inputs.commit_packages_to_provide || env.OV_PACKAGE_ARCHIVE }}
       env:
         OV_REVISION: ${{ inputs.revision == 'HEAD' && steps.get_openvino_head_commit.outputs.head || inputs.revision }}
+        OV_PACKAGE_ARCHIVE: ${{ runner.os == 'Windows' && 'openvino_package.zip' || 'openvino_package.tar.gz' }}
 
     - name: Set action outputs
       id: openvino_commit_output
@@ -111,7 +112,8 @@ runs:
         cd ${{ steps.openvino_commit_download.outputs.artifacts_workspace_path }}
         version=$(yq eval '.components.dldt.custom_params.wheel_product_version' manifest.yml)
         wheel_path=${{ steps.openvino_commit_output.outputs.ov_package_path }}/tools
-        wheel_input="--find-links=./$wheel_path openvino==$version"
+        find_links_cmd=$([[ -n "$PIP_FIND_LINKS" ]] && echo "" || echo "--find-links=./$wheel_path")
+        wheel_input="$find_links_cmd openvino==$version"
         echo "ov_wheel_input=$wheel_input" >> $GITHUB_OUTPUT
 
 
