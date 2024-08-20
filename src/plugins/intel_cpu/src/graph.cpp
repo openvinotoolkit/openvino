@@ -1159,7 +1159,23 @@ void Graph::InferStatic(SyncInferRequest* request) {
 
         auto _prof = MY_PROFILE_ARGS(node->getTypeStr(),
                                      {{"Name", node->getName()}, {"Impl", node->getPrimitiveDescriptorType()}});
-        ExecuteNode(node, m_stream);
+
+        bool needExecute = true;
+        if (!node->getStateName().empty()) {
+            auto states = request->query_state();
+            for (auto& state : states) {
+                if (state->get_name() == node->getStateName()) {
+                    auto vsb = reinterpret_cast<VariableStateBase*>(state._ptr.get());
+                    if (!vsb->is_reset_state()) {
+                        std::cout << "== Node: " << node->getName() << " doesn't need to be executed." << std::endl;
+                        needExecute = false;
+                    }
+                    break;
+                }
+            }
+        }
+        if (needExecute)
+            ExecuteNode(node, m_stream);
     }
 }
 
@@ -1381,7 +1397,23 @@ void Graph::InferDynamic(SyncInferRequest* request, UpdateStrategy&& update) {
             if (request)
                 request->throw_if_canceled();
             try {
-                ExecuteNode(node, m_stream);
+                bool needExecute = true;
+                if (!node->getStateName().empty()) {
+                    auto states = request->query_state();
+                    for (auto& state : states) {
+                        if (state->get_name() == node->getStateName()) {
+                            auto vsb = reinterpret_cast<VariableStateBase*>(state._ptr.get());
+                            if (!vsb->is_reset_state()) {
+                                std::cout << "== Node: " << node->getName() << " doesn't need to be executed."
+                                          << std::endl;
+                                needExecute = false;
+                            }
+                            break;
+                        }
+                    }
+                }
+                if (needExecute)
+                    ExecuteNode(node, m_stream);
             } catch (const std::exception& exp) {
                 OPENVINO_THROW(node, exp.what());
             }
