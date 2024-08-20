@@ -730,17 +730,91 @@ template <x64::cpu_isa_t isa>
 void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne(const Vmm& v_result, const Vmm& v_min, const Vmm& v_range, const Vmm& v_dst, const Reg64& r64_elements_remaining) {
     using namespace Xbyak;
 
-    // Apply mask and divisor
-    pand(v_result, v_mask);
-    cvtdq2ps(v_result, v_result);
-    mulps(v_result, v_divisor);
+    Label float_case, float16_case, bfloat16_case, int32_case, int64_case, end;
 
-    // Scale and shift
-    mulps(v_result, v_range);
-    addps(v_result, v_min);
+    // Check the output type and jump to the corresponding case
+    cmp(r64_output_type, element::f32);
+    je(float_case);
+    cmp(r64_output_type, element::f16);
+    je(float16_case);
+    cmp(r64_output_type, element::bf16);
+    je(bfloat16_case);
+    cmp(r64_output_type, element::i32);
+    je(int32_case);
+    cmp(r64_output_type, element::i64);
+    je(int64_case);
+    jmp(end);
 
-    // Store result
-    movdqu(ptr[r64_dst], v_result);
+    // Case for float
+    L(float_case);
+    {
+        // Apply mask and divisor
+        pand(v_result, v_mask);
+        cvtdq2ps(v_result, v_result);
+        mulps(v_result, v_divisor);
+
+        // Scale and shift
+        mulps(v_result, v_range);
+        addps(v_result, v_min);
+
+        // Store result
+        movdqu(ptr[r64_dst], v_result);
+        jmp(end);
+    }
+
+    // Case for float16
+    L(float16_case);
+    {
+        // Apply mask and divisor
+        pand(v_result, v_mask);
+        cvtdq2ps(v_result, v_result);
+        mulps(v_result, v_divisor);
+
+        // Scale and shift
+        mulps(v_result, v_range);
+        addps(v_result, v_min);
+
+        // Convert to float16 and store result
+        vcvtps2ph(v_result, v_result, _op_mxcsr);
+        movdqu(ptr[r64_dst], v_result);
+        jmp(end);
+    }
+
+    // Case for bfloat16
+    L(bfloat16_case);
+    {
+        // Apply mask and divisor
+        pand(v_result, v_mask);
+        cvtdq2ps(v_result, v_result);
+        mulps(v_result, v_divisor);
+
+        // Scale and shift
+        mulps(v_result, v_range);
+        addps(v_result, v_min);
+
+        // Convert to bfloat16 and store result
+        vcvtneps2bf16(v_result, v_result);
+        movdqu(ptr[r64_dst], v_result);
+        jmp(end);
+    }
+
+    // Case for int32
+    L(int32_case);
+    {
+        // Convert to int32 and store result
+        movdqu(ptr[r64_dst], v_result);
+        jmp(end);
+    }
+
+    // Case for int64
+    L(int64_case);
+    {
+        // Convert to int64 and store result
+        movdqu(ptr[r64_dst], v_result);
+        jmp(end);
+    }
+
+    L(end);
 }
 
 template class MersenneTwisterGenerator<x64::avx512_core>;
