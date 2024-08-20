@@ -26,36 +26,27 @@ ov::pass::MarkReadValueInputs::MarkReadValueInputs() {
             return false;
         }
 
+        auto state_name = readvalue->get_variable()->get_info().variable_id;
+        // Mark ReadValue corresponding Assign node.
+        int assign_num = 0;
+        int assign_id = 0;
+        for (size_t i = 0; i < readvalue->get_output_size(); i++) {
+            auto son = readvalue->get_output_target_inputs(i).begin()->get_node()->shared_from_this();
+            if (as_type_ptr<ov::opset6::Assign>(son)) {
+                assign_num++;
+                assign_id = i;
+            }
+        }
+        if (assign_num == 1) {
+            readvalue->get_output_target_inputs(assign_id).begin()->get_node()->shared_from_this()->set_state_name(
+                state_name);
+        } else {
+            return false;
+        }
+
         // Loop all parent nodes and mark them.
         int recursive_deep = 0;
         auto cur = readvalue;
-        auto state_name = readvalue->get_variable()->get_info().variable_id;
-
-        // auto contain_concat = false;
-        // std::function<void(std::shared_ptr<ov::Node>)> check_contain_concat =
-        //     [&check_contain_concat, &contain_concat](std::shared_ptr<ov::Node> node) {
-        //         if (op::util::is_parameter(node)) {
-        //             return;
-        //         }
-        //         if (op::util::is_constant(node)) {
-        //             return;
-        //         }
-        //         if (as_type_ptr<ov::opset1::Concat>(node)) {
-        //             contain_concat = true;
-        //             return;
-        //         }
-        //         if (node->get_output_size() == 1) {
-        //             for (size_t i = 0; i < node->get_input_size(); i++) {
-        //                 check_contain_concat(node->get_input_node_shared_ptr(i));
-        //             }
-        //             return;
-        //         }
-        //         return;
-        //     };
-        // check_contain_concat(cur);
-        // if (contain_concat) {
-        //     return false;
-        // }
 
         // Mark parent nodes.
         recursive_deep = 0;
@@ -71,11 +62,11 @@ ov::pass::MarkReadValueInputs::MarkReadValueInputs() {
                 return;
             }
 
-            if (node->get_output_size() == 1) {
+            if (node->outputs().size() == 1u) {
                 if (!as_type_ptr<ov::opset6::ReadValue>(node)) {
                     node->set_state_name(state_name);
                     std::cout << "== Mark Node: " << node->get_friendly_name() << ", set_state_name: " << state_name
-                              << std::endl;
+                              << ", node tyne=" << node->get_type_name() << std::endl;
                 }
 
                 for (size_t i = 0; i < node->get_input_size(); i++) {
@@ -84,34 +75,11 @@ ov::pass::MarkReadValueInputs::MarkReadValueInputs() {
                 return;
             }
             recursive_deep++;
-            return;
         };
-        mark_node(cur);
+        for (size_t i = 0; i < cur->get_input_size(); i++) {
+            mark_node(cur->get_input_node_shared_ptr(i));
+        }
 
-        // Mark assign in the follow 2 layers son nodes
-        recursive_deep = 0;
-        bool found = false;
-        std::function<void(std::shared_ptr<ov::Node>)> mark_assign =
-            [&mark_assign, &state_name, &recursive_deep, &found](std::shared_ptr<ov::Node> node) {
-                if (recursive_deep > 1) {
-                    return;
-                }
-                auto assign = as_type_ptr<ov::opset6::Assign>(node);
-                if (assign) {
-                    node->set_state_name(state_name);
-                    found = true;
-                    return;
-                }
-
-                for (size_t i = 0; i < node->get_output_size(); i++) {
-                    mark_assign(node->get_output_target_inputs(i).begin()->get_node()->shared_from_this());
-                    if (found) {
-                        return;
-                    }
-                }
-                recursive_deep++;
-            };
-        mark_assign(cur);
         return true;
     };
 
