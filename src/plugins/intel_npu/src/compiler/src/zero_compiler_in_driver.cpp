@@ -16,7 +16,6 @@
 #include "intel_npu/al/prefix.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "openvino/core/model.hpp"
-#include "zero_executor.hpp"
 
 namespace {
 
@@ -912,12 +911,6 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
     _logger.debug("compile end");
 
     auto networkDescription = NetworkDescription(std::vector<uint8_t>(), std::move(networkMeta));
-
-    // Use const_cast to remove const qualifier
-    networkDescription.propsVoidPtr = const_cast<void*>(static_cast<const void*>(&_props));
-    networkDescription.inputDescriptors = const_cast<void*>(static_cast<const void*>(&inputDescriptors));
-    networkDescription.outputDescriptors = const_cast<void*>(static_cast<const void*>(&outputDescriptors));
-
     return networkDescription;
 }
 
@@ -1037,17 +1030,6 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
             metadata.has_value() ? std::optional(shapeFromIRModel) : std::nullopt};
 }
 
-// process _input_descriptors & _output_descriptors for zero_executor
-template <typename TableExtension>
-void LevelZeroCompilerInDriver<TableExtension>::processInputOutputDescriptors(ze_graph_argument_properties_3_t arg,
-                                                                              uint32_t index) {
-    if (arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
-        inputDescriptors.push_back(intel_npu::ZeroExecutor::ArgumentDescriptor{arg, index});
-    } else {
-        outputDescriptors.push_back(intel_npu::ZeroExecutor::ArgumentDescriptor{arg, index});
-    }
-}
-
 template <typename TableExtension>
 template <typename T, std::enable_if_t<NotSupportArgumentMetadata(T), bool>>
 void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* graphDdiTableExt,
@@ -1065,8 +1047,6 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* grap
                        std::hex,
                        uint64_t(result));
     }
-
-    const_cast<LevelZeroCompilerInDriver*>(this)->processInputOutputDescriptors(arg, index);
 
     switch (arg.type) {
     case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
@@ -1098,8 +1078,6 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* grap
                        std::hex,
                        uint64_t(result));
     }
-
-    const_cast<LevelZeroCompilerInDriver*>(this)->processInputOutputDescriptors(arg, index);
 
     std::optional<ze_graph_argument_metadata_t> optionalMetadata = std::nullopt;
 
@@ -1133,7 +1111,9 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* grap
 
 template <typename TableExtension>
 NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::getNetworkMeta(ze_graph_handle_t graphHandle) const {
-    auto result = _graphDdiTableExt->pfnGetProperties(graphHandle, &_props);
+    ze_graph_properties_t graphProperties{};
+
+    auto result = _graphDdiTableExt->pfnGetProperties(graphHandle, &graphProperties);
 
     if (ZE_RESULT_SUCCESS != result) {
         OPENVINO_THROW("L0 pfnGetProperties",
@@ -1146,7 +1126,7 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::getNetworkMeta(ze_gra
 
     NetworkMetadata meta;
 
-    for (uint32_t index = 0; index < _props.numGraphArgs; ++index) {
+    for (uint32_t index = 0; index < graphProperties.numGraphArgs; ++index) {
         getMetadata(_graphDdiTableExt, graphHandle, index, meta.inputs, meta.outputs);
     }
     // TODO: support this information in CiD [track: E#33479]

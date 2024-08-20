@@ -752,8 +752,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
         const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(meta.inputs, meta.outputs);
 
-        bool profiling = localConfig.get<PERF_COUNT>();
-
         auto networkDescription = std::make_shared<const NetworkDescription>(std::move(blob), std::move(meta));
 
         compiledModel = std::make_shared<CompiledModel>(modelDummy,
