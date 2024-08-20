@@ -10,8 +10,8 @@
 #include "openvino/frontend/manager.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/rt_info/attributes.hpp"
 #include "openvino/runtime/core.hpp"
+#include "transformations/rt_info/attributes.hpp"
 
 class RTInfoSerializationTest : public ov::test::TestsCommon {
 protected:
@@ -251,9 +251,9 @@ TEST(OvSerializationTests, SerializeRawMeta) {
 		<edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
 	</edges>
 	<rt_info>
-		<custom_rt_info>
+		<custom_rt_info1>
 			<item0 value="testvalue1" />
-		</custom_rt_info>
+		</custom_rt_info1>
 		<custom_rt_info2>
 			<item0 value="testvalue2" />
 		</custom_rt_info2>
@@ -261,11 +261,41 @@ TEST(OvSerializationTests, SerializeRawMeta) {
 </net>
 )V0G0N";
     ov::Core core;
-    auto model = core.read_model(ir_with_rt_info, ov::Tensor());
+    {
+        // Don't read meta data. Copy raw pugixml::node from MetaDataWithPugixml to serialized model
+        auto model = core.read_model(ir_with_rt_info, ov::Tensor());
 
-    std::stringstream model_ss, weights_ss;
-    ov::pass::Serialize(model_ss, weights_ss).run_on_model(model);
-    
-    auto serialized_model = model_ss.str();
-    ASSERT_EQ(0, serialized_model.compare(ir_with_rt_info));
+        std::stringstream model_ss, weights_ss;
+        ov::pass::Serialize(model_ss, weights_ss).run_on_model(model);
+
+        auto serialized_model = model_ss.str();
+        EXPECT_EQ(0, serialized_model.compare(ir_with_rt_info));
+    }
+
+    {
+        // Don't read meta data. Fully serialize AnyMap with meta
+        auto model = core.read_model(ir_with_rt_info, ov::Tensor());
+        auto custom_rt_info1_value = model->get_rt_info<std::string>("custom_rt_info1", "item0");
+        EXPECT_EQ(0, custom_rt_info1_value.compare("testvalue1"));
+        auto custom_rt_info2_value = model->get_rt_info<std::string>("custom_rt_info2", "item0");
+        EXPECT_EQ(0, custom_rt_info2_value.compare("testvalue2"));
+
+        std::stringstream model_ss, weights_ss;
+        ov::pass::Serialize(model_ss, weights_ss).run_on_model(model);
+
+        auto serialized_model = model_ss.str();
+        EXPECT_EQ(0, serialized_model.compare(ir_with_rt_info));
+    }
+
+    {
+        auto model = core.read_model(ir_with_rt_info, ov::Tensor());
+        auto custom_rt_info1_value = model->get_rt_info<std::string>("custom_rt_info1", "item0");
+        EXPECT_EQ(0, custom_rt_info1_value.compare("testvalue1"));
+
+        std::stringstream model_ss, weights_ss;
+        ov::pass::Serialize(model_ss, weights_ss).run_on_model(model);
+
+        auto serialized_model = model_ss.str();
+        EXPECT_EQ(0, serialized_model.compare(ir_with_rt_info));
+    }
 }

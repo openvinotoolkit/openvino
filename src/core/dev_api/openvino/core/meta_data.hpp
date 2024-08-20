@@ -5,7 +5,10 @@
 #pragma once
 
 #include "openvino/core/any.hpp"
-#include "pugixml.hpp"
+
+namespace pugi {
+class xml_node;
+}
 
 namespace ov {
 
@@ -40,7 +43,7 @@ public:
      *
      * @return const pugi::xml_node& with meta information
      */
-    virtual pugi::xml_node get_pugi_node() const = 0;
+    virtual const pugi::xml_node& get_pugi_node() const = 0;
 };
 
 }  // namespace ov
