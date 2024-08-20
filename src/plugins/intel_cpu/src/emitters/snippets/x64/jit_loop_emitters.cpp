@@ -69,7 +69,12 @@ void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std:
     }
 
     // if wa < increment, skip the loop
-    h->cmp(reg_work_amount, wa_increment);
+    // Note : If the loop should be evaluated once and increment is dynamic,
+    //        we should manually set `increment = 1` to compare the dynamic work amount
+    //        with `1` at least before loop execution
+    //        (work amount can be zero and we should skip this loop even `evaluate_once = 1`)
+    auto increment = evaluate_once && snippets::utils::is_dynamic_value(wa_increment) ? 1 : wa_increment;
+    h->cmp(reg_work_amount, increment);
     h->jl(*loop_end_label, Xbyak::CodeGenerator::T_NEAR);
 
     h->L(*loop_begin_label);

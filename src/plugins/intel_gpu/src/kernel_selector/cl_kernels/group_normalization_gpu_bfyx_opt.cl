@@ -36,8 +36,6 @@ KERNEL(calc_mean_per_feature)(
     const uint x_base = get_local_id(0);
     const uint x_leftover = INPUT0_SIZE_X - x_num_workers * x_block_size;
 
-    __local ACCUMULATOR_TYPE mean_per_feature[SLM_SIZE];
-
     ACCUMULATOR_TYPE mean = ACCUMULATOR_VAL_ZERO;
 
     #if INPUT0_DIMS == 5
@@ -120,18 +118,10 @@ KERNEL(calc_mean_per_feature)(
     #endif
     const uint worker_idx = get_local_linear_id();
 
-    mean_per_feature[worker_idx] = mean;
-    uint reduce_add_level = 1;
-    while (num_local_workers > reduce_add_level) {
-        barrier(CLK_LOCAL_MEM_FENCE);
-        if (worker_idx % (reduce_add_level * 2) == 0 && (worker_idx + reduce_add_level) < num_local_workers) {
-            mean_per_feature[worker_idx] += mean_per_feature[worker_idx + reduce_add_level];
-        }
-        reduce_add_level *= 2;
-    }
+    mean = work_group_reduce_add(mean);
 
     if (worker_idx == 0) {
-        mean = mean_per_feature[0] / TO_ACCUMULATOR_TYPE(INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X);
+        mean = mean / TO_ACCUMULATOR_TYPE(INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X);
         internal_mean[bf] = mean;
     }
 }
@@ -188,8 +178,6 @@ KERNEL(calc_var_per_feature)(
     const uint x_block_size = INPUT0_SIZE_X / x_num_workers;
     const uint x_base = get_local_id(0);
     const uint x_leftover = INPUT0_SIZE_X - x_num_workers * x_block_size;
-
-    __local ACCUMULATOR_TYPE var_per_feature[SLM_SIZE];
 
     const ACCUMULATOR_TYPE mean = internal_mean[bf];
     ACCUMULATOR_TYPE variance = ACCUMULATOR_VAL_ZERO;
@@ -284,18 +272,10 @@ KERNEL(calc_var_per_feature)(
     #endif
     const uint worker_idx = get_local_linear_id();
 
-    var_per_feature[worker_idx] = variance;
-    uint reduce_add_level = 1;
-    while (num_local_workers > reduce_add_level) {
-        barrier(CLK_LOCAL_MEM_FENCE);
-        if (worker_idx % (reduce_add_level * 2) == 0 && (worker_idx + reduce_add_level) < num_local_workers) {
-            var_per_feature[worker_idx] += var_per_feature[worker_idx + reduce_add_level];
-        }
-        reduce_add_level *= 2;
-    }
+    variance = work_group_reduce_add(variance);
 
     if (worker_idx == 0) {
-        variance = var_per_feature[0] / TO_ACCUMULATOR_TYPE(INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X);
+        variance = variance / TO_ACCUMULATOR_TYPE(INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X);
         internal_variance[bf] = variance;
     }
 }
