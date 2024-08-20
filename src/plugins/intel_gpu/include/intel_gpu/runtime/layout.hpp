@@ -153,7 +153,7 @@ struct padding {
 
     void set_dynamic_pad_dims(const std::vector<tensor::value_type>& other) {
         OPENVINO_ASSERT(other.size() <= SHAPE_RANK_MAX, "vector size exceeds maximum rank!");
-        const auto cnt = std::min(other.size(), SHAPE_RANK_MAX);       
+        const auto cnt = std::min(other.size(), SHAPE_RANK_MAX);
         std::copy_n(std::begin(other), cnt, _dynamic_pad_dims);
         std::fill_n(_dynamic_pad_dims + cnt, SHAPE_RANK_MAX - cnt, 0);
     }
@@ -178,9 +178,9 @@ struct padding {
             OPENVINO_ASSERT(lower_sizes.size() <= SHAPE_RANK_MAX);
             OPENVINO_ASSERT(upper_sizes.size() <= SHAPE_RANK_MAX);
             OPENVINO_ASSERT(dynamic_pad_dims.size() <= SHAPE_RANK_MAX);
-            if(lower_sizes.size() > 0) std::copy_n(to_abs(lower_sizes).begin(), lower_sizes.size(), _lower_size);
-            if(upper_sizes.size() > 0) std::copy_n(to_abs(upper_sizes).begin(), upper_sizes.size(), _upper_size);
-            if(dynamic_pad_dims.size() > 0) std::copy_n(to_abs(dynamic_pad_dims).begin(), dynamic_pad_dims.size(), _dynamic_pad_dims);
+            if (lower_sizes.size() > 0) std::copy_n(to_abs(lower_sizes).begin(), lower_sizes.size(), _lower_size);
+            if (upper_sizes.size() > 0) std::copy_n(to_abs(upper_sizes).begin(), upper_sizes.size(), _upper_size);
+            if (dynamic_pad_dims.size() > 0) std::copy_n(to_abs(dynamic_pad_dims).begin(), dynamic_pad_dims.size(), _dynamic_pad_dims);
           }
 
     /// @brief Constrcuts symmetric padding.
@@ -286,7 +286,7 @@ private:
                            ///< data types).
     tensor::value_type _lower_size[SHAPE_RANK_MAX] = {0};  ///< Lower padding sizes. For spatials, it means size of left (X) and top (Y) padding.
     tensor::value_type _upper_size[SHAPE_RANK_MAX] = {0};  ///< Upper padding sizes. For spatials, it means size of right (X) and bottom (Y) padding.
-    tensor::value_type _dynamic_pad_dims[SHAPE_RANK_MAX] = {0};   ///< A mask saying which dimension has dynamic pad  
+    tensor::value_type _dynamic_pad_dims[SHAPE_RANK_MAX] = {0};   ///< A mask saying which dimension has dynamic pad
 
     static std::vector<tensor::value_type> to_abs(const std::vector<tensor::value_type>& sizes) {
         std::vector<tensor::value_type> result;
@@ -369,7 +369,7 @@ struct layout {
         if (lhs.format != rhs.format)
             return (lhs.format < rhs.format);
         if (lhs.count() < rhs.count())
-            return (lhs.count() < rhs.count());            
+            return (lhs.count() < rhs.count());
         return (lhs.data_padding < rhs.data_padding);
     }
 
@@ -494,7 +494,8 @@ struct layout {
 
     /// @brief Returns a vector of tensors values, ordered regarding to @p format from the default format.
     template <class T>
-    inline static std::vector<tensor::value_type> format_sizes(const std::vector<T> &_sizes, const cldnn::format &fmt, const tensor::value_type default_val = 1) {
+    inline static std::vector<tensor::value_type> format_sizes(const std::vector<T> &_sizes, const cldnn::format &fmt,
+                                                            const tensor::value_type default_val = 1) {
         const auto& output_order = fmt.order();
         std::vector<tensor::value_type> sizes(output_order.size(), default_val);
 
@@ -511,7 +512,7 @@ struct layout {
         }
 
         return sizes;
-    }    
+    }
 
 private:
     /// The size of the @ref memory (excluding padding)
