@@ -571,6 +571,10 @@ void Node::updateShapes() {
                 for (auto&& edge : getChildEdges()) {
                     auto edge_ptr = edge.lock();
                     CPU_NODE_ASSERT(edge_ptr, " has null edge");
+                    if (edge_ptr->inPlace(Edge::LOOK_UP)) {
+                        continue;
+                    }
+
                     auto mem = edge_ptr->getMemoryPtr();
                     CPU_NODE_ASSERT(mem, " has null output memory");
 

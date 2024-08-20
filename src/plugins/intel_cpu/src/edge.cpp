@@ -533,11 +533,12 @@ EdgePtr Edge::getBaseEdge(int look) {
 
 bool Edge::inPlace(LOOK look) const {
     int inputNum = getInputNum();
-    int outputNum = getOutputNum();
     if (look & LOOK_UP) {
         if (getParent()->inPlaceOutPort(inputNum) >= 0)
             return true;
     }
+
+    int outputNum = getOutputNum();
     if (look & LOOK_DOWN) {
         if (getChild()->inPlaceInputPort(outputNum) >= 0)
             return true;
