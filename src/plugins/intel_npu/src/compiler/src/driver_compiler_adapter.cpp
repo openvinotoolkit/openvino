@@ -107,5 +107,13 @@ std::vector<ov::ProfilingInfo> LevelZeroCompilerAdapter::process_profiling_outpu
     OPENVINO_THROW("Profiling post-processing is not implemented.");
 }
 
+void LevelZeroCompilerAdapter::release(std::shared_ptr<const NetworkDescription> networkDescription) {
+    apiAdapter->release(networkDescription);
+}
+
+void LevelZeroCompilerAdapter::fillCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) {
+    apiAdapter->fillCompiledNetwork(networkDescription);
+}
+
 }  // namespace driverCompilerAdapter
 }  // namespace intel_npu
