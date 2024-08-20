@@ -236,9 +236,22 @@ struct padding {
     friend bool operator<(const padding& lhs, const padding& rhs) {
         if (lhs._filling_value != rhs._filling_value)
             return (lhs._filling_value < rhs._filling_value);
-        if (lhs._lower_size != rhs._lower_size)
-            return (lhs._lower_size < rhs._lower_size);
-        return (lhs._upper_size < rhs._upper_size);
+
+        for (size_t i = 0; i < sizeof(lhs._lower_size); ++i) {
+            if (lhs._lower_size[i] < rhs._lower_size[i])
+                return true;
+            if (rhs._lower_size[i] < lhs._lower_size[i])
+                return false;
+        }
+
+        for (size_t i = 0; i < sizeof(lhs._upper_size); ++i) {
+            if (lhs._upper_size[i] < rhs._upper_size[i])
+                return true;
+            if (rhs._upper_size[i] < lhs._upper_size[i])
+                return false;
+        }
+
+        return false;
     }
 
     static padding max(padding const& lhs, padding const& rhs, float filling_value = 0.0f) { // Cecilia: FIXME filling_value?
