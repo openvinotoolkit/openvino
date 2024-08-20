@@ -269,7 +269,7 @@ endif ()
 if(ENABLE_SHL_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE shl)
 endif()
-target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
 # Temporal solution to use template reference implementations in cases where optimizied implementation
 # is not (yet) needed.
@@ -359,7 +359,7 @@ if(BUILD_SHARED_LIBS)
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
 
-    target_include_directories(${TARGET_NAME}_obj PUBLIC $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+    target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
     if(ENABLE_SNIPPETS_LIBXSMM_TPP)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:xsmm,INCLUDE_DIRECTORIES>)
     endif()
