@@ -283,7 +283,7 @@ private:
         std::shared_ptr<ov::op::v0::Constant> constant{nullptr};
         auto data = get_data<T>();
         auto element_count = data.size();
-        if(ov::element::is_nibble_type(type)) {
+        if (ov::element::is_nibble_type(type)) {
             element_count *= 2;  // Each byte contains 2 data items
         }
         if (element_count == shape_size(m_shape)) {
