@@ -61,7 +61,7 @@ class RuntimeExistsError extends Error {
 async function downloadRuntime(destinationPath, config = { force: false, ignoreIfExists: true, proxy: null }) {
   const { version } = packageJson;
   const osInfo = await getOsInfo();
-  const isRuntimeDirectoryExists = await checkIfDirectoryExists(destinationPath);
+  const isRuntimeDirectoryExists = await checkIfPathExists(destinationPath);
 
   if (isRuntimeDirectoryExists && !config.force) {
     if (config.ignoreIfExists) {
@@ -139,16 +139,16 @@ async function getOsInfo() {
 }
 
 /**
- * Check if directory exists.
+ * Check if path exists.
  *
  * @async
- * @function checkIfDirectoryExists
- * @param {string} directoryPath - The directory path.
+ * @function checkIfPathExists
+ * @param {string} path - The path to directory or file.
  * @returns {Promise<boolean>}
  */
-async function checkIfDirectoryExists(directoryPath) {
+async function checkIfPathExists(path) {
   try {
-    await fs.access(directoryPath);
+    await fs.access(path);
     return true;
   } catch (error) {
     if (error.code === codeENOENT) {
@@ -281,4 +281,4 @@ function unarchive(tarFilePath, dest) {
   });
 }
 
-module.exports = { downloadRuntime, downloadFile, checkIfDirectoryExists };
+module.exports = { downloadRuntime, downloadFile, checkIfPathExists };

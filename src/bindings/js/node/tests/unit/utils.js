@@ -4,7 +4,7 @@
 
 const path = require('path');
 const fs = require('node:fs/promises');
-const { downloadFile, checkIfDirectoryExists } = require('../../scripts/download_runtime');
+const { downloadFile, checkIfPathExists } = require('../../scripts/download_runtime');
 
 const modelDir = 'tests/unit/test_models/';
 const testModels = {
@@ -37,13 +37,13 @@ function getModelPath(isFP16=false) {
 async function downloadTestModel(model) {
   const modelsDir = './tests/unit/test_models';
   try {
-    const ifModelsDirectoryExists = await checkIfDirectoryExists(modelsDir);
+    const ifModelsDirectoryExists = await checkIfPathExists(modelsDir);
     if (!ifModelsDirectoryExists) {
       await fs.mkdir(modelDir);
     }
 
     const modelPath = path.join(modelsDir, model.xml);
-    const modelExists = await checkIfDirectoryExists(modelPath);
+    const modelExists = await checkIfPathExists(modelPath);
     if ( modelExists ) return;
 
     const { env } = process;
@@ -61,7 +61,7 @@ async function downloadTestModel(model) {
 async function isModelAvailable(model) {
   const baseArtifactsDir = './tests/unit/test_models';
   const modelPath = path.join(baseArtifactsDir, model.xml);
-  const modelExists = await checkIfDirectoryExists(modelPath);
+  const modelExists = await checkIfPathExists(modelPath);
   if ( modelExists ) return;
 
   console.log('\n\nTestModel cannot be found.\nPlease run `npm run test_setup`.\n\n');
