@@ -625,24 +625,14 @@ std::list<DeviceInformation> Plugin::get_valid_device(
                                       device_info.device_name.c_str());
                     }
                 }
-                double utilization = 0.0;
-                if (device_utilization.count(device_id)) {
-                    utilization = device_utilization[device_id];
+                if (device_utilization.count(device_id) == 0 || device_utilization[device_id] < utilization_threshold) {
+                    Others.push_back(device_info);
                 } else {
-                    LOG_DEBUG_TAG("Not found the utilization of device %s by its uuid/luid %s. will initialize "
-                                  "utilization to 0.0",
-                                  device_info.device_name.c_str(),
-                                  device_id.c_str());
-                }
-
-                if (utilization >= utilization_threshold) {
                     is_excluded = true;
                     LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%s]",
                                   device_info.device_name.c_str(),
-                                  std::to_string(utilization).c_str(),
+                                  std::to_string(device_utilization[device_id]).c_str(),
                                   std::to_string(utilization_threshold).c_str());
-                } else {
-                    Others.push_back(device_info);
                 }
             } else {
                 Others.push_back(device_info);
