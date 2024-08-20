@@ -24,13 +24,9 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> 
     ov::SoPtr<intel_npu::IEngineBackend> soPtrBackend = npuBackends->getIEngineBackend();
     std::shared_ptr<intel_npu::IEngineBackend> iEngineBackend = soPtrBackend._ptr;  // Extract the raw pointer
     std::shared_ptr<ZeroEngineBackend> zeroBackend = nullptr;
-    try {
-        zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(iEngineBackend);
-        if (!zeroBackend) {
-            OPENVINO_THROW("LevelZeroCompilerAdapter init failed to cast zeroBackend, zeroBackend is a nullptr");
-        }
-    } catch (const std::exception& e) {
-        OPENVINO_THROW("LevelZeroCompilerAdapter init failed to cast zeroBackend");
+    zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(iEngineBackend);
+    if (!zeroBackend) {
+        OPENVINO_THROW("LevelZeroCompilerAdapter init failed to cast zeroBackend, zeroBackend is a nullptr");
     }
 
     uint32_t driverExtVersion = zeroBackend->getDriverExtVersion();
