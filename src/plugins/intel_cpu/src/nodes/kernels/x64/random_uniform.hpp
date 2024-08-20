@@ -38,6 +38,8 @@ struct MersenneTwisterGeneratorCallArgs {
     uint64_t work_amount = 0lu;
     uint64_t elements_remaining = 0lu;
     bool optimization_enabled = false;
+    uint32_t out_data_type = 0u;
+
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -123,13 +125,16 @@ private:
                                                            isa == dnnl::impl::cpu::x64::sse41,       Xbyak::Xmm,
                                                                                                      Xbyak::Ymm>::type;
 
-
+    RegistersPool::Reg<Xbyak::Reg64> r64_dst;
+    RegistersPool::Reg<Xbyak::Reg64> r64_state;
     RegistersPool::Reg<Xbyak::Reg64> r64_state_id;
     RegistersPool::Reg<Xbyak::Reg64> r64_state_shift;
     RegistersPool::Reg<Xbyak::Reg64> r64_step;
     RegistersPool::Reg<Xbyak::Reg64> r64_work_amount;
     RegistersPool::Reg<Xbyak::Reg64> r64_elements_remaining;
     RegistersPool::Reg<Xbyak::Reg64> r64_optimization_enabled;
+    RegistersPool::Reg<Xbyak::Reg64> r64_output_type;
+
 
 
     const Xbyak::Reg64 r64_params = Xbyak::Reg64(dnnl::impl::cpu::x64::abi_param_regs[0]);
@@ -149,6 +154,9 @@ private:
     RegistersPool::Reg<Vmm> v_result_bitshift_15_const_2;
     RegistersPool::Reg<Vmm> v_result_bitshift_18;
 
+    RegistersPool::Reg<Vmm> v_const_1;
+    RegistersPool::Reg<Vmm> v_const_2;
+
     //Vector registers for conversion.
     RegistersPool::Reg<Vmm> v_mask;
     RegistersPool::Reg<Vmm> v_divisor;
@@ -159,6 +167,8 @@ private:
     void process();
 
     void generateRandomNumbers(const Vmm& v_dst_0, const Vmm& v_dst_1);
+
+    void convertToOutputTypeMersenne(const Vmm& v_result, const Vmm& v_min, const Vmm& v_range, const Vmm& v_dst, const Xbyak::Reg64& r64_elements_remaining);
 
     // Mersenne Twister constants
     static constexpr uint32_t MT_CONST_1 = 0x9D2C5680;
@@ -171,6 +181,14 @@ private:
     static constexpr uint32_t MT_L = 18;
     static constexpr uint32_t MT_4_ELEMENTS = 4;
     static constexpr uint32_t MT_2_ELEMENTS = 2;
+
+    static constexpr uint32_t FLOAT_AS_VALUE = 0;
+    static constexpr uint32_t FLOAT16_AS_VALUE = 1;
+    static constexpr uint32_t BFLOAT16_AS_VALUE = 2;
+    static constexpr uint32_t INT_AS_VALUE = 3;
+    static constexpr uint32_t INT64_AS_VALUE = 4;
+
+
 };
 
 }   // namespace random_uniform

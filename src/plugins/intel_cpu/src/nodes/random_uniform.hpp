@@ -164,6 +164,12 @@ private:
 
     void computeMersenneTwister(void* out, size_t work_amount);
 
+    static constexpr uint32_t FLOAT_AS_VALUE = 0;
+    static constexpr uint32_t FLOAT16_AS_VALUE = 1;
+    static constexpr uint32_t BFLOAT16_AS_VALUE = 2;
+    static constexpr uint32_t INT_AS_VALUE = 3;
+    static constexpr uint32_t INT64_AS_VALUE = 4;
+
     /////////////////////////////////////////////////////////////////////////////////
 
     ///// STL /////

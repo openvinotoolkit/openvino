@@ -644,12 +644,42 @@ void MersenneTwisterGenerator<isa>::generate() {
     registersPool = RegistersPool::create(isa, {rax, rcx, rsp, rdi, k0});
 
     r64_dst = getReg64();
+    r64_state = getReg64();
+    r64_state_shift = getReg64();
+    r64_step = getReg64();
     r64_work_amount = getReg64();
+    r64_elements_remaining = getReg64();
     r64_optimization_enabled = getReg64();
+    r64_output_type = getReg64();
 
-    mov(r64_work_amount, ptr[r64_params + GET_OFF(work_amount)]);
     mov(r64_dst,  ptr[r64_params + GET_OFF(dst_ptr)]);
+    mov(r64_state_id, ptr[r64_params + GET_OFF(state_id)]);
+    mov(r64_state_shift, ptr[r64_params + GET_OFF(state_shift)]);
+    mov(r64_step, ptr[r64_params + GET_OFF(step)]);
+    mov(r64_work_amount, ptr[r64_params + GET_OFF(work_amount)]);
+    mov(r64_elements_remaining, ptr[r64_params + GET_OFF(elements_remaining)]);
     mov(r64_optimization_enabled, ptr[r64_params + GET_OFF(optimization_enabled)]);
+    mov(r64_output_type, ptr[r64_params + GET_OFF(out_data_type)]);
+
+    // switch (m_jcp.out_data_type) {
+    //     case element::f32:
+    //         mov(r64_output_type, FLOAT_AS_VALUE);
+    //         break;
+    //     case element::f16:
+    //         mov(r64_output_type, FLOAT16_AS_VALUE);
+    //         break;
+    //     case element::bf16:
+    //         mov(r64_output_type, BFLOAT16_AS_VALUE);
+    //         break;
+    //     case element::i32:
+    //         mov(r64_output_type, INT_AS_VALUE);
+    //         break;
+    //     case element::i64:
+    //         mov(r64_output_type, INT64_AS_VALUE);
+    //         break;
+    //     default:
+    //         break;
+    // }
 
     initVectors();
     process();
@@ -662,7 +692,6 @@ template <>
 void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
     const auto r64_aux = getReg64();
     const auto r32_aux = Xbyak::Reg32(r64_aux.getIdx());
-    const auto r16_aux = Xbyak::Reg16(r64_aux.getIdx());
 
     v_min = getVmm();
     v_range = getVmm();
@@ -672,7 +701,7 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
     v_divisor = getVmm();
 
     // Initialize constants based on the requested data type
-    switch (m_output_prc) {
+    switch (m_jcp.out_data_type) {
         case element::f32:
             BROADCAST_R(vpbroadcastd, v_mask, r32_aux, (1 << std::numeric_limits<float>::digits) - 1)
             BROADCAST_R(vpbroadcastd, v_divisor, r32_aux, 1.0f / (1 << std::numeric_limits<float>::digits))
@@ -691,6 +720,9 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
 
     BROADCAST_P(vpbroadcastd, v_min, r64_aux, min_ptr)
     BROADCAST_P(vpbroadcastd, v_range, r64_aux, range_ptr)
+
+    BROADCAST_R(vpbroadcastd, v_const_1, r32_aux, MT_CONST_1)
+    BROADCAST_R(vpbroadcastd, v_const_2, r32_aux, MT_CONST_2)
 }
 
 template <x64::cpu_isa_t isa>
@@ -729,10 +761,10 @@ void MersenneTwisterGenerator<isa>::generateRandomNumbers(const Vmm& v_result, c
     psrld(v_result, MT_U);
     pxor(v_result, v_state);
     pslld(v_result, MT_S);
-    pand(v_result, MT_CONST_1);
+    pand(v_result, v_const_1);
     pxor(v_result, v_state);
     pslld(v_result, MT_T);
-    pand(v_result, MT_CONST_2);
+    pand(v_result, v_const_2);
     pxor(v_result, v_state);
     psrld(v_result, MT_L);
     pxor(v_result, v_state);
@@ -742,21 +774,21 @@ void MersenneTwisterGenerator<isa>::generateRandomNumbers(const Vmm& v_result, c
 }
 
 template <x64::cpu_isa_t isa>
-void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne(const Vmm& v_result, const Vmm& v_min, const Vmm& v_range, const Vmm& v_dst, const Reg64& r64_elements_remaining) {
+void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne(const Vmm& v_result, const Vmm& v_min, const Vmm& v_range, const Vmm& v_dst, const Xbyak::Reg64& r64_elements_remaining) {
     using namespace Xbyak;
 
     Label float_case, float16_case, bfloat16_case, int32_case, int64_case, end;
 
     // Check the output type and jump to the corresponding case
-    cmp(r64_output_type, element::f32);
+    cmp(r64_output_type, FLOAT_AS_VALUE);
     je(float_case);
-    cmp(r64_output_type, element::f16);
+    cmp(r64_output_type, FLOAT16_AS_VALUE);
     je(float16_case);
-    cmp(r64_output_type, element::bf16);
+    cmp(r64_output_type, BFLOAT16_AS_VALUE);
     je(bfloat16_case);
-    cmp(r64_output_type, element::i32);
+    cmp(r64_output_type, INT_AS_VALUE);
     je(int32_case);
-    cmp(r64_output_type, element::i64);
+    cmp(r64_output_type, INT64_AS_VALUE);
     je(int64_case);
     jmp(end);
 
