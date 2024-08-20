@@ -28,6 +28,8 @@ public:
     bool needPrepareParams() const override;
     void prepareParams() override;
 
+    void createPrimitive() override;
+
     bool isExecutable() const override;
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
