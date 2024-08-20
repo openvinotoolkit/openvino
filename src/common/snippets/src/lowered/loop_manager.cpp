@@ -20,8 +20,12 @@ namespace lowered {
 
 std::shared_ptr<LoopManager> LoopManager::clone_with_new_expr(const ExpressionMap& expr_map) const {
     auto new_loop_manager = std::make_shared<LoopManager>();
+    // To fully cloned all LoopInfo we have to create this map [old LoopInfo -> cloned LoopInfo],
+    // because some LoopInfo types contains pointer to another LoopInfo
+    // so we should recurrently make a cloning of LoopInfos'
+    LoopInfoMap loop_info_map; // [ old - > cloned ]
     for (const auto& id_info : m_map)
-        new_loop_manager->m_map.insert({id_info.first, id_info.second->clone_with_new_expr(expr_map)});
+        new_loop_manager->m_map.insert({id_info.first, id_info.second->clone_with_new_expr(expr_map, loop_info_map)});
     new_loop_manager->next_id = next_id;
     return new_loop_manager;
 }
@@ -273,14 +277,22 @@ void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::
     const auto work_amount = std::max(loop_info_upper->get_work_amount(), loop_info_lower->get_work_amount());
     const auto increment = std::max(loop_info_upper->get_increment(), loop_info_lower->get_increment());
     const auto handlers = SpecificIterationHandlers::merge_handlers(loop_info_upper->get_handlers(), loop_info_lower->get_handlers());
-    const auto is_work_amount_const = loop_info_upper->is_work_amount_const() || loop_info_lower->is_work_amount_const();
 
     auto new_entries = std::move(input_ports_upper);
     new_entries.insert(new_entries.end(), input_ports_lower.begin(), input_ports_lower.end());
     auto new_exits = std::move(output_ports_upper);
     new_exits.insert(new_exits.end(), output_ports_lower.begin(), output_ports_lower.end());
 
-    m_map[to] = std::make_shared<UnifiedLoopInfo>(work_amount, increment, new_entries, new_exits, handlers, is_work_amount_const);
+    m_map[to] = std::make_shared<UnifiedLoopInfo>(work_amount, increment, new_entries, new_exits, handlers);
+
+    // Need to handle InnerSplittedLoopInfo - update outer splitted loop info if it was fused
+    for (const auto& p : m_map) {
+        if (const auto inner_splitted_loop_info = ov::as_type_ptr<InnerSplittedUnifiedLoopInfo>(p.second)) {
+            const auto outer = inner_splitted_loop_info->get_outer_splitted_loop_info();
+            if (utils::one_of(outer, loop_info_upper, loop_info_lower))
+                inner_splitted_loop_info->set_outer_splitted_loop_info(m_map[to]);
+        }
+    }
 
     for (auto it = loop_begin_target; it != loop_end_target; ++it) {
         const auto& expr = *it;
