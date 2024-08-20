@@ -23,7 +23,6 @@ class DnnlMemoryDesc;
 class DnnlBlockedMemoryDesc;
 class Shape;
 class IMemory;
-class WeightsSharing;
 
 class DnnlExtensionUtils {
 public:
@@ -111,8 +110,7 @@ public:
      * @return string hash
      */
     static std::string computeWeightsStringHash(const std::shared_ptr<const IMemory>& memory,
-                                                const std::shared_ptr<DnnlMemoryDesc>& dstDesc,
-                                                const std::shared_ptr<WeightsSharing>& weight_cache);
+                                                const std::shared_ptr<DnnlMemoryDesc>& dstDesc);
 };
 
 }   // namespace intel_cpu
