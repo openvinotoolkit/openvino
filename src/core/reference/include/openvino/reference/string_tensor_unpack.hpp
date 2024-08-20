@@ -7,7 +7,7 @@
 
 namespace ov {
 namespace reference {
-void string_tensor_unpack(const std::string* data,
+inline void string_tensor_unpack(const std::string* data,
                           int32_t* out_begins,
                           int32_t* out_ends,
                           uint8_t* out_symbols,
