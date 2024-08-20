@@ -38,7 +38,7 @@ bool LSTMSeqKernel_bfyx::Validate(const Params& p) const {
     }
     const lstm_params& lp = static_cast<const lstm_params&>(p);
     auto out =  lp.outputs[0];
-    int num_hidden_kernels = out.X().v;
+    int num_hidden_kernels = static_cast<int>(out.X().v);
     if (num_hidden_kernels % 4 != 0) {
         return false;
     }
