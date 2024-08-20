@@ -11,6 +11,8 @@ on:
       - 'src/plugins/intel_cpu/src/emitters/tpp/**'
       - 'src/plugins/intel_cpu/src/transformations/snippets/**'
       - 'src/plugins/intel_cpu/src/transformations/tpp/**'
+      - 'src/plugins/intel_cpu/tests/unit/snippets_transformations/**'
+      - 'src/plugins/intel_cpu/tests/functional/shared_tests_instances/snippets/**'
 
 concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-cpu-dev
