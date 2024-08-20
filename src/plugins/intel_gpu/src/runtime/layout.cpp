@@ -116,14 +116,7 @@ std::vector<tensor::value_type> layout::get_dims() const {
 
 std::vector<tensor::value_type> layout::get_padded_dims() const {
     OPENVINO_ASSERT(!is_dynamic() || has_upper_bound(), "[GPU] get_tensor() is called for dynamic shape without upper bound");
-    ov::Shape shape;
-    if (is_dynamic() && has_upper_bound()) {
-        for (const auto& dim : size) {
-            shape.push_back(dim.get_max_length());
-        }
-    } else {
-        shape = size.to_shape();
-    }
+    ov::Shape shape = is_dynamic() ? size.get_max_shape() : size.to_shape();
 
     std::vector<tensor::value_type> dims;
     for (auto dim : shape) {
