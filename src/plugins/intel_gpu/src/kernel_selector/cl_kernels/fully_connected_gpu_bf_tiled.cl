@@ -107,7 +107,7 @@ KERNEL(quantize_input)(
 #define OUTPUT_BLOCK_WRITE(ptr, offset, val) BLOCK_WRITEN(OUTPUT_TYPE, TILE_OFM, ptr, offset, val)
 
 #define SLM_FILTER_VEC          MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, TILE_OFM)
-#define SLM_FILTER_PACKED_VEC   MAKE_VECTOR_TYPE(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE)
+#define SLM_FILTER_PACKED_VEC   MAKE_VECTOR_TYPE(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE)
 #define SLM_FILTER_UNPACKED_VEC MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, FILTER_ELEMENTS_PER_LOAD)
 
 
@@ -310,6 +310,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             #if TILE_OFM != 2
             #error "FC bf_tiled kernel: can't use SLM optimization with TILE_OFM != 2"
             #endif
+            #if FILTER_LAYOUT_OS_IYX_OSV16 && TILE_K != 4
+            #error "FC bf_tiled kernel: can't use SLM optimization with TILE_K != 2 && OS_IYX_OSV16 layout"
+            #endif
 
             // Skip first barrier synchronization if there is only single outer loop iteration.
             #if MAIN_LOOP_ELEMENTS_COUNT / (TILE_IFM * SIMD) > 1
@@ -318,29 +321,22 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
             __local SLM_FILTER_VEC* slm_wei_vec = (__local SLM_FILTER_VEC*)wei_local_mem;
 
-            #if FILTER_LAYOUT_OS_IYX_OSV16
-            uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * 2;
-            #else
-            uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE;
-            #endif
+            uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * FILTER_ACTUAL_LOAD_BLOCK_SIZE;
             uint wei_local_idx = local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE + sglid;
             unroll_for(uint load_iter = 0; load_iter < FILTER_LOAD_ITERS; ++load_iter) {
-                // BLOCK_READN(type, vector_size, ptr, offset) AS_TYPE(MAKE_VECTOR_TYPE(type, vector_size), BLOCK_READN_RAW(TYPE_SIZE(type), vector_size, __global, ptr, offset))
                 #if FILTER_LAYOUT_OS_IYX_OSV16
-                uchar2 wei_packed0 = as_uchar2(_sub_group_block_read_uc2((const __global uchar*)(weights) + (weights_idx)));
-                uchar2 wei_packed1 = as_uchar2(_sub_group_block_read_uc2((const __global uchar*)(weights) + (weights_idx) + ((IFM_SIZE >> 1) << 4 )));
-                half4 wei_unpacked0 = unpack_to_half(*((uint4x4_t*)&wei_packed0));
-                half4 wei_unpacked1 = unpack_to_half(*((uint4x4_t*)&wei_packed1));
-                half8 wei_unpacked = { wei_unpacked0.s0, wei_unpacked0.s1, wei_unpacked0.s2, wei_unpacked0.s3, wei_unpacked1.s0, wei_unpacked1.s1, wei_unpacked1.s2, wei_unpacked1.s3};
+                SLM_FILTER_PACKED_VEC wei_packed0 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, weights_idx);
+                SLM_FILTER_PACKED_VEC wei_packed1 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, (weights_idx + ((IFM_SIZE / 2) * 16)));
+                SLM_FILTER_UNPACKED_VEC wei_unpacked;
+                wei_unpacked.s0123 = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed0));
+                wei_unpacked.s4567 = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed1));
                 #else
-                //uchar4 wei_packed = as_uchar4(_sub_group_block_read_uc4((const __global uchar*)(weights) + (weights_idx)));
                 SLM_FILTER_PACKED_VEC wei_packed = BLOCK_READN(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE/*4*/, weights, weights_idx);
-                // half8 wei_unpacked = unpack_to_half_osv32_isv2(*((uint4x8_t*)&wei_packed));
                 SLM_FILTER_UNPACKED_VEC wei_unpacked = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed));
                 #endif
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei_unpacked);
                 unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                    unroll_for(uint kii = 0; kii < FILTER_LOAD_BLOCK_SIZE/*4*/; ++kii) {
+                    unroll_for(uint kii = 0; kii < FILTER_LOAD_BLOCK_SIZE; ++kii) {
                         const uint offset_ofm = out_f + fi*SIMD + sglid;
                         const uint offset_ifm = ni * TILE_IFM * SIMD + local_id * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE + load_iter * FILTER_LOAD_BLOCK_SIZE + kii;
                         #if !DECOMPRESSION_SCALE_POST_OP
@@ -368,7 +364,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         #else
                             ACCUMULATOR_TYPE dzp = ACCUMULATOR_VAL_ZERO;
                         #endif
-                        //W_IDX kii * TILE_OFM + fi
                         w[W_IDX] = (w[W_IDX] - dzp) * ds;
                     }
                 }
@@ -397,11 +392,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 #endif
 
                 #undef STORE_TO_SLM
-                #if FILTER_LAYOUT_OS_IYX_OSV16
-                weights_idx += SIMD * 2;
-                #else
-                weights_idx += SIMD * FILTER_LOAD_BLOCK_SIZE;
-                #endif
+                weights_idx += SIMD * FILTER_ACTUAL_LOAD_BLOCK_SIZE;
             }
 
             wei_local_idx = sglid;

@@ -48,7 +48,6 @@ KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_
     INPUT0_TYPE packed_out_channels = in1;
 
     const uint output_idx = GET_FILTER_OS_IYX_OSV_INDEX_INT4_PACKED(OUTPUT, o, i/2, 0, 0, 16); // Calculate offset as osv16 due to packing
-    //printf("OUTPUT_OFM_PITCH:%d k:%d n:%d => %d\n", OUTPUT_OFM_PITCH, i, o, output_idx);
     output[output_idx] = packed_out_channels;
 
 

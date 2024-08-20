@@ -67,8 +67,6 @@ bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
     supported_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_iyx_osv16;
     supported_case |= input.GetLayout() == WeightsLayout::ioyx && output.GetLayout() == WeightsLayout::oiyx;
     supported_case |= input.GetLayout() == WeightsLayout::ioyx && output.GetLayout() == WeightsLayout::os_iyx_osv32;
-    if (!supported_case)
-        std::cout << "x" << std::endl;
     return supported_case;
 }
 
