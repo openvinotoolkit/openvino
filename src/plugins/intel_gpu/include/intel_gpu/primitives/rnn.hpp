@@ -30,12 +30,10 @@ struct RNNParams{
     RNNParams() = default;
     RNNParams(const RNNParams&) = default;
     RNNParams(const primitive_id& id,
-             const input_info& x,
+             const input_info& xWB,
              const input_info& initial_hidden_state,
              const input_info& initial_cell_state,
-             const input_info& W,
              const input_info& R,
-             const input_info& B,
              const input_info& seq_lenghts,
              const primitive_id& out1_prim_id = "",
              const primitive_id& out2_prim_id = "",
@@ -48,16 +46,14 @@ struct RNNParams{
              const uint32_t direction = 0,
              const padding& output_padding = padding(),
              const int num_outputs = 1) : id(id),
-             x(x), initial_hidden_state(initial_hidden_state), initial_cell_state(initial_cell_state), W(W), R(R), B(B), seq_lenghts(seq_lenghts), \
+             xWB(xWB), initial_hidden_state(initial_hidden_state), initial_cell_state(initial_cell_state), R(R), seq_lenghts(seq_lenghts), \
              out1_prim_id(out1_prim_id), out2_prim_id(out2_prim_id), clip(clip), activations(activations), activation_params(activation_params), \
              offset_order(offset_order), direction(direction), output_padding(output_padding), num_outputs(num_outputs) {}
     primitive_id id;
-    input_info x;
+    input_info xWB;
     input_info initial_hidden_state;
     input_info initial_cell_state;/// @brief for lstm_elt primitive field for cell input_info
-    input_info W;
     input_info R;
-    input_info B;
     input_info seq_lenghts;
     primitive_id out1_prim_id;
     primitive_id out2_prim_id;
@@ -76,13 +72,11 @@ struct RNNParams{
 
     size_t hash() const {
         size_t seed = hash_combine(3, id);
-        seed = hash_combine(seed, x.pid);
+        seed = hash_combine(seed, xWB.pid);
         seed = hash_combine(seed, initial_hidden_state.pid);
         seed = hash_combine(seed, initial_cell_state.pid);
         seed = hash_combine(seed, seq_lenghts.pid);
-        seed = hash_combine(seed, W.pid);
         seed = hash_combine(seed, R.pid);
-        seed = hash_combine(seed, B.pid);
         seed = hash_combine(seed, out1_prim_id);
         seed = hash_combine(seed, out2_prim_id);
         seed = hash_combine(seed, clip);
@@ -107,13 +101,11 @@ struct RNNParams{
         #define cmp_fields(name) name == rhs.name
         return act_params_eq &&
                cmp_fields(id) &&
-               cmp_fields(x) &&
+               cmp_fields(xWB) &&
                cmp_fields(initial_hidden_state) &&
                cmp_fields(initial_cell_state) &&
                cmp_fields(seq_lenghts) &&
-               cmp_fields(W) &&
                cmp_fields(R) &&
-               cmp_fields(B) &&
                cmp_fields(out1_prim_id) &&
                cmp_fields(out2_prim_id) &&
                cmp_fields(clip) &&
@@ -127,12 +119,10 @@ struct RNNParams{
 
     void save(BinaryOutputBuffer& ob) const {
         ob << id;
-        ob << x;
+        ob << xWB;
         ob << initial_hidden_state;
         ob << initial_cell_state;
-        ob << W;
         ob << R;
-        ob << B;
         ob << seq_lenghts;
         ob << out1_prim_id;
         ob << out2_prim_id;
@@ -147,12 +137,10 @@ struct RNNParams{
 
     void load(BinaryInputBuffer& ib) {
         ib >> id;
-        ib >> x;
+        ib >> xWB;
         ib >> initial_hidden_state;
         ib >> initial_cell_state;
-        ib >> W;
         ib >> R;
-        ib >> B;
         ib >> seq_lenghts;
         ib >> out1_prim_id;
         ib >> out2_prim_id;
@@ -166,7 +154,7 @@ struct RNNParams{
     }
 
     std::vector<input_info> get_inputs() const {
-        return filter_empty_id( {x, initial_hidden_state, initial_cell_state, W, R, B, seq_lenghts, input_info(out1_prim_id), input_info(out2_prim_id)});
+        return filter_empty_id( {xWB, initial_hidden_state, initial_cell_state, R, seq_lenghts, input_info(out1_prim_id), input_info(out2_prim_id)});
     }
 
 protected:

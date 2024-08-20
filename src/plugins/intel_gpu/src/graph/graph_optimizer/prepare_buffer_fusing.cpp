@@ -18,6 +18,7 @@
 #include "loop_inst.h"
 #include "lstm_elt_inst.h"
 #include "lstm_cell_inst.h"
+#include "fully_connected_inst.h"
 #include "strided_slice_inst.h"
 #include "shape_of_inst.h"
 #include "non_max_suppression_inst.h"
@@ -498,6 +499,11 @@ bool crop_in_place_optimization::match(const program_node& node,
             return false;
         if (user->is_type<lstm_seq>() || user->is_type<lstm_cell>())
             return false;
+        if (user->is_type<fully_connected>()) {
+            if (user->get_dependencies().size() == 3 && user->get_dependencies()[2].first == &node) { // only for fc bias
+                return false;
+            }
+        }
     }
 
     // do not optimize crop, that must be calculated in propagate_constants

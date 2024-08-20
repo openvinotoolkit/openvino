@@ -27,7 +27,7 @@ struct lstm_cell_impl : typed_primitive_impl_ocl<lstm_cell> {
 protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_cell>& instance) const override {
         kernel_arguments_data args;
-        size_t op_input_size = 6;
+        size_t op_input_size = 4;
         for (size_t i = 0; i < op_input_size; i++) {
             args.inputs.push_back(instance.input_memory_ptr(i));
         }
@@ -45,7 +45,7 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<lstm_cell>();
         auto params = get_default_params<kernel_selector::lstm_params>(impl_param);
-        for (size_t i = 1; i < 6; ++i) {
+        for (size_t i = 1; i < 4; ++i) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
 

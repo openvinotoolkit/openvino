@@ -68,26 +68,23 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
     validate_inputs_count(op, {6});
     std::string layerName = layer_type_name_ID(op);
     auto inputs = p.GetInputInfo(op);
-    /*
-    if (op->get_input_shape(2).size() != 2 || op->get_input_shape(3).size() != 2 \
-        || op->get_input_shape(4).size() != 2 || op->get_input_shape(5).size() != 2)
-        OPENVINO_THROW("Wrong input shapes for LSTMCell op ", op->get_friendly_name());
-    */
     std::vector<cldnn::activation_func> activations;
     std::vector<cldnn::activation_additional_params> activation_params;
     GetLSTMActivationParams(op, activations, activation_params);
     float clip = op->get_clip();
     unsigned int direction = 0;
     assert(!inputs[5].pid.empty());
+    cldnn::primitive_id lstm_fc_id = layerName + "_fully_connected";
+    p.add_primitive(*op, cldnn::fully_connected(lstm_fc_id, inputs[0], inputs[3].pid, inputs[5].pid, 3));
     if (p.use_new_shape_infer()) {
-        auto prim =  cldnn::lstm_cell({layerName+".out0", inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5], \
-         cldnn::input_info(), "", "", clip, activations, \
-                                            activation_params, cldnn::lstm_weights_order::fizo, direction, cldnn::padding(), \
-            static_cast<int>(op->get_output_size())}, 0);
-        //prim.output_data_types = get_output_data_types(op);
+        auto prim =  cldnn::lstm_cell({layerName+".out0", cldnn::input_info(lstm_fc_id), inputs[1], inputs[2], inputs[4], \
+        cldnn::input_info(), "", "", clip, activations, \
+        activation_params, cldnn::lstm_weights_order::fizo, direction, cldnn::padding(), \
+        static_cast<int>(op->get_output_size())}, 0);
         p.add_primitive(*op, prim);
         return;
     }
+
     auto mutable_precision_first = op->get_output_element_type(1);
     cldnn::layout outLayout = cldnn::layout(
             cldnn::element_type_to_data_type(mutable_precision_first),
@@ -95,12 +92,12 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
             tensor_from_dims(op->get_output_shape(1)));
 
     cldnn::memory::ptr shared_memory = p.get_engine().allocate_memory(outLayout);
-    const cldnn::primitive_id mutable_id_1 = layerName + "_md_write1";
+    const cldnn::primitive_id mutable_id_1 = layerName + "_md_write.1";
     const cldnn::mutable_data mutable_prim_1{mutable_id_1, shared_memory};
     p.add_primitive(*op, mutable_prim_1);
 
-    p.add_primitive(*op, cldnn::lstm_cell({layerName + ".out0", inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5], \
-    cldnn::input_info(), layerName + "_md_write1", "", clip, activations, \
+    p.add_primitive(*op, cldnn::lstm_cell({layerName+".out0", cldnn::input_info(lstm_fc_id), inputs[1], inputs[2], inputs[4], \
+    cldnn::input_info(), layerName + "_md_write.1", "", clip, activations, \
                                         activation_params, cldnn::lstm_weights_order::fizo}, 0));
 
     p.add_primitive(*op, cldnn::mutable_data(layerName + ".out1", {cldnn::input_info(layerName + ".out0")}, shared_memory));
@@ -120,35 +117,33 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     cldnn::primitive_id lstm_seq_id = layerName;
     auto mutable_precision_firstsecond = op->get_output_element_type(1);
     unsigned int direction = op->get_direction() == ov::op::RecurrentSequenceDirection::REVERSE ? 1 : 0;
-
+    cldnn::primitive_id lstm_fc_id = layerName + "_fully_connected";
+    p.add_primitive(*op, cldnn::fully_connected(lstm_fc_id, inputs[0], inputs[4].pid, inputs[6].pid, 3));
     if (p.use_new_shape_infer()) {
-        cldnn::lstm_seq prim({layerName, inputs[0], inputs[1], \
-            inputs[2], inputs[4], inputs[5], inputs[6], inputs[3], "", "", \
+        cldnn::lstm_seq prim({layerName, lstm_fc_id, inputs[1], \
+            inputs[2], inputs[5], inputs[3], "", "", \
             clip, activations, activation_params, cldnn::lstm_weights_order::fizo, direction, cldnn::padding(), \
             static_cast<int>(op->get_output_size())});
         prim.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, prim);
         return;
     }
-
     cldnn::layout out12Layout = cldnn::layout(
                 cldnn::element_type_to_data_type(mutable_precision_firstsecond),
-                cldnn::format::bfyx,
+                cldnn::format::get_default_format(op->get_output_shape(1).size()),
                 tensor_from_dims(op->get_output_shape(1)));
-
     std::vector<cldnn::memory::ptr> shared_memories;
     shared_memories.push_back(p.get_engine().allocate_memory(out12Layout));
-    const cldnn::primitive_id mutable_id_1 = layerName + "_md_write1";
+    const cldnn::primitive_id mutable_id_1 = layerName + "_md_write.1";
     const cldnn::mutable_data mutable_prim_1{mutable_id_1, shared_memories.front()};
     p.add_primitive(*op, mutable_prim_1);
     shared_memories.push_back(p.get_engine().allocate_memory(out12Layout));
-    const cldnn::primitive_id mutable_id_2 = layerName + "_md_write2";
+    const cldnn::primitive_id mutable_id_2 = layerName + "_md_write.2";
     const cldnn::mutable_data mutable_prim_2{mutable_id_2, shared_memories.back()};
     p.add_primitive(*op, mutable_prim_2);
-    cldnn::lstm_seq prim({lstm_seq_id + ".out0", inputs[0], inputs[1], \
-        inputs[2], inputs[4], inputs[5], inputs[6], inputs[3], mutable_id_1, mutable_id_2, \
-        clip, activations, activation_params, cldnn::lstm_weights_order::fizo, direction});
-    p.add_primitive(*op, prim);
+    p.add_primitive(*op, cldnn::lstm_seq({lstm_seq_id + ".out0", cldnn::input_info(lstm_fc_id), inputs[1], \
+        inputs[2], inputs[5], inputs[3], mutable_id_1, mutable_id_2, \
+        clip, activations, activation_params, cldnn::lstm_weights_order::fizo, direction}));
     p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out1", {cldnn::input_info(lstm_seq_id + ".out0")}, shared_memories.front()));
     p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out2", {cldnn::input_info(lstm_seq_id + ".out0")}, shared_memories.back()));
 }
