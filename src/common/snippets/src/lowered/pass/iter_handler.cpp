@@ -50,7 +50,7 @@ bool UpdateMemoryAccessCounts::run(LinearIR& linear_ir, LinearIR::constExprIt be
 
 std::shared_ptr<pass::PassBase> UpdateMemoryAccessCounts::merge(const std::shared_ptr<pass::PassBase>& other) {
     if (!other)
-        return this->shared_from_this();
+        return shared_from_this();
     const auto casted_pass = ov::as_type_ptr<UpdateMemoryAccessCounts>(other);
     size_t merged_count;
     if (!casted_pass || !ov::snippets::utils::merge_dynamic_dim(merged_count, m_count, casted_pass->m_count))
@@ -72,7 +72,7 @@ bool SetFillOffset::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linear
 
 std::shared_ptr<pass::PassBase> SetFillOffset::merge(const std::shared_ptr<pass::PassBase>& other) {
     if (!other)
-        return this->shared_from_this();
+        return shared_from_this();
     const auto casted_pass = ov::as_type_ptr<SetFillOffset>(other);
     size_t merged_offset;
     if (!casted_pass || !ov::snippets::utils::merge_dynamic_dim(merged_offset, m_offset, casted_pass->m_offset))

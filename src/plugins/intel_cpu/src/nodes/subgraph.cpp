@@ -748,11 +748,11 @@ void Subgraph::optimizeIR() {
 }
 
 void Subgraph::prepareParams() {
-    const auto cache = context->getParamsCache();
+    const auto& cache = context->getParamsCache();
 
-    auto builder = [this, cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphExecutor> {
+    auto builder = [this, &cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphExecutor> {
         const auto& snippet = subgraph_attrs->snippet;
-        const auto scratchpad = getScratchPad();
+        const auto& scratchpad = getScratchPad();
         if (is_dynamic) {
             // Dynamic case:
             // 1. Generate JIT code if needed
