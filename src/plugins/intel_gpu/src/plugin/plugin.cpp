@@ -189,6 +189,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         for (auto& iter : m_device_map) {
             if (iter.first != device_id && iter.second->get_info().dev_type == device_ptr->get_info().dev_type) 
                 config.register_device_context_for_tp(get_default_context(iter.first));
+            // only test 2 GPU devices for sync_tensor currently
+            if (config.get_context_for_tp().size() >= 2)
+                break;
         }
         if (config.get_context_for_tp().size() > 1) {
             config.enableSubStreams = true;

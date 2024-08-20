@@ -349,7 +349,7 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         printf("[sync_tensor_impl:%d] ts_ctxs: %ld us\n", w_rank, ts_ctxs);
         // printf("[sync_tensor_impl:%d] ts_sendbuf: %ld us\n", w_rank, ts_sendbuf);
         // printf("[sync_tensor_impl:%d] ts_pre_p2p: %ld us\n", w_rank, ts_pre_p2p);
-        // printf("[sync_tensor_impl:%d] ts_p2p_kernel: %ld us\n", w_rank, ts_p2p_kernel);
+        printf("[sync_tensor_impl:%d] ts_p2p_kernel: %ld us\n", w_rank, ts_p2p_kernel);
         // printf("[sync_tensor_impl:%d] ts_post_p2p: %ld us\n", w_rank, ts_post_p2p);
         // printf("[sync_tensor_impl:%d] ts_exec: %ld us\n", w_rank, ts_exec);
         return stream.create_user_event(true);
