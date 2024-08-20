@@ -56,9 +56,6 @@ The software was validated on the following devices:
    cmake .. \
      -DCMAKE_BUILD_TYPE=Release \
      -DCMAKE_INSTALL_PREFIX=<openvino_install_path> \
-     -DENABLE_INTEL_CPU=ON \
-     -DENABLE_INTEL_GPU=OFF \
-     -DENABLE_INTEL_NPU=OFF \
      -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/<toolchain_file> \
      -DRISCV_TOOLCHAIN_ROOT=<xuantie_install_path>
    ```
@@ -68,9 +65,6 @@ The software was validated on the following devices:
    cmake .. \
      -DCMAKE_BUILD_TYPE=Release \
      -DCMAKE_INSTALL_PREFIX=<openvino_install_path> \
-     -DENABLE_INTEL_CPU=ON \
-     -DENABLE_INTEL_GPU=OFF \
-     -DENABLE_INTEL_NPU=OFF \
      -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/riscv64-gnu.toolchain.cmake \
      -DRISCV_TOOLCHAIN_ROOT=/opt/riscv
    ```
