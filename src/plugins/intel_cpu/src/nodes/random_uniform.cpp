@@ -770,23 +770,24 @@ void RandomUniform::computeMersenneTwister(void* out, size_t out_el_num) {
                 auto& params = m_thread_params[ithr];
                 
                 auto out_state_shift = state_id * MERSENNE_STATE_N * m_output_prc.size();
-                auto out_cur = out_u8 + out_state_shift + params.dst_shift;
+                auto out_shifted_ptr = out_u8 + out_state_shift + params.dst_shift;
                 auto work_amount = static_cast<int64_t>(params.work_amount);
                 auto mersenne_state_start_idx = params.state_shift;
                 auto step = params.step;
-                uint32_t random_numbers[4];
                 auto el_remain = out_el_num - MERSENNE_STATE_N / m_elements_generated * state_id - ithr * m_elements_generated;
-
+    
                 if (work_amount == 0lu) {
                     return;
                 }
 
+                uint32_t random_numbers[4];
+
 #define EXEC_CASE(P)                                                                                                    \
                 case element::P: {                                                                                      \
-                    auto output_ptr = reinterpret_cast<element_type_traits<element::P>::value_type *>(out_cur);         \
-                    for (auto work_id = 0; work_id < work_amount; work_id++, output_ptr += step) {                      \
+                    auto output_with_type_ptr = reinterpret_cast<element_type_traits<element::P>::value_type *>(out_shifted_ptr);         \
+                    for (auto work_id = 0; work_id < work_amount; work_id++, output_with_type_ptr += step) {                      \
                         runMersenneTwister(random_numbers, mersenne_state, mersenne_state_start_idx, work_id);          \
-                        convertToOutputTypeMersenne(random_numbers, m_min_val.P, m_range_val.P, output_ptr,             \
+                        convertToOutputTypeMersenne(random_numbers, m_min_val.P, m_range_val.P, output_with_type_ptr,             \
                                                     el_remain, m_mersenne_twister_optimization_enabled);                \
                     }                                                                                                   \
                 } break;

@@ -637,25 +637,18 @@ template class PhiloxGenerator<x64::sse41>;
 
 template <x64::cpu_isa_t isa>
 MersenneTwisterGenerator<isa>::MersenneTwisterGenerator(const GeneratorCompileParams& jcp) :
-        JitKernel(jit_name(), jcp, isa) {
-}
+    JitKernel(jit_name(), jcp, isa) {}
 
 template <x64::cpu_isa_t isa>
 void MersenneTwisterGenerator<isa>::generate() {
     this->preamble();
     registersPool = RegistersPool::create(isa, {rax, rcx, rsp, rdi, k0});
 
-    r64_state_id = getReg64();
-    r64_state_shift = getReg64();
-    r64_step = getReg64();
+    r64_dst = getReg64();
     r64_work_amount = getReg64();
-    r64_elements_remaining = getReg64();
 
-    mov(r64_state_id, ptr[r64_params + GET_OFF(state_id)]);
-    mov(r64_state_shift, ptr[r64_params + GET_OFF(state_shift)]);
-    mov(r64_step, ptr[r64_params + GET_OFF(step)]);
     mov(r64_work_amount, ptr[r64_params + GET_OFF(work_amount)]);
-    mov(r64_elements_remaining, ptr[r64_params + GET_OFF(elements_remaining)]);
+    mov(r64_dst,  ptr[r64_params + GET_OFF(dst_ptr)]);
 
     initVectors();
     process();
@@ -668,98 +661,86 @@ template <>
 void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
     const auto r64_aux = getReg64();
     const auto r32_aux = Xbyak::Reg32(r64_aux.getIdx());
+    const auto r16_aux = Xbyak::Reg16(r64_aux.getIdx());
 
-    v_dst = getVmm();
-    v_state = getVmm();
     v_min = getVmm();
     v_range = getVmm();
-    v_result = getVmm();
-    v_result_bitshift_11 = getVmm();
-    v_result_bitshift_7 = getVmm();
-    v_result_bitshift_7_const_1 = getVmm();
-    v_result_bitshift_15 = getVmm();
-    v_result_bitshift_15_const_2 = getVmm();
-    v_mask = getVmm();
-    v_divisor = getVmm();
-    v_min_elements = getVmm();
-    v_4_elements = getVmm();
-    v_2_elements = getVmm();
-    v_convert_0 = getVmm();
-    v_convert_1 = getVmm();
-    v_convert_2 = getVmm();
-    v_convert_3 = getVmm();
-
-
-    // Initialize the state array.
-    mov(r64_aux, ptr[r64_params + GET_OFF(state_ptr)]);
-    uni_vmovdqu(v_state, ptr[r64_aux]);
-
-    // Initialize constants
-    mov(r32_aux, MT_CONST_1);
-    // uni_vpbroadcastd(v_temp, r32_aux);
-}
-
-template <x64::cpu_isa_t isa>
-void MersenneTwisterGenerator<isa>::initVectors() {
-    const auto r64_aux = getReg64();
-    const auto r32_aux = Xbyak::Reg32(r64_aux.getIdx());
-
-    v_dst = getVmm();
     v_state = getVmm();
-    v_min = getVmm();
-    v_range = getVmm();
     v_result = getVmm();
-    v_result_bitshift_11 = getVmm();
-    v_result_bitshift_7 = getVmm();
-    v_result_bitshift_7_const_1 = getVmm();
-    v_result_bitshift_15 = getVmm();
-    v_result_bitshift_15_const_2 = getVmm();
     v_mask = getVmm();
     v_divisor = getVmm();
-    v_min_elements = getVmm();
-    v_4_elements = getVmm();
-    v_2_elements = getVmm();
-    v_convert_0 = getVmm();
-    v_convert_1 = getVmm();
-    v_convert_2 = getVmm();
-    v_convert_3 = getVmm();
-
-    // Initialize the state array.
-    mov(r64_aux, ptr[r64_params + GET_OFF(state_ptr)]);
-    uni_vmovdqu(v_state, ptr[r64_aux]);
 
     // Initialize constants
-    mov(r32_aux, MT_CONST_1);
-    // uni_vmovdqu(v_temp, ptr[r64_aux]);
+    BROADCAST_R(vpbroadcastd, v_mask, r32_aux, (1 << std::numeric_limits<float>::digits) - 1)
+    BROADCAST_R(vpbroadcastd, v_divisor, r32_aux, 1.0f / (1 << std::numeric_limits<float>::digits))
+
+    BROADCAST_P(vpbroadcastd, v_min, r64_aux, min_ptr)
+    BROADCAST_P(vpbroadcastd, v_range, r64_aux, range_ptr)
 }
 
 template <x64::cpu_isa_t isa>
 void MersenneTwisterGenerator<isa>::process() {
-    auto v_dst_0 = getVmm();
-    auto v_dst_1 = getVmm();
+    using namespace Xbyak;
 
-    Xbyak::Label l_loop, l_tail;
-    L(l_loop); {
-        cmp(r64_work_amount, 10ul);
-        jl(l_tail, T_NEAR);
+    Label loop, end;
+    L(loop);
+    {
+        cmp(r64_work_amount, 0);
+        je(end);
 
-        generateRandomNumbers(v_dst_0, v_dst_1);
+        // Generate random numbers
+        generateRandomNumbers(v_result, v_state);
 
-        // uni_vmovups(ptr[r64_dst], v_dst_0);
-        // add(r64_dst, VECTOR_LENGTH * sizeof(float));
+        // Convert to output type
+        convertToOutputTypeMersenne(v_result, v_min, v_range, v_dst, r64_elements_remaining);
 
-        sub(r64_work_amount, 10ul);
-        jmp(l_loop, T_NEAR);
+        // Update pointers and counters
+        add(r64_dst, r64_step);
+        dec(r64_work_amount);
+        jmp(loop);
     }
-
-    // L(l_tail);
-    // tail(v_dst_0, v_dst_1);
+    L(end);
 }
 
 template <x64::cpu_isa_t isa>
-void MersenneTwisterGenerator<isa>::generateRandomNumbers(const Vmm& v_dst_0, const Vmm& v_dst_1) {
+void MersenneTwisterGenerator<isa>::generateRandomNumbers(const Vmm& v_result, const Vmm& v_state) {
+    using namespace Xbyak;
 
-    uni_vmovups(v_dst_1, v_dst_0);
+    // Load state
+    movdqu(v_state, ptr[r64_state + r64_state_shift]);
+
+    // Apply Mersenne Twister transformations
+    movdqa(v_result, v_state);
+    psrld(v_result, MT_U);
+    pxor(v_result, v_state);
+    pslld(v_result, MT_S);
+    pand(v_result, MT_CONST_1);
+    pxor(v_result, v_state);
+    pslld(v_result, MT_T);
+    pand(v_result, MT_CONST_2);
+    pxor(v_result, v_state);
+    psrld(v_result, MT_L);
+    pxor(v_result, v_state);
+
+    // Store result
+    movdqu(ptr[r64_dst], v_result);
+}
+
+template <x64::cpu_isa_t isa>
+void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne(const Vmm& v_result, const Vmm& v_min, const Vmm& v_range, const Vmm& v_dst, const Reg64& r64_elements_remaining) {
+    using namespace Xbyak;
+
+    // Apply mask and divisor
+    pand(v_result, v_mask);
+    cvtdq2ps(v_result, v_result);
+    mulps(v_result, v_divisor);
+
+    // Scale and shift
+    mulps(v_result, v_range);
+    addps(v_result, v_min);
+
+    // Store result
+    movdqu(ptr[r64_dst], v_result);
 }
 
 template class MersenneTwisterGenerator<x64::avx512_core>;
