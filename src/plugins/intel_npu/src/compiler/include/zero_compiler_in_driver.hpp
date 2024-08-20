@@ -98,6 +98,10 @@ public:
      */
     static std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
 
+    void release(std::shared_ptr<const NetworkDescription> networkDescription) override;
+
+    void fillCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) override;
+
 private:
     NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;
 

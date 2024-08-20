@@ -101,6 +101,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
 
+CompiledModel::~CompiledModel() {
+    // Call compiler to destroy graphHandle only if no executor created
+    if (_executorPtr != nullptr) {
+        compiler->release(_networkPtr);
+    }
+}
+
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
 
@@ -128,6 +135,10 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 }
 
 void CompiledModel::export_model(std::ostream& stream) const {
+    if (_networkPtr->compiledNetwork.size() == 0 && networkPtr->graphHandle != nullptr) {
+        _compiler->fillCompiledNetwork(_networkPtr);
+    }
+
     const auto& blob = _networkPtr->compiledNetwork;
     stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
     if (!stream) {
@@ -139,6 +150,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
     std::stringstream str;
     str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
     _logger.info(str.str().c_str());
+    // TODO: if graphHandle is not null, shall we release blob here to reduce peak mem
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {

@@ -56,6 +56,8 @@ public:
 
     CompiledModel& operator=(const CompiledModel&) = delete;
 
+    ~CompiledModel() override;
+
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
