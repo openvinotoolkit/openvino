@@ -517,7 +517,10 @@ void TensorIterator::createPrimitive() {
     if (runAsDynamic())
         prepareDynamicBuffers();
 
-    Node::createPrimitive();
+    if (inputShapesDefined() && (getAlgorithm() == Algorithm::TensorIteratorLoop || needPrepareParams())) {
+        prepareParams();
+        updateLastInputDims();
+    }
 }
 
 bool TensorIterator::needPrepareParams() const {
@@ -716,9 +719,11 @@ void TensorIterator::prepareContinueCond() {
 
 void TensorIterator::prepareInitialCond() {
     if (loopExecutionConditionIdx != -1 || !initial_cond_check) {
+        const bool first_call = !(static_cast<bool>(initial_cond_check));
         auto mem = getSrcMemoryAtPort(loopExecutionConditionIdx);
         initial_cond_check.reset(new asBoolCheck(mem));
-        lastUsedCond = initial_cond_check->getStatus();
+        if (IMPLICATION(first_call, getParentEdgeAt(loopExecutionConditionIdx)->getParent()->isConstant()))
+            lastUsedCond = initial_cond_check->getStatus();
     }
 }
 
