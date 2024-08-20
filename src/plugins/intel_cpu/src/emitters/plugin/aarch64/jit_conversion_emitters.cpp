@@ -86,7 +86,7 @@ static void cvt_f16_to_dbyte(dnnl::impl::cpu::aarch64::jit_generator* h, const s
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     TReg src = TReg(in_idxs[0]);
     TReg dst = TReg(out_idxs[0]);
-    h->fcvtzs(dst.h, src.h);
+    h->fcvtzs(dst.h4, src.h4);
 }
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
@@ -96,9 +96,9 @@ static void cvt_dbyte_to_f16(dnnl::impl::cpu::aarch64::jit_generator* h, const s
     TReg src = TReg(in_idxs[0]);
     TReg dst = TReg(out_idxs[0]);
     if (is_signed) {
-        h->scvtf(dst.h, src.h);
+        h->scvtf(dst.h4, src.h4);
     } else {
-        h->ucvtf(dst.h, src.h);
+        h->ucvtf(dst.h4, src.h4);
     }
 }
 
