@@ -544,7 +544,10 @@ std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape &di
 }
 
 static void fetchRawMemory(const MemoryPtr& mem) {
-    // TODO: conceptually this is a very bad solution
+    // TODO: conceptually fetchRawMemory is a very bad solution
+    if (mem->getDesc().getPrecision() == element::string) {
+        return;
+    }
     auto block = mem->getMemoryBlock();
     if (mem->isDefined()) {
         block->resize(mem->getSize());
