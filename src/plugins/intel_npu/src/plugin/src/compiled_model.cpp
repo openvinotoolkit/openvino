@@ -78,7 +78,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<const NetworkDescription>& networkDescription,
                              const std::shared_ptr<IDevice>& device,
-                             const std::optional<ov::SoPtr<ICompiler>>& compiler,
+                             const ov::SoPtr<ICompiler>& compiler,
                              const Config& config)
     : ICompiledModel(model, plugin),
       _networkPtr(networkDescription),
@@ -103,7 +103,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
 
 CompiledModel::~CompiledModel() {
     // Call compiler to destroy graphHandle only if no executor created
-    if (_executorPtr != nullptr) {
+    if (_executorPtr == nullptr) {
         _compiler->release(_networkPtr);
     }
 }
@@ -135,11 +135,11 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 }
 
 void CompiledModel::export_model(std::ostream& stream) const {
-    if (_networkPtr->compiledNetwork.size() == 0 && networkPtr->metadata.graphHandle != nullptr) {
+    if (_networkPtr->compiledNetwork.size() == 0 && _networkPtr->metadata.graphHandle != nullptr) {
         _compiler->fillCompiledNetwork(_networkPtr);
     }
 
-    auto& blob = _networkPtr->compiledNetwork;
+    const auto& blob = _networkPtr->compiledNetwork;
     stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
@@ -151,9 +151,10 @@ void CompiledModel::export_model(std::ostream& stream) const {
     str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
     _logger.info(str.str().c_str());
     // if graphHandle is not null, release blob here to reduce peak mem
-    if (networkPtr->metadata.graphHandle != nullptr) {
-        blob.clear();
-        blob.shrink_to_fit();
+    if (_networkPtr->metadata.graphHandle != nullptr) {
+        auto& blobFilled = const_cast<NetworkDescription*>(_networkPtr.get())->compiledNetwork;
+        blobFilled.clear();
+        blobFilled.shrink_to_fit();
     }
 }
 
@@ -201,7 +202,7 @@ const Config& CompiledModel::get_config() const {
 }
 
 const ov::SoPtr<ICompiler>& CompiledModel::get_compiler() const {
-    return _compiler.value();
+    return _compiler;
 }
 
 void CompiledModel::configure_stream_executors() {
