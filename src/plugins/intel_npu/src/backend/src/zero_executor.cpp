@@ -37,23 +37,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
                                                      _initStructs->getCommandQueueDdiTable(),
                                                      _config,
                                                      group_ordinal)} {
-    _logger.debug("create graph_command_list");
-    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::ZeroExecutor");
-    CommandList graph_command_list(_initStructs->getDevice(),
-                                   _initStructs->getContext(),
-                                   _initStructs->getGraphDdiTable(),
-                                   _config,
-                                   _group_ordinal);
-    _logger.debug("create graph_command_queue");
-    CommandQueue graph_command_queue(_initStructs->getDevice(),
-                                     _initStructs->getContext(),
-                                     ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
-                                     _initStructs->getCommandQueueDdiTable(),
-                                     _config,
-                                     _group_ordinal);
-    _logger.debug("create fence");
-    Fence fence(graph_command_queue, _config);
-
+    _logger.debug("ZeroExecutor::ZeroExecutor - create graph");
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_GRAPH, itt::domains::LevelZeroBackend, "Executor::ZeroExecutor", "graphCreate");
 
     // _graph is a nullptr for CIP path, a new handle will be obtained from the driver based on the given
@@ -98,19 +82,6 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
             _output_descriptors.push_back(ArgumentDescriptor{arg3, index});
         }
     }
-
-    OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "appendGraphInitialize");
-    _logger.debug("performing appendGraphInitialize");
-    graph_command_list.appendGraphInitialize(_graph);
-    _logger.debug("closing graph command list");
-    graph_command_list.close();
-
-    OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "queue_execute");
-    _logger.debug("performing executeCommandList");
-    graph_command_queue.executeCommandList(graph_command_list, fence);
-    _logger.debug("performing hostSynchronize");
-    fence.hostSynchronize();
-    _logger.debug("hostSynchronize completed");
 
     if (config.has<WORKLOAD_TYPE>()) {
         setWorkloadType(config.get<WORKLOAD_TYPE>());
