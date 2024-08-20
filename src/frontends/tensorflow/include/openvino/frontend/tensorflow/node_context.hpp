@@ -37,7 +37,7 @@ public:
     }
 
     /// Retrieve the input by reference. It is needed for operations working with reference inputs
-    Output<Node> get_input_by_reference(int port_index) const {
+    Output<Node> get_input_by_reference(int port_index) const override {
         auto input = m_inputs.at(port_index);
         auto ref_node = ov::as_type_ptr<Variable>(input.get_node_shared_ptr());
         if (ref_node) {
