@@ -18,8 +18,7 @@ Install required dependencies:
    python -m venv npu-env
    npu-env\Scripts\activate
    pip install optimum-intel nncf==2.11 onnx==1.16.1
-   pip install --pre openvino==2024.3.0.dev20240807 openvino-tokenizers==2024.3.0.0.dev20240807 openvino-genai==2024.3.0.0.dev20240807 --extra-index-url
-https://storage.openvinotoolkit.org/simple/wheels/pre-release
+   pip install --pre openvino==2024.3.0.dev20240807 openvino-tokenizers==2024.3.0.0.dev20240807 openvino-genai==2024.3.0.0.dev20240807 --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/pre-release
 
    
 Export an LLM model via Hugging Face Optimum-Intel
