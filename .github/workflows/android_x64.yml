@@ -1,4 +1,4 @@
-name: Android x64 with vcpkg
+name: Android x64
 on:
   workflow_dispatch:
   pull_request:
@@ -77,7 +77,6 @@ jobs:
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      # CMAKE_GENERATOR: 'Ninja'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
@@ -85,7 +84,6 @@ jobs:
       SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
       SCCACHE_LOG: warn
       OPENVINO_REPO: '/__w/openvino/openvino/openvino'
-      # VCPKG_ROOT: '/__w/openvino/openvino/vcpkg'
       BUILD_DIR: '/__w/openvino/openvino/build'
       ANDROID_TOOLS: '/deps/android_tools'
       ANDROID_NDK_HOME: '/deps/android_tools/ndk-bundle'
@@ -116,7 +114,7 @@ jobs:
 
       - name: CMake - configure
         run: |
-          export CC=gcc && export CXX=g++ && cmake \
+          cmake \
             -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=${{ env.ANDROID_ABI_CONFIG }} \
             -DANDROID_STL=c++_shared \
@@ -139,7 +137,7 @@ jobs:
         run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake - build
-        run: export CC=gcc && export CXX=g++ && cmake --build ${BUILD_DIR} --parallel
+        run: cmake --build ${BUILD_DIR} --parallel
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
