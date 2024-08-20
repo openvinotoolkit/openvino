@@ -552,7 +552,7 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
 
     std::vector<std::pair<size_t, int>> logic_block_sizes(inner_nblks);
     for (int i = 0; i < inner_nblks; i++) {
-        auto c = internal_order[inner_idxs[i]];
+        auto c = internal_order[block_sizes[i].first];
         auto pos = outer_order.find(c);
         if (pos == std::string::npos)
             throw std::domain_error(std::string("Unknown coord type: ") + c);
