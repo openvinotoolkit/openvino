@@ -6,6 +6,7 @@
 
 #include "layout_utils.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -424,7 +425,7 @@ void OutputInfo::OutputInfoImpl::dump(std::ostream& str) const {
 
     str << "Output ";
     if (!start_out_node_names.empty()) {
-        str << "\"" << *start_out_node_names.begin() << "\"";
+        str << "\"" << util::join(start_out_node_names) << "\"";
     }
     str << ":" << std::endl;
     str << "    Model's data tensor: ";
