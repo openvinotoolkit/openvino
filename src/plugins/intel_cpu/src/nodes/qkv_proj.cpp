@@ -107,7 +107,7 @@ struct QKVProjection::Impl {
         DEBUG_LOG("QKVProj hidden_size=", K, " proj_sizes=",
                     proj_size0, ",", proj_size1, ",", proj_size2,
                     " used_nthr=", cur_work_id);
-        
+
         wbuffer.alloc(works);
 
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
@@ -126,7 +126,7 @@ struct QKVProjection::Impl {
         if (m_M < M || cur_scratch_base != m_scratch_base) {
             size_t total_scratch_size = 0;
             std::vector<size_t> scratch_offsets;
-            for(auto& work : works) {
+            for (auto& work : works) {
                 if (work) {
                     scratch_offsets.push_back(total_scratch_size);
                     auto C_size = work.set_C(M, reinterpret_cast<float*>(cur_scratch_base));

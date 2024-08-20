@@ -140,7 +140,7 @@ struct Work {
             mkernel.prepareB(weights[ki], dst, pw + k, stride, BN, subK);
             dst += BN*subK;
             k += subK;
-            ki ++;
+            ki++;
         }
 
         for (int Mtails = 0; Mtails < 32; Mtails++) {
@@ -162,7 +162,7 @@ struct Work {
             mkernel.prepareB(weights[ki], dst, pw1 + k, pw2 + k, stride, BN, subK);
             dst += BN*subK;
             k += subK;
-            ki ++;
+            ki++;
         }
 
         for (int Mtails = 0; Mtails < 32; Mtails++) {
@@ -237,7 +237,7 @@ struct WeightBuffer {
     std::vector<size_t> offsets;
     void alloc(std::vector<Work>& works) {
         size_t weight_cnt = 0;
-        for(auto& work : works) {
+        for (auto& work : works) {
             offsets.push_back(weight_cnt);
             weight_cnt += (work.n1 - work.n0) * (work.k1 - work.k0);
         }

@@ -178,7 +178,7 @@ public:
     void generate() override {
         Xbyak::Label loop_begin;
         Xbyak::Reg64 src = abi_param1;
-        for(int i = 0; i < 16; i++) {
+        for (int i = 0; i < 16; i++) {
             vcvtph2ps(zmm0, ptr[src]);
             vcvtph2ps(zmm1, ptr[src + 32]);
             vcvtne2ps2bf16(zmm2, zmm1, zmm0);

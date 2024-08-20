@@ -855,7 +855,7 @@ void Transformations::PostLpt() {
             }
         }
     }
-    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::PrintModel, "_model.cpp");
+
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
     // markup Rope Input when BF16/F16 inference.
