@@ -146,12 +146,6 @@ jobs:
           cmake \
             -G '${{ env.CMAKE_GENERATOR }}' \
             -DENABLE_INTEL_GPU=ON \
-            -DENABLE_TESTS=ON \
-            -DENABLE_SYSTEM_OPENCL=ON \
-            -DENABLE_SYSTEM_PROTOBUF=ON \
-            -DENABLE_SYSTEM_PUGIXML=ON \
-            -DENABLE_SYSTEM_SNAPPY=ON \
-            -DENABLE_SYSTEM_TBB=ON \
             -DENABLE_INTEL_NPU=OFF \
             -DENABLE_PYTHON=OFF \
             -DENABLE_SYSTEM_FLATBUFFERS=ON \
