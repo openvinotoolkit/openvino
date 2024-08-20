@@ -12,6 +12,20 @@
 
 #include "openvino/util/util.hpp"
 
+#if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
+#    if (__cplusplus >= 201703L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L) && (_MSC_VER >= 1913))
+#        if __has_include(<filesystem>)
+#            include <filesystem>
+namespace fs = std::filesystem;
+#        endif
+#    else
+#        define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
+#        define _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM
+#        include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#    endif
+#endif
+
 namespace ov {
 namespace util {
 
@@ -397,5 +411,12 @@ inline std::basic_string<C> make_path(const std::basic_string<C>& folder, const 
     return folder + ov::util::FileTraits<C>::file_separator + file;
 }
 
+/**
+ * @brief If the library path is symlink & the symlink file location is not in the real file folder, return true. Others
+ * return false.
+ * @param path - Library file path to check
+ * @return Bool value
+ */
+bool is_symlink_in_different_path(std::string library_path);
 }  // namespace util
 }  // namespace ov
