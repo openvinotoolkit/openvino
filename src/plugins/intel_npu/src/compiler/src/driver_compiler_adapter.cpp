@@ -38,7 +38,6 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> 
     ze_context_handle_t zeContext = (ze_context_handle_t)zeroBackend->getContext();
     ze_driver_handle_t driverHandle = (ze_driver_handle_t)zeroBackend->getDriverHandle();
     ze_device_handle_t deviceHandle = (ze_device_handle_t)zeroBackend->getDeviceHandle();
-    char* graphExtName = zeroBackend->getGraphExtName();
     ze_graph_dditable_ext_last_t* graph_ddi_table_ext = zeroBackend->getGraphDDITableExt();
 
     if (driverHandle == nullptr) {
@@ -78,7 +77,7 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> 
                                                                                               graph_ddi_table_ext);
         break;
     }
-    _logger.info("initialize LevelZeroCompilerAdapter complete, using ext_version :  %s", driverExtVersion);
+    _logger.info("initialize LevelZeroCompilerAdapter complete, using ext_version :  %u", driverExtVersion);
 }
 
 uint32_t LevelZeroCompilerAdapter::getSupportedOpsetVersion() const {
