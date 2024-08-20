@@ -52,7 +52,7 @@ bool DecomposeListTupleResults::run_on_model(const std::shared_ptr<Model>& model
             }
             auto names = out.get_names();
             out.set_names({});
-            for (auto name : names) {
+            for (auto& name : names) {
                 if (!is_index(name)) {
                     // Set first found non-index name as output name. If such name exist it will be debug name
                     out.set_names({name});

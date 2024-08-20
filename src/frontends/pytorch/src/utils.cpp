@@ -130,9 +130,7 @@ std::shared_ptr<Node> get_node_axes_range(const NodeContext& context, const Outp
 
 Output<Node> normalize_axis(const NodeContext& context, const Output<Node>& axis, const Output<Node>& rank) {
     auto axis_rank = context.mark_node(std::make_shared<opset10::Add>(axis, rank));
-    auto is_less = context.mark_node(std::make_shared<opset10::Less>(axis_rank, rank));
-    auto new_axis = context.mark_node(std::make_shared<opset10::Select>(is_less, axis_rank, axis));
-    return new_axis;
+    return context.mark_node(std::make_shared<opset10::Mod>(axis_rank, rank));
 }
 
 std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x, element::Type output_type) {
@@ -217,14 +215,13 @@ std::shared_ptr<PtFrameworkNode> create_fw_node_with_exception(const NodeContext
                                                                bool skip_subgraphs = false) {
     auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), inputs, num_outputs, false, skip_subgraphs);
     context.mark_node(fw_node);
-    auto attrs = fw_node->get_attrs();
-    std::string message(exception_message);
-    if (!message.empty()) {
-        message = "Exception happened during conversion of operation " + fw_node->get_friendly_name() +
-                  " with schema " + context.get_schema() + '\n' + message;
+    if (!exception_message.empty()) {
+        auto attrs = fw_node->get_attrs();
+        std::string message = "Exception happened during conversion of operation " + fw_node->get_friendly_name() +
+                              " with schema " + context.get_schema() + '\n' + exception_message;
+        attrs[PtFrameworkNode::failed_conversion_key] = std::move(message);
+        fw_node->set_attrs(attrs);
     }
-    attrs[PtFrameworkNode::failed_conversion_key] = message;
-    fw_node->set_attrs(attrs);
     return fw_node;
 }
 }  // namespace
@@ -537,7 +534,7 @@ void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
             } else {
                 unique_names.insert(new_name);
             }
-            op->set_friendly_name(new_name);
+            op->set_friendly_name(std::move(new_name));
         }
     }
     copy_runtime_info(from, to);

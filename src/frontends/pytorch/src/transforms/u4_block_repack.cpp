@@ -22,22 +22,22 @@ using namespace ov::op;
 using namespace ov::pass::pattern;
 
 U4BlockRepack::U4BlockRepack(bool is_symmetrical) {
-    const auto m_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    const auto m_reshape1 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({m_constant, any_input()});
-    const auto m_transpose = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({m_reshape1, any_input()});
-    const auto m_reshape2 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({m_transpose, any_input()});
+    const auto& m_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    const auto& m_reshape1 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({m_constant, any_input()});
+    const auto& m_transpose = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({m_reshape1, any_input()});
+    const auto& m_reshape2 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({m_transpose, any_input()});
 
     auto pack_byte = [](uint8_t lo, uint8_t hi) -> uint8_t {
         return (hi << 4) | (lo & 0x0F);
     };  // swap halfs because Convert op assumes this layout
 
-    std::function<uint8_t(const uint8_t*, size_t)> get_u4 = [](const uint8_t* src, size_t idx) {
+    const std::function<uint8_t(const uint8_t*, size_t)>& get_u4 = [](const uint8_t* src, size_t idx) {
         const size_t byte_idx = idx / 2;
         const uint8_t bit_shift = 4 * (idx % 2);
         return (src[byte_idx] >> bit_shift) & 0xF;
     };
 
-    std::function<uint8_t(const uint8_t*, size_t)> get_i4 = [get_u4](const uint8_t* src, size_t idx) {
+    const std::function<uint8_t(const uint8_t*, size_t)>& get_i4 = [get_u4](const uint8_t* src, size_t idx) {
         // by flipping first bit we get same effect as subtracting 8
         return get_u4(src, idx) ^ 0b1000;
     };

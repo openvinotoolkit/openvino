@@ -47,7 +47,7 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
             return false;
 
         ov::pass::NodeRegistry rg;
-        auto input_node = getitem->input_value(0).get_node_shared_ptr();
+        const auto& input_node = getitem->input_value(0).get_node_shared_ptr();
         if (auto torch_split = cast_fw_node(input_node, "aten::split")) {
             auto rank = torch_split->input(1).get_partial_shape().rank();
             if (rank.is_dynamic()) {

@@ -59,7 +59,7 @@ const std::unordered_map<std::string, PadMode> PAD_MODES = {{"constant", PadMode
 
 PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
     // transformation for case aten::pad + prim::ListConstruct as paddings
-    auto pad_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    const auto& pad_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         Output<Node> input_node;
         Output<Node> padding;
@@ -70,7 +70,7 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
             mode = "constant";
             input_node = pad_op->input_value(0);
             padding = pad_op->input_value(1);
-            auto mode_node = pad_op->input_value(2).get_node_shared_ptr();
+            const auto& mode_node = pad_op->input_value(2).get_node_shared_ptr();
             if (const auto& fw_node_mode = cast_fw_node(mode_node, "prim::Constant")) {
                 const auto& attrs = fw_node_mode->get_attrs();
                 if (attrs.find("string_value") != attrs.end()) {

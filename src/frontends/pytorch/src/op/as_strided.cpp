@@ -33,7 +33,7 @@ OutputVector translate_as_strided(const NodeContext& context) {
     auto const_neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     auto input_strides = decoder->get_input_strides(0);
     PYTORCH_OP_CONVERSION_CHECK(input_strides.size() != 0,
-                                "aten::as_strided: Couldn't retrive input stride information from torchscript.");
+                                "aten::as_strided: Couldn't retrieve input stride information from torchscript.");
 
     std::vector<size_t> idxs(input_strides.size());
     iota(idxs.begin(), idxs.end(), 0);

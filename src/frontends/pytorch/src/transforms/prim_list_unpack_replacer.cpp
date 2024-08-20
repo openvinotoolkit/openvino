@@ -156,7 +156,8 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                 auto range =
                     rg.make<opset10::Range>(const_0_scalar, list_num_outs_scalar, const_1_scalar, element::i32);
                 auto range_plus_1 = rg.make<opset10::Add>(range, const_1);
-                auto sections = rg.make<opset10::Concat>(OutputVector{const_0, indices_or_sections, const_max}, 0);
+                auto sections =
+                    rg.make<opset10::Concat>(OutputVector{const_0, std::move(indices_or_sections), const_max}, 0);
 
                 auto starts_tensor = rg.make<opset10::Slice>(sections, const_0, const_neg_1, const_1, const_0);
                 auto starts =

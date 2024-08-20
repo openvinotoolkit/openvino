@@ -46,7 +46,7 @@ OutputVector translate_addmm(const NodeContext& context) {
     if (!context.input_is_none(4)) {
         alpha = context.get_input(4);
     }
-    return {translate_addmm_common(context, beta, alpha)};
+    return {translate_addmm_common(context, std::move(beta), std::move(alpha))};
 };
 
 OutputVector translate_addmm_fx(const NodeContext& context) {
@@ -60,7 +60,7 @@ OutputVector translate_addmm_fx(const NodeContext& context) {
     if (context.has_attribute("alpha")) {
         alpha = context.get_input("alpha");
     }
-    return {translate_addmm_common(context, beta, alpha)};
+    return {translate_addmm_common(context, std::move(beta), std::move(alpha))};
 };
 
 OutputVector translate_conv1d_ext(const NodeContext& context) {
