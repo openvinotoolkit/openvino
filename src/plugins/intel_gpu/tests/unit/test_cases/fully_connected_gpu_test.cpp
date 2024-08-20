@@ -1814,6 +1814,78 @@ public:
         }
     }
 
+    void test_compressed_int4_scale_perf(bool is_caching_test, bool is_dynamic, int64_t batch_num, bool use_bias = false, bool use_zp = false, bool is_3d = false, bool is_tp = false) {
+        tests::random_generator rg(GET_SUITE_NAME);
+        auto& engine = get_test_engine();
+// 256x13696 : 13696* 5120
+        int64_t ifm_num = 13696;
+        std::cout << "bell debug tp enabled? " << is_tp << std::endl;
+        int64_t ofm_num = is_tp ? 2560 : 5120;
+        long int scales_group_size = 128;
+        auto in_shape = is_3d ? ov::PartialShape({batch_num, 1, ifm_num}) : ov::PartialShape({batch_num, ifm_num});
+        auto bias_shape = is_3d ? ov::PartialShape({1, 1, ofm_num}) : ov::PartialShape({1, ofm_num});
+        auto input1_mem = engine.allocate_memory({ in_shape, data_types::f16, format::bfyx });
+        auto input2_mem = engine.allocate_memory({ in_shape, data_types::f16, format::bfyx });
+        auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u4, format::bfyx });
+        auto bias_mem = engine.allocate_memory({ bias_shape, data_types::f16, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
+        auto zp_mem = engine.allocate_memory({ {ofm_num, 1}, data_types::u8, format::bfyx });
+        auto input1_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f);
+        set_values(input1_mem, input1_data);
+        auto input2_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f);
+        set_values(input2_mem, input2_data);
+
+        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -4.0f, 4.0f);
+        set_values(scale_mem, scale_data);
+
+        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
+        set_values(weights_mem, weigths_data);
+
+        auto bias_data = rg.generate_random_1d<ov::float16>(ofm_num, -2.0f, 2.0f);;
+        set_values(bias_mem, bias_data);
+
+        auto zp_data = rg.generate_random_1d<uint8_t>(ofm_num, 0, 4);
+        set_values(zp_mem, zp_data);
+
+        auto in_partial_shape = is_3d ? ov::PartialShape({-1, -1, ifm_num}) : ov::PartialShape({-1, ifm_num});
+        auto in_layout = is_dynamic ? layout{ in_partial_shape, data_types::f16, format::bfyx }
+                                    : layout{ {batch_num, ifm_num}, data_types::f16, format::bfyx };
+
+        auto bias_id = use_bias ? "bias" : "";
+        auto zp_id = use_zp ? "zp" : "";
+        ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
+
+        topology topology(
+            input_layout("input1", in_layout),
+            input_layout("input2", in_layout),
+            eltwise("eltwise", { input_info("input1"), input_info("input2") }, cldnn::eltwise_mode::sum),
+            data("weights", weights_mem),
+            data("scale", scale_mem),
+            data("zp", zp_mem),
+            data("bias", bias_mem),
+            fully_connected("fc_prim", input_info("eltwise"),
+                                        "weights", bias_id,
+                                        "scale", zp_id,
+                                        data_types::f16,
+                                        in_shape.size(), 2),
+            cldnn::reorder("reorder", input_info("fc_prim"), cldnn::layout(data_types::f32, format::byxf, tensor(4))),
+            activation("activation", input_info("reorder"), activation_func::relu)
+        );
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl} }));
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        network->set_input_data("input1", input1_mem);
+        network->set_input_data("input2", input2_mem);
+        for (size_t i = 0 ; i< 10; i++) {
+            auto outputs = network->execute();
+            auto output_mem = outputs.begin()->second.get_memory();
+            cldnn::mem_lock<ov::float16> output_ptr (output_mem, get_test_stream());
+        }
+    }
     void test_compressed_scale_bias(bool is_caching_test) {
         auto& engine = get_test_engine();
 
@@ -3479,6 +3551,15 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_b13) {
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_b12_3d) {
     this->test_compressed_int8_scale(false, true, 12, false, true, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_perf_profiling) {
+    //this->test_compressed_int4_scale_perf(false, true, 32, false, false, false);
+    //this->test_compressed_int4_scale_perf(false, true, 32, false, false, false, true);
+    this->test_compressed_int4_scale_perf(false, true, 256, false, false, false);
+    this->test_compressed_int4_scale_perf(false, true, 256, false, false, false, true);
+    //this->test_compressed_int4_scale_perf(false, true, 1024, false, false, false);
+    //this->test_compressed_int4_scale_perf(false, true, 1024, false, false, false, true);
 }
 
 TEST_F(fully_connected_gpu_tests, dynamic) {
