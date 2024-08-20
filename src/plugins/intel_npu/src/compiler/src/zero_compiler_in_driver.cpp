@@ -340,11 +340,8 @@ void LevelZeroCompilerInDriver<TableExtension>::release(std::shared_ptr<const Ne
         auto result = _graphDdiTableExt->pfnDestroy(graphHandle);
 
         if (ZE_RESULT_SUCCESS != result) {
-            _logger.error("Failed to release graph handle. L0 pfnDestroy",
-                          " result: ",
-                          ze_result_to_string(result),
-                          ", code 0x",
-                          std::hex,
+            _logger.error("Failed to release graph handle. L0 pfnDestroy result: %s, code %#X",
+                          ze_result_to_string(result).c_str(),
                           uint64_t(result));
         }
     }
