@@ -11,7 +11,7 @@ namespace ov {
 namespace pass {
 /**
  * @ingroup ov_transformation_common_api
- * @brief Converts ScatterNdUpdate version 15 to ScatterNDUpdate version 3 if ScatterNDUpdate reduction attribute is set
+ * @brief Converts ScatterNDUpdate version 15 to ScatterNDUpdate version 3 if ScatterNDUpdate reduction attribute is set
  * to None.
  */
 class TRANSFORMATIONS_API ConvertScatterNDUpdate15ToScatterNDUpdate3 : public MatcherPass {
