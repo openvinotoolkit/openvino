@@ -51,12 +51,12 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
-      _compiler(profiling ? std::optional(compiler) : std::nullopt) {
+      _compiler(compiler) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
     OPENVINO_ASSERT(compiler != nullptr, "NPU CompiledModel: the pointer towards the compiler object is null");
 
     try {
-        _networkPtr = std::make_shared<const NetworkDescription>(compiler->compile(model, config));
+        _networkPtr = std::make_shared<const NetworkDescription>(_compiler->compile(model, config));
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -104,7 +104,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
 CompiledModel::~CompiledModel() {
     // Call compiler to destroy graphHandle only if no executor created
     if (_executorPtr != nullptr) {
-        compiler->release(_networkPtr);
+        _compiler->release(_networkPtr);
     }
 }
 
@@ -135,11 +135,11 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 }
 
 void CompiledModel::export_model(std::ostream& stream) const {
-    if (_networkPtr->compiledNetwork.size() == 0 && networkPtr->graphHandle != nullptr) {
+    if (_networkPtr->compiledNetwork.size() == 0 && networkPtr->metadata.graphHandle != nullptr) {
         _compiler->fillCompiledNetwork(_networkPtr);
     }
 
-    const auto& blob = _networkPtr->compiledNetwork;
+    auto& blob = _networkPtr->compiledNetwork;
     stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
@@ -150,7 +150,11 @@ void CompiledModel::export_model(std::ostream& stream) const {
     std::stringstream str;
     str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
     _logger.info(str.str().c_str());
-    // TODO: if graphHandle is not null, shall we release blob here to reduce peak mem
+    // if graphHandle is not null, release blob here to reduce peak mem
+    if (networkPtr->metadata.graphHandle != nullptr) {
+        blob.clear();
+        blob.shrink_to_fit();
+    }
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
@@ -197,10 +201,7 @@ const Config& CompiledModel::get_config() const {
 }
 
 const ov::SoPtr<ICompiler>& CompiledModel::get_compiler() const {
-    if (_compiler.has_value()) {
-        return _compiler.value();
-    }
-    OPENVINO_THROW("PERF_COUNT property is not set");
+    return _compiler.value();
 }
 
 void CompiledModel::configure_stream_executors() {
