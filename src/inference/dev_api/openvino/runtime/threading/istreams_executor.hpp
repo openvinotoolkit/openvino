@@ -38,6 +38,19 @@ public:
      */
     using Ptr = std::shared_ptr<IStreamsExecutor>;
 
+    enum MsgType{
+        TP,
+        START_INFER,
+        CALL_BACK
+    };
+
+    struct MessageInfo{
+        MsgType msg_type;
+        std::vector<int> rank;
+        void* buf;
+        Task task;
+    };
+
     /**
      * @brief Defines inference thread binding type
      */
@@ -95,6 +108,7 @@ public:
         std::vector<std::vector<int>> _streams_info_table = {};
         std::vector<std::vector<int>> _stream_processor_ids;
         int _sub_streams = 0;
+        std::vector<int> _rank = {};
 
         /**
          * @brief Get and reserve cpu ids based on configuration and hardware information,
@@ -124,6 +138,7 @@ public:
          * @param[in]  cpu_reservation              @copybrief Config::_cpu_reservation
          * @param[in]  cpu_pinning                  @copybrief Config::_cpu_pinning
          * @param[in]  streams_info_table           @copybrief Config::_streams_info_table
+         * @param[in]  rank                         @copybrief Config::_rank
          */
         Config(std::string name = "StreamsExecutor",
                int streams = 1,
@@ -131,14 +146,16 @@ public:
                ov::hint::SchedulingCoreType thread_preferred_core_type = ov::hint::SchedulingCoreType::ANY_CORE,
                bool cpu_reservation = false,
                bool cpu_pinning = false,
-               std::vector<std::vector<int>> streams_info_table = {})
+               std::vector<std::vector<int>> streams_info_table = {},
+               std::vector<int> rank = {})
             : _name{std::move(name)},
               _streams{streams},
               _threads_per_stream{threads_per_stream},
               _thread_preferred_core_type(thread_preferred_core_type),
               _cpu_reservation{cpu_reservation},
               _cpu_pinning{cpu_pinning},
-              _streams_info_table{std::move(streams_info_table)} {
+              _streams_info_table{std::move(streams_info_table)},
+              _rank{rank} {
             update_executor_config();
         }
 
@@ -197,6 +214,9 @@ public:
         int get_sub_streams() const {
             return _sub_streams;
         }
+        std::vector<int> get_rank() const {
+            return _rank;
+        }
         StreamsMode get_sub_stream_mode() const {
             const auto proc_type_table = get_proc_type_table();
             int sockets = proc_type_table.size() > 1 ? static_cast<int>(proc_type_table.size()) - 1 : 1;
@@ -250,31 +270,17 @@ public:
     virtual int get_socket_id() = 0;
 
     /**
+     * @brief Return the rank of current stream
+     *        Return {} when current stream has no rank
+     * @return Rank array, or throws exceptions if called not from stream thread
+     */
+    virtual std::vector<int> get_rank() = 0;
+
+    /**
      * @brief Execute the task in the current thread using streams executor configuration and constraints
      * @param task A task to start
      */
     virtual void execute(Task task) = 0;
-
-    /**
-     * @brief Execute ov::Task inside sub stream of task executor context
-     * @param task A task to start
-     * @param id Sub stream id
-     */
-    virtual void run_sub_stream(Task task, int id) = 0;
-
-    /**
-     * @brief Execute all of the tasks and waits for its completion.
-     *        Default run_sub_stream_and_wait() method implementation uses run_sub_stream() pure virtual method
-     *        and higher level synchronization primitives from STL.
-     *        The task is wrapped into std::packaged_task which returns std::future.
-     *        std::packaged_task will call the task and signal to std::future that the task is finished
-     *        or the exception is thrown from task
-     *        Than std::future is used to wait for task execution completion and
-     *        task exception extraction
-     * @note run_sub_stream_and_wait() does not copy or capture tasks!
-     * @param tasks A vector of tasks to execute
-     */
-    void run_sub_stream_and_wait(const std::vector<Task>& tasks);
 };
 
 }  // namespace threading

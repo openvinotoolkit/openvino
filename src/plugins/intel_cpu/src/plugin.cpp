@@ -131,11 +131,13 @@ Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpec
     });
     auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
+    m_msg_manager = ov::threading::message_manager();
 }
 
 Plugin::~Plugin() {
     executor_manager()->clear("CPU");
     executor_manager()->clear("CPUStreamsExecutor");
+    executor_manager()->clear("CPUMainStreamExecutor");
     executor_manager()->clear("CPUCallbackExecutor");
 }
 
@@ -290,16 +292,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     conf.readProperties(config, modelType);
     calculate_streams(conf, cloned_model);
 
-    if (conf.streamExecutorConfig.get_sub_stream_mode() ==
-        IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_FOR_SOCKET) {
-        int num_sub_streams = conf.streamExecutorConfig.get_sub_streams();
-        transformations.SetSubStreamNum(num_sub_streams);
-    }
-
     transformations.PostLpt();
     transformations.Snippets();
 
     transformations.CpuSpecificOpSet();
+
     DEBUG_LOG(PrintableModel(*cloned_model, "cpu_"));
 
     if ((cloned_model->inputs().size() != model->inputs().size()) ||

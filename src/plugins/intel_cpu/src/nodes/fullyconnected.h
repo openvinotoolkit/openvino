@@ -16,10 +16,25 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "post_ops.hpp"
+#include "openvino/runtime/threading/cpu_message.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
+
+// tensor parallel config
+struct FCTensorParallelConfig {
+    int w_rank = -1;
+    int w_size = -1;
+    int id = 0;
+    bool enable_tensor_parallel = false;
+    std::shared_ptr<SubMemoryManager> sub_memory = nullptr;
+    MemoryPtr cached_splited_weight = nullptr;
+    MemoryPtr cached_splited_bias = nullptr;
+    MemoryPtr cached_scale = nullptr;
+    MemoryPtr cached_zeropoint = nullptr;
+    MemoryPtr cached_dst = nullptr;
+};
 
 class FullyConnected : public Node {
 public:
@@ -73,12 +88,26 @@ private:
     ExecutorPtr createExecutor();
     void fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr);
 
+    void initTensorParallelConfig(const GraphContext::CPtr context);
+    void needUpdateTensorParalelConfig();
+    void needPrepareParamsForTensorParallel();
+    void initTensorParallelSync();
+    void execTensorParallelSync();
+    void needSplitMemoryForTensorParallel();
+    void needSplitScaleForTensorParallel(const MemoryCPtr& memory);
+    void needUpdateScaleForTensorParallel();
+    void needSplitZeroPointForTensorParallel(const MemoryCPtr& memory);
+    void needUpdateZeroPointForTensorParallel();
+    void needUpdateDQScaleForTensorParallel(std::vector<float>& dequantizationScales);
+
     FCAttrs attrs;
     PostOps postOps;
     MemoryArgs memory;
     ExecutorFactoryPtr<FCAttrs, node::FullyConnected> factory;
     ExecutorPtr executor = nullptr;
     std::string errorPrefix;
+
+    FCTensorParallelConfig tp_cfg;
 };
 
 }  // namespace node

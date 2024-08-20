@@ -104,6 +104,8 @@ private:
 
     const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
 
+    void sub_streams_infer();
+
 private:
     std::unordered_map<std::size_t, OutputControlBlock> m_outputControlBlocks;
 
