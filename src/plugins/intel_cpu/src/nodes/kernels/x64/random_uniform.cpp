@@ -738,11 +738,9 @@ void MersenneTwisterGenerator<isa>::process() {
     auto v_dst_0 = getVmm();
     auto v_dst_1 = getVmm();
 
-    const auto VECTOR_LENGTH = 10ul;
-
     Xbyak::Label l_loop, l_tail;
     L(l_loop); {
-        cmp(r64_work_amount, VECTOR_LENGTH);
+        cmp(r64_work_amount, 10ul);
         jl(l_tail, T_NEAR);
 
         generateRandomNumbers(v_dst_0, v_dst_1);
@@ -750,7 +748,7 @@ void MersenneTwisterGenerator<isa>::process() {
         // uni_vmovups(ptr[r64_dst], v_dst_0);
         // add(r64_dst, VECTOR_LENGTH * sizeof(float));
 
-        sub(r64_work_amount, VECTOR_LENGTH);
+        sub(r64_work_amount, 10ul);
         jmp(l_loop, T_NEAR);
     }
 
@@ -760,14 +758,6 @@ void MersenneTwisterGenerator<isa>::process() {
 
 template <x64::cpu_isa_t isa>
 void MersenneTwisterGenerator<isa>::generateRandomNumbers(const Vmm& v_dst_0, const Vmm& v_dst_1) {
-    // MT19937 algorithm steps for generating random numbers
-
-    // uni_vpxor(v_temp, v_temp, v_state);
-    // uni_vpsrlq(v_temp, v_temp, 11);
-
-    // uni_vpxor(v_dst_0, v_temp, v_state);
-    // uni_vpsrlq(v_temp, v_dst_0, 7);
-    // uni_vpxor(v_dst_0, v_dst_0, v_temp);
 
     uni_vmovups(v_dst_1, v_dst_0);
 }

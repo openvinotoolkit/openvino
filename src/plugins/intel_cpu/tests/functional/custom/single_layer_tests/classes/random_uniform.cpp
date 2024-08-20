@@ -132,6 +132,14 @@ void RandomUniformLayerTestCPU::SetUp() {
     if (!ov::with_cpu_x86_avx512_core_fp16()) {
         convert_precisions.insert({ ov::element::f16, ov::element::f32 });
     }
+
+    if (m_global_seed != 0lu || m_operational_seed != 0lu) {
+        m_nonzero_seeds = true;
+
+        // When seeds are non-zero, generator output should be exactly the same
+        abs_threshold = 0.0f;
+        rel_threshold = 0.0f;
+    }
 }
 
 template<typename TD, typename TS>
@@ -193,10 +201,8 @@ fill_data(tensor.data<ov::element_type_traits<P>::value_type>(), S, L); break;
 }
 
 void RandomUniformLayerTestCPU::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
-    if (m_global_seed != 0lu || m_operational_seed != 0lu) {
-        // When seeds match, generator output should be exactly the same
-        abs_threshold = 0.0f;
-        rel_threshold = 0.0f;
+    if (m_nonzero_seeds) {
+        // When seeds are non-zero match, generator output should be exactly the same
         SubgraphBaseTest::compare(expected, actual);
         return;
     }

@@ -85,7 +85,7 @@ void RandomUniform::initSupportedPrimitiveDescriptors() {
             out_prc = ov::element::f32;
         }
         
-        if (m_algo == STL && !one_of(out_prc, ov::element::f32)) {
+        if (one_of(m_algo, STL) && !one_of(out_prc, ov::element::f32)) {
             out_prc = ov::element::f32;
         }
     } else {
@@ -404,13 +404,6 @@ void RandomUniform::prepareGeneratorKernel() {
 ////////////// PHILOX algo ///////////////
 
 namespace {
-// Following const values are taken from the original paper:
-// https://www.thesalmons.org/john/random123/papers/random123sc11.pdf
-constexpr uint32_t CRUSH_RESISTANCE_CONST_LOWER_VALUE = 0x9E3779B9;
-constexpr uint32_t CRUSH_RESISTANCE_CONST_UPPER_VALUE = 0xBB67AE85;
-constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_N = 0xD2511F53;
-constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER = 0xCD9E8D57;
-constexpr uint64_t ROUNDS_NUMBER = 10llu;
 
 inline void calculateRound(const uint32_t* key, uint32_t* counter, uint32_t* n) {
     uint64_t prod_0 = STATISTIC_MAXIMIZING_MULTIPLIER_N * n[0];
@@ -451,7 +444,6 @@ inline void runPhilox(uint64_t key, uint64_t counter, uint64_t n, uint32_t* res)
     calculateRound(key_32, counter_32, n_32);
     raiseKey(key_32);
     calculateRound(key_32, counter_32, n_32);
-
 
     res[0] = n_32[0];
     res[1] = n_32[1];
