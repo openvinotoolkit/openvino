@@ -253,15 +253,10 @@ struct padding {
 
     size_t hash() const {
         size_t seed = 0;
-        // std::cout << "=======" << __LINE__ << ": seed = " << seed << ", _filling_value = " << _filling_value << ", this = " << this << std::endl;
         seed = cldnn::hash_combine(seed, _filling_value);
-        // std::cout << "=======" << __LINE__ << ": seed = " << seed << std::endl;
-        seed = cldnn::hash_combine(seed, hash_range(seed, std::begin(_lower_size), std::end(_lower_size)));
-        // std::cout << "=======" << __LINE__ << ": seed = " << seed << std::endl;
-        seed = cldnn::hash_combine(seed, hash_range(seed, std::begin(_upper_size), std::end(_upper_size)));
-        // std::cout << "=======" << __LINE__ << ": seed = " << seed << std::endl;
-        seed = cldnn::hash_combine(seed, hash_range(seed, std::begin(_dynamic_pad_dims), std::end(_dynamic_pad_dims)));
-        // std::cout << "=======" << __LINE__ << ": seed = " << seed << std::endl;
+        seed = hash_range(seed, std::begin(_lower_size), std::end(_lower_size));
+        seed = hash_range(seed, std::begin(_upper_size), std::end(_upper_size));
+        seed = hash_range(seed, std::begin(_dynamic_pad_dims), std::end(_dynamic_pad_dims));
         return seed;
     }
 
@@ -479,12 +474,9 @@ struct layout {
 
     size_t hash() const {
         size_t seed = 0;
-        size_t padding_seed = data_padding.hash();
-        // std::cout << "================layout::data_padding.hash=" << padding_seed << std::endl;
-        seed = hash_combine(seed, padding_seed);
+        seed = hash_combine(seed, data_padding.hash());
         seed = hash_combine(seed, format.value);
         seed = hash_combine(seed, data_type);
-
         auto pshape = get_partial_shape();
         for (size_t idx = 0; idx < pshape.size(); idx++) {
             auto v = pshape[idx].is_dynamic() ? -1 : pshape[idx].get_length();
