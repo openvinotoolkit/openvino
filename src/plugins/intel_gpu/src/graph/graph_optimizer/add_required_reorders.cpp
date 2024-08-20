@@ -188,7 +188,7 @@ void add_required_reorders::run(program& p) {
                             cldnn::layout layout_padding = input.get_output_layout();
                             cldnn::layout layout_wo_padding = input.get_output_layout();
                             layout_wo_padding.data_padding = cldnn::padding{};
-                            layout_wo_padding.data_padding.lower_size()[1] = layout_padding.data_padding.lower_size()[1];  // Cecilia: FIXME inplaced modification?
+                            layout_wo_padding.data_padding.lower_size()[1] = layout_padding.data_padding.lower_size()[1];
                             layout_wo_padding.data_padding.upper_size()[1] = layout_padding.data_padding.upper_size()[1];
                             auto new_reorder = std::make_shared<reorder>(input.id() + "_padding_reorder_" + usr->id(), input.id(), layout_wo_padding);
                             auto& new_reorder_node = p.get_or_create(new_reorder);

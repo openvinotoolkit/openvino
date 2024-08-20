@@ -341,7 +341,7 @@ std::vector<tensor::value_type> layout::get_pitches() const {
     auto pitches = tensor(format, pitches_fmt).sizes(format::get_default_format(format.dimension(),
                                                                                 format::is_weights_format(format),
                                                                                 format::is_grouped(format)));
- 
+
     // std::cout << "=============layout::get_pitches [";
     // std::copy(pitches.begin(), pitches.end(), std::ostream_iterator<tensor::value_type>(std::cout, ", "));
     // std::cout << "] for format: " << format;
@@ -400,11 +400,6 @@ size_t layout::get_linear_size() const {
             block_size *= blocks[j].second;
         }
 
-        if (block_axis >= sizes.size()) {
-            std::cout  << "CACTHA!!!!" << std::endl;
-            std::cout << "============== block_axis=" << block_axis << ", get_padded_dims=" << sizes.size() << ",format=" << format << ",layout.size" << size << std::endl;
-        }
-
         sizes[block_axis] = align_to(sizes[block_axis], block_size);
         processed_dims.insert(block_axis);
     }
@@ -442,8 +437,11 @@ size_t layout::get_linear_size() const {
         static_cast<size_t>(1),
         std::multiplies<size_t>());
 
-    GPU_DEBUG_LOG << total << std::endl;
+    // GPU_DEBUG_LOG << total << std::endl;
     // std::cout << "=========== layout::get_linear_size = " << total;
+    // std::cout << " accumulate [";
+    // std::copy(sizes.begin(), sizes.end(), std::ostream_iterator<tensor::value_type>(std::cout, ", "));
+    // std::cout << " ]";
     // std::cout << " for shape [";
     // auto def_sizes = get_padded_dims();
     // std::copy(def_sizes.begin(), def_sizes.end(), std::ostream_iterator<tensor::value_type>(std::cout, ", "));

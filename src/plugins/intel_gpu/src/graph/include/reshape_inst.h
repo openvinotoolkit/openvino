@@ -73,7 +73,9 @@ public:
     }
 
     bool has_padding() const {
-        return (this->get_output_layout().data_padding || input().get_output_layout(false).data_padding || input().get_output_layout(false).data_padding.is_dynamic_pad());
+        return (this->get_output_layout().data_padding
+                || input().get_output_layout(false).data_padding
+                || input().get_output_layout(false).data_padding.is_dynamic_pad());
     }
 
     bool has_outer_padding_offset() const {

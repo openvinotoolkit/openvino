@@ -658,7 +658,8 @@ event::ptr primitive_inst::realloc_if_needed() {
 
         std::vector<size_t> current_buf_shape;
         current_buf_shape.reserve(current_dims.size());
-        std::transform(current_dims.begin(), current_dims.end(), std::back_inserter(current_buf_shape), [](const tensor::value_type& el) { return static_cast<size_t>(el); });
+        std::transform(current_dims.begin(), current_dims.end(),
+                    std::back_inserter(current_buf_shape), [](const tensor::value_type& el) { return static_cast<size_t>(el); });
         updated_layouts[0] = layout(ov::PartialShape(current_buf_shape), updated_layouts[0].data_type, updated_layouts[0].format);
     }
 

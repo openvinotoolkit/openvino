@@ -340,7 +340,9 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
 
 static bool can_reshape_be_optimized(const reshape_node& node) {
     // In case if pad is not propagated, the primitive can't be optimized out
-    if (!node.is_runtime_propagatable_padding() && node.get_input_layout(0).data_padding.is_dynamic_pad() && !node.get_output_layout(0).data_padding.is_dynamic_pad()) {
+    if (!node.is_runtime_propagatable_padding()
+        && node.get_input_layout(0).data_padding.is_dynamic_pad()
+        && !node.get_output_layout(0).data_padding.is_dynamic_pad()) {
         return false;
     }
 
