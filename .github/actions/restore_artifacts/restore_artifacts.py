@@ -32,7 +32,7 @@ def parse_args():
     return args
 
 
-def include_filter(include_list: list):
+def include_filter(include_list: set | list):
     """
     Returns input for shutil.copytree ignore - to copy only files from include list
     """
@@ -62,7 +62,12 @@ def main():
     action_utils.set_github_output("artifacts_storage_path", str(storage))
     logger.info(f"Artifacts are taken from here: {storage}")
 
-    to_restore = args.to_restore.split(',') + ['manifest.yml'] if args.to_restore and args.to_restore != 'all' else None
+    main_package_extension = 'zip' if 'windows' in args.storage_dir else 'tar.gz'
+    main_package_name = f'openvino_package.{main_package_extension}'
+    defaults = [main_package_name, 'manifest.yml']
+    to_restore = set(args.to_restore.split(',')).union(defaults) if args.to_restore else defaults
+    if args.to_restore == 'all':
+        to_restore = None
     shutil.copytree(storage, args.target_dir, dirs_exist_ok=True,
                     ignore=include_filter(to_restore))
     logger.info(f"Artifacts are copied here: {args.target_dir}")

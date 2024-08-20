@@ -87,10 +87,9 @@ runs:
         trigger_repo_sha: ${{ env.OV_REVISION }}
         branch_name: ${{ inputs.branch_name }}
         artifacts_key: ${{ inputs.ov_artifact_name || inputs.commit_build_key }}
-        to_restore: ${{ inputs.commit_packages_to_provide || env.OV_PACKAGE_ARCHIVE }}
+        to_restore: ${{ inputs.commit_packages_to_provide }}
       env:
         OV_REVISION: ${{ inputs.revision == 'HEAD' && steps.get_openvino_head_commit.outputs.head || inputs.revision }}
-        OV_PACKAGE_ARCHIVE: ${{ runner.os == 'Windows' && 'openvino_package.zip' || 'openvino_package.tar.gz' }}
 
     - name: Set action outputs
       id: openvino_commit_output
