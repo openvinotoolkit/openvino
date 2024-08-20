@@ -34,6 +34,10 @@ public:
                                                             const std::vector<uint8_t>& network,
                                                             const Config& config) const override final;
 
+    void release(std::shared_ptr<const NetworkDescription> networkDescription) override;
+
+    void fillCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) override;
+
 private:
     /**
      * @brief Separate externals calls to separate class

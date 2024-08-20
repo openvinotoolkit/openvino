@@ -147,7 +147,7 @@ struct NetworkDescription final {
     NetworkMetadata metadata;
 
     // use to pass graphHandle from compiler to backend executor
-    void* graphHandleVoidPtr = nullptr;
+    void* graphHandle = nullptr;
     void* propsVoidPtr = nullptr;
     void* inputDescriptors = nullptr;
     void* outputDescriptors = nullptr;
@@ -201,6 +201,12 @@ public:
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                                     const std::vector<uint8_t>& network,
                                                                     const Config& config) const = 0;
+
+    // Only need for driver compiler to release graph handle now
+    virtual void release(std::shared_ptr<const NetworkDescription> networkDescription){};
+
+    // Only need for driver compiler to fill blob now
+    virtual void fillCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription){};
 
 protected:
     virtual ~ICompiler() = default;
