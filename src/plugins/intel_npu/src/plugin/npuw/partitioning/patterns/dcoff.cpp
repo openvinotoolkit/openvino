@@ -82,11 +82,21 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
             LOG_DEBUG("This parameter requires zero point: " << zerop_iter->second);
             m.zero_points.push_back(ov::npuw::util::tensor_from_const(zerop_iter->second));
         } else {
+            // Process asymmetric zero points for parameters
+            auto asymm_zerop_iter = params_to.asymm_zerops.find(body_params[i]);
+            if (asymm_zerop_iter != params_to.asymm_zerops.end()) {
+                LOG_DEBUG("This parameter requires asymmetric zero point: " << asymm_zerop_iter->second);
+                // Calculate the index for the asymmetric zero point and store it in the map
+                auto asymm_zerop_pindex = fbody._model->get_parameter_index(asymm_zerop_iter->second);
+                auto asymm_zerop_cindex = asymm_zerop_pindex - fbody._param_offset;
+                m.asymm_zero_points[asymm_zerop_cindex] = i - fbody._param_offset;
+            }
+            // Add an empty tensor for the zero point if no zero point is found
             m.zero_points.push_back(ov::Tensor());
         }
     }
     NPUW_ASSERT((body_params.size() - fbody._param_offset) == (m.scale_remap.size() + m.closure_remap.size()));
-    NPUW_ASSERT((body_params.size() - fbody._param_offset) == m.zero_points.size());
+    NPUW_ASSERT((body_params.size() - fbody._param_offset) == (m.zero_points.size() + m.asymm_zero_points.size()));
 
     LOG_DEBUG("DONE");
     return m;
@@ -105,7 +115,14 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
 
         auto scale_iter = m.scale_remap.find(i);
         new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._closure[scale_iter->second] : ov::Tensor());
-        new_zerops.push_back(m.zero_points[i]);
+        // Check for asymmetric zero points and add them to new_zerops
+        auto asymm_zerop_iter = m.asymm_zero_points.find(i);
+        if (asymm_zerop_iter != m.asymm_zero_points.end()) {
+            new_zerops.push_back(fcall._closure[asymm_zerop_iter->second]);
+        } else {
+            // If there is no asymmetric zero point, use the existing symmetric zero point
+            new_zerops.push_back(m.zero_points[i]);
+        }
     }
     fcall._closure = std::move(new_closure);
     fcall._scales = std::move(new_scales);
@@ -865,10 +882,10 @@ DCOFFPassReshape::DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff
                 // Extra transformation here:
                 // - remove Subtract + Multiply,
                 // - mark paramC for removal.
-                // Reshape will be reconnected to Convert directly
+                // Reshape will be reconnected to ParamA directly
 
                 // Record mapping from the Scale coeff parameter to the Real weight parameter
-                pref.get().zerops[matched_paramA] = matched_paramB;
+                pref.get().asymm_zerops[matched_paramA] = matched_paramB;
                 pref.get().scales[matched_paramC] = matched_paramA;
 
                 // Disconnect Multiply and Convert from their outputs

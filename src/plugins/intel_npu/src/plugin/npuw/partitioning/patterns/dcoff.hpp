@@ -30,6 +30,7 @@ struct DCOFFParams {
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     std::unordered_map<PPtr, PPtr> scales;  // Closures: a scaling factor -> orig tensor
     std::unordered_map<PPtr, CPtr> zerops;  // Closures: orig tensor -> a zero point (yes, a reverse...)
+    std::unordered_map<PPtr, PPtr> asymm_zerops;
 };
 
 using DCOFFParamRef = std::reference_wrapper<DCOFFParams>;
@@ -37,6 +38,7 @@ using DCOFFParamRef = std::reference_wrapper<DCOFFParams>;
 struct ClosureRemap {
     std::vector<std::size_t> closure_remap;          // [new closure index] -> orig closure idx
     std::map<std::size_t, std::size_t> scale_remap;  // orig closure idx -> orig scale idx
+    std::map<std::size_t, std::size_t> asymm_zero_points; // orig closure idx -> orig asymm zero point idx
     ov::ParameterVector params_to_remove;
 
     std::vector<ov::Tensor> zero_points;  // zero points for closures, if needed
