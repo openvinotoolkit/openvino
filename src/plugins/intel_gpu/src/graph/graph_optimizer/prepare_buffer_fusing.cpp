@@ -673,13 +673,13 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
     std::vector<int32_t> lower_sizes;
     lower_sizes.push_back(offsets.batch[0]);
     lower_sizes.push_back(offsets.feature[0]);
-    for (int32_t i = input_layout.get_spatial_rank() - 1; i >= 0; i--) {
+    for (int32_t i = static_cast<int32_t>(input_layout.get_spatial_rank() - 1); i >= 0; i--) {
         lower_sizes.push_back(offsets.spatial[i]);
     }
     std::vector<int32_t> upper_sizes;
     upper_sizes.push_back(input_layout.batch() - offsets.batch[0] - crop_size.batch[0]);
     upper_sizes.push_back(input_layout.feature() - offsets.feature[0] - crop_size.feature[0]);
-    for (int32_t i = input_layout.get_spatial_rank() - 1; i >= 0; i--) {
+    for (int32_t i = static_cast<int32_t>(input_layout.get_spatial_rank() - 1); i >= 0; i--) {
         upper_sizes.push_back(input_layout.spatial(i) - offsets.spatial[i] - crop_size.spatial[i]);
     }
 
