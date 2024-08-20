@@ -25,10 +25,23 @@ ParamsKey LSTMSeqKernel_bfyx::GetSupportedKey() const {
 }
 
 KernelsData LSTMSeqKernel_bfyx::GetKernelsData(const Params& params) const {
-    return GetCommonKernelsData(params, true);
+    return GetCommonKernelsData(params, true, true);
 }
 
 KernelsPriority LSTMSeqKernel_bfyx::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_3;
+}
+
+bool LSTMSeqKernel_bfyx::Validate(const Params& p) const {
+    if (!LSTMKernelBase::Validate(p)) {
+        return false;
+    }
+    const lstm_params& lp = static_cast<const lstm_params&>(p);
+    auto out =  lp.outputs[0];
+    int num_hidden_kernels = out.X().v;
+    if (num_hidden_kernels % 4 != 0) {
+        return false;
+    }
+    return true;
 }
 }  // namespace kernel_selector

@@ -10,7 +10,7 @@
 
 namespace kernel_selector {
 
-JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params, bool sequential) const {
+JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params, bool sequential, bool divide_gates) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
     auto out =  params.outputs[0];
     if (params.input_forget) {
@@ -18,7 +18,8 @@ JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params, bool seq
     }
     jit.AddConstants({MakeJitConstant("VEC_SIZE", 8)});
     jit.AddConstants({MakeJitConstant("DIRECTION", static_cast<int>(params.direction))});
-    jit.AddConstants({MakeJitConstant("GATE_NUM", 4)});
+    const uint gate_num = 4;
+    jit.AddConstants({MakeJitConstant("GATE_NUM", gate_num)});
     if (sequential) {
         jit.AddConstants({MakeJitConstant("SEQUENCE", 1)});
     }
@@ -27,10 +28,15 @@ JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params, bool seq
     if (sequential) {
         jit.AddConstants({MakeJitConstant("INPUT_SIZE", params.inputs[0].Y().v)});
         hidden_size = static_cast<int>(params.inputs[1].Y().v);
-        num_hidden_kernels = std::min({static_cast<int>(params.engineInfo.maxWorkGroupSize), static_cast<int>(out.X().v)});
+        if (divide_gates) {
+            num_hidden_kernels = std::min({static_cast<int>(params.engineInfo.maxWorkGroupSize/gate_num), static_cast<int>(out.X().v)});
+        } else {
+            num_hidden_kernels = std::min({static_cast<int>(params.engineInfo.maxWorkGroupSize), static_cast<int>(out.X().v)});
+        }
     } else {
         jit.AddConstants({MakeJitConstant("INPUT_SIZE", params.inputs[0].Feature().v)});
         hidden_size = static_cast<int>(params.inputs[1].Feature().v);
+        assert(!divide_gates);
         num_hidden_kernels = std::min({static_cast<int>(params.engineInfo.maxWorkGroupSize), static_cast<int>(out.Feature().v)});
     }
     size_t size;
@@ -76,7 +82,7 @@ JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params, bool seq
     return jit;
 }
 
-KernelsData LSTMKernelBase::GetCommonKernelsData(const Params& params, bool sequential) const {
+KernelsData LSTMKernelBase::GetCommonKernelsData(const Params& params, bool sequential, bool divide_gates) const {
     if (!Validate(params)) {
         return {};
     }
@@ -102,17 +108,28 @@ KernelsData LSTMKernelBase::GetCommonKernelsData(const Params& params, bool sequ
     if (sequential) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 2});
     }
-    auto cldnnJit = GetJitConstants(orgParams, sequential);
+    auto cldnnJit = GetJitConstants(orgParams, sequential, divide_gates);
     auto entryPoint = GetEntryPoint(kernelName, orgParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
     size_t num_hidden_kernels;
     if (sequential) {
-        num_hidden_kernels = static_cast<size_t>(std::min({params.engineInfo.maxWorkGroupSize, out.X().v}));
+        if (divide_gates) {
+            num_hidden_kernels = static_cast<size_t>(std::min({params.engineInfo.maxWorkGroupSize/4, out.X().v}));
+        } else {
+            num_hidden_kernels = static_cast<size_t>(std::min({params.engineInfo.maxWorkGroupSize, out.X().v}));
+        }
     } else {
+        assert(!divide_gates);
         num_hidden_kernels = static_cast<size_t>(std::min({params.engineInfo.maxWorkGroupSize, out.Feature().v}));
     }
-    kernel.params.workGroups.global = {num_hidden_kernels, out.Batch().v, 1};
-    kernel.params.workGroups.local = {num_hidden_kernels, 1, 1};
+    const uint gate_num = 4;
+    if (divide_gates) {
+        kernel.params.workGroups.global = {num_hidden_kernels, out.Batch().v, gate_num};
+        kernel.params.workGroups.local = {num_hidden_kernels, 1, gate_num};
+    } else {
+        kernel.params.workGroups.global = {num_hidden_kernels, out.Batch().v, 1};
+        kernel.params.workGroups.local = {num_hidden_kernels, 1, 1};
+    }
     kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
 
     return {kd};
