@@ -310,8 +310,8 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("MemPreallocationOptions", mem_preallocation_params_str);
     std::string load_dump_raw_bin_str;
     get_gpu_debug_env_var("LoadDumpRawBinary", load_dump_raw_bin_str);
-    std::string dynamic_quantize_layers_str;
-    get_gpu_debug_env_var("DynamicQuantizeLayers", dynamic_quantize_layers_str);
+    std::string dynamic_quantize_layers_without_onednn_str;
+    get_gpu_debug_env_var("DynamicQuantizeLayersWithoutOnednn", dynamic_quantize_layers_without_onednn_str);
 
     if (help > 0) {
         print_help_messages();
@@ -350,13 +350,13 @@ debug_configuration::debug_configuration()
         }
     }
 
-    if (dynamic_quantize_layers_str.length() > 0) {
+    if (dynamic_quantize_layers_without_onednn_str.length() > 0) {
         // Insert delimiter for easier parsing when used
-        dynamic_quantize_layers_str = " " + dynamic_quantize_layers_str + " ";
-        std::stringstream ss(dynamic_quantize_layers_str);
+        dynamic_quantize_layers_without_onednn_str = " " + dynamic_quantize_layers_without_onednn_str + " ";
+        std::stringstream ss(dynamic_quantize_layers_without_onednn_str);
         std::string layer;
         while (ss >> layer) {
-            dynamic_quantize_layers.push_back(layer);
+            dynamic_quantize_layers_without_onednn.push_back(layer);
         }
     }
 
