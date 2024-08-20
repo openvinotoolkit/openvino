@@ -6,14 +6,14 @@ const fs = require('node:fs');
 const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it, before } = require('node:test');
-const { testModels, checkTestModel, getModelPath } = require('./utils.js');
+const { testModels, isModelAvailable, getModelPath } = require('./utils.js');
 
 const { xml: modelPath, bin: weightsPath } = getModelPath();
 
 describe('Tests for reading model.', () => {
 
   before( async () => {
-    await checkTestModel(testModels.testModelFP32);
+    await isModelAvailable(testModels.testModelFP32);
   });
 
   const modelFile = fs.readFileSync(modelPath);

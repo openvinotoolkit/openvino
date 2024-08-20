@@ -20,7 +20,7 @@ const testModels = {
 module.exports = {
   getModelPath,
   downloadTestModel,
-  checkTestModel,
+  isModelAvailable,
   testModels,
 };
 
@@ -47,7 +47,7 @@ async function downloadTestModel(model) {
 
 }
 
-async function checkTestModel(model) {
+async function isModelAvailable(model) {
   const baseArtifactsDir = './tests/unit/test_models';
   const modelPath = path.join(baseArtifactsDir, model.xml);
   const modelExists = await checkIfDirectoryExists(modelPath);
