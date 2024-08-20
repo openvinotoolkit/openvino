@@ -11,10 +11,9 @@ const testModels = {
     xml: 'test_model_fp32.xml',
     bin: 'test_model_fp32.bin',
     xmlURL:
-    'https://raw.githubusercontent.com/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.xml',
+      'https://raw.githubusercontent.com/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.xml',
     binURL:
-    'https://media.githubusercontent.com/media/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.bin',
-
+      'https://media.githubusercontent.com/media/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.bin',
   },
 };
 
@@ -36,8 +35,8 @@ function getModelPath(isFP16=false) {
 
 async function downloadTestModel(model) {
   const baseArtifactsDir = './tests/unit/test_models';
-  const model_path = path.join(baseArtifactsDir, model.xml);
-  const modelExists = await checkIfDirectoryExists(model_path);
+  const modelPath = path.join(baseArtifactsDir, model.xml);
+  const modelExists = await checkIfDirectoryExists(modelPath);
   if ( !modelExists ) {
     const { env } = process;
     const proxyUrl = env.http_proxy || env.HTTP_PROXY || env.npm_config_proxy;
@@ -49,8 +48,8 @@ async function downloadTestModel(model) {
 
 async function checkTestModel(model) {
   const baseArtifactsDir = './tests/unit/test_models';
-  const model_path = path.join(baseArtifactsDir, model.xml);
-  const modelExists = await checkIfDirectoryExists(model_path);
+  const modelPath = path.join(baseArtifactsDir, model.xml);
+  const modelExists = await checkIfDirectoryExists(modelPath);
   if ( !modelExists ) {
     console.log('\n\nTestModel cannot be found.\nPlease run `npm run test_setup`.\n\n');
     process.exit(1);

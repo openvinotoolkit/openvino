@@ -9,7 +9,7 @@ const { testModels, getModelPath, checkTestModel } = require('./utils.js');
 
 describe('ov basic tests.', () => {
 
-  before( async () => {
+  before(async () => {
     await checkTestModel(testModels.testModelFP32);
   });
 
