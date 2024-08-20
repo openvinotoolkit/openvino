@@ -336,8 +336,8 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
 
 template <typename TableExtension>
 void LevelZeroCompilerInDriver<TableExtension>::release(std::shared_ptr<const NetworkDescription> networkDescription) {
-    if (networkDescription->graphHandle != nullptr) {
-        result = _graphDdiTableExt->pfnDestroy(graphHandle);
+    if (networkDescription->metadata.graphHandle != nullptr) {
+        result = _graphDdiTableExt->pfnDestroy(networkDescription->metadata.graphHandle);
 
         if (ZE_RESULT_SUCCESS != result) {
             _logger.error("Failed to release graph handle. L0 pfnDestroy",
@@ -353,8 +353,8 @@ void LevelZeroCompilerInDriver<TableExtension>::release(std::shared_ptr<const Ne
 template <typename TableExtension>
 void LevelZeroCompilerInDriver<TableExtension>::fillCompiledNetwork(
     std::shared_ptr<const NetworkDescription> networkDescription) {
-    if (networkDescription->graphHandle != nullptr) {
-        ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription->graphHandle);
+    if (networkDescription->metadata.graphHandle != nullptr) {
+        ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription->metadata.graphHandle);
 
         // Get blob size first
         size_t blobSize = -1;
@@ -911,9 +911,6 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
 
     auto networkDescription = NetworkDescription(std::vector<uint8_t>(), std::move(networkMeta));
 
-    // Store the graph handle as a void pointer, return the same graphHandle to backend for ZeroExecutor
-    networkDescription.graphHandle = static_cast<void*>(graphHandle);
-
     // Use const_cast to remove const qualifier
     networkDescription.propsVoidPtr = const_cast<void*>(static_cast<const void*>(&_props));
     networkDescription.inputDescriptors = const_cast<void*>(static_cast<const void*>(&inputDescriptors));
@@ -956,17 +953,6 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vect
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
     const auto networkMeta = getNetworkMeta(graphHandle);
     OV_ITT_TASK_NEXT(PARSE_BLOB, "NetworkDescription");
-
-    auto result = _graphDdiTableExt->pfnDestroy(graphHandle);
-
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnDestroy",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
 
     _logger.debug("parse end");
     return networkMeta;
@@ -1164,6 +1150,8 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::getNetworkMeta(ze_gra
     // TODO: support this information in CiD [track: E#33479]
     meta.numStreams = 1;
     meta.bindRelatedDescriptors();
+    // Store the graph handle as a void pointer, return the same graphHandle to backend for ZeroExecutor
+    meta.graphHandle = static_cast<void*>(graphHandle);
 
     return meta;
 }

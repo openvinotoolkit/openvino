@@ -95,7 +95,7 @@ private:
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
 
-    std::optional<ov::SoPtr<ICompiler>> _compiler;
+    ov::SoPtr<ICompiler> _compiler;
 };
 
 }  //  namespace intel_npu

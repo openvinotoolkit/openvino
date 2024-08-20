@@ -742,6 +742,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         _logger.debug("Successfully read %zu bytes into blob.", graphSize);
 
         auto meta = compiler->parse(blob, localConfig);
+        // graphHandle is reused by backend if we use driver compiler
+        // Can release blob memory
+        if (meta.graphHandle != nullptr) {
+            blob.clear();
+            blob.shrink_to_fit();
+        }
         meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
 
         const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(meta.inputs, meta.outputs);

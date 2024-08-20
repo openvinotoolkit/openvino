@@ -112,6 +112,9 @@ struct NetworkMetadata final {
 
     size_t numStreams = 1;
 
+    // use to pass graphHandle from compiler to backend executor
+    void* graphHandle = nullptr;
+
     /**
      * @brief Binds the (state input, state output) and (dynamic tensor, shape tensor) pairs using the
      * "relatedDescriptorIndex" attribute.
@@ -146,8 +149,6 @@ struct NetworkDescription final {
 
     NetworkMetadata metadata;
 
-    // use to pass graphHandle from compiler to backend executor
-    void* graphHandle = nullptr;
     void* propsVoidPtr = nullptr;
     void* inputDescriptors = nullptr;
     void* outputDescriptors = nullptr;
