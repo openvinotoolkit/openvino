@@ -52,9 +52,24 @@ static std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connecte
 // DYNAMIC_QUANTIZE
 static bool should_dynamic_quantize(const fully_connected_params& params) {
     auto dynamic_quantization_group_size = params.dynamic_quantization_group_size;
+
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->enable_dynamic_quantize) {
         dynamic_quantization_group_size = quantize_grp_size;
+
+        GPU_DEBUG_IF(!debug_config->dynamic_quantize_layers_without_onednn.empty()) {
+            auto layers = debug_config->dynamic_quantize_layers_without_onednn;
+            auto iter = std::find_if(layers.begin(), layers.end(), [&](const std::string& pattern){
+                return debug_config->is_layer_name_matched(params.layerID, pattern);
+            });
+
+            if (iter != layers.end()) {
+                dynamic_quantization_group_size = quantize_grp_size;
+                GPU_DEBUG_COUT << "Found specified Fully-connected layer [" << params.layerID << "]. Enable Dynamic-quantize." << std::endl;
+            } else {
+                dynamic_quantization_group_size = 0;
+            }
+        }
     }
 
     if (params.inputs[0].GetFirstElementOffset() != 0)
