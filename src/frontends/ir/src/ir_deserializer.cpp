@@ -695,30 +695,31 @@ void ov::XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model
 void ov::XmlDeserializer::read_legacy_meta_data(const std::shared_ptr<ov::Model>& model,
                                                 const std::unordered_set<std::string>& names,
                                                 const pugi::xml_node& root_section) {
-    const auto& read_meta =
-        [](const std::shared_ptr<ov::Model>& model, const std::string& name, const pugi::xml_node& meta_section) {
-            auto& rt_info = model->get_rt_info();
-            if (name == "meta_data") {
-                for (const auto& data : meta_section.children()) {
-                    const std::string& section_name = data.name();
-                    // Rename cli_parameters to conversion_parameters
-                    if (section_name == "cli_parameters") {
-                        std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("cli_parameters", data);
-                        rt_info["conversion_parameters"] = meta;
-                    } else if (!data.attribute("value").empty()) {
-                        rt_info[data.name()] = pugixml::get_str_attr(data, "value");
-                    } else {
-                        OPENVINO_THROW("Unsupported legacy argument: ", data.name());
-                    }
-                }
-            } else if (name == "quantization_parameters") {
-                for (const auto& data : meta_section.children()) {
-                    // Rename quantization_parameters to optimization
-                    std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("quantization_parameters", data);
-                    rt_info["optimization"] = meta;
+    const auto& read_meta = [](const std::shared_ptr<ov::Model>& model,
+                               const std::string& name,
+                               const pugi::xml_node& meta_section) {
+        auto& rt_info = model->get_rt_info();
+        if (name == "meta_data") {
+            for (const auto& data : meta_section.children()) {
+                const std::string& section_name = data.name();
+                // Rename cli_parameters to conversion_parameters
+                if (section_name == "cli_parameters") {
+                    std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("cli_parameters", data);
+                    rt_info["conversion_parameters"] = meta;
+                } else if (!data.attribute("value").empty()) {
+                    rt_info[data.name()] = pugixml::get_str_attr(data, "value");
+                } else {
+                    OPENVINO_THROW("Unsupported legacy argument: ", data.name());
                 }
             }
-        };
+        } else if (name == "quantization_parameters") {
+            for (const auto& data : meta_section.children()) {
+                // Rename quantization_parameters to optimization
+                std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("quantization_parameters", data);
+                rt_info["optimization"] = meta;
+            }
+        }
+    };
     for (const auto& it : names)
         read_meta(model, it, root_section.child(it.c_str()));
 }
