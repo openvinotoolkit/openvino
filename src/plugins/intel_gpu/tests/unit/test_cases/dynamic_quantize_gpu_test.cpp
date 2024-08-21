@@ -109,7 +109,7 @@ public:
             auto abs_diff = std::abs(output_ptr_ref[i] - output_ptr[i]);
             if (max_diff < abs_diff)
                 max_diff = abs_diff;
-            avg = abs_diff;
+            avg += abs_diff;
             count++;
             OPENVINO_ASSERT(abs_diff < 1);
         }
