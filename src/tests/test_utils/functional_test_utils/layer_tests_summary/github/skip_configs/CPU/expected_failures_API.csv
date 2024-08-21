@@ -22,4 +22,3 @@ ov_infer_request_1/OVInferRequestDynamicTests.InferFullyDynamicNetworkWithSetTen
 ov_infer_request_1/OVInferRequestDynamicTests.InferFullyDynamicNetworkWithGetTensor/function=AddTwoOutputEdges_inOutShape=(((1.4.20.20)_(1.4.20.20))((2.4.20.20)_(2.4.20.20)))_targetDevice=CPU_,0
 ov_infer_request/OVInferenceChaining.DynamicOutputToDynamicInput/targetDevice=CPU_,0
 ov_infer_request/OVInferenceChaining.DynamicInputToDynamicOutput/targetDevice=CPU_,0
-ov_plugin/OVCheckChangePropComplieModleGetPropTests_InferencePrecision.ChangeCorrectProperties/mandatory_target_device=CPU_
