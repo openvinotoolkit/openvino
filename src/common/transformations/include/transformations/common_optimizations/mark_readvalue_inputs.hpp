@@ -13,9 +13,9 @@ namespace pass {
 /**
  * @ingroup ov_transformation_common_api
  * @brief This transformation marks whether the input and output of "ReadValue" need to be checked to execute.
- *     intput1  
+ *     intput1
  *        |
- *     MatMul
+ *     Some nodes(They have only one common successor[ReadValue])
  *        |
  *     ReadValue
  *        |     \
