@@ -63,6 +63,7 @@ public:
     }
 
     void add_names(const std::unordered_set<std::string>& names) override {
+        m_output_names.insert(names.begin(), names.end());
         m_shared_tensor->add_names(names);
     }
 
