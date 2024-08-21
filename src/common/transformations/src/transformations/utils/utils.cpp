@@ -135,7 +135,6 @@ bool has_f16_constants(const std::shared_ptr<const ov::Model>& function) {
 }
 
 bool check_for_broadcast(const ov::PartialShape& ref_shape, const ov::PartialShape& other_shape) {
-
     if (ref_shape.rank().is_dynamic() || other_shape.rank().is_dynamic()) {
         return false;
     }
