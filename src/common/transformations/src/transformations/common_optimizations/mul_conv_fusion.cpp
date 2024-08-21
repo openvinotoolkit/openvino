@@ -48,7 +48,7 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
         // If this is the case, we cannot perform the transformation as
         // 'bare' input's shape will not be aligned with weights.
         // P.S. the check alters mul_const_shape (copy). Don't use it.
-        if (PartialShape::broadcast_merge_into(mul_const_shape, input_shape, op::AutoBroadcastType::NUMPY)) {
+        if (ov::op::util::check_for_broadcast(mul_const_shape, input_shape)) {
             return false;
         }
 
@@ -58,8 +58,7 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
         // batch size, while first dimension in weights corresponds to output channel count
         // if (!ov::op::util::broadcasted_only_channel(weights_shape, mul_const_shape) ||
         // P.S. the check alters weights_shape (copy). Don't use it.
-        if (!PartialShape::broadcast_merge_into(weights_shape, mul_const_shape,
-                                                op::AutoBroadcastType::NUMPY) ||
+        if (!ov::op::util::check_for_broadcast(weights_shape, mul_const_shape) ||
             (weights_shape.size() == mul_const_shape.size() && mul_const_shape[0] != 1)) {
             return false;
         }
@@ -112,7 +111,7 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
         // If this is the case, we cannot perform the transformation as
         // 'bare' input's shape will not be aligned with weights.
         // P.S. the check alters mul_const_shape (copy). Don't use it.
-        if (PartialShape::broadcast_merge_into(mul_const_shape, input_shape, op::AutoBroadcastType::NUMPY)) {
+        if (ov::op::util::check_for_broadcast(mul_const_shape, input_shape)) {
             return false;
         }
 
@@ -133,8 +132,7 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
             Shape new_shape{G, 1, C};
             std::copy(mul_const_shape.begin() + 2, mul_const_shape.end(), std::back_inserter(new_shape));
             PartialShape weights_shape_copy = weights_shape;
-            if (!PartialShape::broadcast_merge_into(weights_shape_copy, new_shape,
-                                                    op::AutoBroadcastType::NUMPY)) {
+            if (!ov::op::util::check_for_broadcast(weights_shape_copy, new_shape)) {
                 return false;
             }
             mul_const_node = std::make_shared<ov::op::v1::Reshape>(
@@ -190,7 +188,7 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
         // If this is the case, we cannot perform the transformation as
         // 'bare' input's shape will not be aligned with weights.
         // P.S. the check alters mul_const_shape (copy). Don't use it.
-        if (PartialShape::broadcast_merge_into(mul_const_shape, input_shape, op::AutoBroadcastType::NUMPY)) {
+        if (ov::op::util::check_for_broadcast(mul_const_shape, input_shape)) {
             return false;
         }
 
@@ -211,8 +209,7 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
             // Reshape mul_const from shape (1, C, 1, 1) to (C, 1, 1, 1) to match ConvolutionBackpropData weights format
             Shape new_shape{mul_const_shape[1], 1};
             new_shape.insert(new_shape.end(), mul_const_shape.size() - 2, 1);
-            if (!PartialShape::broadcast_merge_into(weights_shape, new_shape,
-                                                    op::AutoBroadcastType::NUMPY)) {
+            if (!ov::op::util::check_for_broadcast(weights_shape, new_shape)) {
                 return false;
             }
             mul_const_node = std::make_shared<ov::op::v1::Reshape>(
@@ -269,7 +266,7 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
         // If this is the case, we cannot perform the transformation as
         // 'bare' input's shape will not be aligned with weights.
         // P.S. the check alters mul_const_shape (copy). Don't use it.
-        if (PartialShape::broadcast_merge_into(mul_const_shape, input_shape, op::AutoBroadcastType::NUMPY)) {
+        if (ov::op::util::check_for_broadcast(mul_const_shape, input_shape)) {
             return false;
         }
 
@@ -294,8 +291,7 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
             Shape new_shape{G, C, 1};
             new_shape.insert(new_shape.end(), mul_const_shape.size() - 2, 1);
             PartialShape weights_shape_copy = weights_shape;
-            if (!PartialShape::broadcast_merge_into(weights_shape_copy, new_shape,
-                                                    op::AutoBroadcastType::NUMPY)) {
+            if (!ov::op::util::check_for_broadcast(weights_shape_copy, new_shape)) {
                 return false;
             }
             mul_const_node = std::make_shared<ov::op::v1::Reshape>(

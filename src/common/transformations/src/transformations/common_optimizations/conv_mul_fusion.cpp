@@ -16,7 +16,7 @@
 #include "transformations/utils/utils.hpp"
 
 // Check the constant shape is compatible. The compatible shapes are:
-// [], [1], [1, 1], [1, 1, 1] etc. and [1, C, 1, 1] & [1, C, 1]
+// [], [1], [1, 1], [1, 1, 1] etc. and [1, C, 1, 1] & [1, C, 1] & [C, 1]
 static bool const_shape_compatible(const ov::PartialShape& const_shape, const ov::Dimension& C) {
     if (!const_shape.is_static()) {
         return false;
@@ -24,6 +24,12 @@ static bool const_shape_compatible(const ov::PartialShape& const_shape, const ov
 
     if (is_scalar(const_shape)) {
         return true;
+    }
+
+    if (const_shape.rank().get_length() == 2) {
+        if ((const_shape[0] == C || const_shape[0] == 1) && const_shape[1] == 1) {
+            return true;
+        }
     }
 
     const int C_dim = 1;

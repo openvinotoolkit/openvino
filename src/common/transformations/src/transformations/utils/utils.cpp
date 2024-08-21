@@ -135,24 +135,47 @@ bool has_f16_constants(const std::shared_ptr<const ov::Model>& function) {
 }
 
 bool check_for_broadcast(const ov::PartialShape& ref_shape, const ov::PartialShape& other_shape) {
+
+    if (ref_shape.rank().is_dynamic() || other_shape.rank().is_dynamic()) {
+        return false;
+    }
+
     // Check that other_shape doesn't broadcast ref_shape
-    if (ref_shape.rank().is_dynamic() || other_shape.rank().is_dynamic() || other_shape.size() > ref_shape.size()) {
-        return true;
+    if (other_shape.size() > ref_shape.size()) {
+        return false;
     }
     auto ref_it = ref_shape.rbegin();
     auto other_it = other_shape.rbegin();
     // Check that other_shape dims are equal to ref_shape dims
     // In case if other_shape rank is less than ref_shape rank
-    // we stop comparison and return true
+    // we stop comparision and return true
     while (other_it != other_shape.rend()) {
-        if ((other_it->is_dynamic() || other_it->get_length() != 1) &&
-            (ref_it->is_dynamic() || ref_it->get_length() == 1)) {
-            return true;
+        if (*other_it != *ref_it && *other_it != 1) {
+            return false;
         }
         ++other_it;
         ++ref_it;
     }
-    return false;
+    return true;
+
+    // // Check that other_shape doesn't broadcast ref_shape
+    // if (ref_shape.rank().is_dynamic() || other_shape.rank().is_dynamic() || other_shape.size() > ref_shape.size()) {
+    //     return true;
+    // }
+    // auto ref_it = ref_shape.rbegin();
+    // auto other_it = other_shape.rbegin();
+    // // Check that other_shape dims are equal to ref_shape dims
+    // // In case if other_shape rank is less than ref_shape rank
+    // // we stop comparison and return true
+    // while (other_it != other_shape.rend()) {
+    //     if ((other_it->is_dynamic() || other_it->get_length() != 1) &&
+    //         (ref_it->is_dynamic() || ref_it->get_length() == 1)) {
+    //         return true;
+    //     }
+    //     ++other_it;
+    //     ++ref_it;
+    // }
+    // return false;
 }
 
 std::shared_ptr<ov::Node> activation(const std::string& activation_name, const ov::Output<ov::Node>& apply_to) {
