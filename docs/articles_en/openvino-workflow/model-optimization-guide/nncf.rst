@@ -91,6 +91,6 @@ Additional Resources
 * `NNCF Installation <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Installation.md>`__
 * `NNCF FAQ <https://github.com/openvinotoolkit/nncf/blob/develop/docs/FAQ.md>`__
 * `NNCF Tutorials <https://github.com/openvinotoolkit/nncf?tab=readme-ov-file#demos-tutorials-and-samples>`__
-* :doc:`Model Optimization Guide <../../model-optimization>`
+* :doc:`Model Optimization Guide <../model-optimization>`
 * :doc:`Compressing Models During Training <../compressing-models-during-training>`
 * `Hugging Face Optimum Intel <https://huggingface.co/docs/optimum/intel/optimization_ov>`__
