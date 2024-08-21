@@ -10,8 +10,6 @@
 #include "utils/cpu_test_utils.hpp"
 #include "gtest/gtest.h"
 
-using namespace CPUTestUtils;
-
 namespace ov {
 namespace test {
 namespace StringTensorPack {
@@ -30,10 +28,10 @@ using StringTensorPackLayerTestParams = std::tuple<
 
 using StringTensorPackLayerCPUTestParamsSet = std::tuple<
         StringTensorPackLayerTestParams,
-        CPUSpecificParams>;
+        CPUTestUtils::CPUSpecificParams>;
 
 class StringTensorPackLayerCPUTest : public testing::WithParamInterface<StringTensorPackLayerCPUTestParamsSet>,
-                             public SubgraphBaseTest, public CPUTestsBase {
+                             public SubgraphBaseTest, public CPUTestUtils::CPUTestsBase {
 public:
    static std::string getTestCaseName(testing::TestParamInfo<StringTensorPackLayerCPUTestParamsSet> obj);
 protected:
