@@ -1124,7 +1124,7 @@ size_t jit_logicalnot_emitter::get_aux_vecs_count() const {
 }
 
 size_t jit_logicalnot_emitter::get_aux_gprs_count() const {
-    return 2;
+    return 1;
 }
 
 void jit_logicalnot_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -1145,13 +1145,11 @@ void jit_logicalnot_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     TReg src = TReg(in_vec_idxs[0]);
     TReg dst = TReg(out_vec_idxs[0]);
     TReg tmp1 = TReg(aux_vec_idxs[0]);
-    TReg tmp2 = TReg(aux_vec_idxs[1]);
 
     h->eor(tmp1.b16, tmp1.b16, tmp1.b16);
     h->fcmeq(tmp1.s, tmp1.s, src.s);
-    h->ld1r(tmp2.s, table_val2("one"));
-    h->eor(dst.b16, dst.b16, dst.b16);
-    h->and_(dst.b16, tmp2.b16, tmp1.b16);
+    h->ld1r(dst.s, table_val2("one"));
+    h->and_(dst.b16, dst.b16, tmp1.b16);
 }
 
 void jit_logicalnot_emitter::register_table_entries() {
