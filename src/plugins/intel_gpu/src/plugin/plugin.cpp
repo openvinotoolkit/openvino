@@ -201,10 +201,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 if (m_device_map.count(target_id)) {
                     if (m_device_map.at(target_id)->get_info().dev_type == device_ptr->get_info().dev_type)
                         ret.push_back(target_id);
-                    else
-                        std::cout << "Not same type as target device for the device: " << device_with_id << std::endl;
                 } else {
-                    std::cout << "Invalid device: " << device_with_id << std::endl;
+                    OPENVINO_THROW("Invalid device found for TP: ", device_with_id);
                 }
             }
             start = end + delimiter.length();
@@ -217,21 +215,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             if (m_device_map.count(target_id)) {
                 if (m_device_map.at(target_id)->get_info().dev_type == device_ptr->get_info().dev_type)
                     ret.push_back(target_id);
-                else
-                    std::cout << "Not same type as target device for the device: " << last << std::endl;
             } else {
-                std::cout << "Invalid device: " << last << std::endl;
+                OPENVINO_THROW("Invalid device found for TP: ", last);
             }
         }
-        if (ret.empty()) {
-            std::cout << "No available device found for TP from specified device candidate list: " << devices_for_tp
-                      << ". Will select another device with same type as default device: GPU." << device_id
-                      << std::endl;
-            ret.push_back(device_id);
+        if (ret.empty())
+            OPENVINO_THROW("Invalid number of parsed device found for TP from specified device candidate list: ",
+                           devices_for_tp);
+        if (ret.size() == 1) {
+            auto id = ret.front();
             for (const auto& item : m_device_map) {
-                if (item.first != device_id && item.second->get_info().dev_type == device_ptr->get_info().dev_type)
+                if (item.first != id && item.second->get_info().dev_type == device_ptr->get_info().dev_type)
                     ret.push_back(item.first);
             }
+        }
+        if (ret.size() > 2) {
+            std::cout << "Will only select 2 devices for TP." << std::endl;
+            ret = std::vector<std::string>(ret.begin(), ret.begin() + 2);
         }
         return ret;
     };
@@ -246,13 +246,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             }
             return rank_table;
         };
-        if (devices_id_for_tp.size() > 2) {
-            std::cout << "Will only select 2 devices for TP." << std::endl;
-            devices_id_for_tp = std::vector<std::string>(devices_id_for_tp.begin(), devices_id_for_tp.begin() + 2);
-        }
         for (auto& device_id : devices_id_for_tp) {
             config.register_device_context_for_tp(get_default_context(device_id));
-            std::cout << "Registered device with id GPU." << device_id << " for TP."<< std::endl;
+            std::cout << "Registered device with id GPU." << device_id << " for TP." << std::endl;
         }
         if (config.get_context_for_tp().size() > 1) {
             config.enableSubStreams = true;
