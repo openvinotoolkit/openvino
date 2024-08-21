@@ -26,8 +26,7 @@ std::vector<TRShape> shape_infer(const SliceScatter* op,
                            num_of_inputs == 5 || num_of_inputs == 6,
                            "SliceScatter has to have 5 or 6 inputs. Got: ",
                            num_of_inputs);
-    const auto input_shape = input_shapes[0];
-    const auto& data_rank = input_shape.rank();
+    const auto& data_rank = input_shapes[0].rank();
     auto output_shape = input_shapes[0];
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
