@@ -44,7 +44,7 @@ public:
             return false;
 
         // oneDNN supports padded input of outer axis only for buffer fusing on static shape
-        if (!has_outer_padding_offset() && get_users().front()->get_preferred_impl_type() == impl_types::onednn)
+        if (!has_outer_padding_offset() && get_users().size() == 1 && get_users().front()->get_preferred_impl_type() == impl_types::onednn)
             return false;
 
         // TODO: If user is RoPE or MVN and dynamic padding exists, ouput padding propagation is not supported in the base mode
