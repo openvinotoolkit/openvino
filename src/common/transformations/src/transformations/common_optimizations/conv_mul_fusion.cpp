@@ -15,39 +15,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-// Check the constant shape is compatible. The compatible shapes are:
-// [], [1], [1, 1], [1, 1, 1] etc. and [1, C, 1, 1] & [1, C, 1] & [C, 1]
-//static bool const_shape_compatible(const ov::PartialShape& const_shape, const ov::Dimension& C) {
-//    if (!const_shape.is_static()) {
-//        return false;
-//    }
-//
-//    if (is_scalar(const_shape)) {
-//        return true;
-//    }
-//
-//    if (const_shape.rank().get_length() == 2) {
-//        if ((const_shape[0] == C || const_shape[0] == 1) && const_shape[1] == 1) {
-//            return true;
-//        }
-//    }
-//
-//    const int C_dim = 1;
-//    for (int i = 0; i < const_shape.rank().get_length(); ++i) {
-//        if (i == C_dim) {
-//            if (const_shape[i] != C.get_length() && const_shape[i] != 1) {
-//                return false;
-//            }
-//        } else {
-//            if (const_shape[i] != 1) {
-//                return false;
-//            }
-//        }
-//    }
-//
-//    return true;
-//}
-
 ov::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
     MATCHER_SCOPE(ConvolutionMultiplyFusion);
     auto input = pattern::any_input();
