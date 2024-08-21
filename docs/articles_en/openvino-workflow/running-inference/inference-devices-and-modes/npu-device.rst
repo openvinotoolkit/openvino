@@ -141,7 +141,7 @@ offer a limited set of supported OpenVINO features.
          ov::intel_npu::compilation_mode_params
          ov::intel_npu::turbo
          ov::intel_npu::tiles
-         ov::intel_nou::max_tiles
+         ov::intel_npu::max_tiles
 
    .. tab-item:: Read-only properties
 
@@ -164,6 +164,7 @@ offer a limited set of supported OpenVINO features.
          ov::intel_npu::device_alloc_mem_size
          ov::intel_npu::device_total_mem_size
          ov::intel_npu::driver_version
+         ov::intel_npu::umd_caching
 
 
 .. note::
