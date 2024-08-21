@@ -3,12 +3,17 @@
 //
 
 #include "behavior_tests.hpp"
+#include "comparators/nrmse.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "compiled_model.hpp"
+#include "openvino/util/file_util.hpp"
+
+#include <filesystem>
 
 using namespace testing;
 using namespace ov::npuw::tests;
 using namespace ov::intel_npu::npuw;
+
+#define TIMES(times) times 
 
 #define THROW(...) \
     .WillOnce(Throw(std::runtime_error(__VA_ARGS__)))
@@ -46,10 +51,10 @@ using namespace ov::intel_npu::npuw;
 
 TEST_F(BehaviorTestsNPUW, TestInfrastructureIsCorrect) {
     // Set expectations first:
-    EXPECT_CALL(*npu_plugin, get_property).Times(AnyNumber());
-    EXPECT_CALL(*npu_plugin, get_property(std::string("AVAILABLE_DEVICES"), _)).Times(1);
-    EXPECT_CALL(*cpu_plugin, get_property).Times(AnyNumber());
-    EXPECT_CALL(*cpu_plugin, get_property(std::string("AVAILABLE_DEVICES"), _)).Times(1);
+    EXPECT_CALL(*mock_npu_plugin, get_property).Times(AnyNumber());
+    EXPECT_CALL(*mock_npu_plugin, get_property(std::string("AVAILABLE_DEVICES"), _)).Times(1);
+    EXPECT_CALL(*mock_cpu_plugin, get_property).Times(AnyNumber());
+    EXPECT_CALL(*mock_cpu_plugin, get_property(std::string("AVAILABLE_DEVICES"), _)).Times(1);
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
@@ -73,8 +78,8 @@ TEST_F(BehaviorTestsNPUW, CompilationIsSuccessful) {
     model = model_generator.get_model_with_one_op();
 
     // Set expectations first:
-    EXPECT_COMPILE_MODEL(npu, 1);
-    EXPECT_COMPILE_MODEL(cpu, 0);
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(1));
+    EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
@@ -91,8 +96,8 @@ TEST_F(BehaviorTestsNPUW, CompilationIsFailSafe) {
     {
         InSequence s;
 
-        EXPECT_COMPILE_MODEL(npu, 1, THROW("Compilation on MockNPU is failed"));
-        EXPECT_COMPILE_MODEL(cpu, 1);
+        EXPECT_COMPILE_MODEL(mock_npu, TIMES(1), THROW("Compilation on MockNPU is failed"));
+        EXPECT_COMPILE_MODEL(mock_cpu, TIMES(1));
     }
 
     // Register mock objects as plugins in OpenVINO:
@@ -107,8 +112,8 @@ TEST_F(BehaviorTestsNPUW, CompilationIsFailed) {
     model = model_generator.get_model_with_one_op();
 
     // Set expectations first:
-    EXPECT_COMPILE_MODEL(npu, 1, THROW("Compilation on MockNPU is failed"));
-    EXPECT_COMPILE_MODEL(cpu, 0);
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(1), THROW("Compilation on MockNPU is failed"));
+    EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
@@ -122,9 +127,9 @@ TEST_F(BehaviorTestsNPUW, InferRequestCreationIsSuccessful) {
     model = model_generator.get_model_with_one_op();
 
     // Set expectations first:
-    EXPECT_COMPILE_MODEL(npu, 1);
-    EXPECT_COMPILE_MODEL(cpu, 0);
-    EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(0), 1);
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(1));
+    EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
+    EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(0), TIMES(1));
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
@@ -141,11 +146,11 @@ TEST_F(BehaviorTestsNPUW, InferRequestCreationIsFailSafe) {
     // Set expectations first:
     {
         InSequence s;
-        EXPECT_COMPILE_MODEL(npu, 1);
-        EXPECT_COMPILE_MODEL(cpu, 1);
+        EXPECT_COMPILE_MODEL(mock_npu, TIMES(1));
+        EXPECT_COMPILE_MODEL(mock_cpu, TIMES(1));
     }
-    EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(0), 1, THROW("Infer request creation on MockNPU is failed"));
-    EXPECT_CREATE_SYNC_INFER_REQ(cpu, MODEL(0), 1);
+    EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(0), TIMES(1), THROW("Infer request creation on MockNPU is failed"));
+    EXPECT_CREATE_SYNC_INFER_REQ(mock_cpu, MODEL(0), TIMES(1));
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
@@ -160,10 +165,10 @@ TEST_F(BehaviorTestsNPUW, InferRequestCreationIsFailed) {
     model = model_generator.get_model_with_one_op();
 
     // Set expectations first:
-    EXPECT_COMPILE_MODEL(npu, 1);
-    EXPECT_COMPILE_MODEL(cpu, 0);
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(1));
+    EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
 
-    EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(0), 1, THROW("Infer request creation on MockNPU is failed"));
+    EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(0), TIMES(1), THROW("Infer request creation on MockNPU is failed"));
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
@@ -178,10 +183,10 @@ TEST_F(BehaviorTestsNPUW, InferIsSuccessful) {
     model = model_generator.get_model_with_one_op();
 
     // Set expectations first:
-    EXPECT_COMPILE_MODEL(npu, 1);
-    EXPECT_COMPILE_MODEL(cpu, 0);
-    EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(0), 1);
-    EXPECT_INFER(npu, MODEL(0), 1);
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(1));
+    EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
+    EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(0), TIMES(1));
+    EXPECT_INFER(mock_npu, MODEL(0), TIMES(1));
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
@@ -199,13 +204,13 @@ TEST_F(BehaviorTestsNPUW, InferIsFailSafe) {
     // Set expectations first:
     {
         InSequence seq;
-        EXPECT_COMPILE_MODEL(npu, 1);
-        EXPECT_COMPILE_MODEL(cpu, 1);
+        EXPECT_COMPILE_MODEL(mock_npu, TIMES(1));
+        EXPECT_COMPILE_MODEL(mock_cpu, TIMES(1));
     }
-    EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(0), 1);
-    EXPECT_INFER(npu, MODEL(0), 1, THROW("Infer on MockNPU is failed"));
-    EXPECT_CREATE_SYNC_INFER_REQ(cpu, MODEL(0), 1);
-    EXPECT_INFER(cpu, MODEL(0), 1);
+    EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(0), TIMES(1));
+    EXPECT_INFER(mock_npu, MODEL(0), TIMES(1), THROW("Infer on MockNPU is failed"));
+    EXPECT_CREATE_SYNC_INFER_REQ(mock_cpu, MODEL(0), TIMES(1));
+    EXPECT_INFER(mock_cpu, MODEL(0), TIMES(1));
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
@@ -221,11 +226,11 @@ TEST_F(BehaviorTestsNPUW, InferIsFailed) {
     model = model_generator.get_model_with_one_op();
 
     // Set expectations first:
-    EXPECT_COMPILE_MODEL(npu, 1);
-    EXPECT_COMPILE_MODEL(cpu, 0);
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(1));
+    EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
 
-    EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(0), 1);
-    EXPECT_INFER(npu, MODEL(0), 1, THROW("Infer on MockNPU is failed"));
+    EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(0), TIMES(1));
+    EXPECT_INFER(mock_npu, MODEL(0), TIMES(1), THROW("Infer on MockNPU is failed"));
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
@@ -239,11 +244,11 @@ TEST_F(BehaviorTestsNPUW, InferIsFailed) {
 
 using BehaviorTestsNPUWOnlinePartitioning = BehaviorTestsNPUW;
 TEST_F(BehaviorTestsNPUWOnlinePartitioning, CompilationIsSuccessful) {
-    const auto& model = model_generator.get_model_with_repeated_blocks();
+    model = model_generator.get_model_with_repeated_blocks();
 
     // Set expectations first:
-    EXPECT_COMPILE_MODEL(npu, Between(2, 12));
-    EXPECT_COMPILE_MODEL(cpu, 0);
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(12));
+    EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
@@ -260,9 +265,9 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, CompilationIsFailSafe) {
     {
         InSequence s;
 
-        EXPECT_COMPILE_MODEL(npu, 1, THROW("Compilation on MockNPU is failed"));
-        EXPECT_COMPILE_MODEL(cpu, 1);
-        EXPECT_COMPILE_MODEL(npu, Between(2, 11));
+        EXPECT_COMPILE_MODEL(mock_npu, TIMES(1), THROW("Compilation on MockNPU is failed"));
+        EXPECT_COMPILE_MODEL(mock_cpu, TIMES(1));
+        EXPECT_COMPILE_MODEL(mock_npu, TIMES(11));
         
     }
 
@@ -279,8 +284,8 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, CompilationIsFailed) {
     model = model_generator.get_model_with_repeated_blocks();
 
     // Set expectations first:
-    EXPECT_COMPILE_MODEL(npu, 1, THROW("Compilation on MockNPU is failed"));
-    EXPECT_COMPILE_MODEL(cpu, 0);    
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(1), THROW("Compilation on MockNPU is failed"));
+    EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));    
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
@@ -295,11 +300,11 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, InferRequestCreationIsSuccessful) {
     model = model_generator.get_model_with_repeated_blocks();
 
     // Set expectations first:
-    EXPECT_COMPILE_MODEL(npu, 12);
-    EXPECT_COMPILE_MODEL(cpu, 0);
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(12));
+    EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
 
     for (int i = 0;  i < 12; i++) {
-        EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(i), 1);
+        EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(i), TIMES(1));
     }
 
     // Register mock objects as plugins in OpenVINO:
@@ -309,7 +314,7 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, InferRequestCreationIsSuccessful) {
     use_npuw_props.emplace(devices("MockNPU"));
     use_npuw_props.emplace(partitioning::online::min_size(12));
     auto compiled_model = core.compile_model(model, "NPU", use_npuw_props);
-    compiled_model.create_infer_request();
+    EXPECT_NO_THROW(compiled_model.create_infer_request());
 }
 
 TEST_F(BehaviorTestsNPUWOnlinePartitioning, InferRequestCreationIsFailSafe) {
@@ -318,15 +323,15 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, InferRequestCreationIsFailSafe) {
     {
         InSequence s;
 
-        EXPECT_COMPILE_MODEL(npu, 12);
-        EXPECT_COMPILE_MODEL(cpu, 1);
+        EXPECT_COMPILE_MODEL(mock_npu, TIMES(12));
+        EXPECT_COMPILE_MODEL(mock_cpu, TIMES(1));
     }
 
     for (int i = 0;  i < 11; i++) {
-        EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(i), 1);
+        EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(i), TIMES(1));
     }
-    EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(11), 1, THROW("Infer request creation on MockNPU is failed"));
-    EXPECT_CREATE_SYNC_INFER_REQ(cpu, MODEL(0), 1);
+    EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(11), TIMES(1), THROW("Infer request creation on MockNPU is failed"));
+    EXPECT_CREATE_SYNC_INFER_REQ(mock_cpu, MODEL(0), TIMES(1));
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
@@ -342,13 +347,13 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, InferRequestCreationIsFailed) {
     model = model_generator.get_model_with_repeated_blocks();
 
     // Set expectations first:
-    EXPECT_COMPILE_MODEL(npu, 12);
-    EXPECT_COMPILE_MODEL(cpu, 0);
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(12));
+    EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
 
     for (int i = 0;  i < 11; i++) {
-        EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(i), 1);
+        EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(i), TIMES(1));
     }
-    EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(11), 1, THROW("Infer request creation on MockNPU is failed"));
+    EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(11), TIMES(1), THROW("Infer request creation on MockNPU is failed"));
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
@@ -364,12 +369,12 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, InferIsSuccessful) {
     model = model_generator.get_model_with_repeated_blocks();
 
     // Set expectations first:
-    EXPECT_COMPILE_MODEL(npu, 12);
-    EXPECT_COMPILE_MODEL(cpu, 0);
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(12));
+    EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
 
     for (int i = 0;  i < 12; i++) {
-        EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(i), 1);
-        EXPECT_INFER(npu, MODEL(i), 1);
+        EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(i), TIMES(1));
+        EXPECT_INFER(mock_npu, MODEL(i), TIMES(1));
     }
 
     // Register mock objects as plugins in OpenVINO:
@@ -389,19 +394,19 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, InferIsFailSafe) {
     // Set expectations first:
     {
         InSequence seq;
-        EXPECT_COMPILE_MODEL(npu, 12);
-        EXPECT_COMPILE_MODEL(cpu, 1);
+        EXPECT_COMPILE_MODEL(mock_npu, TIMES(12));
+        EXPECT_COMPILE_MODEL(mock_cpu, TIMES(1));
     }
     for (int i = 0;  i < 12; i++) {
-       EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(i), 1);
+       EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(i), TIMES(1));
     }
     for (int i = 0;  i < 11; i++) {
-        EXPECT_INFER(npu, MODEL(i), 1);
+        EXPECT_INFER(mock_npu, MODEL(i), TIMES(1));
     }
-    EXPECT_INFER(npu, MODEL(11), 1, THROW("Infer on MockNPU is failed"));
+    EXPECT_INFER(mock_npu, MODEL(11), TIMES(1), THROW("Infer on MockNPU is failed"));
 
-    EXPECT_CREATE_SYNC_INFER_REQ(cpu, MODEL(0), 1);
-    EXPECT_INFER(cpu, MODEL(0), 1);
+    EXPECT_CREATE_SYNC_INFER_REQ(mock_cpu, MODEL(0), TIMES(1));
+    EXPECT_INFER(mock_cpu, MODEL(0), TIMES(1));
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
@@ -420,16 +425,16 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, InferIsFailed) {
     // Set expectations first:
     {
         InSequence seq;
-        EXPECT_COMPILE_MODEL(npu, 12);
-        EXPECT_COMPILE_MODEL(cpu, 0);
+        EXPECT_COMPILE_MODEL(mock_npu, TIMES(12));
+        EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
     }
     for (int i = 0;  i < 12; i++) {
-        EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(i), 1);
+        EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(i), TIMES(1));
     }
     for (int i = 0;  i < 11; i++) {
-        EXPECT_INFER(npu, MODEL(i), 1);
+        EXPECT_INFER(mock_npu, MODEL(i), TIMES(1));
     }
-    EXPECT_INFER(npu, MODEL(11), 1, THROW("Infer on MockNPU is failed"));
+    EXPECT_INFER(mock_npu, MODEL(11), TIMES(1), THROW("Infer on MockNPU is failed"));
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
@@ -448,19 +453,19 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, RepeatedBlocksAreFolded) {
     // Set expectations first:
     {
         InSequence seq;
-        EXPECT_COMPILE_MODEL(npu, 3);
-        EXPECT_COMPILE_MODEL(cpu, 0);
+        EXPECT_COMPILE_MODEL(mock_npu, TIMES(3));
+        EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
     }
     for (int i = 0;  i < 3; i++) {
-        EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(i), 1);
+        EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(i), TIMES(1));
     }
 
     // 1st model infer request is called once -- head
-    EXPECT_INFER(npu, MODEL(0), 1);
+    EXPECT_INFER(mock_npu, MODEL(0), TIMES(1));
     // 2nd model infer request is called 10 times -- repeated block
-    EXPECT_INFER(npu, MODEL(1), 10);
+    EXPECT_INFER(mock_npu, MODEL(1), TIMES(10));
     // 3rd model infer request is called once -- tail
-    EXPECT_INFER(npu, MODEL(2), 1);
+    EXPECT_INFER(mock_npu, MODEL(2), TIMES(1));
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
@@ -480,34 +485,34 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, FoldingAndPipelining) {
     // Set expectations first:
     {
         InSequence seq;
-        EXPECT_COMPILE_MODEL(npu, 3);
-        EXPECT_COMPILE_MODEL(cpu, 0);
+        EXPECT_COMPILE_MODEL(mock_npu, TIMES(3));
+        EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
     }
 
     for (int i = 0;  i < 3; i++) {
         // Here we will create 2 infer requests per model,
         // so `create_sync_infer_request()` should be called twice
         // per model:
-        EXPECT_CREATE_SYNC_INFER_REQ(npu, MODEL(i), 2);
+        EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(i), TIMES(2));
     }
 
     // 1st model 1st infer request is called once -- head
-    EXPECT_INFER_FOR(npu, MODEL(0), INFER_REQ(0), 1);
+    EXPECT_INFER_FOR(mock_npu, MODEL(0), INFER_REQ(0), TIMES(1));
     // 1st model 2nd infer request is never called,
     // it is not a function and is not repeated
-    EXPECT_INFER_FOR(npu, MODEL(0), INFER_REQ(1), 0); 
+    EXPECT_INFER_FOR(mock_npu, MODEL(0), INFER_REQ(1), TIMES(0)); 
 
     // Repeated block
     // 2nd model 1st infer request is called 5 times
-    EXPECT_INFER_FOR(npu, MODEL(1), INFER_REQ(0), 5);
+    EXPECT_INFER_FOR(mock_npu, MODEL(1), INFER_REQ(0), TIMES(5));
     // 2nd model 2nd infer request (brother of 1st one) is called 5 times
-    EXPECT_INFER_FOR(npu, MODEL(1), INFER_REQ(1), 5);
+    EXPECT_INFER_FOR(mock_npu, MODEL(1), INFER_REQ(1), TIMES(5));
 
     // 3rd model 1st infer request is called once -- tail
-    EXPECT_INFER_FOR(npu, MODEL(2), INFER_REQ(0), 1);
+    EXPECT_INFER_FOR(mock_npu, MODEL(2), INFER_REQ(0), TIMES(1));
     // 3rd model 2nd infer request is never called,
     // it is not a function and is not repeated
-    EXPECT_INFER_FOR(npu, MODEL(2), INFER_REQ(1), 0);
+    EXPECT_INFER_FOR(mock_npu, MODEL(2), INFER_REQ(1), TIMES(0));
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();
@@ -524,3 +529,148 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, FoldingAndPipelining) {
     EXPECT_NO_THROW(infer_request.infer());
 }
 
+using BehaviorTestsNPUWOfflinePartitioning = BehaviorTestsNPUW;
+TEST_F(BehaviorTestsNPUWOfflinePartitioning, CompilationIsSuccessful) {
+    model = model_generator.get_model_with_repeated_blocks();
+
+    // Set expectations first:
+    // For plan generation and execution (twice compiled):
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(24));
+    EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
+
+    // Register mock objects as plugins in OpenVINO:
+    register_mock_plugins_in_ov();
+
+    // Generate plan:
+    use_npuw_props.emplace(devices("MockNPU"));
+    use_npuw_props.emplace(partitioning::online::dump_plan("test_partitioning.xml"));
+
+    EXPECT_NO_THROW(core.compile_model(model, "NPU", use_npuw_props));
+    EXPECT_TRUE(std::filesystem::exists("test_partitioning.xml"));
+
+    // Do the actual test:
+    ov::AnyMap offline_plan_props = { ::ov::intel_npu::use_npuw(true),
+                                      devices("MockNPU"),
+                                      partitioning::plan("test_partitioning.xml") };
+    ov::CompiledModel compiled_model;
+    EXPECT_NO_THROW(compiled_model = core.compile_model(model, "NPU", offline_plan_props));
+    EXPECT_EQ("test_partitioning.xml",
+        compiled_model.get_property(partitioning::plan.name()).as<std::string>());
+    EXPECT_TRUE(std::filesystem::remove("test_partitioning.xml"));
+}
+
+TEST_F(BehaviorTestsNPUWOfflinePartitioning, InferRequestCreationIsSuccessful) {
+    model = model_generator.get_model_with_repeated_blocks();
+
+    // Set expectations first:
+    // For plan generation and execution (twice compiled):
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(24));
+    EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
+
+    for (int i = 0;  i < 12; i++) {
+        // First 12 models are compiled only to generate partitioning plan:
+        EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(i + 12), 1);
+    }
+
+    // Register mock objects as plugins in OpenVINO:
+    register_mock_plugins_in_ov();
+
+    // Generate plan:
+    use_npuw_props.emplace(devices("MockNPU"));
+    use_npuw_props.emplace(partitioning::online::dump_plan("test_partitioning.xml"));
+    use_npuw_props.emplace(partitioning::online::pipeline("REP"));
+
+    EXPECT_NO_THROW(core.compile_model(model, "NPU", use_npuw_props));
+    EXPECT_TRUE(std::filesystem::exists("test_partitioning.xml"));
+
+    // Do the actual test:
+    ov::AnyMap offline_plan_props = { ::ov::intel_npu::use_npuw(true),
+                                      devices("MockNPU"),
+                                      partitioning::plan("test_partitioning.xml") };
+    auto compiled_model = core.compile_model(model, "NPU", offline_plan_props);
+    EXPECT_NO_THROW(compiled_model.create_infer_request());
+    EXPECT_EQ("test_partitioning.xml",
+        compiled_model.get_property(partitioning::plan.name()).as<std::string>());
+    EXPECT_TRUE(std::filesystem::remove("test_partitioning.xml"));
+}
+
+TEST_F(BehaviorTestsNPUWOfflinePartitioning, InferIsSuccessful) {
+    model = model_generator.get_model_with_repeated_blocks();
+
+    // Set expectations first:
+    // For plan generation and execution (twice compiled):
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(24));
+    EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
+
+    for (int i = 0;  i < 12; i++) {
+        // First 12 models are compiled only to generate partitioning plan:
+        EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(i + 12), 1);
+        EXPECT_INFER(mock_npu, MODEL(i + 12), 1);
+    }
+
+    // Register mock objects as plugins in OpenVINO:
+    register_mock_plugins_in_ov();
+
+    // Generate plan:
+    use_npuw_props.emplace(devices("MockNPU"));
+    use_npuw_props.emplace(partitioning::online::dump_plan("test_partitioning.xml"));
+    use_npuw_props.emplace(partitioning::online::pipeline("REP"));
+
+    EXPECT_NO_THROW(core.compile_model(model, "NPU", use_npuw_props));
+    EXPECT_TRUE(std::filesystem::exists("test_partitioning.xml"));
+
+    // Do the actual test:
+    ov::AnyMap offline_plan_props = { ::ov::intel_npu::use_npuw(true),
+                                      devices("MockNPU"),
+                                      partitioning::plan("test_partitioning.xml") };
+    auto compiled_model = core.compile_model(model, "NPU", offline_plan_props);
+    auto infer_request = compiled_model.create_infer_request();
+    EXPECT_NO_THROW(infer_request.infer());
+    EXPECT_EQ("test_partitioning.xml",
+        compiled_model.get_property(partitioning::plan.name()).as<std::string>());
+    EXPECT_TRUE(std::filesystem::remove("test_partitioning.xml"));  
+}
+
+TEST(BehaviorTestsNPUWAccuracy, RepAndNonePartPipesGiveSameResults) {
+    // Register TEMPLATE plugin in OpenVINO:
+    ov::Core core;
+    auto plugin_path =
+        ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                           std::string(ov::test::utils::TEMPLATE_LIB)
+                                           + OV_BUILD_POSTFIX);
+    if (!ov::util::file_exists(plugin_path)) {
+        OPENVINO_THROW("Plugin: " + plugin_path + " does not exists!");
+    }
+    core.register_plugin(plugin_path, ov::test::utils::DEVICE_TEMPLATE);
+
+    // Create model:
+    ModelGenerator model_generator;
+    const auto &model = model_generator.get_model_with_repeated_blocks(32);
+
+    // Do the test:
+    ov::AnyMap online_rep_props { ::ov::intel_npu::use_npuw(true),
+                                  devices("TEMPLATE"),
+                                  partitioning::online::pipeline("REP") };
+    ov::AnyMap online_none_props { ::ov::intel_npu::use_npuw(true),
+                                   devices("TEMPLATE"),
+                                   partitioning::online::pipeline("NONE") };
+
+    auto rep_compiled_model = core.compile_model(model, "NPU", online_rep_props);
+    auto none_compiled_model = core.compile_model(model, "NPU", online_none_props);
+    auto rep_infer_request = rep_compiled_model.create_infer_request();
+    auto none_infer_request = rep_compiled_model.create_infer_request();
+
+    set_random_inputs<int32_t>(rep_infer_request);
+    set_random_inputs<int32_t>(none_infer_request);
+
+    rep_infer_request.infer();
+    none_infer_request.infer();
+
+    metrics::NRMSE nrmse(0.01);
+
+    for (const auto& output : rep_infer_request.get_compiled_model().outputs()) {
+        const auto& rep_tensor = rep_infer_request.get_tensor(output);
+        const auto& none_tensor = none_infer_request.get_tensor(output);
+        EXPECT_TRUE(nrmse(rep_tensor, none_tensor));
+    }
+}

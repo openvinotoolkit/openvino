@@ -35,10 +35,6 @@ ov_add_test_target(
   "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances"
   "${CMAKE_CURRENT_SOURCE_DIR}/behavior"
   "${CMAKE_CURRENT_SOURCE_DIR}/internal"
-  ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw
-  ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/utils/include
-  ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include
-  ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/al/include
   LINK_LIBRARIES
   ${OPTIONAL_FUNC_TESTS_LIBS}
   openvino::func_test_utils
