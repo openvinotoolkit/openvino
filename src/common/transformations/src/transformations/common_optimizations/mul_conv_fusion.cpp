@@ -40,14 +40,13 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
         const auto& mul_const = pattern_to_output.at(mul_const_pattern);
         const auto& input = pattern_to_output.at(input_pattern);
 
-        auto weights_shape = weights.get_partial_shape();
-        auto mul_const_shape = mul_const.get_partial_shape();   
-        auto input_shape = input.get_partial_shape();   
+        auto weights_shape = weights.get_shape();
+        auto mul_const_shape = mul_const.get_shape();   
+        auto input_shape = input.get_shape();   
 
         // Check if constant in multiply broadcasts input's shape.
         // If this is the case, we cannot perform the transformation as
         // 'bare' input's shape will not be aligned with weights.
-        // P.S. the check alters mul_const_shape (copy). Don't use it.
         if (ov::op::util::check_for_broadcast(mul_const_shape, input_shape)) {
             return false;
         }
@@ -100,24 +99,22 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
             return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);
-        const auto& mul_const = pattern_to_output.at(mul_const_pattern);
-        std::shared_ptr<Node> mul_const_node = pattern_to_output.at(mul_const_pattern).get_node_shared_ptr();
-        const auto& input = pattern_to_output.at(input_pattern);
-        const auto& conv = pattern_to_output.at(conv_pattern).get_node_shared_ptr();
+        std::shared_ptr<Node> mul_const = pattern_to_output.at(mul_const_pattern).get_node_shared_ptr();
+        const auto& weights_shape = weights.get_shape();
 
-        auto mul_const_shape = mul_const.get_partial_shape();   
+        const auto& input = pattern_to_output.at(input_pattern);
+
+        auto mul_const_shape = mul_const->output(0).get_partial_shape();   
         auto input_shape = input.get_partial_shape();   
         // Check if constant in multiply broadcasts input's shape.
         // If this is the case, we cannot perform the transformation as
         // 'bare' input's shape will not be aligned with weights.
-        // P.S. the check alters mul_const_shape (copy). Don't use it.
         if (ov::op::util::check_for_broadcast(mul_const_shape, input_shape)) {
             return false;
         }
 
-        const auto& weights_shape = weights.get_shape();
-        if (shape_size(mul_const_node->get_shape()) > 1) {
-            auto mul_const_shape = mul_const_node->get_shape();
+        if (shape_size(mul_const->get_shape()) > 1) {
+            auto mul_const_shape = mul_const->get_shape();
             // extend mul_const_shape rank with unit dimensions
             if (weights_shape.size() - mul_const_shape.size() > 1)
                 mul_const_shape.insert(mul_const_shape.begin(), weights_shape.size() - mul_const_shape.size() - 1, 1);
@@ -131,20 +128,21 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
             // Reshape mul_const from shape (1, C, H, W) to (G, 1, C / G, H, W) to match GroupConvolution weights format
             Shape new_shape{G, 1, C};
             std::copy(mul_const_shape.begin() + 2, mul_const_shape.end(), std::back_inserter(new_shape));
-            PartialShape weights_shape_copy = weights_shape;
-            if (!ov::op::util::check_for_broadcast(weights_shape_copy, new_shape)) {
+            if (!ov::op::util::check_for_broadcast(weights_shape, new_shape)) {
                 return false;
             }
-            mul_const_node = std::make_shared<ov::op::v1::Reshape>(
-                mul_const_node,
+            mul_const = std::make_shared<ov::op::v1::Reshape>(
+                mul_const,
                 ov::op::v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
                 false);
         }
 
-        auto weights_multiply = std::make_shared<ov::op::v1::Multiply>(weights, mul_const_node);
+        auto weights_multiply = std::make_shared<ov::op::v1::Multiply>(weights, mul_const);
         std::shared_ptr<Node> new_weights = ov::util::get_constant_from_source(weights_multiply);
         if (!new_weights)
             new_weights = weights_multiply;
+
+        const auto& conv = pattern_to_output.at(conv_pattern).get_node_shared_ptr();
 
         auto new_conv = conv->clone_with_new_inputs({input, new_weights});
         new_conv->set_friendly_name(conv->get_friendly_name());
@@ -177,23 +175,21 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
             return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);
-        auto weights_shape = weights.get_partial_shape();
-        std::shared_ptr<Node> mul_const_node = pattern_to_output.at(mul_const_pattern).get_node_shared_ptr();
-        const auto& mul_const = pattern_to_output.at(mul_const_pattern);
+        auto weights_shape = weights.get_shape();
+        std::shared_ptr<Node> mul_const = pattern_to_output.at(mul_const_pattern).get_node_shared_ptr();
         const auto& input = pattern_to_output.at(input_pattern);
 
-        auto mul_const_shape = mul_const.get_partial_shape();   
+        auto mul_const_shape = mul_const->output(0).get_partial_shape();   
         auto input_shape = input.get_partial_shape();   
         // Check if constant in multiply broadcasts input's shape.
         // If this is the case, we cannot perform the transformation as
         // 'bare' input's shape will not be aligned with weights.
-        // P.S. the check alters mul_const_shape (copy). Don't use it.
         if (ov::op::util::check_for_broadcast(mul_const_shape, input_shape)) {
             return false;
         }
 
-        if (shape_size(mul_const_node->get_shape()) > 1) {
-            auto mul_const_shape = mul_const_node->get_shape();
+        if (shape_size(mul_const->get_shape()) > 1) {
+            auto mul_const_shape = mul_const->get_shape();
             // extend mul_const_shape rank with unit dimensions
             if (weights_shape.size() > mul_const_shape.size())
                 mul_const_shape.insert(mul_const_shape.begin(), weights_shape.size() - mul_const_shape.size(), 1);
@@ -212,13 +208,13 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
             if (!ov::op::util::check_for_broadcast(weights_shape, new_shape)) {
                 return false;
             }
-            mul_const_node = std::make_shared<ov::op::v1::Reshape>(
-                mul_const_node,
+            mul_const = std::make_shared<ov::op::v1::Reshape>(
+                mul_const,
                 ov::op::v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
                 false);
         }
 
-        auto weights_multiply = std::make_shared<ov::op::v1::Multiply>(weights, mul_const_node);
+        auto weights_multiply = std::make_shared<ov::op::v1::Multiply>(weights, mul_const);
         std::shared_ptr<Node> new_weights = ov::util::get_constant_from_source(weights_multiply);
         if (!new_weights)
             new_weights = weights_multiply;
@@ -256,11 +252,10 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
             return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);
-        std::shared_ptr<Node> mul_const_node = pattern_to_output.at(mul_const_pattern).get_node_shared_ptr();
+        std::shared_ptr<Node> mul_const = pattern_to_output.at(mul_const_pattern).get_node_shared_ptr();
         const auto& input = pattern_to_output.at(input_pattern);
-        const auto& mul_const = pattern_to_output.at(mul_const_pattern);
 
-        auto mul_const_shape = mul_const.get_partial_shape();   
+        auto mul_const_shape = mul_const->output(0).get_partial_shape();   
         auto input_shape = input.get_partial_shape();   
         // Check if constant in multiply broadcasts input's shape.
         // If this is the case, we cannot perform the transformation as
@@ -271,8 +266,8 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
         }
 
         const auto& weights_shape = weights.get_shape();
-        if (shape_size(mul_const_node->get_shape()) > 1) {
-            auto mul_const_shape = mul_const_node->get_shape();
+        if (shape_size(mul_const->get_shape()) > 1) {
+            auto mul_const_shape = mul_const->get_shape();
             // extend mul_const_shape rank with unit dimensions
             if (weights_shape.size() - mul_const_shape.size() > 1)
                 mul_const_shape.insert(mul_const_shape.begin(), weights_shape.size() - mul_const_shape.size() - 1, 1);
@@ -294,13 +289,13 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
             if (!ov::op::util::check_for_broadcast(weights_shape_copy, new_shape)) {
                 return false;
             }
-            mul_const_node = std::make_shared<ov::op::v1::Reshape>(
-                mul_const_node,
+            mul_const = std::make_shared<ov::op::v1::Reshape>(
+                mul_const,
                 ov::op::v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
                 false);
         }
 
-        auto weights_multiply = std::make_shared<ov::op::v1::Multiply>(weights, mul_const_node);
+        auto weights_multiply = std::make_shared<ov::op::v1::Multiply>(weights, mul_const);
         std::shared_ptr<Node> new_weights = ov::util::get_constant_from_source(weights_multiply);
         if (!new_weights)
             new_weights = weights_multiply;
