@@ -56,6 +56,7 @@ void regclass_RemoteTensor(py::module m) {
         },
         R"(
         Copy tensor's data to a destination tensor. The destination tensor should have the same element type and shape.
+        In case of RoiTensor, the destination tensor should also have the same shape.
     )");
 
     cls.def(
@@ -65,6 +66,7 @@ void regclass_RemoteTensor(py::module m) {
         },
         R"(
         Copy tensor's data to a destination tensor. The destination tensor should have the same element type and shape.
+        In case of RoiTensor, the destination tensor should also have the same shape.
     )");
 
     cls.def(
@@ -73,7 +75,8 @@ void regclass_RemoteTensor(py::module m) {
             self.tensor.copy_from(src.tensor);
         },
         R"(
-        Copy source tensor's data to this tensor. Tensors should have the same element type and shape.
+        Copy source tensor's data to this tensor. Tensors should have the same element type.
+        In case of RoiTensor, tensors should also have the same shape.
     )");
 
     cls.def(
@@ -83,6 +86,7 @@ void regclass_RemoteTensor(py::module m) {
         },
         R"(
         Copy source tensor's data to this tensor. Tensors should have the same element type and shape.
+        In case of RoiTensor, tensors should also have the same shape.
     )");
 
     cls.def(
