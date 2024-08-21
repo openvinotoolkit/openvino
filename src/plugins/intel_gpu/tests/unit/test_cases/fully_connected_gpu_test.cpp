@@ -1360,7 +1360,7 @@ public:
         float max_diff = 0.f;
         float avg = 0.f;
         for (size_t i = 0; i < output_ptr_ref.size(); ++i) {
-            auto abs_diff = std::abs(output_ptr_ref[i] - output_ptr[i]);
+            auto abs_diff = std::abs((float)output_ptr_ref[i] - (float)output_ptr[i]);
             if (max_diff < abs_diff)
                 max_diff = abs_diff;
             avg += abs_diff;
@@ -2500,8 +2500,7 @@ public:
         ASSERT_EQ(3.0f, output_ptr[3]);
     }
 
-    void test_compressed_int4_scale_dyn_quan_osv32_isv2(bool is_caching_test, bool is_dynamic, bool is_wei_dyn = false,
-                                            int batch = 1, int ifm = 512, int ofm = 2048, int scales_group_size = 128) {
+    void test_compressed_int4_scale_dyn_quan_weight_i4(bool is_dynamic, int batch = 1, int ifm = 512, int ofm = 2048) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
@@ -2511,6 +2510,7 @@ public:
         long int batch_num = batch;
         long int ifm_num = ifm;
         long int ofm_num = ofm;
+        int scales_group_size = 128;
 
         auto input_ps = ov::PartialShape{ batch_num, 1, ifm_num };
         auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
@@ -2518,13 +2518,13 @@ public:
         auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::i4, format::bfyx });
         auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::fbyx });
 
-        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -200, 200, 100);
+        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.f, 2.f);
         set_values(input_mem, input_data);
 
-        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, -127, 127);
+        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 4);
         set_values(weights_mem, weigths_data);
 
-        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 0, 30, 1000);
+        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -4.f, 4.f);
         set_values(scale_mem, scale_data);
 
         auto in_layout = is_dynamic ? layout{ ov::PartialShape{ -1, -1, -1 }, data_types::f16, format::bfyx }
@@ -2544,8 +2544,9 @@ public:
 
             auto config = get_test_default_config(engine);
             config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-            ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl };
+            ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl };
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
+            config.set_property(ov::hint::dynamic_quantization_group_size(0));
 
             network network(engine, topology, config);
             network.set_input_data("input", input_mem);
@@ -2572,7 +2573,7 @@ public:
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::hint::dynamic_quantization_group_size(32));
 
-        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
 
         if (is_dynamic && !engine.get_device_info().supports_immad) {
             auto inst = network->get_primitive("fc_prim");
@@ -2597,14 +2598,15 @@ public:
         float max_diff = 0.f;
         float avg = 0.f;
         for (size_t i = 0; i < output_ptr_ref.size(); ++i) {
-            auto abs_diff = std::abs(output_ptr_ref[i] - output_ptr[i]);
+            auto abs_diff = std::abs((float)output_ptr_ref[i] - (float)output_ptr[i]);
             if (max_diff < abs_diff)
                 max_diff = abs_diff;
             avg += abs_diff;
             count++;
-            OPENVINO_ASSERT(abs_diff < 256);
+            OPENVINO_ASSERT(abs_diff < 10);
         }
-        std::cout << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
+        GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
+        OPENVINO_ASSERT((avg/count) < 1);
     }
 };
 
@@ -3534,7 +3536,7 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_quan_dynamic_f_input
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case) {
-    this->test_compressed_int4_scale_dyn_quan_osv32_isv2(false, true, 359, 1536, 2560);
+    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_scale_bias) {
