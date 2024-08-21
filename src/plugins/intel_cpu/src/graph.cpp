@@ -5,6 +5,7 @@
 #include "graph.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <limits>
 #include <map>
 #include <memory>
@@ -232,30 +233,6 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
     }
 }
 
-void Graph::GroupParallelNodes() {
-    std::map<std::string, std::vector<NodePtr>> pdomain_nodes;
-    for (size_t k = 0; k < graphNodes.size(); k++) {
-        auto& node = graphNodes[k];
-        auto& domain = node->getParallelDomain();
-        if (domain.empty())
-            continue;
-        if (pdomain_nodes.count(domain) == 0)
-            pdomain_nodes[domain] = {};
-        pdomain_nodes[domain].push_back(node);
-    }
-
-    // record valid paralell_nodes
-    for (auto& pn : pdomain_nodes) {
-        auto& node_ptrs = pn.second;
-        if (node_ptrs.size() > 1) {
-            // parallelWith includes pointer to itself
-            for (auto& pnode : node_ptrs) {
-                pnode->parallelWith = node_ptrs;
-            }
-        }
-    }
-}
-
 static std::vector<size_t> IdentifySyncPoints(const std::vector<NodePtr>& graphNodes) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::IdentifySyncPoints");
     std::vector<size_t> syncNodesInds;
@@ -350,8 +327,6 @@ void Graph::InitGraph(bool optimize) {
     ResolveComplexInplaceConflicts();
 
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
-
-    GroupParallelNodes();
 
     SortTopologically();
 
@@ -557,59 +532,65 @@ void Graph::insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<st
     InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
 }
 
-void Graph::ResolveEdgeConflicts() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveEdgeConflicts");
+void Graph::insertConvert(EdgePtr& edge) {
+    const auto& inDesc = edge->getInputDesc();
+    const auto& outDesc = edge->getOutputDesc();
 
-    ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
+    std::string convertName = edge->getParent()->getName() + "_" +
+        inDesc.getPrecision().get_type_name() + "_" + outDesc.getPrecision().get_type_name();
 
+    auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
+                                                       convertName, context);
+    convertNode->setDescs(inDesc, outDesc);
+    InsertNode(edge, convertNode, true);
+}
+
+static std::unordered_set<std::string> getUniqueLayerNames(const std::vector<NodePtr>& graphNodes) {
     std::unordered_set<std::string> uniqueLayerNames;
+    uniqueLayerNames.reserve(graphNodes.size());
+
     for (auto node : graphNodes) {
         uniqueLayerNames.insert(node->getName());
     }
 
-    auto updateEdge = [&](ptrdiff_t& i) {
-        graphEdges.erase(graphEdges.begin() + i);
-        i--;
-        numberOfEdges--;
-    };
+    return uniqueLayerNames;
+}
 
-    for (ptrdiff_t i = 0; i < numberOfEdges; i++) {
-        auto edge = graphEdges[i];
-        auto reorderStatus = graphEdges[i]->needReorder();
-        DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", reorderStatus);
-        if (reorderStatus == Edge::ReorderStatus::Regular) {
-            Edge::ReorderStatus reorderStatusInternal = Edge::ReorderStatus::Regular;
-            // Check if there is a reorder that needs the precision conversion
-            if (edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
-                    !isReorderAvailable(edge->getInputPortDesc()->getMemDesc(),
-                                        edge->getOutputPortDesc()->getMemDesc(),
-                                        this->getEngine())) {
-                // If we are here, then we need to insert Convert, because there are no reorders that support such type conversion
-                const auto& inDesc = edge->getInputDesc();
-                const auto& outDesc = edge->getOutputDesc();
+void Graph::ResolveEdgeConflicts() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveEdgeConflicts");
 
-                std::string convertName = edge->getParent()->getName() + "_" +
-                                          inDesc.getPrecision().get_type_name() + "_" + outDesc.getPrecision().get_type_name();
+    std::unordered_set<std::string> uniqueLayerNames = getUniqueLayerNames(graphNodes);
 
-                auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
-                                                                   convertName, context);
-                convertNode->setDescs(inDesc, outDesc);
-                InsertNode(edge, convertNode, true);
+    /* When inserting convert / reorder, two new edges are added (pushed to the end) to the graphEdges.
+       So use a plain for loop, to handle newly inserted edges as well */
+    for (size_t i = 0; i < graphEdges.size(); i++) {
+        auto& edge = graphEdges[i];
+        auto reorderStatus = edge->needReorder();
+        DEBUG_LOG(*edge, " reorderStatus = ", reorderStatus);
 
-                //Check if reorder is still needed
-                reorderStatusInternal = convertNode->getChildEdgeAt(0)->needReorder();
-                if (reorderStatusInternal != Edge::ReorderStatus::No)
-                    edge = convertNode->getChildEdgeAt(0);
+        switch (reorderStatus) {
+        case Edge::ReorderStatus::Regular: {
+            if (reorderStatus == Edge::ReorderStatus::Regular &&
+                edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
+                !isReorderAvailable(edge->getInputPortDesc()->getMemDesc(),
+                                    edge->getOutputPortDesc()->getMemDesc(),
+                                    this->getEngine())) {
+                // just insert convert. If layout reorder is still needed, it will be inserted later in the traverse
+                insertConvert(edge);
+            } else {
+                insertReorder(edge, false, uniqueLayerNames);
             }
-            if (reorderStatusInternal != Edge::ReorderStatus::No) {
-                insertReorder(edge, reorderStatusInternal == Edge::ReorderStatus::Optimized, uniqueLayerNames);
-            }
-            updateEdge(i);
-        } else if (reorderStatus == Edge::ReorderStatus::Optimized) {
+            break;
+        }
+        case Edge::ReorderStatus::Optimized:
             insertReorder(edge, true, uniqueLayerNames);
-            updateEdge(i);
+            break;
+        case Edge::ReorderStatus::No:
+            break;
         }
     }
+
+    RemoveDroppedEdges();
 }
 
 void Graph::ResolveComplexInplaceConflicts() {
@@ -617,10 +598,7 @@ void Graph::ResolveComplexInplaceConflicts() {
 
     ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
 
-    std::unordered_set<std::string> uniqueLayerNames;
-    for (auto node : graphNodes) {
-        uniqueLayerNames.insert(node->getName());
-    }
+    std::unordered_set<std::string> uniqueLayerNames = getUniqueLayerNames(graphNodes);
 
     auto updateEdge = [&](ptrdiff_t& i) {
         graphEdges.erase(graphEdges.begin() + i);
@@ -1378,87 +1356,27 @@ void Graph::InferDynamic(SyncInferRequest* request, UpdateStrategy&& update) {
 }
 
 inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const {
-    if (!node->parallelWith.empty()) {
-        // run nodes in parallel
-        auto& parallelNodes = node->parallelWith;
-        if (node == parallelNodes[0]) {
-            if (const auto& cpuExecutor = context->getCPUStreamExecutor()) {
-                auto num_parallel_nodes = parallelNodes.size();
-                ParalleMtNuma(num_parallel_nodes, cpuExecutor, [&](int subStreamID, size_t i) {
-                    auto& n = parallelNodes[i];
-
-                    if (n->isDynamicNode()) {
-                        n->executeDynamic(stream, subStreamID);
-                    } else {
-                        n->executeStatic(stream, subStreamID);
-                    }
-                });
-            } else {
-                // fallback to serialize executor
-                for (auto& node : parallelNodes) {
-                    if (node->isDynamicNode()) {
-                        node->executeDynamic(stream);
-                    } else {
-                        node->executeStatic(stream);
-                    }
-                }
-            }
-        }
+    DUMP(node, getConfig().debugCaps, infer_count);
+    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
+    DEBUG_LOG(*node);
+    // TODO: 132954 workaround for latency
+    int numaID = GetNumaNodeId();
+    if (node->isDynamicNode()) {
+        node->executeDynamic(stream, numaID);
     } else {
-        DUMP(node, getConfig().debugCaps, infer_count);
-        OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
-        DEBUG_LOG(*node);
-        // TODO: 132954 workaround for latency
-        int subStreamID = -1;
-#if defined(__x86_64__) && defined(__linux__)
-        if ((getGraphContext()->getCPUStreamExecutor()) && (getConfig().hintPerfMode == ov::hint::PerformanceMode::LATENCY)) {
-            subStreamID = getGraphContext()->getCPUStreamExecutor()->get_numa_node_id();
-        }
-#endif
-        if (node->isDynamicNode()) {
-            node->executeDynamic(stream, subStreamID);
-        } else {
-            node->executeStatic(stream, subStreamID);
-        }
+        node->executeStatic(stream, numaID);
     }
 }
 
-void Graph::ParalleMtNuma(size_t num_nodes,
-                          ov::threading::CPUStreamsExecutor::Ptr executor,
-                          const std::function<void(size_t, size_t)>& func) const {
-    OPENVINO_ASSERT(num_nodes > 1, "Parallel Nodes must be more than 1. But now got ",
-                                   num_nodes,
-                                   " Nodes, which shouldn't invoke multi nodes parallel.");
-    std::atomic<int> nodes_remain(num_nodes);
-    int cur_numa_id = executor->get_numa_node_id();
-    // enqueue (nsockets-1) sub stream tasks
-    int sub_stream_id = 0;
-    for (size_t socket_id = 0; socket_id < num_nodes; socket_id++) {
-        if (socket_id != static_cast<size_t>(cur_numa_id)) {
-            size_t i0{0}, i1{0};
-            splitter(num_nodes, num_nodes, socket_id, i0, i1);
-            executor->run_sub_stream(
-                [socket_id, i0, i1, &func, &nodes_remain]() {
-                    for (size_t i = i0; i < i1; i++) {
-                        func(socket_id, i);
-                        nodes_remain--;
-                    }
-                },
-                sub_stream_id);
-            sub_stream_id++;
-        }
+int Graph::GetNumaNodeId() const {
+    int numaNodeId = -1;
+#if defined(__x86_64__) && defined(__linux__)
+    if ((getGraphContext()->getCPUStreamExecutor()) &&
+        (getConfig().hintPerfMode == ov::hint::PerformanceMode::LATENCY)) {
+        numaNodeId = getGraphContext()->getCPUStreamExecutor()->get_numa_node_id();
     }
-    // run in main stream (current socket)
-    {
-        size_t i0{0}, i1{0};
-        splitter(num_nodes, num_nodes, static_cast<size_t>(cur_numa_id), i0, i1);
-        for (size_t i = i0; i < i1; i++) {
-            func(cur_numa_id, i);
-            nodes_remain--;
-        }
-    }
-    // wait and sync
-    while (nodes_remain.load() > 0) {}
+#endif
+    return numaNodeId;
 }
 
 void Graph::Infer(SyncInferRequest* request) {
@@ -1500,29 +1418,12 @@ void Graph::SortTopologically() {
             if (node->execIndex >= 0)
                 return; // already visited
 
-            if (!node->parallelWith.empty()) {
-                for (auto& n : node->parallelWith) {
-                    for (size_t i = 0; i < n->getParentEdges().size(); i++) {
-                        visit(n->getParentEdgeAt(i)->getParent());
-                    }
-                }
-
-                // parallel nodes has same execIndex
-                // so they can provide correct start/end time point for
-                // their input and output memory object
-                ++execIndexCnt;
-                for (auto& n : node->parallelWith) {
-                    sorted.push_back(n);
-                    n->execIndex = execIndexCnt;
-                }
-            } else {
-                for (size_t i = 0; i < node->getParentEdges().size(); i++) {
-                    visit(node->getParentEdgeAt(i)->getParent());
-                }
-
-                sorted.push_back(node);
-                node->execIndex = ++execIndexCnt;
+            for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+                visit(node->getParentEdgeAt(i)->getParent());
             }
+
+            sorted.push_back(node);
+            node->execIndex = ++execIndexCnt;
         };
 
         // First execute MemoryInput because it will change the memory pointer of
