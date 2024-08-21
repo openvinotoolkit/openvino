@@ -411,5 +411,12 @@ inline std::basic_string<C> make_path(const std::basic_string<C>& folder, const 
     return folder + ov::util::FileTraits<C>::file_separator + file;
 }
 
+/**
+ * @brief If the library path is symlink & the symlink file location is not in the real file folder, return true. Others
+ * return false.
+ * @param path - Library file path to check
+ * @return Bool value
+ */
+bool is_symlink_in_different_path(std::string library_path);
 }  // namespace util
 }  // namespace ov

@@ -24,9 +24,8 @@ struct scatter_nd_update : public primitive_base<scatter_nd_update> {
                       const input_info& data,
                       const input_info& idx,
                       const input_info& idupd,
-                      const size_t indices_rank,
-                      const padding& output_padding = padding())
-        : primitive_base(id, {data, idx, idupd}, {output_padding}), indices_rank(indices_rank) {}
+                      const size_t indices_rank)
+        : primitive_base(id, {data, idx, idupd}), indices_rank(indices_rank) {}
 
     /// @brief ScatterNDUpdate indices_rank
     size_t indices_rank = 0;

@@ -39,7 +39,7 @@ TEST_P(SoftmaxDecompositionTest, SoftmaxDecomposition) {
     model_ref = snippets_model->getLowered();
 }
 
-namespace {
+namespace SoftmaxDecompositionTestInstantiation {
 const std::vector<ov::PartialShape> input_shapes{{1, 3, 256, 256}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_SoftmaxDecomposition_positive_axis,
@@ -56,7 +56,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_SoftmaxDecomposition_negative_axis,
                                             ::testing::Values(SoftmaxVersion::V8)),
                          SoftmaxDecompositionTest::getTestCaseName);
 
-} // namespace
+}  // namespace SoftmaxDecompositionTestInstantiation
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

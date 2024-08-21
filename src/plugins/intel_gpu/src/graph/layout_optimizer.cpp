@@ -5,7 +5,6 @@
 #include "layout_optimizer.h"
 #include "primitive_inst.h"
 #include "program_helpers.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "data_inst.h"
 #include "reorder_inst.h"
@@ -936,10 +935,6 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
                 (decompression_zp_dt != ov::element::Type_t::u8 && decompression_zp_dt != ov::element::Type_t::i8)) {
                 return false;
             }
-
-            auto input_dt = node.get_input_layout(0).data_type;
-            if (input_dt == data_types::f32)
-                return false;
         }
     }
 
@@ -963,6 +958,9 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
 
 static bool is_node_for_onednn(gemm_node const& node) {
     if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
+        return false;
+
+    if (node.get_primitive()->indirect_a || node.get_primitive()->indirect_b)
         return false;
 
     return true;
@@ -1938,13 +1936,21 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
                 prim_input = node.get_dependency_index(node.as<convolution>().input());
             if (node.is_type<deconvolution>())
                 prim_input = node.get_dependency_index(node.as<deconvolution>().input());
+            size_t prim_weights = node.get_primitive()->input_size();
 
             // Note: did not handle attribute properly. especially for zero-point
             cldnn::format src_fmt = format::any;
-            if (idx == prim_input)
+            if (idx == prim_input) {
                 src_fmt = onednn::find_data_format(prim_desc.src_desc());
-            else  // Dep for fused post ops
+            } else if (idx == prim_weights) {
+                src_fmt = format::any;
+            } else {  // Dep for fused post ops
                 src_fmt = onednn::find_data_format(prim_desc.dst_desc());
+            }
+
+            // WA: Avoid b_fs_yx_fsv2 because Onednn tag aBcd2b is not declared.
+            if (src_fmt == format::b_fs_yx_fsv2)
+                src_fmt = format::byxf;
 
             // WA: shallow convolution needs to set input format by bfyx.
             //     onednn recommended byxf for input format. It will insert reorder before shallow conv.
@@ -1978,6 +1984,9 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             node.set_preferred_input_fmt(idx, src_fmt);
 
             auto dst_fmt = onednn::find_data_format(prim_desc.dst_desc());
+            // WA: Avoid b_fs_yx_fsv2 because Onednn tag aBcd2b is not declared.
+            if (dst_fmt == format::b_fs_yx_fsv2)
+                dst_fmt = format::byxf;
             // Errata: Best impl for shallow input conv with zero-point ops is ocl:xe_lp.
             if (node.is_type<convolution>() && src_fmt == format::bfyx) {
                 auto& conv = node.as<convolution>();

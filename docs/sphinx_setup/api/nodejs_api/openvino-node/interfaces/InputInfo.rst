@@ -17,7 +17,7 @@ Methods
 
 .. rubric:: model
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -31,7 +31,7 @@ Methods
 
 .. rubric:: preprocess
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -45,7 +45,7 @@ Methods
 
 .. rubric:: tensor
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 

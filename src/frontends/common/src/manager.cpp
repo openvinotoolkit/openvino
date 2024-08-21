@@ -70,7 +70,7 @@ public:
         std::lock_guard<std::mutex> guard(m_loading_mutex);
         for (auto& plugin_info : m_plugins) {
             if (!plugin_info.load()) {
-                OPENVINO_DEBUG << "Frontend load failed: " << plugin_info.m_file_path << "\n";
+                OPENVINO_DEBUG("Frontend load failed: ", plugin_info.m_file_path, "\n");
                 continue;
             }
             names.push_back(plugin_info.get_creator().m_name);
@@ -106,6 +106,8 @@ public:
     }
 
     void register_front_end(const std::string& name, const std::string& library_path) {
+        OPENVINO_ASSERT(!ov::util::is_symlink_in_different_path(library_path),
+                        "Cannot register plugin with symlink path: \"" + library_path + "\".");
         auto lib_path = ov::util::from_file_path(ov::util::get_plugin_path(library_path));
         PluginInfo plugin;
         plugin.m_file_path = lib_path;

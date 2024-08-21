@@ -38,13 +38,13 @@ jobs:
       GTEST_PARALLEL_SCRIPT: ${{ github.workspace }}/gtest_parallel.py
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: 'openvino_package'
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: 'openvino_tests'
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -74,7 +74,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
           TZ: "Europe/London" # to prevent tzdata from waiting user input
       - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
+        uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f # v5.1.1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -128,7 +128,7 @@ jobs:
 
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         if: always()
         with:
           name: test-results-${{ inputs.test_type }}-${{ inputs.device }}

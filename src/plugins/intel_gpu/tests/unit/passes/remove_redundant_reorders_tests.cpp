@@ -125,8 +125,10 @@ TEST(remove_redundant_reorders, skip_reorder_fusing_when_sibling_not_support_pad
     topology.add(permute("transpose_1", input_info("reorder_reshape_1"), { 0, 1, 2, 3, 5, 4 }));
     topology.add(reorder("convolution_reorder_1", input_info("convolution"),
                         { data_types::f16, format::fs_b_yx_fsv32, { 2, 16, 480, 270 }, padding({0, 0, 1, 1}, 0) }));
-    topology.add(convolution("convolution_2", input_info("convolution_reorder_1"),
-                             "weights_2", "", 1, {1, 1}, {1, 1}, {1, 1}, {1, 1}, false, ov::op::PadType::EXPLICIT, padding({0, 0, 1, 1}, 0)));
+    auto conv = convolution("convolution_2", input_info("convolution_reorder_1"),
+                             "weights_2", "", 1, {1, 1}, {1, 1}, {1, 1}, {1, 1}, false, ov::op::PadType::EXPLICIT);
+    conv.output_paddings = {padding({0, 0, 1, 1}, 0)};
+    topology.add(conv);
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -290,7 +292,7 @@ TEST(remove_redundant_reorders, fuse_reorder_to_prev_mvn_dyn) {
     topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, { 2 }));
     topology.add(reorder("reorder", input_info("mvn"), format::any, data_types::f16,
                          std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
-    topology.add(fully_connected("fc", input_info("reorder"), { "weights" }, "", data_types::f16, padding(), 3, 2));
+    topology.add(fully_connected("fc", input_info("reorder"), { "weights" }, "", data_types::f16, 3, 2));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -429,7 +431,6 @@ TEST(remove_redundant_reorders, reorder_of_non_default_port) {
                                         ov::op::TopKSortType::SORT_VALUES,
                                         false,
                                         false,
-                                        padding(),
                                         data_types::f32,
                                         2);
     arg_max_min_prim.output_paddings = {padding(), padding()};
@@ -437,8 +438,8 @@ TEST(remove_redundant_reorders, reorder_of_non_default_port) {
     topology.add(arg_max_min_prim);
     topology.add(reorder("reorder_1", input_info("arg_max", 0), format::bfyx, data_types::f32));
     topology.add(reorder("reorder_2", input_info("arg_max", 1), format::bfyx, data_types::f32));
-    topology.add(permute("permute_1", input_info("reorder_1", 0), {0, 1, 2, 3}, padding()));
-    topology.add(permute("permute_2", input_info("reorder_2", 0), {0, 1, 2, 3}, padding()));
+    topology.add(permute("permute_1", input_info("reorder_1", 0), {0, 1, 2, 3}));
+    topology.add(permute("permute_2", input_info("reorder_2", 0), {0, 1, 2, 3}));
     topology.add(concatenation("concat", { input_info("permute_1"), input_info("permute_2") }, 0));
 
     std::vector<float> input_vec = {

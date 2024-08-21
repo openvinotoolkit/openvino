@@ -32,7 +32,7 @@
 #include <vector>
 #include <string>
 
-#define THROW_CPU_NODE_ERR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
+#define THROW_CPU_NODE_ERR(...) OPENVINO_THROW("[CPU] ", getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 #define CPU_NODE_ASSERT(condition, ...) OPENVINO_ASSERT(condition, getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 
 namespace ov {
@@ -658,7 +658,6 @@ protected:
     std::vector <NodePtr> fusedWith;
     std::vector <NodePtr> mergedWith;
 
-    std::vector <NodePtr> parallelWith;
     int curNumaNode = -1;
 
     void toNumaNode(int numaID);

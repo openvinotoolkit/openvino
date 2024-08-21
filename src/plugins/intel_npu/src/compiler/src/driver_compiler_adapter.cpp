@@ -8,14 +8,14 @@
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
-#include "ze_intel_vpu_uuid.h"
+#include "ze_intel_npu_uuid.h"
 #include "zero_compiler_in_driver.hpp"
 
 namespace intel_npu {
 namespace driverCompilerAdapter {
 
 LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompilerAdapter", Logger::global().level()) {
-    _logger.debug("initialize zeAPI");
+    _logger.debug("initialize zeAPI start");
     auto result = zeInit(ZE_INIT_FLAG_VPU_ONLY);
     if (ZE_RESULT_SUCCESS != result) {
         OPENVINO_THROW("L0 initialize zeAPI",
@@ -48,7 +48,7 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompile
                        uint64_t(result));
     }
 
-    const ze_driver_uuid_t uuid = ze_intel_vpu_driver_uuid;
+    const ze_driver_uuid_t uuid = ze_intel_npu_driver_uuid;
     ze_driver_properties_t props = {};
     props.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES;
     // Get our target driver
@@ -100,8 +100,9 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompile
     for (uint32_t i = 0; i < count; ++i) {
         auto& property = extProps[i];
 
-        if (strncmp(property.name, ZE_GRAPH_EXT_NAME, strlen(ZE_GRAPH_EXT_NAME)) != 0)
+        if (strncmp(property.name, ZE_GRAPH_EXT_NAME, strlen(ZE_GRAPH_EXT_NAME)) != 0) {
             continue;
+        }
 
         // If the driver version is latest, will just use its name.
         if (property.version == ZE_GRAPH_EXT_VERSION_CURRENT) {
@@ -175,6 +176,7 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompile
         apiAdapter =
             std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_2_t>>(graphExtName, _driverHandle);
     }
+    _logger.debug("initialize zeAPI end");
 }
 
 uint32_t LevelZeroCompilerAdapter::getSupportedOpsetVersion() const {
@@ -183,21 +185,18 @@ uint32_t LevelZeroCompilerAdapter::getSupportedOpsetVersion() const {
 
 NetworkDescription LevelZeroCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
                                                      const Config& config) const {
-    _logger.setLevel(config.get<LOG_LEVEL>());
-    _logger.debug("compile");
+    _logger.debug("compile start");
     return apiAdapter->compile(model, config);
 }
 
 ov::SupportedOpsMap LevelZeroCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
                                                     const Config& config) const {
-    _logger.setLevel(config.get<LOG_LEVEL>());
-    _logger.debug("query");
+    _logger.debug("query start");
     return apiAdapter->query(model, config);
 }
 
 NetworkMetadata LevelZeroCompilerAdapter::parse(const std::vector<uint8_t>& network, const Config& config) const {
-    _logger.setLevel(config.get<LOG_LEVEL>());
-    _logger.debug("parse");
+    _logger.debug("parse start");
     return apiAdapter->parse(network, config);
 }
 

@@ -460,22 +460,21 @@ private:
         return true;
     }
 
+    /// \brief Cast constant data to std::vector of User type.
+    /// This version is for user type which is unknown for OpenVINO.
+    /// The minimum requirement for this type is to support conversion from OV type.
+    ///
+    /// \param output_vector  Output vector with casted data.
+    /// \param num_elements   number of elements to cast from constant.
     template <
         element::Type_t Type,
-        class OUT_T,
-        typename std::enable_if<Type != element::string && !std::is_same<OUT_T, std::string>::value>::type* = nullptr>
-    void cast_vector(std::vector<OUT_T>& output_vector, size_t num_elements) const {
-        using InputT = ov::fundamental_type_for<Type>;
-        auto first = get_data_ptr<InputT>();
-        std::transform(first, first + num_elements, std::back_inserter(output_vector), [](const InputT c) {
-            OPENVINO_ASSERT(in_type_range<OUT_T>(c),
-                            "Cannot cast vector from ",
-                            element::from<InputT>(),
-                            " constant to ",
-                            element::from<OUT_T>(),
-                            ". Some values are outside the range. Example: ",
-                            c);
-            return static_cast<OUT_T>(c);
+        class UserT,
+        typename std::enable_if<Type != element::string && !std::is_same<UserT, std::string>::value>::type* = nullptr>
+    void cast_vector(std::vector<UserT>& output_vector, size_t num_elements) const {
+        using T = ov::fundamental_type_for<Type>;
+        const auto first = get_data_ptr<T>();
+        std::transform(first, first + num_elements, std::back_inserter(output_vector), [](const T v) {
+            return static_cast<UserT>(v);
         });
     }
 

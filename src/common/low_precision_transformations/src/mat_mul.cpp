@@ -176,7 +176,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ov::pass::p
 
     updateOutput(context, newMultiply, newMatMul);
 
-    OPENVINO_DEBUG << "LPT: done: " << newMatMul;
+    OPENVINO_DEBUG("LPT: done: ", newMatMul);
     return true;
 }
 
@@ -191,14 +191,14 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
 
     std::shared_ptr<ov::opset1::MatMul> matMul = ov::as_type_ptr<ov::opset1::MatMul>(layer);
     if (matMul == nullptr) {
-        OPENVINO_DEBUG << "LPT: early exit: not MatMul";
+        OPENVINO_DEBUG("LPT: early exit: not MatMul");
         return false;
     }
 
     const auto dequantization1 = NetworkHelper::getDequantization(layer, defaultPrecisions, 0);
     if (!dequantization1.empty()) {
         if (updatePrecisions && !dequantization1.isLowPrecision()) {
-            OPENVINO_DEBUG << "LPT: early exit: dequantization before is not in low precision";
+            OPENVINO_DEBUG("LPT: early exit: dequantization before is not in low precision");
             return false;
         }
 

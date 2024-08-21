@@ -1087,6 +1087,78 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_MinimalPatternUnc
     ASSERT_TRUE(result.valid) << result.message;
 }
 
+TEST(TransformationTests, MarkFloatingPointRange) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto begin = Constant::create(element::i64, Shape{}, {0});
+        auto step = Constant::create(element::i64, Shape{}, {1});
+
+        auto end = make_shared<Parameter>(element::i64, Shape{});
+
+        auto range_1 = make_shared<op::v4::Range>(begin, end, step, element::f32);
+        auto range_2 = make_shared<op::v4::Range>(begin, end, step, element::f32);
+
+        auto convert_1 = make_shared<Convert>(range_1, element::i64);
+        auto convert_2 = make_shared<Convert>(convert_1, element::f32);
+
+        auto unsqueeze_const = Constant::create(element::i64, Shape{2}, {-1, 1});
+        auto unsqueeze = make_shared<Unsqueeze>(range_2, unsqueeze_const);
+
+        auto greater = make_shared<Greater>(convert_2, unsqueeze);
+        auto convert = make_shared<Convert>(greater, element::f32);
+
+        auto multiply_const = Constant::create(element::f32, Shape{}, {1.f});
+        auto multiply = make_shared<Multiply>(convert, multiply_const);
+
+        model = make_shared<Model>(NodeVector{convert}, ParameterVector{end});
+
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto begin = Constant::create(element::i64, Shape{}, {0});
+        auto step = Constant::create(element::i64, Shape{}, {1});
+
+        auto end = make_shared<Parameter>(element::i64, Shape{});
+
+        auto range_1 = make_shared<op::v4::Range>(begin, end, step, element::f32);
+        auto range_2 = make_shared<op::v4::Range>(begin, end, step, element::f32);
+
+        auto convert_1 = make_shared<Convert>(range_1, element::i64);
+        auto convert_2 = make_shared<Convert>(convert_1, element::f32);
+
+        auto unsqueeze_const = Constant::create(element::i64, Shape{2}, {-1, 1});
+        auto unsqueeze = make_shared<Unsqueeze>(range_2, unsqueeze_const);
+
+        auto greater = make_shared<Greater>(convert_2, unsqueeze);
+        auto convert = make_shared<Convert>(greater, element::f32);
+
+        auto multiply_const = Constant::create(element::f32, Shape{}, {1.f});
+        auto multiply = make_shared<Multiply>(convert, multiply_const);
+
+        // marking nodes to be kept in fp32 for mixed precision
+        disable_fp16_compression(range_1);
+        disable_fp16_compression(range_2);
+        disable_fp16_compression(convert_1);
+        disable_fp16_compression(convert_2);
+        disable_fp16_compression(unsqueeze);
+        disable_fp16_compression(greater);
+        disable_fp16_compression(convert);
+
+        model_ref = make_shared<Model>(NodeVector{convert}, ParameterVector{end});
+    }
+
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = func_comparator(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
 TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_InL2NormWithSqrtAndWithMax) {
     const float eps_value = 1.e-12f;
     shared_ptr<Model> model, model_ref;

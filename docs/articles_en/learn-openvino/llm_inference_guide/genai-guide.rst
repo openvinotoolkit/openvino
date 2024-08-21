@@ -1,8 +1,15 @@
-Run LLMs with OpenVINO GenAI Flavor
-=====================================
+Run LLM Inference on OpenVINO with the GenAI Flavor
+===============================================================================================
 
 .. meta::
    :description: Learn how to use the OpenVINO GenAI flavor to execute LLM models.
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   genai-guide-npu
+
 
 This guide will show you how to integrate the OpenVINO GenAI flavor into your application, covering
 loading a model and passing the input context to receive generated text. Note that the vanilla flavor of OpenVINO
@@ -30,7 +37,8 @@ will not work with these instructions, make sure to
 
    .. code-block:: python
 
-      optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format int4 --trust-remote-code
+      optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format int4 --trust-remote-code "TinyLlama-1.1B-Chat-v1.0"
+
 
 2. Perform generation using the new GenAI API:
 
@@ -43,7 +51,7 @@ will not work with these instructions, make sure to
 
             import openvino_genai as ov_genai
             pipe = ov_genai.LLMPipeline(model_path, "CPU")
-            print(pipe.generate("The Sun is yellow because"))
+            print(pipe.generate("The Sun is yellow because", max_new_tokens=100))
 
       .. tab-item:: C++
          :sync: cpp
@@ -56,7 +64,7 @@ will not work with these instructions, make sure to
             int main(int argc, char* argv[]) {
                std::string model_path = argv[1];
                ov::genai::LLMPipeline pipe(model_path, "CPU");
-               std::cout << pipe.generate("The Sun is yellow because");
+               std::cout << pipe.generate("The Sun is yellow because", ov::genai::max_new_tokens(100));
             }
 
 The `LLMPipeline` is the main object used for decoding. You can construct it directly from the
@@ -82,9 +90,9 @@ below, where a lambda function outputs words to the console immediately upon gen
 
          import openvino_genai as ov_genai
          pipe = ov_genai.LLMPipeline(model_path, "CPU")
-         
+
          streamer = lambda x: print(x, end='', flush=True)
-         pipe.generate("The Sun is yellow because", streamer=streamer)
+         pipe.generate("The Sun is yellow because", streamer=streamer, max_new_tokens=100)
 
    .. tab-item:: C++
 
@@ -97,13 +105,13 @@ below, where a lambda function outputs words to the console immediately upon gen
             std::string model_path = argv[1];
             ov::genai::LLMPipeline pipe(model_path, "CPU");
 
-            auto streamer = [](std::string word) { 
-               std::cout << word << std::flush; 
+            auto streamer = [](std::string word) {
+               std::cout << word << std::flush;
                // Return flag indicating whether generation should be stopped.
                // false means continue generation.
                return false;
             };
-            pipe.generate("The Sun is yellow because", ov::genai::streamer(streamer));
+            pipe.generate("The Sun is yellow because", ov::genai::streamer(streamer), ov::genai::max_new_tokens(100));
          }
 
 You can also create your custom streamer for more sophisticated processing:
@@ -131,7 +139,7 @@ You can also create your custom streamer for more sophisticated processing:
                # Decode tokens and process them.
 
          pipe = ov_genai.LLMPipeline(model_path, "CPU")
-         pipe.generate("The Sun is yellow because", streamer=CustomStreamer())
+         pipe.generate("The Sun is yellow because", streamer=CustomStreamer(), max_new_tokens=100)
 
 
    .. tab-item:: C++
@@ -143,8 +151,8 @@ You can also create your custom streamer for more sophisticated processing:
          class CustomStreamer: publict StreamerBase {
          public:
             bool put(int64_t token) {
-               bool stop_flag = false; 
-               /* 
+               bool stop_flag = false;
+               /*
                custom decoding/tokens processing code
                tokens_cache.push_back(token);
                std::string text = m_tokenizer.decode(tokens_cache);
@@ -163,7 +171,7 @@ You can also create your custom streamer for more sophisticated processing:
 
             std::string model_path = argv[1];
             ov::genai::LLMPipeline pipe(model_path, "CPU");
-            pipe.generate("The Sun is yellow because", ov::genai::streamer(custom_streamer));
+            pipe.generate("The Sun is yellow because", ov::genai::streamer(custom_streamer), ov::genai::max_new_tokens(100));
          }
 
 Using GenAI in Chat Scenario
@@ -183,7 +191,7 @@ mark a conversation session, as you can see in these simple examples:
          import openvino_genai as ov_genai
          pipe = ov_genai.LLMPipeline(model_path)
 
-         pipe.set_generation_cofnig({'max_new_tokens': 100)
+         pipe.set_generation_config({'max_new_tokens': 100)
 
          pipe.start_chat()
          while True:
@@ -205,10 +213,10 @@ mark a conversation session, as you can see in these simple examples:
 
             std::string model_path = argv[1];
             ov::genai::LLMPipeline pipe(model_path, "CPU");
-            
+
             ov::genai::GenerationConfig config = pipe.get_generation_config();
             config.max_new_tokens = 100;
-            pipe.set_generation_cofnig(config)
+            pipe.set_generation_config(config)
 
             pipe.start_chat();
             for (size_t i = 0; i < questions.size(); i++) {
