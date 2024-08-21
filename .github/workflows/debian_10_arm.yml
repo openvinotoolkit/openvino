@@ -126,7 +126,7 @@ jobs:
 
       - name: CMake configure - OpenVINO
         run: |
-          export CC=gcc && export CXX=g++ && cmake \
+          cmake \
             -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/arm.toolchain.cmake \
             -DTHREADS_PTHREAD_ARG="-pthread" \
             -DCMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT=OFF \
@@ -146,7 +146,7 @@ jobs:
         run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake build - OpenVINO
-        run: export CC=gcc && export CXX=g++ && cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+        run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats

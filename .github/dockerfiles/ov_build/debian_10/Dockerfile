@@ -40,6 +40,9 @@ RUN apt-get update && \
         libxml2-dev \
         libxmlsec1-dev \
         liblzma-dev \
+        # Compilers
+        gcc-arm-linux-gnueabihf \
+        g++-arm-linux-gnueabihf \
         && \
     rm -rf /var/lib/apt/lists/*
 
