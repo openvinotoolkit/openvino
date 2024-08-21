@@ -1,12 +1,9 @@
 Neural Network Compression Framework
 =======================================
 
-Neural Networks Compression Framework (NNCF) is a set of compression algorithms and tools
-for optimizing inference of neural networks in `OpenVINO™ <https://docs.openvino.ai/2024/index.html>`__ resulting
-in smaller and faster models.
-
-Features
-###########
+Neural Network Compression Framework (NNCF) is a set of compression algorithms that makes your
+models smaller and faster. It is the default optimization tool for the OpenVINO toolkit. However,
+NNCF is not a part of the OpenVINO pacakging, so it needs to be installed separately. NNCF includes:
 
 **Post-Training Compression Algorithms**
 
@@ -47,7 +44,7 @@ System requirements
 * Python* 3.8 or later
 * Supported frameworks:
 
-  * PyTorch* >=2.2, <2.4
+  * PyTorch* >=2.3, <2.5
   * TensorFlow* >=2.8.4, <=2.15.1
   * ONNX* ==1.16.0
   * OpenVINO* >=2022.3.0

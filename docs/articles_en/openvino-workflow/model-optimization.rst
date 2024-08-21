@@ -1,4 +1,4 @@
-Model Optimization Guide
+Model Optimization - NNCF
 =========================================================================================
 
 
@@ -6,6 +6,7 @@ Model Optimization Guide
    :maxdepth: 1
    :hidden:
 
+   model-optimization-guide/nncf
    model-optimization-guide/quantizing-models-post-training
    model-optimization-guide/compressing-models-during-training
    model-optimization-guide/weight-compression
@@ -16,7 +17,7 @@ It may be done by reducing the model size, applying methods such as 8-bit quanti
 pruning. It is an optional step and should be performed outside of the final software
 application.
 
-:doc:`Neural Network Compression Framework (NNCF) <model-optimization-guide/quantizing-models-post-training/nncf>`
+:doc:`Neural Network Compression Framework (NNCF) <model-optimization-guide/nncf>`
 Is the the OpenVINO toolkit's optimisation tool, offering three ways to get more
 streamlined models:
 
@@ -57,7 +58,7 @@ Training-time Optimization may prove a better option.
 
    Once optimized, models may be executed with the typical OpenVINO inference workflow,
    no additional changes to the inference code are required.
-   
+
    This is true for models optimized using NNCF, as well as those pre-optimized from
    their source frameworks (e.g., quantized), such as PyTorch, TensorFlow, and ONNX
    (in Q/DQ; Quantize/DeQuantize format). The latter may be easily converted to the

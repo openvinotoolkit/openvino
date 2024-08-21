@@ -7,7 +7,6 @@ Quantizing Models Post-training
 
    quantizing-models-post-training/basic-quantization-flow
    quantizing-models-post-training/quantizing-with-accuracy-control
-   quantizing-models-post-training/nncf
 
 
 Post-training model optimization is the process of applying special methods that transform a
@@ -27,7 +26,7 @@ any training datasets or pipelines in the source DL framework.
 
 .. image:: ../../assets/images/quantization_picture.svg
 
-:doc:`Neural Network Compression Framework (NNCF) <quantizing-models-post-training/nncf>`
+:doc:`Neural Network Compression Framework (NNCF) <nncf>`
 provides a post-training quantization API, available in Python, that aims at reusing the code for
 model training or validation that is usually available with the model in the source framework,
 such as PyTorch or TensroFlow. The NNCF API is cross-framework and currently supports:
@@ -49,6 +48,6 @@ Additional Resources
 ####################
 
 * :doc:`Optimizing Models at Training Time <compressing-models-during-training>`
-* :doc:`Neural Network Compression Framework <quantizing-models-post-training/nncf>`
+* :doc:`Neural Network Compression Framework <nncf>`
 * `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
 

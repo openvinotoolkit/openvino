@@ -31,8 +31,8 @@ See the following Jupyter Notebooks for step-by-step examples showing how to add
 - `Quantization Aware Training with NNCF and PyTorch <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-aware-training>`__.
 - `Quantization Aware Training with NNCF and TensorFlow <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/tensorflow-quantization-aware-training>`__.
 
-More detialed information about NNCF (e.g. installation guide) are present in the dedicated
-:doc:`NNCF article <quantizing-models-post-training/nncf>`.
+More detailed information about NNCF (e.g. installation guide) are present in the dedicated
+:doc:`NNCF article <nncf>`.
 
 Working with NNCF
 ####################
@@ -86,7 +86,7 @@ Additional Resources
 ####################
 
 - :doc:`Quantizing Models Post-training <quantizing-models-post-training>`
-- :doc:`Neural Network Compression Framework (NNCF) <quantizing-models-post-training/nncf>`
+- :doc:`Neural Network Compression Framework (NNCF) <nncf>`
 - `NNCF GitHub repository <https://github.com/openvinotoolkit/nncf>`__
 - `NNCF FAQ <https://github.com/openvinotoolkit/nncf/blob/develop/docs/FAQ.md>`__
 - `Quantization Aware Training with NNCF and PyTorch <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-aware-training>`__.
