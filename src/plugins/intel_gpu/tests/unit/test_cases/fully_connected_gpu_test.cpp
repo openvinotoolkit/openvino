@@ -1880,7 +1880,7 @@ public:
 
         network->set_input_data("input1", input1_mem);
         network->set_input_data("input2", input2_mem);
-        for (size_t i = 0 ; i< 10; i++) {
+        for (size_t i = 0 ; i< 200; i++) {
             auto outputs = network->execute();
             auto output_mem = outputs.begin()->second.get_memory();
             cldnn::mem_lock<ov::float16> output_ptr (output_mem, get_test_stream());
@@ -3554,12 +3554,12 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_b12_3d) {
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_perf_profiling) {
-    //this->test_compressed_int4_scale_perf(false, true, 32, false, false, false);
-    //this->test_compressed_int4_scale_perf(false, true, 32, false, false, false, true);
+    this->test_compressed_int4_scale_perf(false, true, 32, false, false, false);
+    this->test_compressed_int4_scale_perf(false, true, 32, false, false, false, true);
     this->test_compressed_int4_scale_perf(false, true, 256, false, false, false);
     this->test_compressed_int4_scale_perf(false, true, 256, false, false, false, true);
-    //this->test_compressed_int4_scale_perf(false, true, 1024, false, false, false);
-    //this->test_compressed_int4_scale_perf(false, true, 1024, false, false, false, true);
+    this->test_compressed_int4_scale_perf(false, true, 1024, false, false, false);
+    this->test_compressed_int4_scale_perf(false, true, 1024, false, false, false, true);
 }
 
 TEST_F(fully_connected_gpu_tests, dynamic) {
