@@ -7,6 +7,7 @@
 #include "op_table.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert_promote_types.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/util/log.hpp"
@@ -574,6 +575,13 @@ Output<Node> concat_list_from_inputs(const NodeContext& context, size_t begin, s
     }
     auto concat = std::make_shared<ov::op::v0::Concat>(list_elems, 0);
     return concat;
+}
+
+Output<Node> masked_select(const NodeContext& context, const Output<Node>& data, const Output<Node>& mask) {
+    auto input_order = context.mark_node(ov::op::v0::Constant::create(element::i32, Shape{2}, {1, 0}));
+    auto nonzero = context.mark_node(std::make_shared<ov::op::v3::NonZero>(mask));
+    auto masked_id = context.mark_node(std::make_shared<ov::op::v1::Transpose>(nonzero, input_order));
+    return context.mark_node(std::make_shared<ov::op::v8::GatherND>(data, masked_id));
 }
 
 }  // namespace pytorch
