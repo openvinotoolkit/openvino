@@ -51,7 +51,8 @@ static std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connecte
 
 // DYNAMIC_QUANTIZE
 static bool should_dynamic_quantize(const fully_connected_params& params) {
-    auto dynamic_quantization_group_size = params.dynamic_quantization_group_size;
+    // auto dynamic_quantization_group_size = params.dynamic_quantization_group_size;
+    auto dynamic_quantization_group_size = (size_t)32;
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->enable_dynamic_quantize) {
