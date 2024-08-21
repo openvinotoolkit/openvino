@@ -51,6 +51,15 @@ protected:
 
         if (instance.activations_zero_points_term()) {
             auto a_zp = instance.activations_zero_points_memory();
+
+            // In the case of dynamic model, if choose_impl was executed in runtime,
+            // a_zp could be remained as u8 or i8.
+            if (a_zp->get_layout().data_type != data_types::i32) {
+                auto& conv_node = instance.get_node().as<convolution>();
+                auto& a_zp_node = conv_node.activations_zero_points().as<data>();
+                a_zp = a_zp_node.get_attached_memory_ptr();
+            }
+
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
 
