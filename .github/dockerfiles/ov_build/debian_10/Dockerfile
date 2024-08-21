@@ -1,4 +1,4 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/debian:10.13
+FROM openvinogithubactions.azurecr.io/dockerio/library/debian:10.13
 
 USER root
 
