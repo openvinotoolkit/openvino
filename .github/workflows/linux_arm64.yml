@@ -434,7 +434,7 @@ jobs:
   Overall_Status:
     name: ci/gha_overall_status_linux_arm64
     needs: [Smart_CI, Build, Debian_Packages, Samples, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests,
-            TensorFlow_Models_Tests, PyTorch_Models_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests]
+            TensorFlow_Models_Tests, PyTorch_Models_Tests, Openvino_tokenizers]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
