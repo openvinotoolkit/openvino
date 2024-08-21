@@ -50,7 +50,7 @@ class TestMaskedSelect(PytorchLayerTest):
     @pytest.mark.parametrize(
         "mask_select", ['zeros', 'ones', 'random'])
     @pytest.mark.parametrize("input_dtype", [np.float32, np.float64, int, np.int32])
-    @pytest.mark.parametrize("mask_dtype", [np.uint8, np.int32])  # np.float32 incorrectly casted to bool
+    @pytest.mark.parametrize("mask_dtype", [np.uint8, np.int32, np.float32])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_masked_select_non_bool_mask(self, mask_select, mask_dtype, input_dtype, ie_device, precision, ir_version):
