@@ -148,10 +148,6 @@ struct NetworkDescription final {
     std::vector<uint8_t> compiledNetwork;
 
     NetworkMetadata metadata;
-
-    void* propsVoidPtr = nullptr;
-    void* inputDescriptors = nullptr;
-    void* outputDescriptors = nullptr;
 };
 
 /**
@@ -204,10 +200,10 @@ public:
                                                                     const Config& config) const = 0;
 
     // Only need for driver compiler to release graph handle now
-    virtual void release(std::shared_ptr<const NetworkDescription> networkDescription){};
+    virtual void release([[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription){};
 
     // Only need for driver compiler to fill blob now
-    virtual void fillCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription){};
+    virtual void fillCompiledNetwork([[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription){};
 
 protected:
     virtual ~ICompiler() = default;

@@ -181,7 +181,7 @@ namespace driverCompilerAdapter {
 
 template <typename TableExtension>
 LevelZeroCompilerInDriver<TableExtension>::~LevelZeroCompilerInDriver() {
-    // zeContextDestroy(_context) remove the shared _context from backend instead of here
+    _logger.debug("LevelZeroCompilerInDriver obj destroyed");
 }
 
 /**
