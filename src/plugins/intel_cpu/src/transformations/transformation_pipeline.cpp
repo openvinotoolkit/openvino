@@ -827,32 +827,26 @@ void Transformations::PostLpt() {
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
     auto can_use_amx_bf16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) && (inferencePrecision == element::bf16);
     if (can_use_amx_bf16) {
-        //auto has_paged_attention = op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model);
-        auto has_paged_attention = std::getenv("HAS_PA") ? atoi(std::getenv("HAS_PA")) : 0;
-        if (has_paged_attention & 1) {
-            CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
-            CPU_SET_CALLBACK_X64(postLPTPassManager,
-                [](const_node_ptr &node) -> bool {
-                    std::string errorMsg;
-                    return node::LLMMLP::isSupportedOperation(node, errorMsg);
-                },
-                MLPFusion);
-        }
+        CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
+        CPU_SET_CALLBACK_X64(postLPTPassManager,
+            [](const_node_ptr &node) -> bool {
+                std::string errorMsg;
+                return node::LLMMLP::isSupportedOperation(node, errorMsg);
+            },
+            MLPFusion);
 
         // Limitations: at least 3 workers are required for QKV fusion
         size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
         if (concurrency == 0)
             concurrency = parallel_get_max_threads();
         if (concurrency >= 3) {
-            if (has_paged_attention & 2) {
-                CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
-                CPU_SET_CALLBACK_X64(postLPTPassManager,
-                    [](const_node_ptr &node) -> bool {
-                        std::string errorMsg;
-                        return node::QKVProjection::isSupportedOperation(node, errorMsg);
-                    },
-                    QKVProjFusion);
-            }
+            CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
+            CPU_SET_CALLBACK_X64(postLPTPassManager,
+                [](const_node_ptr &node) -> bool {
+                    std::string errorMsg;
+                    return node::QKVProjection::isSupportedOperation(node, errorMsg);
+                },
+                QKVProjFusion);
         }
     }
 
