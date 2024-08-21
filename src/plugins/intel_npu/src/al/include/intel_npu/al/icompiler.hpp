@@ -112,7 +112,7 @@ struct NetworkMetadata final {
 
     size_t numStreams = 1;
 
-    // use to pass graphHandle from compiler to backend executor
+    // Used primarily in the CID path to pass the level zero graph handle from compiler to the backend executor
     void* graphHandle = nullptr;
 
     /**
@@ -138,6 +138,7 @@ struct NetworkDescription final {
     NetworkDescription(std::vector<uint8_t>&& compiledNetwork, NetworkMetadata&& metadata)
         : compiledNetwork(std::move(compiledNetwork)),
           metadata(std::move(metadata)) {}
+    NetworkDescription(NetworkMetadata&& metadata) : metadata(std::move(metadata)) {}
     // Force move semantics to prevent blob copies
     NetworkDescription(const NetworkDescription&) = delete;
     NetworkDescription(NetworkDescription&&) = default;
@@ -199,10 +200,10 @@ public:
                                                                     const std::vector<uint8_t>& network,
                                                                     const Config& config) const = 0;
 
-    // Only need for driver compiler to release graph handle now
+    // Needed only by the driver compiler, to release the graph handle
     virtual void release([[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription){};
 
-    // Only need for driver compiler to fill blob now
+    // Needed only by the driver compiler, to populate the actual blob content inside the NetworkDescription
     virtual void fillCompiledNetwork([[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription){};
 
 protected:

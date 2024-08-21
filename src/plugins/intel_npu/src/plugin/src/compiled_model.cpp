@@ -150,7 +150,8 @@ void CompiledModel::export_model(std::ostream& stream) const {
     std::stringstream str;
     str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
     _logger.info(str.str().c_str());
-    // if graphHandle is not null, release blob here to reduce peak mem
+    // If graphHandle is not a nullptr it means there is still an instance of the blob maintained inside the driver and
+    // we can release the copy of the blob here to reduce memory consumption.
     if (_networkPtr->metadata.graphHandle != nullptr) {
         auto& blobFilled = const_cast<NetworkDescription*>(_networkPtr.get())->compiledNetwork;
         blobFilled.clear();

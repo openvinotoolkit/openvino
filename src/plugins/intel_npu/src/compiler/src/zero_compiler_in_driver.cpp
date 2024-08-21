@@ -907,7 +907,7 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
 
     _logger.debug("compile end");
 
-    auto networkDescription = NetworkDescription(std::vector<uint8_t>(), std::move(networkMeta));
+    auto networkDescription = NetworkDescription(std::move(networkMeta));
     return networkDescription;
 }
 

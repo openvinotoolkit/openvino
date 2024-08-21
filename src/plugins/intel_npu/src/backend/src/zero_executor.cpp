@@ -66,8 +66,8 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
 
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_GRAPH, itt::domains::LevelZeroBackend, "Executor::ZeroExecutor", "graphCreate");
 
-    // _graph is a nullptr for CIP path
-    // _graph will get graphHandle from compiler for CiD path
+    // _graph is a nullptr for CIP path, a new handle will be obtained from the driver based on the given
+    // compiledNetwork _graph gets (reuses) graphHandle from the compiler for CID path
     if (_networkDesc->metadata.graphHandle == nullptr) {
         _logger.info("Create graph handle on executor");
         _logger.debug("ZeroExecutor::ZeroExecutor - create graph");
