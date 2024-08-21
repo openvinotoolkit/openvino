@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/cpu_opset/common/op/fully_connected.hpp"
+// #include "transformations/cpu_opset/common/op/fully_connected.hpp"
+#include "ov_ops/fully_connected.hpp"
 #include "convert_matmul_to_fc.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/convert.hpp"
@@ -10,6 +11,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/placeholder.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include "itt.hpp"
@@ -135,22 +137,6 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             OPENVINO_THROW("MatMul " + matmul->get_friendly_name() + " shapes are inconsistent.");
         }
 
-        // Transferring from MatMul representation: [B, I, K] * [B, K, O] = [B, I, O]
-        // to FullyConnected representation: [I, K] * [K, O] = [I, O]
-
-        if (rank_b != 2) {
-            ov::Dimension K = *(shape_b_aligned.rbegin() + 1);
-            OPENVINO_ASSERT(K.is_static());
-            auto k_len = K.get_length();
-            auto reshape_shape_values = matmul->get_transpose_b() ? std::vector<int64_t>{-1, k_len} : std::vector<int64_t>{k_len, -1};
-            auto reshape_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 2 }, reshape_shape_values);
-            fc_input_b = ov::op::util::make_try_fold<ov::op::v1::Reshape>(fc_input_b, reshape_shape, false);
-            if (!std::dynamic_pointer_cast<ov::op::v0::Constant>(fc_input_b.get_node_shared_ptr())) {
-                new_ops.push_back(reshape_shape);
-            }
-            new_ops.push_back(fc_input_b.get_node_shared_ptr());
-        }
-
         // Weights normalization
         if (!matmul->get_transpose_b()) {
             fc_input_b = create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
@@ -169,10 +155,14 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             fc_input_b = convert;
         }
 
-        // Create FullyConnected
-        auto output_rank = matmul->get_output_partial_shape(0).rank();
-        auto fc = std::make_shared<ov::intel_cpu::FullyConnectedNode>(fc_input_a, fc_input_b, output_rank,
-                matmul->get_output_element_type(0));
+        auto bias_ph = std::make_shared<ov::op::internal::Placeholder>();
+        new_ops.push_back(bias_ph);
+
+        auto fc = std::make_shared<ov::op::internal::FullyConnected>(fc_input_a,
+                                                                     fc_input_b,
+                                                                     bias_ph,
+                                                                     matmul->get_output_element_type(0));
+
         fc->set_friendly_name(matmul->get_friendly_name());
         ///todo: CVS-130863 Remove after fp16_compression is copyable
         if (ov::fp16_compression_is_disabled(matmul))

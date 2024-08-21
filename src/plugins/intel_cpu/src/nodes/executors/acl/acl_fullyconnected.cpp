@@ -62,6 +62,20 @@ static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr 
     return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
 }
 
+static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
+                                     const ExecutorContext::CPtr context,
+                                     const FCAttrs &attrs,
+                                     const ACLFCAttrs& aclfcAttrs,
+                                     const PostOps &postOps) {
+    DEBUG_LOG("ACLFullyConnectedExecutor: prepack weights");
+    const auto& wgtDims = memory.at(ARG_WEI)->getStaticDims();
+    const auto N = std::accumulate(wgtDims.begin(), wgtDims.end() - 1, Dim{1}, std::multiplies<Dim>());
+    const auto K = wgtDims.back();
+    const VectorDims wgtDims2D = {N, K};
+
+    return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
+}
+
 static ov::optional<MemoryPtr> convertWeightPrecision(MemoryPtr input, MemoryPtr output, ov::element::Type weightPrecision) {
     MemoryArgs memoryArgs;
     memoryArgs[ARG_SRC] = input;

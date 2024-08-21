@@ -8,6 +8,8 @@
 #include "nodes/node_config.h"
 #include "openvino/core/parallel.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
+#include "ov_ops/placeholder.hpp"
+#include "memory_desc/cpu_memory_desc_utils.h"
 
 using namespace dnnl;
 using namespace dnnl::impl::cpu::x64;
@@ -223,14 +225,18 @@ Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr conte
                 op::v0::Constant::get_type_info_static(),
                 op::v0::Result::get_type_info_static(),
                 op::v3::ReadValue::get_type_info_static(),
-                op::v6::ReadValue::get_type_info_static()))
+                op::v6::ReadValue::get_type_info_static(),
+                op::internal::Placeholder::get_type_info_static()))
         OPENVINO_THROW_NOT_IMPLEMENTED("CPU Input node doesn't support ngraph operation ",
                                        op->get_type_name(),
                                        " with name ",
                                        op->get_friendly_name());
-    constOp = ov::as_type_ptr<op::v0::Constant>(op);
-    if (constOp) {
+    if (auto placeHolder = ov::as_type_ptr<op::internal::Placeholder>(op)) {
+        memoryPtr = MemoryDescUtils::makeEmptyMemory(context);
         constant = ConstantType::Const;
+    } else if (auto constOp = ov::as_type_ptr<op::v0::Constant>(op)) {
+        constant = ConstantType::Const;
+        m_constOp = constOp;
         cloneBlobIfRequired();
     } else {
         constant = ConstantType::StrictNoConst;
@@ -238,8 +244,8 @@ Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr conte
 }
 
 void Input::cloneBlobIfRequired() {
-    Shape shape(constOp->get_shape().empty() ? ov::Shape(1, 1) : constOp->get_shape());
-    const auto prec = constOp->get_element_type();
+    Shape shape(m_constOp->get_shape().empty() ? ov::Shape(1, 1) : m_constOp->get_shape());
+    const auto prec = m_constOp->get_element_type();
     const size_t size = shape.getElementsCount();
     CpuBlockedMemoryDesc memDesc(prec, shape);
 
@@ -258,21 +264,21 @@ void Input::cloneBlobIfRequired() {
         // oneDNN always allocate 1byte for element type with bitWidth < 8 (u4,u1...)
         // but ngraph Constant uses actual bitWidth for data storage allocation
         // in that case we make a copy to avoid overflow
-        if (constOp->get_byte_size() >= memDesc.getCurrentMemSize()) {
-            if (constOp->get_element_type() == element::string) {
-                memory = std::make_shared<StringMemory>(getEngine(), memDesc, constOp->get_data_ptr<element::string>());
+        if (m_constOp->get_byte_size() >= memDesc.getCurrentMemSize()) {
+            if (m_constOp->get_element_type() == element::string) {
+                memory = std::make_shared<StringMemory>(getEngine(), memDesc, m_constOp->get_data_ptr<element::string>());
             } else {
-                memory = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
+                memory = std::make_shared<Memory>(getEngine(), memDesc, m_constOp->get_data_ptr());
             }
         } else {
-            if (constOp->get_element_type() == element::string) {
+            if (m_constOp->get_element_type() == element::string) {
                 memory = std::make_shared<StringMemory>(getEngine(), memDesc);
-                auto src = constOp->get_data_ptr<StringMemory::OvString>();
+                auto src = m_constOp->get_data_ptr<StringMemory::OvString>();
                 auto dst = memory->getDataAs<StringMemory::OvString>();
                 std::copy(src, src + size, dst);
             } else {
                 memory = std::make_shared<Memory>(getEngine(), memDesc);
-                memcpy(memory->getData(), constOp->get_data_ptr(), constOp->get_byte_size());
+                memcpy(memory->getData(), m_constOp->get_data_ptr(), m_constOp->get_byte_size());
             }
         }
 
@@ -287,13 +293,13 @@ void Input::cloneBlobIfRequired() {
         return ptr;
     };
 
-    auto isBlobAligned = [&] () {
+    auto isBlobAligned = [&, this] () {
         bool blobAlignedOnSSE = true;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         // Majority of arithmetic and data processing instructions in legacy SSE isa requires
         // the memory address in the operands must be aligned on 16-byte boundary. To ensure
         // safely reusing ngraph const blob memory, need to check address alignment.
-        const void *ptr = constOp->get_data_ptr();
+        const void *ptr = m_constOp->get_data_ptr();
         blobAlignedOnSSE = mayiuse(cpu_isa_t::avx2) || ((reinterpret_cast<uintptr_t>(ptr) & 15) == 0);
 #endif
         return blobAlignedOnSSE;
@@ -302,7 +308,7 @@ void Input::cloneBlobIfRequired() {
     // The presence of subnormals is better to determined at IR read time.
     auto hasSubnormals = [&] () {
         if (prec == ov::element::f32) {
-            uint32_t const *u32data = constOp->get_data_ptr<uint32_t>();
+            uint32_t const *u32data = m_constOp->get_data_ptr<uint32_t>();
 
             if (!size)
                 return false;
@@ -345,7 +351,7 @@ void Input::cloneBlobIfRequired() {
 
     auto blobKey = [&] () {
         char ptr[32];
-        snprintf(ptr, sizeof ptr, "%p", constOp->get_data_ptr());
+        snprintf(ptr, sizeof ptr, "%p", m_constOp->get_data_ptr());
         return getName()
                 + "_" + std::to_string(size * prec.size())
                 + "_" + ptr;
@@ -361,7 +367,8 @@ void Input::cloneBlobIfRequired() {
         // This is possible only in multistream case on multisocket machine.
         // TODO: don't clone blob for multisocket + multistream case if current stream is run on the numa node where original weights are stored.
         (!weightCache || context->getNumNumaNodes() == 1 || context->getCPUStreamExecutor()->get_streams_num() == 1);
-    memoryPtr = clone_is_not_needed ? std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr())
+
+    memoryPtr = clone_is_not_needed ? std::make_shared<Memory>(getEngine(), memDesc, m_constOp->get_data_ptr())
                                     : std::const_pointer_cast<const IMemory>(
                                           weightCache ? *weightCache->findOrCreate(blobKey(), cloneBlob) : cloneBlob());
 }

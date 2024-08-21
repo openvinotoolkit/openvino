@@ -104,10 +104,11 @@ DnnlMemoryDescPtr DnnlMatMulPrimitive::makeTransposedWeightDescriptor(const Dnnl
     const auto& weiDesc = srcDesc->getDnnlDesc();
     auto wDims = weiDesc.get_dims();
     auto wDataType = weiDesc.get_data_type();
-    std::swap(wDims[wDims.size() - 1], wDims[wDims.size() - 2]);
+    dnnl::memory::dim batchDim = std::accumulate(wDims.begin(), wDims.end() - 1, 1, std::multiplies<dnnl::memory::dim>());
+    dnnl::memory::dims dims2D{wDims.back(), batchDim};
 
     const auto format = weightsNonTransposed ? dnnl::memory::format_tag::ab : dnnl::memory::format_tag::ba;
-    const auto transposedWeiDesc = dnnl::memory::desc{wDims, wDataType, format};
+    const auto transposedWeiDesc = dnnl::memory::desc{dims2D, wDataType, format};
 
     return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
 }
@@ -134,8 +135,8 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const MatMulAttrs& attrs,
                                 dims.size() - 1,
                                 isINT8,
                                 1 << 0,
-                                attrs.dequantizationScales,
-                                !memory.at(ARG_BIAS)->getDesc().empty(),
+                                weiDesc->getShape().getRank() == 3,
+                                memory,
                                 outputDataType);
 
     return dnnlpoc.compose();
@@ -262,7 +263,7 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const FCAt
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
     const auto& biasDesc = memory.at(ARG_BIAS)->getDescPtr();
     auto dstDesc = memory.at(ARG_DST)->getDescPtr();
-    MatMulAttrs mmAttrs{false, false, attrs.dequantizationScales};
+    MatMulAttrs mmAttrs{false, false};
 
     const auto postOpData = createPrimitiveAttrs(mmAttrs, postOps, memory, context, false);
 
