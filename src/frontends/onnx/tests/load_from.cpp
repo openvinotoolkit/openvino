@@ -63,6 +63,8 @@ INSTANTIATE_TEST_SUITE_P(ONNXLoadTest,
                          ::testing::Values(getTestData()),
                          FrontEndLoadFromTest::getTestCaseName);
 
+using ::ONNX_NAMESPACE::ModelProto;
+
 TEST_P(FrontEndLoadFromTest, testLoadFromModelProtoSharedPtr) {
     const auto path =
         ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "abs.onnx"});
@@ -72,7 +74,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromModelProtoSharedPtr) {
     FrontEnd::Ptr fe;
 
     {
-        auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>();
+        auto model_proto = std::make_shared<ModelProto>();
         ASSERT_TRUE(model_proto->ParseFromIstream(&ifs)) << "Could not parse ModelProto from file: " << path;
 
         ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_model(model_proto))
@@ -98,7 +100,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromModelProtoPtr) {
     FrontEnd::Ptr fe;
 
     {
-        auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>();
+        auto model_proto = std::make_shared<ModelProto>();
         ASSERT_TRUE(model_proto->ParseFromIstream(&ifs)) << "Could not parse ModelProto from file: " << path;
 
         ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_model(model_proto.get()))
@@ -124,7 +126,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromModelProtoUint64) {
     FrontEnd::Ptr fe;
 
     {
-        auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>();
+        auto model_proto = std::make_shared<ModelProto>();
         ASSERT_TRUE(model_proto->ParseFromIstream(&ifs)) << "Could not parse ModelProto from file: " << path;
 
         uint64_t model_proto_ptr = reinterpret_cast<uint64_t>(model_proto.get());

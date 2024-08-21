@@ -16,6 +16,8 @@
 #include "openvino/op/constant.hpp"
 #include "utils/tensor_external_data.hpp"
 
+using ::ONNX_NAMESPACE::ModelProto;
+
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -59,8 +61,7 @@ public:
     ///
     /// \param model_proto A shared pointer on ModelProto object.
     /// \param extensions Holder for custom extensions (like custom ops).
-    ONNXModelEditor(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-                             frontend::ExtensionHolder extensions = {});
+    ONNXModelEditor(std::shared_ptr<ModelProto> model_proto, frontend::ExtensionHolder extensions = {});
 
     /// \brief Modifies the in-memory representation of the model by setting
     ///        custom input types for all inputs specified in the provided map.
