@@ -720,21 +720,29 @@ void TensorIterator::prepareContinueCond() {
 void TensorIterator::prepareInitialCond() {
     if (loopExecutionConditionIdx != -1 || !initial_cond_check) {
         const bool first_call = !(static_cast<bool>(initial_cond_check));
-        auto mem = getSrcMemoryAtPort(loopExecutionConditionIdx);
+        auto edge = getParentEdgeAt(loopExecutionConditionIdx);
+        auto mem = edge->getMemoryPtr();
         initial_cond_check.reset(new asBoolCheck(mem));
-        if (IMPLICATION(first_call, getParentEdgeAt(loopExecutionConditionIdx)->getParent()->isConstant()))
+        if (IMPLICATION(first_call, edge->getParent()->isConstant()))
             lastUsedCond = initial_cond_check->getStatus();
     }
 }
 
 void TensorIterator::prepareTripCount() {
+    bool read_data = false;
     if (loopTripCountIdx == -1) {
         trip_count_check.reset(new staticValueCheck(getNumIteration(inputPortMap, outputPortMap)));
+        read_data = true;
     } else {
-        auto mem = getSrcMemoryAtPort(loopTripCountIdx);
+        const bool first_call = !(static_cast<bool>(initial_cond_check));
+        auto edge = getParentEdgeAt(loopTripCountIdx);
+        auto mem = edge->getMemoryPtr();
         trip_count_check.reset(new asIntCheck(mem));
+        read_data = IMPLICATION(first_call, edge->getParent()->isConstant());
     }
-    lastUsedTripCount = trip_count_check->getStatus();
+    if (read_data) {
+        lastUsedTripCount = trip_count_check->getStatus();
+    }
 }
 
 /* *==============* *==============* *==============* *==============* *==============* */
