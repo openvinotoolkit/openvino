@@ -72,16 +72,15 @@ public:
                            const std::shared_ptr<Subgraph::SubgraphCodeGenerator>& snippet,
                            const std::vector<ptrdiff_t>& start_offset_in,
                            const std::vector<ptrdiff_t>& start_offset_out,
-                           const std::shared_ptr<CPURuntimeConfig>& snippet_config)
-    : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out) {
-        init_runtime_params(snippet_config);
-    }
+                           const std::shared_ptr<CPURuntimeConfig>& snippet_config,
+                           const BufferScratchpadAllocator& allocator)
+    : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out, snippet_config, allocator) {}
 
     void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override  {
         const auto& callable = m_schedule->get_callable<kernel>();
 
-        auto initializer = [&](jit_snippets_call_args& call_args) {
-            init_call_args(call_args, inMemPtrs, outMemPtrs);
+        auto initializer = [&](jit_snippets_call_args& call_args, size_t ithr) {
+            init_call_args(call_args, inMemPtrs, outMemPtrs, ithr);
         };
         auto caller = [&](jit_snippets_call_args& call_args, const size_t* indexes) {
             callable(&call_args, indexes);
@@ -97,17 +96,15 @@ public:
 protected:
     typedef void (*kernel)(const void*, const void*);
 
-    inline void init_call_args(jit_snippets_call_args& call_args, const std::vector<MemoryPtr>& srcMemPtrs, const std::vector<MemoryPtr>& dstMemPtrs) {
+    inline void init_call_args(jit_snippets_call_args& call_args, const std::vector<MemoryPtr>& srcMemPtrs,
+                               const std::vector<MemoryPtr>& dstMemPtrs, size_t ithr) {
         for (size_t i = 0; i < srcMemPtrs.size(); i++)
             call_args.src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + m_start_offset_in[i];
 
         for (size_t i = 0; i < dstMemPtrs.size(); i++)
             call_args.dst_ptrs[i] = dstMemPtrs[i]->getDataAs<uint8_t>() + m_start_offset_out[i];
 
-        if (m_buffer_scratchpad_size > 0) {
-            call_args.buffer_scratchpad_ptr =
-                    reinterpret_cast<uint8_t*>(m_buffer_scratchpad.data()) + parallel_get_thread_num() * m_buffer_scratchpad_size;
-        }
+        update_scratchpad_ptr(call_args.buffer_scratchpad_ptr, ithr);
     }
 };
 
@@ -118,9 +115,13 @@ public:
                                        const std::shared_ptr<Subgraph::SubgraphCodeGenerator>& snippet,
                                        const std::vector<ptrdiff_t>& start_offset_in,
                                        const std::vector<ptrdiff_t>& start_offset_out,
-                                       const std::shared_ptr<CPURuntimeConfig>& snippet_config)
-    : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out) {
-        init_runtime_params(snippet_config);
+                                       const std::shared_ptr<CPURuntimeConfig>& snippet_config,
+                                       const BufferScratchpadAllocator& allocator)
+    : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out, snippet_config, allocator) {
+        buffer_offsets = snippet_config->buffer_cluster_offsets;
+        data_offsets = snippet_config->io_data_offsets;
+        loop_args = snippet_config->loop_args;
+        reset_exec_table_state = snippet_config->kernel_executor_table->get_state_reset();
     }
 
     void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override {
@@ -137,8 +138,8 @@ public:
         std::vector<uint8_t*> dst_ptrs;
         init_original_ptrs(inMemPtrs, outMemPtrs, src_ptrs, dst_ptrs);
 
-        auto initializer = [&](jit_snippets_call_args& call_args) {
-            init_call_args(call_args);
+        auto initializer = [&](jit_snippets_call_args& call_args, size_t ithr) {
+            init_call_args(call_args, ithr);
         };
         auto caller = [&](jit_snippets_call_args& call_args, const size_t* indexes) {
             update_ptrs(call_args, src_ptrs, dst_ptrs, indexes);
@@ -155,13 +156,11 @@ public:
 protected:
     typedef void (*dynamic_kernel)(const void *);
 
-    inline void init_call_args(jit_snippets_call_args& call_args) {
+    inline void init_call_args(jit_snippets_call_args& call_args, size_t ithr) {
         call_args.register_loops(loop_args);
         std::copy(buffer_offsets.cbegin(), buffer_offsets.cend(), call_args.buffer_offsets);
 
-        if (m_buffer_scratchpad_size > 0)
-            call_args.buffer_scratchpad_ptr =
-                reinterpret_cast<uint8_t*>(m_buffer_scratchpad.data()) + parallel_get_thread_num() * m_buffer_scratchpad_size;
+        update_scratchpad_ptr(call_args.buffer_scratchpad_ptr, ithr);
     }
 
     inline void init_original_ptrs(const std::vector<MemoryPtr>& srcMemPtrs, const std::vector<MemoryPtr>& dstMemPtrs,
@@ -195,14 +194,6 @@ protected:
             call_args.dst_ptrs[i] = i_ptr;
         }
     }
-
-    void init_runtime_params(const std::shared_ptr<CPURuntimeConfig>& snippet_config) override {
-        SubgraphExecutor::init_runtime_params(snippet_config);
-        buffer_offsets = snippet_config->buffer_cluster_offsets;
-        data_offsets = snippet_config->io_data_offsets;
-        loop_args = snippet_config->loop_args;
-        reset_exec_table_state = snippet_config->kernel_executor_table->get_state_reset();
-    };
 
     std::vector<size_t> buffer_offsets = {};
     std::vector<std::vector<size_t>> data_offsets = {};
@@ -757,10 +748,15 @@ void Subgraph::optimizeIR() {
 }
 
 void Subgraph::prepareParams() {
-    const auto cache = context->getParamsCache();
+    const auto& cache = context->getParamsCache();
 
-    auto builder = [this, cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphExecutor> {
+    auto builder = [this, &cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphExecutor> {
         const auto& snippet = subgraph_attrs->snippet;
+
+        SubgraphExecutor::BufferScratchpadAllocator allocator = [this](size_t size) {
+            return getScratchPadMem(std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, intel_cpu::Shape{size}));
+        };
+
         if (is_dynamic) {
             // Dynamic case:
             // 1. Generate JIT code if needed
@@ -777,7 +773,7 @@ void Subgraph::prepareParams() {
                 snippet->get_runtime_configurator()->set_kernel_executor_table(code_gen->get()->lowering_result.kernel_executor_table);
             }
             const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
-            return std::make_shared<SubgraphDynamicSpecializedExecutor>(key.attrs, code_gen, start_offset_in, start_offset_out, snippet_config);
+            return std::make_shared<SubgraphDynamicSpecializedExecutor>(key.attrs, code_gen, start_offset_in, start_offset_out, snippet_config, allocator);
         } else {
             // Static case:
             // 1. Update runtime config to get static scheduling data (io data offsets, parallel domain) which will be compiled in JIT code
@@ -788,7 +784,7 @@ void Subgraph::prepareParams() {
                                                             [&snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
                                                                 return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config);
                                                             });
-            return std::make_shared<SubgraphStaticExecutor>(key.attrs, code_gen_result.first, start_offset_in, start_offset_out, snippet_config);
+            return std::make_shared<SubgraphStaticExecutor>(key.attrs, code_gen_result.first, start_offset_in, start_offset_out, snippet_config, allocator);
         }
     };
 
@@ -875,26 +871,25 @@ Subgraph::SubgraphCodeGenerator::SubgraphCodeGenerator(const std::shared_ptr<Sub
 Subgraph::SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<Subgraph::SubgraphAttrs>& snippet_attrs,
                                              const std::shared_ptr<SubgraphCodeGenerator>& snippet,
                                              const std::vector<ptrdiff_t>& start_offset_in,
-                                             const std::vector<ptrdiff_t>& start_offset_out)
+                                             const std::vector<ptrdiff_t>& start_offset_out,
+                                             const std::shared_ptr<CPURuntimeConfig>& snippet_config,
+                                             const BufferScratchpadAllocator& allocator)
     : m_schedule(snippet->get()), m_start_offset_in(start_offset_in), m_start_offset_out(start_offset_out) {
     OPENVINO_ASSERT(m_schedule, "Schedule is empty!");
-#if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
-    const auto target = std::dynamic_pointer_cast<const CPUTargetMachine>(snippet_attrs->snippet->get_generator()->get_target_machine());
-    enabled_segfault_detector = target && target->debug_config.enable_segfault_detector;
-#endif
-}
-
-void Subgraph::SubgraphExecutor::init_runtime_params(const std::shared_ptr<CPURuntimeConfig>& snippet_config) {
     OPENVINO_ASSERT(snippet_config, "Runtime Config is empty!");
-
-    m_buffer_scratchpad_size = snippet_config->buffer_scratchpad_size;
-    OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(m_buffer_scratchpad_size), "Undefined buffer scratchpad size!");
-    m_buffer_scratchpad.resize(m_buffer_scratchpad_size * parallel_get_max_threads(), 0);
-
     init_parallel_domain(snippet_config, m_parallel_exec_domain);
 
     m_harness_work_amount = std::accumulate(m_parallel_exec_domain.cbegin(), m_parallel_exec_domain.cend(), size_t(1), std::multiplies<size_t>());
     m_nthreads = std::min(parallel_get_max_threads(), static_cast<int>(m_harness_work_amount));
+
+    m_buffer_scratchpad_size = snippet_config->buffer_scratchpad_size;
+    OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(m_buffer_scratchpad_size), "Undefined buffer scratchpad size!");
+    m_buffer_scratchpad = allocator(static_cast<size_t>(m_nthreads) * m_buffer_scratchpad_size);
+
+#if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
+    const auto target = std::dynamic_pointer_cast<const CPUTargetMachine>(snippet_attrs->snippet->get_generator()->get_target_machine());
+    enabled_segfault_detector = target && target->debug_config.enable_segfault_detector;
+#endif
 }
 
 #if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
@@ -914,7 +909,7 @@ void Subgraph::SubgraphExecutor::segfault_detector() {
 }
 #endif
 
-void Subgraph::SubgraphExecutor::parallel_for6d(const std::function<void(jit_snippets_call_args&)>& initializer,
+void Subgraph::SubgraphExecutor::parallel_for6d(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
                                                 const std::function<void(jit_snippets_call_args&, const size_t*)>& caller) {
     const auto& dom = m_parallel_exec_domain;
 
@@ -924,7 +919,7 @@ void Subgraph::SubgraphExecutor::parallel_for6d(const std::function<void(jit_sni
 
     parallel_nt_static(m_nthreads, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
-        initializer(call_args);
+        initializer(call_args, ithr);
 
         size_t start = 0, end = 0;
         splitter(m_harness_work_amount, nthr, ithr, start, end);
@@ -938,7 +933,7 @@ void Subgraph::SubgraphExecutor::parallel_for6d(const std::function<void(jit_sni
     });
 }
 
-void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_snippets_call_args&)>& initializer,
+void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
                                                 const std::function<void(jit_snippets_call_args&, const size_t*)>& caller) {
     const auto& dom = m_parallel_exec_domain;
 
@@ -948,7 +943,7 @@ void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_sni
 
     parallel_nt_static(m_nthreads, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
-        initializer(call_args);
+        initializer(call_args, ithr);
 
         size_t start = 0, end = 0;
         splitter(m_harness_work_amount, nthr, ithr, start, end);

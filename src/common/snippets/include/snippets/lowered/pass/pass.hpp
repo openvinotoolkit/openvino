@@ -20,7 +20,7 @@ namespace pass {
  * @brief Base class for transformations on linear IR
  * @ingroup snippets
  */
-class PassBase {
+class PassBase : public std::enable_shared_from_this<PassBase> {
 public:
     PassBase() = default;
     virtual ~PassBase() = default;

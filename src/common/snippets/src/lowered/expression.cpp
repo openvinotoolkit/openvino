@@ -175,11 +175,11 @@ ExpressionPtr Expression::clone_with_new_inputs(const ExpressionMap& expr_map,
 }
 
 ExpressionPort Expression::get_input_port(size_t i) {
-    return ExpressionPort(this->shared_from_this(), ExpressionPort::Type::Input, i);
+    return ExpressionPort(shared_from_this(), ExpressionPort::Type::Input, i);
 }
 
 ExpressionPort Expression::get_output_port(size_t i) {
-    return ExpressionPort(this->shared_from_this(), ExpressionPort::Type::Output, i);
+    return ExpressionPort(shared_from_this(), ExpressionPort::Type::Output, i);
 }
 
 std::vector<ExpressionPort> Expression::get_input_ports() {
