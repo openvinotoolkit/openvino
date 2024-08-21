@@ -181,7 +181,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::string devices_for_tp =
         iter_devices_for_tp ? "" : config.get_property(ov::device::priorities.name()).as<std::string>();
     if (devices_for_tp.empty()) {
-        std::cout
+        GPU_DEBUG_LOG
             << "No available device specified for TP. will initialize device list for TP with all available device."
             << std::endl;
         for (const auto& item : m_configs_map) {
@@ -230,7 +230,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             }
         }
         if (ret.size() > 2) {
-            std::cout << "Will only select 2 devices for TP." << std::endl;
+            GPU_DEBUG_LOG << "Will only select 2 devices for TP." << std::endl;
             ret = std::vector<std::string>(ret.begin(), ret.begin() + 2);
         }
         return ret;
@@ -248,7 +248,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         };
         for (auto& device_id : devices_id_for_tp) {
             config.register_device_context_for_tp(get_default_context(device_id));
-            std::cout << "Registered device with id GPU." << device_id << " for TP." << std::endl;
+            GPU_DEBUG_LOG << "Registered device with id GPU." << device_id << " for TP." << std::endl;
         }
         if (config.get_context_for_tp().size() > 1) {
             config.enableSubStreams = true;
