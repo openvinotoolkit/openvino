@@ -17,36 +17,36 @@
 
 // Check the constant shape is compatible. The compatible shapes are:
 // [], [1], [1, 1], [1, 1, 1] etc. and [1, C, 1, 1] & [1, C, 1] & [C, 1]
-static bool const_shape_compatible(const ov::PartialShape& const_shape, const ov::Dimension& C) {
-    if (!const_shape.is_static()) {
-        return false;
-    }
-
-    if (is_scalar(const_shape)) {
-        return true;
-    }
-
-    if (const_shape.rank().get_length() == 2) {
-        if ((const_shape[0] == C || const_shape[0] == 1) && const_shape[1] == 1) {
-            return true;
-        }
-    }
-
-    const int C_dim = 1;
-    for (int i = 0; i < const_shape.rank().get_length(); ++i) {
-        if (i == C_dim) {
-            if (const_shape[i] != C.get_length() && const_shape[i] != 1) {
-                return false;
-            }
-        } else {
-            if (const_shape[i] != 1) {
-                return false;
-            }
-        }
-    }
-
-    return true;
-}
+//static bool const_shape_compatible(const ov::PartialShape& const_shape, const ov::Dimension& C) {
+//    if (!const_shape.is_static()) {
+//        return false;
+//    }
+//
+//    if (is_scalar(const_shape)) {
+//        return true;
+//    }
+//
+//    if (const_shape.rank().get_length() == 2) {
+//        if ((const_shape[0] == C || const_shape[0] == 1) && const_shape[1] == 1) {
+//            return true;
+//        }
+//    }
+//
+//    const int C_dim = 1;
+//    for (int i = 0; i < const_shape.rank().get_length(); ++i) {
+//        if (i == C_dim) {
+//            if (const_shape[i] != C.get_length() && const_shape[i] != 1) {
+//                return false;
+//            }
+//        } else {
+//            if (const_shape[i] != 1) {
+//                return false;
+//            }
+//        }
+//    }
+//
+//    return true;
+//}
 
 ov::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
     MATCHER_SCOPE(ConvolutionMultiplyFusion);
@@ -71,8 +71,15 @@ ov::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
 
         bool is_scalar_multiplier(shape_size(const_shape) == 1);
 
-        // Check for const shape to be compatible
-        if (!const_shape_compatible(const_shape, channel_dim)) {
+        // Check that constant has shape [1, C, 1, 1] where the number of 1 is equal to
+        // the number of spatial dimensions or it's a scalar. That means that Constant
+        // applied per channel and can be fused into Convolution weights.
+        // Also Constant shape rank must be less or equal Convolution output shape
+        // otherwise fusion will break output broadcasting
+        auto expected_shape = Shape(weights_rank, 1);
+        expected_shape[1] = channel_dim;
+
+        if (!op::util::check_for_broadcast(expected_shape, const_shape)) {
             return false;
         }
 
@@ -128,8 +135,15 @@ ov::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
 
         bool is_scalar_multiplier(shape_size(const_shape) == 1);
 
-        // Check for const shape to be compatible (C = G * O)
-        if (!const_shape_compatible(const_shape, G * O)) {
+        // Check that constant has shape [1, C (G * O), 1, 1] where the number of 1 is equal to
+        // the number of spatial dimensions. That means that Constant applied per
+        // channel and can be fused into Convolution weights.
+        // Also Constant shape rank must be less or equal Convolution output shape
+        // otherwise fusion will break output broadcasting
+        auto expected_shape = Shape(weights_rank - 1, 1);
+        expected_shape[1] = G * O;
+
+        if (!op::util::check_for_broadcast(expected_shape, const_shape)) {
             return false;
         }
 
@@ -209,8 +223,15 @@ ov::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMultiply
 
         bool is_scalar_multiplier(shape_size(const_shape) == 1);
 
-        // Check for const shape to be compatible
-        if (!const_shape_compatible(const_shape, channel_dim)) {
+        // Check that constant has shape [1, C, 1, 1] where the number of 1 is equal to
+        // the number of spatial dimensions. That means that Constant applied per
+        // channel and can be fused into Convolution weights.
+        // Also Constant shape rank must be less or equal Convolution output shape
+        // otherwise fusion will break output broadcasting
+        auto expected_shape = Shape(weights_rank, 1);
+        expected_shape[1] = channel_dim;
+
+        if (!op::util::check_for_broadcast(expected_shape, const_shape)) {
             return false;
         }
 
@@ -287,8 +308,7 @@ ov::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpropDa
         auto expected_shape = Shape(weights_rank - 1, 1);
         expected_shape[1] = G * O;
 
-        // Check for const shape to be compatible (C = G * O)
-        if (!const_shape_compatible(const_shape, G * O)) {
+        if (!op::util::check_for_broadcast(expected_shape, const_shape)) {
             return false;
         }
 
