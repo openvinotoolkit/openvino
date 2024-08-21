@@ -39,6 +39,8 @@ class TestL2Loss(CommonTFLayerTest):
         custom_eps = None
         if input_type == np.float16:
             custom_eps = 3 * 1e-3
+        if ie_device == 'GPU' and input_shape == []:
+            pytest.skip("150321: Accessing out-of-range dimension on GPU")
         self._test(*self.create_l2_loss_net(input_shape, input_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend, custom_eps=custom_eps)
