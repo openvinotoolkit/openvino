@@ -512,7 +512,8 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
         auto dep_layout = fc_node.get_input_layout(dep_id);
         auto dep_pshape = dep_layout.get_partial_shape();
 
-        auto groups_count = dep_pshape[dep_pshape.size() - 1].get_length();
+        auto groups_idx = (dep_pshape.size() > 1) ? 1 : 0;
+        auto groups_count = dep_pshape[groups_idx].get_length();
 
         return groups_count > 1;
     };
