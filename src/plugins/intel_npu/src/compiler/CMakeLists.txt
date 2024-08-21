@@ -21,9 +21,7 @@ target_include_directories(${TARGET_NAME}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
-# for testing L0 context share
 include_directories(${CMAKE_SOURCE_DIR}/src/plugins/intel_npu/src/backend/include)
-# for plugin's NPUbackend share
 include_directories(${CMAKE_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include)
 
 target_link_libraries(${TARGET_NAME}

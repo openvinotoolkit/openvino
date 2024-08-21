@@ -208,6 +208,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     graphExtName = new char[graph_ext_name.size() + 1];
     // Copy the contents of the string to the char array
     std::strcpy(graphExtName, graph_ext_name.c_str());
+    graph_ext_name.clear();
 
     const uint16_t adapterMajorVersion = 1;
     uint16_t driverMajorVersion = ZE_MAJOR_VERSION(driver_ext_version);
