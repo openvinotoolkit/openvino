@@ -19,14 +19,6 @@ inline static std::vector<Xbyak::Reg64> transform_idxs_to_regs(const std::vector
     return regs;
 }
 
-inline static std::vector<size_t> transform_snippets_regs_to_idxs(const std::vector<snippets::Reg>& regs) {
-    std::vector<size_t> idxs(regs.size());
-    std::transform(regs.cbegin(), regs.cend(), idxs.begin(), [](const snippets::Reg& reg) {
-        return reg.idx;
-    });
-    return idxs;
-}
-
 /**
  * @brief If the passed `port` is connected to a Buffer, return its cluster ID.
  *        Otherwise returns SIZE_MAX

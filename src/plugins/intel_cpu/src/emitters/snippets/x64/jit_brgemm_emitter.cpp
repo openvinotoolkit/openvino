@@ -58,6 +58,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
         m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
         m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_input_port(2)));
     }
+    m_live_regs = expr->get_live_regs();
 }
 
 std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(
@@ -106,17 +107,30 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
 
 template <typename T, typename std::enable_if<std::is_base_of<BrgemmBaseKernelExecutor, T>::value, bool>::type>
 void jit_brgemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const {
+    std::set<snippets::Reg> regs_to_spill = m_live_regs;
+    // Note: these 3 registers will be corrupted by the caller during the ABI call
+    regs_to_spill.emplace(snippets::RegType::gpr, abi_param1.getIdx());
+    regs_to_spill.emplace(snippets::RegType::gpr, abi_param2.getIdx());
+    regs_to_spill.emplace(snippets::RegType::gpr, h->rbp.getIdx());
+    const bool is_dynamic_case =
+        std::any_of(m_memory_offsets.cbegin(), m_memory_offsets.cend(), ov::snippets::utils::is_dynamic_value<size_t>);
+    // Note: abi_param_1 is a default invalid value to check later that the aux reg was allocated properly
+    Xbyak::Reg64 aux_reg = abi_param1;
+    if (std::is_same<T, BrgemmAMXKernelExecutor>() || is_dynamic_case) {
+        if (!aux_gpr_idxs.empty()) {
+            aux_reg = Xbyak::Reg64(static_cast<int>(aux_gpr_idxs[0]));
+        } else {
+            aux_reg = ov::intel_cpu::utils::get_aux_gpr(mem_ptrs_idxs);
+            regs_to_spill.emplace(snippets::RegType::gpr, aux_reg.getIdx());
+        }
+    }
     EmitABIRegSpills spill(h);
-    spill.preamble();
+    spill.preamble(regs_to_spill);
 
     h->mov(h->rbp, reinterpret_cast<uint64_t>(T::execute));
     auto reserved_stack_size = sizeof(typename T::call_args);
     // Reserve memory on the stack
     h->sub(h->rsp, reserved_stack_size);
-
-    const bool is_dynamic_case =
-        std::any_of(m_memory_offsets.cbegin(), m_memory_offsets.cend(), ov::snippets::utils::is_dynamic_value<size_t>);
-    Xbyak::Reg64 aux_reg = is_dynamic_case ? ov::intel_cpu::utils::get_aux_gpr(mem_ptrs_idxs) : Xbyak::Reg64();
 
 #define GET_OFF_CALL_ARGS(field) offsetof(typename T::call_args, field)
     const std::vector<size_t> brgemm_args_offsets = {GET_OFF_CALL_ARGS(A),
@@ -127,14 +141,16 @@ void jit_brgemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) con
 
     const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
     for (size_t i = 0; i < mem_ptrs.size(); i++) {
-        if (ov::snippets::utils::is_dynamic_value(m_memory_offsets[i]))
+        if (ov::snippets::utils::is_dynamic_value(m_memory_offsets[i])) {
+            OV_CPU_JIT_EMITTER_ASSERT(aux_reg != abi_param1, "Aux reg is needed, but wasn't allocated");
             utils::push_ptr_with_runtime_offset_on_stack(h,
                                                          brgemm_args_offsets[i],
                                                          mem_ptrs[i],
                                                          aux_reg,
                                                          GET_OFF(buffer_offsets) + m_buffer_ids[i] * sizeof(size_t));
-        else
+        } else {
             utils::push_ptr_with_static_offset_on_stack(h, brgemm_args_offsets[i], mem_ptrs[i], m_memory_offsets[i]);
+        }
     }
 
     // No scratchpad => need to write nullptr manually
@@ -143,8 +159,9 @@ void jit_brgemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) con
 
     // abi_param1 always contains jit_snippets_call_args which has amx tile config for each thread
     if (std::is_same<T, BrgemmAMXKernelExecutor>()) {
-        h->lea(h->r10, h->ptr[abi_param1 + GET_OFF(amx_tile_config)]);
-        h->mov(h->qword[h->rsp + GET_OFF_BRGEMM_AMX_ARGS(amx_tile_config)], h->r10);
+        OV_CPU_JIT_EMITTER_ASSERT(aux_reg != abi_param1, "Aux reg is needed, but wasn't allocated");
+        h->lea(aux_reg, h->ptr[abi_param1 + GET_OFF(amx_tile_config)]);
+        h->mov(h->qword[h->rsp + GET_OFF_BRGEMM_AMX_ARGS(amx_tile_config)], aux_reg);
     }
 
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_kernel_executor.get()));

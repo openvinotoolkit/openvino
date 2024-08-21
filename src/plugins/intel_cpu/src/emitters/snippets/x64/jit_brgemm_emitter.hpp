@@ -38,6 +38,7 @@ private:
     // Note: cluster ids order: A, B, C (+ scratchpad, if needed). Values can be dynamic_value if there is no buffer
     std::vector<size_t> m_buffer_ids{};
     std::shared_ptr<BrgemmBaseKernelExecutor> m_kernel_executor = nullptr;
+    std::set<snippets::Reg> m_live_regs{};
 
 #ifdef SNIPPETS_DEBUG_CAPS
     friend std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter* emitter);

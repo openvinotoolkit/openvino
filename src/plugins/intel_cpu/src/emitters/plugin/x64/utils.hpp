@@ -5,6 +5,7 @@
 #pragma once
 
 #include "cpu/x64/jit_generator.hpp"
+#include "snippets/emitter.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -14,9 +15,11 @@ class EmitABIRegSpills {
 public:
     EmitABIRegSpills(dnnl::impl::cpu::x64::jit_generator* h);
     ~EmitABIRegSpills();
-
+    size_t get_num_spilled_regs() const {
+        return m_regs_to_spill.size();
+    }
     // push (save) all registers on the stack
-    void preamble();
+    void preamble(const std::set<snippets::Reg>& live_regs = {});
     // pop (take) all registers from the stack
     void postamble();
 
@@ -27,22 +30,11 @@ public:
 
 private:
     EmitABIRegSpills() = default;
-
     static dnnl::impl::cpu::x64::cpu_isa_t get_isa();
-
-    inline size_t get_max_vecs_count() const {
-        return dnnl::impl::cpu::x64::isa_num_vregs(isa);
-    }
-    inline size_t get_vec_length() const {
-        return dnnl::impl::cpu::x64::isa_max_vlen(isa);
-    }
-
     dnnl::impl::cpu::x64::jit_generator* h{nullptr};
     const dnnl::impl::cpu::x64::cpu_isa_t isa{dnnl::impl::cpu::x64::cpu_isa_t::isa_undef};
-
-    static constexpr int k_mask_size = 8;
-    static constexpr int k_mask_num = 8;
-    static constexpr int gpr_size = 8;
+    std::vector<Xbyak::Reg> m_regs_to_spill;
+    uint32_t m_bytes_to_spill = 0;
 
     bool spill_status = true;
     bool rsp_status = true;

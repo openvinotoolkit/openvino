@@ -7,10 +7,8 @@
 #include <openvino/opsets/opset5.hpp>
 
 #include "emitters/plugin/x64/jit_conversion_emitters.hpp"
-#include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
 #include "emitters/plugin/x64/jit_dnnl_ext_emitters.hpp"
 #include "emitters/plugin/x64/jit_eltwise_emitters.hpp"
-#include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "emitters/snippets/x64/jit_brgemm_copy_b_emitter.hpp"
 #include "emitters/snippets/x64/jit_brgemm_emitter.hpp"
@@ -19,6 +17,7 @@
 #include "emitters/snippets/x64/jit_kernel_emitter.hpp"
 #include "emitters/snippets/x64/jit_loop_emitters.hpp"
 #include "emitters/snippets/x64/jit_memory_emitters.hpp"
+#include "emitters/snippets/x64/jit_reg_spill_emitters.hpp"
 #include "emitters/snippets/x64/jit_snippets_emitters.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
@@ -259,13 +258,6 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[snippets::op::HorizonMax::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_horizon_emitter);
     jitters[snippets::op::HorizonSum::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_horizon_emitter);
 
-    jitters[snippets::op::KernelStatic::get_type_info_static()] =
-        CREATE_SNIPPETS_EMITTER(intel_cpu::jit_kernel_static_emitter);
-    jitters[snippets::op::KernelDynamic::get_type_info_static()] =
-        CREATE_SNIPPETS_EMITTER(intel_cpu::jit_kernel_dynamic_emitter);
-    jitters[snippets::op::LoopBegin::get_type_info_static()] =
-        CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_begin_emitter);
-    jitters[snippets::op::LoopEnd::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_end_emitter);
     // Note: jit_brgemm_emitter and jit_brgemm_copy_b_emitter support runtime recompilation, so their constructor takes
     // additional arguments
     jitters[intel_cpu::BrgemmCPU::get_type_info_static()] =
@@ -278,6 +270,18 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
                                 compiled_kernel_cache);
     jitters[snippets::op::ReduceMax::get_type_info_static()] = CREATE_UNDEFINED_EMITTER({{ov::element::f32}});
     jitters[snippets::op::ReduceSum::get_type_info_static()] = CREATE_UNDEFINED_EMITTER({{ov::element::f32}});
+    // Service
+    jitters[snippets::op::KernelStatic::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(intel_cpu::jit_kernel_static_emitter);
+    jitters[snippets::op::KernelDynamic::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(intel_cpu::jit_kernel_dynamic_emitter);
+    jitters[snippets::op::LoopBegin::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_begin_emitter);
+    jitters[snippets::op::LoopEnd::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_end_emitter);
+    jitters[snippets::op::RegSpillBegin::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(intel_cpu::jit_reg_spill_begin_emitter);
+    jitters[snippets::op::RegSpillEnd::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(intel_cpu::jit_reg_spill_end_emitter);
 
 #ifdef SNIPPETS_DEBUG_CAPS
     jitters[snippets::op::PerfCountBegin::get_type_info_static()] =
@@ -337,8 +341,41 @@ size_t intel_cpu::CPUTargetMachine::get_lanes() const {
     }
 }
 
-size_t intel_cpu::CPUTargetMachine::get_reg_count() const {
-    return 16;
+std::vector<snippets::Reg> intel_cpu::CPUTargetMachine::get_abi_arg_regs() const {
+    const auto& abi_regs = dnnl::impl::cpu::x64::abi_param_regs;
+    std::vector<snippets::Reg> res;
+    for (const auto& r : abi_regs)
+        res.emplace_back(snippets::RegType::gpr, r);
+    return res;
+}
+
+std::vector<snippets::Reg> intel_cpu::CPUTargetMachine::get_gp_reg_pool() const {
+    const auto num_gp_regs = 16;
+    std::vector<snippets::Reg> reg_pool;
+    for (size_t i = 0; i < num_gp_regs; i++) {
+        if (!one_of(i, Xbyak::Operand::RSP, Xbyak::Operand::RBP))
+            reg_pool.emplace_back(snippets::RegType::gpr, i);
+    }
+    return reg_pool;
+}
+
+std::vector<snippets::Reg> intel_cpu::CPUTargetMachine::get_vec_reg_pool() const {
+    const auto num_vec_regs = [this]() {
+        switch (isa) {
+        case dnnl::impl::cpu::x64::avx2:
+            return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx2>::n_vregs;
+        case dnnl::impl::cpu::x64::sse41:
+            return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::sse41>::n_vregs;
+        case dnnl::impl::cpu::x64::avx512_core:
+            return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_core>::n_vregs;
+        default:
+            OPENVINO_THROW("unknown isa ", isa);
+        }
+    }();
+    std::vector<snippets::Reg> reg_pool;
+    for (int i = 0; i < num_vec_regs; i++)
+        reg_pool.emplace_back(snippets::RegType::vec, static_cast<size_t>(i));
+    return reg_pool;
 }
 
 dnnl::impl::cpu::x64::cpu_isa_t intel_cpu::CPUTargetMachine::get_isa() const {
@@ -390,14 +427,14 @@ std::shared_ptr<snippets::Generator> intel_cpu::CPUGenerator::clone() const {
 
 ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
     const auto op = out.get_node_shared_ptr();
-    if (ov::as_type_ptr<intel_cpu::BrgemmCPU>(op) ||
+    if (is_type<intel_cpu::BrgemmCPU>(op) ||
 #ifdef SNIPPETS_LIBXSMM_TPP
         std::dynamic_pointer_cast<intel_cpu::tpp::modifier::TensorProcessingPrimitive>(op) ||
-        ov::as_type_ptr<intel_cpu::tpp::op::Scalar>(op) ||
+        is_type<intel_cpu::tpp::op::Scalar>(op) ||
 #endif
-        ov::as_type_ptr<intel_cpu::BrgemmCopyB>(op))
+        is_type<intel_cpu::BrgemmCopyB>(op))
         return ov::snippets::RegType::gpr;
-    else if (ov::as_type_ptr<intel_cpu::FusedMulAdd>(op) || ov::as_type_ptr<intel_cpu::SwishNode>(op))
+    else if (is_type<intel_cpu::FusedMulAdd>(op) || is_type<intel_cpu::SwishNode>(op))
         return ov::snippets::RegType::vec;
     else
         return ov::snippets::RegType::undefined;

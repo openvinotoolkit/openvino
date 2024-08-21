@@ -48,7 +48,6 @@
 #include "snippets/lowered/pass/validate.hpp"
 #include "snippets/lowered/pass/pass_config.hpp"
 #include "snippets/lowered/pass/reduce_decomposition.hpp"
-#include "snippets/lowered/pass/assign_registers.hpp"
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
@@ -57,12 +56,16 @@
 #include "snippets/lowered/pass/set_load_store_scalar.hpp"
 #include "snippets/lowered/pass/extract_loop_invariants.hpp"
 
+#include "snippets/lowered/reg_manager.hpp"
+#include "snippets/lowered/pass/assign_registers.hpp"
+#include "snippets/lowered/pass/init_live_ranges.hpp"
+#include "snippets/lowered/pass/insert_reg_spills.hpp"
+
 #include "transformations/utils/utils.hpp"
 
 #include "snippets/pass/manager.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "openvino/pass/serialize.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -497,10 +500,6 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
 
     OV_ITT_TASK_NEXT(CONTROL_FLOW, "::pre_generation_pipeline")
 
-    std::function<RegType(const ov::Output<Node>& out)> reg_type_mapper = [&](const ov::Output<Node>& out) -> RegType {
-        return get_generator()->get_op_out_reg_type(out);
-    };
-
     lowered::pass::PassPipeline gen_pipeline(lowered_pass_config);
     // Note: the order of all passes in this pipeline must not be changed since they have hard dependencies
     //    1. InsertSpecificIterations must be called after AssignRegisters since tail loop expressions must have the same
@@ -509,7 +508,11 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     //       (this might happen if tail loop and main loop have different increments)
     //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
     //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
-    gen_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper, get_generator()->get_target_machine()->get_reg_count());
+
+    lowered::RegManager reg_manager(get_generator());
+    gen_pipeline.register_pass<lowered::pass::InitLiveRanges>(reg_manager);
+    gen_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_manager);
+    gen_pipeline.register_pass<lowered::pass::InsertRegSpills>(reg_manager);
     gen_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
     gen_pipeline.register_pass<lowered::pass::NormalizeLoopIDs>();
     gen_pipeline.register_pass<lowered::pass::ValidateExpandedLoops>();
