@@ -76,6 +76,10 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
         startFrom = -1;
         range = 2;
         resolution = 128;
+    } else if (activationType == utils::ActivationTypes::LogicalNot) {
+        startFrom = 0;
+        range = 2;
+        resolution = 1;
     } else {
         startFrom = 0;
         range = 15;
