@@ -207,7 +207,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         std::size_t start = 0, end = devices_for_tp.find(delimiter);
         while (end != std::string::npos) {
             std::string device_with_id = devices_for_tp.substr(start, end - start);
-            auto dotPos = device_with_id.find(".", start);
+            auto dotPos = device_with_id.find(".");
             if (dotPos != std::string::npos) {
                 auto target_id = device_with_id.substr(dotPos + 1);
                 if (m_device_map.count(target_id)) {
