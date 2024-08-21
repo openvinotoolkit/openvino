@@ -56,7 +56,7 @@ def run(cmd: str, dry_run: bool = False, fail_on_error: bool = True):
     if dry_run:
         return 0, ''
 
-    with subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8') as proc:
+    with subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as proc:
         for line in proc.stdout:
             logger.info(line.strip())
 

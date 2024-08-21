@@ -1,15 +1,8 @@
 name: Linux (Ubuntu 22.04, Python 3.11, Intel DPC++ Compiler)
 on:
-  schedule:
-    # at 00:00 on Wednesday and Saturday
-    - cron: '0 0 * * 3,6'
   workflow_dispatch:
   pull_request:
   merge_group:
-  push:
-    branches:
-      - master
-      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -17,10 +10,6 @@ concurrency:
   cancel-in-progress: true
 
 permissions: read-all
-
-env:
-  PIP_CACHE_PATH: /mount/caches/pip/linux
-  PYTHON_VERSION: '3.11'
 
 jobs:
   Smart_CI:
