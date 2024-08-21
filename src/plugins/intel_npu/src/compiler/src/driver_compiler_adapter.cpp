@@ -22,7 +22,7 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> 
     _logger.debug("initialize LevelZeroCompilerAdapter start");
 
     ov::SoPtr<intel_npu::IEngineBackend> soPtrBackend = npuBackends->getIEngineBackend();
-    std::shared_ptr<intel_npu::IEngineBackend> iEngineBackend = soPtrBackend._ptr;  // Extract the raw pointer
+    std::shared_ptr<intel_npu::IEngineBackend> iEngineBackend = soPtrBackend._ptr;
     std::shared_ptr<ZeroEngineBackend> zeroBackend = nullptr;
     zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(iEngineBackend);
     if (!zeroBackend) {
@@ -30,7 +30,7 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> 
     }
 
     uint32_t driverExtVersion = zeroBackend->getDriverExtVersion();
-
+    char* graph_ext_name = zeroBackend->getGraphExtName();
     ze_context_handle_t zeContext = (ze_context_handle_t)zeroBackend->getContext();
     ze_driver_handle_t driverHandle = (ze_driver_handle_t)zeroBackend->getDriverHandle();
     ze_device_handle_t deviceHandle = (ze_device_handle_t)zeroBackend->getDeviceHandle();
@@ -73,7 +73,11 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> 
                                                                                               graph_ddi_table_ext);
         break;
     }
-    _logger.info("initialize LevelZeroCompilerAdapter complete, using ext_version :  %u", driverExtVersion);
+
+    _logger.info("initialize LevelZeroCompilerAdapter complete, using driverExtVersion: %d.%d (%s)",
+                 ZE_MAJOR_VERSION(driverExtVersion),
+                 ZE_MINOR_VERSION(driverExtVersion),
+                 graph_ext_name);
 }
 
 uint32_t LevelZeroCompilerAdapter::getSupportedOpsetVersion() const {

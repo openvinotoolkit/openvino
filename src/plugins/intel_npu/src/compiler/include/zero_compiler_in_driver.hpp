@@ -192,7 +192,6 @@ LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(ze_driver_h
     : _driverHandle(driverHandle),
       _graphDdiTableExt(reinterpret_cast<TableExtension*>(graph_ddi_table_ext)),
       _logger("LevelZeroCompilerInDriver", Logger::global().level()) {
-    // Aceept context from adapter
     _context = zeContext;
     _deviceHandle = deviceHandle;
 }
