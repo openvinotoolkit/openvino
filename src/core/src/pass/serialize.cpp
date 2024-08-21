@@ -921,7 +921,9 @@ void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::
             if (auto meta_with_pugixml_node = std::dynamic_pointer_cast<ov::MetaDataWithPugixml>(meta)) {
                 if (auto pugi_node = meta_with_pugixml_node->get_pugi_node()) {
                     root.remove_child(child);
-                    root.append_copy(pugi_node);
+                    auto added_node = root.append_copy(pugi_node);
+                    OPENVINO_ASSERT(!!added_node, "Cannot add pugixml node with name: ", name);
+                    added_node.set_name(name.c_str());
                     break;
                 }
             }
