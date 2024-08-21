@@ -130,7 +130,6 @@ auto val_map_multi_shift_5 = ov::AnyMap{{"shift", multi_shift_5}, {"max_val", ma
 
 static const std::vector<std::vector<ov::Shape>> bitwise_in_shapes_5D_1D = {
     {{2, 17, 8, 4, 5}, {5}},
-    {{1, 2, 3, 9, 5}, {5}},
 };
 
 const auto params_5D_1D_bitwise_shift = ::testing::Combine(
@@ -175,6 +174,54 @@ const auto params_5D_1D_bitwise_shift_cast_i32 = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_1D_BitwiseShift_cast_i32,
                          BitwiseShiftLayerCPUTest,
                          params_5D_1D_bitwise_shift_cast_i32,
+                         BitwiseShiftLayerCPUTest::getTestCaseName);
+
+static const std::vector<std::vector<ov::Shape>> bitwise_in_shapes_4D_1D = {
+    {{2, 3, 4, 5}, {5}},
+};
+
+const auto params_4D_1D_bitwise_shift = ::testing::Combine(
+    ::testing::Combine(
+        ::testing::ValuesIn(static_shapes_to_test_representation(bitwise_in_shapes_4D_1D)),
+        ::testing::ValuesIn(
+            {ov::test::utils::EltwiseTypes::BITWISE_LEFT_SHIFT, ov::test::utils::EltwiseTypes::BITWISE_RIGHT_SHIFT}),
+        ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
+        ::testing::ValuesIn({ov::test::utils::OpType::VECTOR}),
+        ::testing::ValuesIn({ov::element::Type_t::i8, ov::element::Type_t::u8, ov::element::Type_t::i32}),
+        ::testing::Values(ov::element::Type_t::undefined),
+        ::testing::Values(ov::element::Type_t::undefined),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
+        ::testing::Values(ov::AnyMap())),
+    ::testing::Values(CPUSpecificParams({nchw, x}, {nchw}, {}, {})),
+    ::testing::Values(emptyFusingSpec),
+    ::testing::Values(false),
+    ::testing::Values(val_map_multi_shift_5));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D_BitwiseShift,
+                         BitwiseShiftLayerCPUTest,
+                         params_4D_1D_bitwise_shift,
+                         BitwiseShiftLayerCPUTest::getTestCaseName);
+
+const auto params_4D_1D_bitwise_shift_cast_i32 = ::testing::Combine(
+    ::testing::Combine(
+        ::testing::ValuesIn(static_shapes_to_test_representation(bitwise_in_shapes_4D_1D)),
+        ::testing::ValuesIn(
+            {ov::test::utils::EltwiseTypes::BITWISE_LEFT_SHIFT, ov::test::utils::EltwiseTypes::BITWISE_RIGHT_SHIFT}),
+        ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
+        ::testing::ValuesIn({ov::test::utils::OpType::VECTOR}),
+        ::testing::ValuesIn({ov::element::Type_t::i16, ov::element::Type_t::u16, ov::element::Type_t::u32}),
+        ::testing::Values(ov::element::Type_t::undefined),
+        ::testing::Values(ov::element::Type_t::undefined),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
+        ::testing::Values(ov::AnyMap())),
+    ::testing::Values(CPUSpecificParams({nchw, x}, {nchw}, {}, "ref_I32$/")),
+    ::testing::Values(emptyFusingSpec),
+    ::testing::Values(false),
+    ::testing::Values(val_map_multi_shift_5));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D_BitwiseShift_cast_i32,
+                         BitwiseShiftLayerCPUTest,
+                         params_4D_1D_bitwise_shift_cast_i32,
                          BitwiseShiftLayerCPUTest::getTestCaseName);
 
 }  // namespace Eltwise
