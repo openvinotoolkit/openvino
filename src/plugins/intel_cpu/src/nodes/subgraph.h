@@ -119,12 +119,14 @@ private:
 
 class Subgraph::SubgraphExecutor {
 public:
+    using BufferScratchpadAllocator = std::function<MemoryPtr(size_t)>;
+
     SubgraphExecutor(const std::shared_ptr<Subgraph::SubgraphAttrs>& snippet_attrs,
                      const std::shared_ptr<Subgraph::SubgraphCodeGenerator>& snippet,
                      const std::vector<ptrdiff_t>& start_offset_in,
                      const std::vector<ptrdiff_t>& start_offset_out,
                      const std::shared_ptr<CPURuntimeConfig>& snippet_config,
-                     const DnnlScratchPadPtr& scratchpad);
+                     const BufferScratchpadAllocator& allocator);
     virtual ~SubgraphExecutor() = default;
 
     virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;

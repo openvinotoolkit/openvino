@@ -773,13 +773,9 @@ protected:
                                        NameFromType(getType()));
     }
 
-    DnnlScratchPadPtr getScratchPad() const {
-        return context->getScratchPad(curNumaNode);
-    }
-
-    MemoryPtr getScratchPadMem(const DnnlMemoryDescPtr& desc) {
+    MemoryPtr getScratchPadMem(const MemoryDescPtr& desc) {
         if (!scratchpadMem || !scratchpadMem->getDesc().isCompatible(*desc)) {
-            scratchpadMem = getScratchPad()->createScratchPadMem(desc);
+            scratchpadMem = context->getScratchPad(curNumaNode)->createScratchPadMem(desc);
         }
         return scratchpadMem;
     }

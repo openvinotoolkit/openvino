@@ -476,7 +476,8 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         const auto data_count = io_count + uniqie_buffer_reg_group_count;
         auto available_regs = config.get_data_ptr_gpr_count();
         // [150148, 150149] Currently Snippets don't have mechanism of spilling registers on stack.
-        //                  Due to this limitation we have to not tokenize some subgraphs if we need more registers than we have on target machine.
+        //                  Due to this limitation we have to skip tokenization of some subgraphs
+        //                  if we need more registers than we have on the target machine.
         //                  `config.get_data_ptr_gpr_count()` provides available data registers count (including parameters, results and buffers)
         //                  after excluding 2 registers for work amounts.
         //                  However, MHA Subgraph has `SplitLoops` optimization which adds outermost blocked Loop by M. This Loop requires
