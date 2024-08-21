@@ -129,6 +129,11 @@ public:
     DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
 };
 
+class DCOFFPassCWAI3 : public ov::pass::MatcherPass {
+public:
+    DCOFFPassCWAI3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
+};
+
 class CWAI1 : public ov::pass::MatcherPass {
 public:
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
@@ -143,6 +148,14 @@ public:
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
     explicit CWAI2(Results scales);
+};
+
+class CWAI3 : public ov::pass::MatcherPass {
+public:
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    using Results = std::reference_wrapper<std::vector<CPtr>>;
+
+    explicit CWAI3(Results scales);
 };
 
 }  // namespace SymmZP

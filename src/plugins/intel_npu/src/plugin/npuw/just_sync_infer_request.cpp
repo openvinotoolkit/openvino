@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "plugin.hpp"
 #include "util.hpp"
+#include "weights_bank.hpp"
 
 ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
     : IBaseInferRequest(compiled_model) {
@@ -168,6 +169,36 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         m_subrequests_gio.at(sub_idx).global_results[i] = out_idx;
     }
     // }}}
+
+    // Sort out how to handle weights bank and unpack
+    auto& wbank = m_npuw_model->m_weights_bank;
+    for (size_t i = 0; i < m_num_submodels; i++) {
+        LOG_VERB("Trying to preemptively set tensors for Subgraph[" << i << "]...");
+        LOG_BLOCK();
+        auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
+
+        if (!comp_model_desc.compiled_model || !comp_model_desc.replaced_by) {
+            continue;
+        }
+
+        const auto real_idx = comp_model_desc.replaced_by.value();
+        auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
+
+        auto& request = m_subrequests[real_idx];
+
+        for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
+            const auto& closure = comp_model_desc.closure[cidx];
+
+            const auto closure_param_id = comp_model_desc.param_base + cidx;
+            const auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
+
+            // No update required to this tensor in runtime - so it can be set only once
+            if (!comp_model_desc.update_required[cidx]) {
+                request->set_tensor(iport, ov::get_tensor_impl(wbank->get(closure, *func_desc.device_it)));
+            }
+        }  // for(closure)
+        LOG_VERB("DONE");
+    }
 }
 
 void ov::npuw::JustInferRequest::connect_subrequests() {
@@ -452,11 +483,11 @@ void ov::npuw::JustInferRequest::unpack_closure(std::size_t idx, RqPtr request) 
 
         const auto closure_param_id = comp_model_desc.param_base + cidx;
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-        auto clparam = request->get_tensor(iport);
+        const auto& clparam = request->get_tensor(iport);
         if (closure.get_element_type() != clparam->get_element_type()) {
             // Remember where the unpack is required
             closure_unpack_required.push_back(cidx);
-        } else {
+        } else if (comp_model_desc.update_required[cidx]) {
             // Easy case, just set one to another. Copy_to is also possible
             // and even may be preferrable for some devices, like this:
             // ```ov::get_tensor_impl(closure)->copy_to(clparam._ptr);'''

@@ -22,6 +22,10 @@ initial noises. Experimental results show that the proposed method can
 produce visually convincing and more logical & natural motions, as well
 as higher conformity to the input image.
 
+In this tutorial, we consider how to use DynamiCrafter with OpenVINO. An
+additional part demonstrates how to run optimization with
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up model.
+
 .. raw:: html
 
    <table class="center">
@@ -114,7 +118,25 @@ as higher conformity to the input image.
 
 -  `Compiling models <#compiling-models>`__
 -  `Building the pipeline <#building-the-pipeline>`__
+-  `Run OpenVINO pipeline
+   inference <#run-openvino-pipeline-inference>`__
+-  `Quantization <#quantization>`__
+
+   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
+   -  `Run Quantization <#run-quantization>`__
+   -  `Run Weights Compression <#run-weights-compression>`__
+   -  `Compare model file sizes <#compare-model-file-sizes>`__
+   -  `Compare inference time of the FP32 and INT8
+      pipelines <#compare-inference-time-of-the-fp32-and-int8-pipelines>`__
+
 -  `Interactive inference <#interactive-inference>`__
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Prerequisites
 -------------
@@ -123,19 +145,8 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install "openvino>=2024.2.0"
-    %pip install -q "gradio>=4.19" omegaconf decord einops pytorch_lightning kornia open_clip_torch transformers av opencv-python torch --extra-index-url https://download.pytorch.org/whl/cpu
-
-
-.. parsed-literal::
-
-    Requirement already satisfied: openvino>=2024.2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2024.3.0.dev20240627)
-    Requirement already satisfied: numpy<2.0.0,>=1.16.6 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2024.2.0) (1.23.5)
-    Requirement already satisfied: openvino-telemetry>=2023.2.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2024.2.0) (2024.1.0)
-    Requirement already satisfied: packaging in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2024.2.0) (24.1)
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    %pip install -q "openvino>=2024.2.0" "nncf>=2.11.0" "datasets>=2.20.0"
+    %pip install -q "gradio>=4.19" omegaconf einops pytorch_lightning kornia "open_clip_torch==2.22.0" transformers av opencv-python "torch==2.2.2" --extra-index-url https://download.pytorch.org/whl/cpu
 
 .. code:: ipython3
 
@@ -154,20 +165,6 @@ Prerequisites
 
     sys.path.append(str(dynamicrafter_path))
 
-
-.. parsed-literal::
-
-    Cloning into 'dynamicrafter'...
-    remote: Enumerating objects: 320, done.[K
-    remote: Counting objects: 100% (157/157), done.[K
-    remote: Compressing objects: 100% (93/93), done.[K
-    remote: Total 320 (delta 95), reused 88 (delta 64), pack-reused 163[K
-    Receiving objects: 100% (320/320), 72.40 MiB | 21.86 MiB/s, done.
-    Resolving deltas: 100% (110/110), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images
-
-
 Load and run the original pipeline
 ----------------------------------
 
@@ -180,12 +177,46 @@ We will use model for 256x256 resolution as example. Also, models for
 .. code:: ipython3
 
     import os
+    from collections import OrderedDict
 
+    import torch
     from huggingface_hub import hf_hub_download
     from omegaconf import OmegaConf
 
-    from dynamicrafter.scripts.evaluation.funcs import load_model_checkpoint
     from dynamicrafter.utils.utils import instantiate_from_config
+
+
+    def load_model_checkpoint(model, ckpt):
+        def load_checkpoint(model, ckpt, full_strict):
+            state_dict = torch.load(ckpt, map_location="cpu")
+            if "state_dict" in list(state_dict.keys()):
+                state_dict = state_dict["state_dict"]
+                try:
+                    model.load_state_dict(state_dict, strict=full_strict)
+                except Exception:
+                    ## rename the keys for 256x256 model
+                    new_pl_sd = OrderedDict()
+                    for k, v in state_dict.items():
+                        new_pl_sd[k] = v
+
+                    for k in list(new_pl_sd.keys()):
+                        if "framestride_embed" in k:
+                            new_key = k.replace("framestride_embed", "fps_embedding")
+                            new_pl_sd[new_key] = new_pl_sd[k]
+                            del new_pl_sd[k]
+                    model.load_state_dict(new_pl_sd, strict=full_strict)
+            else:
+                ## deepspeed
+                new_pl_sd = OrderedDict()
+                for key in state_dict["module"].keys():
+                    new_pl_sd[key[16:]] = state_dict["module"][key]
+                model.load_state_dict(new_pl_sd, strict=full_strict)
+
+            return model
+
+        load_checkpoint(model, ckpt, full_strict=True)
+        print(">>> model checkpoint loaded.")
+        return model
 
 
     def download_model():
@@ -213,19 +244,6 @@ We will use model for 256x256 resolution as example. Also, models for
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1194: UserWarning: `local_dir_use_symlinks` parameter is deprecated and will be ignored. The process to download files to a local folder has been updated and do not rely on symlinks anymore. You only need to pass a destination folder as`local_dir`.
-    For more details, check out https://huggingface.co/docs/huggingface_hub/main/en/guides/download#download-files-to-local-folder.
-      warnings.warn(
-
-
-
-.. parsed-literal::
-
-    model.ckpt:   0%|          | 0.00/10.4G [00:00<?, ?B/s]
-
-
-.. parsed-literal::
-
     AE working on z of shape (1, 4, 32, 32) = 4096 dimensions.
     >>> model checkpoint loaded.
 
@@ -242,7 +260,7 @@ file.
 
 .. code:: ipython3
 
-    import torch
+    import gc
 
     import openvino as ov
 
@@ -287,7 +305,6 @@ Convert CLIP text encoder
 
 
     class FrozenOpenCLIPEmbedderWrapper(FrozenOpenCLIPEmbedder):
-
         def forward(self, tokens):
             z = self.encode_with_transformer(tokens.to(self.device))
             return z
@@ -295,12 +312,15 @@ Convert CLIP text encoder
 
     cond_stage_model = FrozenOpenCLIPEmbedderWrapper(device="cpu")
 
+    if not COND_STAGE_MODEL_OV_PATH.exists():
+        convert(
+            cond_stage_model,
+            COND_STAGE_MODEL_OV_PATH,
+            example_input=torch.ones([1, 77], dtype=torch.long),
+        )
 
-    convert(
-        cond_stage_model,
-        COND_STAGE_MODEL_OV_PATH,
-        example_input=torch.ones([1, 77], dtype=torch.long),
-    )
+    del cond_stage_model
+    gc.collect();
 
 Convert CLIP image encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -317,50 +337,12 @@ resolutions.
     dummy_input = torch.rand([1, 3, 767, 767], dtype=torch.float32)
 
     model.embedder.model.visual.input_patchnorm = None  # fix error: visual model has not  attribute 'input_patchnorm'
-    convert(model.embedder, EMBEDDER_OV_PATH, example_input=dummy_input, input_shape=[1, 3, -1, -1])
+    if not EMBEDDER_OV_PATH.exists():
+        convert(model.embedder, EMBEDDER_OV_PATH, example_input=dummy_input, input_shape=[1, 3, -1, -1])
 
 
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/utils/image.py:226: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if input.numel() == 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:573: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if size == input_size:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:579: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      antialias = antialias and (max(factors) > 1)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:581: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if antialias:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:584: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      sigmas = (max((factors[0] - 1.0) / 2.0, 0.001), max((factors[1] - 1.0) / 2.0, 0.001))
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:589: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      ks = int(max(2.0 * 2 * sigmas[0], 3)), int(max(2.0 * 2 * sigmas[1], 3))
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:589: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      ks = int(max(2.0 * 2 * sigmas[0], 3)), int(max(2.0 * 2 * sigmas[1], 3))
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/filters/gaussian.py:55: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      sigma = tensor([sigma], device=input.device, dtype=input.dtype)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/filters/gaussian.py:55: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      sigma = tensor([sigma], device=input.device, dtype=input.dtype)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/core/check.py:78: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if x_shape_to_check[i] != dim:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/filters/kernels.py:92: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      mean = tensor([[mean]], device=sigma.device, dtype=sigma.dtype)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:101: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if len(mean.shape) == 0 or mean.shape[0] == 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:103: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if len(std.shape) == 0 or std.shape[0] == 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:107: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if mean.shape and mean.shape[0] != 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:108: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if mean.shape[0] != data.shape[1] and mean.shape[:2] != data.shape[:2]:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:112: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if std.shape and std.shape[0] != 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:113: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if std.shape[0] != data.shape[1] and std.shape[:2] != data.shape[:2]:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:116: TracerWarning: torch.as_tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      mean = torch.as_tensor(mean, device=data.device, dtype=data.dtype)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:117: TracerWarning: torch.as_tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      std = torch.as_tensor(std, device=data.device, dtype=data.dtype)
-
+    del model.embedder
+    gc.collect();
 
 Convert AE encoder
 ~~~~~~~~~~~~~~~~~~
@@ -369,23 +351,20 @@ Convert AE encoder
 
 .. code:: ipython3
 
-    ENCODER_FIRST_STAGE_OV_PATH = Path("models/encode_first_stage_ir.xml")
+    ENCODER_FIRST_STAGE_OV_PATH = Path("models/encoder_first_stage_ir.xml")
 
 
     dummy_input = torch.rand([1, 3, 256, 256], dtype=torch.float32)
 
-    convert(
-        model.first_stage_model.encoder,
-        ENCODER_FIRST_STAGE_OV_PATH,
-        example_input=dummy_input,
-    )
+    if not ENCODER_FIRST_STAGE_OV_PATH.exists():
+        convert(
+            model.first_stage_model.encoder,
+            ENCODER_FIRST_STAGE_OV_PATH,
+            example_input=dummy_input,
+        )
 
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/ae_modules.py:67: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      w_ = w_ * (int(c)**(-0.5))
-
+    del model.first_stage_model.encoder
+    gc.collect();
 
 Convert Diffusion U-Net model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -407,32 +386,22 @@ Convert Diffusion U-Net model
             return outputs
 
 
-    convert(
-        ModelWrapper(model.model.diffusion_model),
-        MODEL_OV_PATH,
-        example_input={
-            "xc": torch.rand([1, 8, 16, 32, 32], dtype=torch.float32),
-            "t": torch.tensor([1]),
-            "context": torch.rand([1, 333, 1024], dtype=torch.float32),
-            "fs": torch.tensor([3]),
-            "temporal_length": torch.tensor([16]),
-        },
-    )
+    if not MODEL_OV_PATH.exists():
+        convert(
+            ModelWrapper(model.model.diffusion_model),
+            MODEL_OV_PATH,
+            example_input={
+                "xc": torch.rand([1, 8, 16, 32, 32], dtype=torch.float32),
+                "t": torch.tensor([1]),
+                "context": torch.rand([1, 333, 1024], dtype=torch.float32),
+                "fs": torch.tensor([3]),
+                "temporal_length": torch.tensor([16]),
+            },
+        )
 
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:556: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if l_context == 77 + t*16: ## !!! HARD CODE here
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:205: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if batch_size:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:232: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if self.use_temporal_conv and batch_size:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:76: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert x.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:99: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert x.shape[1] == self.channels
-
+    out_channels = model.model.diffusion_model.out_channels
+    del model.model.diffusion_model
+    gc.collect();
 
 Convert AE decoder
 ~~~~~~~~~~~~~~~~~~
@@ -463,11 +432,15 @@ to float32.
 
     dummy_input = torch.rand([16, 4, 32, 32], dtype=torch.float32)
 
-    convert(
-        model.first_stage_model.decoder,
-        DECODER_FIRST_STAGE_OV_PATH,
-        example_input=dummy_input,
-    )
+    if not DECODER_FIRST_STAGE_OV_PATH.exists():
+        convert(
+            model.first_stage_model.decoder,
+            DECODER_FIRST_STAGE_OV_PATH,
+            example_input=dummy_input,
+        )
+
+    del model.first_stage_model.decoder
+    gc.collect();
 
 Compiling models
 ----------------
@@ -501,11 +474,11 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    compiled_cond_stage_model = core.compile_model(COND_STAGE_MODEL_OV_PATH, device.value)
-    compiled_encode_first_stage = core.compile_model(ENCODER_FIRST_STAGE_OV_PATH, device.value)
-    compiled_embedder = core.compile_model(EMBEDDER_OV_PATH, device.value)
-    compiled_model = core.compile_model(MODEL_OV_PATH, device.value)
-    compiled_decoder_first_stage = core.compile_model(DECODER_FIRST_STAGE_OV_PATH, device.value)
+    compiled_cond_stage_model = core.compile_model(core.read_model(COND_STAGE_MODEL_OV_PATH), device.value)
+    compiled_encode_first_stage = core.compile_model(core.read_model(ENCODER_FIRST_STAGE_OV_PATH), device.value)
+    compiled_embedder = core.compile_model(core.read_model(EMBEDDER_OV_PATH), device.value)
+    compiled_model = core.compile_model(core.read_model(MODEL_OV_PATH), device.value)
+    compiled_decoder_first_stage = core.compile_model(core.read_model(DECODER_FIRST_STAGE_OV_PATH), device.value)
 
 Building the pipeline
 ---------------------
@@ -592,24 +565,66 @@ And insert wrappers instances in the pipeline:
     model.cond_stage_model = CondStageModelWrapper(compiled_cond_stage_model)
     model.first_stage_model.encoder = EncoderFirstStageModelWrapper(compiled_encode_first_stage)
     model.embedder = EmbedderWrapper(compiled_embedder)
-    model.model.diffusion_model = CModelWrapper(compiled_model, model.model.diffusion_model.out_channels)
+    model.model.diffusion_model = CModelWrapper(compiled_model, out_channels)
     model.first_stage_model.decoder = DecoderFirstStageModelWrapper(compiled_decoder_first_stage)
 
-Interactive inference
----------------------
+Run OpenVINO pipeline inference
+-------------------------------
 
 
 
 .. code:: ipython3
 
-    import time
-
-    from einops import repeat
-    from pytorch_lightning import seed_everything
+    from einops import repeat, rearrange
     import torchvision.transforms as transforms
 
-    from dynamicrafter.scripts.evaluation.funcs import save_videos, batch_ddim_sampling, get_latent_z
+
+    transform = transforms.Compose(
+        [
+            transforms.Resize(min((256, 256))),
+            transforms.CenterCrop((256, 256)),
+        ]
+    )
+
+
+    def get_latent_z(model, videos):
+        b, c, t, h, w = videos.shape
+        x = rearrange(videos, "b c t h w -> (b t) c h w")
+        z = model.encode_first_stage(x)
+        z = rearrange(z, "(b t) c h w -> b c t h w", b=b, t=t)
+        return z
+
+
+    def process_input(model, prompt, image, transform=transform, fs=3):
+        text_emb = model.get_learned_conditioning([prompt])
+
+        # img cond
+        img_tensor = torch.from_numpy(image).permute(2, 0, 1).float().to(model.device)
+        img_tensor = (img_tensor / 255.0 - 0.5) * 2
+
+        image_tensor_resized = transform(img_tensor)  # 3,h,w
+        videos = image_tensor_resized.unsqueeze(0)  # bchw
+
+        z = get_latent_z(model, videos.unsqueeze(2))  # bc,1,hw
+        frames = model.temporal_length
+        img_tensor_repeat = repeat(z, "b c t h w -> b c (repeat t) h w", repeat=frames)
+
+        cond_images = model.embedder(img_tensor.unsqueeze(0))  # blc
+        img_emb = model.image_proj_model(cond_images)
+        imtext_cond = torch.cat([text_emb, img_emb], dim=1)
+
+        fs = torch.tensor([fs], dtype=torch.long, device=model.device)
+        cond = {"c_crossattn": [imtext_cond], "fs": fs, "c_concat": [img_tensor_repeat]}
+        return cond
+
+.. code:: ipython3
+
+    import time
+    from PIL import Image
+    import numpy as np
     from lvdm.models.samplers.ddim import DDIMSampler
+    from pytorch_lightning import seed_everything
+    import torchvision
 
 
     def register_buffer(self, name, attr):
@@ -619,22 +634,100 @@ Interactive inference
         setattr(self, name, attr)
 
 
+    def batch_ddim_sampling(model, cond, noise_shape, n_samples=1, ddim_steps=50, ddim_eta=1.0, cfg_scale=1.0, temporal_cfg_scale=None, **kwargs):
+        ddim_sampler = DDIMSampler(model)
+        uncond_type = model.uncond_type
+        batch_size = noise_shape[0]
+        fs = cond["fs"]
+        del cond["fs"]
+        if noise_shape[-1] == 32:
+            timestep_spacing = "uniform"
+            guidance_rescale = 0.0
+        else:
+            timestep_spacing = "uniform_trailing"
+            guidance_rescale = 0.7
+        # construct unconditional guidance
+        if cfg_scale != 1.0:
+            if uncond_type == "empty_seq":
+                prompts = batch_size * [""]
+                # prompts = N * T * [""]  ## if is_imgbatch=True
+                uc_emb = model.get_learned_conditioning(prompts)
+            elif uncond_type == "zero_embed":
+                c_emb = cond["c_crossattn"][0] if isinstance(cond, dict) else cond
+                uc_emb = torch.zeros_like(c_emb)
+
+            # process image embedding token
+            if hasattr(model, "embedder"):
+                uc_img = torch.zeros(noise_shape[0], 3, 224, 224).to(model.device)
+                ## img: b c h w >> b l c
+                uc_img = model.embedder(uc_img)
+                uc_img = model.image_proj_model(uc_img)
+                uc_emb = torch.cat([uc_emb, uc_img], dim=1)
+
+            if isinstance(cond, dict):
+                uc = {key: cond[key] for key in cond.keys()}
+                uc.update({"c_crossattn": [uc_emb]})
+            else:
+                uc = uc_emb
+        else:
+            uc = None
+
+        x_T = None
+        batch_variants = []
+
+        for _ in range(n_samples):
+            if ddim_sampler is not None:
+                kwargs.update({"clean_cond": True})
+                samples, _ = ddim_sampler.sample(
+                    S=ddim_steps,
+                    conditioning=cond,
+                    batch_size=noise_shape[0],
+                    shape=noise_shape[1:],
+                    verbose=False,
+                    unconditional_guidance_scale=cfg_scale,
+                    unconditional_conditioning=uc,
+                    eta=ddim_eta,
+                    temporal_length=noise_shape[2],
+                    conditional_guidance_scale_temporal=temporal_cfg_scale,
+                    x_T=x_T,
+                    fs=fs,
+                    timestep_spacing=timestep_spacing,
+                    guidance_rescale=guidance_rescale,
+                    **kwargs,
+                )
+            # reconstruct from latent to pixel space
+            batch_images = model.decode_first_stage(samples)
+            batch_variants.append(batch_images)
+        # batch, <samples>, c, t, h, w
+        batch_variants = torch.stack(batch_variants, dim=1)
+        return batch_variants
+
+
     # monkey patching to replace the original method 'register_buffer' that uses CUDA
     DDIMSampler.register_buffer = types.MethodType(register_buffer, DDIMSampler)
 
 
-    def get_image(image, prompt, steps=5, cfg_scale=7.5, eta=1.0, fs=3, seed=123, model=model):
-        result_dir = "results"
+    def save_videos(batch_tensors, savedir, filenames, fps=10):
+        # b,samples,c,t,h,w
+        n_samples = batch_tensors.shape[1]
+        for idx, vid_tensor in enumerate(batch_tensors):
+            video = vid_tensor.detach().cpu()
+            video = torch.clamp(video.float(), -1.0, 1.0)
+            video = video.permute(2, 0, 1, 3, 4)  # t,n,c,h,w
+            frame_grids = [torchvision.utils.make_grid(framesheet, nrow=int(n_samples)) for framesheet in video]  # [3, 1*h, n*w]
+            grid = torch.stack(frame_grids, dim=0)  # stack in temporal dim [t, 3, n*h, w]
+            grid = (grid + 1.0) / 2.0
+            grid = (grid * 255).to(torch.uint8).permute(0, 2, 3, 1)
+            savepath = os.path.join(savedir, f"{filenames[idx]}.mp4")
+            torchvision.io.write_video(savepath, grid, fps=fps, video_codec="h264", options={"crf": "10"})
+
+
+    def get_image(image, prompt, steps=5, cfg_scale=7.5, eta=1.0, fs=3, seed=123, model=model, result_dir="results"):
         if not os.path.exists(result_dir):
             os.mkdir(result_dir)
 
         seed_everything(seed)
-        transform = transforms.Compose(
-            [
-                transforms.Resize(min((256, 256))),
-                transforms.CenterCrop((256, 256)),
-            ]
-        )
+
         # torch.cuda.empty_cache()
         print("start:", prompt, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
         start = time.time()
@@ -649,27 +742,7 @@ Interactive inference
 
         # text cond
         with torch.no_grad(), torch.cpu.amp.autocast():
-            text_emb = model.get_learned_conditioning([prompt])
-
-            # img cond
-            img_tensor = torch.from_numpy(image).permute(2, 0, 1).float().to(model.device)
-            img_tensor = (img_tensor / 255.0 - 0.5) * 2
-
-            image_tensor_resized = transform(img_tensor)  # 3,h,w
-            videos = image_tensor_resized.unsqueeze(0)  # bchw
-
-            z = get_latent_z(model, videos.unsqueeze(2))  # bc,1,hw
-
-            img_tensor_repeat = repeat(z, "b c t h w -> b c (repeat t) h w", repeat=frames)
-
-            cond_images = model.embedder(img_tensor.unsqueeze(0))  # blc
-
-            img_emb = model.image_proj_model(cond_images)
-
-            imtext_cond = torch.cat([text_emb, img_emb], dim=1)
-
-            fs = torch.tensor([fs], dtype=torch.long, device=model.device)
-            cond = {"c_crossattn": [imtext_cond], "fs": fs, "c_concat": [img_tensor_repeat]}
+            cond = process_input(model, prompt, image, transform, fs=3)
 
             ## inference
             batch_samples = batch_ddim_sampling(model, cond, noise_shape, n_samples=1, ddim_steps=steps, ddim_eta=eta, cfg_scale=cfg_scale)
@@ -681,13 +754,685 @@ Interactive inference
                 prompt_str = "empty_prompt"
 
         save_videos(batch_samples, result_dir, filenames=[prompt_str], fps=8)
-        print(f"Saved in {prompt_str}. Time used: {(time.time() - start):.2f} seconds")
+        print(f"Saved in {prompt_str}.mp4. Time used: {(time.time() - start):.2f} seconds")
 
         return os.path.join(result_dir, f"{prompt_str}.mp4")
 
 .. code:: ipython3
 
+    image_path = "dynamicrafter/prompts/256/art.png"
+    prompt = "man fishing in a boat at sunset"
+    seed = 234
+    image = Image.open(image_path)
+    image = np.asarray(image)
+    result_dir = "results"
+    video_path = get_image(image, prompt, steps=20, seed=seed, model=model, result_dir=result_dir)
+
+
+.. parsed-literal::
+
+    Seed set to 234
+    /tmp/ipykernel_971108/2451984876.py:25: UserWarning: The given NumPy array is not writable, and PyTorch does not support non-writable tensors. This means writing to this tensor will result in undefined behavior. You may want to copy the array to protect its data or make it writable before converting it to a tensor. This type of warning will be suppressed for the rest of this program. (Triggered internally at ../torch/csrc/utils/tensor_numpy.cpp:206.)
+      img_tensor = torch.from_numpy(image).permute(2, 0, 1).float().to(model.device)
+
+
+.. parsed-literal::
+
+    start: man fishing in a boat at sunset 2024-08-06 13:54:24
+    Saved in man_fishing_in_a_boat_at_sunset.mp4. Time used: 164.28 seconds
+
+
+.. code:: ipython3
+
+    from IPython.display import HTML
+
+    HTML(
+        f"""
+        <video alt="video" controls>
+            <source src="{video_path}" type="video/mp4">
+        </video>
+    """
+    )
+
+
+
+
+.. raw:: html
+
+
+    <video alt="video" controls>
+        <source src="results/man_fishing_in_a_boat_at_sunset.mp4" type="video/mp4">
+    </video>
+
+
+
+
+Quantization
+------------
+
+
+
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
+post-training quantization by adding quantization layers into model
+graph and then using a subset of the training dataset to initialize the
+parameters of these additional quantization layers. Quantized operations
+are executed in ``INT8`` instead of ``FP32``/``FP16`` making model
+inference faster.
+
+According to ``DynamiCrafter`` structure, denoising UNet model is used
+in the cycle repeating inference on each diffusion step, while other
+parts of pipeline take part only once. Now we will show you how to
+optimize pipeline using
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ to reduce memory and
+computation cost.
+
+Please select below whether you would like to run quantization to
+improve model inference speed.
+
+   **NOTE**: Quantization is time and memory consuming operation.
+   Running quantization code below may take some time.
+
+.. code:: ipython3
+
+    to_quantize = widgets.Checkbox(
+        value=True,
+        description="Quantization",
+        disabled=False,
+    )
+
+    to_quantize
+
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Quantization')
+
+
+
+Let’s load ``skip magic`` extension to skip quantization if
+``to_quantize`` is not selected
+
+.. code:: ipython3
+
+    # Fetch `skip_kernel_extension` module
+    import requests
+
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+    )
+    open("skip_kernel_extension.py", "w").write(r.text)
+
+    int8_model = None
+
+    %load_ext skip_kernel_extension
+
+Prepare calibration dataset
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+We use a portion of
+`jovianzm/Pexels-400k <https://huggingface.co/datasets/jovianzm/Pexels-400k>`__
+dataset from Hugging Face as calibration data.
+
+.. code:: ipython3
+
+    from io import BytesIO
+
+
+    def download_image(url):
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            img = Image.open(BytesIO(response.content))
+            # Convert the image to a NumPy array
+            img_array = np.array(img)
+            return img_array
+        except Exception as err:
+            print(f"Error occurred: {err}")
+            return None
+
+To collect intermediate model inputs for calibration we should customize
+``CompiledModel``.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    import datasets
+    from tqdm.notebook import tqdm
+    import pickle
+
+
+    class CompiledModelDecorator(ov.CompiledModel):
+        def __init__(self, compiled_model, keep_prob, data_cache = None):
+            super().__init__(compiled_model)
+            self.data_cache = data_cache if data_cache else []
+            self.keep_prob = np.clip(keep_prob, 0, 1)
+
+        def __call__(self, *args, **kwargs):
+            if np.random.rand() <= self.keep_prob:
+                self.data_cache.append(*args)
+            return super().__call__(*args, **kwargs)
+
+    def collect_calibration_data(model, subset_size):
+        calibration_dataset_filepath = Path(f"calibration_data/{subset_size}.pkl")
+        if not calibration_dataset_filepath.exists():
+            original_diffusion_model = model.model.diffusion_model.diffusion_model
+            modified_model = CompiledModelDecorator(original_diffusion_model, keep_prob=1)
+            model.model.diffusion_model = CModelWrapper(modified_model, model.model.diffusion_model.out_channels)
+
+            dataset = datasets.load_dataset("jovianzm/Pexels-400k", split="train", streaming=True).shuffle(seed=42).take(subset_size)
+
+            pbar = tqdm(total=subset_size)
+            channels = model.model.diffusion_model.out_channels
+            frames = model.temporal_length
+            h, w = 256 // 8, 256 // 8
+            noise_shape = [1, channels, frames, h, w]
+            for batch in dataset:
+                prompt = batch["title"]
+                image_path = batch["thumbnail"]
+                image = download_image(image_path)
+                if image is None:
+                    continue
+
+                cond = process_input(model, prompt, image)
+                batch_ddim_sampling(model, cond, noise_shape, n_samples=1, ddim_steps=20, ddim_eta=1.0, cfg_scale=7.5)
+
+                collected_subset_size = len(model.model.diffusion_model.diffusion_model.data_cache)
+                if collected_subset_size >= subset_size:
+                    pbar.update(subset_size - pbar.n)
+                    break
+                pbar.update(collected_subset_size - pbar.n)
+
+            calibration_dataset = model.model.diffusion_model.diffusion_model.data_cache[:subset_size]
+            model.model.diffusion_model.diffusion_model = original_diffusion_model
+            with open(calibration_dataset_filepath, 'wb') as f:
+                pickle.dump(calibration_dataset, f)
+        with open(calibration_dataset_filepath, 'rb') as f:
+            calibration_dataset = pickle.load(f)
+        return calibration_dataset
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    MODEL_INT8_OV_PATH = Path("models/model_ir_int8.xml")
+    if not MODEL_INT8_OV_PATH.exists():
+        subset_size = 300
+        calibration_data = collect_calibration_data(model, subset_size=subset_size)
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/300 [00:00<?, ?it/s]
+
+
+Run Quantization
+~~~~~~~~~~~~~~~~
+
+
+
+Quantization of the first and last ``Convolution`` layers impacts the
+generation results. We recommend using ``IgnoredScope`` to keep accuracy
+sensitive layers in FP16 precision. ``FastBiasCorrection`` algorithm is
+disabled due to minimal accuracy improvement in SD models and increased
+quantization time.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    import nncf
+
+
+    if MODEL_INT8_OV_PATH.exists():
+        print("Loading quantized model")
+        quantized_model = core.read_model(MODEL_INT8_OV_PATH)
+    else:
+        ov_model_ir = core.read_model(MODEL_OV_PATH)
+        quantized_model = nncf.quantize(
+            model=ov_model_ir,
+            subset_size=subset_size,
+            calibration_dataset=nncf.Dataset(calibration_data),
+            model_type=nncf.ModelType.TRANSFORMER,
+            ignored_scope=nncf.IgnoredScope(names=[
+                "__module.diffusion_model.input_blocks.0.0/aten::_convolution/Convolution",
+                "__module.diffusion_model.out.2/aten::_convolution/Convolution",
+            ]),
+            advanced_parameters=nncf.AdvancedQuantizationParameters(disable_bias_correction=True)
+        )
+        ov.save_model(quantized_model, MODEL_INT8_OV_PATH)
+
+
+.. parsed-literal::
+
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, openvino
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    INFO:nncf:2 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:269 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:Not adding activation input quantizer for operation: 69 __module.diffusion_model.input_blocks.0.0/aten::_convolution/Convolution
+    165 __module.diffusion_model.input_blocks.0.0/aten::_convolution/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4107 __module.diffusion_model.out.2/aten::_convolution/Convolution
+    4411 __module.diffusion_model.out.2/aten::_convolution/Add
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Run Weights Compression
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+Quantizing of the remaining components of the pipeline does not
+significantly improve inference performance but can lead to a
+substantial degradation of accuracy. The weight compression will be
+applied to footprint reduction.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    COND_STAGE_MODEL_INT8_OV_PATH = Path("models/cond_stage_model_int8.xml")
+    DECODER_FIRST_STAGE_INT8_OV_PATH = Path("models/decoder_first_stage_ir_int8.xml")
+    ENCODER_FIRST_STAGE_INT8_OV_PATH = Path("models/encoder_first_stage_ir_int8.xml")
+    EMBEDDER_INT8_OV_PATH = Path("models/embedder_ir_int8.xml")
+
+    def compress_model_weights(fp_model_path, int8_model_path):
+        if not int8_model_path.exists():
+            model = core.read_model(fp_model_path)
+            compressed_model = nncf.compress_weights(model)
+            ov.save_model(compressed_model, int8_model_path)
+
+
+    compress_model_weights(COND_STAGE_MODEL_OV_PATH, COND_STAGE_MODEL_INT8_OV_PATH)
+    compress_model_weights(DECODER_FIRST_STAGE_OV_PATH, DECODER_FIRST_STAGE_INT8_OV_PATH)
+    compress_model_weights(ENCODER_FIRST_STAGE_OV_PATH, ENCODER_FIRST_STAGE_INT8_OV_PATH)
+    compress_model_weights(EMBEDDER_OV_PATH, EMBEDDER_INT8_OV_PATH)
+
+
+.. parsed-literal::
+
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 100% (97 / 97)              │ 100% (97 / 97)                         │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 100% (39 / 39)              │ 100% (39 / 39)                         │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 100% (31 / 31)              │ 100% (31 / 31)                         │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 100% (129 / 129)            │ 100% (129 / 129)                       │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Let’s run the optimized pipeline
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    compiled_cond_stage_model = core.compile_model(core.read_model(COND_STAGE_MODEL_INT8_OV_PATH), device.value)
+    compiled_encode_first_stage = core.compile_model(core.read_model(ENCODER_FIRST_STAGE_INT8_OV_PATH), device.value)
+    compiled_embedder = core.compile_model(core.read_model(EMBEDDER_INT8_OV_PATH), device.value)
+    compiled_model = core.compile_model(core.read_model(MODEL_INT8_OV_PATH), device.value)
+    compiled_decoder_first_stage = core.compile_model(core.read_model(DECODER_FIRST_STAGE_INT8_OV_PATH), device.value)
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    int8_model = download_model()
+    int8_model.first_stage_model.decode = types.MethodType(decode, int8_model.first_stage_model)
+    int8_model.embedder.model.visual.input_patchnorm = None  # fix error: visual model has not  attribute 'input_patchnorm'
+
+    int8_model.cond_stage_model = CondStageModelWrapper(compiled_cond_stage_model)
+    int8_model.first_stage_model.encoder = EncoderFirstStageModelWrapper(compiled_encode_first_stage)
+    int8_model.embedder = EmbedderWrapper(compiled_embedder)
+    int8_model.model.diffusion_model = CModelWrapper(compiled_model, out_channels)
+    int8_model.first_stage_model.decoder = DecoderFirstStageModelWrapper(compiled_decoder_first_stage)
+
+
+.. parsed-literal::
+
+    AE working on z of shape (1, 4, 32, 32) = 4096 dimensions.
+    >>> model checkpoint loaded.
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    image_path = "dynamicrafter/prompts/256/art.png"
+    prompt = "man fishing in a boat at sunset"
+    seed = 234
+    image = Image.open(image_path)
+    image = np.asarray(image)
+
+    result_dir = "results_int8"
+    video_path = get_image(image, prompt, steps=20, seed=seed, model=int8_model, result_dir=result_dir)
+
+
+.. parsed-literal::
+
+    Seed set to 234
+
+
+.. parsed-literal::
+
+    start: man fishing in a boat at sunset 2024-08-06 15:09:26
+    Saved in man_fishing_in_a_boat_at_sunset.mp4. Time used: 81.47 seconds
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    from IPython.display import display, HTML
+
+    display(HTML(f"""
+        <video alt="video" controls>
+            <source src={video_path} type="video/mp4">
+        </video>
+    """))
+
+
+
+.. raw:: html
+
+
+    <video alt="video" controls>
+        <source src=results_int8/man_fishing_in_a_boat_at_sunset.mp4 type="video/mp4">
+    </video>
+
+
+
+Compare model file sizes
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    fp32_model_paths = [COND_STAGE_MODEL_OV_PATH, DECODER_FIRST_STAGE_OV_PATH, ENCODER_FIRST_STAGE_OV_PATH, EMBEDDER_OV_PATH, MODEL_OV_PATH]
+    int8_model_paths = [COND_STAGE_MODEL_INT8_OV_PATH, DECODER_FIRST_STAGE_INT8_OV_PATH, ENCODER_FIRST_STAGE_INT8_OV_PATH, EMBEDDER_INT8_OV_PATH, MODEL_INT8_OV_PATH]
+
+    for fp16_path, int8_path in zip(fp32_model_paths, int8_model_paths):
+        fp32_ir_model_size = fp16_path.with_suffix(".bin").stat().st_size
+        int8_model_size = int8_path.with_suffix(".bin").stat().st_size
+        print(f"{fp16_path.stem} compression rate: {fp32_ir_model_size / int8_model_size:.3f}")
+
+
+.. parsed-literal::
+
+    cond_stage_model compression rate: 3.977
+    decoder_first_stage_ir compression rate: 3.987
+    encoder_first_stage_ir compression rate: 3.986
+    embedder_ir compression rate: 3.977
+    model_ir compression rate: 3.981
+
+
+Compare inference time of the FP32 and INT8 models
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+To measure the inference performance of the ``FP32`` and ``INT8``
+models, we use median inference time on calibration subset.
+
+   **NOTE**: For the most accurate performance estimation, it is
+   recommended to run ``benchmark_app`` in a terminal/command prompt
+   after closing other applications.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    import time
+
+
+    def calculate_inference_time(model, validation_size=3):
+        calibration_dataset = datasets.load_dataset("jovianzm/Pexels-400k", split="train", streaming=True).take(validation_size)
+        inference_time = []
+        channels = model.model.diffusion_model.out_channels
+        frames = model.temporal_length
+        h, w = 256 // 8, 256 // 8
+        noise_shape = [1, channels, frames, h, w]
+        for batch in calibration_dataset:
+            prompt = batch["title"]
+            image_path = batch["thumbnail"]
+            image = download_image(image_path)
+            cond = process_input(model, prompt, image, transform, fs=3)
+
+            start = time.perf_counter()
+            _ = batch_ddim_sampling(model, cond, noise_shape, n_samples=1, ddim_steps=20, ddim_eta=1.0, cfg_scale=7.5)
+            end = time.perf_counter()
+            delta = end - start
+            inference_time.append(delta)
+        return np.median(inference_time)
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    fp_latency = calculate_inference_time(model)
+    print(f"FP32 latency: {fp_latency:.3f}")
+    int8_latency = calculate_inference_time(int8_model)
+    print(f"INT8 latency: {int8_latency:.3f}")
+    print(f"Performance speed up: {fp_latency / int8_latency:.3f}")
+
+
+.. parsed-literal::
+
+    FP32 latency: 162.304
+    INT8 latency: 79.590
+    Performance speed up: 2.039
+
+
+Interactive inference
+---------------------
+
+
+
+Please select below whether you would like to use the quantized models
+to launch the interactive demo.
+
+.. code:: ipython3
+
+    quantized_models_present = int8_model is not None
+
+    use_quantized_models = widgets.Checkbox(
+        value=quantized_models_present,
+        description="Use quantized models",
+        disabled=not quantized_models_present,
+    )
+
+    use_quantized_models
+
+.. code:: ipython3
+
     import gradio as gr
+    from functools import partial
 
 
     i2v_examples_256 = [
@@ -697,6 +1442,9 @@ Interactive inference
         ["dynamicrafter/prompts/256/fire_and_beach.jpg", "a campfire on the beach and the ocean waves in the background", 50, 7.5, 1.0, 3, 111],
         ["dynamicrafter/prompts/256/guitar0.jpeg", "bear playing guitar happily, snowing", 50, 7.5, 1.0, 3, 122],
     ]
+
+    demo_model = int8_model if use_quantized_models.value else model
+    get_image_fn = partial(get_image, model=demo_model)
 
 
     def dynamicrafter_demo():
@@ -726,13 +1474,13 @@ Interactive inference
                         examples=i2v_examples_256,
                         inputs=[i2v_input_image, i2v_input_text, i2v_steps, i2v_cfg_scale, i2v_eta, i2v_motion, i2v_seed],
                         outputs=[i2v_output_video],
-                        fn=get_image,
+                        fn=get_image_fn,
                         cache_examples=False,
                     )
                 i2v_end_btn.click(
                     inputs=[i2v_input_image, i2v_input_text, i2v_steps, i2v_cfg_scale, i2v_eta, i2v_motion, i2v_seed],
                     outputs=[i2v_output_video],
-                    fn=get_image,
+                    fn=get_image_fn,
                 )
 
         return dynamicrafter_iface
@@ -742,23 +1490,9 @@ Interactive inference
 
 
     try:
-        demo.queue().launch(debug=False)
+        demo.queue().launch(debug=True)
     except Exception:
-        demo.queue().launch(debug=False, share=True)
+        demo.queue().launch(debug=True, share=True)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-

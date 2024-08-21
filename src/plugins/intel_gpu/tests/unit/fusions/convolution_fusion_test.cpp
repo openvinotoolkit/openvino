@@ -1446,8 +1446,7 @@ TEST_P(conv_fp32_multi_eltwise_concat, basic) {
         concatenation("concat",
             { input_info("eltwise1"), input_info("eltwise2") },
             2,
-            output_type,
-            padding{ { 0, 0, 0, 0 }, 0 }),
+            output_type),
         reorder("reorder_bfyx", input_info("concat"), p.default_format, data_types::f32)
     );
     ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };

@@ -50,8 +50,12 @@ endif()
 unset(_onecoreuap_arch)
 
 # compile flags
+if(CMAKE_GENERATOR MATCHES "Ninja")
+    set(includes "/I\"\$\$\(UniversalCRT_IncludePath\)\"")
+else()
+    set(includes "/I\"\$\(UniversalCRT_IncludePath\)\"")
+endif()
 
-set(includes "/I\"\$\(UniversalCRT_IncludePath\)\"")
 set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} ${includes}")
 set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} ${includes}")
 unset(includes)

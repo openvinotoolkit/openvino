@@ -46,6 +46,7 @@ public:
     NodeTypeInfo get_wrapped_type() const;
 
     const std::vector<NodeTypeInfo>& get_wrapped_types() const;
+    std::ostream& write_type_description(std::ostream& out) const override;
 
 private:
     std::vector<NodeTypeInfo> m_wrapped_types;

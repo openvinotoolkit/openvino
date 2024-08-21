@@ -54,6 +54,16 @@ the prompt.
 
 -  `Try out the converted pipeline <#try-out-the-converted-pipeline>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -74,6 +84,8 @@ Install requirements
 
 .. parsed-literal::
 
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    torchaudio 2.4.0+cpu requires torch==2.4.0, but you have torch 2.2.2+cpu which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
@@ -89,29 +101,29 @@ Imports
 
     import ipywidgets as widgets
     from pathlib import Path
-    
+
     import openvino as ov
     import torch
     from PIL import Image, ImageDraw
     from ultralytics import FastSAM
-    
+
     # Fetch skip_kernel_extension module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file
-    
+
     %load_ext skip_kernel_extension
 
 FastSAM in Ultralytics
@@ -131,7 +143,7 @@ model and generate a segmentation map.
 
     model_name = "FastSAM-x"
     model = FastSAM(model_name)
-    
+
     # Run inference on an image
     image_uri = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg"
     image_uri = download_file(image_uri)
@@ -145,7 +157,7 @@ model and generate a segmentation map.
 
 .. parsed-literal::
 
-    100%|██████████| 138M/138M [00:01<00:00, 101MB/s]
+    100%|██████████| 138M/138M [00:03<00:00, 39.3MB/s]
 
 
 
@@ -156,9 +168,9 @@ model and generate a segmentation map.
 
 .. parsed-literal::
 
-    
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 645.4ms
-    Speed: 4.0ms preprocess, 645.4ms inference, 583.2ms postprocess per image at shape (1, 3, 768, 1024)
+
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 638.2ms
+    Speed: 3.9ms preprocess, 638.2ms inference, 774.6ms postprocess per image at shape (1, 3, 768, 1024)
 
 
 The model returns segmentation maps for all the objects on the image.
@@ -196,17 +208,17 @@ tracing. The FastSAM model itself is based on YOLOv8 model.
 
 .. parsed-literal::
 
-    Ultralytics YOLOv8.2.24 🚀 Python-3.8.10 torch-2.3.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
-    
+    Ultralytics YOLOv8.2.24 🚀 Python-3.8.10 torch-2.2.2+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
+
     PyTorch: starting from 'FastSAM-x.pt' with input shape (1, 3, 1024, 1024) BCHW and output shape(s) ((1, 37, 21504), (1, 32, 256, 256)) (138.3 MB)
-    
-    OpenVINO: starting export with openvino 2024.2.0-15519-5c0f38f83f6-releases/2024/2...
+
+    OpenVINO: starting export with openvino 2024.3.0-16041-1e3b88e4e3f-releases/2024/3...
     OpenVINO: export success ✅ 6.2s, saved as 'FastSAM-x_openvino_model/' (276.1 MB)
-    
+
     Export complete (9.1s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/fast-segment-anything
-    Predict:         yolo predict task=segment model=FastSAM-x_openvino_model imgsz=1024  
-    Validate:        yolo val task=segment model=FastSAM-x_openvino_model imgsz=1024 data=ultralytics/datasets/sa.yaml  
+    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/fast-segment-anything
+    Predict:         yolo predict task=segment model=FastSAM-x_openvino_model imgsz=1024
+    Validate:        yolo val task=segment model=FastSAM-x_openvino_model imgsz=1024 data=ultralytics/datasets/sa.yaml
     Visualize:       https://netron.app
 
 
@@ -242,7 +254,7 @@ from the dropdown list:
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -280,12 +292,12 @@ object, so we need to redefine the magic ``__call__`` method.
         def __init__(self, ov_model, device="CPU", stride=32, ov_config=None) -> None:
             ov_config = ov_config or {}
             self.model = core.compile_model(ov_model, device, ov_config)
-    
+
             self.stride = stride
             self.pt = False
             self.fp16 = False
             self.names = {0: "object"}
-    
+
         def __call__(self, im, **_):
             result = self.model(im)
             return torch.from_numpy(result[0]), torch.from_numpy(result[1])
@@ -298,7 +310,7 @@ pipeline.
     ov_config = {}
     if "GPU" in device.value or ("AUTO" in device.value and "GPU" in core.available_devices):
         ov_config = {"GPU_DISABLE_WINOGRAD_CONVOLUTION": "YES"}
-    
+
     wrapped_model = OVWrapper(
         ov_model_path,
         device=device.value,
@@ -306,15 +318,15 @@ pipeline.
         ov_config=ov_config,
     )
     model.predictor.model = wrapped_model
-    
+
     ov_results = model(image_uri, device=device.value, retina_masks=True, imgsz=1024, conf=0.6, iou=0.9)
 
 
 .. parsed-literal::
 
-    
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 1024x1024 42 objects, 502.2ms
-    Speed: 7.4ms preprocess, 502.2ms inference, 33.8ms postprocess per image at shape (1, 3, 1024, 1024)
+
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 1024x1024 42 objects, 504.0ms
+    Speed: 7.2ms preprocess, 504.0ms inference, 32.2ms postprocess per image at shape (1, 3, 1024, 1024)
 
 
 One can observe the converted model outputs in the next cell, they is
@@ -355,7 +367,7 @@ The optimization process contains the following steps:
         description="Quantization",
         disabled=False,
     )
-    
+
     do_quantize
 
 
@@ -383,7 +395,7 @@ The quantization algorithm is based on `The YOLOv8 quantization
 example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/post_training_quantization/openvino/yolov8>`__
 in the NNCF repo, refer there for more details. Moreover, you can check
 out other quantization tutorials in the `OV notebooks
-repo <../yolov8-optimization/>`__.
+repo <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/yolov8-optimization>`__.
 
    **Note**: Model post-training quantization is time-consuming process.
    Be patient, it can take several minutes depending on your hardware.
@@ -391,20 +403,20 @@ repo <../yolov8-optimization/>`__.
 .. code:: ipython3
 
     %%skip not $do_quantize.value
-    
+
     import pickle
     from contextlib import contextmanager
     from zipfile import ZipFile
-    
+
     import cv2
     from tqdm.autonotebook import tqdm
-    
+
     import nncf
-    
-    
+
+
     COLLECT_CALIBRATION_DATA = False
     calibration_data = []
-    
+
     @contextmanager
     def calibration_data_collection():
         global COLLECT_CALIBRATION_DATA
@@ -413,58 +425,58 @@ repo <../yolov8-optimization/>`__.
             yield
         finally:
             COLLECT_CALIBRATION_DATA = False
-    
-    
+
+
     class NNCFWrapper:
         def __init__(self, ov_model, stride=32) -> None:
             self.model = core.read_model(ov_model)
             self.compiled_model = core.compile_model(self.model, device_name="CPU")
-    
+
             self.stride = stride
             self.pt = False
             self.fp16 = False
             self.names = {0: "object"}
-    
+
         def __call__(self, im, **_):
             if COLLECT_CALIBRATION_DATA:
                 calibration_data.append(im)
-    
+
             result = self.compiled_model(im)
             return torch.from_numpy(result[0]), torch.from_numpy(result[1])
-    
+
     # Fetch data from the web and descibe a dataloader
     DATA_URL = "https://ultralytics.com/assets/coco128.zip"
     OUT_DIR = Path('.')
-    
+
     download_file(DATA_URL, directory=OUT_DIR, show_progress=True)
-    
+
     if not (OUT_DIR / "coco128/images/train2017").exists():
         with ZipFile('coco128.zip', "r") as zip_ref:
             zip_ref.extractall(OUT_DIR)
-    
+
     class COCOLoader(torch.utils.data.Dataset):
         def __init__(self, images_path):
             self.images = list(Path(images_path).iterdir())
-    
+
         def __getitem__(self, index):
             if isinstance(index, slice):
                 return [self.read_image(image_path) for image_path in self.images[index]]
             return self.read_image(self.images[index])
-    
+
         def read_image(self, image_path):
             image = cv2.imread(str(image_path))
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             return image
-    
+
         def __len__(self):
             return len(self.images)
-    
-    
+
+
     def collect_calibration_data_for_decoder(model, calibration_dataset_size: int,
                                              calibration_cache_path: Path):
         global calibration_data
-    
-    
+
+
         if not calibration_cache_path.exists():
             coco_dataset = COCOLoader(OUT_DIR / 'coco128/images/train2017')
             with calibration_data_collection():
@@ -476,10 +488,10 @@ repo <../yolov8-optimization/>`__.
         else:
             with open(calibration_cache_path, "rb") as f:
                 calibration_data = pickle.load(f)
-    
+
         return calibration_data
-    
-    
+
+
     def quantize(model, save_model_path: Path, calibration_cache_path: Path,
                  calibration_dataset_size: int, preset: nncf.QuantizationPreset):
         calibration_data = collect_calibration_data_for_decoder(
@@ -500,10 +512,10 @@ repo <../yolov8-optimization/>`__.
             )
         )
         ov.save_model(quantized_ov_decoder, save_model_path)
-    
+
     wrapped_model = NNCFWrapper(ov_model_path, stride=model.predictor.model.stride)
     model.predictor.model = wrapped_model
-    
+
     calibration_dataset_size = 128
     quantized_model_path = Path(f"{model_name}_quantized") / "FastSAM-x.xml"
     calibration_cache_path = Path(f"calibration_data/coco{calibration_dataset_size}.pkl")
@@ -511,11 +523,6 @@ repo <../yolov8-optimization/>`__.
         quantize(model, quantized_model_path, calibration_cache_path,
                  calibration_dataset_size=calibration_dataset_size,
                  preset=nncf.QuantizationPreset.MIXED)
-
-
-.. parsed-literal::
-
-    <string>:7: TqdmExperimentalWarning: Using `tqdm.autonotebook.tqdm` in notebook mode. Use `tqdm.tqdm` instead to force console mode (e.g. in jupyter console)
 
 
 .. parsed-literal::
@@ -537,17 +544,17 @@ repo <../yolov8-optimization/>`__.
 
 .. parsed-literal::
 
-    INFO:nncf:3 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:3 ignored nodes were found by names in the NNCFGraph
     INFO:nncf:8 ignored nodes were found by types in the NNCFGraph
-    INFO:nncf:Not adding activation input quantizer for operation: 271 __module.model.22/aten::sigmoid/Sigmoid
-    INFO:nncf:Not adding activation input quantizer for operation: 312 __module.model.22.dfl.conv/aten::_convolution/Convolution
-    INFO:nncf:Not adding activation input quantizer for operation: 349 __module.model.22/aten::sub/Subtract
-    INFO:nncf:Not adding activation input quantizer for operation: 350 __module.model.22/aten::add/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 362 __module.model.22/aten::add/Add_1
-    374 __module.model.22/aten::div/Divide
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 363 __module.model.22/aten::sub/Subtract_1
-    INFO:nncf:Not adding activation input quantizer for operation: 386 __module.model.22/aten::mul/Multiply
+    INFO:nncf:Not adding activation input quantizer for operation: 268 __module.model.22/aten::sigmoid/Sigmoid
+    INFO:nncf:Not adding activation input quantizer for operation: 309 __module.model.22.dfl.conv/aten::_convolution/Convolution
+    INFO:nncf:Not adding activation input quantizer for operation: 346 __module.model.22/aten::sub/Subtract
+    INFO:nncf:Not adding activation input quantizer for operation: 347 __module.model.22/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 359 __module.model.22/aten::add/Add_1
+    371 __module.model.22/aten::div/Divide
+
+    INFO:nncf:Not adding activation input quantizer for operation: 360 __module.model.22/aten::sub/Subtract_1
+    INFO:nncf:Not adding activation input quantizer for operation: 382 __module.model.22/aten::mul/Multiply
 
 
 
@@ -603,15 +610,15 @@ calibration dataset to measure the performance.
 .. code:: ipython3
 
     %%skip not $do_quantize.value
-    
+
     import datetime
-    
+
     coco_dataset = COCOLoader(OUT_DIR / 'coco128/images/train2017')
     calibration_dataset_size = 128
-    
+
     wrapped_model = OVWrapper(ov_model_path, device=device.value, stride=model.predictor.model.stride)
     model.predictor.model = wrapped_model
-    
+
     start_time = datetime.datetime.now()
     for image in tqdm(coco_dataset, desc="Measuring inference time"):
         model(image, retina_masks=True, imgsz=1024, conf=0.6, iou=0.9, verbose=False)
@@ -635,10 +642,10 @@ calibration dataset to measure the performance.
 .. code:: ipython3
 
     %%skip not $do_quantize.value
-    
+
     quantized_wrapped_model = OVWrapper(quantized_model_path, device=device.value, stride=model.predictor.model.stride)
     model.predictor.model = quantized_wrapped_model
-    
+
     start_time = datetime.datetime.now()
     for image in tqdm(coco_dataset, desc="Measuring inference time"):
         model(image, retina_masks=True, imgsz=1024, conf=0.6, iou=0.9, verbose=False)
@@ -678,8 +685,8 @@ bounding boxes on input image.
     import cv2
     import numpy as np
     import matplotlib.pyplot as plt
-    
-    
+
+
     def fast_process(
         annotations,
         image,
@@ -692,12 +699,12 @@ bounding boxes on input image.
     ):
         original_h = image.height
         original_w = image.width
-    
+
         if better_quality:
             for i, mask in enumerate(annotations):
                 mask = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
                 annotations[i] = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_OPEN, np.ones((8, 8), np.uint8))
-    
+
         inner_mask = fast_show_mask(
             annotations,
             plt.gca(),
@@ -707,7 +714,7 @@ bounding boxes on input image.
             target_height=original_h,
             target_width=original_w,
         )
-    
+
         if with_contours:
             contour_all = []
             temp = np.zeros((original_h, original_w, 1))
@@ -725,18 +732,18 @@ bounding boxes on input image.
             cv2.drawContours(temp, contour_all, -1, (255, 255, 255), 2 // scale)
             color = np.array([0 / 255, 0 / 255, 255 / 255, 0.9])
             contour_mask = temp / 255 * color.reshape(1, 1, -1)
-    
+
         image = image.convert("RGBA")
         overlay_inner = Image.fromarray((inner_mask * 255).astype(np.uint8), "RGBA")
         image.paste(overlay_inner, (0, 0), overlay_inner)
-    
+
         if with_contours:
             overlay_contour = Image.fromarray((contour_mask * 255).astype(np.uint8), "RGBA")
             image.paste(overlay_contour, (0, 0), overlay_contour)
-    
+
         return image
-    
-    
+
+
     # CPU post process
     def fast_show_mask(
         annotation,
@@ -754,7 +761,7 @@ bounding boxes on input image.
         areas = np.sum(annotation, axis=(1, 2))
         sorted_indices = np.argsort(areas)[::1]
         annotation = annotation[sorted_indices]
-    
+
         index = (annotation != 0).argmax(axis=0)
         if random_color:
             color = np.random.random((mask_sum, 1, 1, 3))
@@ -763,32 +770,32 @@ bounding boxes on input image.
         transparency = np.ones((mask_sum, 1, 1, 1)) * 0.6
         visual = np.concatenate([color, transparency], axis=-1)
         mask_image = np.expand_dims(annotation, -1) * visual
-    
+
         mask = np.zeros((height, weight, 4))
-    
+
         h_indices, w_indices = np.meshgrid(np.arange(height), np.arange(weight), indexing="ij")
         indices = (index[h_indices, w_indices], h_indices, w_indices, slice(None))
-    
+
         mask[h_indices, w_indices, :] = mask_image[indices]
         if bbox is not None:
             x1, y1, x2, y2 = bbox
             ax.add_patch(plt.Rectangle((x1, y1), x2 - x1, y2 - y1, fill=False, edgecolor="b", linewidth=1))
-    
+
         if not retinamask:
             mask = cv2.resize(mask, (target_width, target_height), interpolation=cv2.INTER_NEAREST)
-    
+
         return mask
 
 .. code:: ipython3
 
     import gradio as gr
-    
+
     examples = [
         [image_uri],
         ["https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/empty_road_mapillary.jpg"],
         ["https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/wall.jpg"],
     ]
-    
+
     object_points = []
     background_points = []
     bbox_points = []
@@ -814,14 +821,14 @@ based on user input.
             model.predictor.model = quantized_wrapped_model
         else:
             model.predictor.model = wrapped_model
-    
+
         input_size = int(input_size)
         w, h = image.size
         scale = input_size / max(w, h)
         new_w = int(w * scale)
         new_h = int(h * scale)
         image = image.resize((new_w, new_h))
-    
+
         results = model(
             image,
             retina_masks=use_retina,
@@ -829,14 +836,14 @@ based on user input.
             conf=conf_threshold,
             imgsz=input_size,
         )
-    
+
         masks = results[0].masks.data
         # Calculate annotations
         if not (object_points or bbox_points):
             annotations = masks.cpu().numpy()
         else:
             annotations = []
-    
+
         if object_points:
             all_points = object_points + background_points
             labels = [1] * len(object_points) + [0] * len(background_points)
@@ -859,20 +866,20 @@ based on user input.
                 x = max(min(x, new_w), 0)
                 y = max(min(y, new_h), 0)
                 scaled_bbox_points.append((x, y))
-    
+
             for i in range(0, len(scaled_bbox_points) - 1, 2):
                 x0, y0, x1, y1 = *scaled_bbox_points[i], *scaled_bbox_points[i + 1]
-    
+
                 intersection_area = torch.sum(masks[:, y0:y1, x0:x1], dim=(1, 2))
                 masks_area = torch.sum(masks, dim=(1, 2))
                 bbox_area = (y1 - y0) * (x1 - x0)
-    
+
                 union = bbox_area + masks_area - intersection_area
                 iou = intersection_area / union
                 max_iou_index = torch.argmax(iou)
-    
+
                 annotations.append(masks[max_iou_index].cpu().numpy())
-    
+
         return fast_process(
             annotations=np.array(annotations),
             image=image,
@@ -918,8 +925,8 @@ based on user input.
             fill=color,
         )
         return img
-    
-    
+
+
     def clear_points() -> (Image.Image, None):
         """Gradio clear points callback."""
         global object_points, background_points, bbox_points
@@ -928,8 +935,8 @@ based on user input.
         background_points = []
         bbox_points = []
         return last_image, None
-    
-    
+
+
     def save_last_picked_image(img: Image.Image) -> None:
         """Gradio callback saves the last used image."""
         global last_image
@@ -939,8 +946,8 @@ based on user input.
         clear_points()
         # Removes the segmentation map output
         return None
-    
-    
+
+
     with gr.Blocks(title="Fast SAM") as demo:
         with gr.Row(variant="panel"):
             original_img = gr.Image(label="Input", value=examples[0][0], type="pil")
@@ -966,18 +973,18 @@ based on user input.
             run_on_click=True,
             outputs=segmented_img,
         )
-    
+
         # Callbacks
         original_img.select(select_point, inputs=[original_img, point_type], outputs=original_img)
         original_img.upload(save_last_picked_image, inputs=original_img, outputs=segmented_img)
         clear_button.click(clear_points, outputs=[original_img, segmented_img])
         segment_button.click(segment, inputs=[original_img, model_type], outputs=segmented_img)
-    
+
     try:
         demo.queue().launch(debug=False)
     except Exception:
         demo.queue().launch(share=True, debug=False)
-    
+
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name="your server name", server_port="server port in int")`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
@@ -986,7 +993,7 @@ based on user input.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
