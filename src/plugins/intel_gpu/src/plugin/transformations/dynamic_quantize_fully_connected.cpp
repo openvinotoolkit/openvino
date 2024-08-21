@@ -70,7 +70,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                                                                      m_fc->get_input_node_shared_ptr(3),
                                                                      optional_w_zp,
                                                                      dyn_quan->output(1),
-                                                                     m_fc->get_output_type());
+                                                                     m_fc->get_output_element_type(0));
         ov::replace_node(m_fc, new_fc);
 
         new_fc->set_friendly_name(m_fc->get_friendly_name());
