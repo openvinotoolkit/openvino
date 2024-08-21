@@ -7,6 +7,7 @@
 #include <ze_api.h>
 
 #include "intel_npu/al/config/common.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "zero_utils.hpp"
 
