@@ -204,22 +204,6 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
     zeroUtils::throwOnFail("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
 
-    // Allocate memory for the char array
-    graphExtName = new char[graph_ext_name.size() + 1];
-    // Copy the contents of the string to the char array
-    std::strcpy(graphExtName, graph_ext_name.c_str());
-    graph_ext_name.clear();
-
-    const uint16_t adapterMajorVersion = 1;
-    uint16_t driverMajorVersion = ZE_MAJOR_VERSION(driver_ext_version);
-    if (adapterMajorVersion != driverMajorVersion) {
-        OPENVINO_THROW("ze_init.cpp: adapterMajorVersion: ",
-                       adapterMajorVersion,
-                       " and driverMajorVersion: ",
-                       driverMajorVersion,
-                       " mismatch!");
-    }
-
 #if defined(NPU_PLUGIN_DEVELOPER_BUILD)
     auto adapterManualConfig = std::getenv("ADAPTER_MANUAL_CONFIG");
     if (adapterManualConfig != nullptr) {
