@@ -59,9 +59,9 @@ void SyncTensor::validate_and_infer_types() {
             for (size_t i = 0 ; i < m_world_size; ++i) {
                 p_shapes[i][axis] = ov::Dimension(fc_out_dim_vec[i]);;
             }
-            for (size_t i = 0; i < p_shapes.size(); i++)
-                set_output_type(i, output_type, p_shapes[i]);
         }
+        for (size_t i = 0; i < p_shapes.size(); i++)
+            set_output_type(i, output_type, p_shapes[i]);
     } else {
         set_output_type(0, m_output_type, ov::PartialShape());
     }
@@ -85,8 +85,9 @@ std::shared_ptr<Node> SyncTensor::clone_with_new_inputs(const ov::OutputVector& 
 std::vector<ov::PartialShape> shape_infer(const SyncTensor* op, std::vector<ov::PartialShape> input_shapes) {
     std::vector<ov::PartialShape> out_shapes;
     if (op->get_tp_mode() == TP_MODE::ALL_REDUCE) {
+        auto out_shape = op->get_input_partial_shape(0);
         for (size_t i = 0; i < op->get_output_size(); i++)
-            out_shapes.push_back(input_shapes[0]);
+            out_shapes.push_back(out_shape);
     } else if (op->get_tp_mode() == TP_MODE::ALL_GATHERH) {
         // to be optimized
         for (size_t i = 0; i < op->get_output_size(); i++)
