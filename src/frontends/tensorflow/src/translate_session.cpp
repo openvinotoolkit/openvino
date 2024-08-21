@@ -82,7 +82,7 @@ void adjust_saved_model_names(ov::Output<ov::Node>& ov_output,
     // 2. find a set of clean-up names and aligned with the model signature
     const auto& tensor_names = ov_output.get_names();
     std::unordered_set<std::string> cleanup_names;
-    bool signature_passed = true;
+    bool signature_passed = false;
     if (is_input_tensor) {
         if (saved_model_input_names) {
             for (const auto& tensor_name : tensor_names) {
