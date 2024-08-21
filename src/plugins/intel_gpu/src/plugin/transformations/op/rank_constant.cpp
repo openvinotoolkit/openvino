@@ -17,11 +17,10 @@ RankConstant::RankConstant(const std::shared_ptr<ov::Node>& constant_data,
             m_world_size(world_size),
             m_world_rank(world_rank) {
     auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(constant_data);
-    m_original_shape = constant->get_shape();
     m_shape = constant->get_shape();
     m_element_type = constant->get_element_type();
     // adjusting the shape here for graph validating
-    int split_dim = m_shape.size() - 1;
+    int split_dim = 0;
     auto split_parts = [](int len, int n) {
         int average = len / n;
         std::vector<int> parts(n, average);

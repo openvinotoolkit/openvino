@@ -42,12 +42,14 @@ typedef cl_va_api_device_set_intel    cl_device_set_intel;
 
 // cl_intel_required_subgroup_size
 #define CL_DEVICE_SUB_GROUP_SIZES_INTEL           0x4108
+#define CL_KERNEL_SPILL_MEM_SIZE_INTEL            0x4109
 
 #endif // cl_intel_required_subgroup_size
 
 namespace cl {
 namespace detail {
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_SUB_GROUP_SIZES_INTEL, vector<size_type>)
+CL_HPP_DECLARE_PARAM_TRAITS_(cl_kernel_work_group_info, CL_KERNEL_SPILL_MEM_SIZE_INTEL, cl_ulong)
 }  // namespace detail
 }  // namespace cl
 

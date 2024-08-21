@@ -12,6 +12,7 @@
 #include "intel_gpu/plugin/sync_infer_request.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
+#include "intel_gpu/plugin/tuple_remote_tensor.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
 #include "intel_gpu/plugin/multi_tensor_variable_state.hpp"
@@ -154,7 +155,11 @@ void SyncInferRequest::sub_streams_infer() {
         for (size_t i = 0; i < requests_num; i++) {
             for (auto& input : inputs) {
                 auto tensor = get_tensor(input);
-                requests[i]->set_tensor(input, tensor);
+                if (auto remote = std::dynamic_pointer_cast<ov::intel_gpu::TupleRemoteTensorImpl>(tensor._ptr)) {
+                    requests[i]->set_tensor(input, remote->get_tensor(i));
+                } else {
+                    requests[i]->set_tensor(input, tensor);
+                }
             }
 
             requests[i]->set_callback([message](const std::exception_ptr& ptr) {
@@ -195,7 +200,6 @@ std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const
 
 void SyncInferRequest::set_async_request(ov::intel_gpu::AsyncInferRequest* asyncRequest) {
     m_asyncRequest = asyncRequest;
-    // m_asyncRequest->
 }
 
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
@@ -794,6 +798,18 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
 
     auto device_tensor_et = convert_to_supported_device_type(element_type);
     bool convert_needed = is_convert_required(element_type, device_tensor_et);
+
+    auto print_arr = [&](int64_t* vec, size_t max_len) {
+        std::stringstream ss;
+        for (size_t i = 0; i < max_len; i++) {
+            ss << vec[i] << ", ";
+        }
+        GPU_DEBUG_TRACE_DETAIL << "Set_input parameter:input_ids (max-len=" << max_len << ") content: " << ss.str() << "\n";
+    };
+
+    if (internal_name == "parameter:input_ids") {
+        print_arr(static_cast<int64_t*>(user_tensor->data()), user_tensor->get_size());
+    }
 
     if (is_remote) {
         if (convert_needed) {

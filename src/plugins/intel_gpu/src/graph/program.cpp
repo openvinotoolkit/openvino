@@ -698,6 +698,11 @@ void program::transfer_memory_to_device() {
             auto& mem = data_node.get_attached_memory();
             auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
+            auto engine = mem.get_engine();
+
+            if (ov::shape_size(mem_layout.get_shape()) == 0)
+                continue;
+
             if (!mem_layout.compatible(data_node_layout)) {
                 std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
                 throw std::invalid_argument(err_str);
@@ -705,7 +710,8 @@ void program::transfer_memory_to_device() {
 
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
                 GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
-                auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
+                // Allocate and transfer memory
+                auto device_mem = engine->allocate_memory(data_node_layout, allocation_type::usm_device, false);
                 device_mem->copy_from(get_stream(), mem);
                 data_node.attach_memory(device_mem);
                 GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;

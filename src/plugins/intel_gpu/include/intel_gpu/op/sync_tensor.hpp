@@ -30,6 +30,7 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
     TP_MODE get_tp_mode() const { return m_tp_mode; }
+    int get_split_dim() const { return m_split_dimension; }
     size_t m_world_size = 2;
 protected:
     ov::element::Type m_output_type;

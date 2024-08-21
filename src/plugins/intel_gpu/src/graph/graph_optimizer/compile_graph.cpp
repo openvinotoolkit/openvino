@@ -16,6 +16,7 @@
 #include "fully_connected_inst.h"
 #include "gemm_inst.h"
 #include "condition_inst.h"
+#include "paged_attention_inst.h"
 #include "loop_inst.h"
 #include "group_normalization_inst.h"
 #include "program_node.h"
@@ -121,6 +122,9 @@ void compile_graph::run(program& p) {
 
         if (node->is_type<condition>() || node->is_type<loop>() || node->is_type<proposal>())
             can_select_impl = true;
+
+        // if (node->is_type<paged_attention>())
+        //     can_select_impl = false;
 
         if (can_select_impl) {
             tasks.push_back([node, &exception, change_initial_impl, original_impl_type] {

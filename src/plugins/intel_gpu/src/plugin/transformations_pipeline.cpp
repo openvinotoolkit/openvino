@@ -66,7 +66,6 @@
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/swiglu_fusion.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
-// #include "plugin/transformations/tensor_parallel.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"

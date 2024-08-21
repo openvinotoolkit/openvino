@@ -20,6 +20,26 @@ public:
     virtual std::shared_ptr<kernel> clone() const = 0;
     virtual ~kernel() = default;
     virtual std::string get_id() const { return ""; }
+
+#ifdef GPU_DEBUG_CONFIG
+    struct kernel_properties {
+        uint64_t local_mem_size = 0;
+        uint64_t private_mem_size = 0;
+        uint64_t spill_mem_size = 0;
+
+        std::string to_string() {
+            std::stringstream ss;
+
+            ss << "SLM=" << local_mem_size << " "
+               << "SPILL=" << spill_mem_size << " "
+               << "TPM=" << private_mem_size;
+
+            return ss.str();
+        }
+    };
+
+    virtual kernel_properties get_properties() const = 0;
+#endif
 };
 
 }  // namespace cldnn

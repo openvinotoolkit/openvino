@@ -25,13 +25,11 @@ public:
     TP_MODE get_tp_mode() const { return m_tp_mode; }
     int get_size() const { return m_world_size; }
     int get_rank() const { return m_world_rank; }
-    Shape get_original_shape() const { return m_original_shape; }
 protected:
     ov::element::Type m_output_type;
     int m_world_size;
     int m_world_rank;
     Shape m_shape{};
-    Shape m_original_shape{};
     element::Type m_element_type{};
     TP_MODE m_tp_mode = TP_MODE::ALL_GATHERH;
 };

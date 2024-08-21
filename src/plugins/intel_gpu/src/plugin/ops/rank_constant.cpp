@@ -110,18 +110,15 @@ static void CreateRankConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::in
             mem = p.get_engine().reinterpret_buffer(*one_dim_mem, constLayout);
         }
 
+        GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: "
+                        << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)"<< std::endl;
         auto& stream = p.get_engine().get_service_stream();
         cldnn::mem_lock<char> lock{mem, stream};
         auto buf = lock.data();
         auto bufSize = constLayout.bytes_count();
         int rank = op->get_rank();
-        // int offset = rank * bufSize;
-        int step_r = bufSize / const_shape[0];
-        int step_h = step_r * 2;
-        for (size_t i = 0; i < const_shape[0]; i++) {
-            std::memcpy(&buf[0] + i * step_r, (&data[0] + (rank * step_r)) + i * step_h, step_r);
-        }
-        // std::memcpy(&buf[0], &data[0] + offset, bufSize);
+        int offset = rank * bufSize;
+        std::memcpy(&buf[0], &data[0] + offset, bufSize);
         p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
         p.blobMemCache[cache_key] = initialconstPrimID;
         constPrimID = initialconstPrimID;
