@@ -181,7 +181,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::string devices_for_tp =
         iter_devices_for_tp ? "" : config.get_property(ov::device::priorities.name()).as<std::string>();
     if (devices_for_tp.empty()) {
-        GPU_DEBUG_LOG
+        std::cout
             << "No available device specified for TP. will initialize device list for TP with all available device."
             << std::endl;
         for (const auto& item : m_configs_map) {
@@ -202,10 +202,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                     if (m_device_map.at(target_id)->get_info().dev_type == device_ptr->get_info().dev_type)
                         ret.push_back(target_id);
                     else
-                        GPU_DEBUG_LOG << "Not same type as target device for the device: " << device_with_id
-                                      << std::endl;
+                        std::cout << "Not same type as target device for the device: " << device_with_id << std::endl;
                 } else {
-                    GPU_DEBUG_LOG << "Not found the device: " << device_with_id << std::endl;
+                    std::cout << "Invalid device: " << device_with_id << std::endl;
                 }
             }
             start = end + delimiter.length();
@@ -219,15 +218,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 if (m_device_map.at(target_id)->get_info().dev_type == device_ptr->get_info().dev_type)
                     ret.push_back(target_id);
                 else
-                    GPU_DEBUG_LOG << "Not same type as target device for the device: " << last << std::endl;
+                    std::cout << "Not same type as target device for the device: " << last << std::endl;
             } else {
-                GPU_DEBUG_LOG << "Not found the device: " << last << std::endl;
+                std::cout << "Invalid device: " << last << std::endl;
             }
         }
         if (ret.empty()) {
-            GPU_DEBUG_LOG << "No available device found for TP from specified device candidate list: " << devices_for_tp
-                          << ". Will select another device with same type as default device: GPU." << device_id
-                          << std::endl;
+            std::cout << "No available device found for TP from specified device candidate list: " << devices_for_tp
+                      << ". Will select another device with same type as default device: GPU." << device_id
+                      << std::endl;
             ret.push_back(device_id);
             for (const auto& item : m_device_map) {
                 if (item.first != device_id && item.second->get_info().dev_type == device_ptr->get_info().dev_type)
@@ -248,7 +247,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             return rank_table;
         };
         if (devices_id_for_tp.size() > 2) {
-            GPU_DEBUG_LOG << "Will only select 2 devices for TP." << std::endl;
+            std::cout << "Will only select 2 devices for TP." << std::endl;
             devices_id_for_tp = std::vector<std::string>(devices_id_for_tp.begin(), devices_id_for_tp.begin() + 2);
         }
         for (auto& device_id : devices_id_for_tp) {
