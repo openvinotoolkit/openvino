@@ -30,7 +30,7 @@ public:
           m_graph(std::make_shared<ade::Graph>()),
           m_node_to_prod_cons(std::make_shared<detail::OVNodeMap>()),
           m_node_to_gr(std::make_shared<detail::OVNodeToGroupMap>()) {}
-    
+
     friend class Group;  // forward declaration
 
     // Simple passes
