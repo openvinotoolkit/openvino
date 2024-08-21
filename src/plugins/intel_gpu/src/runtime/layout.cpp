@@ -135,7 +135,7 @@ std::vector<tensor::value_type> layout::get_padded_dims() const {
 
     std::vector<tensor::value_type> res(dims.size());
     for (size_t i = 0; i < res.size(); i++) {
-        res[i] = dims[i] + data_padding.upper_size()[i] + data_padding.lower_size()[i];   // Cecilia TODO: export data_padding fileds?
+        res[i] = dims[i] + data_padding._upper_size[i] + data_padding._lower_size[i];
     }
 
     return res;
@@ -202,9 +202,15 @@ std::string layout::to_string() const {
       << "\tdata_type=" << ov::element::Type(data_type) << ";\n"
       << "\tformat=" << format.to_string() << ";\n"
       << "\tshape=" << size << ";\n"
-      << "\tpad_l=" << tensor(data_padding.lower_size()).to_string() << ";\n"
-      << "\tpad_u=" << tensor(data_padding.upper_size()).to_string() << ";\n"
-      << "\tdyn_pad_dims" << tensor(data_padding.get_dynamic_pad_dims()).to_string() << ";\n"
+      << "\tpad_l=[";
+    std::copy(std::begin(data_padding._lower_size), std::end(data_padding._lower_size), std::ostream_iterator<tensor::value_type>(s, ", "));
+    s << "];\n"
+      << "\tpad_u=[";
+    std::copy(std::begin(data_padding._upper_size), std::end(data_padding._upper_size), std::ostream_iterator<tensor::value_type>(s, ", "));
+    s << "];\n"
+      << "\tdyn_pad_dims=[";
+    std::copy(std::begin(data_padding._dynamic_pad_dims), std::end(data_padding._dynamic_pad_dims), std::ostream_iterator<tensor::value_type>(s, ", "));
+    s << "];\n"
       << "}";
     return s.str();
 }
@@ -313,16 +319,6 @@ void layout::set_partial_shape(const ov::PartialShape& size) {
     this->size = size;
 }
 
-// tensor layout::get_buffer_size() const {
-//     if (is_dynamic() && !has_upper_bound()) {
-//         throw std::runtime_error("[GPU] get_buffer_size() is called for dynamic shape");
-//     }
-
-//     const auto& t = get_tensor();
-
-//     return t.add(data_padding.lower_size()).add(data_padding.upper_size());
-// }
-
 std::vector<tensor::value_type> layout::get_pitches() const {
     const auto& padded_dims = get_padded_dims();
     auto sizes = format_sizes(padded_dims, format);
@@ -335,20 +331,24 @@ std::vector<tensor::value_type> layout::get_pitches() const {
                                                                                 format::is_weights_format(format),
                                                                                 format::is_grouped(format)));
 
-    // std::cout << "=============layout::get_pitches [";
-    // std::copy(pitches.begin(), pitches.end(), std::ostream_iterator<tensor::value_type>(std::cout, ", "));
-    // std::cout << "] for format: " << format;
-    // std::cout << " and shape [";
-    // std::copy(padded_dims.begin(), padded_dims.end(), std::ostream_iterator<tensor::value_type>(std::cout, ", "));
-    // std::cout << "]" << std::endl;
+    std::cout << "=============layout::get_pitches [";
+    std::copy(pitches.begin(), pitches.end(), std::ostream_iterator<tensor::value_type>(std::cout, ", "));
+    std::cout << "] for format: " << format;
+    std::cout << " and shape [";
+    std::copy(padded_dims.begin(), padded_dims.end(), std::ostream_iterator<tensor::value_type>(std::cout, ", "));
+    std::cout << "]" << std::endl;
     return pitches;
 }
 
 
 size_t layout::get_linear_offset(tensor element) const {
     auto default_fmt = format::get_default_format(format.dimension(), format::is_weights_format(format), format::is_grouped(format));
-    const auto& l_padd = tensor(default_fmt, data_padding.lower_size(format.dimension()), 0);
-    const auto& u_padd = tensor(default_fmt, data_padding.upper_size(format.dimension()), 0);
+
+    std::vector<tensor::value_type> lower_sizes, upper_sizes;
+    lower_sizes.assign(data_padding._lower_size.begin(), data_padding._lower_size.begin() + format.dimension());
+    upper_sizes.assign(data_padding._upper_size.begin(), data_padding._upper_size.begin() + format.dimension());
+    const auto& l_padd = tensor(default_fmt, lower_sizes, 0);
+    const auto& u_padd = tensor(default_fmt, upper_sizes, 0);
 
     const auto& t = get_tensor();
 
@@ -430,15 +430,15 @@ size_t layout::get_linear_size() const {
         static_cast<size_t>(1),
         std::multiplies<size_t>());
 
-    // GPU_DEBUG_LOG << total << std::endl;
-    // std::cout << "=========== layout::get_linear_size = " << total;
-    // std::cout << " accumulate [";
-    // std::copy(sizes.begin(), sizes.end(), std::ostream_iterator<tensor::value_type>(std::cout, ", "));
-    // std::cout << " ]";
-    // std::cout << " for shape [";
-    // auto def_sizes = get_padded_dims();
-    // std::copy(def_sizes.begin(), def_sizes.end(), std::ostream_iterator<tensor::value_type>(std::cout, ", "));
-    // std::cout << "] and format " << this->format.to_string() << std::endl;
+    GPU_DEBUG_LOG << total << std::endl;
+    std::cout << "=========== layout::get_linear_size = " << total;
+    std::cout << " accumulate [";
+    std::copy(sizes.begin(), sizes.end(), std::ostream_iterator<tensor::value_type>(std::cout, ", "));
+    std::cout << " ]";
+    std::cout << " for shape [";
+    auto def_sizes = get_padded_dims();
+    std::copy(def_sizes.begin(), def_sizes.end(), std::ostream_iterator<tensor::value_type>(std::cout, ", "));
+    std::cout << "] and format " << this->format.to_string() << std::endl;
     return total;
 }
 

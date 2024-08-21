@@ -1805,8 +1805,8 @@ TEST(reorder_gpu_opt, remove_redundant_reorder_reorder_with_padding)
     // r2 would be removed, but the padding value should be remained at the input primitive of r2.
     std::vector<int32_t> gt = {0, 0, 1, 1};
     auto r1_output_data_padding = net.get_primitive("r1")->get_output_layout().data_padding;
-    auto upper_padding = r1_output_data_padding.upper_size();
-    auto lower_padding = r1_output_data_padding.lower_size();
+    const auto& upper_padding = r1_output_data_padding._upper_size;
+    const auto& lower_padding = r1_output_data_padding._lower_size;
     for (int32_t i = 0 ; i < 4; i++) {
         ASSERT_EQ(upper_padding[i], gt[i]);
         ASSERT_EQ(lower_padding[i], gt[i]);

@@ -9252,7 +9252,7 @@ public:
                 for (int y = 0; y < output_size_y; y++) {
                     for (int x = 0; x < output_size_x; x++) {
                         int output_index = (b * output_buffer_size.feature[0] + out_f) * output_buffer_size.spatial[1] * output_buffer_size.spatial[0];
-                        auto lower_output_padding = convolution->output_paddings[0].lower_size();
+                        const auto& lower_output_padding = convolution->output_paddings[0]._lower_size;
                         output_index += (lower_output_padding[2 + 0] + y) * output_buffer_size.spatial[0] + lower_output_padding[2 + 1] + x;
 
                         output_mem[output_index] += bias_mem[out_f];
@@ -9277,7 +9277,7 @@ public:
                             int output_yi = y;
                             int output_xi = x;
                             auto output_index = (output_bi * output_buffer_size.feature[0] + output_fi) * output_buffer_size.spatial[1] * output_buffer_size.spatial[0];
-                            auto lower_output_padding = convolution->output_paddings[0].lower_size();
+                            const auto& lower_output_padding = convolution->output_paddings[0]._lower_size;
                             output_index += (lower_output_padding[2 + 0] + output_yi) * output_buffer_size.spatial[0] + lower_output_padding[2 + 1] + output_xi;
 
                             for (int kernel_y = 0; kernel_y < weights_size.spatial[1]; kernel_y++) {

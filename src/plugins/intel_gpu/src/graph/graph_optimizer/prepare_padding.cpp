@@ -58,6 +58,10 @@ void prepare_padding::run(program& p) {
                     format == format::b_fs_zyx_fsv32)
                     continue;
 
+                auto in_layout = prim_node.get_input_layout();
+                const auto spatial_rank = in_layout.get_spatial_rank();
+                if (spatial_rank > 3 || spatial_rank < 1) continue;     // FIXME: should support spatial_rank > 3?
+
                 auto padding_begin = prim->padding_begin;
                 auto padding_end = prim->padding_end;
 
@@ -69,33 +73,32 @@ void prepare_padding::run(program& p) {
                 tensor::value_type pe_y = std::max<std::ptrdiff_t>(padding_end.size() >= 2 ? padding_end[padding_end.size() - 2] : 0, 0);
                 tensor::value_type pe_x = std::max<std::ptrdiff_t>(padding_end.size() >= 1 ? padding_end[padding_end.size() - 1] : 0, 0);
 
-                auto in_layout = prim_node.get_input_layout();
+                const auto& lower_sizes = in_layout.data_padding._lower_size;
+                const auto& upper_sizes = in_layout.data_padding._upper_size;
 
-                auto needed_lpad = in_layout.data_padding.lower_size();
-                auto needed_upad = in_layout.data_padding.upper_size();
+                std::vector<int32_t> needed_lpad, needed_upad;
+                needed_lpad.push_back(lower_sizes[0]);
+                needed_lpad.push_back(lower_sizes[1]);
 
-                if (padding_begin.size() >= 3) {
-                    needed_lpad[2] = std::max(pb_z, needed_lpad[2]);
-                    needed_lpad[3] = std::max(pb_y, needed_lpad[3]);
-                    needed_lpad[4] = std::max(pb_x, needed_lpad[4]);
-                } else if (padding_begin.size() >= 2) {
-                    needed_lpad[2] = std::max(pb_y, needed_lpad[2]);
-                    needed_lpad[3] = std::max(pb_x, needed_lpad[3]);
-                } else if (padding_begin.size() >= 1) {
-                    needed_lpad[2] = std::max(pb_x, needed_lpad[2]);
-                    needed_upad[2] = std::max(pe_x, needed_upad[2]);
-                }
+                needed_upad.push_back(upper_sizes[0]);
+                needed_upad.push_back(upper_sizes[1]);
+                if (spatial_rank == 3) {
+                    needed_lpad.push_back(std::max(pb_z, lower_sizes[2]));
+                    needed_lpad.push_back(std::max(pb_y, lower_sizes[3]));
+                    needed_lpad.push_back(std::max(pb_x, lower_sizes[4]));
 
-                if (padding_end.size() >= 3) {
-                    needed_upad[2] = std::max(pe_z, needed_upad[2]);
-                    needed_upad[3] = std::max(pe_y, needed_upad[3]);
-                    needed_upad[4] = std::max(pe_x, needed_upad[4]);
-                } else if (padding_end.size() >= 2) {
-                    needed_upad[2] = std::max(pe_y, needed_upad[2]);
-                    needed_upad[3] = std::max(pe_x, needed_upad[3]);
-                } else if (padding_end.size() >= 1) {
-                    needed_lpad[2] = std::max(pb_x, needed_lpad[2]);
-                    needed_upad[2] = std::max(pe_x, needed_upad[2]);
+                    needed_upad.push_back(std::max(pe_z, upper_sizes[2]));
+                    needed_upad.push_back(std::max(pe_y, upper_sizes[3]));
+                    needed_upad.push_back(std::max(pe_x, upper_sizes[4]));
+                } else if (spatial_rank == 2) {
+                    needed_lpad.push_back(std::max(pb_y, lower_sizes[2]));
+                    needed_lpad.push_back(std::max(pb_x, lower_sizes[3]));
+
+                    needed_upad.push_back(std::max(pe_y, upper_sizes[2]));
+                    needed_upad.push_back(std::max(pe_x, upper_sizes[3]));
+                } {
+                    needed_lpad.push_back(std::max(pb_x, lower_sizes[2]));
+                    needed_upad.push_back(std::max(pb_x, upper_sizes[2]));
                 }
 
                 padding needed_padding(needed_lpad, needed_upad);

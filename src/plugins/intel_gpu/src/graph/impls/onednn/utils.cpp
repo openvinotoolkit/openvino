@@ -232,8 +232,8 @@ void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
 
 int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     int64_t offset = 0;
-    auto b_padding = l.data_padding.lower_size()[0];
-    auto f_padding = l.data_padding.lower_size()[1];
+    auto b_padding = l.data_padding._lower_size[0];
+    auto f_padding = l.data_padding._lower_size[1];
     if (b_padding != 0) {
         auto input_pitches = l.get_pitches();
         offset = b_padding * input_pitches[0];

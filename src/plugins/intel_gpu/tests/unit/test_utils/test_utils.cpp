@@ -150,7 +150,7 @@ void generic_test::compare_buffers(const memory::ptr out, const memory::ptr ref)
 }
 
 static size_t calc_offfset(const layout & layout, const pitches& p) {
-    auto lower_padding = layout.data_padding.lower_size();
+    const auto& lower_padding = layout.data_padding._lower_size;
     if (layout.format == format::bfzyx) {
         return
             p.b * lower_padding[0] +

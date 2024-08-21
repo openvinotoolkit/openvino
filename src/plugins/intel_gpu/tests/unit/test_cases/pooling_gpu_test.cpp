@@ -3166,7 +3166,7 @@ public:
                                 pad_y_start = std::max(pad_y_start, 0);
 
                                 int output_index = (b * feature + f) * output_height * output_width;
-                                auto lower_padding = pooling->output_paddings[0].lower_size();
+                                const auto& lower_padding = pooling->output_paddings[0]._lower_size;
                                 output_index += (lower_padding[2 + 0] + h) * output_width + lower_padding[2 + 1] + w;
 
                                 int num_of_elements = 0;

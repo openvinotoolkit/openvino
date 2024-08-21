@@ -85,15 +85,15 @@ public:
         auto input_layout = input().get_output_layout(false);
         auto input_pad = input_layout.data_padding;
         for (size_t i = 0 ; i < input_layout.get_spatial_rank() ; i++) {
-            if (input_pad.lower_size()[2 + i] != 0)
+            if (input_pad._lower_size[2 + i] != 0)
                 return false;
-            if (input_pad.upper_size()[2 + i] != 0)
+            if (input_pad._upper_size[2 + i] != 0)
                 return false;
         }
 
         // Expected a padded input of only batch axis with 'bxxx' format
         if (input_layout.format.dims_order()[0] != 0 ||
-            input_pad.lower_size()[1] != 0)
+            input_pad._lower_size[1] != 0)
             return false;
 
         if (format::is_multi_blocked(input_layout.format))
@@ -145,7 +145,7 @@ public:
             // adjust output padding if Reshape has an outer padding exists in an input
             auto input_pitches = input_layout.get_pitches();
             auto input_pad = input_layout.data_padding;
-            size_t first_element_offset = input_pad.lower_size()[0];
+            size_t first_element_offset = input_pad._lower_size[0];
             // feature and spatial size
             first_element_offset *= input_pitches[0];
 

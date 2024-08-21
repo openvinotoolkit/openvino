@@ -792,7 +792,7 @@ event::ptr primitive_inst::realloc_if_needed() {
                 break;
             }
         }
-        if (present_layout.data_padding.get_dynamic_pad_dims()[sequence_axis] == 1) {
+        if (present_layout.data_padding._dynamic_pad_dims[sequence_axis] == 1) {
             // Apply padding of variable to make it be optimized in the next iteration
             auto max_pad = kv_cache_inst::get_max_pad(present_layout,
                                                       _max_output_layout_count[0],
@@ -914,10 +914,10 @@ void primitive_inst::fill_shape_info_data(const layout& runtime_layout, const la
         GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << shape_with_max_rank[j] << std::endl;
         shape_info_ptr[offset++] = static_cast<int32_t>(shape_with_max_rank[j]);
     }
-    auto dynamic_pad = layout::format_sizes(node_layout.data_padding.get_dynamic_pad_dims(), shape_info_fmt);
+    auto dynamic_pad = layout::format_sizes(node_layout.data_padding._dynamic_pad_dims, shape_info_fmt);
     const auto& data_padding = runtime_layout.data_padding;
-    auto lower_pads = layout::format_sizes(data_padding.lower_size(), shape_info_fmt);
-    auto upper_pads = layout::format_sizes(data_padding.upper_size(), shape_info_fmt);
+    auto lower_pads = layout::format_sizes(data_padding._lower_size, shape_info_fmt);
+    auto upper_pads = layout::format_sizes(data_padding._upper_size, shape_info_fmt);
     for (size_t j = 0; j < shape_with_max_rank.size(); ++j) {
         if (dynamic_pad[j] == 1) {
             GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << lower_pads[j]
@@ -1191,7 +1191,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
     }
 
     auto sequence_axis = kv_cache_inst::get_sequence_axis(desc->concat_axis, past_layout.get_partial_shape().size());
-    if (present_layout.data_padding.get_dynamic_pad_dims()[sequence_axis] != 1)
+    if (present_layout.data_padding._dynamic_pad_dims[sequence_axis] != 1)
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial present_layout : " << present_layout.to_string() << std::endl;
@@ -1206,7 +1206,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
         variable.set_layout(present_layout);
         GPU_DEBUG_TRACE_DETAIL << "[do_runtime_in_place_kv_cache] " << id() << "Updated variable with present_layout"
                                << variable.get_layout().to_string() << " is_set  = " << variable.is_set() << std::endl;
-        if (past_layout.data_padding.upper_size()[sequence_axis] > 0 && variable.is_set()) {
+        if (past_layout.data_padding._upper_size[sequence_axis] > 0 && variable.is_set()) {
             kv_cache_inst::update_pad(past_layout, max_pad, sequence_axis);
             _impl_params->_can_be_optimized = true;
             GPU_DEBUG_TRACE_DETAIL << "[do_runtime_in_place_kv_cache] " << id() << " Updated past layout's pad : " << past_layout.to_string() << std::endl;

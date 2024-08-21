@@ -481,13 +481,13 @@ inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::sha
 
     str << std::endl << "Test params: " << test_param->print();
 
-    auto lower_size = primitive->output_paddings[0].lower_size();
-    auto upper_size = primitive->output_paddings[0].upper_size();
+    const auto& lower_size = primitive->output_paddings[0]._lower_size;
+    const auto& upper_size = primitive->output_paddings[0]._upper_size;
     str << "Layer params:\n"
         << "Output padding lower size: ";
-    std::copy(lower_size.begin(), lower_size.end(), std::ostream_iterator<char>(std::cout, " "));
+    std::copy(std::begin(lower_size), std::end(lower_size), std::ostream_iterator<char>(std::cout, " "));
     str << " upper size: ";
-    std::copy(upper_size.begin(), upper_size.end(), std::ostream_iterator<char>(std::cout, " "));
+    std::copy(std::begin(upper_size), std::end(upper_size), std::ostream_iterator<char>(std::cout, " "));
     str << '\n';
 
     //TODO: do layers not have param dumping? we could consider adding it

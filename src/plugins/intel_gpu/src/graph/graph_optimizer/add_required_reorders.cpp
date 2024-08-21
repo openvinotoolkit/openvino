@@ -166,19 +166,19 @@ void add_required_reorders::run(program& p) {
                     if (static_cast<bool>(in_padding)) {
                         bool spatial_padding = false;
                         for (size_t i = 0; i < in_layout.get_spatial_rank(); ++i) {
-                            spatial_padding |= (in_padding.lower_size()[2 + i] != 0);
+                            spatial_padding |= (in_padding._lower_size[2 + i] != 0);
                         }
                         for (size_t i = 0; i < in_layout.get_spatial_rank(); ++i) {
-                            spatial_padding |= (in_padding.upper_size()[2 + i] != 0);
+                            spatial_padding |= (in_padding._upper_size[2 + i] != 0);
                         }
 
                         bool feature_padding = false;
-                        feature_padding |= (in_padding.lower_size()[1] != 0);
-                        feature_padding |= (in_padding.upper_size()[1] != 0);
+                        feature_padding |= (in_padding._lower_size[1] != 0);
+                        feature_padding |= (in_padding._upper_size[1] != 0);
 
                         bool batch_padding = false;
-                        batch_padding |= (in_padding.lower_size()[0] != 0);
-                        batch_padding |= (in_padding.upper_size()[0] != 0);
+                        batch_padding |= (in_padding._lower_size[0] != 0);
+                        batch_padding |= (in_padding._upper_size[0] != 0);
 
                         if (batch_padding && !feature_padding && !spatial_padding) {
                             batch_padding = false;
@@ -188,8 +188,8 @@ void add_required_reorders::run(program& p) {
                             cldnn::layout layout_padding = input.get_output_layout();
                             cldnn::layout layout_wo_padding = input.get_output_layout();
                             layout_wo_padding.data_padding = cldnn::padding{};
-                            layout_wo_padding.data_padding.lower_size()[1] = layout_padding.data_padding.lower_size()[1];
-                            layout_wo_padding.data_padding.upper_size()[1] = layout_padding.data_padding.upper_size()[1];
+                            layout_wo_padding.data_padding._lower_size[1] = layout_padding.data_padding._lower_size[1];
+                            layout_wo_padding.data_padding._upper_size[1] = layout_padding.data_padding._upper_size[1];
                             auto new_reorder = std::make_shared<reorder>(input.id() + "_padding_reorder_" + usr->id(), input.id(), layout_wo_padding);
                             auto& new_reorder_node = p.get_or_create(new_reorder);
                             p.add_intermediate(new_reorder_node, *usr, idx);

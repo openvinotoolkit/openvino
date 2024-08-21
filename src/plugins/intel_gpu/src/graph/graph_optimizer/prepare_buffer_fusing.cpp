@@ -90,8 +90,8 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     if (concat_node.is_dynamic()) {
         for (size_t j = 0; j < concat_params.get_output_layout().get_rank(); j++) {
             if (j != concat_axis_index) {
-                if ((layout::format_sizes(concat_params.get_output_layout().data_padding.lower_size(), def_fmt)[j] != 0)
-                    || (layout::format_sizes(concat_params.get_output_layout().data_padding.upper_size(), def_fmt)[j] != 0))
+                if ((layout::format_sizes(concat_params.get_output_layout().data_padding._lower_size, def_fmt)[j] != 0)
+                    || (layout::format_sizes(concat_params.get_output_layout().data_padding._upper_size, def_fmt)[j] != 0))
                     return false;
             }
         }
@@ -123,9 +123,9 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     const auto& output_format = concat_params.get_output_layout().format;
     const auto& output_datatype = concat_params.get_output_layout().data_type;
 
-    auto lower_padd_in_axis = layout::format_sizes(concat_params.get_output_layout().data_padding.lower_size(), def_fmt)[concat_axis];
+    auto lower_padd_in_axis = layout::format_sizes(concat_params.get_output_layout().data_padding._lower_size, def_fmt)[concat_axis];
     lower_padd_in_axis = std::max(lower_padd_in_axis,
-                                  layout::format_sizes(pred_params[0].get_output_layout().data_padding.lower_size(), def_fmt)[concat_axis]);
+                                  layout::format_sizes(pred_params[0].get_output_layout().data_padding._lower_size, def_fmt)[concat_axis]);
 
     size_t idx = 0;
     for (const auto& pred : pred_nodes) {
@@ -216,9 +216,9 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // Check that there isn't already some padding between inputs in concat axis.
         // If node has already been optimized we skip this check - this is just cascade adjustment.
         if (!concat_node.can_be_optimized()) {
-            if (idx != concat_node.get_dependencies().size() && layout::format_sizes(input_padd.upper_size(), def_fmt)[concat_axis] != 0)
+            if (idx != concat_node.get_dependencies().size() && layout::format_sizes(input_padd._upper_size, def_fmt)[concat_axis] != 0)
                 return false;
-            if (idx != 0 && layout::format_sizes(input_padd.lower_size(), def_fmt)[concat_axis] != 0)
+            if (idx != 0 && layout::format_sizes(input_padd._lower_size, def_fmt)[concat_axis] != 0)
                 return false;
         }
         if (!concat_node.is_dynamic() || is_runtime)
@@ -302,13 +302,16 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
         padd = padding::max(padd, inputPadding);
     }
 
-    auto lower_padd = padd.lower_size();
-    auto upper_padd = padd.upper_size();
+    std::vector<tensor::value_type> lower_padd, upper_padd;
+    for (size_t i = 0; i < concat_out_layout.get_rank(); i++) {
+        lower_padd.push_back(padd._lower_size[i]);
+        upper_padd.push_back(padd._upper_size[i]);
+    }
 
     // For cascade adjustment override padding in concat axis to output padding.
     // In other case match(...) already checked that only first/last input have lower/upper padding.
-    lower_padd[concat_axis_legacy] = concat_out_layout.data_padding.lower_size()[concat_axis_legacy];
-    upper_padd[concat_axis_legacy] = concat_out_layout.data_padding.upper_size()[concat_axis_legacy];
+    lower_padd[concat_axis_legacy] = concat_out_layout.data_padding._lower_size[concat_axis_legacy];
+    upper_padd[concat_axis_legacy] = concat_out_layout.data_padding._upper_size[concat_axis_legacy];
     auto dyn_pad_dims = lower_padd;
     dyn_pad_dims[concat_axis_legacy] = 1;
     concat_out_layout.data_padding = padding(lower_padd, upper_padd);
@@ -364,9 +367,9 @@ static bool is_optimizable_padding_for_crop(const crop_node& node,
                                             const layout& crop_layout,
                                             const layout& input_layout,
                                             const tensor offsets) {
-    if (input_layout.data_padding.lower_size()[0] != 0 || input_layout.data_padding.upper_size()[0] != 0 ||
-        input_layout.data_padding.lower_size()[2] != 0 || input_layout.data_padding.upper_size()[2] != 0 ||
-        input_layout.data_padding.lower_size()[3] != 0 || input_layout.data_padding.upper_size()[3] != 0)
+    if (input_layout.data_padding._lower_size[0] != 0 || input_layout.data_padding._upper_size[0] != 0 ||
+        input_layout.data_padding._lower_size[2] != 0 || input_layout.data_padding._upper_size[2] != 0 ||
+        input_layout.data_padding._lower_size[3] != 0 || input_layout.data_padding._upper_size[3] != 0)
         return false;
 
     auto opt_lower_pad = offsets.feature[0];
@@ -395,11 +398,11 @@ bool crop_in_place_optimization::can_crop_be_optimized_along_feature(const layou
 
     if (format == format::bfyx && crop_size.batch[0] == input_layout.batch() &&
         crop_size.spatial[0] == input_layout.spatial(0) &&
-        crop_size.spatial[1] == input_layout.spatial(1) && out_pad.lower_size()[1] == 0 &&
-        out_pad.upper_size()[1] == 0 && out_pad.lower_size()[0] == 0 &&
-        out_pad.upper_size()[0] == 0 && out_pad.lower_size()[2] == 0 &&
-        out_pad.lower_size()[3] == 0 && out_pad.upper_size()[2] == 0 &&
-        out_pad.upper_size()[3] == 0) {
+        crop_size.spatial[1] == input_layout.spatial(1) && out_pad._lower_size[1] == 0 &&
+        out_pad._upper_size[1] == 0 && out_pad._lower_size[0] == 0 &&
+        out_pad._upper_size[0] == 0 && out_pad._lower_size[2] == 0 &&
+        out_pad._lower_size[3] == 0 && out_pad._upper_size[2] == 0 &&
+        out_pad._upper_size[3] == 0) {
         return true;
     }
 
@@ -605,19 +608,19 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
     //  feature num of pad should be accumulated if dep has been optimized out.
     if (dep.is_type<crop>() && dep.can_be_optimized()) {
         auto dep_pad = dep.get_output_layout().data_padding;
-        opt_lower_pad += dep_pad.lower_size()[1];
-        opt_upper_pad += dep_pad.upper_size()[1];
+        opt_lower_pad += dep_pad._lower_size[1];
+        opt_upper_pad += dep_pad._upper_size[1];
     }
     std::vector<int32_t> lower_sizes;
-    lower_sizes.push_back(out_pad.lower_size()[0]);
+    lower_sizes.push_back(out_pad._lower_size[0]);
     lower_sizes.push_back(opt_lower_pad);
-    lower_sizes.push_back(out_pad.lower_size()[2]);
-    lower_sizes.push_back(out_pad.lower_size()[3]);
+    lower_sizes.push_back(out_pad._lower_size[2]);
+    lower_sizes.push_back(out_pad._lower_size[3]);
     std::vector<int32_t> upper_sizes;
-    upper_sizes.push_back(out_pad.upper_size()[0]);
+    upper_sizes.push_back(out_pad._upper_size[0]);
     upper_sizes.push_back(opt_upper_pad);
-    upper_sizes.push_back(out_pad.upper_size()[2]);
-    upper_sizes.push_back(out_pad.upper_size()[3]);
+    upper_sizes.push_back(out_pad._upper_size[2]);
+    upper_sizes.push_back(out_pad._upper_size[3]);
 
     // set padding
     if (is_runtime) {

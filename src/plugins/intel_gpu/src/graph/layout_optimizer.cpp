@@ -1397,16 +1397,16 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
         auto input_spatial_rank = input_layout.get_spatial_rank();
         auto output_spatial_rank = output_layout.get_spatial_rank();
         for (size_t i = 0; i < input_spatial_rank; ++i) {
-            no_spatial_padding &= (in_padding.lower_size()[2 + i] == 0);
+            no_spatial_padding &= (in_padding._lower_size[2 + i] == 0);
         }
         for (size_t i = 0; i < input_spatial_rank; ++i) {
-            no_spatial_padding &= (in_padding.upper_size()[2 + i] == 0);
+            no_spatial_padding &= (in_padding._upper_size[2 + i] == 0);
         }
         for (size_t i = 0; i < output_spatial_rank; ++i) {
-            no_spatial_padding &= (out_padding.lower_size()[2 + i] == 0);
+            no_spatial_padding &= (out_padding._lower_size[2 + i] == 0);
         }
         for (size_t i = 0; i < output_spatial_rank; ++i) {
-            no_spatial_padding &= (out_padding.upper_size()[2 + i] == 0);
+            no_spatial_padding &= (out_padding._upper_size[2 + i] == 0);
         }
 
         // Onednn supports outer padding of batch axis (first element offset) if its format is 'bxxx'
@@ -1414,10 +1414,10 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
         auto out_fmt = node.get_output_layout().format;
         if (format::is_multi_blocked(input_layout.format) || format::is_multi_blocked(out_fmt) ||
             input_layout.format.dims_order()[0] != 0 || out_fmt.dims_order()[0] != 0) {
-            no_batch_padding &= (in_padding.lower_size()[0] == 0);
-            no_batch_padding &= (in_padding.upper_size()[0] == 0);
-            no_batch_padding &= (out_padding.lower_size()[0] == 0);
-            no_batch_padding &= (out_padding.upper_size()[0] == 0);
+            no_batch_padding &= (in_padding._lower_size[0] == 0);
+            no_batch_padding &= (in_padding._upper_size[0] == 0);
+            no_batch_padding &= (out_padding._lower_size[0] == 0);
+            no_batch_padding &= (out_padding._upper_size[0] == 0);
         }
         return (no_spatial_padding && no_batch_padding);
     }
