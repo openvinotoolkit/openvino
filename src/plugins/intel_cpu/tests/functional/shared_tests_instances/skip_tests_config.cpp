@@ -309,7 +309,6 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 148527
         R"(.*Snippets.*MatMulTransposeB.*i8.*i8.*)",
         // Issue: 136881
-        R"(.*smoke_CompareWithRefs_4D_Bitwise.*/EltwiseLayerCPUTest.*_eltwise_op_type=BitwiseLeft.*_model_type=.*(i16|u16|u32).*)",
     };
 
     // fp32 floor for bf16 models: conversion issue
