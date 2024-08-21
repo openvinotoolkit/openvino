@@ -63,7 +63,7 @@ INSTANTIATE_TEST_SUITE_P(ONNXLoadTest,
                          ::testing::Values(getTestData()),
                          FrontEndLoadFromTest::getTestCaseName);
 
-TEST_P(FrontEndLoadFromTest, testLoadFromModelProto) {
+TEST_P(FrontEndLoadFromTest, testLoadFromModelProtoSharedPtr) {
     const auto path =
         ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "abs.onnx"});
     std::ifstream ifs(path, std::ios::in | std::ios::binary);
@@ -76,15 +76,68 @@ TEST_P(FrontEndLoadFromTest, testLoadFromModelProto) {
         ASSERT_TRUE(model_proto->ParseFromIstream(&ifs)) << "Could not parse ModelProto from file: " << path;
 
         ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_model(model_proto))
-            << "Could not create the ONNX FE using a ModelProto object";
+            << "Could not create the ONNX FE using a shared_ptr on a ModelProto object";
         ASSERT_NE(m_frontEnd, nullptr);
         ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(model_proto)) << "Could not load the model";
         ASSERT_NE(m_inputModel, nullptr);
     }
 
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel))
-        << "Could not convert the model to OV representation";
+    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel)) << "Could not convert the model to OV representation";
+    ASSERT_NE(model, nullptr);
+
+    ASSERT_TRUE(model->get_ordered_ops().size() > 0);
+}
+
+TEST_P(FrontEndLoadFromTest, testLoadFromModelProtoPtr) {
+    const auto path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "abs.onnx"});
+    std::ifstream ifs(path, std::ios::in | std::ios::binary);
+    ASSERT_TRUE(ifs.is_open()) << "Could not open an ifstream for the model path: " << path;
+    std::vector<std::string> frontends;
+    FrontEnd::Ptr fe;
+
+    {
+        auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>();
+        ASSERT_TRUE(model_proto->ParseFromIstream(&ifs)) << "Could not parse ModelProto from file: " << path;
+
+        ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_model(model_proto.get()))
+            << "Could not create the ONNX FE using a pointer on ModelProto object";
+        ASSERT_NE(m_frontEnd, nullptr);
+        ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(model_proto.get())) << "Could not load the model";
+        ASSERT_NE(m_inputModel, nullptr);
+    }
+
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel)) << "Could not convert the model to OV representation";
+    ASSERT_NE(model, nullptr);
+
+    ASSERT_TRUE(model->get_ordered_ops().size() > 0);
+}
+
+TEST_P(FrontEndLoadFromTest, testLoadFromModelProtoUint64) {
+    const auto path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "abs.onnx"});
+    std::ifstream ifs(path, std::ios::in | std::ios::binary);
+    ASSERT_TRUE(ifs.is_open()) << "Could not open an ifstream for the model path: " << path;
+    std::vector<std::string> frontends;
+    FrontEnd::Ptr fe;
+
+    {
+        auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>();
+        ASSERT_TRUE(model_proto->ParseFromIstream(&ifs)) << "Could not parse ModelProto from file: " << path;
+
+        uint64_t model_proto_ptr = reinterpret_cast<uint64_t>(model_proto.get());
+
+        ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_model(model_proto_ptr))
+            << "Could not create the ONNX FE using a pointer on ModelProto object as uint64_t";
+        ASSERT_NE(m_frontEnd, nullptr);
+        ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(model_proto_ptr)) << "Could not load the model";
+        ASSERT_NE(m_inputModel, nullptr);
+    }
+
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel)) << "Could not convert the model to OV representation";
     ASSERT_NE(model, nullptr);
 
     ASSERT_TRUE(model->get_ordered_ops().size() > 0);

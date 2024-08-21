@@ -86,7 +86,21 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         return std::make_shared<InputModel>(*stream, enable_mmap, m_extensions);
     }
     if (variants[0].is<ModelProtoPtr>()) {
+        std::cerr << "shared_ptr<ModelProto> has been received\n";
         return std::make_shared<InputModel>(variants[0].as<ModelProtoPtr>(), m_extensions);
+    }
+    if (variants[0].is<ONNX_NAMESPACE::ModelProto*>()) {
+        std::cerr << "ModelProto* has been received\n";
+        return std::make_shared<InputModel>(
+            std::make_shared<ONNX_NAMESPACE::ModelProto>(*variants[0].as<ONNX_NAMESPACE::ModelProto*>()),
+            m_extensions);
+    }
+    if (variants[0].is<uint64_t>()) {
+        std::cerr << "uint64_t as a ModelProto* has been received\n";
+        void* model_proto_ptr = reinterpret_cast<void*>(variants[0].as<uint64_t>());
+        return std::make_shared<InputModel>(
+            std::make_shared<ONNX_NAMESPACE::ModelProto>(*static_cast<ONNX_NAMESPACE::ModelProto*>(model_proto_ptr)),
+            m_extensions);
     }
     return nullptr;
 }
@@ -219,6 +233,15 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         return is_valid_model(*stream);
     }
     if (variants[0].is<ModelProtoPtr>()) {
+        std::cerr << "shared_ptr<ModelProto> is supported\n";
+        return true;
+    }
+    if (variants[0].is<ONNX_NAMESPACE::ModelProto*>()) {
+        std::cerr << "ModelProto* is supported\n";
+        return true;
+    }
+    if (variants[0].is<uint64_t>()) {
+        std::cerr << "uint64_t as a ModelProto* is supported\n";
         return true;
     }
     return false;
