@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "compiled_model.hpp"
@@ -114,7 +114,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     // Initialize weights bank
     const std::string weights_bank_opt = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
-    m_weights_bank = ov::npuw::weights::bank(weights_bank_opt);
+    m_weights_bank = ov::npuw::weights::bank(weights_bank_opt, plugin->get_core());
 
     LOG_VERB("*** Original model ***");
     const auto& orig_parameters = model->get_parameters();
@@ -402,7 +402,7 @@ void ov::npuw::CompiledModel::fill_weights_bank(const std::size_t idx) {
     auto& comp_model_desc = m_compiled_submodels[idx];
 
     for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
-        comp_model_desc.closure[cidx] = m_weights_bank->get(comp_model_desc.closure[cidx]);
+        comp_model_desc.closure[cidx] = m_weights_bank->update(comp_model_desc.closure[cidx]);
         if (m_cfg.get<::intel_npu::NPUW_FOLD>()) {
             comp_model_desc.update_required[cidx] = true;
         } else {
