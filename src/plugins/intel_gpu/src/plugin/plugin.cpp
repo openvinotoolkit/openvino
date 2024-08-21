@@ -174,6 +174,69 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::set<ov::hint::ModelDistributionPolicy> model_distribution_policy =
         config.get_property(ov::hint::model_distribution_policy.name())
             .as<std::set<ov::hint::ModelDistributionPolicy>>();
+
+    auto device_ptr = context->get_engine().get_device();
+
+    auto iter_devices_for_tp = orig_config.find(ov::device::priorities.name()) == orig_config.end();
+    std::string devices_for_tp =
+        iter_devices_for_tp ? "" : config.get_property(ov::device::priorities.name()).as<std::string>();
+    if (devices_for_tp.empty()) {
+        GPU_DEBUG_LOG
+            << "No available device specified for TP. will initialize device list for TP with all available device."
+            << std::endl;
+        for (const auto& item : m_configs_map) {
+            devices_for_tp += "GPU." + item.first + ",";
+        }
+        devices_for_tp.pop_back();
+    }
+    auto parse_devices_id = [&](const std::string devices_for_tp,
+                                const std::string delimiter = ",") -> std::vector<std::string> {
+        std::vector<std::string> ret;
+        std::size_t start = 0, end = devices_for_tp.find(delimiter);
+        while (end != std::string::npos) {
+            std::string device_with_id = devices_for_tp.substr(start, end - start);
+            auto dotPos = device_with_id.find(".", start);
+            if (dotPos != std::string::npos) {
+                auto target_id = device_with_id.substr(dotPos + 1);
+                if (m_device_map.count(target_id)) {
+                    if (m_device_map.at(target_id)->get_info().dev_type == device_ptr->get_info().dev_type)
+                        ret.push_back(target_id);
+                    else
+                        GPU_DEBUG_LOG << "Not same type as target device for the device: " << device_with_id
+                                      << std::endl;
+                } else {
+                    GPU_DEBUG_LOG << "Not found the device: " << device_with_id << std::endl;
+                }
+            }
+            start = end + delimiter.length();
+            end = devices_for_tp.find(delimiter, start);
+        }
+        std::string last = devices_for_tp.substr(start);
+        auto dotPos = last.find(".");
+        if (dotPos != std::string::npos) {
+            auto target_id = last.substr(dotPos + 1);
+            if (m_device_map.count(target_id)) {
+                if (m_device_map.at(target_id)->get_info().dev_type == device_ptr->get_info().dev_type)
+                    ret.push_back(target_id);
+                else
+                    GPU_DEBUG_LOG << "Not same type as target device for the device: " << last << std::endl;
+            } else {
+                GPU_DEBUG_LOG << "Not found the device: " << last << std::endl;
+            }
+        }
+        if (ret.empty()) {
+            GPU_DEBUG_LOG << "No available device found for TP from specified device candidate list: " << devices_for_tp
+                          << ". Will select another device with same type as default device: GPU." << device_id
+                          << std::endl;
+            ret.push_back(device_id);
+            for (const auto& item : m_device_map) {
+                if (item.first != device_id && item.second->get_info().dev_type == device_ptr->get_info().dev_type)
+                    ret.push_back(item.first);
+            }
+        }
+        return ret;
+    };
+    auto devices_id_for_tp = parse_devices_id(devices_for_tp);
     if (1) {
         auto get_rank_table = [&]() {
             std::vector<std::vector<int>> rank_table = {};
@@ -184,11 +247,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             }
             return rank_table;
         };
-        config.register_device_context_for_tp(context);
-        auto device_ptr = context->get_engine().get_device();
-        for (auto& iter : m_device_map) {
-            if (iter.first != device_id && iter.second->get_info().dev_type == device_ptr->get_info().dev_type) 
-                config.register_device_context_for_tp(get_default_context(iter.first));
+        if (devices_id_for_tp.size() > 2) {
+            GPU_DEBUG_LOG << "Will only select 2 devices for TP." << std::endl;
+            devices_id_for_tp = std::vector<std::string>(devices_id_for_tp.begin(), devices_id_for_tp.begin() + 2);
+        }
+        for (auto& device_id : devices_id_for_tp) {
+            config.register_device_context_for_tp(get_default_context(device_id));
+            std::cout << "Registered device with id GPU." << device_id << " for TP."<< std::endl;
         }
         if (config.get_context_for_tp().size() > 1) {
             config.enableSubStreams = true;
@@ -582,7 +647,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::hint::enable_cpu_pinning.name(), PropertyMutability::RW},
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::model_distribution_policy.name(), PropertyMutability::RW},
-        ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW}
+        ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::device::priorities.name(), PropertyMutability::RW},
     };
 
     return supported_properties;
