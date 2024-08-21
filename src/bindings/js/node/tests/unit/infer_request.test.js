@@ -12,7 +12,7 @@ const testXml = getModelPath().xml;
 
 describe('ov.InferRequest tests', () => {
 
-  before( async () => {
+  before(async () => {
     await isModelAvailable(testModels.testModelFP32);
   });
 

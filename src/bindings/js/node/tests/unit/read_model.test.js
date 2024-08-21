@@ -12,7 +12,7 @@ const { xml: modelPath, bin: weightsPath } = getModelPath();
 
 describe('Tests for reading model.', () => {
 
-  before( async () => {
+  before(async () => {
     await isModelAvailable(testModels.testModelFP32);
   });
 

@@ -9,7 +9,7 @@ const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
 
 describe('ov.Model tests', () => {
 
-  before( async () => {
+  before(async () => {
     await isModelAvailable(testModels.testModelFP32);
   });
 

@@ -9,7 +9,7 @@ const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
 
 describe('ov.preprocess.PrePostProcessor tests', () => {
 
-  before( async () => {
+  before(async () => {
     await isModelAvailable(testModels.testModelFP32);
   });
 

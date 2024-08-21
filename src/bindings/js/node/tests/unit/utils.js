@@ -44,7 +44,7 @@ async function downloadTestModel(model) {
 
     const modelPath = path.join(modelsDir, model.xml);
     const modelExists = await checkIfPathExists(modelPath);
-    if ( modelExists ) return;
+    if (modelExists) return;
 
     const { env } = process;
     const proxyUrl = env.http_proxy || env.HTTP_PROXY || env.npm_config_proxy;
@@ -55,14 +55,13 @@ async function downloadTestModel(model) {
     console.error(`Failed to download the model: ${error}.`);
     throw error;
   }
-
 }
 
 async function isModelAvailable(model) {
   const baseArtifactsDir = './tests/unit/test_models';
   const modelPath = path.join(baseArtifactsDir, model.xml);
   const modelExists = await checkIfPathExists(modelPath);
-  if ( modelExists ) return;
+  if (modelExists) return;
 
   console.log('\n\nTestModel cannot be found.\nPlease run `npm run test_setup`.\n\n');
   process.exit(1);
