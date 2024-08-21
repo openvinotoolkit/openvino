@@ -128,8 +128,80 @@ private:
     HandleHolder m_mapping;
 };
 
+class ReadFileHolder : public ov::MappedMemory {
+public:
+    char* data() noexcept override {
+        return m_data.data();
+    }
+    size_t size() const noexcept override {
+        return m_size;
+    }
+
+    void set(const std::string& path) {
+        // Note that file can't be changed (renamed/deleted) until it's unmapped. FILE_SHARE_DELETE flag allow
+        // rename/deletion, but it doesn't work with FAT32 filesystem (works on NTFS)
+        auto h = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        map(path, h);
+    }
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    void set(const std::wstring& path) {
+        // Note that file can't be changed (renamed/deleted) until it's unmapped. FILE_SHARE_DELETE flag allow
+        // rename/deletion, but it doesn't work with FAT32 filesystem (works on NTFS)
+        auto h = ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        map(ov::util::wstring_to_string(path), h);
+    }
+#endif
+
+private:
+    void map(const std::string& path, HANDLE h) {
+        if (h == INVALID_HANDLE_VALUE) {
+            throw std::runtime_error("Can not open file " + path +
+                                     " for mapping. Ensure that file exists and has appropriate permissions");
+        }
+        m_handle = HandleHolder(h);
+
+        LARGE_INTEGER file_size_large;
+        if (::GetFileSizeEx(m_handle.get(), &file_size_large) == 0) {
+            throw std::runtime_error("Can not get file size for " + path);
+        }
+
+        m_size = static_cast<uint64_t>(file_size_large.QuadPart);
+        m_data.resize(m_size);
+
+        size_t bytes_read = 0;
+        while (bytes_read < m_size) {
+            DWORD chunk_size = static_cast <DWORD>(std::min<size_t>(m_size - bytes_read, 64 * 1024 * 1024));
+            DWORD chunk_read = 0;
+            BOOL result =
+                ReadFile(m_handle.get(), m_data.data() + bytes_read, chunk_size, &chunk_read, NULL);
+            if (!result) {
+                auto error = GetLastError();
+                throw std::runtime_error("read error: %s" + GetLastError());
+                // throw std::runtime_error("blalba");
+            }
+            if (chunk_read < chunk_size || chunk_read == 0) {
+                throw std::runtime_error("unexpectedly reached end of file");
+            }
+
+            bytes_read += chunk_read;
+        }
+    }
+
+private:
+    std::vector<char> m_data;
+    size_t m_size = 0;
+    HandleHolder m_handle;
+};
+
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path) {
     auto holder = std::make_shared<MapHolder>();
+    holder->set(path);
+    return holder;
+}
+
+std::shared_ptr<ov::MappedMemory> load_read_file_object(const std::string& path) {
+    auto holder = std::make_shared<ReadFileHolder>();
     holder->set(path);
     return holder;
 }
@@ -138,6 +210,12 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path) {
 
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::wstring& path) {
     auto holder = std::make_shared<MapHolder>();
+    holder->set(path);
+    return holder;
+}
+
+std::shared_ptr<ov::MappedMemory> load_read_file_object(const std::wstring& path) {
+    auto holder = std::make_shared<ReadFileHolder>();
     holder->set(path);
     return holder;
 }

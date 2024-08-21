@@ -35,6 +35,7 @@ public:
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path);
+std::shared_ptr<ov::MappedMemory> load_read_file_object(const std::string& path);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
@@ -47,6 +48,7 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path);
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::wstring& path);
+std::shared_ptr<ov::MappedMemory> load_read_file_object(const std::wstring& path);
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
