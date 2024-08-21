@@ -41,8 +41,6 @@ The figure below shows a common workflow of applying training-time compressions 
 
 .. image:: ../../assets/images/nncf_workflow.svg
    :align: center
-   :scale: 70 %
-
 
 Training-Time Compression Methods
 +++++++++++++++++++++++++++++++++
