@@ -2639,12 +2639,20 @@ TEST_P(RemoteTensor, smoke_CopyFrom) {
     // Copy from remote tensor to remote tensor
     second_remote_tensor.copy_from(first_remote_tensor);
 
+    // Check updated shape after copy_from call
+    ASSERT_EQ(second_remote_tensor.get_shape(), first_remote_tensor.get_shape());
+
     // Copy from host tensor to remote tensor
     if (use_roi) {
         auto roi_host_tensor_ref = ov::Tensor(host_tensor_ref, p.begin, p.end);
         auto roi_second_remote_tensor = ov::RemoteTensor(second_remote_tensor, p.begin, p.end);
+        auto second_remote_tensor_shape = second_remote_tensor.get_shape();
 
         roi_second_remote_tensor.copy_from(roi_host_tensor_ref);
+
+        // Ensure that the shape of the underlying RemoteTensor of RoiRemoteTensor remains unchanged
+        ASSERT_EQ(second_remote_tensor.get_shape(), second_remote_tensor_shape);
+        ASSERT_EQ(roi_second_remote_tensor.get_shape(), roi_host_tensor_ref.get_shape());
 
         auto result_host_tensor = ov::Tensor(type, roi_second_remote_tensor.get_shape());
         roi_second_remote_tensor.copy_to(result_host_tensor);
@@ -2683,12 +2691,20 @@ TEST_P(RemoteTensor, smoke_CopyTo) {
     // Copy to remote tensor from remote tensor
     first_remote_tensor.copy_to(second_remote_tensor);
 
+    // Check updated shape after copy_to call
+    ASSERT_EQ(second_remote_tensor.get_shape(), first_remote_tensor.get_shape());
+
     // Copy to remote tensor from host tensor
     if (use_roi) {
         auto roi_host_tensor_ref = ov::Tensor(host_tensor_ref, p.begin, p.end);
         auto roi_second_remote_tensor = ov::RemoteTensor(second_remote_tensor, p.begin, p.end);
+        auto second_remote_tensor_shape = second_remote_tensor.get_shape();
 
         roi_host_tensor_ref.copy_to(roi_second_remote_tensor);
+
+        // Ensure that the shape of the underlying RemoteTensor of RoiRemoteTensor remains unchanged
+        ASSERT_EQ(second_remote_tensor.get_shape(), second_remote_tensor_shape);
+        ASSERT_EQ(roi_second_remote_tensor.get_shape(), roi_host_tensor_ref.get_shape());
 
         auto result_host_tensor = ov::Tensor(type, roi_second_remote_tensor.get_shape());
         roi_second_remote_tensor.copy_to(result_host_tensor);
@@ -2730,6 +2746,14 @@ INSTANTIATE_TEST_SUITE_P(copy_tests,
                                                               TestParams {
                                                                   ov::Shape{4, 3, 2, 5}, ov::Shape{4, 3, 2, 5},
                                                                   ov::Coordinate{2, 1, 1, 4}, ov::Coordinate{4, 3, 2, 5}
+                                                              },
+                                                              TestParams {
+                                                                  ov::Shape{4, 3, 2, 5}, ov::Shape{4, 3, 2, 5},
+                                                                  ov::Coordinate{2, 0, 1, 0}, ov::Coordinate{4, 3, 2, 5}
+                                                              },
+                                                              TestParams {
+                                                                  ov::Shape{4, 3, 2, 5}, ov::Shape{4, 3, 2, 5},
+                                                                  ov::Coordinate{0, 1, 1, 0}, ov::Coordinate{4, 2, 2, 3}
                                                               })));
 
 TEST(RemoteTensor, smoke_CanSetRoiRemoteTensor) {

@@ -15,27 +15,30 @@ namespace ov {
 namespace intel_gpu {
 
 namespace {
-static void calculate_strides(ov::Strides& strides, const ov::Shape& shape, const ov::element::Type& element_type) {
+static ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
+    ov::Strides strides{};
     if (element_type.bitwidth() < 8)
-        return;
-    strides.clear();
+        return strides;
+
     if (!shape.empty()) {
         strides.resize(shape.size());
         strides.back() = shape.back() == 0 ? 0 : element_type.size();
         std::copy(shape.rbegin(), shape.rend() - 1, strides.rbegin() + 1);
         std::partial_sum(strides.rbegin(), strides.rend(), strides.rbegin(), std::multiplies<size_t>());
     }
+
+    return strides;
 }
 
-struct mem_wrapper {
-    mem_wrapper(cldnn::stream& stream, cldnn::memory_ptr mem_ptr, void* data_ptr)
+struct MemWrapper {
+    MemWrapper(cldnn::stream& stream, cldnn::memory_ptr mem_ptr, void* data_ptr)
         : m_stream(stream)
         , m_mem_ptr(mem_ptr)
         , m_data_ptr(data_ptr) {
             OPENVINO_ASSERT((m_data_ptr != nullptr) != (m_mem_ptr != nullptr), "[GPU] Invalid memory configuration");
         }
 
-    void copy_to(mem_wrapper& dst, size_t src_offset, size_t dst_offset, size_t size) const {
+    void copy_to(MemWrapper& dst, size_t src_offset, size_t dst_offset, size_t size) const {
         const bool is_blocking = true;
         if (m_data_ptr != nullptr) {
             OPENVINO_ASSERT(dst.m_mem_ptr, "[GPU] Unexpected host to host copy call for Remote Tensors");
@@ -59,15 +62,15 @@ private:
     void* m_data_ptr = nullptr;
 };
 
-static void copy_roi_recursively(const mem_wrapper& src_mem,
-                     mem_wrapper& dst_mem,
-                     const size_t axis,
-                     const size_t src_offset,
-                     const size_t dst_offset,
-                     const ov::Shape& roi_shape,
-                     const ov::Strides& src_strides,
-                     const ov::Strides& dst_strides,
-                     const ov::Strides& roi_strides) {
+static void copy_roi_recursively(const MemWrapper& src_mem,
+                                 MemWrapper& dst_mem,
+                                 const size_t axis,
+                                 const size_t src_offset,
+                                 const size_t dst_offset,
+                                 const ov::Shape& roi_shape,
+                                 const ov::Strides& src_strides,
+                                 const ov::Strides& dst_strides,
+                                 const ov::Strides& roi_strides) {
     if (axis == roi_shape.size() - 1) {
         // Copy the innermost dimension
         const auto size = roi_strides[axis] * roi_shape[axis];
@@ -83,20 +86,20 @@ static void copy_roi_recursively(const mem_wrapper& src_mem,
         }
 
         if (can_copy_as_chunk) {
-            size_t chunk_size = roi_strides[axis] * roi_shape[axis];
+            const auto chunk_size = roi_strides[axis] * roi_shape[axis];
             src_mem.copy_to(dst_mem, src_offset, dst_offset, chunk_size);
         } else {
             for (size_t i = 0; i < roi_shape[axis]; i++) {
-                auto src_offset_new = src_offset + i * src_strides[axis];
-                auto dst_offset_new = dst_offset + i * dst_strides[axis];
+                const auto src_offset_new = src_offset + i * src_strides[axis];
+                const auto dst_offset_new = dst_offset + i * dst_strides[axis];
                 copy_roi_recursively(src_mem, dst_mem, axis + 1, src_offset_new, dst_offset_new, roi_shape, src_strides, dst_strides, roi_strides);
             }
         }
     }
 }
 
-static void copy_roi(const mem_wrapper& src_mem,
-                     mem_wrapper& dst_mem,
+static void copy_roi(const MemWrapper& src_mem,
+                     MemWrapper& dst_mem,
                      const size_t src_offset,
                      const size_t dst_offset,
                      const ov::Strides& src_strides,
@@ -109,7 +112,9 @@ static void copy_roi(const mem_wrapper& src_mem,
     copy_roi_recursively(src_mem, dst_mem, start_axis, src_offset, dst_offset, roi_shape, src_strides, dst_strides, roi_strides);
 }
 
-static void validate_and_check_shapes(const std::shared_ptr<const ov::ITensor>& src, const std::shared_ptr<ov::ITensor>& dst) {
+static void validate_and_check_shapes(const std::shared_ptr<const ov::ITensor>& src,
+                                      const std::shared_ptr<ov::ITensor>& dst,
+                                      const ov::Shape& roi_shape) {
     OPENVINO_ASSERT(src->get_element_type() == dst->get_element_type(),
                     "[GPU] Tensor element types are not equal. (src: ",
                     src->get_element_type(),
@@ -118,9 +123,12 @@ static void validate_and_check_shapes(const std::shared_ptr<const ov::ITensor>& 
                     ")");
     OPENVINO_ASSERT(src->get_element_type().bitwidth() >= 8, "[GPU] Unsupported element type for copying: ", src->get_element_type());
 
-    const auto& shape = src->get_shape();
-    if (shape != dst->get_shape()) {
-        dst->set_shape(shape);
+    // If it's a simple copy_to/copy_from call, then change dst shape
+    if (roi_shape.empty()) {
+        const auto& shape = src->get_shape();
+        if (shape != dst->get_shape()) {
+            dst->set_shape(shape);
+        }
     }
 }
 }  // namespace
@@ -168,7 +176,7 @@ const ov::Shape& RemoteTensorImpl::get_shape() const {
 }
 
 void RemoteTensorImpl::update_strides() {
-    calculate_strides(m_strides, get_shape(), m_element_type);
+    m_strides = calculate_strides(get_shape(), m_element_type);
 }
 
 const ov::Strides& RemoteTensorImpl::get_strides() const {
@@ -178,66 +186,68 @@ const ov::Strides& RemoteTensorImpl::get_strides() const {
 void RemoteTensorImpl::copy_to(const std::shared_ptr<ov::ITensor>& dst,
                                size_t src_offset,
                                size_t dst_offset,
-                               ov::Shape roi_shape) const {
-    validate_and_check_shapes(shared_from_this(), dst);
+                               const ov::Shape& roi_shape) const {
+    validate_and_check_shapes(shared_from_this(), dst, roi_shape);
 
     auto& stream = m_context->get_engine().get_service_stream();
     auto dst_remote_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(dst);
+    auto shape = roi_shape.empty() ? get_shape() : roi_shape;
 
-    ov::Strides roi_strides;
-    calculate_strides(roi_strides, roi_shape, m_element_type);
+    ov::Strides roi_strides = calculate_strides(shape, m_element_type);
     if (dst_remote_tensor != nullptr) {
         GPU_DEBUG_TRACE_DETAIL << "Copying from RemoteTensor (" << get_memory()->get_allocation_type() << ") to RemoteTensor ("
                                << dst_remote_tensor->get_memory()->get_allocation_type() << "), src_offset=" << src_offset << ", dst_offset="
-                               << dst_offset << ", roi_shape=" << roi_shape << "\n";
+                               << dst_offset << ", roi_shape=" << shape << ", src_shape=" << get_shape() << ", dst_shape=" << dst->get_shape() << "\n";
 
-        auto src_mem = mem_wrapper(stream, get_memory(), nullptr);
-        auto dst_mem = mem_wrapper(stream, dst_remote_tensor->get_memory(), nullptr);
+        auto src_mem = MemWrapper(stream, get_memory(), nullptr);
+        auto dst_mem = MemWrapper(stream, dst_remote_tensor->get_memory(), nullptr);
 
-        copy_roi(src_mem, dst_mem, src_offset, dst_offset, get_strides(), dst->get_strides(), roi_strides, get_shape(), dst->get_shape(), roi_shape);
+        copy_roi(src_mem, dst_mem, src_offset, dst_offset, get_strides(), dst->get_strides(), roi_strides, get_shape(), dst->get_shape(), shape);
     } else {
         GPU_DEBUG_TRACE_DETAIL << "Copying from RemoteTensor (" << get_memory()->get_allocation_type() << ") to host tensor, src_offset="
-                               << src_offset << ", dst_offset=" << dst_offset << ", roi_shape=" << roi_shape << "\n";
+                               << src_offset << ", dst_offset=" << dst_offset << ", roi_shape=" << shape << ", src_shape=" << get_shape()
+                               << ", dst_shape=" << dst->get_shape() << "\n";
 
         OPENVINO_ASSERT(!std::dynamic_pointer_cast<ov::IRemoteTensor>(dst), "[GPU] Unsupported Remote Tensor type");
 
-        auto src_mem = mem_wrapper(stream, get_memory(), nullptr);
-        auto dst_mem = mem_wrapper(stream, nullptr, dst->data());
+        auto src_mem = MemWrapper(stream, get_memory(), nullptr);
+        auto dst_mem = MemWrapper(stream, nullptr, dst->data());
 
-        copy_roi(src_mem, dst_mem, src_offset, dst_offset, get_strides(), dst->get_strides(), roi_strides, get_shape(), dst->get_shape(), roi_shape);
+        copy_roi(src_mem, dst_mem, src_offset, dst_offset, get_strides(), dst->get_strides(), roi_strides, get_shape(), dst->get_shape(), shape);
     }
 }
 
 void RemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& src,
                                  size_t src_offset,
                                  size_t dst_offset,
-                                 ov::Shape roi_shape) {
-    validate_and_check_shapes(src, shared_from_this());
+                                 const ov::Shape& roi_shape) {
+    validate_and_check_shapes(src, shared_from_this(), roi_shape);
+    auto shape = roi_shape.empty() ? get_shape() : roi_shape;
 
     auto& stream = m_context->get_engine().get_service_stream();
     auto src_remote_tensor = std::dynamic_pointer_cast<const RemoteTensorImpl>(src);
 
-    ov::Strides roi_strides;
-    calculate_strides(roi_strides, roi_shape, m_element_type);
+    ov::Strides roi_strides = calculate_strides(shape, m_element_type);
     if (src_remote_tensor != nullptr) {
         GPU_DEBUG_TRACE_DETAIL << "Copying from RemoteTensor (" << src_remote_tensor->get_memory()->get_allocation_type() << ") to RemoteTensor ("
                                << get_memory()->get_allocation_type() << "), src_offset=" << src_offset << ", dst_offset="
-                               << dst_offset << ", roi_shape=" << roi_shape << "\n";
+                               << dst_offset << ", roi_shape=" << shape << ", src_shape" << src->get_shape() << ", dst_shape=" << get_shape() << "\n";
 
-        auto src_mem = mem_wrapper(stream, src_remote_tensor->get_memory(), nullptr);
-        auto dst_mem = mem_wrapper(stream, get_memory(), nullptr);
+        auto src_mem = MemWrapper(stream, src_remote_tensor->get_memory(), nullptr);
+        auto dst_mem = MemWrapper(stream, get_memory(), nullptr);
 
-        copy_roi(src_mem, dst_mem, src_offset, dst_offset, src->get_strides(), get_strides(), roi_strides, src->get_shape(), get_shape(), roi_shape);
+        copy_roi(src_mem, dst_mem, src_offset, dst_offset, src->get_strides(), get_strides(), roi_strides, src->get_shape(), get_shape(), shape);
     } else {
-        GPU_DEBUG_TRACE_DETAIL << "Copying from host tensor to RemoteTensor (" << get_memory()->get_allocation_type() << ", src_offset="
-                               << src_offset << ", dst_offset=" << dst_offset << ", roi_shape=" << roi_shape << "\n";
+        GPU_DEBUG_TRACE_DETAIL << "Copying from host tensor to RemoteTensor (" << get_memory()->get_allocation_type() << "), src_offset="
+                               << src_offset << ", dst_offset=" << dst_offset << ", roi_shape=" << shape << ", src_shape" << src->get_shape()
+                               << ", dst_shape=" << get_shape() << "\n";
 
         OPENVINO_ASSERT(!std::dynamic_pointer_cast<const ov::IRemoteTensor>(src), "[GPU] Unsupported Remote Tensor type");
 
-        auto src_mem = mem_wrapper(stream, nullptr, src->data());
-        auto dst_mem = mem_wrapper(stream, get_memory(), nullptr);
+        auto src_mem = MemWrapper(stream, nullptr, src->data());
+        auto dst_mem = MemWrapper(stream, get_memory(), nullptr);
 
-        copy_roi(src_mem, dst_mem, src_offset, dst_offset, src->get_strides(), get_strides(), roi_strides, src->get_shape(), get_shape(), roi_shape);
+        copy_roi(src_mem, dst_mem, src_offset, dst_offset, src->get_strides(), get_strides(), roi_strides, src->get_shape(), get_shape(), shape);
     }
 }
 

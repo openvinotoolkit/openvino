@@ -17,9 +17,9 @@
 #include <oneapi/dnnl/dnnl_ocl.hpp>
 #endif
 
-#define TRY_CATCH_CL_ERROR(command)           \
+#define TRY_CATCH_CL_ERROR(...)               \
     try {                                     \
-        command;                              \
+        __VA_ARGS__;                          \
     } catch (cl::Error const& err) {          \
         OPENVINO_THROW(OCL_ERR_MSG_FMT(err)); \
     }
@@ -29,7 +29,7 @@ namespace ocl {
 
 static inline cldnn::event::ptr create_event(stream& stream, size_t bytes_count, bool need_user_event) {
     if (bytes_count == 0) {
-        GPU_DEBUG_TRACE_DETAIL << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "Skip memory operation for 0 size tensor" << std::endl;
         return stream.create_user_event(true);
     }
 

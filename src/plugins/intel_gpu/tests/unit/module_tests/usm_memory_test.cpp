@@ -395,14 +395,6 @@ TEST_P(offset_copy, basic) {
     bool use_copy_to;
     std::tie(src_allocation_type, dst_allocation_type, params, use_copy_to) = GetParam();
 
-    bool skip_test = false;
-    skip_test |= src_allocation_type == allocation_type::unknown && use_copy_to;
-    skip_test |= dst_allocation_type == allocation_type::unknown && !use_copy_to;
-
-    if (skip_test) {
-        GTEST_SKIP();
-    }
-
     const auto copy_size = params.size;
     const auto src_size = params.src_offset + copy_size;
     const auto dst_size = params.dst_offset + copy_size;
