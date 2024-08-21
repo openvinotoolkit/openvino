@@ -21,7 +21,34 @@ namespace node {
 namespace {
 class MemoryStub : public IMemory {
 public:
-    MemoryStub(const dnnl::engine& eng, const MemoryDescPtr& pMemDesc) : m_eng(eng), m_pMemDesc(pMemDesc) {}
+    class MemoryBlockStub : public IMemoryBlockObserver {
+        void* getRawPtr() const noexcept override {
+            return nullptr;
+        }
+        void setExtBuff(void* ptr, size_t size) override {
+            // pass
+        }
+        bool resize(size_t size) override {
+            // pass
+            return false;
+        }
+        bool hasExtBuffer() const noexcept override {
+            // pass
+            return false;
+        }
+        void registerMemory(Memory* memPtr) override {
+            // pass
+        }
+        void unregisterMemory(Memory* memPtr) override {
+            // pass
+        }
+    };
+
+public:
+    MemoryStub(const dnnl::engine& eng, const MemoryDescPtr& pMemDesc)
+        : m_eng(eng),
+          m_pMemDesc(pMemDesc),
+          m_pMemoryBlock(std::make_shared<MemoryBlockStub>()) {}
 
     const MemoryDesc& getDesc() const override {
         return *m_pMemDesc;
@@ -56,7 +83,7 @@ public:
     }
 
     MemoryBlockPtr getMemoryBlock() const override {
-        OPENVINO_THROW("Unexpected call MemoryStub::getMemoryBlock()");
+        return m_pMemoryBlock;
     }
 
     dnnl::memory getPrimitive() const override {
@@ -70,6 +97,7 @@ public:
 private:
     dnnl::engine m_eng;
     MemoryDescPtr m_pMemDesc;
+    std::shared_ptr<MemoryBlockStub> m_pMemoryBlock;
 };
 } // namespace
 
