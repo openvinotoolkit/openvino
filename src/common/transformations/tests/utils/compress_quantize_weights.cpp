@@ -82,12 +82,7 @@ class CompressQuantizeWeightsTests
     }
 };
 
-#ifdef OPENVINO_ARCH_ARM64
-// Ticket: CVS-122397
-TEST_P(CompressQuantizeWeightsTests, DISABLED_FusionTest) {}
-#else
 TEST_P(CompressQuantizeWeightsTests, FusionTest) {}
-#endif
 
 static std::vector<CompressQuantizeWeightsParams> params = {
     {Shape{2, 3, 1, 1},
@@ -135,6 +130,54 @@ static std::vector<CompressQuantizeWeightsParams> params = {
      256,
      element::i8,
      {-128.0f, -128.0f, -128.0f, -96.0f, -64.0f, -32.0f, 0.0f, 127.0f},
+     0.0313725f,
+     -64.25f,
+     false},
+    {Shape{2, 3, 1, 1},
+     {-1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 11.0f},
+     0.0f,
+     10.0f,
+     1.0f,
+     5.0f,
+     3,
+     element::u4,
+     {1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+     3.0f,
+     -0.666667f,
+     false},
+    {Shape{2, 3, 1, 1},
+     {-1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 11.0f},
+     0.0f,
+     10.0f,
+     1.0f,
+     4.0f,
+     16,
+     element::u4,
+     {8.0f, 5.0f, 4.0f, 2.0f, 0.0f, 7.0f},
+     0.333333f,
+     -5.0f,
+     false},
+    {Shape{2, 4, 1, 1},
+     {-1.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 11.0f},
+     1.0f,
+     9.0f,
+     2.0f,
+     6.0f,
+     17,
+     element::u8,
+     {4.0f, 4.0f, 4.0f, 2.0f, 0.0f, 2.0f, 4.0f, 12.0f},
+     0.5f,
+     -4.0f,
+     true},
+    {Shape{2, 4, 1, 1},
+     {-1.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 11.0f},
+     1.0f,
+     9.0f,
+     2.0f,
+     6.0f,
+     256,
+     element::u8,
+     {128.0f, 128.0f, 128.0f, 96.0f, 64.0f, 32.0f, 0.0f, 127.0f},
      0.0313725f,
      -64.25f,
      false},
