@@ -138,8 +138,11 @@ size_t getFileSize(std::istream& stream) {
     log.debug("Read blob size: streamStart=%zu, streamEnd=%zu", streamStart, streamEnd);
 
     if (streamEnd < streamStart) {
-        OPENVINO_THROW("Invalid stream size: streamEnd (", streamEnd,
-                       ") is not larger than streamStart (", streamStart, ")!");
+        OPENVINO_THROW("Invalid stream size: streamEnd (",
+                       streamEnd,
+                       ") is not larger than streamStart (",
+                       streamStart,
+                       ")!");
     }
 
     return streamEnd - streamStart;
@@ -742,8 +745,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         _logger.debug("Successfully read %zu bytes into blob.", graphSize);
 
         auto meta = compiler->parse(blob, localConfig);
-        // graphHandle is reused by backend if we use driver compiler
-        // Can release blob memory
+        // If graphHandle is not a nullptr it means there is still an instance of the blob maintained inside the driver
+        // and we can release the copy of the blob here to reduce memory consumption.
         if (meta.graphHandle != nullptr) {
             blob.clear();
             blob.shrink_to_fit();
