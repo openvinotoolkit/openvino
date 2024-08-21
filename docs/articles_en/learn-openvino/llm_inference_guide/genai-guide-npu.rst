@@ -8,60 +8,56 @@ This guide will give you extra details on how to utilize NPU with the GenAI flav
 :doc:`See the installation guide <../../get-started/install-openvino/install-openvino-genai>`
 for information on how to start.
 
+Prerequisites
+#############
+
+Install required dependencies:
+
+.. code-block:: console
+
+   python -m venv npu-env
+   npu-env\Scripts\activate
+   pip install optimum-intel nncf==2.11 onnx==1.16.1
+   pip install --pre openvino openvino-tokenizers openvino-genai --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+   
 Export an LLM model via Hugging Face Optimum-Intel
 ##################################################
 
-1. Create a python virtual environment and install the correct components for exporting a model:
+A chat-tuned TinyLlama model is used in this example. The following conversion & optimization settings are recommended when using the NPU:
 
-   .. code-block:: console
+.. code-block:: python
 
-      python -m venv export-npu-env
-      export-npu-env\Scripts\activate
-      pip install transformers>=4.42.4 openvino==2024.2.0 openvino-tokenizers==2024.2.0 nncf==2.11.0 onnx==1.16.1 optimum-intel@git+https://github.com/huggingface/optimum-intel.git
-
-2. A chat-tuned TinyLlama model is used in this example. The following conversion & optimization settings are recommended when using the NPU:
-
-   .. code-block:: python
-
-      optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --group-size 128 --ratio 1.0 TinyLlama
+   optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --group-size 128 --ratio 1.0 TinyLlama
 
 Run generation using OpenVINO GenAI
-##########################################
+###################################
 
-1. Create a python virtual environment and install the correct components for running the model on the NPU via OpenVINO GenAI:
+Use the following code snippet to perform generation with OpenVINO GenAI API:
 
-   .. code-block:: console
+.. tab-set::
 
-      python -m venv run-npu-env
-      run-npu-env\Scripts\activate
-      pip install openvino>=2024.3.1 openvino-tokenizers>=2024.3.1 openvino-genai>=2024.3.1
+   .. tab-item:: Python
+      :sync: py
 
-2. Perform generation using the new GenAI API
+      .. code-block:: python
 
-   .. tab-set::
+         import openvino_genai as ov_genai
+         pipe = ov_genai.LLMPipeline(model_path, "NPU")
+         print(pipe.generate("The Sun is yellow because", max_new_tokens=100))
 
-      .. tab-item:: Python
-         :sync: py
+   .. tab-item:: C++
+      :sync: cpp
 
-         .. code-block:: python
+      .. code-block:: cpp
 
-            import openvino_genai as ov_genai
-            pipe = ov_genai.LLMPipeline(model_path, "NPU")
-            print(pipe.generate("The Sun is yellow because", max_new_tokens=100))
+         #include "openvino/genai/llm_pipeline.hpp"
+         #include <iostream>
 
-      .. tab-item:: C++
-         :sync: cpp
-
-         .. code-block:: cpp
-
-            #include "openvino/genai/llm_pipeline.hpp"
-            #include <iostream>
-
-            int main(int argc, char* argv[]) {
-               std::string model_path = argv[1];
-               ov::genai::LLMPipeline pipe(model_path, "NPU");
-               std::cout << pipe.generate("The Sun is yellow because", ov::genai::max_new_tokens(100));
-            }
+         int main(int argc, char* argv[]) {
+            std::string model_path = argv[1];
+            ov::genai::LLMPipeline pipe(model_path, "NPU");
+            std::cout << pipe.generate("The Sun is yellow because", ov::genai::max_new_tokens(100));
+         }
 
 Additional configuration options
 ################################
