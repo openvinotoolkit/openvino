@@ -300,8 +300,7 @@ std::shared_ptr<Node> TypeRelaxed<BaseOp>::clone_with_new_inputs(const OutputVec
         auto origin_input_type = get_origin_input_type(i);
         if (origin_input_type == element::undefined)
             origin_input_type = BaseOp::get_input_element_type(i);
-        fake_new_inputs.push_back(
-            std::make_shared<v0::Parameter>(origin_input_type, BaseOp::get_input_partial_shape(i)));
+        fake_new_inputs.push_back(std::make_shared<v0::Parameter>(origin_input_type, new_args[i].get_partial_shape()));
     }
     auto base_op = BaseOp::clone_with_new_inputs(fake_new_inputs);
     // since originally TypeRelaxed was copying everything from the original node, we continue doing the same

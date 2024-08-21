@@ -18,11 +18,11 @@ typedef std::unordered_map<size_t, Output<Node>> TensorMap;
 
 class NodeContext : public frontend::NodeContext {
 public:
-    NodeContext(std::shared_ptr<TorchDecoder> decoder,
+    NodeContext(const std::shared_ptr<TorchDecoder>& decoder,
                 const TensorMap& ext_tensor_map,
-                std::shared_ptr<TensorMap> tensor_map,
-                std::shared_ptr<ParameterVector> external_parameters,
-                std::shared_ptr<std::set<size_t>> mutated_tensors,
+                const std::shared_ptr<TensorMap>& tensor_map,
+                const std::shared_ptr<ParameterVector>& external_parameters,
+                const std::shared_ptr<std::set<size_t>>& mutated_tensors,
                 TranslateSession* translate_session)
         : frontend::NodeContext(decoder->get_op_type()),
           m_decoder(decoder),
@@ -32,11 +32,12 @@ public:
           m_mutated_tensors(mutated_tensors),
           m_translate_session(translate_session),
           m_decoder_inputs(decoder->inputs()),
-          m_decoder_outputs(decoder->outputs()) {
+          m_decoder_outputs(decoder->outputs()),
+          m_inputs_is_none(m_decoder_inputs.size(), false) {
         FRONT_END_GENERAL_CHECK(m_tensor_map != nullptr && m_external_parameters != nullptr &&
                                 m_mutated_tensors != nullptr && m_translate_session != nullptr);
         for (size_t i = 0; i < m_decoder_inputs.size(); i++) {
-            m_inputs_is_none.push_back(decoder->input_is_none(i));
+            m_inputs_is_none[i] = decoder->input_is_none(i);
         }
     }
 
@@ -140,7 +141,7 @@ public:
         return m_translate_session;
     }
 
-    void add_tensor_to_context(size_t index, Output<Node> ov_output) const;
+    void add_tensor_to_context(size_t index, const Output<Node>& ov_output) const;
 
     Output<Node> get_tensor_from_model(size_t index) const {
         if (m_tensor_map->find(index) != m_tensor_map->end()) {
