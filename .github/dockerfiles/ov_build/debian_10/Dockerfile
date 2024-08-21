@@ -12,19 +12,18 @@ ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"
 
 RUN apt update && \
-    apt install software-properties-common && \
-    add-apt-repository --yes ppa:git-core/ppa && \
-    add-apt-repository --yes ppa:deadsnakes/ppa && \
-    apt update && \
     apt install \
+        software-properties-common \
         curl \
         git \
         gpg-agent \
         tzdata \
-        # Pythons \
-        python3.11-dev \
-        python3.11-venv \
-        python3.11-distutils \
+        # Python \
+        python3 \
+        python3-pip \
+        python3-dev \
+        python3-venv \
+        python3-distutils \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -48,14 +47,6 @@ ENV PATH="$SCCACHE_HOME:$PATH"
 
 # Setup pip
 ENV PIP_VERSION="24.0"
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    rm -f get-pip.py
-
-# Use Python 3.11 as default
-# Using venv here 'cause other methods to switch the default Python on Ubuntu break both system and wheels build
-RUN python3.11 -m venv venv
-ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
+RUN python3 -m pip install --upgrade pip==24.0
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
