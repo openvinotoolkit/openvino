@@ -11,19 +11,35 @@ RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
 ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"
 
-RUN apt update && \
-    apt install \
+RUN apt-get update && \
+    apt-get install \
         software-properties-common \
         curl \
         git \
         gpg-agent \
         tzdata \
-        # Python \
+        # Pythons \
         python3 \
         python3-pip \
         python3-dev \
         python3-venv \
         python3-distutils \
+        build-essential \
+        libffi-dev \
+        libgdbm-dev \
+        libc6-dev \
+        libssl-dev \
+        zlib1g-dev \
+        libbz2-dev \
+        libreadline-dev \
+        libsqlite3-dev \
+        libncurses5-dev \
+        libncursesw5-dev \
+        xz-utils \
+        tk-dev \
+        libxml2-dev \
+        libxmlsec1-dev \
+        liblzma-dev \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -45,8 +61,23 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 
 ENV PATH="$SCCACHE_HOME:$PATH"
 
+# Setup Python
+RUN wget https://www.python.org/ftp/python/3.11.0/Python-3.11.0.tar.xz
+
+RUN tar -xf Python-3.11.0.tar.xz && \
+    cd Python-3.11.0 && \
+    ./configure --enable-optimizations && \
+    make -j 8 && \
+    make altinstall
+
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN python3 -m pip install --upgrade pip==24.0
+RUN python3.11 -m pip install --upgrade pip==24.0
+
+# Use Python 3.11 as default
+# Using venv here 'cause other methods to switch the default Python on Ubuntu break both system and wheels build
+RUN python3.11 -m venv venv
+ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
