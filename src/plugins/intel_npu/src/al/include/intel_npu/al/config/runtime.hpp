@@ -221,4 +221,21 @@ struct TURBO final : OptionBase<TURBO, bool> {
         return OptionMode::RunTime;
     }
 };
+
+//
+// UMD_CACHING
+//
+struct UMD_CACHING final : OptionBase<UMD_CACHING, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::umd_caching.name();
+    }
+
+    static bool defaultValue() {
+        return true;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
 }  // namespace intel_npu
