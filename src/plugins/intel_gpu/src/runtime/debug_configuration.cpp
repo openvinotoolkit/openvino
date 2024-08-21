@@ -182,8 +182,8 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DisablePrimitiveFusing", "Disable primitive fusing");
     message_list.emplace_back("OV_GPU_DisableFakeAlignment", "Disable fake alignment");
     message_list.emplace_back("OV_GPU_EnableDynamicQuantize", "Enable Dynamic quantization for Fully connected primitive");
-    message_list.emplace_back("OV_GPU_DynamicQuantizeLayersWithoutOnednn", "Enable Dynamic quantization for specified Fully connected layers only, separated by space."
-                                " Support case-insensitive and regular expression. For example .*fully_connected.*");
+    message_list.emplace_back("OV_GPU_DynamicQuantizeLayersWithoutOnednn", "Enable Dynamic quantization for specified Fully connected layers only, "
+                                "separated by space. Support case-insensitive and regular expression. For example .*fully_connected.*");
     message_list.emplace_back("OV_GPU_DisableHorizontalFCFusion", "Disable horizontal fc fusion");
     message_list.emplace_back("OV_GPU_DumpIteration", "Dump n-th execution of network, separated by space.");
     message_list.emplace_back("OV_GPU_MemPreallocationOptions", "Controls buffer pre-allocation feature. Expects 4 values separated by space in "
