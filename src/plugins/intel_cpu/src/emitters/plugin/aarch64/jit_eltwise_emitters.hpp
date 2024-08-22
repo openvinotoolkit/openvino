@@ -465,13 +465,13 @@ private:
     bool detect_positive;
 };
 
-class jit_logicalnot_emitter : public jit_emitter {
+class jit_logical_not_emitter : public jit_emitter {
 public:
-    jit_logicalnot_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+    jit_logical_not_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                            const ov::element::Type exec_prc = ov::element::f32);
 
-    jit_logicalnot_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+    jit_logical_not_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                            const std::shared_ptr<ov::Node>& node);
 

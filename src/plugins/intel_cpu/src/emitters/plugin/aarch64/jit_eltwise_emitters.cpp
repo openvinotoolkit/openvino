@@ -1032,33 +1032,33 @@ void jit_is_nan_emitter::register_table_entries() {
 }
 
 /// LOGICAL_NOT ///
-jit_logicalnot_emitter::jit_logicalnot_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+jit_logical_not_emitter::jit_logical_not_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                                dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                                const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
         prepare_table();
     }
 
-jit_logicalnot_emitter::jit_logicalnot_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+jit_logical_not_emitter::jit_logical_not_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                                dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                                const ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
         prepare_table();
     }
 
-size_t jit_logicalnot_emitter::get_inputs_count() const {
+size_t jit_logical_not_emitter::get_inputs_count() const {
     return 1;
 }
 
-size_t jit_logicalnot_emitter::get_aux_vecs_count() const {
+size_t jit_logical_not_emitter::get_aux_vecs_count() const {
     return 1;
 }
 
-size_t jit_logicalnot_emitter::get_aux_gprs_count() const {
+size_t jit_logical_not_emitter::get_aux_gprs_count() const {
     return 1;
 }
 
-void jit_logicalnot_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+void jit_logical_not_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
                                        const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
         emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
@@ -1068,7 +1068,7 @@ void jit_logicalnot_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 }
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-void jit_logicalnot_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+void jit_logical_not_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                       const std::vector<size_t>& out_vec_idxs) const {
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
@@ -1083,12 +1083,12 @@ void jit_logicalnot_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->and_(dst.b16, dst.b16, tmp1.b16);
 }
 
-void jit_logicalnot_emitter::register_table_entries() {
+void jit_logical_not_emitter::register_table_entries() {
     // Registers constant values that comply with the IEEE 754 standard.
     push_arg_entry_of("one", 0x3f800000, true);
 }
 
-std::set<std::vector<element::Type>> jit_logicalnot_emitter::get_supported_precisions(
+std::set<std::vector<element::Type>> jit_logical_not_emitter::get_supported_precisions(
     const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
