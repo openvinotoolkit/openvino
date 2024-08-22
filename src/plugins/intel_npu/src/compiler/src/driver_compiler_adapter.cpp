@@ -9,6 +9,7 @@
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
+#include "openvino/core/except.hpp"
 #include "ze_intel_npu_uuid.h"
 #include "zero_backend.hpp"
 #include "zero_compiler_in_driver.hpp"
@@ -86,7 +87,7 @@ uint32_t LevelZeroCompilerAdapter::getSupportedOpsetVersion() const {
 NetworkDescription LevelZeroCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
                                                      const Config& config) const {
     _logger.debug("compile start");
-    return apiAdapter->compile(model, config);
+    return apiAdapter->compile(model, config).first;
 }
 
 ov::SupportedOpsMap LevelZeroCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
@@ -97,7 +98,7 @@ ov::SupportedOpsMap LevelZeroCompilerAdapter::query(const std::shared_ptr<const 
 
 NetworkMetadata LevelZeroCompilerAdapter::parse(const std::vector<uint8_t>& network, const Config& config) const {
     _logger.debug("parse start");
-    return apiAdapter->parse(network, config);
+    return apiAdapter->parse(network, config).first;
 }
 
 std::vector<ov::ProfilingInfo> LevelZeroCompilerAdapter::process_profiling_output(const std::vector<uint8_t>&,
@@ -106,12 +107,23 @@ std::vector<ov::ProfilingInfo> LevelZeroCompilerAdapter::process_profiling_outpu
     OPENVINO_THROW("Profiling post-processing is not implemented.");
 }
 
-void LevelZeroCompilerAdapter::release(std::shared_ptr<const NetworkDescription> networkDescription) {
-    apiAdapter->release(networkDescription);
+void LevelZeroCompilerAdapter::releaseGraphHandle(void* graphHandle) {
+    apiAdapter->releaseGraphHandle(graphHandle);
 }
 
-void LevelZeroCompilerAdapter::fillCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) {
-    apiAdapter->fillCompiledNetwork(networkDescription);
+void LevelZeroCompilerAdapter::getCompiledNetwork(void* graphHandle, std::vector<uint8_t>& compiledNetwork) {
+    apiAdapter->getCompiledNetwork(graphHandle, compiledNetwork);
+}
+
+std::pair<NetworkDescription, void*> LevelZeroCompilerAdapter::compileAndReturnGraph(
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config) {
+    return apiAdapter->compile(model, config);
+}
+
+std::pair<NetworkMetadata, void*> LevelZeroCompilerAdapter::parseAndReturnGraph(const std::vector<uint8_t>& network,
+                                                                                const Config& config) {
+    return apiAdapter->parse(network, config);
 }
 
 }  // namespace driverCompilerAdapter

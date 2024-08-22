@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "iexternal_compiler.hpp"
 #include "intel_npu/al/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -47,7 +48,7 @@ using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
  * Adapter to use CiD through ZeroAPI
  */
 template <typename TableExtension>
-class LevelZeroCompilerInDriver final : public ICompiler {
+class LevelZeroCompilerInDriver final : public IExternalCompiler {
 public:
     LevelZeroCompilerInDriver(ze_driver_handle_t driverHandle,
                               ze_device_handle_t deviceHandle,
@@ -61,15 +62,16 @@ public:
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
-    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,
-                               const Config& config) const override final;
+    std::pair<NetworkDescription, void*> compile(const std::shared_ptr<const ov::Model>& model,
+                                                 const Config& config) const override final;
 
     ze_result_t seriazlideIRModelAndCreateGraph(const std::shared_ptr<const ov::Model>& model,
                                                 const Config& config,
                                                 ze_device_graph_properties_t deviceGraphProperties,
                                                 ze_graph_handle_t& graphHandle) const;
 
-    NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const override final;
+    std::pair<NetworkMetadata, void*> parse(const std::vector<uint8_t>& network,
+                                            const Config& config) const override final;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                             const std::vector<uint8_t>& network,
@@ -98,9 +100,9 @@ public:
      */
     static std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
 
-    void release(std::shared_ptr<const NetworkDescription> networkDescription) override;
+    void releaseGraphHandle(void* graphHandle) override;
 
-    void fillCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) override;
+    void getCompiledNetwork(void* graphHandle, std::vector<uint8_t>& compiledNetwork) override;
 
 private:
     NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;

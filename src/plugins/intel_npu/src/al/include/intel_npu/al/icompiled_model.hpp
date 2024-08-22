@@ -17,16 +17,14 @@ class ICompiledModel : public ov::ICompiledModel {
 public:
     using ov::ICompiledModel::ICompiledModel;
 
-    virtual const std::shared_ptr<const NetworkDescription>& get_network_description() const = 0;
+    virtual const std::vector<uint8_t>& get_compiled_network() const = 0;
 
     virtual const Config& get_config() const = 0;
 
     // Compiler is used for post-processing profiling data when using PERF_COUNT property
     virtual const ov::SoPtr<ICompiler>& get_compiler() const = 0;
 
-    const NetworkMetadata& get_network_metadata() const {
-        return get_network_description()->metadata;
-    }
+    virtual const NetworkMetadata& get_network_metadata() const = 0;
 
 protected:
     std::shared_ptr<const ICompiledModel> shared_from_this() const {

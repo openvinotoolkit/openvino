@@ -334,10 +334,10 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
 }
 
 template <typename TableExtension>
-void LevelZeroCompilerInDriver<TableExtension>::release(std::shared_ptr<const NetworkDescription> networkDescription) {
-    if (networkDescription->metadata.graphHandle != nullptr) {
-        ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription->metadata.graphHandle);
-        auto result = _graphDdiTableExt->pfnDestroy(graphHandle);
+void LevelZeroCompilerInDriver<TableExtension>::releaseGraphHandle(void* graphHandle) {
+    if (graphHandle != nullptr) {
+        ze_graph_handle_t handle = static_cast<ze_graph_handle_t>(graphHandle);
+        auto result = _graphDdiTableExt->pfnDestroy(handle);
 
         if (ZE_RESULT_SUCCESS != result) {
             _logger.error("Failed to release graph handle. L0 pfnDestroy result: %s, code %#X",
@@ -348,18 +348,17 @@ void LevelZeroCompilerInDriver<TableExtension>::release(std::shared_ptr<const Ne
 }
 
 template <typename TableExtension>
-void LevelZeroCompilerInDriver<TableExtension>::fillCompiledNetwork(
-    std::shared_ptr<const NetworkDescription> networkDescription) {
-    if (networkDescription->metadata.graphHandle != nullptr) {
-        ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription->metadata.graphHandle);
+void LevelZeroCompilerInDriver<TableExtension>::getCompiledNetwork(void* graphHandle,
+                                                                   std::vector<uint8_t>& compiledNetwork) {
+    if (graphHandle != nullptr) {
+        ze_graph_handle_t handle = static_cast<ze_graph_handle_t>(graphHandle);
 
         // Get blob size first
         size_t blobSize = -1;
 
-        auto result = _graphDdiTableExt->pfnGetNativeBinary(graphHandle, &blobSize, nullptr);
-
+        auto result = _graphDdiTableExt->pfnGetNativeBinary(handle, &blobSize, nullptr);
         OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
-                        "Failed to compile network. L0 pfnGetNativeBinary get blob size",
+                        "Failed to get size of compiled network from graph handle! L0 GetNativeBinary",
                         " result: ",
                         ze_result_to_string(result),
                         ", code 0x",
@@ -368,12 +367,11 @@ void LevelZeroCompilerInDriver<TableExtension>::fillCompiledNetwork(
                         ". ",
                         getLatestBuildError());
 
-        std::vector<uint8_t> blob(blobSize);
+        compiledNetwork.reserve(blobSize);
         // Get blob data
-        result = _graphDdiTableExt->pfnGetNativeBinary(graphHandle, &blobSize, blob.data());
-
+        result = _graphDdiTableExt->pfnGetNativeBinary(handle, &blobSize, compiledNetwork.data());
         OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
-                        "Failed to compile network. L0 pfnGetNativeBinary get blob data",
+                        "Failed to get compiled network from graph handle! L0 GetNativeBinary",
                         " result: ",
                         ze_result_to_string(result),
                         ", code 0x",
@@ -381,9 +379,6 @@ void LevelZeroCompilerInDriver<TableExtension>::fillCompiledNetwork(
                         uint64_t(result),
                         ". ",
                         getLatestBuildError());
-
-        auto networkDesp = const_cast<NetworkDescription*>(networkDescription.get());
-        networkDesp->compiledNetwork = std::move(blob);
     }
 }
 
@@ -872,8 +867,9 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreat
 }
 
 template <typename TableExtension>
-NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std::shared_ptr<const ov::Model>& model,
-                                                                      const Config& config) const {
+std::pair<NetworkDescription, void*> LevelZeroCompilerInDriver<TableExtension>::compile(
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config) const {
     _logger.debug("compile start");
 
     ze_device_graph_properties_t deviceGraphProperties{};
@@ -907,13 +903,14 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
 
     _logger.debug("compile end");
 
-    auto networkDescription = NetworkDescription(std::move(networkMeta));
-    return networkDescription;
+    // auto networkDescription = NetworkDescription(std::vector<uint8_t>(), std::move(networkMeta));
+    void* handle = static_cast<void*>(graphHandle);
+    return std::make_pair(NetworkDescription(std::vector<uint8_t>(), std::move(networkMeta)), handle);
 }
 
 template <typename TableExtension>
-NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vector<uint8_t>& network,
-                                                                 const Config& config) const {
+std::pair<NetworkMetadata, void*> LevelZeroCompilerInDriver<TableExtension>::parse(const std::vector<uint8_t>& network,
+                                                                                   const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "LevelZeroCompilerInDriver::parse", "desc");
     ze_graph_handle_t graphHandle;
 
@@ -943,11 +940,12 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vect
     }
 
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
-    const auto networkMeta = getNetworkMeta(graphHandle);
+    auto networkMeta = getNetworkMeta(graphHandle);
     OV_ITT_TASK_NEXT(PARSE_BLOB, "NetworkDescription");
+    void* handle = static_cast<void*>(graphHandle);
 
     _logger.debug("parse end");
-    return networkMeta;
+    return std::make_pair(networkMeta, handle);
 }
 
 template <typename TableExtension>
@@ -1129,8 +1127,6 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::getNetworkMeta(ze_gra
     // TODO: support this information in CiD [track: E#33479]
     meta.numStreams = 1;
     meta.bindRelatedDescriptors();
-    // Store the graph handle as a void pointer, return the same graphHandle to backend for ZeroExecutor
-    meta.graphHandle = static_cast<void*>(graphHandle);
 
     return meta;
 }

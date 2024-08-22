@@ -65,9 +65,7 @@ class IDevice : public std::enable_shared_from_this<IDevice> {
 public:
     using Uuid = ov::device::UUID;
 
-    virtual std::shared_ptr<IExecutor> createExecutor(
-        const std::shared_ptr<const NetworkDescription>& networkDescription,
-        const Config& config) = 0;
+    virtual std::shared_ptr<IExecutor> createExecutor(const std::shared_ptr<IGraph>& graph, const Config& config) = 0;
 
     virtual std::string getName() const = 0;
     virtual std::string getFullDeviceName() const = 0;

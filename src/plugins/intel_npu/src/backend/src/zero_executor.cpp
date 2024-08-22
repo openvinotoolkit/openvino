@@ -11,6 +11,7 @@
 #include <sstream>
 #include <string>
 
+#include "compiler_adapter.hpp"
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/al/prefix.hpp"
@@ -22,13 +23,12 @@
 using namespace intel_npu;
 
 ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& initStructs,
-                           const std::shared_ptr<const NetworkDescription>& networkDescription,
+                           const std::shared_ptr<IGraph>& graphDesc,
                            const Config& config,
                            const uint32_t& group_ordinal)
     : _config(config),
       _logger("Graph", _config.get<LOG_LEVEL>()),
       _initStructs(initStructs),
-      _networkDesc(networkDescription),
       _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
       _group_ordinal(group_ordinal),
       _command_queues{{std::make_shared<CommandQueue>(_initStructs->getDevice(),
@@ -68,14 +68,15 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
 
     // _graph is a nullptr for CIP path, a new handle will be obtained from the driver based on the given
     // compiledNetwork _graph gets (reuses) graphHandle from the compiler for CID path
-    if (_networkDesc->metadata.graphHandle == nullptr) {
+    if (std::dynamic_pointer_cast<CiPGraph>(graphDesc)) {
         _logger.info("Create graph handle on executor");
         _logger.debug("ZeroExecutor::ZeroExecutor - create graph");
+        auto& compiledNetwork = graphDesc->getCompiledNetwork();
         ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                              nullptr,
                              ZE_GRAPH_FORMAT_NATIVE,
-                             _networkDesc->compiledNetwork.size(),
-                             _networkDesc->compiledNetwork.data(),
+                             compiledNetwork.size(),
+                             compiledNetwork.data(),
                              nullptr};
 
         zeroUtils::throwOnFail(
@@ -84,7 +85,12 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
 
     } else {
         _logger.info("Reuse graphhandle created from compiler");
-        _graph = static_cast<ze_graph_handle_t>(_networkDesc->metadata.graphHandle);
+        auto cidGraph = std::dynamic_pointer_cast<CiDGraph>(graphDesc);
+        if (cidGraph) {
+            _graph = static_cast<ze_graph_handle_t>(cidGraph->getGraphHandle());
+        } else {
+            OPENVINO_THROW("Failed to get cidGraph! Please check compiler output!");
+        }
     }
 
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetProperties");

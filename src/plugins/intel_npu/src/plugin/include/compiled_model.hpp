@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "compiler_adapter.hpp"
 #include "intel_npu/al/icompiled_model.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "npu.hpp"
@@ -24,14 +25,13 @@ public:
      * @param plugin Pointer towards the NPU plugin instance
      * @param device Backend specific object through which inference requests can be created
      * @param compiler Module used for compiling the IR model.
-     * @param profiling Flag indicating if profiling was requested. Setting this to "true" will lead to storing the
-     * "compiler" parameter inside the newly created "CompiledModel".
+     * @param profiling Flag indicating if profiling was requested.
      * @param config Custom configuration object
      */
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const std::shared_ptr<IDevice>& device,
-                  const ov::SoPtr<ICompiler>& compiler,
+                  const std::shared_ptr<CompilerAdapter>& compiler,
                   const bool profiling,
                   const Config& config);
 
@@ -47,9 +47,9 @@ public:
      */
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
-                  const std::shared_ptr<const NetworkDescription>& networkDescription,
+                  const std::shared_ptr<IGraph>& graph,
                   const std::shared_ptr<IDevice>& device,
-                  const ov::SoPtr<ICompiler>& compiler,
+                  const std::shared_ptr<CompilerAdapter>& compiler,
                   const Config& config);
 
     CompiledModel(const CompiledModel&) = delete;
@@ -70,7 +70,8 @@ public:
 
     ov::Any get_property(const std::string& name) const override;
 
-    const std::shared_ptr<const NetworkDescription>& get_network_description() const override;
+    const std::vector<uint8_t>& get_compiled_network() const override;
+    const NetworkMetadata& get_network_metadata() const override;
 
     const Config& get_config() const override;
 
@@ -83,7 +84,7 @@ private:
 
     void create_executor();
 
-    std::shared_ptr<const NetworkDescription> _networkPtr;
+    std::shared_ptr<IGraph> _graph;
     const std::shared_ptr<const ov::Model> _model;
     Config _config;
     Logger _logger;
@@ -95,7 +96,7 @@ private:
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
 
-    const ov::SoPtr<ICompiler> _compiler;
+    const std::shared_ptr<CompilerAdapter> _compiler;
 };
 
 }  //  namespace intel_npu

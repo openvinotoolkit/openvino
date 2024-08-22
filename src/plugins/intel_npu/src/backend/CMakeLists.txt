@@ -19,6 +19,7 @@ target_compile_definitions(${TARGET_NAME}
 target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        ${NPU_PLUGIN_SOURCE_DIR}/src/plugin/include
 )
 
 target_link_libraries(${TARGET_NAME}

@@ -593,9 +593,8 @@ std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
     if (compilerType == ov::intel_npu::CompilerType::MLIR) {
         // For plugin compiler retreive raw profiling data from backend and delegate
         // processing to the compiler
-        const auto& networkDesc = compiledModel.get_network_description();
         const auto& compiler = compiledModel.get_compiler();
-        const auto& blob = networkDesc->compiledNetwork;
+        const auto& blob = compiledModel.get_compiled_network();
         auto profData = get_raw_profiling_data();
         _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
         return compiler->process_profiling_output(profData, blob, compilerConfig);

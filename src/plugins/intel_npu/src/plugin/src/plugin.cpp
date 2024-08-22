@@ -7,7 +7,6 @@
 #include <fstream>
 
 #include "compiled_model.hpp"
-#include "compiler.hpp"
 #include "device_helpers.hpp"
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/config/compiler.hpp"
@@ -744,25 +743,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         }
         _logger.debug("Successfully read %zu bytes into blob.", graphSize);
 
-        auto meta = compiler->parse(blob, localConfig);
-        // If graphHandle is not a nullptr it means there is still an instance of the blob maintained inside the driver
-        // and we can release the copy of the blob here to reduce memory consumption.
-        if (meta.graphHandle != nullptr) {
-            blob.clear();
-            blob.shrink_to_fit();
-        }
+        auto graph = compiler->parse(blob, localConfig);
+        auto& meta = graph->getMetadata();
         meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
 
         const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(meta.inputs, meta.outputs);
 
-        auto networkDescription = std::make_shared<const NetworkDescription>(std::move(blob), std::move(meta));
-
-        compiledModel = std::make_shared<CompiledModel>(modelDummy,
-                                                        shared_from_this(),
-                                                        networkDescription,
-                                                        device,
-                                                        compiler,
-                                                        localConfig);
+        compiledModel =
+            std::make_shared<CompiledModel>(modelDummy, shared_from_this(), graph, device, compiler, localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
@@ -807,9 +795,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return supportedOpsMap;
 }
 
-ov::SoPtr<ICompiler> Plugin::getCompiler(const Config& config) const {
+std::shared_ptr<CompilerAdapter> Plugin::getCompiler(const Config& config) const {
     auto compilerType = config.get<COMPILER_TYPE>();
-    return createCompiler(_backends, compilerType);
+    return std::make_shared<CompilerAdapter>(_backends, compilerType);
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};
