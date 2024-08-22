@@ -28,7 +28,7 @@ public:
 
     virtual JitConstants GetJitConstants(const swiglu_params& params, const CommonDispatchData& dispatchData) const;
     virtual CommonDispatchData SetDefault(const swiglu_params& params) const;
-    KernelsData GetKernelsData(const Params& params) const;
+    KernelsData GetKernelsData(const Params& params) const override;
     Datatype GetAccumulatorType(const swiglu_params& params) const;
 
 protected:

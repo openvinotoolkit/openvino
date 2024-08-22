@@ -2,24 +2,43 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// From A&S Handbook of Mathematical Functions with Formulas, Graphs, and Mathematical Tables
-// Formula section 7.1.26
+float FUNC(fast_erf)(float x) {
+    // If x is very big just straight up assume the result is +-1.0f
+    if(x > 4.0f) return 1.0f;
+    if(x < -4.0f) return -1.0f;
 
-ACCUMULATOR_TYPE fast_erf(ACCUMULATOR_TYPE x) {
-    const ACCUMULATOR_TYPE a1 = 0.254829592f;
-    const ACCUMULATOR_TYPE a2 = -0.284496736f;
-    const ACCUMULATOR_TYPE a3 = 1.421413741f;
-    const ACCUMULATOR_TYPE a4 = -1.453152027f;
-    const ACCUMULATOR_TYPE a5 = 1.061405429f;
-    const ACCUMULATOR_TYPE p = 0.3275911f;
+    float z = fabs(x);
+    // Use Taylor expansion when x is close to 0
+    if(z < 0.44593f) { // Cutoff where Taylor expansion is more precise than A&S formula
+        // Taylor expansion with 5 terms
+        const float a1 = 1.1283791670955126f;
+        const float x2 = x * x;
+        const float x3 = x2 * x;
+        const float x5 = x3 * x2;
+        const float x7 = x5 * x2;
+        const float x9 = x7 * x2;
 
-    int sign = (x >= 0) ? 1 : -1;
-    x = fabs(x);
+        return a1 * (x - (x3 / 3.0f) + (x5 / 10.0f) - (x7 / 42.0f) + (x9 / 216.0f));
+    }
+    // A&S formula has a high relative error when x is close to 0
+    else {
+        // From A&S Handbook of Mathematical Functions with Formulas, Graphs, and Mathematical Tables
+        // Formula section 7.1.26
 
-    ACCUMULATOR_TYPE t = ACCUMULATOR_VAL_ONE / (ACCUMULATOR_VAL_ONE + p * x);
-    ACCUMULATOR_TYPE erf = ACCUMULATOR_VAL_ONE - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * native_exp(-(x * x));
+        const float a1 = 0.254829592f;
+        const float a2 = -0.284496736f;
+        const float a3 = 1.421413741f;
+        const float a4 = -1.453152027f;
+        const float a5 = 1.061405429f;
+        const float p = 0.3275911f;
 
-    return erf * sign;
+        int sign = (x >= 0) ? 1 : -1;
+
+        float t = 1.0f / (1.0f + p * z);
+        float y = 1.0f - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * native_exp(-(z * z));
+
+        return y * sign; // A&S formula is only good for when x >= 0, however -erf(x) = erf(-x)
+    }
 }
 
 KERNEL(swiglu_gpu_opt)(
@@ -41,7 +60,7 @@ KERNEL(swiglu_gpu_opt)(
     #if GLU_TYPE == 0   // Swish
         gate /= ACCUMULATOR_VAL_ONE + native_exp(-(ACCUMULATOR_VAL_ONE * gate));
     #elif GLU_TYPE == 1 // Gelu
-        gate = (GEGLU_HALF * gate * (ACCUMULATOR_VAL_ONE + (fast_erf(gate * GEGLU_MULT))));
+        gate = (GEGLU_HALF * gate * (ACCUMULATOR_VAL_ONE + (FUNC_CALL(fast_erf)(gate * GEGLU_MULT))));
     #elif GLU_TYPE == 2 // Gelu_Tanh
         gate = (GEGLU_HALF * gate * (ACCUMULATOR_VAL_ONE + (tanh(GEGLU_SQUARE_2_OVER_PI * gate * (ACCUMULATOR_VAL_ONE + GEGLU_MULT * gate * gate)))));
     #endif
