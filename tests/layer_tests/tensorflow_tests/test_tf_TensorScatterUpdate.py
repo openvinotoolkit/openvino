@@ -33,7 +33,8 @@ class TestTensorScatterUpdate(CommonTFLayerTest):
         
         tensor_rows = tensor_shape[0]
         tensor_cols = tensor_shape[1]
-        indices_cols = indices_shape[1]
+
+        indices_rows, indices_cols = indices_shape
 
         all_indices = []
         if indices_cols == 1:
@@ -44,7 +45,7 @@ class TestTensorScatterUpdate(CommonTFLayerTest):
                 for col_ind in range(0, tensor_cols):
                     all_indices.append([row_ind, col_ind])
 
-        inputs_data['indices:0'] = rng.choice(all_indices, indices_shape[0], replace=False).astype(self.indices_type)
+        inputs_data['indices:0'] = rng.choice(all_indices, indices_rows, replace=False).astype(self.indices_type)
 
         return inputs_data
 
