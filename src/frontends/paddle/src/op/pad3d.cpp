@@ -25,13 +25,11 @@ NamedOutputs pad3d(const NodeContext& node) {
             auto paddings_vector = node.get_attribute<std::vector<int32_t>>("paddings");
             PADDLE_OP_CHECK(node, paddings_vector.size() == 6, "paddings Params size should be 6 in pad3d!");
             paddings = paddings_vector;
-        }
-        else if (paddings_attr.is<int32_t>()) {
+        } else if (paddings_attr.is<int32_t>()) {
             auto padding_int = node.get_attribute<int32_t>("paddings");
             for (int i = 0; i < 6; i++)
                 paddings[i] = padding_int;
-        }
-        else {
+        } else {
             PADDLE_OP_CHECK(node, false, "Unsupported paddings attribute!");
         }
     } else {
