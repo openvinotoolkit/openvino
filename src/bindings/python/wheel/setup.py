@@ -487,7 +487,7 @@ class PrepareLibs(build_clib):
 
         tbb_replacements = {
             # change the path where the TBBConfig.cmake is installed (<root>/lib/cmake/TBB -> openvino/cmake)
-            r"(\{CMAKE_CURRENT_LIST_FILE\})": r"\1/fake_dir",
+            r"(_IMPORT_PREFIX \"\$\{CMAKE_CURRENT_LIST_FILE\})": r"\1/fake_dir",
             # change the path where the libraries are installed (<root>/lib -> openvino/libs)
             r"(\{_IMPORT_PREFIX\})\/(.*)\/(.+\.[lib|dylib|so|dll])": rf"\1/{WHEEL_LIBS_INSTALL_DIR}/\3",
             # change the path where the include files are installed (<root>/include -> openvino/include)
