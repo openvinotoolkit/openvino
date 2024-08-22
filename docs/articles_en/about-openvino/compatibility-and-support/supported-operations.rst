@@ -7,7 +7,7 @@ Supported Operations
 
 Here, you will find comprehensive information on operations supported by OpenVINO. The
 conformance reports provide operation coverage for inference devices, while the tables list
-operations available for all OpenVINO Framework Frontends.
+operations available for all OpenVINO framework frontends.
 
 **Device-operation conformance reports:**
 
