@@ -3,7 +3,6 @@
 //
 
 #include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/backward_graph_rewrite.hpp"
 
 #include <gtest/gtest.h>
 
