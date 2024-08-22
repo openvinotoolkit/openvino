@@ -67,12 +67,12 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                 NodeVector concat_inputs{split_lenghts_m_1, const_neg_1};
                 auto split_lenghts = rg.make<v0::Concat>(concat_inputs, 0);
                 split = rg.make<v1::VariadicSplit>(torch_split->get_input_source_output(0),
-                                                        torch_split->get_input_source_output(2),
-                                                        split_lenghts);
+                                                   torch_split->get_input_source_output(2),
+                                                   split_lenghts);
             } else {
                 split = rg.make<v1::VariadicSplit>(torch_split->get_input_source_output(0),
-                                                        torch_split->get_input_source_output(2),
-                                                        torch_split->get_input_source_output(1));
+                                                   torch_split->get_input_source_output(2),
+                                                   torch_split->get_input_source_output(1));
             }
             copy_runtime_info_and_name(list_unpack, rg.get(), {input_node});
             replace_node(list_unpack, split);
@@ -81,8 +81,8 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
         } else if (auto split_with_sizes = cast_fw_node(input_node, "aten::split_with_sizes")) {
             auto split_lengths = concat_list_construct(split_with_sizes->get_input_source_output(1));
             auto split = rg.make<v1::VariadicSplit>(split_with_sizes->get_input_source_output(0),
-                                                         split_with_sizes->get_input_source_output(2),
-                                                         split_lengths);
+                                                    split_with_sizes->get_input_source_output(2),
+                                                    split_lengths);
 
             copy_runtime_info_and_name(list_unpack, rg.get(), {input_node});
             replace_node(list_unpack, split);
@@ -165,7 +165,8 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             } else {
                 auto range = rg.make<v4::Range>(const_0_scalar, list_num_outs_scalar, const_1_scalar, element::i32);
                 auto range_plus_1 = rg.make<v1::Add>(range, const_1);
-                auto sections = rg.make<v0::Concat>(OutputVector{const_0, std::move(indices_or_sections), const_max}, 0);
+                auto sections =
+                    rg.make<v0::Concat>(OutputVector{const_0, std::move(indices_or_sections), const_max}, 0);
 
                 auto starts_tensor = rg.make<v8::Slice>(sections, const_0, const_neg_1, const_1, const_0);
                 auto starts =
