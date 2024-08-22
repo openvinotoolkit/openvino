@@ -126,11 +126,6 @@ else()
             --plat-name=${PLATFORM_TAG})
 endif()
 
-# dev target includes c headers and we need to include c bindings
-if(TARGET openvino_c)
-    list(APPEND ov_setup_py_deps openvino_c)
-endif()
-
 add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${setup_py_env}
         ${wheel_build_command}

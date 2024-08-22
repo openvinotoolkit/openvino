@@ -251,7 +251,9 @@ endmacro()
 macro(ov_define_setup_py_dependencies)
     foreach(_target
             # Python API dependencies
-            _pyopenvino py_ov_frontends
+            pyopenvino py_ov_frontends
+            # C API
+            openvino_c
             # plugins
             ov_plugins
             # frontends
