@@ -27,8 +27,7 @@ static const std::vector<std::vector<InputShape>> bitwise_in_shapes_4D = {
 const auto params_4D_bitwise_shift = ::testing::Combine(
     ::testing::Combine(
         ::testing::ValuesIn(bitwise_in_shapes_4D),
-        ::testing::ValuesIn(
-            {ov::test::utils::EltwiseTypes::BITWISE_LEFT_SHIFT, ov::test::utils::EltwiseTypes::BITWISE_RIGHT_SHIFT}),
+        ::testing::ValuesIn({ov::test::utils::EltwiseTypes::LEFT_SHIFT, ov::test::utils::EltwiseTypes::RIGHT_SHIFT}),
         ::testing::ValuesIn(secondaryInputTypes()),
         ::testing::ValuesIn({ov::test::utils::OpType::VECTOR}),
         ::testing::ValuesIn({ov::element::Type_t::i8, ov::element::Type_t::u8, ov::element::Type_t::i32}),
@@ -50,8 +49,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_BitwiseShift,
 const auto params_4D_bitwise_shift_i32_cast = ::testing::Combine(
     ::testing::Combine(
         ::testing::ValuesIn(bitwise_in_shapes_4D),
-        ::testing::ValuesIn(
-            {ov::test::utils::EltwiseTypes::BITWISE_LEFT_SHIFT, ov::test::utils::EltwiseTypes::BITWISE_RIGHT_SHIFT}),
+        ::testing::ValuesIn({ov::test::utils::EltwiseTypes::LEFT_SHIFT, ov::test::utils::EltwiseTypes::RIGHT_SHIFT}),
         ::testing::ValuesIn(secondaryInputTypes()),
         ::testing::ValuesIn({ov::test::utils::OpType::VECTOR}),
         ::testing::ValuesIn({ov::element::Type_t::i16, ov::element::Type_t::u16, ov::element::Type_t::u32}),
@@ -77,8 +75,7 @@ auto val_map_overflow_cast = ov::AnyMap{{"shift", shift_14}, {"max_val", max_val
 const auto params_4D_bitwise_shift_overflow_i32_cast = ::testing::Combine(
     ::testing::Combine(
         ::testing::ValuesIn(bitwise_in_shapes_4D),
-        ::testing::ValuesIn(
-            {ov::test::utils::EltwiseTypes::BITWISE_LEFT_SHIFT, ov::test::utils::EltwiseTypes::BITWISE_RIGHT_SHIFT}),
+        ::testing::ValuesIn({ov::test::utils::EltwiseTypes::LEFT_SHIFT, ov::test::utils::EltwiseTypes::RIGHT_SHIFT}),
         ::testing::ValuesIn(secondaryInputTypes()),
         ::testing::ValuesIn({ov::test::utils::OpType::VECTOR}),
         ::testing::ValuesIn(
@@ -102,22 +99,22 @@ std::vector<int32_t> shift_7{7};
 uint32_t max_val_15 = 15;
 auto val_map_overflow_8_cast = ov::AnyMap{{"shift", shift_7}, {"max_val", max_val_15}};
 
-const auto params_4D_bitwise_shift_overflow_8 =
-    ::testing::Combine(::testing::Combine(::testing::ValuesIn(bitwise_in_shapes_4D),
-                                          ::testing::ValuesIn({ov::test::utils::EltwiseTypes::BITWISE_LEFT_SHIFT,
-                                                               ov::test::utils::EltwiseTypes::BITWISE_RIGHT_SHIFT}),
-                                          ::testing::ValuesIn(secondaryInputTypes()),
-                                          ::testing::ValuesIn({ov::test::utils::OpType::VECTOR}),
-                                          ::testing::ValuesIn({ov::element::Type_t::i8, ov::element::Type_t::u8}),
-                                          ::testing::Values(ov::element::Type_t::undefined),
-                                          ::testing::Values(ov::element::Type_t::undefined),
-                                          ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                          ::testing::Values(ov::AnyMap())),
-                       ::testing::ValuesIn({CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, "ref"),
-                                            CPUSpecificParams({nchw, nchw}, {nchw}, {}, "ref")}),
-                       ::testing::Values(emptyFusingSpec),
-                       ::testing::Values(false),
-                       ::testing::Values(val_map_overflow_8_cast));
+const auto params_4D_bitwise_shift_overflow_8 = ::testing::Combine(
+    ::testing::Combine(
+        ::testing::ValuesIn(bitwise_in_shapes_4D),
+        ::testing::ValuesIn({ov::test::utils::EltwiseTypes::LEFT_SHIFT, ov::test::utils::EltwiseTypes::RIGHT_SHIFT}),
+        ::testing::ValuesIn(secondaryInputTypes()),
+        ::testing::ValuesIn({ov::test::utils::OpType::VECTOR}),
+        ::testing::ValuesIn({ov::element::Type_t::i8, ov::element::Type_t::u8}),
+        ::testing::Values(ov::element::Type_t::undefined),
+        ::testing::Values(ov::element::Type_t::undefined),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
+        ::testing::Values(ov::AnyMap())),
+    ::testing::ValuesIn(
+        {CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, "ref"), CPUSpecificParams({nchw, nchw}, {nchw}, {}, "ref")}),
+    ::testing::Values(emptyFusingSpec),
+    ::testing::Values(false),
+    ::testing::Values(val_map_overflow_8_cast));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_BitwiseShift_overflow_8,
                          BitwiseShiftLayerCPUTest,
@@ -135,8 +132,7 @@ static const std::vector<std::vector<ov::Shape>> bitwise_in_shapes_5D_1D = {
 const auto params_5D_1D_bitwise_shift = ::testing::Combine(
     ::testing::Combine(
         ::testing::ValuesIn(static_shapes_to_test_representation(bitwise_in_shapes_5D_1D)),
-        ::testing::ValuesIn(
-            {ov::test::utils::EltwiseTypes::BITWISE_LEFT_SHIFT, ov::test::utils::EltwiseTypes::BITWISE_RIGHT_SHIFT}),
+        ::testing::ValuesIn({ov::test::utils::EltwiseTypes::LEFT_SHIFT, ov::test::utils::EltwiseTypes::RIGHT_SHIFT}),
         ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
         ::testing::ValuesIn({ov::test::utils::OpType::VECTOR}),
         ::testing::ValuesIn({ov::element::Type_t::i8, ov::element::Type_t::u8, ov::element::Type_t::i32}),
@@ -157,8 +153,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_1D_BitwiseShift,
 const auto params_5D_1D_bitwise_shift_cast_i32 = ::testing::Combine(
     ::testing::Combine(
         ::testing::ValuesIn(static_shapes_to_test_representation(bitwise_in_shapes_5D_1D)),
-        ::testing::ValuesIn(
-            {ov::test::utils::EltwiseTypes::BITWISE_LEFT_SHIFT, ov::test::utils::EltwiseTypes::BITWISE_RIGHT_SHIFT}),
+        ::testing::ValuesIn({ov::test::utils::EltwiseTypes::LEFT_SHIFT, ov::test::utils::EltwiseTypes::RIGHT_SHIFT}),
         ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
         ::testing::ValuesIn({ov::test::utils::OpType::VECTOR}),
         ::testing::ValuesIn({ov::element::Type_t::i16, ov::element::Type_t::u16, ov::element::Type_t::u32}),
@@ -183,8 +178,7 @@ static const std::vector<std::vector<ov::Shape>> bitwise_in_shapes_4D_1D = {
 const auto params_4D_1D_bitwise_shift = ::testing::Combine(
     ::testing::Combine(
         ::testing::ValuesIn(static_shapes_to_test_representation(bitwise_in_shapes_4D_1D)),
-        ::testing::ValuesIn(
-            {ov::test::utils::EltwiseTypes::BITWISE_LEFT_SHIFT, ov::test::utils::EltwiseTypes::BITWISE_RIGHT_SHIFT}),
+        ::testing::ValuesIn({ov::test::utils::EltwiseTypes::LEFT_SHIFT, ov::test::utils::EltwiseTypes::RIGHT_SHIFT}),
         ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
         ::testing::ValuesIn({ov::test::utils::OpType::VECTOR}),
         ::testing::ValuesIn({ov::element::Type_t::i8, ov::element::Type_t::u8, ov::element::Type_t::i32}),
@@ -205,8 +199,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D_BitwiseShift,
 const auto params_4D_1D_bitwise_shift_cast_i32 = ::testing::Combine(
     ::testing::Combine(
         ::testing::ValuesIn(static_shapes_to_test_representation(bitwise_in_shapes_4D_1D)),
-        ::testing::ValuesIn(
-            {ov::test::utils::EltwiseTypes::BITWISE_LEFT_SHIFT, ov::test::utils::EltwiseTypes::BITWISE_RIGHT_SHIFT}),
+        ::testing::ValuesIn({ov::test::utils::EltwiseTypes::LEFT_SHIFT, ov::test::utils::EltwiseTypes::RIGHT_SHIFT}),
         ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
         ::testing::ValuesIn({ov::test::utils::OpType::VECTOR}),
         ::testing::ValuesIn({ov::element::Type_t::i16, ov::element::Type_t::u16, ov::element::Type_t::u32}),

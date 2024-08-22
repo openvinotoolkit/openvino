@@ -91,8 +91,8 @@ std::vector<EltwiseTypes> eltwise_op_types_dynamic = {
 };
 
 std::vector<EltwiseTypes> bitshift_types = {
-        EltwiseTypes::BITWISE_LEFT_SHIFT,
-        EltwiseTypes::BITWISE_RIGHT_SHIFT
+        EltwiseTypes::LEFT_SHIFT,
+        EltwiseTypes::RIGHT_SHIFT
 };
 
 ov::test::Config additional_config = {};
