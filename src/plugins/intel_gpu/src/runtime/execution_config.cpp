@@ -59,6 +59,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::cache_mode, ov::CacheMode::OPTIMIZE_SPEED),
         std::make_tuple(ov::cache_crypto_callback, EncryptionCallbacks{}),
         std::make_tuple(ov::hint::dynamic_quantization_group_size, 0),
+        std::make_tuple(ov::intel_gpu::hint::enable_kernels_reuse, false),
 
         // Legacy API properties
         std::make_tuple(ov::intel_gpu::nv12_two_inputs, false),
@@ -164,6 +165,13 @@ void ExecutionConfig::apply_performance_hints(const cldnn::device_info& info) {
 
     if (get_property(ov::internal::exclusive_async_requests)) {
         set_property(ov::num_streams(1));
+    }
+
+    // Allow kernels reuse only for single-stream scenarios
+    if (get_property(ov::intel_gpu::hint::enable_kernels_reuse)) {
+        if (get_property(ov::num_streams) != 1) {
+            set_property(ov::intel_gpu::hint::enable_kernels_reuse(false));
+        }
     }
 }
 
