@@ -24,22 +24,10 @@ RUN apt-get update && \
         python3-dev \
         python3-venv \
         python3-distutils \
+        # For building Python from source
         build-essential \
-        libffi-dev \
-        libgdbm-dev \
-        libc6-dev \
-        libssl-dev \
         zlib1g-dev \
-        libbz2-dev \
-        libreadline-dev \
-        libsqlite3-dev \
-        libncurses5-dev \
-        libncursesw5-dev \
-        xz-utils \
-        tk-dev \
-        libxml2-dev \
-        libxmlsec1-dev \
-        liblzma-dev \
+        libssl-dev \
         # Compilers
         gcc-arm-linux-gnueabihf \
         g++-arm-linux-gnueabihf \
