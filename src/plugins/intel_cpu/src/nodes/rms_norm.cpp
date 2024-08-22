@@ -13,8 +13,8 @@
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/util/common_util.hpp"
+#include "ov_ops/rms.hpp"
 #include "shape_inference/custom/rms_norm.hpp"
-#include "openvino/op/rms_norm.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "kernels/x64/rms_kernel.hpp"
 
@@ -97,22 +97,19 @@ static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker, con
 }
 
 struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
-    RMSNormExecutor(ov::element::Type precision, size_t data_size, size_t scale_size, float eps, bool has_scale) : m_precision(precision) {
+    RMSNormExecutor(ov::element::Type precision, size_t data_size, size_t scale_size, float eps) : m_precision(precision) {
         jit_rms_compile_params jcp;
         jcp.src_prc = precision;
         jcp.dst_prc = precision;
         jcp.data_size = data_size;
         jcp.scale_size = scale_size;
         jcp.eps = eps;
-        jcp.has_scale = has_scale;
         m_kernel = createJitKernel(jcp);
     }
     void execute(const std::vector<MemoryPtr>& inputs, const MemoryPtr output) override {
         auto src = inputs[0]->getDataAs<uint8_t>();
         auto dst = output->getDataAs<uint8_t>();
-        float* scale = nullptr;
-        if (inputs.size() > 2)
-            scale = inputs[2]->getDataAs<float>();
+        float* scale = inputs[1]->getDataAs<float>();
 
         const auto& src_strides = inputs[0]->getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto& dst_strides = output->getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -136,9 +133,8 @@ RMSNorm::RMSNorm(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW("CPU: " + errorMessage);
     }
-    const auto rms = std::dynamic_pointer_cast<const ov::op::internal::RMSNorm>(op);
+    const auto rms = std::dynamic_pointer_cast<const ov::op::internal::RMS>(op);
     m_eps = static_cast<float>(rms->get_epsilon());
-    m_has_scale = op->get_input_size() > 2;
 }
 
 void RMSNorm::initSupportedPrimitiveDescriptors() {
@@ -151,38 +147,26 @@ void RMSNorm::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
     } else {
         impl_type = impl_desc_type::ref;
     }
 
-    if (m_has_scale) {
-        addSupportedPrimDesc({{LayoutType::ncsp, precision}, {LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::f32}},
-                            {{LayoutType::ncsp, precision}},
-                            impl_type);
-    } else {
-        addSupportedPrimDesc({{LayoutType::ncsp, precision}, {LayoutType::ncsp, ov::element::i32}},
-                            {{LayoutType::ncsp, precision}},
-                            impl_type);
-    }
+    addSupportedPrimDesc({{LayoutType::ncsp, precision}, {LayoutType::ncsp, ov::element::f32}},
+                        {{LayoutType::ncsp, precision}},
+                        impl_type);
 }
 
 void RMSNorm::createPrimitive() {
     auto precision = getOriginalInputPrecisionAtPort(0);
     auto data_dims = getSrcMemoryAtPort(0)->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    auto has_scale = getOriginalInputsNumber() > 2;
     size_t data_size = data_dims[data_dims.size() - 1];
-    size_t scale_size = 0;
-    if (has_scale) {
-        scale_size = getSrcMemoryAtPort(2)->getDescWithType<BlockedMemoryDesc>()->getBlockDims()[0];
-    }
+    size_t scale_size = shape_size(getSrcMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getBlockDims());
 
     RMSNormKey key = {precision, data_size, scale_size, static_cast<size_t>(dnnl::impl::float2int(m_eps))};
 
     auto builder = [&](const RMSNormKey& key) -> std::shared_ptr<RMSNormExecutor> {
 #ifdef OPENVINO_ARCH_X86_64
-        return std::make_shared<RMSNormExecutor>(precision, data_size, scale_size, m_eps, has_scale);
+        return std::make_shared<RMSNormExecutor>(precision, data_size, scale_size, m_eps);
 #else
         return nullptr;
 #endif
@@ -209,8 +193,12 @@ void RMSNorm::execute(dnnl::stream strm) {
 
 bool RMSNorm::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto rms = std::dynamic_pointer_cast<const ov::op::internal::RMSNorm>(op);
+        const auto rms = std::dynamic_pointer_cast<const ov::op::internal::RMS>(op);
         if (rms) {
+            if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+                errorMessage = "RMSNorm needs avx2+.";
+                return false;
+            }
             // check the last dimension of data
             auto data_pshape = op->input_value(0).get_partial_shape();
             if (data_pshape.rank().is_dynamic()) {
@@ -226,33 +214,20 @@ bool RMSNorm::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
                 errorMessage = "RMSNorm data rank must be greater than 1.";
                 return false;
             }
-            // check axes
-            auto axes_op = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-            if (!axes_op) {
-                errorMessage = "RMSNorm axes is expected as Constant.";
-                return false;
-            }
-            // axes should be 1d or scalar in spec
-            auto axes_vals = axes_op->cast_vector<int>();
-            if (axes_vals[0] != -1 && axes_vals[0] != data_rank - 1) {
-                errorMessage = "RMSNorm axes must be the last dimension.";
-                return false;
-            }
 
             // check scale
-            if (op->get_input_size() > 2) {
-                if (op->get_input_partial_shape(2).rank().get_length() > 1) {
-                    errorMessage = "RMSNorm scale must be 1D or scalar.";
-                    return false;
-                }
-                if (op->get_input_partial_shape(2).is_dynamic()) {
-                    errorMessage = "RMSNorm scale shape is not static.";
-                    return false;
-                }
-            }
-            if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
-                errorMessage = "RMSNorm needs avx2+.";
+            if (op->get_input_partial_shape(1).is_dynamic()) {
+                errorMessage = "RMSNorm scale shape is not static.";
                 return false;
+            }
+            auto scale_pshape = op->get_input_partial_shape(1);
+            if (scale_pshape.rank().get_length() > 1) {
+                for (int64_t i = 0; i < scale_pshape.rank().get_length() - 1; i++) {
+                    if (scale_pshape[i] != 1) {
+                        errorMessage = "RMSNorm scale shape must be [1,..., N].";
+                        return false;
+                    }
+                }
             }
         } else {
             errorMessage = "Only RMSNorm operation is supported";

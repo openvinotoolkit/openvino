@@ -25,6 +25,7 @@ public:
 protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    bool m_rms_decomposed = false;
 };
 
 }  // namespace test

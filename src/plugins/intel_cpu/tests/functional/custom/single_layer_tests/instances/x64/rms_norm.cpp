@@ -35,13 +35,17 @@ const std::vector<std::vector<InputShape>> shapes{
             {ov::Shape{1}, ov::Shape{1}}}
         },
     },
-    // no scale
+    // decomposition path
     {
         // data shape
-        {ov::test::InputShape{ov::PartialShape{-1, -1, 1094},
-            {ov::Shape{1, 8, 1094}, ov::Shape{2, 3, 1094}}}
+        {ov::test::InputShape{ov::PartialShape{-1, -1, 64},
+            {ov::Shape{1, 8, 64}}}
         },
-    }
+        // scale shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 64},
+            {ov::Shape{1, 8, 64}}}
+        },
+    },
 };
 
 const auto params = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),

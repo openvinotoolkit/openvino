@@ -17,7 +17,7 @@ public:
 
     void getSupportedDescriptors() override {}
     bool created() const override {
-        return getType() == Type::RMSNorm;
+        return getType() == Type::RMS;
     }
     bool needPrepareParams() const override {
         return false;
@@ -41,7 +41,6 @@ private:
     friend struct RMSNormKey;
 
     float m_eps = 0.0f;
-    bool m_has_scale = false;
 };
 
 }  // namespace node

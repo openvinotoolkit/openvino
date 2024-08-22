@@ -13,6 +13,7 @@
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rms.hpp"
 #include "transformations/utils/utils.hpp"
@@ -68,7 +69,9 @@ RMSFusion::RMSFusion() {
     auto mul2 = wrap_type<ov::op::v1::Multiply>({gamma, mul1});
 
     // compress RMS result
-    auto comp = wrap_type<ov::op::v0::Convert>({mul2});
+    auto convert = wrap_type<ov::op::v0::Convert>({mul2});
+
+    auto comp = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul2, convert});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

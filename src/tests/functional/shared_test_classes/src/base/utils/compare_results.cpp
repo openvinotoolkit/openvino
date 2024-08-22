@@ -5,9 +5,9 @@
 #include <gtest/gtest.h>
 
 #include "openvino/op/ops.hpp"
-#include "openvino/op/rms_norm.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
+#include "ov_ops/rms.hpp"
 
 #include "shared_test_classes/base/utils/compare_results.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
@@ -208,8 +208,6 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 #include "openvino/opsets/opset15_tbl.hpp"
 
 #include "ov_ops/opset_private_tbl.hpp"
-
-_OPENVINO_OP_REG(RMSNorm, ov::op::internal)
 
 #undef _OPENVINO_OP_REG
     };

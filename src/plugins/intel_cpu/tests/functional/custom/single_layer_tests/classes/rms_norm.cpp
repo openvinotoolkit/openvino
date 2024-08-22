@@ -7,7 +7,7 @@
 #include "gtest/gtest.h"
 #include "openvino/core/shape.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/rms_norm.hpp"
+#include "ov_ops/rms.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "openvino/pass/manager.hpp"
@@ -78,10 +78,15 @@ void RMSNormLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetIn
             inputs.insert({param, t});
         }
     };
-    // q, k, v, pastkv
     create_input(function->get_parameters()[0], targetInputStaticShapes[0], 1.0f);
-    if (targetInputStaticShapes.size() > 1)
-        create_input(function->get_parameters()[1], targetInputStaticShapes[1], 0.0f);
+    create_input(function->get_parameters()[1], targetInputStaticShapes[1], 0.0f);
+    for (size_t i = 0; i < targetInputStaticShapes[1].size() - 1; i++) {
+        if (targetInputStaticShapes[1][i] != 1) {
+            // decomposed rms expected
+            m_rms_decomposed = true;
+            break;
+        }
+    }
 }
 
 void RMSNormLayerCPUTest::SetUp() {
@@ -102,23 +107,19 @@ void RMSNormLayerCPUTest::SetUp() {
     selectedType = makeSelectedTypeStr(selectedType, inType);
     init_input_shapes(inputShapes);
     ov::ParameterVector inputParams;
-    // data, axes, scale
+    // data, scale
     auto data = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
-    auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int>{-1});
     inputParams.push_back(data);
-    std::shared_ptr<ov::op::v0::Parameter> scale;
-    if (inputDynamicShapes.size() > 1) {
-        scale = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1]);
-        inputParams.push_back(scale);
-    }
-    auto rms = scale ? std::make_shared<ov::op::internal::RMSNorm>(data, axes, scale, 0.1f) :
-                std::make_shared<ov::op::internal::RMSNorm>(data, axes, 0.1f);
+    auto scale = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1]);
+    inputParams.push_back(scale);
+    auto rms = std::make_shared<ov::op::internal::RMS>(data, scale, 0.1f);
     rms->set_friendly_name("rms");
     function = makeNgraphFunction(inType, inputParams, rms, "rms");
 }
 
 TEST_P(RMSNormLayerCPUTest, CompareWithRefs) {
     run();
+    CheckNumberOfNodesWithType(compiledModel, "RMS", m_rms_decomposed ? 0 : 1);
 }
 
 namespace RMSNorm {

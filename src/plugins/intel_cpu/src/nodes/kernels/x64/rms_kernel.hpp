@@ -19,7 +19,6 @@ struct jit_rms_compile_params {
     ov::element::Type dst_prc;
     size_t data_size;
     float eps;
-    bool has_scale;
     size_t scale_size;
 };
 

@@ -127,7 +127,7 @@ enum class Type {
     CausalMaskPreprocess,
     LLMMLP,
     QKVProjection,
-    RMSNorm
+    RMS
 };
 
 enum class Algorithm {

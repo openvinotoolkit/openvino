@@ -219,7 +219,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(QKVProjection, Type::QKVProjection);
     INTEL_CPU_NODE(MHA, Type::MHA);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
-    INTEL_CPU_NODE(RMSNorm, Type::RMSNorm);
+    INTEL_CPU_NODE(RMSNorm, Type::RMS);
 #endif
 }
 
