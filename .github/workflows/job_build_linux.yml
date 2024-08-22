@@ -138,7 +138,7 @@ jobs:
       - name: CMake configure - OpenVINO
         run: |
           cmake \
-            ${{ inputs.cmake-options }}
+            ${{ inputs.cmake-options }} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
