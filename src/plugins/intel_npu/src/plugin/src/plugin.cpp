@@ -465,9 +465,8 @@ Plugin::Plugin()
               if (!config.has<MAX_TILES>()) {
                   const auto specifiedDeviceName = get_specified_device_name(config);
                   return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
-              } else {
-                  return config.get<MAX_TILES>();
               }
+              return config.get<MAX_TILES>();
           }}},
         // NPU Private
         // =========
