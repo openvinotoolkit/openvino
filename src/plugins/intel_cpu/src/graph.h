@@ -10,7 +10,7 @@
 #include "node.h"
 #include "edge.h"
 #include "graph_context.h"
-#include "memory_management.hpp"
+#include "memory_control.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 
 #include <map>
@@ -262,7 +262,7 @@ private:
     GraphContext::CPtr context;
     dnnl::stream m_stream;
 
-    std::unique_ptr<MemoryControl> m_pMemoryControl;
+    MemoryControl* m_pMemoryControl = nullptr;
 
     std::vector<event_t> m_preInferEvents;
     std::vector<event_t> m_postInferEvents;

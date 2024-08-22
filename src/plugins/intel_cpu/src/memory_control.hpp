@@ -30,21 +30,43 @@ public:
     using MemoryBlockMap = std::unordered_map<decltype(MemoryRegion::id), MemoryBlockPtr>;
 
 public:
-    explicit MemoryControl(std::vector<size_t> syncInds);
-
     static edgeClusters findEdgeClusters(const std::vector<EdgePtr>& graphEdges);
 
     MemoryBlockMap insert(const std::vector<MemoryRegion>& regions);
+
+    bool allocated() const {
+        return m_allocated;
+    }
 
     void allocateMemory();
     void releaseMemory();
 
 private:
+    explicit MemoryControl(std::vector<size_t> syncInds);
     void insert(const MemoryRegion& region);
+
+    friend class NetworkMemoryControl;
 
 private:
     std::vector<size_t> m_syncInds;
     std::vector<RegionHandlerPtr> m_handlers;
+    bool m_allocated = false;
 };
+
+class NetworkMemoryControl {
+public:
+    NetworkMemoryControl() = default;
+    MemoryControl& createMemoryControlUnit(std::vector<size_t> syncInds);
+
+    void allocateMemory();
+    void releaseMemory();
+
+private:
+    using value_type = std::unique_ptr<MemoryControl>;
+
+private:
+    std::vector<value_type> m_storage;
+};
+
 }  // namespace intel_cpu
 }  // namespace ov

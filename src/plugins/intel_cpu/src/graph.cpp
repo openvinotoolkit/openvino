@@ -23,7 +23,7 @@
 #include "itt.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "memory_management.hpp"
+#include "memory_control.hpp"
 #include "node.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/common/cpu_memcpy.h"
@@ -806,7 +806,7 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
     memoryRegions.erase(it, memoryRegions.end());
 
     //Set up the memory control subsystem.
-    this->m_pMemoryControl = make_unique<MemoryControl>(syncNodesInds);
+    this->m_pMemoryControl = &(getGraphContext()->getNetworkMemoryControl()->createMemoryControlUnit(syncNodesInds));
     auto memoryBlocks = m_pMemoryControl->insert(memoryRegions);
 
     // attach all the not yet allocated edges to the memory contol

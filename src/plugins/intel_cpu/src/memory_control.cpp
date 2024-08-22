@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "memory_management.hpp"
+#include "memory_control.hpp"
 
 #include <ov_optional.hpp>
 
@@ -354,12 +354,14 @@ void MemoryControl::allocateMemory() {
     for (auto&& handler : m_handlers) {
         handler->allocate();
     }
+    m_allocated = true;
 }
 
 void MemoryControl::releaseMemory() {
     for (auto&& handler : m_handlers) {
         handler->release();
     }
+    m_allocated = false;
 }
 
 edgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
@@ -403,6 +405,23 @@ edgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEd
     }
 
     return edge_clusters;
+}
+
+MemoryControl& NetworkMemoryControl::createMemoryControlUnit(std::vector<size_t> syncInds) {
+    m_storage.emplace_back(std::unique_ptr<MemoryControl>(new MemoryControl(syncInds)));
+    return *(m_storage.back());
+}
+
+void NetworkMemoryControl::allocateMemory() {
+    for (auto&& item : m_storage) {
+        item->allocateMemory();
+    }
+}
+
+void NetworkMemoryControl::releaseMemory() {
+    for (auto&& item : m_storage) {
+        item->releaseMemory();
+    }
 }
 
 }  // namespace intel_cpu
