@@ -220,6 +220,7 @@ public:
     std::mutex                                     m_fallback_mutex;
     SoCompiledModel                                m_hw_compiled_model;
     std::string                                    m_model_precision;
+    double                                         m_utilization_threshold = 100.0;
     virtual ~ScheduleContext() = default;
 };
 

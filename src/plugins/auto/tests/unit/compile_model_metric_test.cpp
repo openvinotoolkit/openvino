@@ -212,15 +212,17 @@ TEST_P(ExecNetworkget_propertyOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUES
         metaDevices.push_back({actualDeviceName, metaConfig, actualCustomerNum, ""});
         ON_CALL(*core, get_property(_, StrEq(ov::compilation_num_threads.name()), _)).WillByDefault(Return(8));
     }
-    ON_CALL(*plugin, select_device(_, _, _)).WillByDefault(Return(metaDevices[1]));
+    ON_CALL(*plugin, select_device(_, _, _, _)).WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, parse_meta_devices(_, _)).WillByDefault(Return(metaDevices));
     ON_CALL(*plugin, get_valid_device)
-        .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+        .WillByDefault([](const std::vector<DeviceInformation>& metaDevices,
+                          const std::string& netPrecision,
+                          const double utilization_threshold) {
             std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
             return devices;
         });
     EXPECT_CALL(*plugin, parse_meta_devices(_, _)).Times(1);
-    EXPECT_CALL(*plugin, select_device(_, _, _)).Times(1);
+    EXPECT_CALL(*plugin, select_device(_, _, _, _)).Times(1);
 
     if (cpuSleep) {
         ON_CALL(*core,
@@ -410,15 +412,17 @@ TEST_P(ExecNetworkGetMetricOtherTest, modelPriority_perfHint_exclusiveAsyncReq_t
     metaDevices.push_back(
         {actualDeviceName, {ov::hint::performance_mode(performanceHint.as<ov::hint::PerformanceMode>())}, 2, ""});
 
-    ON_CALL(*plugin, select_device(_, _, _)).WillByDefault(Return(metaDevices[1]));
+    ON_CALL(*plugin, select_device(_, _, _, _)).WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, parse_meta_devices(_, _)).WillByDefault(Return(metaDevices));
     ON_CALL(*plugin, get_valid_device)
-        .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+        .WillByDefault([](const std::vector<DeviceInformation>& metaDevices,
+                          const std::string& netPrecision,
+                          const double utilization_threshold) {
             std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
             return devices;
         });
     EXPECT_CALL(*plugin, parse_meta_devices(_, _)).Times(1);
-    EXPECT_CALL(*plugin, select_device(_, _, _)).Times(1);
+    EXPECT_CALL(*plugin, select_device(_, _, _, _)).Times(1);
 
     ON_CALL(*core, get_property(_, StrEq(ov::compilation_num_threads.name()), _)).WillByDefault(Return(8));
     ON_CALL(*core,

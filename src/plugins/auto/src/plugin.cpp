@@ -426,6 +426,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         }
         LOG_INFO_TAG("device:%s, priority:%ld", iter->device_name.c_str(), iter->device_priority);
     }
+    auto_s_context->m_utilization_threshold = load_config.get_property(ov::intel_auto::device_utilization_threshold);
     // clone the model, in case of reshape conflict
     auto_s_context->m_model = cloned_model;
     auto_s_context->m_model_path = model_path;
@@ -516,7 +517,8 @@ std::map<std::string, double> Plugin::get_device_utilization(const std::string& 
 
 std::list<DeviceInformation> Plugin::get_valid_device(
     const std::vector<DeviceInformation>& meta_devices,
-    const std::string& model_precision) const {
+    const std::string& model_precision,
+    const double utilization_threshold) const {
     if (meta_devices.empty()) {
         OPENVINO_THROW("No available device to select in ", get_device_name());
     }
@@ -542,8 +544,6 @@ std::list<DeviceInformation> Plugin::get_valid_device(
     };
 
     // auto utilization_threshold = m_plugin_config.get_property(ov::intel_auto::device_utilization_threshold);
-    auto utilization_threshold =
-        this->get_property(ov::intel_auto::device_utilization_threshold.name(), {}).as<double>();
     LOG_DEBUG_TAG("Utilization threshold: %s", std::to_string(utilization_threshold).c_str());
     for (auto&& device_info : meta_devices) {
         bool is_excluded = false;
@@ -553,7 +553,7 @@ std::list<DeviceInformation> Plugin::get_valid_device(
         if (!is_supported_model(device_info.device_name) && meta_devices.size() > 1)
             continue;
         std::map<std::string, double> device_utilization;
-        if (utilization_threshold <= 100) {
+        if (utilization_threshold > 0 && utilization_threshold <= 100) {
             device_utilization = get_device_utilization(device_info.device_name);
             for (const auto& item : device_utilization)
                 LOG_DEBUG_TAG("Device: %s\tID: %s\tutilization: %s",
@@ -675,10 +675,10 @@ std::list<DeviceInformation> Plugin::get_valid_device(
 }
 
 DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& meta_devices,
-        const std::string& model_precision, unsigned int priority) {
+        const std::string& model_precision, unsigned int priority, const double utilization_threshold) {
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "Plugin::SelectDevice");
 
-    std::list<DeviceInformation> valid_devices = get_valid_device(meta_devices, model_precision);
+    std::list<DeviceInformation> valid_devices = get_valid_device(meta_devices, model_precision, utilization_threshold);
 
     // all available Devices are in valid_devices now
     // need to remove higher priority devices

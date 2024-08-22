@@ -259,8 +259,10 @@ public:
             return ret;
         });
         ON_CALL(*plugin, get_valid_device)
-            .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
-                return plugin->Plugin::get_valid_device(metaDevices, netPrecision);
+            .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
+                                  const std::string& netPrecision,
+                                  const double utilization_threshold) {
+                return plugin->Plugin::get_valid_device(metaDevices, netPrecision, utilization_threshold);
             });
     }
 
@@ -275,7 +277,7 @@ TEST_P(GetValidDeviceListTest, GetValidFilteredDeviceListTest) {
     // get Parameter
     std::list<ov::auto_plugin::DeviceInformation> result;
     for (auto& precision : netPrecisions) {
-        ASSERT_NO_THROW(result = plugin->get_valid_device(devicesInfo, precision));
+        ASSERT_NO_THROW(result = plugin->get_valid_device(devicesInfo, precision, threshold));
         auto actualSize = result.size();
         auto expectedSize = filteredDevicesInfo.size();
         EXPECT_EQ(actualSize, expectedSize);
