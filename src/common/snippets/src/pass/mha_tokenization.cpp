@@ -472,9 +472,25 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
 
         // TODO [75567]: move this plugin-specific constraint to the plugin callback
         const auto last_node = ordered_ops.back();
-        if (potential_body_params_count + last_node->get_output_size() + hidden_virtual_ports_count + uniqie_buffer_reg_group_count > 11) {
+        const auto io_count =  potential_body_params_count + last_node->get_output_size() + hidden_virtual_ports_count;
+        const auto data_count = io_count + uniqie_buffer_reg_group_count;
+        auto available_regs = config.get_data_ptr_gpr_count();
+        // [150148, 150149] Currently Snippets don't have mechanism of spilling registers on stack.
+        //                  Due to this limitation we have to skip tokenization of some subgraphs
+        //                  if we need more registers than we have on the target machine.
+        //                  `config.get_data_ptr_gpr_count()` provides available data registers count (including parameters, results and buffers)
+        //                  after excluding 2 registers for work amounts.
+        //                  However, MHA Subgraph has `SplitLoops` optimization which adds outermost blocked Loop by M. This Loop requires
+        //                  the separate own register for `work_amount` also. Thus, we have to decrement `available_regs` count in MHA case.
+        //                  Need to notice that in general we have enough count of available registers.
+        //                  But in rare cases (when there are a lot of parameters/results, the heuristic value of their number is `5`)
+        //                  the count of available registers might be not enough and we have to not tokenize these subgraphs.
+        //                  So only for these rare cases we decrement `available_regs` value.
+        if (io_count > 5)
+            available_regs--;
+
+        if (data_count > available_regs)
             return false;
-        }
 
         // If backend doesn't enable dynamic MHA tokenization, return false
         if (!config.is_dynamic_mha_token_enabled()) {
