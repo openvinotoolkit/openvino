@@ -90,8 +90,8 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     if (concat_node.is_dynamic()) {
         for (size_t j = 0; j < concat_params.get_output_layout().get_rank(); j++) {
             if (j != concat_axis_index) {
-                if ((layout::format_sizes(concat_params.get_output_layout().data_padding._lower_size, def_fmt)[j] != 0)
-                    || (layout::format_sizes(concat_params.get_output_layout().data_padding._upper_size, def_fmt)[j] != 0))
+                if ((concat_params.get_output_layout().data_padding._lower_size[j] != 0)
+                    || (concat_params.get_output_layout().data_padding._upper_size[j] != 0))
                     return false;
             }
         }
@@ -123,9 +123,9 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     const auto& output_format = concat_params.get_output_layout().format;
     const auto& output_datatype = concat_params.get_output_layout().data_type;
 
-    auto lower_padd_in_axis = layout::format_sizes(concat_params.get_output_layout().data_padding._lower_size, def_fmt)[concat_axis];
+    auto lower_padd_in_axis = concat_params.get_output_layout().data_padding._lower_size[concat_axis];
     lower_padd_in_axis = std::max(lower_padd_in_axis,
-                                  layout::format_sizes(pred_params[0].get_output_layout().data_padding._lower_size, def_fmt)[concat_axis]);
+                                  pred_params[0].get_output_layout().data_padding._lower_size[concat_axis]);
 
     size_t idx = 0;
     for (const auto& pred : pred_nodes) {
@@ -216,9 +216,9 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // Check that there isn't already some padding between inputs in concat axis.
         // If node has already been optimized we skip this check - this is just cascade adjustment.
         if (!concat_node.can_be_optimized()) {
-            if (idx != concat_node.get_dependencies().size() && layout::format_sizes(input_padd._upper_size, def_fmt)[concat_axis] != 0)
+            if (idx != concat_node.get_dependencies().size() && input_padd._upper_size[concat_axis] != 0)
                 return false;
-            if (idx != 0 && layout::format_sizes(input_padd._lower_size, def_fmt)[concat_axis] != 0)
+            if (idx != 0 && input_padd._lower_size[concat_axis] != 0)
                 return false;
         }
         if (!concat_node.is_dynamic() || is_runtime)

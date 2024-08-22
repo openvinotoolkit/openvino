@@ -914,10 +914,10 @@ void primitive_inst::fill_shape_info_data(const layout& runtime_layout, const la
         GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << shape_with_max_rank[j] << std::endl;
         shape_info_ptr[offset++] = static_cast<int32_t>(shape_with_max_rank[j]);
     }
-    auto dynamic_pad = layout::format_sizes(node_layout.data_padding._dynamic_pad_dims, shape_info_fmt);
+    const auto& dynamic_pad = node_layout.data_padding._dynamic_pad_dims;
     const auto& data_padding = runtime_layout.data_padding;
-    auto lower_pads = layout::format_sizes(data_padding._lower_size, shape_info_fmt);
-    auto upper_pads = layout::format_sizes(data_padding._upper_size, shape_info_fmt);
+    const auto& lower_pads = data_padding._lower_size;
+    const auto& upper_pads = data_padding._upper_size;
     for (size_t j = 0; j < shape_with_max_rank.size(); ++j) {
         if (dynamic_pad[j] == 1) {
             GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << lower_pads[j]

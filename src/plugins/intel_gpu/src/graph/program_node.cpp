@@ -38,7 +38,7 @@ static size_t get_shape_data_size(const layout& l) {
         return 0;
 
     size_t size = layout::max_rank(); // all dimenstions are stored
-    auto dynamic_pad = layout::format_sizes(l.data_padding._dynamic_pad_dims, format::get_default_format(layout::max_rank()));
+    const auto& dynamic_pad = l.data_padding._dynamic_pad_dims;
     for (size_t j = 0; j < layout::max_rank(); ++j) {
         if (dynamic_pad[j] == 1) {
             size += 2; // lower + upper

@@ -439,9 +439,11 @@ struct layout {
     }
 
     /// @brief Returns a vector of tensors values, ordered regarding to @p format from the default format.
-    template <class T>
-    inline static std::vector<int32_t> format_sizes(const T _sizes, const cldnn::format &fmt,
-                                                            const int32_t default_val = 1) {
+    /// @param _sizes an array that supports operator[] and stores data in the same order as shape.
+    /// e.g. it could be std::vector, std::array, or std::bitset, etc.
+    template <class TArray>
+    inline static std::vector<int32_t> format_sizes(const TArray _sizes, const cldnn::format &fmt,
+                                                    const int32_t default_val = 1) {
         const auto& output_order = fmt.order();
         std::vector<int32_t> sizes(output_order.size(), default_val);
 
