@@ -397,6 +397,7 @@ void LLMMLP::execute(dnnl::stream strm) {
 }
 
 bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+#if defined(OPENVINO_ARCH_X86_64)
     try {
         const auto node_mlp = std::dynamic_pointer_cast<const LLMMLPNode>(op);
         if (node_mlp) {
@@ -424,6 +425,9 @@ bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
         return false;
     }
     return true;
+#else
+    return false;
+#endif
 }
 
 }  // namespace node

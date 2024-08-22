@@ -262,6 +262,7 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
 }
 
 bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+#if defined(OPENVINO_ARCH_X86_64)
     try {
         const auto node_qkv = std::dynamic_pointer_cast<const QKVProjectionNode>(op);
         if (node_qkv) {
@@ -292,6 +293,9 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
         return false;
     }
     return true;
+#else
+    return false;
+#endif
 }
 
 }  // namespace node
