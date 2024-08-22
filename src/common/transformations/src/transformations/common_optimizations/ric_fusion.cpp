@@ -28,8 +28,8 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
-#include "transformations/utils/utils.hpp"
 #include "openvino/pass/backward_graph_rewrite.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace pass {
