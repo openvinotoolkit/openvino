@@ -204,7 +204,12 @@ void regclass_frontend_FrontEnd(py::module m) {
     fem.def(
         "add_extension",
         [](FrontEnd& self, const py::object& extension_path) {
-            return self.add_extension(Common::utils::convert_path_to_string(extension_path));
+            std::string model_path = Common::utils::convert_path_to_string(extension_path);
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+            return self.add_extension(ov::util::string_to_wstring(model_path));
+#else
+            return self.add_extension(model_path);
+#endif
         },
         R"(
                 Add extension defined in external library indicated by a extension_path
