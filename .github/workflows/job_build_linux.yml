@@ -22,6 +22,10 @@ on:
         description: 'OS that is used for building in the form of "ubuntu_20_04"'
         type: string
         required: true
+      cmake-options:
+        description: 'A string of options passed to CMake'
+        type: string
+        required: true
 
 permissions: read-all
 
@@ -61,6 +65,9 @@ jobs:
       MANIFEST_PATH: '/__w/openvino/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_release
     steps:
+      - name: Show cmake options
+        run: echo "${{ inputs.cmake-options }}"
+
       - name: Clone OpenVINO
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
@@ -131,17 +138,7 @@ jobs:
       - name: CMake configure - OpenVINO
         run: |
           cmake \
-            -G "${{ env.CMAKE_GENERATOR }}" \
-            -DENABLE_CPPLINT=OFF \
-            -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_TESTS=ON \
-            -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_OPENCL=ON \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
-            -DCPACK_GENERATOR=TGZ \
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
-            -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
+            ${{ inputs.cmake-options }}
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
