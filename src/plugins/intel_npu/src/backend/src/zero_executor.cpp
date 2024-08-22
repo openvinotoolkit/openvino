@@ -63,14 +63,15 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
                                      _initStructs->getCommandQueueDdiTable(),
                                      _config,
                                      _group_ordinal);
+    _logger.debug("ZeroExecutor::ZeroExecutor - create fence");
+    Fence fence(graph_command_queue, _config);
 
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_GRAPH, itt::domains::LevelZeroBackend, "Executor::ZeroExecutor", "graphCreate");
 
     // _graph is a nullptr for CIP path, a new handle will be obtained from the driver based on the given
     // compiledNetwork _graph gets (reuses) graphHandle from the compiler for CID path
     if (_networkDesc->metadata.graphHandle == nullptr) {
-        _logger.info("Create graph handle on executor");
-        _logger.debug("ZeroExecutor::ZeroExecutor - create graph");
+        _logger.info("ZeroExecutor::ZeroExecutor - Create graph handle on executor");
         ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                              nullptr,
                              ZE_GRAPH_FORMAT_NATIVE,
@@ -83,11 +84,12 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
             _graph_ddi_table_ext->pfnCreate(_initStructs->getContext(), _initStructs->getDevice(), &desc, &_graph));
 
     } else {
-        _logger.info("Reuse graphhandle created from compiler");
+        _logger.info("ZeroExecutor::ZeroExecutor - Reuse graph handle created from compiler");
         _graph = static_cast<ze_graph_handle_t>(_networkDesc->metadata.graphHandle);
     }
 
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetProperties");
+    _logger.debug("ZeroExecutor::ZeroExecutor - performing pfnGetProperties");
     zeroUtils::throwOnFail("pfnGetProperties", _graph_ddi_table_ext->pfnGetProperties(_graph, &_props));
     auto targetDriverExtVersion = _initStructs->getDriverExtVersion();
     if (targetDriverExtVersion <= ZE_GRAPH_EXT_VERSION_1_1) {
@@ -114,9 +116,6 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
     graph_command_list.appendGraphInitialize(_graph);
     _logger.debug("ZeroExecutor::ZeroExecutor - closing graph command list");
     graph_command_list.close();
-
-    _logger.debug("ZeroExecutor::ZeroExecutor - create fence");
-    Fence fence(graph_command_queue, _config);
 
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "queue_execute");
     _logger.debug("ZeroExecutor::ZeroExecutor - performing executeCommandList");
@@ -161,6 +160,7 @@ void ZeroExecutor::mutexUnlock() const {
 }
 
 ZeroExecutor::~ZeroExecutor() {
+    _logger.debug("ZeroExecutor::~ZeroExecutor - pfnDestroy _graph ");
     auto result = _graph_ddi_table_ext->pfnDestroy(_graph);
     if (ZE_RESULT_SUCCESS != result) {
         _logger.error("_graph_ddi_table_ext->pfnDestroy failed %#X", uint64_t(result));
