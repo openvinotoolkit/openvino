@@ -117,7 +117,7 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
     }
 
-    if (desc->input_size > 3) {
+    if (desc->input_size > 4) {
        input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
     }
     if (weights_pshape.size() != 2) {
@@ -127,6 +127,8 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     auto output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
     if (desc->input_size == 3) {
         output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
+    } else if (desc->input_size == 4) {
+        output_size = tensor(input_layout.batch(), input_layout.feature(), weights_layout.batch(), input_layout.spatial(1));
     }
     format output_format = get_preferred_format(node, impl_param);
 
