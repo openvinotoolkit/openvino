@@ -839,7 +839,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     {
         if (_impl == nullptr)
             return ev;
-        const auto& ibuf_layouts = _impl->get_internal_buffer_layouts(*_impl_params);
+        const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
         if (ibuf_layouts.empty())
             return ev;
         GPU_DEBUG_CODE(std::string memalloc_info = "");
@@ -1820,12 +1820,6 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
         allocate_memory = _mem_allocated = available_allocate_memory(_impl_params->output_layouts);
     }
 
-    // Do not allocate zero buffers for constant and reuse memory from program node
-    // if (_is_constant && get_output_layout().count() == 0) {
-    //     _outputs[0] = node.as<data>().get_attached_memory_ptr();
-    //     allocate_memory = false;
-    // }
-
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // synchronization, The output memory of such primitive will be fused with mutable_data
@@ -1876,7 +1870,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
 memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return nullptr;
-    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts(*_impl_params);
+    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
     if (ibuf_layouts.empty())
         return nullptr;
 
@@ -1905,11 +1899,12 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     }
 
     int64_t available_device_mem_size = engine.get_device_info().max_global_mem_size - total_device_mem_size;
+    // TODO: check if this logic is needed
     // check if there is any device mem input
     if (engine.supports_allocation(allocation_type::usm_device)) {
         for (const auto& dep : inst_deps) {
-            if (!dep.first->mem_allocated()) continue;
-            if (dep.first->output_memory().get_allocation_type() == allocation_type::usm_device) {
+            if (dep.first->output_memory_ptr() &&
+                dep.first->output_memory_ptr()->get_allocation_type() == allocation_type::usm_device) {
                 input_device_mem = true;
                 break;
             }
@@ -1918,7 +1913,7 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     // allocate intermediate memory for the updated layout of buffer
     auto layout = ibuf_layouts[idx];
     auto alloc_type = allocation_type::unknown;
-    const auto& lockable_buffers_indexes = _impl->get_lockable_internal_buffers(*_impl_params);
+    const auto& lockable_buffers_indexes = _impl->get_lockable_internal_buffers();
     auto need_lockable_allocation = lockable_buffers_indexes.find(idx) != lockable_buffers_indexes.end();
     GPU_DEBUG_LOG << "[" << _node->id() << ": internal buf " << idx << "] "
                   << layout.to_short_string() << " need_lockable_allocation=" << need_lockable_allocation << std::endl;
@@ -1956,7 +1951,7 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
 void primitive_inst::allocate_internal_buffers(bool reset) {
     if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return;
-    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts(*_impl_params);
+    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
     if (ibuf_layouts.empty())
         return;
 

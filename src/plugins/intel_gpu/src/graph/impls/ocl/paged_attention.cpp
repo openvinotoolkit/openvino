@@ -69,7 +69,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         }
     }
 
-    std::vector<layout> get_internal_buffer_layouts_impl(const kernel_impl_params& params) const override {
+    std::vector<layout> get_internal_buffer_layouts_impl() const override {
         auto add_internal_buffers = [](std::vector<layout>& layouts, const kernel_selector::KernelData& kd) {
             if (kd.internalBufferSizes.empty())
                 return;
@@ -84,13 +84,8 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         };
 
         std::vector<layout> layouts;
-        if (is_prefill_stage(params)) {
-            add_internal_buffers(layouts, _kernels_data[Stage::KV_CACHE_UPDATE]);
-            add_internal_buffers(layouts, _kernels_data[Stage::SDPA]);
-        } else {
-            add_internal_buffers(layouts, _kernels_data[Stage::KV_CACHE_UPDATE]);
-            add_internal_buffers(layouts, _kernels_data[Stage::PA_SDPA]);
-        }
+        add_internal_buffers(layouts, _kernels_data[Stage::SDPA]);
+        add_internal_buffers(layouts, _kernels_data[Stage::PA_SDPA]);
 
         return layouts;
     }
@@ -144,8 +139,8 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         return args;
     }
 
-    std::set<size_t> get_lockable_internal_buffers(const kernel_impl_params& params) const override {
-        return is_prefill_stage(params) ? std::set<size_t>{ 0, 1, 2 } : std::set<size_t>{};
+    std::set<size_t> get_lockable_internal_buffers() const override {
+        return std::set<size_t>{ 0, 1, 2 }; /* SDPA and KV_CACHE_UPDATE indexes configuration */
     };
 
     void execute_stage(const std::vector<event::ptr>& events, paged_attention_inst& instance, std::vector<event::ptr>& all_events, size_t stage) {
@@ -155,6 +150,17 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         for (size_t s = 0; s < stage; s++) {
             kernel_offset += _kernels_data[s].kernels.size();
         }
+
+        // Stages SDPA and KV_CACHE_UPDATE reuse the same internal buffers at prefill stage
+        size_t internal_buffers_offset = 0;
+        size_t internal_buffers_count = 0;
+        if (stage == Stage::PA_SDPA) {
+            internal_buffers_offset = _kernels_data[Stage::SDPA].internalBufferSizes.size();
+            internal_buffers_count = _kernels_data[Stage::PA_SDPA].internalBufferSizes.size();
+        } else {
+            internal_buffers_count = _kernels_data[Stage::SDPA].internalBufferSizes.size();
+        }
+
         for (size_t kd_idx = 0; kd_idx < _kernels_data[stage].kernels.size(); ++kd_idx) {
             if (_kernels_data[stage].kernels[kd_idx].skip_execution)
                 continue;
@@ -168,9 +174,10 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             auto args = get_arguments(instance, stage, kd_idx);
             args.scalars = &params.scalars;
 
-            for (const auto& m : instance.get_intermediates_memories()) {
-                args.intermediates.push_back(m);
-            }
+            const auto& intermediate_memories = instance.get_intermediates_memories();
+            args.intermediates.insert(args.intermediates.end(),
+                                      intermediate_memories.begin() + internal_buffers_offset,
+                                      intermediate_memories.begin() + internal_buffers_offset + internal_buffers_count);
 
             stream.set_arguments(*_kernels[idx_final], _kernels_data[stage].kernels[kd_idx].params, args);
 
