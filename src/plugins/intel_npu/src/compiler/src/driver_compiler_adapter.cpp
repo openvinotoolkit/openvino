@@ -110,8 +110,9 @@ void LevelZeroCompilerAdapter::release(std::shared_ptr<const NetworkDescription>
     apiAdapter->release(networkDescription);
 }
 
-void LevelZeroCompilerAdapter::fillCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) {
-    apiAdapter->fillCompiledNetwork(networkDescription);
+std::vector<uint8_t> LevelZeroCompilerAdapter::getCompiledNetwork(
+    std::shared_ptr<const NetworkDescription> networkDescription) {
+    return apiAdapter->getCompiledNetwork(networkDescription);
 }
 
 }  // namespace driverCompilerAdapter

@@ -204,7 +204,10 @@ public:
     virtual void release([[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription){};
 
     // Needed only by the driver compiler, to populate the actual blob content inside the NetworkDescription
-    virtual void fillCompiledNetwork([[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription){};
+    virtual std::vector<uint8_t> getCompiledNetwork(
+        [[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription) {
+        return std::vector<uint8_t>();
+    }
 
 protected:
     virtual ~ICompiler() = default;

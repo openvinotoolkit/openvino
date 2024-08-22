@@ -135,27 +135,22 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 }
 
 void CompiledModel::export_model(std::ostream& stream) const {
+    std::stringstream str;
     if (_networkPtr->compiledNetwork.size() == 0 && _networkPtr->metadata.graphHandle != nullptr) {
-        _compiler->fillCompiledNetwork(_networkPtr);
+        const auto blob = _compiler->getCompiledNetwork(_networkPtr);
+        stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
+        str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
+    } else {
+        const auto& blob = _networkPtr->compiledNetwork;
+        stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
+        str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
     }
+    _logger.info(str.str().c_str());
 
-    const auto& blob = _networkPtr->compiledNetwork;
-    stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
     } else {
         _logger.info("Write blob to stream successfully.");
-    }
-
-    std::stringstream str;
-    str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
-    _logger.info(str.str().c_str());
-    // If graphHandle is not a nullptr it means there is still an instance of the blob maintained inside the driver and
-    // we can release the copy of the blob here to reduce memory consumption.
-    if (_networkPtr->metadata.graphHandle != nullptr) {
-        auto& blobFilled = const_cast<NetworkDescription*>(_networkPtr.get())->compiledNetwork;
-        blobFilled.clear();
-        blobFilled.shrink_to_fit();
     }
 }
 
