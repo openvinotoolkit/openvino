@@ -138,8 +138,6 @@ static void jit_convert_process(dnnl::impl::cpu::aarch64::jit_generator* h,
     switch (output_type) {
         case ov::element::f32:
             switch (input_type) {
-                case ov::element::f32:
-                    break;
                 case ov::element::i32:
                     cvt_i32_to_f32<isa>(h, in_idxs, out_idxs);
                     break;
@@ -160,8 +158,6 @@ static void jit_convert_process(dnnl::impl::cpu::aarch64::jit_generator* h,
             switch (input_type) {
                 case ov::element::f32:
                     cvt_f32_to_i32<isa>(h, in_idxs, out_idxs);
-                    break;
-                case ov::element::i32:
                     break;
                 case ov::element::f16:
                     cvt_f16_to_f32<isa>(h, in_idxs, out_idxs);
@@ -184,8 +180,6 @@ static void jit_convert_process(dnnl::impl::cpu::aarch64::jit_generator* h,
                 case ov::element::i32:
                     cvt_i32_to_f32<isa>(h, in_idxs, out_idxs);
                     cvt_f32_to_f16<isa>(h, out_idxs, out_idxs);
-                    break;
-                case ov::element::f16:
                     break;
                 case ov::element::i8:
                 case ov::element::u8:
