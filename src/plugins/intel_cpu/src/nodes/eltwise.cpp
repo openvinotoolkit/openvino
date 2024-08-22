@@ -3125,7 +3125,9 @@ bool Eltwise::canFuse(const NodePtr& node) const {
                Algorithm::EltwiseBitwiseAnd,
                Algorithm::EltwiseBitwiseNot,
                Algorithm::EltwiseBitwiseOr,
-               Algorithm::EltwiseBitwiseXor) ||
+               Algorithm::EltwiseBitwiseXor,
+               Algorithm::EltwiseBitwiseLeftShift,
+               Algorithm::EltwiseBitwiseRightShift) ||
         one_of(node->getAlgorithm(),
                Algorithm::EltwiseLog,
                Algorithm::EltwiseBitwiseAnd,
