@@ -371,7 +371,7 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
 
     auto selectSPDwithType = [&](const impl_desc_type type) {
         int selectedPrimitive = -1;
-        int reorderCostScore = std::numeric_limits<int>::max();
+        int bestEstimate = std::numeric_limits<int>::max();
         for (size_t i = 0; i < getSupportedPrimitiveDescriptors().size(); i++) {
             const auto& supportedPrimitiveDesc = getSupportedPrimitiveDescriptors()[i];
             const impl_desc_type supportedType = supportedPrimitiveDesc.getImplementationType();
@@ -396,8 +396,8 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
 
             auto estimate = estimateReorderOverhead(supportedPrimitiveDesc, i);
 
-            if (estimate < reorderCostScore) {
-                reorderCostScore = estimate;
+            if (estimate < bestEstimate) {
+                bestEstimate = estimate;
                 selectedPrimitive = static_cast<int>(i);
                 DEBUG_LOG(getName(), " Select primitive desc: ", i, " ", supportedPrimitiveDesc);
             }
