@@ -608,7 +608,7 @@ public:
     }
 
     const pugi::xml_node& get_pugi_node() const override {
-        if (!m_meta_node.empty() && !m_accessible_by_pugixml_node)  {
+        if (!m_meta_node.empty() && !m_accessible_by_pugixml_node) {
             // Meta cannot be accessed by pugixml node. Return empty node
             m_meta_node = pugi::xml_node();
         }
