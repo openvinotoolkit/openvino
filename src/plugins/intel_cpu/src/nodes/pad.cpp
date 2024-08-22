@@ -183,7 +183,20 @@ void Pad::createPrimitive() {
         dstMemory.push_back(getDstMemoryAtPort(0));
     }
     if (inputShapesDefined() && isExecutable() && !shapeHasDataDependency) {
+        // WA to prevent reading uninitialized data in case of the pad value is a parameter
+        MemoryCPtr padValue = srcMemory.size() > PAD_VALUE_ID ? srcMemory[PAD_VALUE_ID] : nullptr;
+        if (padValue && !getParentEdgeAt(PAD_VALUE_ID)->getParent()->isConstant()) {
+            //set artificial zero memory just to avoid reading garbage from the uninitilized input
+            auto tmpPadValue = std::make_shared<Memory>(getEngine(), padValue->getDescPtr());
+            tmpPadValue->nullify();
+            srcMemory[PAD_VALUE_ID] = tmpPadValue;
+        }
         prepareParams();
+        if (padValue) {
+            // restore original memory object
+            srcMemory[PAD_VALUE_ID] = padValue;
+        }
+
         updateLastInputDims();
     }
 }
