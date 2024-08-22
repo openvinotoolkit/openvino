@@ -745,8 +745,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         // If graphHandle is not a nullptr it means there is still an instance of the blob maintained inside the driver
         // and we can release the copy of the blob here to reduce memory consumption.
         if (meta.graphHandle != nullptr) {
-            blob.clear();
-            blob.shrink_to_fit();
+            // TODO: Not share handle and keep blob in profiling case now
+            if (localConfig.get<PERF_COUNT>()) {
+                auto tempMeta = meta;
+                compiler->release(
+                    std::make_shared<const NetworkDescription>(std::vector<uint8_t>(), std::move(tempMeta)));
+                meta.graphHandle = nullptr;
+            } else {
+                blob.clear();
+                blob.shrink_to_fit();
+            }
         }
         meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
 

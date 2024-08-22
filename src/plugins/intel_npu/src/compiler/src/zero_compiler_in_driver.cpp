@@ -389,8 +389,8 @@ std::vector<uint8_t> LevelZeroCompilerInDriver<TableExtension>::getCompiledNetwo
         _logger.info("LevelZeroCompilerInDriver getCompiledNetwork returning blob");
         return blob;
     } else {
-        OPENVINO_THROW("LevelZeroCompilerInDriver getCompiledNetwork : failed to get blob from nulltpr graphHandle");
-        return std::vector<uint8_t>();
+        _logger.info("return the blob from network description");
+        return networkDescription->compiledNetwork;
     }
 }
 
