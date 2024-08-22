@@ -206,7 +206,7 @@ public:
     // Needed only by the driver compiler, to populate the actual blob content inside the NetworkDescription
     virtual std::vector<uint8_t> getCompiledNetwork(
         [[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription) {
-        return std::vector<uint8_t>();
+        return networkDescription->compiledNetwork;
     }
 
 protected:

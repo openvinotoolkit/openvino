@@ -56,6 +56,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OPENVINO_ASSERT(compiler != nullptr, "NPU CompiledModel: the pointer towards the compiler object is null");
 
     try {
+        _logger.debug("CompiledModel::CompiledModel - performing compile and expecting a network description");
         _networkPtr = std::make_shared<const NetworkDescription>(_compiler->compile(model, config));
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -102,8 +103,10 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
 }
 
 CompiledModel::~CompiledModel() {
+    _logger.debug("CompiledModel::~CompiledModel()");
     // Call compiler to destroy graphHandle only if no executor created
     if (_executorPtr == nullptr) {
+        _logger.debug("CompiledModel::~CompiledModel() - _executorPtr is a nullptr, compiler release _executorPtr");
         _compiler->release(_networkPtr);
     }
 }
@@ -135,16 +138,18 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 }
 
 void CompiledModel::export_model(std::ostream& stream) const {
+    _logger.info("CompiledModel::export_model");
+
+    // FOr CID path mean it get the blob from compiler through pfnGetNativeBinary using
+    // networkDescription->metadata.graphHandle
+
+    // For CIP path mean it get the blob form
+    // networkDescription->compiledNetwork
+    std::vector<uint8_t> blob = _compiler->getCompiledNetwork(_networkPtr);
+
+    stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
     std::stringstream str;
-    if (_networkPtr->compiledNetwork.size() == 0 && _networkPtr->metadata.graphHandle != nullptr) {
-        const auto blob = _compiler->getCompiledNetwork(_networkPtr);
-        stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
-        str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
-    } else {
-        const auto& blob = _networkPtr->compiledNetwork;
-        stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
-        str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
-    }
+    str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
     _logger.info(str.str().c_str());
 
     if (!stream) {

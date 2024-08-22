@@ -335,8 +335,11 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
 
 template <typename TableExtension>
 void LevelZeroCompilerInDriver<TableExtension>::release(std::shared_ptr<const NetworkDescription> networkDescription) {
+    _logger.debug("LevelZeroCompilerInDriver<TableExtension>::release");
     if (networkDescription->metadata.graphHandle != nullptr) {
+        _logger.debug("LevelZeroCompilerInDriver<TableExtension>::release - graphHandle is not nullptr");
         ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription->metadata.graphHandle);
+        _logger.debug("LevelZeroCompilerInDriver<TableExtension>::release - pfnDestroy graphHandle");
         auto result = _graphDdiTableExt->pfnDestroy(graphHandle);
 
         if (ZE_RESULT_SUCCESS != result) {
@@ -345,12 +348,14 @@ void LevelZeroCompilerInDriver<TableExtension>::release(std::shared_ptr<const Ne
                           uint64_t(result));
         }
     }
+    _logger.debug("LevelZeroCompilerInDriver<TableExtension>::release completed");
 }
 
 template <typename TableExtension>
 std::vector<uint8_t> LevelZeroCompilerInDriver<TableExtension>::getCompiledNetwork(
     std::shared_ptr<const NetworkDescription> networkDescription) {
     if (networkDescription->metadata.graphHandle != nullptr) {
+        _logger.info("LevelZeroCompilerInDriver getCompiledNetwork get blob from graphHandle");
         ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription->metadata.graphHandle);
 
         // Get blob size first
@@ -381,8 +386,11 @@ std::vector<uint8_t> LevelZeroCompilerInDriver<TableExtension>::getCompiledNetwo
                         uint64_t(result),
                         ". ",
                         getLatestBuildError());
-
-        return std::move(blob);
+        _logger.info("LevelZeroCompilerInDriver getCompiledNetwork returning blob");
+        return blob;
+    } else {
+        OPENVINO_THROW("LevelZeroCompilerInDriver getCompiledNetwork : failed to get blob from nulltpr graphHandle");
+        return std::vector<uint8_t>();
     }
 }
 
@@ -662,6 +670,8 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQuery
                               ZE_GRAPH_FLAG_NONE};
 
     // Create querynetwork handle
+    _logger.debug("LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQueryNetworkCreateV2 - performing "
+                  "pfnQueryNetworkCreate2");
     ze_result_t result = _graphDdiTableExt->pfnQueryNetworkCreate2(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
 
     if (ZE_RESULT_SUCCESS != result) {
@@ -816,6 +826,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
                               buildFlags.c_str(),
                               flags};
 
+    _logger.debug("evelZeroCompilerInDriver<TableExtension>::createGraph - performing pfnCreate2");
     // Create querynetwork handle
     auto result = _graphDdiTableExt->pfnCreate2(_context, _deviceHandle, &desc, graph);
     if (ZE_RESULT_SUCCESS != result) {
@@ -857,6 +868,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreat
     }
 
     _logger.info("compileIR Using extension version: %s", typeid(TableExtension).name());
+    _logger.info("LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreateGraph - performing createGraph");
     ze_result_t result = createGraph(format, serializedIR, buildFlags, flags, &graphHandle);
 
     if (ZE_RESULT_SUCCESS != result) {
