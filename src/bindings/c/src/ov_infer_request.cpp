@@ -350,7 +350,7 @@ void ov_profiling_info_list_free(ov_profiling_info_list_t* profiling_infos) {
         delete[] profiling_infos->profiling_infos[i].exec_type;
         delete[] profiling_infos->profiling_infos[i].node_type;
     }
-    
+
     delete[] profiling_infos->profiling_infos;
     profiling_infos->profiling_infos = nullptr;
     profiling_infos->size = 0;
