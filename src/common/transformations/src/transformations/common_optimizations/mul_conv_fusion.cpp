@@ -40,9 +40,9 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
         const auto& mul_const = pattern_to_output.at(mul_const_pattern);
         const auto& input = pattern_to_output.at(input_pattern);
 
-        auto weights_shape = weights.get_shape();
-        auto mul_const_shape = mul_const.get_shape();
-        auto input_shape = input.get_shape();
+        auto weights_shape = weights.get_partial_shape();
+        auto mul_const_shape = mul_const.get_partial_shape();
+        auto input_shape = input.get_partial_shape();
 
         // Check if constant in multiply broadcasts input's shape.
         // If this is the case, we cannot perform the transformation as
@@ -282,8 +282,7 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
             auto C = mul_const_shape[1] / G;
             Shape new_shape{G, C, 1};
             new_shape.insert(new_shape.end(), mul_const_shape.size() - 2, 1);
-            PartialShape weights_shape_copy = weights_shape;
-            if (!ov::op::util::check_for_broadcast(weights_shape_copy, new_shape)) {
+            if (!ov::op::util::check_for_broadcast(weights_shape, new_shape)) {
                 return false;
             }
             mul_const = std::make_shared<ov::op::v1::Reshape>(
