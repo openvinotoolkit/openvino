@@ -246,7 +246,7 @@ inline ParseResult parse_xml(const char* file_path) {
 
         return {std::move(xml), error_msg};
     } catch (std::exception& e) {
-        return { nullptr, std::string("Error loading XML file: ") + e.what() };
+        return {nullptr, std::string("Error loading XML file: ") + e.what()};
     }
 }
 }  // namespace pugixml
