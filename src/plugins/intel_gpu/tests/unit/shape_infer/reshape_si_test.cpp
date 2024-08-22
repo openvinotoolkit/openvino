@@ -33,7 +33,7 @@ struct reshape_test_params {
 inline padding get_pad(format fmt, std::vector<int64_t> axes, bool is_dynamic) {
     std::vector<int32_t> lower(fmt.dimension(), 0);
     std::vector<int32_t> upper(fmt.dimension(), 0);
-    std::vector<int32_t> mask(fmt.dimension(), 0);
+    padding::DynPadDimsMask mask; // empty mask resetted
 
     auto start_pad_val = 13;
     for (auto& axis : axes) {
@@ -45,7 +45,7 @@ inline padding get_pad(format fmt, std::vector<int64_t> axes, bool is_dynamic) {
         start_pad_val += 5;
     }
 
-    return padding(lower, upper, 0.0f, mask);
+    return padding(lower, upper, mask);
 }
 
 class reshape_test_two_inputs : public testing::TestWithParam<reshape_test_params> {};

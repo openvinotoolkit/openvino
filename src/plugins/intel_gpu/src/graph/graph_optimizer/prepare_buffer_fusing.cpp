@@ -288,7 +288,7 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
     if (concat_out_layout.is_dynamic() && !is_runtime) {
         // set dynamic pad dims for shape agnostic kernel
         for (auto& dep_output_layout : preds_layouts) {
-            auto info_dynamic_pad = tensor(0).sizes();
+            padding::DynPadDimsMask info_dynamic_pad;
             info_dynamic_pad[concat_axis_legacy] = 1;
             dep_output_layout.data_padding.set_dynamic_pad_dims(info_dynamic_pad);
         }
@@ -312,7 +312,7 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
     // In other case match(...) already checked that only first/last input have lower/upper padding.
     lower_padd[concat_axis_legacy] = concat_out_layout.data_padding._lower_size[concat_axis_legacy];
     upper_padd[concat_axis_legacy] = concat_out_layout.data_padding._upper_size[concat_axis_legacy];
-    auto dyn_pad_dims = lower_padd;
+    padding::DynPadDimsMask dyn_pad_dims;
     dyn_pad_dims[concat_axis_legacy] = 1;
     concat_out_layout.data_padding = padding(lower_padd, upper_padd);
 
@@ -329,9 +329,9 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
 
         // set new padding for input
         if (is_runtime)
-            pred_layout.data_padding = padding(lower_padd, upper_padd, 0.f, dyn_pad_dims);
+            pred_layout.data_padding = padding(lower_padd, upper_padd, dyn_pad_dims);
         else
-            pred_layout.data_padding = padding(lower_padd, upper_padd, 0.f);
+            pred_layout.data_padding = padding(lower_padd, upper_padd);
         // move lower padd further
         //
         //   |-------------- lower padd -------------|---------- upper padd -----------|
@@ -592,7 +592,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
 
     // If it's build-time and node is dynamic, only dynamic padding is set first
     if ((crop_layout.is_dynamic() || input_layout.is_dynamic()) && !is_runtime) {
-        auto info_dynamic_pad = tensor(0).sizes();
+        padding::DynPadDimsMask info_dynamic_pad;
         info_dynamic_pad[crop_axis_legacy] = 1;
         crop_layout.data_padding.set_dynamic_pad_dims(info_dynamic_pad);
         return;
@@ -624,9 +624,9 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
 
     // set padding
     if (is_runtime) {
-        auto dyn_pad_sizes = lower_sizes;
+        padding::DynPadDimsMask dyn_pad_sizes;
         dyn_pad_sizes[crop_axis_legacy] = 1;
-        crop_layout.data_padding = padding(lower_sizes, upper_sizes, 0.f, dyn_pad_sizes);
+        crop_layout.data_padding = padding(lower_sizes, upper_sizes, dyn_pad_sizes);
     } else {
         crop_layout.data_padding = padding(lower_sizes, upper_sizes);
     }
@@ -642,7 +642,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
 
     // If it's build-time and node is dynamic, only dynamic padding is set first
     if ((crop_layout.is_dynamic() || input_layout.is_dynamic()) && !is_runtime) {
-        auto dyn_pad_sizes = tensor(0).sizes();
+        padding::DynPadDimsMask dyn_pad_sizes;
         dyn_pad_sizes[crop_axis_legacy] = 1;
         crop_layout.data_padding.set_dynamic_pad_dims(dyn_pad_sizes);
 
@@ -662,7 +662,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                     }
                 }
 
-                auto dyn_pad_mask = tensor(0).sizes();
+                padding::DynPadDimsMask dyn_pad_mask;
                 auto reshape_axis_legacy = reshape_axis;
                 dyn_pad_mask[reshape_axis_legacy] = 1;
                 user_info.second.data_padding.set_dynamic_pad_dims(dyn_pad_mask);
@@ -687,9 +687,9 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
     }
 
     if (is_runtime) {
-        auto dyn_pad_sizes = lower_sizes;
+        padding::DynPadDimsMask dyn_pad_sizes;
         dyn_pad_sizes[crop_axis_legacy] = 1;
-        crop_layout.data_padding = padding(lower_sizes, upper_sizes, 0.f, dyn_pad_sizes);
+        crop_layout.data_padding = padding(lower_sizes, upper_sizes, dyn_pad_sizes);
         if (user_info.first) {
             auto reshape_desc = user_info.first->as<reshape>().get_primitive();
             auto reshape_mode = reshape_desc->mode;
@@ -700,7 +700,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                     lower_sizes[crop_axis_legacy] /= reshape_last_dim;
                 if (upper_sizes[crop_axis_legacy])
                     upper_sizes[crop_axis_legacy] /= reshape_last_dim;
-                user_info.second.data_padding = padding(lower_sizes, upper_sizes, 0.f, dyn_pad_sizes);
+                user_info.second.data_padding = padding(lower_sizes, upper_sizes, dyn_pad_sizes);
             } else {
                 auto reshape_ps = user_info.second.get_partial_shape();
                 auto output_pattern = reshape_desc->output_pattern;
@@ -715,14 +715,14 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                 const auto output_rank = std::max(reshape_ps.size(), static_cast<size_t>(4));
                 std::vector<int32_t> reshape_lower_sizes(output_rank, 0);
                 std::vector<int32_t> reshape_upper_sizes(output_rank, 0);
-                std::vector<int32_t> reshape_dyn_pad_mask(output_rank, 0);
+                padding::DynPadDimsMask reshape_dyn_pad_mask;
 
                 const auto reshape_axis_legacy = reshape_axis;
                 reshape_lower_sizes[reshape_axis_legacy] = lower_sizes[crop_axis_legacy];
                 reshape_upper_sizes[reshape_axis_legacy] = upper_sizes[crop_axis_legacy];
                 reshape_dyn_pad_mask[reshape_axis_legacy] = 1;
 
-                user_info.second.data_padding = padding(reshape_lower_sizes, reshape_upper_sizes, 0.f, reshape_dyn_pad_mask);
+                user_info.second.data_padding = padding(reshape_lower_sizes, reshape_upper_sizes, reshape_dyn_pad_mask);
             }
         }
     } else {
@@ -863,7 +863,7 @@ void prepare_buffer_fusing::run(program& p) {
 
             if (kv_out_layout.is_dynamic()) {
                 // set dynamic pad dims for shape agnostic kernel
-                auto info_dynamic_pad = tensor(0).sizes();
+                padding::DynPadDimsMask info_dynamic_pad;
                 info_dynamic_pad[concat_axis_legacy] = 1;
                 kv_out_layout.data_padding.set_dynamic_pad_dims(info_dynamic_pad);
                 node.set_output_layout(kv_out_layout);

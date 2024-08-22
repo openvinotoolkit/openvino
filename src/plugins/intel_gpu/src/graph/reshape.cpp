@@ -97,7 +97,13 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
         }
     }
 
-    return padding(update_pad_lower, update_pad_upper, 0.0f, update_pad_mask);
+    // TODO: rework this method
+    padding::DynPadDimsMask ret_update_pad_mask;
+    OPENVINO_ASSERT(update_pad_mask.size() <= ret_update_pad_mask.size(), "invalid update_pad_mask.size().");
+    for (size_t i = 0; i < update_pad_mask.size(); i++) {
+        ret_update_pad_mask[i] = update_pad_mask[i];
+    }
+    return padding(update_pad_lower, update_pad_upper, ret_update_pad_mask);
 }
 
 layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_params const& impl_param) {

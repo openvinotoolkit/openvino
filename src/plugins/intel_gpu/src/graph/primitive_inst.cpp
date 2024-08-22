@@ -987,10 +987,10 @@ bool primitive_inst::update_impl(bool use_async_compilation) {
         }
 
         for (auto& i : updated_params.input_layouts) {
-            i.data_padding.set_dynamic_pad_dims({});
+            i.data_padding.set_dynamic_pad_dims(padding::EMPTY_MASK);
         }
         for (auto& o : updated_params.output_layouts) {
-            o.data_padding.set_dynamic_pad_dims({});
+            o.data_padding.set_dynamic_pad_dims({padding::EMPTY_MASK});
         }
 
         const auto is_current_impl_dynamic = _impl && _impl->is_dynamic();

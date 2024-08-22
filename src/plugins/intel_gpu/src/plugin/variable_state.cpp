@@ -58,11 +58,10 @@ void VariableState::set_layout(const cldnn::layout& new_layout) {
 void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
     auto src_shape = state->get_shape();
     size_t src_rank = src_shape.size();
-    std::vector<int32_t> dynamic_pad_dims;
-    dynamic_pad_dims.assign(m_layout.data_padding._dynamic_pad_dims.begin(), m_layout.data_padding._dynamic_pad_dims.begin() + src_rank);
+    cldnn::padding::DynPadDimsMask dynamic_pad_dims;
+    for (size_t i = 0; i < src_rank; i++) dynamic_pad_dims[i] = m_layout.data_padding._dynamic_pad_dims[i];
     m_layout.data_padding = cldnn::padding(std::vector<int32_t>(src_rank, 0),
                                            std::vector<int32_t>(src_rank, 0),
-                                           0,
                                            dynamic_pad_dims);
     auto src_stride = state->get_strides();
     for (size_t i = 0; i < src_rank; ++i) {

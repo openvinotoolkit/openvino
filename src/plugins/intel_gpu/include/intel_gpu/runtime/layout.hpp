@@ -14,6 +14,7 @@
 #include <string>
 #include <functional>
 #include <array>
+#include <bitset>
 
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -131,50 +132,39 @@ constexpr size_t SHAPE_RANK_MAX = 9;
 
 /// @brief Represents data padding information.
 struct padding {
-    std::array<tensor::value_type, SHAPE_RANK_MAX> _lower_size = {0};  ///< Lower padding sizes. For spatials, it means size of left (X) and top (Y) padding.
-    std::array<tensor::value_type, SHAPE_RANK_MAX> _upper_size = {0};  ///< Upper padding sizes.
-    std::array<tensor::value_type, SHAPE_RANK_MAX> _dynamic_pad_dims = {0};   ///< A mask saying which dimension has dynamic pad
+    using DynPadDimsMask = std::bitset<SHAPE_RANK_MAX>;
+    static constexpr DynPadDimsMask EMPTY_MASK{0x0};
 
-    /// @brief Filling value for padding area.
-    float filling_value() const { return _filling_value; }
+    std::array<int32_t, SHAPE_RANK_MAX> _lower_size = {0};  ///< Lower padding sizes. For spatials, it means size of left (X) and top (Y) padding.
+    std::array<int32_t, SHAPE_RANK_MAX> _upper_size = {0};  ///< Upper padding sizes. For spatials, it means size of right (X) and bottom (Y) padding.
+    DynPadDimsMask _dynamic_pad_dims = EMPTY_MASK;         ///< A mask saying which dimension has dynamic pad
 
-    void set_dynamic_pad_dims(const std::vector<tensor::value_type>& other) {
-        OPENVINO_ASSERT(other.size() <= SHAPE_RANK_MAX, "vector size exceeds maximum rank!");
-        std::copy_n(other.begin(), other.size(), _dynamic_pad_dims.begin());
-        std::fill(_dynamic_pad_dims.begin() + other.size(), _dynamic_pad_dims.end(), 0);
+    void set_dynamic_pad_dims(const DynPadDimsMask& dynamic_pad_dims) {
+        _dynamic_pad_dims = dynamic_pad_dims;
     }
 
     /// @brief
-    /// @param lower_sizes Top-left padding sizes. See @ref tensor::tensor(const std::vector<value_type>&, value_type) for details.
-    /// @param upper_sizes Bottom-right padding sizes. See @ref tensor::tensor(const std::vector<value_type>&, value_type) for details.
-    /// @param filling_value Filling value for padding area.
-    padding(const std::vector<tensor::value_type>& lower_sizes,
-            const std::vector<tensor::value_type>& upper_sizes,
-            float filling_value = 0.0f,
-            const std::vector<tensor::value_type>& dynamic_pad_dims = {})
-        : _filling_value(filling_value) {
+    /// @param lower_sizes Top-left padding sizes, in the same size and order as shape.
+    /// @param upper_sizes Bottom-right padding sizes, in the same size and order as shape.
+    padding(const std::vector<int32_t>& lower_sizes,
+            const std::vector<int32_t>& upper_sizes,
+            const DynPadDimsMask& dynamic_pad_dims = EMPTY_MASK) {
             // paddings
             OPENVINO_ASSERT(lower_sizes.size() <= SHAPE_RANK_MAX);
             OPENVINO_ASSERT(upper_sizes.size() <= SHAPE_RANK_MAX);
-            OPENVINO_ASSERT(dynamic_pad_dims.size() <= SHAPE_RANK_MAX);
-            if (lower_sizes.size() > 0) std::copy_n(to_abs(lower_sizes).begin(), lower_sizes.size(), _lower_size.begin());
-            if (upper_sizes.size() > 0) std::copy_n(to_abs(upper_sizes).begin(), upper_sizes.size(), _upper_size.begin());
-            if (dynamic_pad_dims.size() > 0) {
-                std::copy_n(to_abs(dynamic_pad_dims).begin(), dynamic_pad_dims.size(), _dynamic_pad_dims.begin());
-                std::fill(_dynamic_pad_dims.begin() + dynamic_pad_dims.size(), _dynamic_pad_dims.end(), 0);
-            }
+            if (lower_sizes.size() > 0) std::copy_n(lower_sizes.begin(), lower_sizes.size(), _lower_size.begin());
+            if (upper_sizes.size() > 0) std::copy_n(upper_sizes.begin(), upper_sizes.size(), _upper_size.begin());
+            _dynamic_pad_dims = dynamic_pad_dims;
           }
 
     /// @brief Constrcuts symmetric padding.
-    /// @param sizes Top-left and bottom-right padding sizes. See @ref tensor::tensor(const std::vector<value_type>&,
-    /// value_type) for details.
-    /// @param filling_value Filling value for padding area.
-    explicit padding(const std::vector<tensor::value_type>& sizes, float filling_value = 0.0f,
-                     const std::vector<tensor::value_type>& dynamic_pad_dims = {})
-        : padding(sizes, sizes, filling_value, dynamic_pad_dims) {}
+    /// @param sizes Top-left and bottom-right padding sizes, in the same size and order as shape.
+    explicit padding(const std::vector<int32_t>& sizes,
+                     const DynPadDimsMask& dynamic_pad_dims = EMPTY_MASK)
+        : padding(sizes, sizes, dynamic_pad_dims) {}
 
     /// @brief Constructs "zero-sized" padding.
-    padding() : padding({}, 0, {}) {}
+    padding() : padding({}, EMPTY_MASK) {}
 
     /// @brief Returns true if padding size is not zero.
     explicit operator bool() const {
@@ -183,14 +173,13 @@ struct padding {
     }
 
     bool is_dynamic_pad() const {
-        return std::any_of(_dynamic_pad_dims.begin(), _dynamic_pad_dims.end(), [](int i){ return i > 0; });
+        return _dynamic_pad_dims.any();
     }
 
     friend bool operator==(const padding& lhs, const padding& rhs) {
-        return lhs._filling_value == rhs._filling_value &&
+        return lhs._dynamic_pad_dims == rhs._dynamic_pad_dims &&
             std::equal(std::begin(lhs._lower_size), std::end(lhs._lower_size), std::begin(rhs._lower_size)) &&
-            std::equal(std::begin(lhs._upper_size), std::end(lhs._upper_size), std::begin(rhs._upper_size)) &&
-            std::equal(std::begin(lhs._dynamic_pad_dims), std::end(lhs._dynamic_pad_dims), std::begin(rhs._dynamic_pad_dims));
+            std::equal(std::begin(lhs._upper_size), std::end(lhs._upper_size), std::begin(rhs._upper_size));
     }
 
     friend bool operator!=(const padding& lhs, const padding& rhs) {
@@ -198,9 +187,6 @@ struct padding {
     }
 
     friend bool operator<(const padding& lhs, const padding& rhs) {
-        if (lhs._filling_value != rhs._filling_value)
-            return (lhs._filling_value < rhs._filling_value);
-
         for (size_t i = 0; i < sizeof(lhs._lower_size); ++i) {
             if (lhs._lower_size[i] < rhs._lower_size[i])
                 return true;
@@ -215,60 +201,45 @@ struct padding {
                 return false;
         }
 
+        // TODO: how about dynamic_pad_dims?
+
         return false;
     }
 
-    static padding max(padding const& lhs, padding const& rhs, float filling_value = 0.0f) { // Cecilia: FIXME filling_value?
+    static padding max(padding const& lhs, padding const& rhs, float filling_value = 0.0f) {
         auto ret = lhs;
         for (size_t i = 0; i < SHAPE_RANK_MAX; ++i) {
             ret._lower_size[i] = std::max(ret._lower_size[i], rhs._lower_size[i]);
             ret._upper_size[i] = std::max(ret._upper_size[i], rhs._upper_size[i]);
-            ret._dynamic_pad_dims[i] = std::max(ret._dynamic_pad_dims[i], rhs._dynamic_pad_dims[i]);
         }
+        ret._dynamic_pad_dims = ret._dynamic_pad_dims | rhs._dynamic_pad_dims;
         return ret;
     }
 
     size_t hash() const {
         size_t seed = 0;
-        seed = cldnn::hash_combine(seed, _filling_value);
         seed = hash_range(seed, std::begin(_lower_size), std::end(_lower_size));
         seed = hash_range(seed, std::begin(_upper_size), std::end(_upper_size));
-        seed = hash_range(seed, std::begin(_dynamic_pad_dims), std::end(_dynamic_pad_dims));
+        seed = cldnn::hash_combine(seed, _dynamic_pad_dims);
         return seed;
     }
 
     void save(BinaryOutputBuffer& ob) const {
-        std::vector<tensor::value_type> sizes;
+        std::vector<size_t> sizes;
         sizes.assign(_lower_size.begin(), _lower_size.end());
         ob << sizes;
         sizes.assign(_upper_size.begin(), _upper_size.end());
         ob << sizes;
-        ob << _filling_value;
-        sizes.assign(_dynamic_pad_dims.begin(), _dynamic_pad_dims.end());
-        ob << sizes;
+        // ob << _dynamic_pad_dims;
     }
 
     void load(BinaryInputBuffer& ib) {
-        std::vector<tensor::value_type> sizes;
+        std::vector<size_t> sizes;
         ib >> sizes;
         std::copy_n(sizes.begin(), sizes.size(), _lower_size.begin());
         ib >> sizes;
         std::copy_n(sizes.begin(), sizes.size(), _upper_size.begin());
-        ib >> _filling_value;
-        ib >> sizes;
-        std::copy_n(sizes.begin(), sizes.size(), _dynamic_pad_dims.begin());
-    }
-
-private:
-    // TODO: Add support for non-zero filling value (if necessary) or remove variable (if not necessary).
-    float _filling_value;  ///< Filling value for an element of padding. If data type of elements is different than float it is converted
-                           ///< to it using round-towards-nearest-even (for floating-point data types) or round-towards-zero (for integral
-                           ///< data types).
-    static std::vector<tensor::value_type> to_abs(const std::vector<tensor::value_type>& sizes) {
-        std::vector<tensor::value_type> result;
-        result.reserve(sizes.size());
-        std::transform(sizes.cbegin(), sizes.cend(), std::back_inserter(result), [](const tensor::value_type& el) { return abs(el); });
-        return result;  // NRVO
+        // ib >> _dynamic_pad_dims;
     }
 };
 
@@ -291,18 +262,13 @@ struct layout {
                                                                                                    format::is_grouped(fmt)));
             ov::Shape shape(sizes.begin(), sizes.end());
             this->size = ov::PartialShape(shape);
-            // size_t rank = this->size.rank().get_length();
-            // OPENVINO_ASSERT(rank <= SHAPE_RANK_MAX, "shape size exceeds maximum padding size!");
         }
 
     layout(ov::PartialShape size, data_types data_type, cldnn::format fmt, padding apadding = padding())
         : data_type(data_type)
         , format(fmt)
         , data_padding(apadding)
-        , size(size) {
-            // size_t rank = size.rank().get_length();
-            // OPENVINO_ASSERT(rank <= SHAPE_RANK_MAX, "shape size exceeds maximum padding size!");
-        }
+        , size(size) {}
 
     layout(const layout& other) = default;
 
@@ -351,9 +317,6 @@ struct layout {
 
     /// Number of elements to be stored in this layout
     size_t count() const;
-
-    /// Layout size with padding included
-    // tensor get_buffer_size() const;
 
     std::vector<tensor::value_type> get_pitches() const;
 
@@ -470,10 +433,10 @@ struct layout {
 
     /// @brief Returns a vector of tensors values, ordered regarding to @p format from the default format.
     template <class T>
-    inline static std::vector<tensor::value_type> format_sizes(const T _sizes, const cldnn::format &fmt,
-                                                            const tensor::value_type default_val = 1) {
+    inline static std::vector<int32_t> format_sizes(const T _sizes, const cldnn::format &fmt,
+                                                            const int32_t default_val = 1) {
         const auto& output_order = fmt.order();
-        std::vector<tensor::value_type> sizes(output_order.size(), default_val);
+        std::vector<int32_t> sizes(output_order.size(), default_val);
 
         auto default_fmt = format::get_default_format(sizes.size(), format::is_weights_format(fmt), format::is_grouped(fmt));
         const auto& default_order = default_fmt.order();
@@ -484,7 +447,7 @@ struct layout {
             if (pos == std::string::npos)
                 throw std::domain_error(std::string("Unknown coord type: ") + c);
 
-            sizes[i] = static_cast<tensor::value_type>(_sizes[pos]);
+            sizes[i] = static_cast<int32_t>(_sizes[pos]);
         }
 
         return sizes;

@@ -14,6 +14,9 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace cldnn {
+/* c++11 requires to have a definition in cpp file */
+constexpr padding::DynPadDimsMask padding::EMPTY_MASK;
+
 static inline bool check_redundant_1d_along_feature(layout const& l1, layout const& l2);
 namespace {
 
@@ -208,9 +211,7 @@ std::string layout::to_string() const {
       << "\tpad_u=[";
     std::copy(std::begin(data_padding._upper_size), std::end(data_padding._upper_size), std::ostream_iterator<tensor::value_type>(s, ", "));
     s << "];\n"
-      << "\tdyn_pad_dims=[";
-    std::copy(std::begin(data_padding._dynamic_pad_dims), std::end(data_padding._dynamic_pad_dims), std::ostream_iterator<tensor::value_type>(s, ", "));
-    s << "];\n"
+      << "\tdyn_pad_dims=[" << data_padding._dynamic_pad_dims.to_string() << "];\n"
       << "}";
     return s.str();
 }
@@ -519,14 +520,6 @@ bool layout::compatible(const layout& other) const {
 
     auto l1_pitch = l1.get_pitches();
     auto l2_pitch = l2.get_pitches();
-
-    // // ignore pitches which will never be used (for dims with size == 1)
-    // for (size_t i = 0; i < tensor_dim_max; ++i)
-    //     if (l1_size.raw[i] == 1)
-    //         l1_pitch.raw[i] = 0;
-    // for (size_t i = 0; i < tensor_dim_max; ++i)
-    //     if (l2_size.raw[i] == 1)
-    //         l2_pitch.raw[i] = 0;
 
     auto l1_offset = l1.get_linear_offset();
     auto l2_offset = l2.get_linear_offset();

@@ -1557,7 +1557,8 @@ TEST(eltwise_gpu_f32, dynamic_padding) {
     ov::Shape in_shape = {2, 2, 2, 2};
     auto in_layout_1 = layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f32, format::bfyx};
     auto in_const_layout = layout{{1, 1, 1, 2}, data_types::f32, format::bfyx};
-    auto in_layout_2 = layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f32, format::bfyx, padding{{0, 0, 0, 1}, {0, 0, 0, 1}, 0.0f, {0, 0, 0, 1}}};
+    const padding::DynPadDimsMask mask("1000");
+    auto in_layout_2 = layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f32, format::bfyx, padding{{0, 0, 0, 1}, {0, 0, 0, 1}, mask}};
     auto in_mem_layout = layout{ov::PartialShape(in_shape), data_types::f32, format::bfyx};
     auto in_const_mem_layout = layout{{1, 1, 1, 2}, data_types::f32, format::bfyx};
     auto input1 = engine.allocate_memory(in_mem_layout);
@@ -3802,8 +3803,8 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_input_padding)
     topology golden_topology;
     golden_topology.add(input_layout("input1", input1->get_layout()));
     golden_topology.add(input_layout("input2", input2->get_layout()));
-    golden_topology.add(reorder("reorder1", input_info("input1"), layout(data_types::f16, format::bfyx, input_tensor, padding{ {0,0,15,10},0.0f })));
-    golden_topology.add(reorder("reorder2", input_info("input2"), layout(data_types::f16, format::bfyx, input_tensor, padding{ {0,0,7,5},0.0f })));
+    golden_topology.add(reorder("reorder1", input_info("input1"), layout(data_types::f16, format::bfyx, input_tensor, padding{ {0,0,15,10}})));
+    golden_topology.add(reorder("reorder2", input_info("input2"), layout(data_types::f16, format::bfyx, input_tensor, padding{ {0,0,7,5}})));
     golden_topology.add(eltwise("eltwise", input_info("input1"), input_info("input2"), eltwise_mode::sum));
 
     network golden_network(engine, golden_topology, get_test_default_config(engine));
@@ -3818,8 +3819,8 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_input_padding)
     topology FS_B_YX_FSV32_OUTPUT_topology;
     FS_B_YX_FSV32_OUTPUT_topology.add(input_layout("input1", input1->get_layout()));
     FS_B_YX_FSV32_OUTPUT_topology.add(input_layout("input2", input2->get_layout()));
-    FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorder1", input_info("input1"), layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor, padding{ {0,0,15,10},0.0f })));
-    FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorder2", input_info("input2"), layout(data_types::f16, format::byxf, input_tensor, padding{ {0,0,7,5},0.0f })));
+    FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorder1", input_info("input1"), layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor, padding{ {0,0,15,10} })));
+    FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorder2", input_info("input2"), layout(data_types::f16, format::byxf, input_tensor, padding{ {0,0,7,5} })));
     FS_B_YX_FSV32_OUTPUT_topology.add(eltwise("eltwise", input_info("reorder1"), input_info("reorder2"), eltwise_mode::sum));
     FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorderOutput", input_info("eltwise"), layout(data_types::f16, format::bfyx, input_tensor)));
 
@@ -3835,8 +3836,8 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_input_padding)
     topology BYXF_OUTPUT_topology;
     BYXF_OUTPUT_topology.add(input_layout("input1", input1->get_layout()));
     BYXF_OUTPUT_topology.add(input_layout("input2", input2->get_layout()));
-    BYXF_OUTPUT_topology.add(reorder("reorder1", input_info("input1"), layout(data_types::f16, format::byxf, input_tensor, padding{ {0,0,15,10},0.0f })));
-    BYXF_OUTPUT_topology.add(reorder("reorder2", input_info("input2"), layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor, padding{ {0,0,7,5},0.0f })));
+    BYXF_OUTPUT_topology.add(reorder("reorder1", input_info("input1"), layout(data_types::f16, format::byxf, input_tensor, padding{ {0,0,15,10} })));
+    BYXF_OUTPUT_topology.add(reorder("reorder2", input_info("input2"), layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor, padding{ {0,0,7,5} })));
     BYXF_OUTPUT_topology.add(eltwise("eltwise", input_info("reorder1"), input_info("reorder2"), eltwise_mode::sum));
     BYXF_OUTPUT_topology.add(reorder("reorderOutput", input_info("eltwise"), layout(data_types::f16, format::bfyx, input_tensor)));
 
