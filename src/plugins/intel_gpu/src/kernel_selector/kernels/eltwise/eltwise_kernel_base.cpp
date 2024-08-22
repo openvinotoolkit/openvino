@@ -49,6 +49,8 @@ uint32_t GetNumberOfInputs(EltwiseMode m) {
         case EltwiseMode::LOGIC_XOR:
         case EltwiseMode::SQUARED_DIFF:
         case EltwiseMode::FLOOR_MOD:
+        case EltwiseMode::RIGHT_SHIFT:
+        case EltwiseMode::LEFT_SHIFT:
             return 2;
         case EltwiseMode::SQRT:
         case EltwiseMode::RSQRT:
@@ -312,6 +314,12 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 break;
             case EltwiseMode::IS_NAN:
                 op += "(isnan(" + input0_str + "))";
+                break;
+            case EltwiseMode::RIGHT_SHIFT:
+                op += "(" + input0_str + " >> " + input1_str + ")";
+                break;
+            case EltwiseMode::LEFT_SHIFT:
+                op += "(" + input0_str + " << " + input1_str + ")";
                 break;
             default:
                 break;

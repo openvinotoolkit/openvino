@@ -22,6 +22,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/util/binary_elementwise_bitwise.hpp"
 
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -126,6 +127,10 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     }
 }
 
+static bool is_btiwise(Node* node) {
+    return dynamic_cast<const ov::op::util::BinaryElementwiseBitwise*>(node) != nullptr;
+}
+
 static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Constant>& op) {
     ov::Shape constDims = op->get_shape();
     auto constUsers = op->get_output_target_inputs(0);
@@ -137,7 +142,8 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
     auto is_binary_eltwise = [&] (ov::Node* op) -> bool {
         if (ov::op::util::is_binary_elementwise_arithmetic(op) ||
             ov::op::util::is_binary_elementwise_logical(op) ||
-            ov::op::util::is_binary_elementwise_comparison(op)) {
+            ov::op::util::is_binary_elementwise_comparison(op) ||
+            is_btiwise(op)) {
             return true;
         } else {
             return false;

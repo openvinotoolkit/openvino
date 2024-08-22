@@ -14,12 +14,14 @@ ParamsKey EltwiseKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT32);
+    k.EnableInputDataType(Datatype::UINT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT32);
+    k.EnableOutputDataType(Datatype::UINT32);
     k.EnableOutputDataType(Datatype::INT64);
     k.EnableDifferentTypes();
     k.EnableAllInputLayout();

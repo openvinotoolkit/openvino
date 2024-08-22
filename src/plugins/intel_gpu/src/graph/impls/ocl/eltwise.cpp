@@ -171,6 +171,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
         data_types::i8,
         data_types::u8,
         data_types::i32,
+        data_types::u32,
         data_types::i64
     };
 
@@ -193,12 +194,14 @@ attach_eltwise_impl::attach_eltwise_impl() {
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::i8, format::yxfb),
         std::make_tuple(data_types::u8, format::yxfb),
+        std::make_tuple(data_types::u32, format::yxfb),
         std::make_tuple(data_types::i32, format::yxfb),
         std::make_tuple(data_types::i64, format::yxfb),
 
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
+        std::make_tuple(data_types::u32, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
         std::make_tuple(data_types::i32, format::bfyx),
         std::make_tuple(data_types::i64, format::bfyx),
@@ -207,6 +210,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
         std::make_tuple(data_types::f16, format::byxf),
         std::make_tuple(data_types::i8, format::byxf),
         std::make_tuple(data_types::u8, format::byxf),
+        std::make_tuple(data_types::u32, format::byxf),
         std::make_tuple(data_types::i32, format::byxf),
         std::make_tuple(data_types::i64, format::byxf),
 
@@ -219,6 +223,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
         std::make_tuple(data_types::f16, format::bfzyx),
         std::make_tuple(data_types::i8, format::bfzyx),
         std::make_tuple(data_types::u8, format::bfzyx),
+        std::make_tuple(data_types::u32, format::bfzyx),
         std::make_tuple(data_types::i32, format::bfzyx),
         std::make_tuple(data_types::i64, format::bfzyx),
 
@@ -226,6 +231,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
         std::make_tuple(data_types::f16, format::bfwzyx),
         std::make_tuple(data_types::i8, format::bfwzyx),
         std::make_tuple(data_types::u8, format::bfwzyx),
+        std::make_tuple(data_types::u32, format::bfwzyx),
         std::make_tuple(data_types::i32, format::bfwzyx),
         std::make_tuple(data_types::i64, format::bfwzyx),
 
@@ -233,6 +239,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
         std::make_tuple(data_types::f16, format::bfuwzyx),
         std::make_tuple(data_types::i8, format::bfuwzyx),
         std::make_tuple(data_types::u8, format::bfuwzyx),
+        std::make_tuple(data_types::u32, format::bfuwzyx),
         std::make_tuple(data_types::i32, format::bfuwzyx),
         std::make_tuple(data_types::i64, format::bfuwzyx),
 
@@ -240,6 +247,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
         std::make_tuple(data_types::f16, format::bfvuwzyx),
         std::make_tuple(data_types::i8, format::bfvuwzyx),
         std::make_tuple(data_types::u8, format::bfvuwzyx),
+        std::make_tuple(data_types::u32, format::bfvuwzyx),
         std::make_tuple(data_types::i32, format::bfvuwzyx),
         std::make_tuple(data_types::i64, format::bfvuwzyx),
 
