@@ -234,18 +234,6 @@ inline float avx2_load_f32(const int8_t* data, ov::element::Type type) {
     }
 }
 
-inline __m256 u4_avx2_load_f32(const uint8_t* data) {
-    float unpacked[8];
-    for (int i = 0; i < 8; ++i) {
-        uint8_t u4_element = lo4(data[i]);
-        unpacked[i] = static_cast<float>(u4_element);
-    }
-
-    __m256 result = _mm256_loadu_ps(unpacked);
-
-    return result;
-}
-
 #ifdef UNPACK_PROFILING
 class UnpackStat {
     tbb::concurrent_unordered_map<size_t, std::pair<size_t, uint64_t>> inferenceTimes;
@@ -873,10 +861,10 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
 }
 
 void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
-                  const ov::SoPtr<ov::ITensor>& zerop,
-                  const ov::SoPtr<ov::ITensor>& scale,
-                  const ov::SoPtr<ov::ITensor>& to,
-                  const ov::npuw::util::UnpackOptions& unpack_options) {
+                           const ov::SoPtr<ov::ITensor>& zerop,
+                           const ov::SoPtr<ov::ITensor>& scale,
+                           const ov::SoPtr<ov::ITensor>& to,
+                           const ov::npuw::util::UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(zerop->is_continuous());
     NPUW_ASSERT(scale->is_continuous());
@@ -886,7 +874,7 @@ void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
     const auto& from_shape = from->get_shape();
     NPUW_ASSERT(from_shape.back() % 64 == 0);
 
-    // 3-channel (group-wise) scale factors are 
+    // 3-channel (group-wise) scale factors are
     // supported.
 
     const auto& scale_shape = scale->get_shape();
@@ -896,7 +884,7 @@ void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
         NPUW_ASSERT(scale_shape[1] == from_shape[1]);
         NPUW_ASSERT(scale_shape[2] == 1);
     }
-    
+
     const auto& zerop_shape = zerop->get_shape();
     NPUW_ASSERT(zerop_shape.size() == 3);
     if (zerop_shape.size() == 3) {
@@ -920,18 +908,19 @@ void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
     const std::size_t elementsPerScale = total / stotal;
 
     const uint8_t* const pSrc = static_cast<uint8_t*>(from->data());   // 2 x u4  elements
-    const uint8_t* const pZer = static_cast<uint8_t*>(zerop->data());  // 1 x u4  element
+    const uint8_t* const pZer = static_cast<uint8_t*>(zerop->data());  // 2 x u4  element
     const int8_t* const pScl = static_cast<int8_t*>(scale->data());    // 1 x f16 element
     const int16_t* pDst = static_cast<int16_t*>(to->data());           // 1 x f16 element
 
-    auto unpack_body = [pSrc, pDst, pScl, pZer, elementsPerScale, scale_elem_type, zerop_elem_type, stotal](std::size_t sindex,
-                                                                                              std::size_t stride) {
+    auto unpack_body = [pSrc, pDst, pScl, pZer, elementsPerScale, scale_elem_type, zerop_elem_type, stotal](
+                           std::size_t sindex,
+                           std::size_t stride) {
         // number of vectorized operations per scale
         size_t elementsPerScaleVectorized = elementsPerScale / 64;
 
         uint8_t const* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
         int8_t const* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
-        uint8_t const* pZerLocal = pZer + zerop_elem_type.size() * sindex * stride;
+        uint8_t const* pZerLocal = pZer + zerop_elem_type.size() * sindex * stride / 2;
         int16_t* pDstLocal = const_cast<int16_t*>(pDst) + 64 * elementsPerScaleVectorized * sindex * stride;
 
         // if it is last iteration current stride can be smaller - lets check that
@@ -940,7 +929,7 @@ void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
 
         for (; sindex < jobFinish; sindex++) {
             __m256 svalVec = avx2_load_scale(pSclLocal, scale_elem_type);
-            __m256 zvalVec = u4_avx2_load_f32(pZerLocal);
+            __m256 zvalVec = _mm256_set1_ps(static_cast<float>((sindex % 2 == 0) ? lo4(*pZerLocal) : hi4(*pZerLocal)));
 
             for (std::size_t index = 0; index < elementsPerScale; index += 64) {
                 __m128i* outv[] = {
@@ -1010,7 +999,9 @@ void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
                 pDstLocal += 64;  // note pDst is int16_t, so 64 x f16 -> 64 elements
             }                     // for(index)
             pSclLocal += scale_elem_type.size();
-            pZerLocal += zerop_elem_type.size();
+            if (sindex % 2 == 1) {
+                pZerLocal += zerop_elem_type.size();
+            }
         }  // for(sindex)
     };
 
@@ -1047,6 +1038,7 @@ void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
             unpack_body(index, stride);
         }
     }
+
 }
 
 void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
@@ -1311,10 +1303,10 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     //     - [32, 1, 11008].*[32, 128, 11008]
     //     - [86, 1, 4096].*[86, 128, 4096]
     // unpack_u4f16_asymm_zp:
-    //      ZPs: [256, 16, 1], [2048, 16, 1], [5632, 16, 1]
     //     - [256, 16, 1].*[256, 16, 128]
     //     - [2048, 16, 1].*[2048, 16, 128]
     //     - [5632, 16, 1].*[5632, 16, 128]
+    //      Zero Point Shapes: [256, 16, 1], [2048, 16, 1], [5632, 16, 1]
     // Unsupported Case for scale tensor:
     //     - [s1, 1, s2, 1, s3]
 

@@ -63,7 +63,7 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
 
         // First find among scale factors...
         auto pscale_iter = params_to.scales.find(body_params[i]);
-        auto asymm_zerop_iter = params_to.asymm_zerops.find(body_params[i]);
+        auto pzerop_iter = params_to.zerops_asymm.find(body_params[i]);
         if (pscale_iter != params_to.scales.end()) {
             LOG_DEBUG("This is a Scale factor parameter, will be removed");
             auto& pscale_weight_param = pscale_iter->second;
@@ -71,14 +71,14 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
             auto pscale_weight_cindex = pscale_weight_pindex - fbody._param_offset;
             m.scale_remap[pscale_weight_cindex] = i - fbody._param_offset;
             m.params_to_remove.push_back(body_params[i]);
-        } else if (asymm_zerop_iter != params_to.asymm_zerops.end()) {
+        } else if (pzerop_iter != params_to.zerops_asymm.end()) {
             LOG_DEBUG("This is a Asymmetric Zero Point parameter, will be removed");
             // Calculate the index for the asymmetric zero point and store it in the map
-            auto asymm_zerop_pindex = fbody._model->get_parameter_index(asymm_zerop_iter->second);
+            auto asymm_zerop_pindex = fbody._model->get_parameter_index(pzerop_iter->second);
             auto asymm_zerop_cindex = asymm_zerop_pindex - fbody._param_offset;
-            m.asymm_zero_points[asymm_zerop_cindex] = i - fbody._param_offset;
+            m.zerop_remap[asymm_zerop_cindex] = i - fbody._param_offset;
             m.params_to_remove.push_back(body_params[i]);
-        }else {
+        } else {
             LOG_DEBUG("This is an OK parameter, will be kept");
             // n++ is the index of `i` here
             m.closure_remap.push_back(i - fbody._param_offset);
@@ -93,7 +93,8 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
             m.zero_points.push_back(ov::Tensor());
         }
     }
-    NPUW_ASSERT((body_params.size() - fbody._param_offset) == (m.scale_remap.size() + m.closure_remap.size() + m.asymm_zero_points.size()));
+    NPUW_ASSERT((body_params.size() - fbody._param_offset) ==
+                (m.scale_remap.size() + m.closure_remap.size() + m.zerop_remap.size()));
     NPUW_ASSERT((body_params.size() - fbody._param_offset) == m.zero_points.size());
 
     LOG_DEBUG("DONE");
@@ -114,13 +115,9 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
         auto scale_iter = m.scale_remap.find(i);
         new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._closure[scale_iter->second] : ov::Tensor());
         // Check for asymmetric zero points and add them to new_zerops
-        auto asymm_zerop_iter = m.asymm_zero_points.find(i);
-        if (asymm_zerop_iter != m.asymm_zero_points.end()) {
-            new_zerops.push_back(fcall._closure[asymm_zerop_iter->second]);
-        } else {
-            // If there is no asymmetric zero point, use the existing symmetric zero point
-            new_zerops.push_back(m.zero_points[i]);
-        }
+        auto asymm_zerop_iter = m.zerop_remap.find(i);
+        const auto &zerop = asymm_zerop_iter != m.zerop_remap.end() ? fcall._closure[asymm_zerop_iter->second] : m.zero_points[i];
+        new_zerops.push_back(zerop);
     }
     fcall._closure = std::move(new_closure);
     fcall._scales = std::move(new_scales);
@@ -864,8 +861,8 @@ DCOFFPassReshape::DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff
         auto matched_paramB = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeB);
         auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
 
-        if (ov::element::u4  == matched_paramA->get_element_type() &&
-            ov::element::u4  == matched_paramB->get_element_type() &&
+        if (ov::element::u4 == matched_paramA->get_element_type() &&
+            ov::element::u4 == matched_paramB->get_element_type() &&
             ov::element::f16 == matched_paramC->get_element_type()) {
             LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << dcoff_type);
             matched_paramA->set_element_type(dcoff_type);
@@ -883,7 +880,7 @@ DCOFFPassReshape::DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff
                 // Reshape will be reconnected to ParamA directly
 
                 // Record mapping from the Scale coeff parameter to the Real weight parameter
-                pref.get().asymm_zerops[matched_paramB] = matched_paramA;
+                pref.get().zerops_asymm[matched_paramB] = matched_paramA;
                 pref.get().scales[matched_paramC] = matched_paramA;
 
                 // Disconnect Multiply and Convert from their outputs
