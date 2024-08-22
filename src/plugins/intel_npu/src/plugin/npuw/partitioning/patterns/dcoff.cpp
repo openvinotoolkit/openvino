@@ -72,12 +72,11 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
             m.scale_remap[pscale_weight_cindex] = i - fbody._param_offset;
             m.params_to_remove.push_back(body_params[i]);
         } else if (pzerop_iter != params_to.zerops_asymm.end()) {
-            LOG_DEBUG("This is an Asymmetric Zero Point parameter, will be removed");
-            // Calculate the index of the original tensor and store it in the map
-            auto orig_tensor_pindex = fbody._model->get_parameter_index(pzerop_iter->second);
-            auto orig_tensor_cindex = orig_tensor_pindex - fbody._param_offset;
-            m.zerop_remap[i - fbody._param_offset] = orig_tensor_cindex;
-            m.params_to_remove.push_back(body_params[i]);
+            LOG_DEBUG("There is an Asymmetric corresponding to this parameter, it will be removed");
+            auto zerop_pindex = fbody._model->get_parameter_index(pzerop_iter->second);
+            auto zerop_cindex = zerop_pindex - fbody._param_offset;
+            m.zerop_remap[i - fbody._param_offset] = zerop_cindex;
+            m.params_to_remove.push_back(pzerop_iter->second);
         } else {
             LOG_DEBUG("This is an OK parameter, will be kept");
             // n++ is the index of `i` here
@@ -115,9 +114,9 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
         auto scale_iter = m.scale_remap.find(i);
         new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._closure[scale_iter->second] : ov::Tensor());
         // Check for asymmetric zero points and add them to new_zerops
-        auto orig_tensor_iter = m.zerop_remap.find(i);
+        auto zerop_iter = m.zerop_remap.find(i);
         const auto& zerop =
-            orig_tensor_iter != m.zerop_remap.end() ? fcall._closure[orig_tensor_iter->second] : m.zero_points[i];
+            zerop_iter != m.zerop_remap.end() ? fcall._closure[zerop_iter->second] : m.zero_points[i];
         new_zerops.push_back(zerop);
     }
     fcall._closure = std::move(new_closure);
