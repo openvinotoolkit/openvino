@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+
 #include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
