@@ -105,7 +105,7 @@ public:
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
         ASSERT_EQ(primitive_hash, 8439414674502129643UL);
-        ASSERT_EQ(params_hash, 17837688125620485662UL);
+        ASSERT_EQ(params_hash, 17825246500238118561UL);
     }
 
     void test_gemm_basic(bool is_caching_test) {
