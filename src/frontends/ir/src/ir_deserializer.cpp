@@ -590,6 +590,11 @@ public:
         : m_name(name),
           m_accessible_by_pugixml_node(accessible_by_pugixml_node) {
         m_meta.append_copy(meta);
+        if (accessible_by_pugixml_node) {
+            m_meta_node = m_meta.child(m_name.c_str());
+        } else {
+            m_meta_node = pugi::xml_node();
+        }
     }
 
     operator const ov::AnyMap&() const override {
@@ -598,15 +603,12 @@ public:
     }
 
     operator ov::AnyMap&() override {
-        m_accessible_by_pugixml_node = false;
         parse();
         return m_parsed_map;
     }
 
     const pugi::xml_node& get_pugi_node() const override {
-        if (m_accessible_by_pugixml_node) {
-            m_meta_node = m_meta.child(m_name.c_str());
-        } else {
+        if (!m_meta_node.empty() && !m_accessible_by_pugixml_node)  {
             // Meta cannot be accessed by pugixml node. Return empty node
             m_meta_node = pugi::xml_node();
         }
@@ -659,6 +661,7 @@ private:
 
     void parse() const {
         std::call_once(m_oc, [this]() {
+            m_accessible_by_pugixml_node = false;
             const pugi::xml_node& node = m_meta.child(m_name.c_str());
             m_parsed_map = parse_node(node);
         });
@@ -666,10 +669,10 @@ private:
 
     pugi::xml_document m_meta;
     const std::string m_name;
-    mutable pugi::xml_node m_meta_node;
     mutable ov::AnyMap m_parsed_map;
     mutable std::once_flag m_oc;
     mutable std::atomic_bool m_accessible_by_pugixml_node;
+    mutable pugi::xml_node m_meta_node;
 };
 
 void ov::XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section) {
