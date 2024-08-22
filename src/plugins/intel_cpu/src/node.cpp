@@ -315,22 +315,21 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
     selectPrimitiveDescriptorByIndex(0);
 }
 
-bool Node::checkScalarShape(const ov::PartialShape& pshape) {
-    int oneNum = 0;
+bool Node::isScalarShape(const ov::PartialShape& pshape) {
+    int value_1_num = 0;
     int sz = static_cast<int>(pshape.size());
     for (auto s : pshape) {
         if (s.is_static() && s.get_length() == 1) {
-            oneNum++;
+            value_1_num++;
         }
     }
-    return oneNum >= sz - 1;
+    return value_1_num >= sz - 1;
 }
 
 void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs) {
-    auto loopEdges = [&](size_t i,
-                         const size_t inputNodesNum,
-                         const ov::intel_cpu::NodeDesc& supportedPrimitiveDesc,
-                         int& reorderLocalCostScore) {
+    auto estimateReorderOverhead = [&](const ov::intel_cpu::NodeDesc& supportedPrimitiveDesc, size_t i) {
+        int estimate = 0;
+        auto inputNodesNum = supportedPrimitiveDesc.getConfig().inConfs.size();
         for (size_t j = 0; j < inputNodesNum; j++) {
             auto parentEdge = getParentEdgeAt(j);
             auto parentPtr = parentEdge->getParent();
@@ -351,26 +350,28 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
                 auto parentDesc = parent_spd->getConfig().outConfs[inNum].getMemDesc();
 
                 const bool isCompatible = curDesc->isCompatible(*parentDesc);
-                bool isScalarShape = checkScalarShape(curDesc->getShape().toPartialShape());
+                bool scalarShape = isScalarShape(curDesc->getShape().toPartialShape());
                 if (!isCompatible) {
-                    if (isScalarShape) {
-                        reorderLocalCostScore += 1;
+                    if (scalarShape) {
+                        estimate += 1;
                     } else {
-                        reorderLocalCostScore +=
-                            ov::shape_size<ov::intel_cpu::VectorDims>(curDesc->getShape().getStaticDims());
+                        estimate += ov::shape_size<ov::intel_cpu::VectorDims>(curDesc->getShape().getStaticDims());
                     }
                 }
 
                 DEBUG_LOG(getName(), " pd[", i, "].inConfs[", j, "]"
                           " is ", (isCompatible ? "compatible" : "not compatible"),
-                          " shape is ", (isScalarShape ? "scalar" : "not scalar"),
+                          " shape is ", (scalarShape ? "scalar" : "not scalar"),
                           " with parent ", parentPtr->getName(),
-                          " outConfs[", inNum, "], reorderLocalCostScore add to ", reorderLocalCostScore);
+                          " outConfs[", inNum, "], estimate add to ", estimate);
             }
         }
+        return estimate;
     };
 
-    auto loopSPD = [&](const impl_desc_type type, int& selectedPrimitive, int& reorderCostScore) {
+    auto selectSPDwithType = [&](const impl_desc_type type) {
+        int selectedPrimitive = -1;
+        int reorderCostScore = std::numeric_limits<int>::max();
         for (size_t i = 0; i < getSupportedPrimitiveDescriptors().size(); i++) {
             const auto& supportedPrimitiveDesc = getSupportedPrimitiveDescriptors()[i];
             const impl_desc_type supportedType = supportedPrimitiveDesc.getImplementationType();
@@ -378,7 +379,6 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
                 continue;
             }
 
-            int reorderLocalCostScore = 0;
             const size_t descInConfSize = supportedPrimitiveDesc.getConfig().inConfs.size();
 
             if (descInConfSize > getParentEdges().size()) {
@@ -394,23 +394,20 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
                 continue;
             }
 
-            loopEdges(i, descInConfSize, supportedPrimitiveDesc, reorderLocalCostScore);
+            auto estimate = estimateReorderOverhead(supportedPrimitiveDesc, i);
 
-            if (reorderLocalCostScore < reorderCostScore) {
-                reorderCostScore = reorderLocalCostScore;
+            if (estimate < reorderCostScore) {
+                reorderCostScore = estimate;
                 selectedPrimitive = static_cast<int>(i);
                 DEBUG_LOG(getName(), " Select primitive desc: ", i, " ", supportedPrimitiveDesc);
             }
         }
+        return selectedPrimitive;
     };
 
     // loop kernel priority
     for (auto& type : priority) {
-        int selectedPrimitive = -1;
-        int reorderCostScore = std::numeric_limits<int>::max();
-
-        loopSPD(type, selectedPrimitive, reorderCostScore);
-
+        int selectedPrimitive = selectSPDwithType(type);
         if (selectedPrimitive >= 0) {
             selectPrimitiveDescriptorByIndex(selectedPrimitive);
             return;

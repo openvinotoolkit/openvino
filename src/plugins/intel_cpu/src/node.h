@@ -709,7 +709,7 @@ protected:
 
     void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
     void selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
-    bool checkScalarShape(const ov::PartialShape& pshape);
+    bool isScalarShape(const ov::PartialShape& pshape);
     bool isConfigDefined(const NodeConfig &config) const;
     virtual bool canBeInPlace() const;
 
