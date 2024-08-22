@@ -8,7 +8,6 @@
 #include <memory>
 #include <set>
 
-#include "openvino/pass/pass.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 
 namespace ov {

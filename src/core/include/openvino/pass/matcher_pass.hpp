@@ -8,7 +8,6 @@
 #include <memory>
 #include <set>
 
-#include "openvino/pass/pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/node_registry.hpp"
 
