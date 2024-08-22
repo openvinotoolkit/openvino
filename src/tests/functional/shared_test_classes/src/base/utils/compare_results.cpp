@@ -208,7 +208,6 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 #include "openvino/opsets/opset15_tbl.hpp"
 
 #include "ov_ops/opset_private_tbl.hpp"
-
 #undef _OPENVINO_OP_REG
     };
 OPENVINO_SUPPRESS_DEPRECATED_END

@@ -1021,7 +1021,6 @@ InputsMap getInputMap() {
 #include "openvino/opsets/opset15_tbl.hpp"
 
 #include "ov_ops/opset_private_tbl.hpp"
-
 #undef _OPENVINO_OP_REG
     };
     return inputsMap;
