@@ -2,8 +2,7 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.experimental import evaluate_as_partial_shape, evaluate_both_bounds
-from openvino.experimental import set_element_type, set_tensor_type
+from openvino.experimental import evaluate_as_partial_shape, evaluate_both_bounds, set_element_type, set_tensor_type
 
 import pytest
 from openvino.runtime import Shape, PartialShape, Dimension, Type
