@@ -1038,7 +1038,6 @@ void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
             unpack_body(index, stride);
         }
     }
-
 }
 
 void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
