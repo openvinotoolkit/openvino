@@ -128,8 +128,7 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
         new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._closure[scale_iter->second] : ov::Tensor());
         // Check for asymmetric zero points and add them to new_zerops
         auto zerop_iter = m.zerop_remap.find(i);
-        const auto& zerop =
-            zerop_iter != m.zerop_remap.end() ? fcall._closure[zerop_iter->second] : m.zero_points[i];
+        const auto& zerop = zerop_iter != m.zerop_remap.end() ? fcall._closure[zerop_iter->second] : m.zero_points[i];
         new_zerops.push_back(zerop);
     }
     fcall._closure = std::move(new_closure);
