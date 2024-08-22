@@ -12,9 +12,9 @@
 #include "openvino/op/relu.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
-#include "openvino/pass/backward_graph_rewrite.hpp"
 
 using namespace ::testing;
 using namespace std;
