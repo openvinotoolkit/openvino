@@ -704,14 +704,3 @@ const char* ov::util::trim_file_name(const char* const fname) {
 #endif
     return fname_trim_ptr;
 }
-
-bool ov::util::is_symlink_in_different_path(std::string library_path) {
-#if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
-    if (fs::is_symlink(library_path) && ov::util::get_absolute_file_path(ov::util::get_directory(library_path)) !=
-                                            ov::util::get_directory(ov::util::get_absolute_file_path(library_path)))
-        return true;
-    return false;
-#else
-    return false;
-#endif
-}
