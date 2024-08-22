@@ -124,6 +124,11 @@ std::string vector2str(const std::vector<T>& values) {
 
 bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2);
 
+// If one of the dims is dynamic, return the other dim (might also be dynamic)
+// If both dims are static, they must be equal - this is the difference from the utility above
+// Can be used in SpecificLoopIterationHandlers
+bool merge_dynamic_dim(size_t& dst, const size_t& d1, const size_t& d2);
+
 VectorDims pshape_to_vdims(const PartialShape&);
 ov::PartialShape vdims_to_pshape(const VectorDims&);
 
