@@ -30,7 +30,7 @@ struct DCOFFParams {
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     std::unordered_map<PPtr, PPtr> scales;        // Closures: a scaling factor -> orig tensor
     std::unordered_map<PPtr, CPtr> zerops;        // Closures: orig tensor -> a zero point (yes, a reverse...)
-    std::unordered_map<PPtr, PPtr> zerops_asymm;  // Closures: a asymmetric zero point factor -> orig tensor
+    std::unordered_map<PPtr, PPtr> zerops_asymm;  // Closures: orig tensor -> an asymmetric zerop parameter
 };
 
 using DCOFFParamRef = std::reference_wrapper<DCOFFParams>;
