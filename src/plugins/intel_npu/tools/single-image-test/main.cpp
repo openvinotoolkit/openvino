@@ -287,7 +287,8 @@ std::vector<cv::Mat> ovToCV(const ov::Tensor& tensor, const ov::Shape& shape, co
                     "Unsupported layout: ", layout.to_string());
 
     OPENVINO_ASSERT(precision == ov::element::Type_t::u8 || precision == ov::element::Type_t::f32 ||
-                            precision == ov::element::Type_t::f16 || precision == ov::element::Type_t::i32,
+                            precision == ov::element::Type_t::f16 || precision == ov::element::Type_t::bf16 ||
+                            precision == ov::element::Type_t::i32,
                     "Unsupported precision: ", precision.get_type_name());
 
     int cvType = 0;
@@ -302,6 +303,9 @@ std::vector<cv::Mat> ovToCV(const ov::Tensor& tensor, const ov::Shape& shape, co
     } else if (precision == ov::element::Type_t::f16) {
         cvType = CV_16SC1;
         elemSize = sizeof(ov::float16);
+    } else if (precision == ov::element::Type_t::bf16) {
+        cvType = CV_16SC1;
+        elemSize = sizeof(ov::bfloat16);
     } else if (precision == ov::element::Type_t::i32) {
         cvType = CV_32SC1;
         elemSize = sizeof(int32_t);
@@ -392,11 +396,14 @@ void cvToOV(const cv::Mat& cvImg, const ov::Tensor& tensor, const ov::Shape& sha
         cvType = static_cast<int>(CV_32FC(C));
     } else if (precision == ov::element::Type_t::f16) {
         cvType = static_cast<int>(CV_16SC(C));
+    } else if (precision == ov::element::Type_t::bf16) {
+        cvType = static_cast<int>(CV_16SC(C));
     } else if (precision == ov::element::Type_t::i32) {
         cvType = static_cast<int>(CV_32SC(C));
     } else {
         OPENVINO_ASSERT(precision == ov::element::Type_t::u8 || precision == ov::element::Type_t::f32 ||
-                                precision == ov::element::Type_t::f16 || precision == ov::element::Type_t::i32,
+                                precision == ov::element::Type_t::f16 || precision == ov::element::Type_t::bf16 ||
+                                precision == ov::element::Type_t::i32,
                         "Unsupported precision ", precision.get_type_name());
     }
 
@@ -437,6 +444,10 @@ void cvToOV(const cv::Mat& cvImg, const ov::Tensor& tensor, const ov::Shape& sha
             const auto inPtr = in.ptr<float>();
             const auto outPtr = out.ptr<ov::float16>();
             convertBufferType(outPtr, inPtr, out.size().area() * C);
+        } else if (precision == ov::element::Type_t::bf16) {
+            const auto inPtr = in.ptr<float>();
+            const auto outPtr = out.ptr<ov::bfloat16>();
+            convertBufferType(outPtr, inPtr, out.size().area() * C);
         } else if (precision == ov::element::Type_t::i32) {
             in.convertTo(out, CV_32S);
         } else {
@@ -451,7 +462,8 @@ void cvToOV(const cv::Mat& cvImg, const ov::Tensor& tensor, const ov::Shape& sha
     } else if (layout == ov::Layout("NCHW")) {
         auto tensorPlanes = ovToCV(tensor, shape, layout, 0);
 
-        if (precision != ov::element::Type_t::f16) {
+        if (!(precision == ov::element::Type_t::f16 ||
+            precision == ov::element::Type_t::bf16)) {
             cv::split(in, tensorPlanes);
         } else {
             std::vector<cv::Mat> inPlanes;
@@ -461,8 +473,13 @@ void cvToOV(const cv::Mat& cvImg, const ov::Tensor& tensor, const ov::Shape& sha
 
             for (size_t i = 0; i < tensorPlanes.size(); ++i) {
                 const auto inPtr = inPlanes[i].ptr<float>();
-                const auto outPtr = tensorPlanes[i].ptr<ov::float16>();
-                convertBufferType(outPtr, inPtr, inPlanes[i].size().area());
+                if (precision == ov::element::Type_t::f16) {
+                    const auto outPtr = tensorPlanes[i].ptr<ov::float16>();
+                    convertBufferType(outPtr, inPtr, inPlanes[i].size().area());
+                } else if (precision == ov::element::Type_t::bf16) {
+                    const auto outPtr = tensorPlanes[i].ptr<ov::bfloat16>();
+                    convertBufferType(outPtr, inPtr, inPlanes[i].size().area());
+                }
             }
         }
 
@@ -1761,6 +1778,8 @@ static int runSingleImageTest() {
                         inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::f32;
                     } else if (strEq(precision, "FP16")) {
                         inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::f16;
+                    } else if (strEq(precision, "BF16")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::bf16;
                     } else if (strEq(precision, "I32")) {
                         inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::i32;
                     } else if (strEq(precision, "I64")) {
@@ -1808,6 +1827,8 @@ static int runSingleImageTest() {
                 ov::element::Type prc_in = ov::element::u8;
                 if (FLAGS_ip == "FP16")
                     prc_in = ov::element::f16;
+                else if (FLAGS_ip == "BF16")
+                    prc_in = ov::element::bf16;
                 else if (FLAGS_ip == "FP32")
                     prc_in = ov::element::f32;
                 else if (FLAGS_ip == "I32")
