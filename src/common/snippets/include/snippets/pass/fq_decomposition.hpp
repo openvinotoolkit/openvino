@@ -5,7 +5,7 @@
 #pragma once
 
 #include "openvino/op/fake_quantize.hpp"
-#include "openvino/pass/MatcherPass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 
 namespace ov {
 namespace snippets {

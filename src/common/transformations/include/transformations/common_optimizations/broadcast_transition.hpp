@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "openvino/pass/MatcherPass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "transformations_visibility.hpp"
 

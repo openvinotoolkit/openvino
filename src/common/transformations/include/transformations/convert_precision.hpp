@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-#include "openvino/pass/MatcherPass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {

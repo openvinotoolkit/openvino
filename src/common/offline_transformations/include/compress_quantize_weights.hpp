@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/GraphRewrite.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace pass {

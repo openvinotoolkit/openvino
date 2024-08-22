@@ -6,7 +6,7 @@
 
 #include "openvino/op/add.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/pass/MatcherPass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 #include "transformations_visibility.hpp"

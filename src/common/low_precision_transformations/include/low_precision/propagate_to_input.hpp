@@ -11,7 +11,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/lpt_visibility.hpp"
-#include "openvino/pass/MatcherPass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "network_helper.hpp"
 
 namespace ov {

@@ -5,13 +5,9 @@
 #include <set>
 
 #include "openvino/pass/pass.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/GraphRewrite.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
-using matcher_pass_callback = std::function<bool(pass::pattern::Matcher& m)>;
-using graph_rewrite_callback = std::function<bool(pass::pattern::Matcher& m)>;
-using handler_callback = std::function<bool(const std::shared_ptr<Node>& node)>;
 namespace pass {
 class OPENVINO_API BackwardGraphRewrite : public GraphRewrite {
 public:

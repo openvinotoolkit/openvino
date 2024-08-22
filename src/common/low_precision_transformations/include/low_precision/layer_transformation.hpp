@@ -11,7 +11,7 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/MatcherPass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"

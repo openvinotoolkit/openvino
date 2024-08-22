@@ -4,7 +4,7 @@
 #include <memory>
 #include <set>
 
-#include "openvino/pass/pass.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 
 namespace ov {
@@ -47,9 +47,7 @@ public:
     }
 
     /// \brief Clear register.
-    void clear() {
-        m_nodes.clear();
-    }
+    void clear();
 
 private:
     std::vector<std::shared_ptr<Node>> m_nodes;  //!< Stores added nodes.

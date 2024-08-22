@@ -10,7 +10,7 @@
 
 #include "openvino/pass/pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/NodeRegistry.hpp"
+#include "openvino/pass/node_registry.hpp"
 
 namespace ov {
 using matcher_pass_callback = std::function<bool(pass::pattern::Matcher& m)>;

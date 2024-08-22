@@ -51,6 +51,7 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/pass/backward_graph_rewrite.hpp"
 
 using namespace std;
 

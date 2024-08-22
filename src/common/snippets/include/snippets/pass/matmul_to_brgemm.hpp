@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/MatcherPass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 
 #include "snippets/op/brgemm.hpp"
 
