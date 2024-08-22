@@ -57,11 +57,10 @@ struct QKVProjection::Impl {
         PlainTensor w1(pnode->getSrcMemoryAtPort(2));
         PlainTensor w2(pnode->getSrcMemoryAtPort(3));
 
-        const int blk_K_size = 256;
         auto K = w0.size(1);
-        OPENVINO_ASSERT((K % blk_K_size) == 0);
+        OPENVINO_ASSERT((K % CACHE_BLK_K_SIZE) == 0);
         auto nthr = parallel_get_max_threads();
-        auto num_blk_K = K / blk_K_size;
+        auto num_blk_K = K / CACHE_BLK_K_SIZE;
         int stride = K * sizeof(ov::float16);
 
         works.resize(nthr);
@@ -69,8 +68,8 @@ struct QKVProjection::Impl {
         int cur_work_id = 0;
         auto create_works = [&](ov::float16* pw, int output_id, int N, int valid_nthr) {
             // split task on more cores is better on TBB
-            OPENVINO_ASSERT((N % 32) == 0);
-            auto num_blk_N = N / 32;
+            OPENVINO_ASSERT((N % REG_BLK_N_SIZE) == 0);
+            auto num_blk_N = N / REG_BLK_N_SIZE;
             auto blkN_per_thread = (num_blk_N) / valid_nthr;
             auto blkN_leftover = num_blk_N - (blkN_per_thread * valid_nthr);
             auto start_blkN = 0;
@@ -83,12 +82,12 @@ struct QKVProjection::Impl {
                 }
                 if (blkN) {
                     auto& work = works[cur_work_id++];
-                    work.blk_K_size = blk_K_size;
-                    work.n0 = (start_blkN)*32;
-                    work.n1 = (start_blkN + blkN) * 32;
-                    work.BN = blkN * 32;
+                    work.blk_K_size = CACHE_BLK_K_SIZE;
+                    work.n0 = (start_blkN) * REG_BLK_N_SIZE;
+                    work.n1 = (start_blkN + blkN) * REG_BLK_N_SIZE;
+                    work.BN = blkN * REG_BLK_N_SIZE;
                     work.k0 = 0;
-                    work.k1 = blk_K_size * num_blk_K;
+                    work.k1 = CACHE_BLK_K_SIZE * num_blk_K;
                     work.output_id = output_id;
                     work.p_raw_weights = pw;
                 }
@@ -170,7 +169,7 @@ struct QKVProjection::Impl {
         auto stride_2 = dstStrides2[1];
 
         for (int m = 0; m < M;) {
-            int BM = std::min(M - m, 256);
+            int BM = std::min(M - m, CACHE_BLK_M_SIZE);
 
             setM(BM);
 
@@ -269,20 +268,20 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
             auto proj_pshape1 = op->input_value(1).get_shape();
             auto proj_pshape2 = op->input_value(2).get_shape();
             auto proj_pshape3 = op->input_value(3).get_shape();
-            if ((proj_pshape1[1] % 256) != 0) {
-                errorMessage = "QKVProjection input channel size is not multiple of 256";
+            if ((proj_pshape1[1] % CACHE_BLK_K_SIZE) != 0) {
+                errorMessage = "QKVProjection input channel size is not multiple of cache blocking size";
                 return false;
             }
-            if ((proj_pshape1[0] % 32) != 0) {
-                errorMessage = "QKVProjection 1st proj output channel size is not multiple of 32";
+            if ((proj_pshape1[0] % REG_BLK_K_SIZE) != 0) {
+                errorMessage = "QKVProjection 1st proj output channel size is not multiple of register blocking size";
                 return false;
             }
-            if ((proj_pshape2[0] % 32) != 0) {
-                errorMessage = "QKVProjection 2nd proj output channel size is not multiple of 32";
+            if ((proj_pshape2[0] % REG_BLK_K_SIZE) != 0) {
+                errorMessage = "QKVProjection 2nd proj output channel size is not multiple of register blocking size";
                 return false;
             }
-            if ((proj_pshape3[0] % 32) != 0) {
-                errorMessage = "QKVProjection 3rd proj output channel size is not multiple of 32";
+            if ((proj_pshape3[0] % REG_BLK_K_SIZE) != 0) {
+                errorMessage = "QKVProjection 3rd proj output channel size is not multiple of register blocking size";
                 return false;
             }
         } else {

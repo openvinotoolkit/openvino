@@ -23,8 +23,18 @@ namespace intel_cpu {
 namespace node {
 
 #if defined(OPENVINO_ARCH_X86_64)
-static ReduceAdd2bh jit_reduce2bh_1(false);
-static ReduceAdd2bh jit_reduce2bh_2(true);
+
+// register blocking size for K dimension (1x2 AMX B-tiles)
+#define REG_BLK_K_SIZE 32
+
+// register blocking size for N dimension (1x2 AMX B-tiles)
+#define REG_BLK_N_SIZE 32
+
+// cache blocking sie for K dimension
+#define CACHE_BLK_K_SIZE 256
+
+// cache blocking sie for M dimension
+#define CACHE_BLK_M_SIZE 256
 
 class Linear {
 public:
@@ -37,20 +47,22 @@ public:
 
     Linear() {}
 
+    ReduceAdd2bh * p_jit_reduce2bh;
     // weight [N, K]
     // Gate & Up are interleaved in N dimension: 16-gate / 16-up
     // and post-ops will compute  silu(gate)*up in unit of 16 elements
     // and store out as bfloat16.
     template <typename T>
     void setup(T* p_weight, int stride, int N, int K, bool _do_splitK = false) {
-        const int blk_K_size = 256;
-        // prepare weights, split N among threads
-        // in unit of 32
-        OPENVINO_ASSERT((N % 32) == 0);
-        OPENVINO_ASSERT((K % 32) == 0);
+        static ReduceAdd2bh jit_reduce2bh_2(true);
+
+        OPENVINO_ASSERT((N % REG_BLK_N_SIZE) == 0);
+        OPENVINO_ASSERT((K % REG_BLK_K_SIZE) == 0);
         auto nthr = parallel_get_max_threads();
-        auto num_blk_N = N / 32;
+        auto num_blk_N = N / REG_BLK_N_SIZE;
         works.resize(nthr);
+
+        p_jit_reduce2bh = &jit_reduce2bh_2;
 
         do_splitK = _do_splitK;
         auto K_splits = do_splitK ? 2 : 1;
@@ -72,18 +84,18 @@ public:
                 if (!do_splitK) {
                     auto& work = works[ithr];
                     work.sync_flag = shared_atomic;
-                    work.blk_K_size = blk_K_size;
+                    work.blk_K_size = CACHE_BLK_K_SIZE;
 
-                    work.n0 = (start_blkN)*32;
-                    work.n1 = (start_blkN + blkN) * 32;
-                    work.BN = blkN * 32;
+                    work.n0 = (start_blkN) * REG_BLK_N_SIZE;
+                    work.n1 = (start_blkN + blkN) * REG_BLK_N_SIZE;
+                    work.BN = blkN * REG_BLK_N_SIZE;
                     work.k0 = 0;
                     work.k1 = K;
                     used_nthr++;
                 } else {
                     // split K dimension in unit of 32 evenly among 2 worker-threads
                     auto start_blkK = 0;
-                    auto num_blk_K = K / 32;
+                    auto num_blk_K = K / REG_BLK_K_SIZE;
                     auto blkK_per_thread = (num_blk_K + 1) / 2;
                     for (int ik = 0; ik < K_splits; ik++) {
                         auto blk_K = std::min(num_blk_K - start_blkK, blkK_per_thread);
@@ -91,13 +103,13 @@ public:
                         auto& work = works[ithr + ik];
 
                         work.sync_flag = shared_atomic;
-                        work.blk_K_size = blk_K_size;
+                        work.blk_K_size = CACHE_BLK_K_SIZE;
 
-                        work.n0 = (start_blkN)*32;
-                        work.n1 = (start_blkN + blkN) * 32;
-                        work.BN = blkN * 32;
-                        work.k0 = start_blkK * 32;
-                        work.k1 = (start_blkK + blk_K) * 32;
+                        work.n0 = (start_blkN) * REG_BLK_N_SIZE;
+                        work.n1 = (start_blkN + blkN) * REG_BLK_N_SIZE;
+                        work.BN = blkN * REG_BLK_N_SIZE;
+                        work.k0 = start_blkK * REG_BLK_K_SIZE;
+                        work.k1 = (start_blkK + blk_K) * REG_BLK_K_SIZE;
 
                         start_blkK += blk_K;
                         used_nthr++;
@@ -135,12 +147,12 @@ public:
                         auto peer_ithr = (ithr & 1) ? (ithr - 1) : (ithr + 1);
                         auto& peerC = works[peer_ithr].m_C;
                         // the other one has finished, we can do the reduce sum
-                        jit_reduce2bh_2.call(workC.ptr<float>(), peerC.ptr<float>(), workC.stride(0),
+                        p_jit_reduce2bh->call(workC.ptr<float>(), peerC.ptr<float>(), workC.stride(0),
                                              dstC + work.n0, strideC / sizeof(*dstC),
                                              M, work.BN);
                     }
                 } else {
-                    jit_reduce2bh_2.call(workC.ptr<float>(), workC.stride(0),
+                    p_jit_reduce2bh->call(workC.ptr<float>(), workC.stride(0),
                                          dstC + work.n0, strideC / sizeof(*dstC),
                                          M, work.BN);
                 }
@@ -148,9 +160,6 @@ public:
         });
     }
 };
-
-static GateUpCombine jit_gateup_silu(dnnl_eltwise_swish);
-static GateUpCombine jit_gateup_gelu(dnnl_eltwise_gelu_tanh);
 
 class LinearGateUp {
 public:
@@ -162,19 +171,30 @@ public:
 
     WeightBuffer wbuffer;
 
+    GateUpCombine* jit_gateup;
+
     // weight [N, K]
     // Gate & Up are interleaved in N dimension: 16-gate / 16-up
     // and post-ops will compute  silu(gate)*up in unit of 16 elements
     // and store out as bfloat16.
     template <typename T>
-    void setup(T* p_weight_gate, T* p_weight_up, int stride, int N, int K) {
-        const int blk_K_size = 256;
+    void setup(T* p_weight_gate, T* p_weight_up, int stride, int N, int K, const LLMMLPNode::Config& config) {
+        static GateUpCombine jit_gateup_silu(dnnl_eltwise_swish);
+        static GateUpCombine jit_gateup_gelu(dnnl_eltwise_gelu_tanh);
+
+        if (config.act == LLMMLPNode::ACT_FN::GELU)
+            jit_gateup = &jit_gateup_gelu;
+        else if (config.act == LLMMLPNode::ACT_FN::SILU)
+            jit_gateup = &jit_gateup_silu;
+        else
+            OPENVINO_THROW("unsupported act in GateUpCombine");
+
         // prepare weights, split N among threads
         // in unit of 32
-        OPENVINO_ASSERT((N % 32) == 0);
-        OPENVINO_ASSERT((K % 32) == 0);
+        OPENVINO_ASSERT((N % REG_BLK_N_SIZE) == 0);
+        OPENVINO_ASSERT((K % REG_BLK_K_SIZE) == 0);
         auto nthr = parallel_get_max_threads();
-        auto num_blk_N = N / 32;
+        auto num_blk_N = N / REG_BLK_N_SIZE;
         works.resize(nthr);
 
         // split task on more cores is better on TBB
@@ -194,11 +214,11 @@ public:
                 auto shared_atomic = std::make_shared<std::atomic_int>(0);
                 auto& work = works[ithr];
                 work.sync_flag = shared_atomic;
-                work.blk_K_size = blk_K_size;
+                work.blk_K_size = CACHE_BLK_K_SIZE;
 
-                work.n0 = (start_blkN)*32;
-                work.n1 = (start_blkN + blkN) * 32;
-                work.BN = blkN * 32;
+                work.n0 = (start_blkN) * REG_BLK_N_SIZE;
+                work.n1 = (start_blkN + blkN) * REG_BLK_N_SIZE;
+                work.BN = blkN * REG_BLK_N_SIZE;
                 work.k0 = 0;
                 work.k1 = K;
                 used_nthr++;
@@ -222,14 +242,6 @@ public:
     void runGateUp(uint8_t* pA, int strideA, int M,
                    ov::bfloat16* dstC, int strideC,
                    const LLMMLPNode::Config& config) {
-        GateUpCombine* jit_gateup;
-        if (config.act == LLMMLPNode::ACT_FN::GELU)
-            jit_gateup = &jit_gateup_gelu;
-        else if (config.act == LLMMLPNode::ACT_FN::SILU)
-            jit_gateup = &jit_gateup_silu;
-        else
-            OPENVINO_THROW("unsupported act in GateUpCombine");
-
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
@@ -267,7 +279,7 @@ struct LLMMLP::Impl {
         auto K = w_gate.size(1);
         auto N = w_gate.size(0);
         OPENVINO_ASSERT(w_gate.stride_bytes(0) == w_up.stride_bytes(0));
-        gate_up.setup(w_gate.ptr<ov::float16>(), w_up.ptr<ov::float16>(), w_up.stride_bytes(0), N * 2, K);
+        gate_up.setup(w_gate.ptr<ov::float16>(), w_up.ptr<ov::float16>(), w_up.stride_bytes(0), N * 2, K, config);
         down.setup(w_down.ptr<ov::float16>(), w_down.stride_bytes(0), K, N, true);
 
         m_N = N;
@@ -320,7 +332,7 @@ struct LLMMLP::Impl {
         int strideC = dstStrides[dstStrides.size() - 2] * sizeof(ov::bfloat16);
 
         for (int m = 0; m < M;) {
-            int BM = std::min(M - m, 256);
+            int BM = std::min(M - m, CACHE_BLK_M_SIZE);
             setM(BM);
             gate_up.runGateUp(pA, strideA, BM, m_actUp.ptr<ov::bfloat16>(), m_actUp.stride_bytes(0), m_config);
             down.run(reinterpret_cast<uint8_t*>(m_actUp.ptr<ov::bfloat16>()), m_actUp.stride_bytes(0), BM, dstC, strideC);
@@ -396,12 +408,12 @@ bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
             }
             auto down_size = down_proj_w_pshape[0].get_length();
             auto up_size = down_proj_w_pshape[1].get_length();
-            if (down_size % 32) {
-                errorMessage = "LLMMLPNode down_proj size is not multiple of 32";
+            if (down_size % REG_BLK_K_SIZE) {
+                errorMessage = "LLMMLPNode down_proj size is not multiple of register blocking size";
                 return false;
             }
-            if (up_size % 32) {
-                errorMessage = "LLMMLPNode up_proj size is not multiple of 32";
+            if (up_size % REG_BLK_N_SIZE) {
+                errorMessage = "LLMMLPNode up_proj size is not multiple of register blocking size";
                 return false;
             }
         } else {
