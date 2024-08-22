@@ -68,8 +68,8 @@ TEST_F(TypePropResultV0Test, set_specific_output_name_by_output) {
     EXPECT_THAT(result->get_output_tensor(0).get_names(), UnorderedElementsAre("input"));
 
     result->output(0).set_names({"out"});
-    EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("input", "out"));
-    EXPECT_THAT(result->get_output_tensor(0).get_names(), UnorderedElementsAre("input", "out"));
+    EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("out"));
+    EXPECT_THAT(result->get_output_tensor(0).get_names(), UnorderedElementsAre("out"));
     EXPECT_THAT(a->output(0).get_names(), UnorderedElementsAre("input", "out"));
     EXPECT_THAT(a->get_output_tensor(0).get_names(), UnorderedElementsAre("input", "out"));
 }
@@ -83,8 +83,8 @@ TEST_F(TypePropResultV0Test, set_specific_output_name_by_tensor_desc) {
     EXPECT_THAT(result->get_output_tensor(0).get_names(), UnorderedElementsAre("input"));
 
     result->get_output_tensor(0).set_names({"out"});
-    EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("input", "out"));
-    EXPECT_THAT(result->get_output_tensor(0).get_names(), UnorderedElementsAre("input", "out"));
+    EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("out"));
+    EXPECT_THAT(result->get_output_tensor(0).get_names(), UnorderedElementsAre("out"));
     EXPECT_THAT(a->output(0).get_names(), UnorderedElementsAre("input", "out"));
     EXPECT_THAT(a->get_output_tensor(0).get_names(), UnorderedElementsAre("input", "out"));
 }
@@ -99,15 +99,15 @@ TEST_F(TypePropResultV0Test, change_specific_output_name) {
 
     result->get_output_tensor(0).set_names({"out"});
 
-    EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("input", "out"));
-    EXPECT_THAT(result->get_output_tensor(0).get_names(), UnorderedElementsAre("input", "out"));
+    EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("out"));
+    EXPECT_THAT(result->get_output_tensor(0).get_names(), UnorderedElementsAre("out"));
     EXPECT_THAT(a->output(0).get_names(), UnorderedElementsAre("input", "out"));
     EXPECT_THAT(a->get_output_tensor(0).get_names(), UnorderedElementsAre("input", "out"));
 
     result->output(0).set_names({"new output"});
 
-    EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("input", "new output"));
-    EXPECT_THAT(result->get_output_tensor(0).get_names(), UnorderedElementsAre("input", "new output"));
+    EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("new output"));
+    EXPECT_THAT(result->get_output_tensor(0).get_names(), UnorderedElementsAre("new output"));
     EXPECT_THAT(a->output(0).get_names(), UnorderedElementsAre("input", "new output"));
     EXPECT_THAT(a->get_output_tensor(0).get_names(), UnorderedElementsAre("input", "new output"));
 }
@@ -124,9 +124,8 @@ TEST_F(TypePropResultV0Test, add_specific_output_name) {
     result->get_output_tensor(0).add_names({"extra output name", "o1"});
     result->output(0).add_names({"extra output name", "o2"});
 
-    EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("input", "out", "extra output name", "o1", "o2"));
-    EXPECT_THAT(result->get_output_tensor(0).get_names(),
-                UnorderedElementsAre("input", "out", "extra output name", "o1", "o2"));
+    EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("out", "extra output name", "o1", "o2"));
+    EXPECT_THAT(result->get_output_tensor(0).get_names(), UnorderedElementsAre("out", "extra output name", "o1", "o2"));
     EXPECT_THAT(a->output(0).get_names(), UnorderedElementsAre("input", "out", "extra output name", "o1", "o2"));
     EXPECT_THAT(a->get_output_tensor(0).get_names(),
                 UnorderedElementsAre("input", "out", "extra output name", "o1", "o2"));
@@ -139,7 +138,7 @@ TEST_F(TypePropResultV0Test, preserve_specific_name_on_input_replace) {
     const auto result = make_op(a);
     result->output(0).set_names({"out"});
 
-    EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("input a", "out"));
+    EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("out"));
 
     const auto b = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
     b->get_output_tensor(0).set_names({"input b"});
@@ -147,7 +146,7 @@ TEST_F(TypePropResultV0Test, preserve_specific_name_on_input_replace) {
     result->input(0).replace_source_output(b);
     result->validate_and_infer_types();
 
-    EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("input b", "out"));
+    EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("out"));
     EXPECT_THAT(a->output(0).get_names(), UnorderedElementsAre("input a"));
 }
 }  // namespace test
