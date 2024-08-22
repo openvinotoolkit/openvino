@@ -230,7 +230,10 @@ struct padding {
         ob << sizes;
         sizes.assign(_upper_size.begin(), _upper_size.end());
         ob << sizes;
-        // ob << _dynamic_pad_dims;
+        OPENVINO_ASSERT(sizes.size() == _dynamic_pad_dims.size(), "invalid size.");
+        for (size_t i = 0; i < _dynamic_pad_dims.size(); i++)
+            sizes[i] = _dynamic_pad_dims[i];
+        ob << sizes;
     }
 
     void load(BinaryInputBuffer& ib) {
@@ -239,7 +242,10 @@ struct padding {
         std::copy_n(sizes.begin(), sizes.size(), _lower_size.begin());
         ib >> sizes;
         std::copy_n(sizes.begin(), sizes.size(), _upper_size.begin());
-        // ib >> _dynamic_pad_dims;
+        ib >> sizes;
+        OPENVINO_ASSERT(sizes.size() == _dynamic_pad_dims.size(), "invalid size.");
+        for (size_t i = 0; i < _dynamic_pad_dims.size(); i++)
+            _dynamic_pad_dims[i] = sizes[i];
     }
 };
 
@@ -416,6 +422,7 @@ struct layout {
         seed = hash_combine(seed, data_padding.hash());
         seed = hash_combine(seed, format.value);
         seed = hash_combine(seed, data_type);
+
         auto pshape = get_partial_shape();
         for (size_t idx = 0; idx < pshape.size(); idx++) {
             auto v = pshape[idx].is_dynamic() ? -1 : pshape[idx].get_length();
