@@ -36,7 +36,7 @@ public:
 
     void release(std::shared_ptr<const NetworkDescription> networkDescription) override;
 
-    void fillCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) override;
+    std::vector<uint8_t> getCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) override;
 
 private:
     /**

@@ -348,7 +348,7 @@ void LevelZeroCompilerInDriver<TableExtension>::release(std::shared_ptr<const Ne
 }
 
 template <typename TableExtension>
-void LevelZeroCompilerInDriver<TableExtension>::fillCompiledNetwork(
+std::vector<uint8_t> LevelZeroCompilerInDriver<TableExtension>::getCompiledNetwork(
     std::shared_ptr<const NetworkDescription> networkDescription) {
     if (networkDescription->metadata.graphHandle != nullptr) {
         ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription->metadata.graphHandle);
@@ -382,8 +382,7 @@ void LevelZeroCompilerInDriver<TableExtension>::fillCompiledNetwork(
                         ". ",
                         getLatestBuildError());
 
-        auto networkDesp = const_cast<NetworkDescription*>(networkDescription.get());
-        networkDesp->compiledNetwork = std::move(blob);
+        return std::move(blob);
     }
 }
 
