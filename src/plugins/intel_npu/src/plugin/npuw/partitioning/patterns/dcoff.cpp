@@ -84,7 +84,7 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
             m.scale_remap[pscale_weight_cindex] = i - fbody._param_offset;
             m.params_to_remove.push_back(param);
         } else if (pzerop_iter != params_to.zerops_asymm.end()) {
-            LOG_DEBUG("There is an Asymmetric corresponding to this parameter, it will be removed");
+            LOG_DEBUG("There is an Asymmetric zero point corresponding to this parameter, it will be removed");
             auto zerop_pindex = fbody._model->get_parameter_index(pzerop_iter->second);
             auto zerop_cindex = zerop_pindex - fbody._param_offset;
             m.zerop_remap[i - fbody._param_offset] = zerop_cindex;
