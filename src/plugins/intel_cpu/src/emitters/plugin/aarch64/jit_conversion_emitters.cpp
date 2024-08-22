@@ -24,44 +24,29 @@ namespace aarch64 {
 // with architecture ARMv8 do not support such instructions. And as the isa asimd we supported
 // does not distinguish ARMv8.2 with ARMv8.2-A, conversion between f16 and i16 will still use three
 // instructions f16 -> f32 -> i32 -> i16 (f16 <- f32 <- i32 <- i16).
-template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-static void cvt_f16_to_f32(dnnl::impl::cpu::aarch64::jit_generator* h, const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_idxs[0]);
-    TReg dst = TReg(out_idxs[0]);
+template <typename TReg>
+static inline void cvt_f16_to_f32(dnnl::impl::cpu::aarch64::jit_generator* h, const TReg &src, const TReg &dst) {
     h->fcvtl(dst.s4, src.h4);
 }
 
-template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-static void cvt_f32_to_f16(dnnl::impl::cpu::aarch64::jit_generator* h, const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_idxs[0]);
-    TReg dst = TReg(out_idxs[0]);
+template <typename TReg>
+static inline void cvt_f32_to_f16(dnnl::impl::cpu::aarch64::jit_generator* h, const TReg &src, const TReg &dst) {
     h->fcvtn(dst.h4, src.s4);
 }
 
-template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-static void cvt_f32_to_i32(dnnl::impl::cpu::aarch64::jit_generator* h, const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_idxs[0]);
-    TReg dst = TReg(out_idxs[0]);
+template <typename TReg>
+static inline void cvt_f32_to_i32(dnnl::impl::cpu::aarch64::jit_generator* h, const TReg &src, const TReg &dst) {
     h->fcvtzs(dst.s, src.s);
 }
 
-template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-static void cvt_i32_to_f32(dnnl::impl::cpu::aarch64::jit_generator* h, const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_idxs[0]);
-    TReg dst = TReg(out_idxs[0]);
+template <typename TReg>
+static inline void cvt_i32_to_f32(dnnl::impl::cpu::aarch64::jit_generator* h, const TReg &src, const TReg &dst) {
     h->scvtf(dst.s, src.s);
 }
 
-template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-static void cvt_i32_to_i16(dnnl::impl::cpu::aarch64::jit_generator* h, const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+template <typename TReg>
+static inline void cvt_i32_to_i16(dnnl::impl::cpu::aarch64::jit_generator* h, const TReg &src, const TReg &dst,
                      bool is_saturated) {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_idxs[0]);
-    TReg dst = TReg(out_idxs[0]);
     if (is_saturated) {
         h->sqxtn(dst.h4, src.s4);
     } else {
@@ -69,36 +54,24 @@ static void cvt_i32_to_i16(dnnl::impl::cpu::aarch64::jit_generator* h, const std
     }
 }
 
-template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-static void cvt_i16_to_i32(dnnl::impl::cpu::aarch64::jit_generator* h, const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_idxs[0]);
-    TReg dst = TReg(out_idxs[0]);
+template <typename TReg>
+static inline void cvt_i16_to_i32(dnnl::impl::cpu::aarch64::jit_generator* h, const TReg &src, const TReg &dst) {
     h->sxtl(dst.s4, src.h4);
 }
 
-template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-static void cvt_f16_to_i16(dnnl::impl::cpu::aarch64::jit_generator* h, const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_idxs[0]);
-    TReg dst = TReg(out_idxs[0]);
+template <typename TReg>
+static inline void cvt_f16_to_i16(dnnl::impl::cpu::aarch64::jit_generator* h, const TReg &src, const TReg &dst) {
     h->fcvtzs(dst.h4, src.h4);
 }
 
-template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-static void cvt_i16_to_f16(dnnl::impl::cpu::aarch64::jit_generator* h, const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_idxs[0]);
-    TReg dst = TReg(out_idxs[0]);
+template <typename TReg>
+static inline void cvt_i16_to_f16(dnnl::impl::cpu::aarch64::jit_generator* h, const TReg &src, const TReg &dst) {
     h->scvtf(dst.h4, src.h4);
 }
 
-template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-static void cvt_i16_to_byte(dnnl::impl::cpu::aarch64::jit_generator* h, const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+template <typename TReg>
+static inline void cvt_i16_to_byte(dnnl::impl::cpu::aarch64::jit_generator* h, const TReg &src, const TReg &dst,
                      bool is_signed, bool is_saturated) {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_idxs[0]);
-    TReg dst = TReg(out_idxs[0]);
     if (is_saturated) {
         if (is_signed) {
             h->sqxtn(dst.b8, src.h8);
@@ -110,12 +83,9 @@ static void cvt_i16_to_byte(dnnl::impl::cpu::aarch64::jit_generator* h, const st
     }
 }
 
-template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-static void cvt_byte_to_i16(dnnl::impl::cpu::aarch64::jit_generator* h, const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+template <typename TReg>
+static inline void cvt_byte_to_i16(dnnl::impl::cpu::aarch64::jit_generator* h, const TReg &src, const TReg &dst,
                   bool is_signed) {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_idxs[0]);
-    TReg dst = TReg(out_idxs[0]);
     if (is_signed) {
         h->sxtl(dst.h8, src.b8);
     } else {
@@ -127,11 +97,14 @@ template <cpu_isa_t isa>
 static void jit_convert_process(dnnl::impl::cpu::aarch64::jit_generator* h,
                                 const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                                 ov::element::Type input_type, ov::element::Type output_type, bool is_saturated) {
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    TReg src = TReg(in_idxs[0]);
+    TReg dst = TReg(out_idxs[0]);
+
     if (input_type == output_type) {
         if (in_idxs[0] == out_idxs[0])
             return;
-        using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-        h->mov(TReg(out_idxs[0]).b16, TReg(in_idxs[0]).b16);
+        h->mov(dst.b16, src.b16);
         return;
     }
 
@@ -139,16 +112,16 @@ static void jit_convert_process(dnnl::impl::cpu::aarch64::jit_generator* h,
         case ov::element::f32:
             switch (input_type) {
                 case ov::element::i32:
-                    cvt_i32_to_f32<isa>(h, in_idxs, out_idxs);
+                    cvt_i32_to_f32<TReg>(h, src, dst);
                     break;
                 case ov::element::f16:
-                    cvt_f16_to_f32<isa>(h, in_idxs, out_idxs);
+                    cvt_f16_to_f32<TReg>(h, src, dst);
                     break;
                 case ov::element::i8:
                 case ov::element::u8:
-                    cvt_byte_to_i16<isa>(h, in_idxs, out_idxs, input_type.is_signed());
-                    cvt_i16_to_i32<isa>(h, out_idxs, out_idxs);
-                    cvt_i32_to_f32<isa>(h, out_idxs, out_idxs);
+                    cvt_byte_to_i16<TReg>(h, src, dst, input_type.is_signed());
+                    cvt_i16_to_i32<TReg>(h, dst, dst);
+                    cvt_i32_to_f32<TReg>(h, dst, dst);
                     break;
                 default:
                     OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", input_type.get_type_name());
@@ -157,16 +130,16 @@ static void jit_convert_process(dnnl::impl::cpu::aarch64::jit_generator* h,
         case ov::element::i32:
             switch (input_type) {
                 case ov::element::f32:
-                    cvt_f32_to_i32<isa>(h, in_idxs, out_idxs);
+                    cvt_f32_to_i32<TReg>(h, src, dst);
                     break;
                 case ov::element::f16:
-                    cvt_f16_to_f32<isa>(h, in_idxs, out_idxs);
-                    cvt_f32_to_i32<isa>(h, out_idxs, out_idxs);
+                    cvt_f16_to_f32<TReg>(h, src, dst);
+                    cvt_f32_to_i32<TReg>(h, dst, dst);
                     break;
                 case ov::element::i8:
                 case ov::element::u8:
-                    cvt_byte_to_i16<isa>(h, in_idxs, out_idxs, input_type.is_signed());
-                    cvt_i16_to_i32<isa>(h, out_idxs, out_idxs);
+                    cvt_byte_to_i16<TReg>(h, src, dst, input_type.is_signed());
+                    cvt_i16_to_i32<TReg>(h, dst, dst);
                     break;
                 default:
                     OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", input_type.get_type_name());
@@ -175,18 +148,18 @@ static void jit_convert_process(dnnl::impl::cpu::aarch64::jit_generator* h,
         case ov::element::f16:
             switch (input_type) {
                 case ov::element::f32:
-                    cvt_f32_to_f16<isa>(h, in_idxs, out_idxs);
+                    cvt_f32_to_f16<TReg>(h, src, dst);
                     break;
                 case ov::element::i32:
-                    cvt_i32_to_f32<isa>(h, in_idxs, out_idxs);
-                    cvt_f32_to_f16<isa>(h, out_idxs, out_idxs);
+                    cvt_i32_to_f32<TReg>(h, src, dst);
+                    cvt_f32_to_f16<TReg>(h, dst, dst);
                     break;
                 case ov::element::i8:
                 case ov::element::u8:
-                    cvt_byte_to_i16<isa>(h, in_idxs, out_idxs, input_type.is_signed());
-                    cvt_i16_to_i32<isa>(h, out_idxs, out_idxs);
-                    cvt_i32_to_f32<isa>(h, out_idxs, out_idxs);
-                    cvt_f32_to_f16<isa>(h, out_idxs, out_idxs);
+                    cvt_byte_to_i16<TReg>(h, src, dst, input_type.is_signed());
+                    cvt_i16_to_i32<TReg>(h, dst, dst);
+                    cvt_i32_to_f32<TReg>(h, dst, dst);
+                    cvt_f32_to_f16<TReg>(h, dst, dst);
                     break;
                 default:
                     OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", input_type.get_type_name());
@@ -196,24 +169,24 @@ static void jit_convert_process(dnnl::impl::cpu::aarch64::jit_generator* h,
         case ov::element::u8:
             switch (input_type) {
                 case ov::element::f32:
-                    cvt_f32_to_i32<isa>(h, in_idxs, out_idxs);
-                    cvt_i32_to_i16<isa>(h, out_idxs, out_idxs, is_saturated);
-                    cvt_i16_to_byte<isa>(h, out_idxs, out_idxs, output_type.is_signed(), is_saturated);
+                    cvt_f32_to_i32<TReg>(h, src, dst);
+                    cvt_i32_to_i16<TReg>(h, dst, dst, is_saturated);
+                    cvt_i16_to_byte<TReg>(h, dst, dst, output_type.is_signed(), is_saturated);
                     break;
                 case ov::element::i32:
-                    cvt_i32_to_i16<isa>(h, in_idxs, out_idxs, is_saturated);
-                    cvt_i16_to_byte<isa>(h, out_idxs, out_idxs, output_type.is_signed(), is_saturated);
+                    cvt_i32_to_i16<TReg>(h, src, dst, is_saturated);
+                    cvt_i16_to_byte<TReg>(h, dst, dst, output_type.is_signed(), is_saturated);
                     break;
                 case ov::element::f16:
-                    cvt_f16_to_f32<isa>(h, in_idxs, out_idxs);
-                    cvt_f32_to_i32<isa>(h, out_idxs, out_idxs);
-                    cvt_i32_to_i16<isa>(h, out_idxs, out_idxs, is_saturated);
-                    cvt_i16_to_byte<isa>(h, out_idxs, out_idxs, output_type.is_signed(), is_saturated);
+                    cvt_f16_to_f32<TReg>(h, src, dst);
+                    cvt_f32_to_i32<TReg>(h, dst, dst);
+                    cvt_i32_to_i16<TReg>(h, dst, dst, is_saturated);
+                    cvt_i16_to_byte<TReg>(h, dst, dst, output_type.is_signed(), is_saturated);
                     break;
                 case ov::element::i8:
                 case ov::element::u8:
-                    cvt_byte_to_i16<isa>(h, in_idxs, out_idxs, input_type.is_signed());
-                    cvt_i16_to_byte<isa>(h, out_idxs, out_idxs, output_type.is_signed(), is_saturated);
+                    cvt_byte_to_i16<TReg>(h, src, dst, input_type.is_signed());
+                    cvt_i16_to_byte<TReg>(h, dst, dst, output_type.is_signed(), is_saturated);
                     break;
                 default:
                     OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", input_type.get_type_name());
