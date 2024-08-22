@@ -149,6 +149,10 @@ bool check_for_broadcast(const ov::PartialShape& ref_shape, const ov::PartialSha
     // In case if other_shape rank is less than ref_shape rank
     // we stop comparision and return true
     while (other_it != other_shape.rend()) {
+        if (other_it->is_dynamic() || ref_it->is_dynamic()) {
+            return false;
+        }
+
         if (*other_it != *ref_it && *other_it != 1) {
             return false;
         }
