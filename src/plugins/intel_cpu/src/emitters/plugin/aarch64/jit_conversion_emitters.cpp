@@ -128,6 +128,8 @@ static void jit_convert_process(dnnl::impl::cpu::aarch64::jit_generator* h,
                                 const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                                 ov::element::Type input_type, ov::element::Type output_type, bool is_saturated) {
     if (input_type == output_type) {
+        if (in_idxs[0] == out_idxs[0])
+            return;
         using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
         h->mov(TReg(out_idxs[0]).b16, TReg(in_idxs[0]).b16);
         return;
