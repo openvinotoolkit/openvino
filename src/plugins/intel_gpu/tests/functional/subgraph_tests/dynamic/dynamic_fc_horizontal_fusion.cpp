@@ -38,7 +38,9 @@ using FullyConnectedHorizontalFusionParams = std::tuple<ShapeParams,            
                                                     bool,                     // decompression subtract
                                                     bool,                     // reshape on decompression constants
                                                     bool,                     // per-tensor zero-point
-                                                    bool>;                    // has biahs
+                                                    bool,                     // has bias
+                                                    uint64_t                  // dynamic_quantization_group_size
+                                                    >;
 
 
 class FullyConnectedHorizontalFusion : public testing::WithParamInterface<FullyConnectedHorizontalFusionParams>,
@@ -53,6 +55,7 @@ public:
         bool reshape_on_decompression;
         bool per_tensor_zp;
         bool has_bias;
+        uint64_t dyn_quan_group_size;
 
         std::tie(shape_params,
                  weights_precision,
@@ -61,7 +64,8 @@ public:
                  decompression_sub,
                  reshape_on_decompression,
                  per_tensor_zp,
-                 has_bias) = obj.param;
+                 has_bias,
+                 dyn_quan_group_size) = obj.param;
 
         std::ostringstream result;
         result << "data_shape=";
@@ -72,7 +76,9 @@ public:
         result << "_" << "weights1_shape=" << shape_params.weights_shapes[0] << "_";
         result << "_" << "weights2_shape=" << shape_params.weights_shapes[1] << "_";
         result << "_" << "weights3_shape=" << shape_params.weights_shapes[2] << "_";
-        result << "group_size=" << shape_params.weights_group_size << "_";
+        auto weights_group_size = shape_params.weights_group_size;
+        weights_group_size = weights_group_size == -1 ? 111 : weights_group_size;
+        result << "group_size=" << weights_group_size << "_";
         result << "weights_precision=" << weights_precision << "_";
         result << "activations_precision=" << activations_precision << "_";
         result << "transpose_weights=" << transpose << "_";
@@ -80,6 +86,7 @@ public:
         result << "reshape_on_decompression=" << reshape_on_decompression << "_";
         result << "per_tensor_zp=" << per_tensor_zp;
         result << "has_bias=" << has_bias;
+        result << "dyn_quan_group_size=" << dyn_quan_group_size;
 
         return result.str();
     }
@@ -286,6 +293,7 @@ protected:
         bool reshape_on_decompression;
         bool per_tensor_zp;
         bool has_bias;
+        uint64_t dyn_quan_group_size;
 
         std::tie(shape_params,
                  weights_precision,
@@ -294,7 +302,8 @@ protected:
                  decompression_sub,
                  reshape_on_decompression,
                  per_tensor_zp,
-                 has_bias) = GetParam();
+                 has_bias,
+                 dyn_quan_group_size) = GetParam();
 
         init_input_shapes({shape_params.data_shape, {{}, shape_params.weights_shapes}});
 
@@ -315,6 +324,7 @@ protected:
         } else {
             abs_threshold = 1e-4f;
         }
+        this->configuration.insert({ov::hint::dynamic_quantization_group_size(dyn_quan_group_size)});
     }
 
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
@@ -374,7 +384,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_FCHorizontalFusion_no_bias,
                                             ::testing::Values(true),
                                             ::testing::Values(true),
                                             ::testing::ValuesIn(per_tensor_zp),
-                                            ::testing::Values(false)),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0) /* no dyn_quan */),
                          FullyConnectedHorizontalFusion::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(smoke_FCHorizontalFusion_with_bias,
@@ -386,7 +397,26 @@ INSTANTIATE_TEST_SUITE_P(smoke_FCHorizontalFusion_with_bias,
                                             ::testing::Values(true),
                                             ::testing::Values(true),
                                             ::testing::Values(true),
-                                            ::testing::Values(true)),
+                                            ::testing::Values(true),
+                                            ::testing::Values(0) /* no dyn_quan */),
+                         FullyConnectedHorizontalFusion::get_test_case_name);
+
+std::vector<ov::Shape> dyn_quan_weights = {{1, 128, 32}, {1, 128, 4}, {1, 128, 32}};
+
+const ShapeParams dyn_quan_input_shape =
+    {{{-1, -1, 128}, {{1, 4, 128}}}, dyn_quan_weights};
+
+INSTANTIATE_TEST_SUITE_P(smoke_FCHorizontalFusion_no_bias_dyn_quan,
+                         FullyConnectedHorizontalFusion,
+                         ::testing::Combine(::testing::Values(dyn_quan_input_shape),
+                                            ::testing::Values(weights_precisions[0]),
+                                            ::testing::Values(activations_precisions[0]),
+                                            ::testing::Values(transpose_weights[0]),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(false),
+                                            ::testing::Values(UINT64_MAX) /* dyn_quan */),
                          FullyConnectedHorizontalFusion::get_test_case_name);
 
 

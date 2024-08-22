@@ -64,13 +64,18 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_data, shape_group_size, element::f16);
         auto optional_w_zp = m_fc->get_input_size() > 4 ? m_fc->get_input_node_shared_ptr(4) : std::make_shared<ov::intel_gpu::op::Placeholder>();
 
+        auto output_type = m_fc->get_output_type();
+        if (output_type == ov::element::undefined)
+            output_type = m_fc->get_input_element_type(0);
+
         auto new_fc = std::make_shared<op::FullyConnectedCompressed>(dyn_quan->output(0),
                                                                      m_fc->get_input_node_shared_ptr(1),
                                                                      m_fc->get_input_node_shared_ptr(2),
                                                                      m_fc->get_input_node_shared_ptr(3),
                                                                      optional_w_zp,
                                                                      dyn_quan->output(1),
-                                                                     m_fc->get_output_type());
+                                                                     output_type);
+
         ov::replace_node(m_fc, new_fc);
 
         new_fc->set_friendly_name(m_fc->get_friendly_name());
