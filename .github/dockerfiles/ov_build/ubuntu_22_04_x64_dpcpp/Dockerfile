@@ -28,6 +28,7 @@ RUN apt-get update && \
         python3.11-dev \
         python3.11-venv \
         python3.11-distutils \
+        default-jdk \
         && \
     rm -rf /var/lib/apt/lists/*
 
