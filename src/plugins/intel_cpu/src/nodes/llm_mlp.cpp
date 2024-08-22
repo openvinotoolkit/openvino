@@ -24,28 +24,15 @@ namespace node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 
-// register blocking size for K dimension (1x2 AMX B-tiles)
-#define REG_BLK_K_SIZE 32
-
-// register blocking size for N dimension (1x2 AMX B-tiles)
-#define REG_BLK_N_SIZE 32
-
-// cache blocking sie for K dimension
-#define CACHE_BLK_K_SIZE 256
-
-// cache blocking sie for M dimension
-#define CACHE_BLK_M_SIZE 256
-
-class Linear {
+class LinearKsplit2 {
 public:
     std::vector<Work> works;
 
     int used_nthr = 0;
-    bool do_splitK = false;
 
     WeightBuffer wbuffer;
 
-    Linear() {}
+    LinearKsplit2() {}
 
     ReduceAdd2bh * p_jit_reduce2bh;
     // weight [N, K]
@@ -53,7 +40,7 @@ public:
     // and post-ops will compute  silu(gate)*up in unit of 16 elements
     // and store out as bfloat16.
     template <typename T>
-    void setup(T* p_weight, int stride, int N, int K, bool _do_splitK = false) {
+    void setup(T* p_weight, int stride, int N, int K) {
         static ReduceAdd2bh jit_reduce2bh_2(true);
 
         OPENVINO_ASSERT((N % REG_BLK_N_SIZE) == 0);
@@ -64,10 +51,9 @@ public:
 
         p_jit_reduce2bh = &jit_reduce2bh_2;
 
-        do_splitK = _do_splitK;
-        auto K_splits = do_splitK ? 2 : 1;
+        auto K_splits = 2;
         // split task on more cores is better on TBB
-        auto valid_nthr = do_splitK ? (nthr / 2) : nthr;
+        auto valid_nthr = nthr / 2;
         auto blkN_per_thread = (num_blk_N) / valid_nthr;
         auto blkN_leftover = num_blk_N - (blkN_per_thread * valid_nthr);
         auto start_blkN = 0;
@@ -81,46 +67,34 @@ public:
             }
             if (blkN) {
                 auto shared_atomic = std::make_shared<std::atomic_int>(0);
-                if (!do_splitK) {
-                    auto& work = works[ithr];
+
+                // split K dimension in unit of 32 evenly among 2 worker-threads
+                auto start_blkK = 0;
+                auto num_blk_K = K / REG_BLK_K_SIZE;
+                auto blkK_per_thread = (num_blk_K + 1) / 2;
+                for (int ik = 0; ik < K_splits; ik++) {
+                    auto blk_K = std::min(num_blk_K - start_blkK, blkK_per_thread);
+
+                    auto& work = works[ithr + ik];
+
                     work.sync_flag = shared_atomic;
                     work.blk_K_size = CACHE_BLK_K_SIZE;
 
                     work.n0 = (start_blkN) * REG_BLK_N_SIZE;
                     work.n1 = (start_blkN + blkN) * REG_BLK_N_SIZE;
                     work.BN = blkN * REG_BLK_N_SIZE;
-                    work.k0 = 0;
-                    work.k1 = K;
+                    work.k0 = start_blkK * REG_BLK_K_SIZE;
+                    work.k1 = (start_blkK + blk_K) * REG_BLK_K_SIZE;
+
+                    start_blkK += blk_K;
                     used_nthr++;
-                } else {
-                    // split K dimension in unit of 32 evenly among 2 worker-threads
-                    auto start_blkK = 0;
-                    auto num_blk_K = K / REG_BLK_K_SIZE;
-                    auto blkK_per_thread = (num_blk_K + 1) / 2;
-                    for (int ik = 0; ik < K_splits; ik++) {
-                        auto blk_K = std::min(num_blk_K - start_blkK, blkK_per_thread);
-
-                        auto& work = works[ithr + ik];
-
-                        work.sync_flag = shared_atomic;
-                        work.blk_K_size = CACHE_BLK_K_SIZE;
-
-                        work.n0 = (start_blkN) * REG_BLK_N_SIZE;
-                        work.n1 = (start_blkN + blkN) * REG_BLK_N_SIZE;
-                        work.BN = blkN * REG_BLK_N_SIZE;
-                        work.k0 = start_blkK * REG_BLK_K_SIZE;
-                        work.k1 = (start_blkK + blk_K) * REG_BLK_K_SIZE;
-
-                        start_blkK += blk_K;
-                        used_nthr++;
-                    }
                 }
             }
 
             start_blkN += blkN;
         }
 
-        DEBUG_LOG("Linear N,K=", N, ",", K, " used_nthr=", used_nthr, "  do_splitK=", do_splitK);
+        DEBUG_LOG("Linear N,K=", N, ",", K, " used_nthr=", used_nthr);
 
         wbuffer.alloc(works);
 
@@ -140,21 +114,15 @@ public:
             if (work) {
                 work.run(M, pA, strideA);
 
-                if (do_splitK) {
-                    auto sync_id = work.sync_flag->fetch_add(1);
-                    // (0,1) (2,3)
-                    if (sync_id & 1) {
-                        auto peer_ithr = (ithr & 1) ? (ithr - 1) : (ithr + 1);
-                        auto& peerC = works[peer_ithr].m_C;
-                        // the other one has finished, we can do the reduce sum
-                        p_jit_reduce2bh->call(workC.ptr<float>(), peerC.ptr<float>(), workC.stride(0),
-                                             dstC + work.n0, strideC / sizeof(*dstC),
-                                             M, work.BN);
-                    }
-                } else {
-                    p_jit_reduce2bh->call(workC.ptr<float>(), workC.stride(0),
-                                         dstC + work.n0, strideC / sizeof(*dstC),
-                                         M, work.BN);
+                auto sync_id = work.sync_flag->fetch_add(1);
+                // (0,1) (2,3)
+                if (sync_id & 1) {
+                    auto peer_ithr = (ithr & 1) ? (ithr - 1) : (ithr + 1);
+                    auto& peerC = works[peer_ithr].m_C;
+                    // the other one has finished, we can do the reduce sum
+                    p_jit_reduce2bh->call(workC.ptr<float>(), peerC.ptr<float>(), workC.stride(0),
+                                            dstC + work.n0, strideC / sizeof(*dstC),
+                                            M, work.BN);
                 }
             }
         });
@@ -263,7 +231,7 @@ struct LLMMLP::Impl {
     uint8_t* m_scratch_base = nullptr;
 
     LinearGateUp gate_up;
-    Linear down;
+    LinearKsplit2 down;
     int m_N;
     int m_M = 0;
 
@@ -280,7 +248,7 @@ struct LLMMLP::Impl {
         auto N = w_gate.size(0);
         OPENVINO_ASSERT(w_gate.stride_bytes(0) == w_up.stride_bytes(0));
         gate_up.setup(w_gate.ptr<ov::float16>(), w_up.ptr<ov::float16>(), w_up.stride_bytes(0), N * 2, K, config);
-        down.setup(w_down.ptr<ov::float16>(), w_down.stride_bytes(0), K, N, true);
+        down.setup(w_down.ptr<ov::float16>(), w_down.stride_bytes(0), K, N);
 
         m_N = N;
     }
