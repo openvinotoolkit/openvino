@@ -855,7 +855,7 @@ void Transformations::PostLpt() {
     }
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
-    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion, false);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(postLPTPassManager,
         [](const std::shared_ptr<const ov::Node>& node) -> bool {
