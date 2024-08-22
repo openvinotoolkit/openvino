@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/log_softmax.hpp"
+
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/convert.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -30,11 +32,11 @@ OutputVector translate_log_softmax_common(const NodeContext& context, bool is_fx
         const auto target_dtype_i64 = context.const_input<int64_t>(2);
         const auto target_dtype = convert_dtype(target_dtype_i64);
         if (elem_type != target_dtype) {
-            input = context.mark_node(std::make_shared<opset10::Convert>(input, target_dtype));
+            input = context.mark_node(std::make_shared<v0::Convert>(input, target_dtype));
         }
     }
 
-    const auto log_softmax = context.mark_node(std::make_shared<opset10::LogSoftmax>(input, dim));
+    const auto log_softmax = context.mark_node(std::make_shared<v5::LogSoftmax>(input, dim));
     return {log_softmax};
 };
 
