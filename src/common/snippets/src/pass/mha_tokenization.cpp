@@ -387,8 +387,8 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             parent = parent->get_input_node_shared_ptr(0);
             has_matmul0_has_ops_on_input = true;
         }
-        // If there are ops on second input of MatMul0 -> there always will be unique Buffer
-        if (has_matmul0_has_ops_on_input) {
+        // If there are ops on second input of MatMul0 and only one unique Buffer between MatMuls - there must be one more unique Buffer
+        if (has_matmul0_has_ops_on_input && uniqie_buffer_reg_group_count < 2) {
             uniqie_buffer_reg_group_count++;
         }
 

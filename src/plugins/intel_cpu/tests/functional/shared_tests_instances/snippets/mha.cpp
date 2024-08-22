@@ -527,6 +527,35 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(CPUTestUtils::empty_plugin_config)),
     MHA::getTestCaseName);
 
+std::vector<std::vector<ov::test::InputShape>> inputShapes_4D_WithMul_dynamic{
+        {
+            {PartialShape{-1, -1, -1, -1}, {{1, 128, 3, 64}, {1, 70, 3, 19}, {1, 128, 3, 64}, {1, 68, 6, 87}}},
+            {PartialShape{-1, -1, -1, -1}, {{1, 128, 1, 64}, {2, 49, 1, 19}, {1, 128, 1, 64}, {2, 13, 6, 87}}},
+            {PartialShape{1},              {{1},             {1},            {1},             {1} }},
+            {PartialShape{-1, -1, -1, -1}, {{2, 1, 128, 128}, {1, 1, 70, 49}, {2, 1, 128, 128}, {1, 1, 68, 13}}},
+            {PartialShape{-1, -1, -1, -1}, {{1, 128, 3, 64}, {1, 49, 3, 19}, {1, 128, 3, 64}, {2, 13, 6, 87}}},
+        },
+        {
+            {PartialShape{-1, -1, 12, 64}, {{1, 70, 12, 64}, {1, 20, 12, 64}, {1, 20, 12, 64}, {1, 20, 12, 64}, {1, 70, 12, 64}}},
+            {PartialShape{-1, -1, 12, 64}, {{1, 35, 12, 64}, {2, 10, 12, 64}, {2, 1, 12, 64},  {2, 10, 12, 64}, {1, 35, 12, 64}}},
+            {PartialShape{-1, 12, 64, -1}, {{1, 12, 64, 35}, {1, 12, 64, 10}, {1, 12, 64, 10}, {1, 12, 64, 1},  {1, 12, 64, 35}}},
+            {PartialShape{-1, 12, -1, -1}, {{2, 12, 70, 35}, {1, 12, 20, 10}, {1, 12, 20, 10}, {1, 12, 20, 1},  {2, 12, 70, 35}}},
+            {PartialShape{-1, -1, 12, 64}, {{1, 35, 12, 64}, {1, 10, 12, 64}, {1, 10, 12, 64}, {1, 10, 12, 64}, {1, 35, 12, 64}}},
+        }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMHA_4D_WithMul,
+                         MHAWithDynamicMul,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes_4D_WithMul_dynamic),
+                                            ::testing::ValuesIn(precision_f32(5)),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(MHA::default_thread_count),
+                                            ::testing::Values(1),
+                                            ::testing::Values(1),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         MHAWithDynamicMul::getTestCaseName);
+
 }  // namespace
 }  // namespace snippets
 }  // namespace test
