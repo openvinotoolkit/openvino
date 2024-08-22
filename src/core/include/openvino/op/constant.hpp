@@ -277,13 +277,20 @@ public:
     /// \return The initialization literals for the tensor constant.
     std::vector<std::string> get_value_strings() const;
 
+    /// @brief Get constant buffer as vector of element type T.
+    ///
+    /// For low precision the vector do not perform bit unpacks.
+    /// The returned vector has N elements where:
+    /// - N is (elements count * (precision byte size / T byte size)) for standard precisions.
+    /// - N is (byte size) for low precisions.
+    ///
+    /// @tparam T Output vector type which byte size must be less or equal of byte size of Constant's precision.
+    /// @return Vector of N elements of Type T.
     template <typename T>
     std::vector<T> get_vector() const {
-        const T* p = get_data_ptr<T>();
-        if (p == nullptr) {
-            OPENVINO_THROW("Cannot create vector! Buffer is not allocated.");
-        }
-        return std::vector<T>(p, p + shape_size(m_shape));
+        const auto p = get_data_ptr<T>();
+        OPENVINO_ASSERT(p != nullptr, "Cannot create vector! Buffer is not allocated.");
+        return std::vector<T>(p, p + (get_byte_size() / sizeof(T)));
     }
 
     /// \brief Return the Constant's value as a vector cast to type T

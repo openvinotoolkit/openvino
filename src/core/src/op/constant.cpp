@@ -258,9 +258,22 @@ void Constant::allocate_buffer(bool memset_allocation) {
     if (m_element_type == ov::element::string) {
         m_data = std::make_shared<StringAlignedBuffer>(num_elements, byte_size, host_alignment(), memset_allocation);
     } else {
+        constexpr uint8_t init_value = 0;
+
         m_data = std::make_shared<AlignedBuffer>(byte_size, host_alignment());
+        const auto buff_size = m_data->size();
+
         if (memset_allocation) {
-            std::memset(m_data->get_ptr(), 0, m_data->size());
+            std::memset(m_data->get_ptr(), init_value, buff_size);
+        } else if (byte_size > 0) {
+            // for low precision always initialize last storage unit to avoid random bit values for unused bits.
+            if (element::is_split_bit_type(m_element_type)) {
+                constexpr size_t storage_unit_byte_size = 3;
+                std::memset(m_data->get_ptr(buff_size - storage_unit_byte_size), init_value, storage_unit_byte_size);
+            } else if (element::is_bit_type(m_element_type) || element::is_nibble_type(m_element_type)) {
+                constexpr size_t storage_unit_byte_size = 1;
+                std::memset(m_data->get_ptr(buff_size - storage_unit_byte_size), init_value, storage_unit_byte_size);
+            }
         }
     }
 }
