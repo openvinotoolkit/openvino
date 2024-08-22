@@ -6,7 +6,7 @@
 abs_path () {
     script_path=$(eval echo "$1")
     directory=$(dirname "$script_path")
-    builtin cd "$directory" || exit
+    builtin cd "$directory" >/dev/null 2>&1 || exit
     pwd -P
 }
 
