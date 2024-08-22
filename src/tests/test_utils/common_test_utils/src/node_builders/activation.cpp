@@ -28,6 +28,7 @@
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/is_nan.hpp"
 #include "openvino/op/log.hpp"
+#include "openvino/op/logical_not.hpp"
 #include "openvino/op/mish.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/op/parameter.hpp"
@@ -45,7 +46,6 @@
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tan.hpp"
 #include "openvino/op/tanh.hpp"
-#include "openvino/op/logical_not.hpp"
 
 namespace ov {
 namespace test {
