@@ -828,12 +828,9 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
         OPENVINO_ASSERT(count == 1);
     }
 
-    if (getConfig().flushIntermediateTensors) {
-        m_preInferEvents.push_back(&Graph::allocateIntermediateTensors);
-        m_postInferEvents.push_back(&Graph::releaseIntermediateTensors);
-    } else {
+    if (!getConfig().flushIntermediateTensors) {
         //allocate mem right away
-        allocateIntermediateTensors();
+        m_pMemoryControl->allocateMemory();
     }
 
     // Resolve all other edges with status NotAllocated and in-place
@@ -1278,8 +1275,12 @@ int Graph::GetNumaNodeId() const {
 void Graph::Infer(SyncInferRequest* request) {
     DEBUG_LOG("Infer graph: ", GetName(), ". Status: ", static_cast<int>(status));
 
-    for (auto&& item : m_preInferEvents) {
-        (this->*item)();
+    if ov_unlikely(!m_pMemoryControl) {
+        OPENVINO_THROW("Memory control unit is not initilized in graph: ", GetName());
+    }
+
+    if ov_unlikely(!m_pMemoryControl->allocated()) {
+        m_pMemoryControl->allocateMemory();
     }
 
     switch (status) {
@@ -1294,10 +1295,6 @@ void Graph::Infer(SyncInferRequest* request) {
         break;
     default:
         OPENVINO_ASSERT(IsReady(), "Wrong state of the ov::intel_cpu::Graph. Topology is not ready: ", static_cast<int>(status));
-    }
-
-    for (auto&& item : m_postInferEvents) {
-        (this->*item)();
     }
 
     if (infer_count != -1) infer_count++;
@@ -1728,18 +1725,6 @@ std::shared_ptr<ov::Model> Graph::dump() const {
 
 const std::unordered_map<std::string, node::MemoryStateNode*>& Graph::getInternalStateNodes() const {
     return context->getMemoryStatesRegister()->getMemoryStates();
-}
-
-void Graph::allocateIntermediateTensors() {
-    if (m_pMemoryControl) {
-        m_pMemoryControl->allocateMemory();
-    }
-}
-
-void Graph::releaseIntermediateTensors() {
-    if (m_pMemoryControl) {
-        m_pMemoryControl->releaseMemory();
-    }
 }
 
 }   // namespace intel_cpu

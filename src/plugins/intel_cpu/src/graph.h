@@ -243,8 +243,6 @@ private:
     void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
     void insertConvert(EdgePtr& edge);
     int GetNumaNodeId() const;
-    void allocateIntermediateTensors();
-    void releaseIntermediateTensors();
 
 private:
     // TODO: change std::map to std::unordered_map
@@ -263,9 +261,6 @@ private:
     dnnl::stream m_stream;
 
     MemoryControl* m_pMemoryControl = nullptr;
-
-    std::vector<event_t> m_preInferEvents;
-    std::vector<event_t> m_postInferEvents;
 };
 
 using GraphPtr = std::shared_ptr<Graph>;
