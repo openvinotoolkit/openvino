@@ -225,19 +225,19 @@ struct padding {
     }
 
     void save(BinaryOutputBuffer& ob) const {
-        std::vector<size_t> sizes;
+        std::vector<int32_t> sizes;
         sizes.assign(_lower_size.begin(), _lower_size.end());
         ob << sizes;
         sizes.assign(_upper_size.begin(), _upper_size.end());
         ob << sizes;
         OPENVINO_ASSERT(sizes.size() == _dynamic_pad_dims.size(), "invalid size.");
         for (size_t i = 0; i < _dynamic_pad_dims.size(); i++)
-            sizes[i] = _dynamic_pad_dims[i];
+            sizes[i] = static_cast<int32_t>(_dynamic_pad_dims[i]);
         ob << sizes;
     }
 
     void load(BinaryInputBuffer& ib) {
-        std::vector<size_t> sizes;
+        std::vector<int32_t> sizes;
         ib >> sizes;
         std::copy_n(sizes.begin(), sizes.size(), _lower_size.begin());
         ib >> sizes;
@@ -245,7 +245,7 @@ struct padding {
         ib >> sizes;
         OPENVINO_ASSERT(sizes.size() == _dynamic_pad_dims.size(), "invalid size.");
         for (size_t i = 0; i < _dynamic_pad_dims.size(); i++)
-            _dynamic_pad_dims[i] = sizes[i];
+            _dynamic_pad_dims[i] = static_cast<bool>(sizes[i]);
     }
 };
 
