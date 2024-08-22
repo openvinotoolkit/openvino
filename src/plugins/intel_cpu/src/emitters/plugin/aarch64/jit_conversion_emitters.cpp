@@ -101,10 +101,11 @@ static void jit_convert_process(dnnl::impl::cpu::aarch64::jit_generator* h,
     TReg src = TReg(in_idxs[0]);
     TReg dst = TReg(out_idxs[0]);
 
-    if (input_type == output_type) {
-        if (in_idxs[0] == out_idxs[0])
-            return;
-        h->mov(dst.b16, src.b16);
+    if (input_type == output_type || (!is_saturated &&
+        one_of(input_type, ov::element::i8, ov::element::u8) && one_of(output_type, ov::element::i8, ov::element::u8))) {
+        if (in_idxs[0] != out_idxs[0]) {
+            h->mov(dst.b16, src.b16);
+        }
         return;
     }
 
