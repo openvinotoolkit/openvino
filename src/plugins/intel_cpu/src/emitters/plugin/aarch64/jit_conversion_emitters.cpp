@@ -199,9 +199,7 @@ static void jit_convert_process(dnnl::impl::cpu::aarch64::jit_generator* h,
 }
 
 jit_convert_emitter::jit_convert_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, ov::element::Type exec_prc)
-: jit_emitter(host, host_isa, exec_prc) {
-    input_type = node->get_input_element_type(0);
-    output_type = node->get_output_element_type(0);
+: jit_convert_emitter(host, host_isa, node->get_input_element_type(0), node->get_output_element_type(0), exec_prc) {
 }
 
 jit_convert_emitter::jit_convert_emitter(jit_generator *host, cpu_isa_t host_isa,
