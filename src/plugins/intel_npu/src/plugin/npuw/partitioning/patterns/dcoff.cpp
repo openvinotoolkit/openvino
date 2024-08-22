@@ -72,11 +72,11 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
             m.scale_remap[pscale_weight_cindex] = i - fbody._param_offset;
             m.params_to_remove.push_back(body_params[i]);
         } else if (pzerop_iter != params_to.zerops_asymm.end()) {
-            LOG_DEBUG("This is a Asymmetric Zero Point parameter, will be removed");
-            // Calculate the index for the asymmetric zero point and store it in the map
-            auto asymm_zerop_pindex = fbody._model->get_parameter_index(pzerop_iter->second);
-            auto asymm_zerop_cindex = asymm_zerop_pindex - fbody._param_offset;
-            m.zerop_remap[asymm_zerop_cindex] = i - fbody._param_offset;
+            LOG_DEBUG("This is an Asymmetric Zero Point parameter, will be removed");
+            // Calculate the index of the original tensor and store it in the map
+            auto orig_tensor_pindex = fbody._model->get_parameter_index(pzerop_iter->second);
+            auto orig_tensor_cindex = orig_tensor_pindex - fbody._param_offset;
+            m.zerop_remap[i - fbody._param_offset] = orig_tensor_cindex;
             m.params_to_remove.push_back(body_params[i]);
         } else {
             LOG_DEBUG("This is an OK parameter, will be kept");
@@ -115,9 +115,9 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
         auto scale_iter = m.scale_remap.find(i);
         new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._closure[scale_iter->second] : ov::Tensor());
         // Check for asymmetric zero points and add them to new_zerops
-        auto asymm_zerop_iter = m.zerop_remap.find(i);
+        auto orig_tensor_iter = m.zerop_remap.find(i);
         const auto& zerop =
-            asymm_zerop_iter != m.zerop_remap.end() ? fcall._closure[asymm_zerop_iter->second] : m.zero_points[i];
+            orig_tensor_iter != m.zerop_remap.end() ? fcall._closure[orig_tensor_iter->second] : m.zero_points[i];
         new_zerops.push_back(zerop);
     }
     fcall._closure = std::move(new_closure);
@@ -881,7 +881,7 @@ DCOFFPassReshape::DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff
                 // Reshape will be reconnected to ParamA directly
 
                 // Record mapping from the Scale coeff parameter to the Real weight parameter
-                pref.get().zerops_asymm[matched_paramB] = matched_paramA;
+                pref.get().zerops_asymm[matched_paramA] = matched_paramB;
                 pref.get().scales[matched_paramC] = matched_paramA;
 
                 // Disconnect Multiply and Convert from their outputs
