@@ -8,9 +8,6 @@
 #include "openvino/pass/pattern/matcher.hpp"
 
 namespace ov {
-using matcher_pass_callback = std::function<bool(pass::pattern::Matcher& m)>;
-using graph_rewrite_callback = std::function<bool(pass::pattern::Matcher& m)>;
-using handler_callback = std::function<bool(const std::shared_ptr<Node>& node)>;
 namespace pass {
 /// \brief Register openvino node pointers into container.
 /// Can create and/or add existing node pointers into register

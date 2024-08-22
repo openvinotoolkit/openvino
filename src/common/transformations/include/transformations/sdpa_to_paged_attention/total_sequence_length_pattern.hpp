@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/pass/MatcherPass.hpp"
