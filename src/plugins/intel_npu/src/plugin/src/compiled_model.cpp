@@ -214,6 +214,7 @@ void CompiledModel::configure_stream_executors() {
 }
 
 void CompiledModel::initialize_properties() {
+    // TODO: Add a coverity exception for the following line. Changing the type to a reference will break functionality.
     const auto pluginSupportedProperties =
         get_plugin()->get_property(ov::supported_properties.name(), {}).as<std::vector<ov::PropertyName>>();
     const auto isPropertySupported = [&pluginSupportedProperties](const std::string& name) {
