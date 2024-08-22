@@ -17,12 +17,12 @@ class SyncTensor : public ov::op::Op {
 public:
     OPENVINO_OP("SYNCTENSOR", "gpu_opset");
     SyncTensor() = default;
-    SyncTensor(const size_t world_size);
+    SyncTensor(const size_t world_size, const size_t split_dimenstion);
     SyncTensor(const ov::element::Type output_type);
 
     SyncTensor(const Output<Node>& input,
             const size_t world_size,
-            int split_dimension,
+            const size_t split_dimension,
             const ov::element::Type output_type = ov::element::undefined,
             const TP_MODE tp_mode = TP_MODE::ALL_GATHERH);
 
@@ -30,7 +30,7 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
     TP_MODE get_tp_mode() const { return m_tp_mode; }
-    int get_split_dim() const { return m_split_dimension; }
+    size_t get_split_dim() const { return m_split_dimension; }
     size_t m_world_size = 2;
 protected:
     ov::element::Type m_output_type;

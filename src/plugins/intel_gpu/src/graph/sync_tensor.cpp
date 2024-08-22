@@ -21,9 +21,9 @@ layout sync_tensor_inst::calc_output_layout(const sync_tensor_node& node, kernel
 }
 
 template<typename ShapeType>
-std::vector<layout> sync_tensor_inst::calc_output_layouts(sync_tensor_node const& /*node*/, kernel_impl_params const& impl_param) {
+std::vector<layout> sync_tensor_inst::calc_output_layouts(sync_tensor_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<sync_tensor>();
-    ov::intel_gpu::op::SyncTensor op(impl_param.w_size);
+    ov::intel_gpu::op::SyncTensor op(impl_param.w_size, node.get_primitive()->m_split_dimension);
     op.set_output_size(desc->num_outputs);
 
     std::vector<ShapeType> input_shapes = {impl_param.get_input_layout(0).get<ShapeType>()};

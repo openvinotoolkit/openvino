@@ -18,9 +18,10 @@ struct sync_tensor : public primitive_base<sync_tensor> {
     /// @param id This primitive id.
     /// @param inputs of sync_tensor.
     sync_tensor(const primitive_id& id,
-                const input_info& input)
+                const input_info& input,
+                const size_t split_dimension)
         : primitive_base(id, {input})
-        {}
+        { m_split_dimension = split_dimension; }
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -42,5 +43,6 @@ struct sync_tensor : public primitive_base<sync_tensor> {
         primitive_base<sync_tensor>::load(ib);
     }
     layout output_layout;
+    size_t m_split_dimension;
 };
 }  // namespace cldnn

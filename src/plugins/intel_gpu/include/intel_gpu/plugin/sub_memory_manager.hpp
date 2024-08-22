@@ -9,6 +9,7 @@
 #include <mutex>
 #include <memory>
 #include <assert.h>
+#include "intel_gpu/runtime/memory.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -18,7 +19,7 @@ public:
     using cptr = const std::shared_ptr<SubMemoryManager>;
     struct MemoryInfo {
         void* send_buf;
-        std::shared_ptr<void> buf;
+        cldnn::memory::ptr buf;
         bool flag;
         bool last_used;
     };

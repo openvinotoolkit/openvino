@@ -43,13 +43,25 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
     event::ptr execute_impl(const std::vector<event::ptr>& events, sync_tensor_inst& instance) override {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "sync_tensor::execute_impl");
         auto& stream = instance.get_network().get_stream();
-
+        auto& engine = instance.get_network().get_engine();
         const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
         if (!pass_through_events) {
             for (auto e : events) {
                 e->wait();
             }
         }
+        auto split_parts = [](int len, int n) {
+            int average = len / n;
+            std::vector<int> parts(n, average);
+            parts.back() = len - average * (n - 1);
+            return parts;
+        };
+        auto reshape_to_2d = [](const ov::PartialShape& shape, int64_t feature) {
+            auto staticShape = shape.to_shape();
+            size_t total = std::accumulate(staticShape.begin(), staticShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+            std::vector<int64_t> reshapeSize = { static_cast<int64_t>(total) / feature, feature };
+            return reshapeSize;
+        };
         auto sub_mem_mgr = instance.get_network().get_sub_mem_mgr();
         auto w_rank = instance.get_network().get_program()->get_config().subStreamExecConfig.get_rank()[0];
         auto w_size = instance.get_network().get_program()->get_config().get_context_for_tp().size();
@@ -67,19 +79,55 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                 break;
             }
         }
-        instance.output_memory(w_rank).copy_from(stream, instance.input_memory());
+        auto input_ps = instance.input_memory().get_layout().get_partial_shape();
+        auto output_ps = instance.output_memory().get_layout().get_partial_shape();
+        auto splited_dim_vec = split_parts(output_ps.to_shape()[-1], w_size);
+        auto prec_size = instance.output_memory().size() / instance.output_memory().count();
+        auto dst_ptr = static_cast<uint8_t*>(instance.output_memory().buffer_ptr());
+        auto mem_size = instance.output_memory().size();
+        int64_t input_feature = input_ps[std::min(input_ps.size(), static_cast<size_t>(4)) - 1].get_length();
+        int64_t output_feature = output_ps[std::min(output_ps.size(), static_cast<size_t>(4)) - 1].get_length();
+        auto in_shape = reshape_to_2d(input_ps, input_feature);
+        auto out_shape = reshape_to_2d(output_ps, output_feature);
+        // handle potential fake alignment of successor FC layers
+        if (out_shape[0] > in_shape[0]) {
+            auto align_muliplex = out_shape[0] / in_shape[0];
+            mem_size /= align_muliplex;
+        }
+        auto channel_size = instance.output_memory().get_layout().get_partial_shape().to_shape()[-1] * prec_size;
+        const size_t count = mem_size / channel_size;
+        const auto stride_size = splited_dim_vec[0] * prec_size;
         // a turn-around to copy usm device memory out, in case issues brought by un-lock
-        sub_mem_mgr->_memorys_table[id][w_rank].send_buf = instance.output_memory(w_rank).buffer_ptr();
+        sub_mem_mgr->_memorys_table[id][w_rank].buf =
+            engine.allocate_memory(instance.input_memory().get_layout(), allocation_type::usm_host);
+        sub_mem_mgr->_memorys_table[id][w_rank].buf->copy_from(stream, instance.input_memory());
         sub_mem_mgr->_memorys_table[id][w_rank].flag = true;
+
         std::vector<int> wait_list(w_size, 1);
-        wait_list[w_rank] = 0; // no need to wait for itself
         while (true) {
             int wait_size = 0;
             for (int idx = 0; idx < static_cast<int>(w_size); idx++) {
-                if (idx != w_rank && wait_list[idx] > 0 && sub_mem_mgr->_memorys_table[id][idx].flag) {
-                    auto src_ptr = static_cast<uint8_t*>(sub_mem_mgr->_memorys_table[id][idx].send_buf);
-                    auto dst_ptr = instance.output_memory(idx).buffer_ptr();
-                    std::memcpy(dst_ptr, src_ptr, instance.output_memory(idx).size());
+                if (wait_list[idx] > 0 && sub_mem_mgr->_memorys_table[id][idx].flag) {
+                    auto src_ptr = static_cast<uint8_t*>(sub_mem_mgr->_memorys_table[id][idx].buf->buffer_ptr());
+                    const auto copy_size = splited_dim_vec[idx] * prec_size;
+                    const size_t unloop = 8;
+                    size_t step = count / unloop;
+                     ov::parallel_for(step, [&](int i){
+                        std::memcpy(dst_ptr + idx * stride_size + (i * unloop) * channel_size, src_ptr + (i * unloop) * copy_size, copy_size);
+                        std::memcpy(dst_ptr + idx * stride_size + (i * unloop + 1) * channel_size, src_ptr + (i * unloop + 1) * copy_size, copy_size);
+                        std::memcpy(dst_ptr + idx * stride_size + (i * unloop + 2) * channel_size, src_ptr + (i * unloop + 2) * copy_size, copy_size);
+                        std::memcpy(dst_ptr + idx * stride_size + (i * unloop + 3) * channel_size, src_ptr + (i * unloop + 3) * copy_size, copy_size);
+                        std::memcpy(dst_ptr + idx * stride_size + (i * unloop + 4) * channel_size, src_ptr + (i * unloop + 4) * copy_size, copy_size);
+                        std::memcpy(dst_ptr + idx * stride_size + (i * unloop + 5) * channel_size, src_ptr + (i * unloop + 5) * copy_size, copy_size);
+                        std::memcpy(dst_ptr + idx * stride_size + (i * unloop + 6) * channel_size, src_ptr + (i * unloop + 6) * copy_size, copy_size);
+                        std::memcpy(dst_ptr + idx * stride_size + (i * unloop + 7) * channel_size, src_ptr + (i * unloop + 7) * copy_size, copy_size);
+                    });
+                    size_t tail = count & ~(unloop - 1);
+                    for (size_t i = tail; i < count; ++i) {
+                        size_t dst_offset = i * channel_size + idx * stride_size;
+                        size_t src_offset = i * copy_size;
+                        std::memcpy(dst_ptr + dst_offset, src_ptr + src_offset, copy_size);
+                    }
                     wait_list[idx] = 0;
                 }
                 wait_size += wait_list[idx];
