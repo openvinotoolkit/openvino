@@ -750,7 +750,6 @@ const auto params_4D_bitwise_NOT_i32 = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Bitwise_NOT_i32, EltwiseLayerCPUTest, params_4D_bitwise_NOT_i32, EltwiseLayerCPUTest::getTestCaseName);
 
-
 }  // namespace
 }  // namespace Eltwise
 }  // namespace test
