@@ -239,12 +239,7 @@ void ProgramBuilder::CreateSingleLayerPrimitive(const std::shared_ptr<ov::Node>&
             is_created = true;
             break;
         }
-
-        const std::string paged_attention_type = "PagedAttentionExtension";
-        if (op->get_type_name() == paged_attention_type) {
-            CreatePagedAttention(*this, op);
-            return;
-        }
+        op_type_info = op_type_info->parent;
     }
 
     if (!is_created) {

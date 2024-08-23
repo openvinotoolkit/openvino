@@ -841,7 +841,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     }
 
     cldnn::event::ptr ret_event = nullptr;
-    if (!is_remote && !convert_needed) {
+    if (!is_remote_tensor_impl && !is_generic_remote && !convert_needed) {
         auto src_ptr = static_cast<uint8_t*>(user_tensor->data());
         if (!same_host_mem(memory, src_ptr)) {
             // WA: Set need_lockable_mem as a blocking argument

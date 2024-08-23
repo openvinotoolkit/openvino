@@ -55,9 +55,6 @@ public:
     memory::ptr block_indices_begins_memory_ptr() const { return input_memory_ptr(8); }
     memory::ptr alibi_memory_ptr() const { return input_memory_ptr(11); }
 
-    mutable cldnn::memory::ptr blocks_mem = nullptr;
-    mutable cldnn::memory::ptr context_lens_mem = nullptr;
-
     std::shared_ptr<network> prefill_network;
 
 protected:

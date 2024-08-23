@@ -16,7 +16,7 @@ constexpr size_t paged_attention_block_size = 16;
 static size_t get_generate_stage_block_size(size_t head_size) {
     auto preferred_block_size = { 4, 2, 1 };
     for (const auto& block_size : preferred_block_size) {
-        if (head_size % block_size == 0) {
+        if (head_size % (block_size * subgroup_size) == 0) {
             return block_size;
         }
     }

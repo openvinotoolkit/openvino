@@ -240,25 +240,25 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     static kv_cache_update_kernel_params_t get_kv_cache_update_kernel_params(const kernel_impl_params& impl_param, bool is_dynamic = false) {
         auto params = get_default_params<kv_cache_update_kernel_params_t>(impl_param, is_dynamic);
 
-        auto key = impl_param.get_input_layout(1);
-        auto value = impl_param.get_input_layout(2);
-        auto key_cache = impl_param.get_input_layout(3);
-        auto value_cache = impl_param.get_input_layout(4);
-        auto past_lens = impl_param.get_input_layout(5);
-        auto block_indices = impl_param.get_input_layout(7);
-        auto block_indices_begins = impl_param.get_input_layout(8);
+        const auto& key_layout = impl_param.get_input_layout(1);
+        const auto& value_layout = impl_param.get_input_layout(2);
+        const auto& key_cache_layout = impl_param.get_input_layout(3);
+        const auto& value_cache_layout = impl_param.get_input_layout(4);
+        const auto& past_lens_layout = impl_param.get_input_layout(5);
+        const auto& block_indices_layout = impl_param.get_input_layout(7);
+        const auto& block_indices_begins_layout = impl_param.get_input_layout(8);
 
         const auto inputs_number = 5;
         const auto outputs_number = 2;
         params.inputs.resize(inputs_number);
         params.outputs.resize(outputs_number);
-        params.inputs[0] = convert_data_tensor(key);
-        params.inputs[1] = convert_data_tensor(value);
-        params.inputs[2] = convert_data_tensor(past_lens);
-        params.inputs[3] = convert_data_tensor(block_indices);
-        params.inputs[4] = convert_data_tensor(block_indices_begins);
-        params.outputs[0] = convert_data_tensor(key_cache);
-        params.outputs[1] = convert_data_tensor(value_cache);
+        params.inputs[0] = convert_data_tensor(key_layout);
+        params.inputs[1] = convert_data_tensor(value_layout);
+        params.inputs[2] = convert_data_tensor(past_lens_layout);
+        params.inputs[3] = convert_data_tensor(block_indices_layout);
+        params.inputs[4] = convert_data_tensor(block_indices_begins_layout);
+        params.outputs[0] = convert_data_tensor(key_cache_layout);
+        params.outputs[1] = convert_data_tensor(value_cache_layout);
 
         params.conf = get_sdpa_configuration(impl_param);
 
@@ -283,11 +283,11 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     static sdpa_kernel_params_t get_sdpa_kernel_params(const kernel_impl_params& impl_param, bool is_dynamic = false) {
         auto params = get_default_params<sdpa_kernel_params_t>(impl_param, is_dynamic);
 
-        const auto query_layout = impl_param.get_input_layout(0);
-        const auto key_layout = impl_param.get_input_layout(1);
-        const auto value_layout = impl_param.get_input_layout(2);
-        const auto subsequence_begins_layout = impl_param.get_input_layout(6);
-        const auto alibi_layout = impl_param.get_input_layout(11);
+        const auto& query_layout = impl_param.get_input_layout(0);
+        const auto& key_layout = impl_param.get_input_layout(1);
+        const auto& value_layout = impl_param.get_input_layout(2);
+        const auto& subsequence_begins_layout = impl_param.get_input_layout(6);
+        const auto& alibi_layout = impl_param.get_input_layout(11);
         const auto has_alibi = alibi_layout.count() > 0;
 
         auto inputs_number = 4;
@@ -371,15 +371,15 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     static pa_sdpa_kernel_params_t get_pa_sdpa_params(const kernel_impl_params& impl_param, bool is_dynamic = false) {
         auto params = get_default_params<pa_sdpa_kernel_params_t>(impl_param, is_dynamic);
 
-        const auto query_layout = impl_param.get_input_layout(0);
-        const auto key_cache_layout = impl_param.get_input_layout(3);
-        const auto value_cache_layout = impl_param.get_input_layout(4);
-        const auto past_lens_layout = impl_param.get_input_layout(5);
-        const auto block_indices_layout = impl_param.get_input_layout(7);
-        const auto block_indices_begins_layout = impl_param.get_input_layout(8);
-        const auto alibi_layout = impl_param.get_input_layout(11);
-
+        const auto& query_layout = impl_param.get_input_layout(0);
+        const auto& key_cache_layout = impl_param.get_input_layout(3);
+        const auto& value_cache_layout = impl_param.get_input_layout(4);
+        const auto& past_lens_layout = impl_param.get_input_layout(5);
+        const auto& block_indices_layout = impl_param.get_input_layout(7);
+        const auto& block_indices_begins_layout = impl_param.get_input_layout(8);
+        const auto& alibi_layout = impl_param.get_input_layout(11);
         const auto has_alibi = alibi_layout.count() > 0;
+
         auto inputs_number = 6;
         if (has_alibi)
             inputs_number++;
