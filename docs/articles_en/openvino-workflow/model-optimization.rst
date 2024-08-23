@@ -17,10 +17,11 @@ model is used in the final AI application.
 In OpenVINO, the default optimization tool is NNCF (Neural Network Compression Framework).
 Note that NNCF is **not part of the OpenVINO package**, so it needs to be installed separately.
 It is a set of compression algorithms, organized as a Python package, that make your models
-smaller and faster,
+smaller and faster. NNCF supports models in **PyTorch**, **TensorFlow**, **ONNX**, and
+**OpenVINO IR** formats, offering the following optimizations:
 
-NNCF supports models in **PyTorch**, **TensorFlow**, **ONNX**, and **OpenVINO IR** formats,
-offering the following optimizations:
+.. image:: ../assets/images/WHAT_TO_USE.svg
+
 
 | :doc:`Post-training Quantization <model-optimization-guide/quantizing-models-post-training>`:
 |      designed to optimize inference of deep learning models by applying 8-bit integer
@@ -28,38 +29,16 @@ offering the following optimizations:
        fine-tuning.
 
 | :doc:`Training-time Optimization <model-optimization-guide/compressing-models-during-training>`:
-|      involves a suite of advanced methods such as Quantization-aware Training, Structured,
-       and Unstructured Pruning, used within the model's original deep learning framework, such
-       as PyTorch and TensorFlow.
+|      involves a suite of advanced methods such as Structured or Unstructured Pruning, as well
+       as Quantization-aware Training. This kind of optimization requires the use of the model's
+       original framework, for NNCF, it is either PyTorch or TensorFlow.
 
 | :doc:`Weight Compression <model-optimization-guide/weight-compression>`:
 |      an easy-to-use method for Large Language Model footprint reduction and inference
        acceleration.
 
 
-.. image:: ../assets/images/WHAT_TO_USE.svg
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 .. image:: ../assets/images/DEVELOPMENT_FLOW_V3_crunch.svg
-
-
-
-
-
-
 
 
 .. tab-set::
@@ -92,7 +71,7 @@ offering the following optimizations:
       Note that to optimize a model, you will need to install this model's framework as well.
       Install NNCF in the same Python environment as the framework. For a list of recommended
       framework versions, see the
-      `framework compatibility table <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Installation.md#corresponding-versions>`__
+      `framework compatibility table <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Installation.md#corresponding-versions>`__.
 
       * Ubuntu* 18.04 or later (64-bit)
       * Python* 3.8 or later
@@ -103,24 +82,8 @@ offering the following optimizations:
         * ONNX* ==1.16.0
         * OpenVINO* >=2022.3.0
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-To learn about the full
-scope of the framework, visit dedicated `repository <https://github.com/openvinotoolkit/nncf?tab=readme-ov-file>`__ .
+To learn about the full scope of the framework, visit
+`the NNCF repository <https://github.com/openvinotoolkit/nncf?tab=readme-ov-file>`__.
 
 
 
