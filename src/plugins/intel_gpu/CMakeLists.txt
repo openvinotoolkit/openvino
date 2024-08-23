@@ -8,6 +8,10 @@ endif()
 
 set (TARGET_NAME "openvino_intel_gpu_plugin")
 
+if(OV_COMPILER_IS_INTEL_LLVM)
+    find_package(IntelSYCL REQUIRED)
+endif()
+
 if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
     set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
 endif()
@@ -30,6 +34,9 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd4244)
     # '<': signed/unsigned mismatch
     ov_add_compiler_flags(/wd4018)
+
+    # see https://github.com/oneapi-src/oneDNN/issues/2028
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus")
 endif()
 
 if(ENABLE_GPU_DEBUG_CAPS)

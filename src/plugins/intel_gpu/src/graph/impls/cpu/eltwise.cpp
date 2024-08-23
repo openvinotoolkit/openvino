@@ -4,9 +4,7 @@
 
 #include "register.hpp"
 #include "eltwise_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
+#include "impls/registry/implementation_map.hpp"
 
 #include "openvino/op/add.hpp"
 #include "openvino/op/multiply.hpp"
@@ -31,6 +29,8 @@
 #include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/is_nan.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -168,6 +168,12 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
             case eltwise_mode::is_nan:
                 op = std::make_shared<ov::op::v10::IsNaN>();
                 break;
+            case eltwise_mode::right_shift:
+                op = std::make_shared<ov::op::v15::BitwiseRightShift>();
+                break;
+            case eltwise_mode::left_shift:
+                op = std::make_shared<ov::op::v15::BitwiseLeftShift>();
+                break;
             default:
                 OPENVINO_THROW("[GPU] Couldn't create eltwise operation: unsupported eltwise operation (", static_cast<size_t>(mode), ")");
             }
@@ -205,7 +211,7 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
-    void update_dispatch_data(const kernel_impl_params& impl_param) override {}
+    void update(primitive_inst& inst, const kernel_impl_params& impl_param) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const eltwise_node& arg, const kernel_impl_params& impl_param) {
