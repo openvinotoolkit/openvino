@@ -10,8 +10,8 @@
 #include "openvino/op/parameter.hpp"
 #include "visitors/visitors.hpp"
 
-using ov::test::NodeBuilder;
-
+namespace ov {
+namespace test {
 TEST(attributes, stft) {
     NodeBuilder::opset().insert<ov::op::v15::STFT>();
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 48});
@@ -29,3 +29,5 @@ TEST(attributes, stft) {
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
     EXPECT_EQ(op->get_transpose_frames(), g_op->get_transpose_frames());
 }
+}  // namespace test
+}  // namespace ov
