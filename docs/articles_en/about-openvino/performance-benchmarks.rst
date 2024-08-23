@@ -206,12 +206,11 @@ You can also test performance for your system yourself, following the guide on
 
    <h2>Disclaimers</h2>
 
-
 * Intel® Distribution of OpenVINO™ toolkit performance results are based on release
   2024.3, as of July 31, 2024.
 
 * OpenVINO Model Server performance results are based on release
-  2024.2, as of June 28, 2024.
+  2024.3, as of Aug. 19, 2024.
 
 The results may not reflect all publicly available updates. Intel technologies' features and
 benefits depend on system configuration and may require enabled hardware, software, or service
