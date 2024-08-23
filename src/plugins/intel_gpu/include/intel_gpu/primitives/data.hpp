@@ -89,6 +89,8 @@ struct data : public primitive_base<data> {
 
                 size_t dst_offset = 0;
                 while (dst_offset < data_size) {
+                    const bool is_blocking = false;
+                    const size_t src_offset = 0;
                     size_t copy_size = (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
                     if (buf_flag) {
                         ib >> make_data(_buf1.data(), copy_size);
@@ -96,14 +98,14 @@ struct data : public primitive_base<data> {
                             ev2->wait();
                             ev2 = nullptr;
                         }
-                        ev1 = mem->copy_from(strm, _buf1.data(), false, dst_offset, copy_size);
+                        ev1 = mem->copy_from(strm, _buf1.data(), src_offset, dst_offset, copy_size, is_blocking);
                     } else {
                         ib >> make_data(_buf2.data(), copy_size);
                         if (ev1 != nullptr) {
                             ev1->wait();
                             ev1 = nullptr;
                         }
-                        ev2 = mem->copy_from(strm, _buf2.data(), false, dst_offset, copy_size);
+                        ev2 = mem->copy_from(strm, _buf2.data(), src_offset, dst_offset, copy_size, is_blocking);
                     }
                     dst_offset += DATA_BLOCK_SIZE;
                     buf_flag = !buf_flag;

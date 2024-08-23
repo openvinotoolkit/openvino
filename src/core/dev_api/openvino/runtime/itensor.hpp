@@ -81,7 +81,7 @@ public:
      *
      * @param dst destination tensor
      */
-    void copy_to(const std::shared_ptr<ov::ITensor>& dst) const;
+    virtual void copy_to(const std::shared_ptr<ov::ITensor>& dst) const;
 
 protected:
     virtual ~ITensor();
