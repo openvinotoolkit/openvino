@@ -878,7 +878,6 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreat
     }
 
     _logger.info("compileIR Using extension version: %s", typeid(TableExtension).name());
-    _logger.debug("seriazlideIRModelAndCreateGraph - performing createGraph");
     ze_result_t result = createGraph(format, serializedIR, buildFlags, flags, &graphHandle);
 
     if (ZE_RESULT_SUCCESS != result) {
