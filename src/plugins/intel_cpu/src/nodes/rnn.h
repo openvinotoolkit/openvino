@@ -4,14 +4,10 @@
 
 #pragma once
 
-#include <node.h>
+#include "node.h"
+#include "common/dnnl_executor.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-#include <string>
-#include <memory>
-#include <vector>
-
-#include "common/dnnl_executor.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -61,13 +57,14 @@ private:
     bool verifyWeightsPrecision(const ov::element::Type& layerPrec,
                                 const ov::element::Type& weightsPrec);
 
-    template <typename Prec>
-    void fillWeights(const int* gate_map, const size_t wIdx, const size_t rIdx);
-    template <ov::element::Type_t Prec>
-    void fillBiases(const int* gate_map);
+    template <ov::element::Type_t ET>
+    void fillWeights();
+    template <ov::element::Type_t ET>
+    void fillBiases();
 
     void copyWeightsData();
 
+    void prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) override;
     class RnnDnnlExecutor : public DnnlExecutor {
         public:
             RnnDnnlExecutor(const dnnl::primitive_desc& pd);
@@ -161,6 +158,12 @@ private:
     float inputScale    = 0.f;
     float inputShift    = 0.f;
     std::vector<float> weightsScales;
+
+    const uint64_t* m_gate_map;
+    // Need to reorder from the initial memory descs due to limited Reorders set.
+    MemoryPtr m_initial_weights[3] = { nullptr, nullptr, nullptr };
+    // Need to keep cache objects. Otherwise, they will be erased from the global cache.
+    std::unordered_set<MemoryPtr> m_weights_pull;
 };
 
 }   // namespace node

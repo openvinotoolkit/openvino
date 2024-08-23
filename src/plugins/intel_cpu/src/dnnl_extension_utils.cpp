@@ -266,8 +266,8 @@ bool DnnlExtensionUtils::isUnarySupportedAsPostOp(Algorithm alg) {
 #endif
 }
 
-std::string DnnlExtensionUtils::computeWeightsStringHash(const std::shared_ptr<const IMemory> memory,
-                                                         const std::shared_ptr<DnnlMemoryDesc> dstDesc) {
+std::string DnnlExtensionUtils::computeWeightsStringHash(const std::shared_ptr<const IMemory>& memory,
+                                                         const std::shared_ptr<DnnlMemoryDesc>& dstDesc) {
     const auto desc_hash = dnnl::impl::primitive_hashing::get_md_hash(*dstDesc->getDnnlDesc().get());
     return std::to_string(desc_hash) + "_" + std::to_string(reinterpret_cast<uint64_t>(memory->getData()));
 }
