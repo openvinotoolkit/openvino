@@ -39,13 +39,9 @@
         return sw_plugin_in_target_device(ov::test::utils::target_device) ? "" : "mandatory_" + name; \
     }
 
-#define MARK_MANDATORY_FOR_QUERY_MODEL(GET_TEST_NAME)                                                 \
-    [](const testing::TestParamInfo<std::string>& info) {                                             \
-        std::string name = "";                                                                        \
-        if (nullptr != GET_TEST_NAME) {                                                               \
-            name = GET_TEST_NAME(info);                                                               \
-        }                                                                                             \
-        return sw_plugin_in_target_device(ov::test::utils::target_device) ? "" : "mandatory_" + name; \
+#define MARK_MANDATORY_FOR_API_HW_DEVICE()                                                     \
+    [](const testing::TestParamInfo<std::string>& info) {                                      \
+        return sw_plugin_in_target_device(ov::test::utils::target_device) ? "" : "mandatory_"; \
     }
 
 namespace ov {

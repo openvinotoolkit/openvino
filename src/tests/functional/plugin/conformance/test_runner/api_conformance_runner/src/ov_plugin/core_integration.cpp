@@ -12,8 +12,6 @@
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
 
-static std::string (*null_GetTestName)(const testing::TestParamInfo<std::string>& info) = nullptr;
-
 namespace {
 //
 // OV Class Common tests with <pluginName, deviceName params>
@@ -22,19 +20,16 @@ namespace {
 INSTANTIATE_TEST_SUITE_P(ov_plugin,
                          OVClassModelTestP,
                          ::testing::Values(ov::test::utils::target_device),
-                         MARK_MANDATORY_FOR_QUERY_MODEL(null_GetTestName));
+                         MARK_MANDATORY_FOR_API_HW_DEVICE());
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin,
                          OVClassModelOptionalTestP,
-                         ::testing::Values(ov::test::utils::target_device),
-                         MARK_MANDATORY_FOR_QUERY_MODEL(null_GetTestName));
+                         ::testing::Values(ov::test::utils::target_device));
 
 // OV Class Query network
-
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin,
                          OVClassQueryModelTest,
                          ::testing::Values(ov::test::utils::target_device),
-                         MARK_MANDATORY_FOR_QUERY_MODEL(null_GetTestName));
-
+                         MARK_MANDATORY_FOR_API_HW_DEVICE());
 }  // namespace
