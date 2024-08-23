@@ -40,7 +40,7 @@ private:
     size_t get_aux_gprs_count() const override;
     size_t get_aux_vecs_count() const override;
 
-    std::unique_ptr<jit_convert_emitter> convert_emitter = nullptr;
+    std::unique_ptr<jit_convert_truncation_emitter> convert_truncation_emitter = nullptr;
 
     std::string name_;
     int load_num_;  // the element number to load
