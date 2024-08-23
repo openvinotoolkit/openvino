@@ -38,9 +38,7 @@ void stft(const float* signal,
     std::copy(window, window + window_shape[0], pad_window.begin() + (frame_size_dim - window_length) / 2);
 
     const auto fft_out_shape_size = shape_size(fft_out_shape);
-    for (size_t batch = 0; batch < batch_size; ++batch) {
-        const auto batch_in_start = batch * signal_length;
-        const auto batch_frames_out = batch * num_frames;
+    for (size_t batch = 0, batch_in_start = 0, batch_frames_out = 0; batch < batch_size; ++batch) {
         for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
             const auto frame_start = batch_in_start + frame_idx * frame_step;
             const auto frame_end = frame_start + frame_size;
@@ -58,6 +56,8 @@ void stft(const float* signal,
                             Shape{frame_size_dim, 2},
                             rdft_result + result_idx);
         }
+        batch_in_start += signal_length;
+        batch_frames_out += num_frames;
     }
     if (transpose_frames) {
         const auto stft_transp_out_shape = Shape{batch_size, fft_out_shape[0], num_frames, fft_out_shape[1]};
