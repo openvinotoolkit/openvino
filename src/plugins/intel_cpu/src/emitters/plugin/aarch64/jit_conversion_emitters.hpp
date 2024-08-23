@@ -22,9 +22,34 @@ public:
 protected:
     void emit_data() const override;
     void validate_types() const;
+    template <typename TReg>
+    void jit_convert_process(const TReg &src, const TReg &dst, ov::element::Type input_type, ov::element::Type output_type,
+                             bool is_saturated) const;
 
     ov::element::Type input_type;
     ov::element::Type output_type;
+
+private:
+    template <typename TReg>
+    inline void cvt_f16_to_f32(const TReg &src, const TReg &dst) const;
+    template <typename TReg>
+    inline void cvt_f32_to_f16(const TReg &src, const TReg &dst) const;
+    template <typename TReg>
+    inline void cvt_f32_to_i32(const TReg &src, const TReg &dst) const;
+    template <typename TReg>
+    inline void cvt_i32_to_f32(const TReg &src, const TReg &dst) const;
+    template <typename TReg>
+    inline void cvt_i32_to_i16(const TReg &src, const TReg &dst, bool is_saturated) const;
+    template <typename TReg>
+    inline void cvt_i16_to_i32(const TReg &src, const TReg &dst) const;
+    template <typename TReg>
+    inline void cvt_f16_to_i16(const TReg &src, const TReg &dst) const;
+    template <typename TReg>
+    inline void cvt_i16_to_f16(const TReg &src, const TReg &dst) const;
+    template <typename TReg>
+    inline void cvt_i16_to_byte(const TReg &src, const TReg &dst, bool is_signed, bool is_saturated) const;
+    template <typename TReg>
+    inline void cvt_byte_to_i16(const TReg &src, const TReg &dst, bool is_signed) const;
 };
 
 // This emitter is covered by specification of "Convert" operation. The implementation uses a "warp-around" conversion.
