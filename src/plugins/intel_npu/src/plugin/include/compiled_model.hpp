@@ -62,6 +62,11 @@ public:
 
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
+    // For CID path mean it get the blob from compiler through pfnGetNativeBinary using
+    // networkDescription->metadata.graphHandle.
+
+    // For CIP path mean it get the blob from
+    // networkDescription->compiledNetwork.
     void export_model(std::ostream& stream) const override;
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
