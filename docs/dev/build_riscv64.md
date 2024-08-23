@@ -70,7 +70,7 @@ The software was validated on the following devices:
    ```
    > **NOTE**: The `riscv-gnu-toolchain` is build as there are essential files used for cross compilation under `/opt/riscv/sysroot`. The latest stable versions of Clang or GCC both support compiling source code into RISC-V instructions, so it is acceptable to choose your preferable compilers by specifying `-DCMAKE_C_COMPILER` and `CMAKE_CXX_COMPILER`. But remember to add the key `-DCMAKE_SYSROOT=/opt/riscv/sysroot`, otherwise many fundamental headers and libs could not be found during cross compilation. 
 
-   By default OpenVINO is built without parallelism support on RISC-V devices. However there is OpenMP support which can be enabled using the cmake key `-DTHREADING=OMP`.
+   > **NOTE**: By default OpenVINO is built with OpenMP support on RISC-V devices.
 
    Then run `make` to build the project:
    ```sh
