@@ -30,22 +30,20 @@ class TestTensorScatterUpdate(CommonTFLayerTest):
         else:
             inputs_data['tensor:0'] = rng.integers(0, 8, tensor_shape).astype(self.data_type)
             inputs_data['updates:0'] = rng.integers(0, 8, updates_shape).astype(self.data_type)
+
+        indices_rows, indices_col = indices_shape
+
+        indices_of_tensor_shape = []
+        for i in range(0, indices_col):
+            indices_of_tensor_shape.append(np.arange(tensor_shape[i]))
+
         
-        tensor_rows = tensor_shape[0]
-        tensor_cols = tensor_shape[1]
+        mesh = np.meshgrid(*indices_of_tensor_shape)
 
-        indices_rows, indices_cols = indices_shape
+        all_indicies = np.stack(mesh, axis=indices_col)
+        all_indicies = all_indicies.reshape(-1, all_indicies.shape[-1])
 
-        all_indices = []
-        if indices_cols == 1:
-            for row_ind in range(0, tensor_rows):
-                all_indices.append([row_ind])
-        else:
-            for row_ind in range(0, tensor_rows):
-                for col_ind in range(0, tensor_cols):
-                    all_indices.append([row_ind, col_ind])
-
-        inputs_data['indices:0'] = rng.choice(all_indices, indices_rows, replace=False).astype(self.indices_type)
+        inputs_data['indices:0'] = rng.choice(all_indicies, indices_rows, replace=False).astype(self.indices_type)
 
         return inputs_data
 
@@ -77,6 +75,8 @@ class TestTensorScatterUpdate(CommonTFLayerTest):
     @pytest.mark.parametrize('tensor_shape, updates_shape, indices_shape', [
         [[10, 5], [2], [2, 2]],
         [[4, 4, 4], [2, 4, 4], [2, 1]],
+        [[2, 4, 8], [3], [3, 3]],
+        [[4, 3, 5], [1,5], [1, 2]],
     ])
     @pytest.mark.precommit
     @pytest.mark.nightly
