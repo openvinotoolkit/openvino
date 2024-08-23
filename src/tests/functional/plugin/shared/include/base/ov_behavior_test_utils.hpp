@@ -31,8 +31,20 @@
 #include "common_test_utils/subgraph_builders/split_concat.hpp"
 
 #define MARK_MANDATORY_FOR_HW_DEVICE(GET_TEST_NAME)                                                   \
-    [&](const testing::TestParamInfo<PropertiesParams>& info) {                                       \
-        std::string name = GET_TEST_NAME(info);                                                       \
+    [](const testing::TestParamInfo<PropertiesParams>& info) {                                        \
+        std::string name = "";                                                                        \
+        if (nullptr != GET_TEST_NAME) {                                                               \
+            name = GET_TEST_NAME(info);                                                               \
+        }                                                                                             \
+        return sw_plugin_in_target_device(ov::test::utils::target_device) ? "" : "mandatory_" + name; \
+    }
+
+#define MARK_MANDATORY_FOR_QUERY_MODEL(GET_TEST_NAME)                                                 \
+    [](const testing::TestParamInfo<std::string>& info) {                                             \
+        std::string name = "";                                                                        \
+        if (nullptr != GET_TEST_NAME) {                                                               \
+            name = GET_TEST_NAME(info);                                                               \
+        }                                                                                             \
         return sw_plugin_in_target_device(ov::test::utils::target_device) ? "" : "mandatory_" + name; \
     }
 
