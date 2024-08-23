@@ -28,8 +28,8 @@ AtenEinsumListConstructReplacer::AtenEinsumListConstructReplacer() {
         if (!einsum_op) {
             return false;
         }
-        auto equation_input = einsum_op->input_value(0).get_node_shared_ptr();
-        auto tensor_list = einsum_op->input_value(1).get_node_shared_ptr();
+        const auto& equation_input = einsum_op->input_value(0).get_node_shared_ptr();
+        const auto& tensor_list = einsum_op->input_value(1).get_node_shared_ptr();
         std::string equation;
         if (const auto& fw_node_mode = cast_fw_node(equation_input, "prim::Constant")) {
             const auto& attrs = fw_node_mode->get_attrs();
