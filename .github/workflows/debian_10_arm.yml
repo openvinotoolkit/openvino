@@ -87,6 +87,7 @@ jobs:
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_SYSTEM_OPENCL=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DENABLE_PYTHON=OFF \
             -DCPACK_GENERATOR=TGZ \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
 #  Build:
