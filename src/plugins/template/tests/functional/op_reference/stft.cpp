@@ -368,7 +368,8 @@ std::vector<STFTParams> generateSTFTParams() {
 }
 
 std::vector<STFTParams> generateSTFTParams() {
-    std::vector<std::vector<STFTParams>> combo_params{generateSTFTParams<ov::element::f32>()};
+    std::vector<std::vector<STFTParams>> combo_params{generateSTFTParams<ov::element::f16>(),
+                                                      generateSTFTParams<ov::element::f32>()};
     std::vector<STFTParams> test_params;
     for (auto& params : combo_params)
         std::move(params.begin(), params.end(), std::back_inserter(test_params));

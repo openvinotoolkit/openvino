@@ -53,6 +53,18 @@ TEST_F(TypePropSTFTTest, all_inputs_as_params_static_shapes) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{4, -1, -1, 2}));
 }
 
+TEST_F(TypePropSTFTTest, all_inputs_as_params_f16_i32_static_shapes) {
+    const auto signal = std::make_shared<Parameter>(element::f16, PartialShape{4, 48});
+    const auto window = std::make_shared<Parameter>(element::f16, PartialShape{7});
+    const auto frame_size = std::make_shared<Parameter>(element::i32, PartialShape{});
+    const auto frame_step = std::make_shared<Parameter>(element::i32, PartialShape{});
+
+    const auto op = make_op(signal, window, frame_size, frame_step, transform_frames);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{4, -1, -1, 2}));
+}
+
 TEST_F(TypePropSTFTTest, all_inputs_as_params_dyn_shapes) {
     const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{-1, -1});
     const auto window = std::make_shared<Parameter>(element::f32, PartialShape{-1});
