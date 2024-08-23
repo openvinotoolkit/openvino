@@ -16,7 +16,6 @@ StringTensorUnpack::StringTensorUnpack(const std::shared_ptr<ov::Node>& op, cons
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    const auto stringTensorUnpack = ov::as_type_ptr<const ov::op::v15::StringTensorUnpack>(op);
 }
 
 bool StringTensorUnpack::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -75,22 +74,13 @@ void StringTensorUnpack::executeImpl() {
         string_count);
 }
 
-namespace {
-struct StringTensorUnpackContext {
-    StringTensorUnpack &node;
-};
-}
-
 struct StringTensorUnpack::StringTensorUnpackExecute {
-    void operator()(StringTensorUnpackContext & ctx) {
-            ctx.node.executeImpl();
+    void operator()(StringTensorUnpack& node) {
+            node.executeImpl();
         }
 };
 void StringTensorUnpack::execute(dnnl::stream strm) {
-    StringTensorUnpackContext ctx = {
-            *this
-    };
-    StringTensorUnpackExecute()(ctx);
+    StringTensorUnpackExecute()(*this);
 }
 }  // namespace node
 }  // namespace intel_cpu

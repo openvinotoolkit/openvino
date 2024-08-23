@@ -14,10 +14,10 @@ namespace ov {
 namespace test {
 namespace StringTensorPack {
 using StringTensorPackSpecificParams =  std::tuple<
-        InputShape,
-        InputShape,
-        std::vector<int64_t>,
-        std::vector<int64_t>
+        InputShape,                     // begins/ends shape
+        InputShape,                     // utf-8 encoded symbols shape
+        std::vector<int64_t>,           // begins values
+        std::vector<int64_t>            // ends values
 >;
 
 using StringTensorPackLayerTestParams = std::tuple<

@@ -15,7 +15,6 @@ StringTensorPack::StringTensorPack(const std::shared_ptr<ov::Node>& op, const Gr
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    const auto stringTensorPack = ov::as_type_ptr<const ov::op::v15::StringTensorPack>(op);
 }
 
 bool StringTensorPack::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {

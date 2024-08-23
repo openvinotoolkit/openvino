@@ -94,34 +94,40 @@ TEST_P(StringTensorPackLayerCPUTest, CompareWithRefs) {
 
 const std::vector<StringTensorPackSpecificParams> StringTensorPackParamsVector = {
     StringTensorPackSpecificParams {
-        InputShape{{}, {{3}}},
-        InputShape{{}, {{9}}},
-        std::vector<int64_t>{1, 4, 6},
-        std::vector<int64_t>{4, 6, 8}
+        InputShape{{}, {{3}}},                                                      // begins/ends shape
+        InputShape{{}, {{9}}},                                                      // utf-8 encoded symbols shape
+        std::vector<int64_t>{1, 4, 6},                                              // begins values
+        std::vector<int64_t>{4, 6, 8}                                               // ends values
     },
     StringTensorPackSpecificParams {
-        InputShape{{}, {{1, 3, 4}}},
-        InputShape{{}, {{108}}},
-        std::vector<int64_t>{7, 28, 30, 30, 41, 42, 50, 50, 74, 76, 80, 92},
-        std::vector<int64_t>{28, 30, 30, 41, 42, 50, 50, 74, 76, 80, 92, 108}
+        InputShape{{}, {{1, 3, 4}}},                                                // begins/ends shape
+        InputShape{{}, {{108}}},                                                    // utf-8 encoded symbols shape
+        std::vector<int64_t>{7, 28, 30, 30, 41, 42, 50, 50, 74, 76, 80, 92},        // begins values
+        std::vector<int64_t>{28, 30, 30, 41, 42, 50, 50, 74, 76, 80, 92, 108}       // ends values
     },
     StringTensorPackSpecificParams {
-        InputShape{{}, {{1, 1, 1, 2}}},
-        InputShape{{}, {{67}}},
-        std::vector<int64_t>{30, 31},
-        std::vector<int64_t>{31, 31}
+        InputShape{{}, {{1, 1, 1, 2}}},                                             // begins/ends shape
+        InputShape{{}, {{67}}},                                                     // utf-8 encoded symbols shape
+        std::vector<int64_t>{30, 31},                                               // begins values
+        std::vector<int64_t>{31, 31}                                                // ends values
     },
     StringTensorPackSpecificParams {
-        InputShape{{-1, -1, -1}, {{1, 3, 4}}},
-        InputShape{{-1}, {{108}}},
-        std::vector<int64_t>{7, 28, 30, 30, 41, 42, 50, 50, 74, 76, 80, 92},
-        std::vector<int64_t>{28, 30, 30, 41, 42, 50, 50, 74, 76, 80, 92, 108}
+        InputShape{{-1, -1, -1}, {{1, 3, 4}}},                                      // begins/ends shape
+        InputShape{{-1}, {{108}}},                                                  // utf-8 encoded symbols shape
+        std::vector<int64_t>{7, 28, 30, 30, 41, 42, 50, 50, 74, 76, 80, 92},        // begins values
+        std::vector<int64_t>{28, 30, 30, 41, 42, 50, 50, 74, 76, 80, 92, 108}       // ends values
     },
     StringTensorPackSpecificParams {
-        InputShape{{-1, {1, 4}, {2, 3}}, {{1, 2, 2}}},
-        InputShape{{{50, 100}}, {{67}}},
-        std::vector<int64_t>{30, 31, 56, 60},
-        std::vector<int64_t>{31, 56, 60, 67}
+        InputShape{{-1, {1, 4}, {2, 3}}, {{1, 2, 2}, {1, 1, 3}}},                   // begins/ends shape
+        InputShape{{{50, 100}}, {{67}}},                                            // utf-8 encoded symbols shape
+        std::vector<int64_t>{30, 31, 56, 60},                                       // begins values
+        std::vector<int64_t>{31, 56, 60, 67}                                        // ends values
+    },
+    StringTensorPackSpecificParams {
+        InputShape{{-1, {1, 4}, {1, 4}}, {{1, 1, 4}, {1, 4, 1}}},                   // begins/ends shape
+        InputShape{{{50, 100}}, {{50}, {75}, {100}}},                               // utf-8 encoded symbols shape
+        std::vector<int64_t>{30, 31, 46, 50},                                       // begins values
+        std::vector<int64_t>{31, 46, 50, 50}                                        // ends values
     },
 };
 

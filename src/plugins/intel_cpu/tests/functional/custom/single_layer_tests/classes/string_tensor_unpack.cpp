@@ -98,7 +98,10 @@ const std::vector<StringTensorUnpackSpecificParams> StringTensorUnpackParamsVect
         InputShape{{-1, 10}, {{100, 10}}}
     },
     StringTensorUnpackSpecificParams {
-        InputShape{{-1, {7, 9}, 12, {1, 20}, -1}, {{3, 8, 12, 8, 4}}}
+        InputShape{{-1, {7, 9}, 12, {1, 20}, -1}, {{3, 8, 12, 8, 4}, {21, 7, 12, 1, 3}, {4, 9, 12, 20, 1}}}
+    },
+    StringTensorUnpackSpecificParams {
+        InputShape{{3, -1, {3, 8}}, {{3, 1, 3}, {3, 2, 8}}}
     },
 };
 
