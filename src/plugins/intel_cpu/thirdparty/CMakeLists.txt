@@ -90,7 +90,7 @@ function(ov_add_onednn)
         link_libraries(TBB::tbb)
     endif()
 
-    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
         ov_add_compiler_flags(-Wno-error)
         ov_add_compiler_flags(-Wno-undef)
         ov_add_compiler_flags(-Wno-missing-declarations)

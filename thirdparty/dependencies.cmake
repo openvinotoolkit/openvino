@@ -358,7 +358,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(ENABLE_SYSTEM_PROTOBUF)
             set(link_type INTERFACE)
         endif()
-        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
+        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
             get_target_property(original_name ${target_name} ALIASED_TARGET)
             if(TARGET ${original_name})
                 # during build protobuf's cmake creates aliased targets

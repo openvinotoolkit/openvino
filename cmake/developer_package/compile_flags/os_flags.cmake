@@ -14,13 +14,13 @@ include(CheckCXXCompilerFlag)
 macro(ov_disable_deprecated_warnings)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(ov_c_cxx_deprecated "/wd4996")
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    elseif(OV_COMPILER_IS_INTEL_LLVM)
         if(WIN32)
-            set(ov_c_cxx_deprecated "/Qdiag-disable:1478,1786")
+            set(ov_c_cxx_deprecated "/Wno-deprecated-declarations")
         else()
-            set(ov_c_cxx_deprecated "-diag-disable=1478,1786")
+            set(ov_c_cxx_deprecated "-Wno-deprecated-declarations")
         endif()
-    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_INTEL_LLVM)
+    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
         set(ov_c_cxx_deprecated "-Wno-deprecated-declarations")
     else()
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
@@ -42,13 +42,13 @@ macro(ov_deprecated_no_errors)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # show 4996 only for /w4
         set(ov_c_cxx_deprecated_no_errors "/wd4996")
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    elseif(OV_COMPILER_IS_INTEL_LLVM)
         if(WIN32)
-            set(ov_c_cxx_deprecated_no_errors "/Qdiag-warning:1478,1786")
+            set(ov_c_cxx_deprecated_no_errors "/Wno-error=deprecated-declarations")
         else()
-            set(ov_c_cxx_deprecated_no_errors "-diag-warning=1478,1786")
+            set(ov_c_cxx_deprecated_no_errors "-Wno-error=deprecated-declarations")
         endif()
-    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_INTEL_LLVM)
+    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
         set(ov_c_cxx_deprecated_no_errors "-Wno-error=deprecated-declarations")
         # Suppress #warning messages
         set(ov_c_cxx_deprecated_no_errors "${ov_c_cxx_deprecated_no_errors} -Wno-cpp")
@@ -68,7 +68,7 @@ endmacro()
 # Exports flags for 3rdparty modules, but without errors
 #
 macro(ov_dev_package_no_errors)
-    if(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_INTEL_LLVM)
+    if(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
         set(ov_c_cxx_dev_no_errors "-Wno-all")
         if(SUGGEST_OVERRIDE_SUPPORTED)
             set(ov_cxx_dev_no_errors "-Wno-error=suggest-override")
@@ -76,7 +76,7 @@ macro(ov_dev_package_no_errors)
     endif()
 
     if(CMAKE_COMPILE_WARNING_AS_ERROR AND WIN32)
-        if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR OV_COMPILER_IS_INTEL_LLVM)
             if(CMAKE_VERSION VERSION_LESS 3.24)
                 ov_add_compiler_flags(/WX-)
             endif()
@@ -99,7 +99,7 @@ endmacro()
 macro(ov_sse42_optimization_flags flags)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # No such option for MSVC 2019
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" OR OV_COMPILER_IS_INTEL_LLVM)
+    elseif(OV_COMPILER_IS_INTEL_LLVM)
         if(WIN32)
             set(${flags} /QxSSE4.2)
         else()
@@ -123,13 +123,13 @@ endmacro()
 macro(ov_avx2_optimization_flags flags)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(${flags} /arch:AVX2)
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    elseif(OV_COMPILER_IS_INTEL_LLVM)
         if(WIN32)
             set(${flags} /QxCORE-AVX2)
         else()
             set(${flags} -xCORE-AVX2)
         endif()
-    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_INTEL_LLVM)
+    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
         set(${flags} -mavx2 -mfma -mf16c)
     else()
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
@@ -145,13 +145,13 @@ endmacro()
 macro(ov_avx512_optimization_flags flags)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(${flags} /arch:AVX512)
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    elseif(OV_COMPILER_IS_INTEL_LLVM)
         if(WIN32)
             set(${flags} /QxCOMMON-AVX512)
         else()
             set(${flags} -xCOMMON-AVX512)
         endif()
-    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_INTEL_LLVM)
+    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
         set(${flags} -mavx512f -mavx512bw -mavx512vl -mfma -mf16c)
     else()
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
@@ -162,7 +162,7 @@ endmacro()
 # ov_arm_neon_optimization_flags(<output flags>)
 #
 macro(ov_arm_neon_optimization_flags flags)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    if(OV_COMPILER_IS_INTEL_LLVM)
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # nothing to define; works out of box
@@ -197,9 +197,9 @@ function(ov_disable_all_warnings)
     foreach(target IN LISTS ARGN)
         get_target_property(target_type ${target} TYPE)
 
-        if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
             target_compile_options(${target} PRIVATE /WX-)
-        elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
+        elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
             target_compile_options(${target} PRIVATE -w)
             # required for LTO
             set(link_interface INTERFACE_LINK_OPTIONS)
@@ -209,11 +209,12 @@ function(ov_disable_all_warnings)
             if(CMAKE_COMPILER_IS_GNUCXX)
                 set_target_properties(${target} PROPERTIES ${link_interface} "-Wno-error=maybe-uninitialized;-Wno-maybe-uninitialized")
             endif()
-        elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            # 193: zero used for undefined preprocessing identifier "XXX"
-            # 1011: missing return statement at end of non-void function "XXX"
-            # 2415: variable "xxx" of static storage duration was declared but never referenced
-            target_compile_options(${target} PRIVATE -diag-disable=warn,193,1011,2415)
+            if(OV_COMPILER_IS_INTEL_LLVM)
+                # 193: zero used for undefined preprocessing identifier "XXX"
+                # 1011: missing return statement at end of non-void function "XXX"
+                # 2415: variable "xxx" of static storage duration was declared but never referenced
+                target_compile_options(${target} PRIVATE -diag-disable=warn,193,1011,2415)
+            endif()
         endif()
     endforeach()
 endfunction()
@@ -236,9 +237,9 @@ endmacro()
 # Forced includes certain header file to all target source files
 #
 function(ov_force_include target scope header_file)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
         target_compile_options(${target} ${scope} /FI"${header_file}")
-    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_INTEL_LLVM)
+    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
         target_compile_options(${target} ${scope} -include "${header_file}")
     else()
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
@@ -318,7 +319,7 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 if(CMAKE_CL_64)
     # Default char Type Is unsigned
     # ov_add_compiler_flags(/J)
-elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
+elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
     ov_add_compiler_flags(-fsigned-char)
 endif()
 
@@ -401,40 +402,17 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
     string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
     string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" AND WIN32)
+elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     #
     # Warnings as errors
     #
 
-    if(CMAKE_COMPILE_WARNING_AS_ERROR AND CMAKE_VERSION VERSION_LESS 3.24)
-        ov_add_compiler_flags(/Qdiag-warning:47,1740,1786)
-    endif()
+    ov_add_compiler_flags(/WX)
 
     #
     # Disable noisy warnings
     #
-
-    # 161: unrecognized pragma
-    ov_add_compiler_flags(/Qdiag-disable:161)
-    # 177: variable was declared but never referenced
-    ov_add_compiler_flags(/Qdiag-disable:177)
-    # 556: not matched type of assigned function pointer
-    ov_add_compiler_flags(/Qdiag-disable:556)
-    # 1744: field of class type without a DLL interface used in a class with a DLL interface
-    ov_add_compiler_flags(/Qdiag-disable:1744)
-    # 1879: unimplemented pragma ignored
-    ov_add_compiler_flags(/Qdiag-disable:1879)
-    # 2586: decorated name length exceeded, name was truncated
-    ov_add_compiler_flags(/Qdiag-disable:2586)
-    # 2651: attribute does not apply to any entity
-    ov_add_compiler_flags(/Qdiag-disable:2651)
-    # 3180: unrecognized OpenMP pragma
-    ov_add_compiler_flags(/Qdiag-disable:3180)
-    # 11075: To get full report use -Qopt-report:4 -Qopt-report-phase ipo
-    ov_add_compiler_flags(/Qdiag-disable:11075)
-    # 15335: was not vectorized: vectorization possible but seems inefficient.
-    # Use vector always directive or /Qvec-threshold0 to override
-    ov_add_compiler_flags(/Qdiag-disable:15335)
+    ov_disable_deprecated_warnings()
 else()
     #
     # Common enabled warnings
@@ -454,7 +432,7 @@ else()
     # - https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html
     # - https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
     if((CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8) OR
-       (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10) OR OV_COMPILER_IS_INTEL_LLVM)
+       (OV_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10) OR OV_COMPILER_IS_INTEL_LLVM)
         # Enable __FILE__ trim only for release mode
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/= -ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=")
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/= -ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=")
@@ -472,13 +450,9 @@ else()
     # Disable noisy warnings
     #
 
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        # 177: function "XXX" was declared but never referenced
-        ov_add_compiler_flags(-diag-disable=remark,177,2196)
-    endif()
-
     if(OV_COMPILER_IS_INTEL_LLVM)
         ov_add_compiler_flags(-Wno-tautological-constant-compare)
+        ov_disable_deprecated_warnings()
     endif()
 
     #
