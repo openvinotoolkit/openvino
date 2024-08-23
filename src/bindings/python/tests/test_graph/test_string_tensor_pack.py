@@ -19,10 +19,10 @@ import pytest
 def test_string_tensor_pack(dtype, indices_shape):
     begins = ov.parameter(indices_shape, name="input_data", dtype=dtype)
     ends = ov.parameter(indices_shape, name="input_data", dtype=dtype)
-    symbols = ov.parameter(indices_shape, name="input_data", dtype=Type.u8)
-    node = ov.test_string_tensor_pack(begins, ends, symbols)
+    symbols = ov.parameter((100,), name="input_data", dtype=Type.u8)
+    node = ov.string_tensor_pack(begins, ends, symbols)
 
     assert node.get_type_name() == "StringTensorPack"
     assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == indices_shape
+    assert list(node.get_output_shape(0)) == list(indices_shape)
     assert node.get_output_element_type(0) == Type.string
