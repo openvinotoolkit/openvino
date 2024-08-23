@@ -75,7 +75,7 @@ class TestTensorScatterUpdate(CommonTFLayerTest):
         [[10, 5], [2], [2, 2]],
         [[4, 4, 4], [2, 4, 4], [2, 1]],
         [[2, 4, 8], [3], [3, 3]],
-        [[4, 3, 5], [1,5], [1, 2]],
+        [[4, 3, 5], [1, 5], [1, 2]],
     ])
     @pytest.mark.precommit
     @pytest.mark.nightly
