@@ -180,6 +180,17 @@ namespace intel_npu {
 namespace driverCompilerAdapter {
 
 template <typename TableExtension>
+LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(ze_driver_handle_t driverHandle,
+                                                                     ze_device_handle_t deviceHandle,
+                                                                     ze_context_handle_t zeContext,
+                                                                     ze_graph_dditable_ext_last_t* graph_ddi_table_ext)
+    : _driverHandle(driverHandle),
+      _deviceHandle(deviceHandle),
+      _context(zeContext),
+      _graphDdiTableExt(reinterpret_cast<TableExtension*>(graph_ddi_table_ext)),
+      _logger("LevelZeroCompilerInDriver", Logger::global().level()) {}
+
+template <typename TableExtension>
 LevelZeroCompilerInDriver<TableExtension>::~LevelZeroCompilerInDriver() {
     _logger.debug("LevelZeroCompilerInDriver obj destroyed");
 }
@@ -335,20 +346,20 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
 
 template <typename TableExtension>
 void LevelZeroCompilerInDriver<TableExtension>::release(std::shared_ptr<const NetworkDescription> networkDescription) {
-    _logger.debug("LevelZeroCompilerInDriver<TableExtension>::release");
+    _logger.debug("performing release networkDescription");
     if (networkDescription->metadata.graphHandle != nullptr) {
-        _logger.debug("LevelZeroCompilerInDriver<TableExtension>::release - graphHandle is not nullptr");
+        _logger.debug("release - graphHandle is not nullptr");
         ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription->metadata.graphHandle);
-        _logger.debug("LevelZeroCompilerInDriver<TableExtension>::release - pfnDestroy graphHandle");
+        _logger.debug("release - pfnDestroy graphHandle");
         auto result = _graphDdiTableExt->pfnDestroy(graphHandle);
 
         if (ZE_RESULT_SUCCESS != result) {
-            _logger.error("Failed to release graph handle. L0 pfnDestroy result: %s, code %#X",
+            _logger.error("failed to release graph handle. L0 pfnDestroy result: %s, code %#X",
                           ze_result_to_string(result).c_str(),
                           uint64_t(result));
         }
     }
-    _logger.debug("LevelZeroCompilerInDriver<TableExtension>::release completed");
+    _logger.debug("release completed");
 }
 
 template <typename TableExtension>
@@ -670,8 +681,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQuery
                               ZE_GRAPH_FLAG_NONE};
 
     // Create querynetwork handle
-    _logger.debug("LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQueryNetworkCreateV2 - performing "
-                  "pfnQueryNetworkCreate2");
+    _logger.debug("seriazlideIRModelAndQueryNetworkCreateV2 - performing pfnQueryNetworkCreate2");
     ze_result_t result = _graphDdiTableExt->pfnQueryNetworkCreate2(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
 
     if (ZE_RESULT_SUCCESS != result) {
@@ -826,7 +836,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
                               buildFlags.c_str(),
                               flags};
 
-    _logger.debug("evelZeroCompilerInDriver<TableExtension>::createGraph - performing pfnCreate2");
+    _logger.debug("createGraph - performing pfnCreate2");
     // Create querynetwork handle
     auto result = _graphDdiTableExt->pfnCreate2(_context, _deviceHandle, &desc, graph);
     if (ZE_RESULT_SUCCESS != result) {
@@ -868,7 +878,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreat
     }
 
     _logger.info("compileIR Using extension version: %s", typeid(TableExtension).name());
-    _logger.info("LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreateGraph - performing createGraph");
+    _logger.debug("seriazlideIRModelAndCreateGraph - performing createGraph");
     ze_result_t result = createGraph(format, serializedIR, buildFlags, flags, &graphHandle);
 
     if (ZE_RESULT_SUCCESS != result) {

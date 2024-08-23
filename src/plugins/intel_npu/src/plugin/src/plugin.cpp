@@ -813,9 +813,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 }
 
 ov::SoPtr<ICompiler> Plugin::getCompiler(const Config& config) const {
-    _logger.debug("Plugin::getCompiler - get compiler type");
     auto compilerType = config.get<COMPILER_TYPE>();
-    _logger.debug("Plugin::getCompiler - performing createCompiler");
+    _logger.debug("performing createCompiler");
     return createCompiler(_backends, compilerType);
 }
 

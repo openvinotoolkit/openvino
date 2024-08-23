@@ -184,18 +184,5 @@ private:
     Logger _logger;
 };
 
-template <typename TableExtension>
-LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(ze_driver_handle_t driverHandle,
-                                                                     ze_device_handle_t deviceHandle,
-                                                                     ze_context_handle_t zeContext,
-                                                                     ze_graph_dditable_ext_last_t* graph_ddi_table_ext)
-    : _driverHandle(driverHandle),
-      _deviceHandle(deviceHandle),
-      _context(zeContext),
-      _graphDdiTableExt(reinterpret_cast<TableExtension*>(graph_ddi_table_ext)),
-      _logger("LevelZeroCompilerInDriver", Logger::global().level()) {
-    _logger.info("LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver - initialization");
-}
-
 }  // namespace driverCompilerAdapter
 }  // namespace intel_npu

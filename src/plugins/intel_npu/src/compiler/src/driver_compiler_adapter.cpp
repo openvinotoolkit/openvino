@@ -37,11 +37,11 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> 
     ze_graph_dditable_ext_last_t* graph_ddi_table_ext = zeroBackend->getGraphDDITableExt();
 
     if (driverHandle == nullptr) {
-        OPENVINO_THROW("LevelZeroCompilerAdapter: Failed to get properties about zeDriver");
+        OPENVINO_THROW("LevelZeroCompilerAdapter failed to get properties about zeDriver");
         return;
     }
 
-    _logger.info("LevelZeroCompilerAdapter::LevelZeroCompilerAdapter - creating adapter using driverExtVersion");
+    _logger.info("LevelZeroCompilerAdapter creating adapter using driverExtVersion");
 
     switch (driverExtVersion) {
     case ZE_GRAPH_EXT_VERSION_1_3:
@@ -109,14 +109,13 @@ std::vector<ov::ProfilingInfo> LevelZeroCompilerAdapter::process_profiling_outpu
 }
 
 void LevelZeroCompilerAdapter::release(std::shared_ptr<const NetworkDescription> networkDescription) {
-    _logger.debug("LevelZeroCompilerAdapter::release - using adapter to release networkDescription");
+    _logger.info("release - using adapter to release networkDescription");
     apiAdapter->release(networkDescription);
 }
 
 std::vector<uint8_t> LevelZeroCompilerAdapter::getCompiledNetwork(
     std::shared_ptr<const NetworkDescription> networkDescription) {
-    _logger.debug("LevelZeroCompilerAdapter::getCompiledNetwork - using adapter to perform "
-                  "getCompiledNetwork(networkDescription)");
+    _logger.info("getCompiledNetwork - using adapter to perform getCompiledNetwork(networkDescription)");
     return apiAdapter->getCompiledNetwork(networkDescription);
 }
 
