@@ -154,6 +154,7 @@ void jit_load_emitter::emit_isa(const std::vector<size_t> &in_idxs, const std::v
     }
 
     if (src_prc_ != dst_prc_) {
+        OPENVINO_ASSERT(convert_emitter, "Invalid convert_emitter.");
         convert_emitter->emit_code(aux_vec_idxs, out_idxs);
     }
 }
@@ -302,6 +303,7 @@ void jit_store_emitter::emit_isa(const std::vector<size_t> &in_idxs, const std::
                               "Unexpected number of elements to store.");
 
     if (src_prc_ != dst_prc_) {
+        OPENVINO_ASSERT(convert_emitter, "Invalid convert_emitter.");
         convert_emitter->emit_code(in_idxs, aux_vec_idxs);
     }
 
