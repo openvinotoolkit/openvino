@@ -11,7 +11,7 @@
 #include "openvino/core/node.hpp"
 
 #include "low_precision/lpt_visibility.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "low_precision/network_helper.hpp"
 #include "lpt_itt.hpp"
 

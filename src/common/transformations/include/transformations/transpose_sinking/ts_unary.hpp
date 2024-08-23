@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations/transpose_sinking/ts_base.hpp"
 #include "transformations_visibility.hpp"
 
