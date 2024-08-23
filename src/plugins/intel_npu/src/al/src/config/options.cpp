@@ -62,44 +62,6 @@ std::string_view ov::hint::stringifyEnum(PerformanceMode val) {
     }
 }
 
-ov::hint::PerformanceMode intel_npu::PERFORMANCE_HINT::parse(std::string_view val) {
-    if (val.empty()) {
-        return ov::hint::PerformanceMode::LATENCY;
-    } else if (val == "LATENCY") {
-        return ov::hint::PerformanceMode::LATENCY;
-    } else if (val == "THROUGHPUT") {
-        return ov::hint::PerformanceMode::THROUGHPUT;
-    } else if (val == "CUMULATIVE_THROUGHPUT") {
-        return ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
-    }
-
-    OPENVINO_THROW("Value '", val, "' is not a valid PERFORMANCE_HINT option");
-}
-
-//
-// BATCH_MODE
-//
-
-ov::intel_npu::BatchMode intel_npu::BATCH_MODE::parse(std::string_view val) {
-    if (val == "AUTO") {
-        return ov::intel_npu::BatchMode::AUTO;
-    } else if (val == "COMPILER") {
-        return ov::intel_npu::BatchMode::COMPILER;
-    } else if (val == "PLUGIN") {
-        return ov::intel_npu::BatchMode::PLUGIN;
-    }
-
-    OPENVINO_THROW("Value '", val, "'is not a valid BATCH_MODE option");
-}
-
-std::string intel_npu::BATCH_MODE::toString(const ov::intel_npu::BatchMode& val) {
-    std::stringstream strStream;
-
-    strStream << val;
-
-    return strStream.str();
-}
-
 // Heuristically obtained number. Varies depending on the values of PLATFORM and PERFORMANCE_HINT
 // Note: this is the value provided by the plugin, application should query and consider it, but may supply its own
 // preference for number of parallel requests via dedicated configuration
@@ -136,96 +98,6 @@ std::string_view ov::intel_npu::stringifyEnum(ov::intel_npu::ProfilingType val) 
     }
 }
 
-ov::intel_npu::ProfilingType intel_npu::PROFILING_TYPE::parse(std::string_view val) {
-    const auto extractProfilingString = [](ov::intel_npu::ProfilingType prof) -> std::string {
-        return profiling_type(prof).second.as<std::string>();
-    };
-
-    if (val == extractProfilingString(ov::intel_npu::ProfilingType::MODEL)) {
-        return ov::intel_npu::ProfilingType::MODEL;
-    } else if (val == extractProfilingString(ov::intel_npu::ProfilingType::INFER)) {
-        return ov::intel_npu::ProfilingType::INFER;
-    }
-
-    OPENVINO_THROW("Value '", val, "' is not a valid PROFILING_TYPE option");
-}
-
-std::string intel_npu::PROFILING_TYPE::toString(const ov::intel_npu::ProfilingType& val) {
-    std::stringstream strStream;
-    if (val == ov::intel_npu::ProfilingType::MODEL) {
-        strStream << "MODEL";
-    } else if (val == ov::intel_npu::ProfilingType::INFER) {
-        strStream << "INFER";
-    } else {
-        OPENVINO_THROW("No valid string for current PROFILING_TYPE option");
-    }
-
-    return strStream.str();
-}
-
-//
-// MODEL_PRIORITY
-//
-
-ov::hint::Priority intel_npu::MODEL_PRIORITY::parse(std::string_view val) {
-    std::istringstream stringStream = std::istringstream(std::string(val));
-    ov::hint::Priority priority;
-
-    stringStream >> priority;
-
-    return priority;
-}
-
-std::string intel_npu::MODEL_PRIORITY::toString(const ov::hint::Priority& val) {
-    std::ostringstream stringStream;
-
-    stringStream << val;
-
-    return stringStream.str();
-}
-
-//
-// NUM_STREAMS
-//
-
-const ov::streams::Num intel_npu::NUM_STREAMS::defVal = ov::streams::Num(1);
-
-ov::streams::Num intel_npu::NUM_STREAMS::parse(std::string_view val) {
-    std::istringstream stringStream = std::istringstream(std::string(val));
-    ov::streams::Num numberOfStreams;
-
-    stringStream >> numberOfStreams;
-
-    return numberOfStreams;
-}
-
-std::string intel_npu::NUM_STREAMS::toString(const ov::streams::Num& val) {
-    std::ostringstream stringStream;
-
-    stringStream << val;
-
-    return stringStream.str();
-}
-
-//
-// WORKLOAD_TYPE
-//
-
-ov::WorkloadType intel_npu::WORKLOAD_TYPE::parse(std::string_view val) {
-    std::istringstream ss = std::istringstream(std::string(val));
-    ov::WorkloadType workloadType;
-
-    ss >> workloadType;
-
-    return workloadType;
-}
-
-std::string intel_npu::WORKLOAD_TYPE::toString(const ov::WorkloadType& val) {
-    std::ostringstream ss;
-    ss << val;
-    return ss.str();
-}
-
 //
 // COMPILER_TYPE
 //
@@ -239,41 +111,6 @@ std::string_view ov::intel_npu::stringifyEnum(ov::intel_npu::CompilerType val) {
     default:
         return "<UNKNOWN>";
     }
-}
-
-std::string_view intel_npu::COMPILER_TYPE::envVar() {
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
-    return "IE_NPU_COMPILER_TYPE";
-#else
-    return "";
-#endif
-}
-
-ov::intel_npu::CompilerType intel_npu::COMPILER_TYPE::defaultValue() {
-    return ov::intel_npu::CompilerType::DRIVER;
-}
-
-ov::intel_npu::CompilerType intel_npu::COMPILER_TYPE::parse(std::string_view val) {
-    if (val == stringifyEnum(ov::intel_npu::CompilerType::MLIR)) {
-        return ov::intel_npu::CompilerType::MLIR;
-    } else if (val == stringifyEnum(ov::intel_npu::CompilerType::DRIVER)) {
-        return ov::intel_npu::CompilerType::DRIVER;
-    }
-
-    OPENVINO_THROW("Value '", val, "' is not a valid COMPILER_TYPE option");
-}
-
-std::string intel_npu::COMPILER_TYPE::toString(const ov::intel_npu::CompilerType& val) {
-    std::stringstream strStream;
-    if (val == ov::intel_npu::CompilerType::MLIR) {
-        strStream << "MLIR";
-    } else if (val == ov::intel_npu::CompilerType::DRIVER) {
-        strStream << "DRIVER";
-    } else {
-        OPENVINO_THROW("No valid string for current LOG_LEVEL option");
-    }
-
-    return strStream.str();
 }
 
 //
@@ -291,31 +128,4 @@ std::string_view ov::intel_npu::stringifyEnum(ov::intel_npu::ElfCompilerBackend 
     default:
         return "<UNKNOWN>";
     }
-}
-
-ov::intel_npu::ElfCompilerBackend intel_npu::USE_ELF_COMPILER_BACKEND::parse(std::string_view val) {
-    if (val == stringifyEnum(ov::intel_npu::ElfCompilerBackend::AUTO)) {
-        return ov::intel_npu::ElfCompilerBackend::AUTO;
-    } else if (val == stringifyEnum(ov::intel_npu::ElfCompilerBackend::NO)) {
-        return ov::intel_npu::ElfCompilerBackend::NO;
-    } else if (val == stringifyEnum(ov::intel_npu::ElfCompilerBackend::YES)) {
-        return ov::intel_npu::ElfCompilerBackend::YES;
-    }
-
-    OPENVINO_THROW("Value '", val, "' is not a valid USE_ELF_COMPILER_BACKEND option");
-}
-
-std::string intel_npu::USE_ELF_COMPILER_BACKEND::toString(const ov::intel_npu::ElfCompilerBackend& val) {
-    std::stringstream strStream;
-    if (val == ov::intel_npu::ElfCompilerBackend::AUTO) {
-        strStream << "AUTO";
-    } else if (val == ov::intel_npu::ElfCompilerBackend::NO) {
-        strStream << "NO";
-    } else if (val == ov::intel_npu::ElfCompilerBackend::YES) {
-        strStream << "YES";
-    } else {
-        OPENVINO_THROW("No valid string for current USE_ELF_COMPILER_BACKEND option");
-    }
-
-    return strStream.str();
 }
