@@ -28,12 +28,12 @@ offering the following optimizations:
        fine-tuning.
 
 | :doc:`Training-time Optimization <model-optimization-guide/compressing-models-during-training>`:
-       involves a suite of advanced methods such as Quantization-aware Training, Structured,
+|      involves a suite of advanced methods such as Quantization-aware Training, Structured,
        and Unstructured Pruning, used within the model's original deep learning framework, such
        as PyTorch and TensorFlow.
 
 | :doc:`Weight Compression <model-optimization-guide/weight-compression>`:
-       an easy-to-use method for Large Language Model footprint reduction and inference
+|      an easy-to-use method for Large Language Model footprint reduction and inference
        acceleration.
 
 
