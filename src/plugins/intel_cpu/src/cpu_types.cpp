@@ -94,6 +94,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"BitwiseNot", Type::Eltwise},
         {"BitwiseOr", Type::Eltwise},
         {"BitwiseXor", Type::Eltwise},
+        {"BitwiseLeftShift", Type::Eltwise},
+        {"BitwiseRightShift", Type::Eltwise},
         {"Reshape", Type::Reshape},
         {"Squeeze", Type::Reshape},
         {"Unsqueeze", Type::Reshape},
@@ -445,6 +447,8 @@ std::string algToString(const Algorithm alg) {
         CASE(EltwiseBitwiseNot);
         CASE(EltwiseBitwiseOr);
         CASE(EltwiseBitwiseXor);
+        CASE(EltwiseBitwiseLeftShift);
+        CASE(EltwiseBitwiseRightShift);
         CASE(FQCommon);
         CASE(FQQuantization);
         CASE(FQBinarization);

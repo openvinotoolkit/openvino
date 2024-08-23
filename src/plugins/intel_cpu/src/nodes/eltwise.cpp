@@ -19,8 +19,10 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
 #include "openvino/op/bitwise_not.hpp"
 #include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/bitwise_xor.hpp"
 #include "pooling.h"
 #include "selective_build.h"
@@ -1281,6 +1283,12 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
         {op::v13::BitwiseXor::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
             node.algorithm = Algorithm::EltwiseBitwiseXor;
         }},
+        {op::v15::BitwiseLeftShift::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseBitwiseLeftShift;
+        }},
+        {op::v15::BitwiseRightShift::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseBitwiseRightShift;
+        }},
     };
     return initializers;
 }
@@ -1965,6 +1973,14 @@ public:
                         *dst_ptr_f = src_f[0] ^ src_f[1];
                         break;
                     }
+                    case Algorithm::EltwiseBitwiseLeftShift: {
+                        *dst_ptr_f = src_f[0] << src_f[1];
+                        break;
+                    }
+                    case Algorithm::EltwiseBitwiseRightShift: {
+                        *dst_ptr_f = src_f[0] >> src_f[1];
+                        break;
+                    }
                     default:
                         OPENVINO_THROW("Unsupported operation type for Eltwise executor");
                 }
@@ -2121,6 +2137,8 @@ size_t Eltwise::getOpInputsNum() const {
         case Algorithm::EltwiseBitwiseAnd:
         case Algorithm::EltwiseBitwiseOr:
         case Algorithm::EltwiseBitwiseXor:
+        case Algorithm::EltwiseBitwiseLeftShift:
+        case Algorithm::EltwiseBitwiseRightShift:
             return 2;
         case Algorithm::EltwiseBitwiseNot:
             return 1;
@@ -2159,7 +2177,9 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             Algorithm::EltwiseBitwiseAnd,
             Algorithm::EltwiseBitwiseNot,
             Algorithm::EltwiseBitwiseOr,
-            Algorithm::EltwiseBitwiseXor);
+            Algorithm::EltwiseBitwiseXor,
+            Algorithm::EltwiseBitwiseLeftShift,
+            Algorithm::EltwiseBitwiseRightShift);
     };
 
     std::vector<ov::element::Type> supportedPrecisions = isBitwise(algorithm) ?
@@ -2190,7 +2210,10 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #else
     bool canUseOptimizedImpl = mayiuse(x64::sse41) && getInputShapeAtPort(0).getRank() <= MAX_ELTWISE_DIM_RANK;
     // TODO: Add EltwiseLog algorithm support for JIT implementation
-    canUseOptimizedImpl &= !one_of(getAlgorithm(), Algorithm::EltwiseLog);
+    canUseOptimizedImpl &= !one_of(getAlgorithm(),
+                                   Algorithm::EltwiseLog,
+                                   Algorithm::EltwiseBitwiseLeftShift,
+                                   Algorithm::EltwiseBitwiseRightShift);
 
     bool canUseOptimizedShapeAgnosticImpl = isDynamicNode() && canUseOptimizedImpl;
 #endif
@@ -3102,13 +3125,17 @@ bool Eltwise::canFuse(const NodePtr& node) const {
                Algorithm::EltwiseBitwiseAnd,
                Algorithm::EltwiseBitwiseNot,
                Algorithm::EltwiseBitwiseOr,
-               Algorithm::EltwiseBitwiseXor) ||
+               Algorithm::EltwiseBitwiseXor,
+               Algorithm::EltwiseBitwiseLeftShift,
+               Algorithm::EltwiseBitwiseRightShift) ||
         one_of(node->getAlgorithm(),
                Algorithm::EltwiseLog,
                Algorithm::EltwiseBitwiseAnd,
                Algorithm::EltwiseBitwiseNot,
                Algorithm::EltwiseBitwiseOr,
-               Algorithm::EltwiseBitwiseXor)) {
+               Algorithm::EltwiseBitwiseXor,
+               Algorithm::EltwiseBitwiseLeftShift,
+               Algorithm::EltwiseBitwiseRightShift)) {
         return false;
     }
 
