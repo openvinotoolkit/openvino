@@ -146,6 +146,7 @@ BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t pad_size
 
             std::shared_ptr<ov::Node> aligned_wzp;
             if (supports_immad && !(conv->get_groups() > 1)) {
+                // OneDNN supports scalar wzp. If wzp data are identical, replace it with scalar value for OneDNN
                 aligned_wzp = scalar_parameter(wzp);
             }
 

@@ -10024,21 +10024,21 @@ TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_weights_zp) {
                                    -1, 3,  2,
                                    0, 2,  5 });
     set_values<uint8_t>(a_zp, { 2, 5, 5 });
-    set_values<uint8_t>(w_zp, { 0 });
+    set_values<uint8_t>(w_zp, { 2 });
     set_values(biases, { 1.0f, -8.0f, -8.0f });
 
     VVVF<float> output_vec = {
         {
-            { -36.0f, 5.0f, -14.0f },
-            { -24.0f, -10.0f, -30.0f }
+            {  2.0f, -5.0f, -20.0f },
+            { 12.0f, 26.0f, -10.0f }
         },
         {
-            { -45.0f, -4.0f, -23.0f },
-            { -33.0f, -19.0f, -39.0f }
+            { -7.0f, -14.0f, -29.0f },
+            { 3.0f, 17.0f, -19.0f }
         },
         {
-            { -45.0f, -4.0f, -23.0f },
-            { -33.0f, -19.0f, -39.0f }
+            { -7.0f, -14.0f, -29.0f },
+            { 3.0f, 17.0f, -19.0f }
         } };
 
     topology topology(

@@ -68,10 +68,8 @@ protected:
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
 
             GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= static_cast<int>(ov::intel_gpu::LogLevel::TRACE_DETAIL)) {
-                GPU_DEBUG_TRACE_DETAIL << instance.id() << " activations_zero_points: "
-                    << " " << a_zp->get_layout().to_short_string() << std::endl;
-            }
+            GPU_DEBUG_TRACE_DETAIL << instance.id() << " activations_zero_points: "
+                << " " << a_zp->get_layout().to_short_string() << std::endl;
         }
 
         if (instance.weights_zero_points_term()) {
@@ -80,10 +78,8 @@ protected:
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
 
             GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= static_cast<int>(ov::intel_gpu::LogLevel::TRACE_DETAIL)) {
-                GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: "
-                    << " " << w_zp->get_layout().to_short_string() << std::endl;
-            }
+            GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: "
+                << " " << w_zp->get_layout().to_short_string() << std::endl;
         }
 
         return args;
@@ -132,9 +128,9 @@ protected:
         if (arg.weights_zero_points_term()) {
             auto& wzp = arg.weights_zero_points();
             auto wzp_layout = wzp.get_output_layout();
-            auto wzp_dtype = convert_data_type(wzp_layout.data_type);
+            wzp_data_type = convert_data_type(wzp_layout.data_type);
             if (wzp_layout.count() == 1) {
-                attrs->set_zero_points(DNNL_ARG_WEIGHTS, 0, dnnl::memory::dims{}, wzp_dtype);
+                attrs->set_zero_points(DNNL_ARG_WEIGHTS, 0, dnnl::memory::dims{}, wzp_data_type);
             } else {
                 throw std::runtime_error("Convolution oneDNN primitive doesn't support PER_OC weights zero points");
             }
