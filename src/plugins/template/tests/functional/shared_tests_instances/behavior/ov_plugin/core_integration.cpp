@@ -17,10 +17,6 @@ namespace {
 // OV Class Common tests with <pluginName, device_name params>
 //
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassModelTestP,
-                         OVClassModelTestP,
-                         ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
-
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassModelOptionalTestP,
                          OVClassModelOptionalTestP,
                          ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
