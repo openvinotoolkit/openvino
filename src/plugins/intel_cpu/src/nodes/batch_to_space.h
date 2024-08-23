@@ -16,6 +16,12 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
+
+    // output shape can potentially be empty
+    bool isExecutable() const override {
+        return !hasEmptyInputTensors() && !hasEmptyOutputTensors();
+    }
+
     void execute(dnnl::stream strm) override;
     bool created() const override;
 
