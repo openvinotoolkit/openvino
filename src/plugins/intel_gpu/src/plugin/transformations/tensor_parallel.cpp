@@ -75,10 +75,10 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
         } else {
             m_fc = pattern_map.at(paged_attention).get_node_shared_ptr();
         }
-        std::cout << "fc name: " << m_fc->get_friendly_name() << std::endl;
+        // std::cout << "fc name: " << m_fc->get_friendly_name() << std::endl;
         // std::cout << "fc name: " << m_pa->get_friendly_name() << std::endl;
         if (m_fc->get_friendly_name().find(".self_attn.q_proj/aten::linear/MatMul_fused") != std::string::npos) {
-            std::cout << "fc tp\n";
+            // std::cout << "fc tp\n";
             const auto& m_data = pattern_map.at(data).get_node_shared_ptr();
             const auto& m_weights = pattern_map.at(weights).get_node_shared_ptr();
             const auto& m_bias = pattern_map.at(bias).get_node_shared_ptr();
@@ -160,22 +160,22 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
             }
 
             auto print_shape = [&](const std::shared_ptr<ov::Node>& m_data) {
-                std::cout << m_data->get_friendly_name() << ": '";
-                for (size_t shape_id = 0; shape_id < m_data->get_output_partial_shape(0).size(); shape_id++) {
-                    if (!m_data->get_output_partial_shape(0)[shape_id].is_dynamic()) {
-                        int64_t len = m_data->get_output_partial_shape(0)[shape_id].get_length();
-                        std::cout << len << ", ";
-                    } else {
-                        std::cout << "?" << ", ";
-                    }
-                }
-                std::cout << "'\n";
+                // std::cout << m_data->get_friendly_name() << ": '";
+                // for (size_t shape_id = 0; shape_id < m_data->get_output_partial_shape(0).size(); shape_id++) {
+                //     if (!m_data->get_output_partial_shape(0)[shape_id].is_dynamic()) {
+                //         int64_t len = m_data->get_output_partial_shape(0)[shape_id].get_length();
+                //         std::cout << len << ", ";
+                //     } else {
+                //         std::cout << "?" << ", ";
+                //     }
+                // }
+                // std::cout << "'\n";
             };
 
             std::vector<int64_t> orig_n_sizes;
-            std::cout << "new_fc outsize: " << new_fc->get_output_partial_shape(0)[2].get_length() << std::endl;
-            std::cout << "new_fc outsize: " << new_fc->get_output_partial_shape(0)[-1].get_length() << std::endl;
-            print_shape(new_fc);
+            // std::cout << "new_fc outsize: " << new_fc->get_output_partial_shape(0)[2].get_length() << std::endl;
+            // std::cout << "new_fc outsize: " << new_fc->get_output_partial_shape(0)[-1].get_length() << std::endl;
+            // print_shape(new_fc);
             // merge weights, scale, zp
             for (int i = 0; i < 3; i ++) {
                 orig_n_sizes.push_back(new_fc->get_output_partial_shape(0)[-1].get_length()/3);
@@ -185,11 +185,11 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
             for (auto user : new_fc->get_users()) {
                 auto fc_user = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(user);
                 print_shape(fc_user);
-                std::cout << "fc_user name: " << fc_user->get_friendly_name() << std::endl;
+                // std::cout << "fc_user name: " << fc_user->get_friendly_name() << std::endl;
 
                 auto split_name = fc_user->get_friendly_name() + "_tp";
-                std::cout << "new_fc->get_output_partial_shape(0).size() - 1: "
-                          << new_fc->get_output_partial_shape(0).size() - 1 << std::endl;
+                // std::cout << "new_fc->get_output_partial_shape(0).size() - 1: "
+                //           << new_fc->get_output_partial_shape(0).size() - 1 << std::endl;
                 auto axis_const = ov::op::v0::Constant::create(ov::element::i64,
                                                                ov::Shape{1},
                                                                {new_fc->get_output_partial_shape(0).size() - 1});
@@ -207,7 +207,7 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
                 for (auto user_1 : new_split->get_users()) {
                     auto split_user = std::dynamic_pointer_cast<ov::op::v1::Reshape>(user_1);
                     print_shape(split_user);
-                    std::cout << "split_user name: " << split_user->get_friendly_name() << std::endl;
+                    // std::cout << "split_user name: " << split_user->get_friendly_name() << std::endl;
                     auto shape0 = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
                                                                          ov::Shape{4},
                                                                          std::vector<int32_t>{-1, 1, 16, 128});
@@ -218,12 +218,12 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
                     replace_node(split_user, new_reshape);
                     print_shape(new_reshape);
                     index++;
-                    std::cout << "index: " << index << std::endl;
+                    // std::cout << "index: " << index << std::endl;
                     if (index == 3) {
                         for (auto user_2 : new_reshape->get_users()) {
                             auto reahpe_user = std::dynamic_pointer_cast<ov::op::v1::Reshape>(user_2);
                             print_shape(reahpe_user);
-                            std::cout << "reahpe_user name: " << reahpe_user->get_friendly_name() << std::endl;
+                            // std::cout << "reahpe_user name: " << reahpe_user->get_friendly_name() << std::endl;
                             // index++;
                             // std::cout << "index: " << index << std::endl;
                         }
@@ -232,7 +232,7 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
                     for (auto user_2 : new_reshape->get_users()) {
                         auto reahpe_user = std::dynamic_pointer_cast<ov::op::v1::Reshape>(user_2);
                         print_shape(reahpe_user);
-                        std::cout << "reahpe_user name: " << reahpe_user->get_friendly_name() << std::endl;
+                        // std::cout << "reahpe_user name: " << reahpe_user->get_friendly_name() << std::endl;
                         auto shape0 = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
                                                                             ov::Shape{4},
                                                                             std::vector<int32_t>{-1, 16, 1, 128});
@@ -315,16 +315,16 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
             const auto& m_data_in12 = pattern_map.at(in12).get_node_shared_ptr();
 
             auto print_shape = [&](const std::shared_ptr<ov::Node>& m_data) {
-                std::cout << m_data->get_friendly_name() << ": '";
-                for (size_t shape_id = 0; shape_id < m_data->get_output_partial_shape(0).size(); shape_id++) {
-                    if (!m_data->get_output_partial_shape(0)[shape_id].is_dynamic()) {
-                        int64_t len = m_data->get_output_partial_shape(0)[shape_id].get_length();
-                        std::cout << len << ", ";
-                    } else {
-                        std::cout << "?" << ", ";
-                    }
-                }
-                std::cout << "'\n";
+                // std::cout << m_data->get_friendly_name() << ": '";
+                // for (size_t shape_id = 0; shape_id < m_data->get_output_partial_shape(0).size(); shape_id++) {
+                //     if (!m_data->get_output_partial_shape(0)[shape_id].is_dynamic()) {
+                //         int64_t len = m_data->get_output_partial_shape(0)[shape_id].get_length();
+                //         std::cout << len << ", ";
+                //     } else {
+                //         std::cout << "?" << ", ";
+                //     }
+                // }
+                // std::cout << "'\n";
             };
 
             // std::shared_ptr<Node> m_pa = nullptr;
@@ -345,17 +345,17 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
             print_shape(m_data_in12);
             int w_rank = world_rank;
             int w_size = world_size;
-            std::cout << "w-size: " << w_size << std::endl;
-            std::cout << m_data_in0->get_friendly_name() << std::endl;
+            // std::cout << "w-size: " << w_size << std::endl;
+            // std::cout << m_data_in0->get_friendly_name() << std::endl;
             if (w_size != 1) {
                 int slice_axis_length = m_data_in0->get_output_partial_shape(0)[-1].get_length();
-                std::cout << "slice_axis_length: " << slice_axis_length << std::endl;
+                // std::cout << "slice_axis_length: " << slice_axis_length << std::endl;
                 auto scop = std::div(slice_axis_length, w_size).quot;
                 auto start = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {w_rank * scop});
                 auto stop = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {(w_rank + 1) * scop});
                 auto step = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
                 int64_t input_axis_value = m_data_in0->get_output_partial_shape(0).size() - 1;
-                std::cout << "input_axis_value: " << input_axis_value << std::endl;
+                // std::cout << "input_axis_value: " << input_axis_value << std::endl;
                 auto input_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {input_axis_value});
                 auto new_in0 = std::make_shared<ov::op::v8::Slice>(m_data_in0, start, stop, step, input_axis);
                 // print_shape(new_in0);
@@ -377,7 +377,7 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
                 int64_t input_axis_value2 = m_data_in2->get_output_partial_shape(0).size() - 1;
                 auto input_axis2 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {input_axis_value2});
                 auto new_in2 = std::make_shared<ov::op::v8::Slice>(m_data_in2, start2, stop2, step2, input_axis2);
-                std::cout << "m_fc name: " << m_fc->get_friendly_name() << std::endl;
+                // std::cout << "m_fc name: " << m_fc->get_friendly_name() << std::endl;
                 // auto get_output_node = [](const ov::Output<ov::Node>& output) -> std::shared_ptr<ov::Node> {
                 //     return output.get_node_shared_ptr();
                 // };

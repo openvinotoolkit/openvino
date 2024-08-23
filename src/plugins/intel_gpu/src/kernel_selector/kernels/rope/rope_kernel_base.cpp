@@ -17,8 +17,8 @@ JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKern
     jit.AddConstant(MakeJitConstant("ROTARY_NDIMS", params.rotary_ndims));
     jit.AddConstant(MakeJitConstant("HALF_ROTARY_NDIMS", params.rotary_ndims / 2));
     jit.AddConstant(MakeJitConstant("HEAD_COUNT", params.head_cnt));
-    std::cout << "HEAD_COUNT: " << params.head_cnt << std::endl;
-    std::cout << "HEAD_SIZE: " << params.head_size << std::endl;
+    // std::cout << "HEAD_COUNT: " << params.head_cnt << std::endl;
+    // std::cout << "HEAD_SIZE: " << params.head_size << std::endl;
 
     if (params.head_size > params.rotary_ndims) {
         jit.AddConstant(MakeJitConstant("ENABLE_IO_COPY", true));

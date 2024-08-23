@@ -50,7 +50,7 @@ ov::SoPtr<ov::IRemoteTensor> TupleRemoteContextImpl::create_tensor(const ov::ele
         auto a = item.second->create_tensor(type, shape, params);
         tensors.emplace_back(a);
     }
-    std::cout << "tupe tensors size: " << tensors.size() << std::endl;
+    // std::cout << "tupe tensors size: " << tensors.size() << std::endl;
     return std::make_shared<ov::intel_gpu::TupleRemoteTensorImpl>(get_this_shared_ptr(), tensors);
 }
 

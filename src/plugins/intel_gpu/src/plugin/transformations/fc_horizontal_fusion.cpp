@@ -42,7 +42,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
         // Three FCs connected to the same input
         const int num_fcs_to_fuse = 3;
         const auto& fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(output.get_node_shared_ptr());
-        std::cout << "fc name: " << fc->get_friendly_name() << std::endl;
+        // std::cout << "fc name: " << fc->get_friendly_name() << std::endl;
         const auto& input = fc->get_input_node_shared_ptr(0);
         if (!fc->get_input_partial_shape(0).is_dynamic())
             return false;
@@ -73,12 +73,12 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
     };
 
     auto target_fc = wrap_type<op::FullyConnectedCompressed>(is_target_pattern);
-    std::cout << "target fc name: " << target_fc->get_friendly_name() << std::endl;
+    // std::cout << "target fc name: " << target_fc->get_friendly_name() << std::endl;
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto m_fc = pattern_map.at(target_fc).get_node_shared_ptr();
         auto input_node = m_fc->get_input_node_shared_ptr(0);
-        std::cout << "target fc name: " << m_fc->get_friendly_name() << std::endl;
+        // std::cout << "target fc name: " << m_fc->get_friendly_name() << std::endl;
         std::vector<std::shared_ptr<op::FullyConnectedCompressed>> fc_nodes;
         ov::NodeVector weight_nodes;
         ov::NodeVector scale_nodes;
@@ -184,11 +184,11 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
         copy_runtime_info({fc_nodes[0], fc_nodes[1], fc_nodes[2]}, new_fc);
 
         // Split output and connect to the orig users
-        std::cout << "orig_n_sizes: ";
-        for (auto& item : orig_n_sizes) {
-            std::cout << item << " ";
-        }
-        std::cout << std::endl;
+        // std::cout << "orig_n_sizes: ";
+        // for (auto& item : orig_n_sizes) {
+        //     std::cout << item << " ";
+        // }
+        // std::cout << std::endl;
         auto split_name = fc_nodes[0]->get_friendly_name() + "_split";
         auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {new_fc->get_output_partial_shape(0).size() - 1});
         auto split_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, orig_n_sizes);
