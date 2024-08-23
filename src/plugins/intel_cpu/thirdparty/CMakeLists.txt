@@ -15,7 +15,7 @@ if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
 
-function(create_acl_version_file)
+function(ov_create_acl_version_file)
     set(ACL_ROOT_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary")
     set(ACL_SCONSCRIPT_FILE_PATH "${ACL_ROOT_DIR}/SConscript")
     file(READ ${ACL_SCONSCRIPT_FILE_PATH} ACL_SCONSCRIPT_FILE_CONTENT)
