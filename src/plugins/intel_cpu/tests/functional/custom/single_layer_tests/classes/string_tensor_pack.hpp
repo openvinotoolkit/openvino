@@ -15,9 +15,7 @@ namespace test {
 namespace StringTensorPack {
 using StringTensorPackSpecificParams =  std::tuple<
         InputShape,                     // begins/ends shape
-        InputShape,                     // utf-8 encoded symbols shape
-        std::vector<int64_t>,           // begins values
-        std::vector<int64_t>            // ends values
+        InputShape                      // utf-8 encoded symbols shape
 >;
 
 using StringTensorPackLayerTestParams = std::tuple<

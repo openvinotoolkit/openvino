@@ -24,9 +24,7 @@ std::string StringTensorPackLayerCPUTest::getTestCaseName(testing::TestParamInfo
 
         InputShape indicesShape;
         InputShape symbolsShape;
-        std::vector<int64_t> begins;
-        std::vector<int64_t> ends;
-        std::tie(indicesShape, symbolsShape, begins, ends) = StringTensorPackPar;
+        std::tie(indicesShape, symbolsShape) = StringTensorPackPar;
         std::ostringstream result;
 
         result << ov::test::utils::partialShape2str({ indicesShape.first }) << "_";
@@ -51,14 +49,21 @@ std::string StringTensorPackLayerCPUTest::getTestCaseName(testing::TestParamInfo
 void StringTensorPackLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
         inputs.clear();
         const auto& funcInputs = function->inputs();
+        const auto indicesType = funcInputs[0].get_element_type();
+        const auto& indicesShape = targetInputStaticShapes[0];
+        const auto& symbolsShape = targetInputStaticShapes[2];
 
-        ov::Tensor data_tensor;
-        const auto& dataShape = targetInputStaticShapes[2];
-        ov::test::utils::InputGenerateData in_data;
-        in_data.start_from = 0;
-        in_data.range = 10;
-        data_tensor = ov::test::utils::create_and_fill_tensor(ov::element::u8, dataShape, in_data);
-        inputs.insert({ funcInputs[0].get_node_shared_ptr(), data_tensor });
+        const ov::Tensor beginsTensor = ov::test::utils::create_and_fill_tensor_consistently(indicesType, indicesShape, symbolsShape[0], 0, 3);
+        const ov::Tensor endsTensor = ov::test::utils::create_and_fill_tensor_consistently(indicesType, indicesShape, symbolsShape[0], 3, 3);
+        inputs.insert({ funcInputs[0].get_node_shared_ptr(), beginsTensor });
+        inputs.insert({ funcInputs[1].get_node_shared_ptr(), endsTensor });
+
+        ov::Tensor symbolsTensor;
+        ov::test::utils::InputGenerateData in_symbol_data;
+        in_symbol_data.start_from = 0;
+        in_symbol_data.range = 10;
+        symbolsTensor = ov::test::utils::create_and_fill_tensor(ov::element::u8, symbolsShape, in_symbol_data);
+        inputs.insert({ funcInputs[2].get_node_shared_ptr(), symbolsTensor });
     }
 
 void StringTensorPackLayerCPUTest::SetUp() {
@@ -73,17 +78,15 @@ void StringTensorPackLayerCPUTest::SetUp() {
 
         InputShape indicesShape;
         InputShape symbolsShape;
-        std::vector<int64_t> begins;
-        std::vector<int64_t> ends;
-        std::tie(indicesShape, symbolsShape, begins, ends) = StringTensorPackParams;
+        std::tie(indicesShape, symbolsShape) = StringTensorPackParams;
 
         init_input_shapes({indicesShape, indicesShape, symbolsShape});
+        auto beginsParameter = std::make_shared<ov::op::v0::Parameter>(indicesPrecision, inputDynamicShapes[0]);
+        auto endsParameter = std::make_shared<ov::op::v0::Parameter>(indicesPrecision, inputDynamicShapes[1]);
         auto symbolsParameter = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, inputDynamicShapes[2]);
-        auto beginsConst = std::make_shared<ov::op::v0::Constant>(indicesPrecision, indicesShape.second.front(), begins);
-        auto endsConst = std::make_shared<ov::op::v0::Constant>(indicesPrecision, indicesShape.second.front(), ends);
-        auto StringTensorPack = std::make_shared<ov::op::v15::StringTensorPack>(beginsConst, endsConst, symbolsParameter);
+        auto StringTensorPack = std::make_shared<ov::op::v15::StringTensorPack>(beginsParameter, endsParameter, symbolsParameter);
 
-        ov::ParameterVector params{ symbolsParameter };
+        ov::ParameterVector params{ beginsParameter, endsParameter, symbolsParameter };
         function = makeNgraphFunction(ov::element::string, params, StringTensorPack, "StringTensorPack");
 }
 
@@ -96,38 +99,26 @@ const std::vector<StringTensorPackSpecificParams> StringTensorPackParamsVector =
     StringTensorPackSpecificParams {
         InputShape{{}, {{3}}},                                                      // begins/ends shape
         InputShape{{}, {{9}}},                                                      // utf-8 encoded symbols shape
-        std::vector<int64_t>{1, 4, 6},                                              // begins values
-        std::vector<int64_t>{4, 6, 8}                                               // ends values
     },
     StringTensorPackSpecificParams {
         InputShape{{}, {{1, 3, 4}}},                                                // begins/ends shape
         InputShape{{}, {{108}}},                                                    // utf-8 encoded symbols shape
-        std::vector<int64_t>{7, 28, 30, 30, 41, 42, 50, 50, 74, 76, 80, 92},        // begins values
-        std::vector<int64_t>{28, 30, 30, 41, 42, 50, 50, 74, 76, 80, 92, 108}       // ends values
     },
     StringTensorPackSpecificParams {
         InputShape{{}, {{1, 1, 1, 2}}},                                             // begins/ends shape
         InputShape{{}, {{67}}},                                                     // utf-8 encoded symbols shape
-        std::vector<int64_t>{30, 31},                                               // begins values
-        std::vector<int64_t>{31, 31}                                                // ends values
     },
     StringTensorPackSpecificParams {
         InputShape{{-1, -1, -1}, {{1, 3, 4}}},                                      // begins/ends shape
         InputShape{{-1}, {{108}}},                                                  // utf-8 encoded symbols shape
-        std::vector<int64_t>{7, 28, 30, 30, 41, 42, 50, 50, 74, 76, 80, 92},        // begins values
-        std::vector<int64_t>{28, 30, 30, 41, 42, 50, 50, 74, 76, 80, 92, 108}       // ends values
     },
     StringTensorPackSpecificParams {
         InputShape{{-1, {1, 4}, {2, 3}}, {{1, 2, 2}, {1, 1, 3}}},                   // begins/ends shape
         InputShape{{{50, 100}}, {{67}}},                                            // utf-8 encoded symbols shape
-        std::vector<int64_t>{30, 31, 56, 60},                                       // begins values
-        std::vector<int64_t>{31, 56, 60, 67}                                        // ends values
     },
     StringTensorPackSpecificParams {
         InputShape{{-1, {1, 4}, {1, 4}}, {{1, 1, 4}, {1, 4, 1}}},                   // begins/ends shape
         InputShape{{{50, 100}}, {{50}, {75}, {100}}},                               // utf-8 encoded symbols shape
-        std::vector<int64_t>{30, 31, 46, 50},                                       // begins values
-        std::vector<int64_t>{31, 46, 50, 50}                                        // ends values
     },
 };
 
