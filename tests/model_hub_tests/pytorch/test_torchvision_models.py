@@ -7,7 +7,7 @@ import tempfile
 import pytest
 import torch
 import torchvision.transforms.functional as F
-from models_hub_common.utils import get_models_list
+from models_hub_common.utils import get_models_list, retry
 
 from torch_utils import TestTorchConvertModel
 
@@ -54,6 +54,7 @@ torch.manual_seed(0)
 
 
 class TestTorchHubConvertModel(TestTorchConvertModel):
+    @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, model_name, model_link):
         m = torch.hub.load("pytorch/vision", model_name,
                            weights='DEFAULT', skip_validation=True)

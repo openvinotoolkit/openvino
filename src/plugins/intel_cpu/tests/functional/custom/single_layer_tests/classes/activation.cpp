@@ -76,6 +76,10 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
         startFrom = -1;
         range = 2;
         resolution = 128;
+    } else if (activationType == utils::ActivationTypes::LogicalNot) {
+        startFrom = 0;
+        range = 2;
+        resolution = 1;
     } else {
         startFrom = 0;
         range = 15;
@@ -198,6 +202,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::Relu) ||
         (activation_type == utils::ActivationTypes::Sigmoid) ||
         (activation_type == utils::ActivationTypes::Swish) ||
+        (activation_type == utils::ActivationTypes::LogicalNot) ||
         (activation_type == utils::ActivationTypes::Tanh))) {
         return "jit";
     }
@@ -213,6 +218,15 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         return "ref";
     }
     return "acl";
+#elif defined(OV_CPU_WITH_SHL)
+    if ((activation_type == utils::ActivationTypes::Relu) ||
+        (activation_type == utils::ActivationTypes::PReLu) ||
+        (activation_type == utils::ActivationTypes::Exp) ||
+        (activation_type == utils::ActivationTypes::Clamp)) {
+        return "shl";
+    } else {
+        return "ref";
+    }
 #else
     return CPUTestsBase::getPrimitiveType();
 #endif
