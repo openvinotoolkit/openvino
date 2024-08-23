@@ -37,7 +37,6 @@ class TestTensorScatterUpdate(CommonTFLayerTest):
         for i in range(0, indices_col):
             indices_of_tensor_shape.append(np.arange(tensor_shape[i]))
 
-        
         mesh = np.meshgrid(*indices_of_tensor_shape)
 
         all_indicies = np.stack(mesh, axis=indices_col)
