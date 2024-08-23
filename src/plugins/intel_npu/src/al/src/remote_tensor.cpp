@@ -4,7 +4,7 @@
 
 #include "remote_tensor.hpp"
 
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/config/options.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 

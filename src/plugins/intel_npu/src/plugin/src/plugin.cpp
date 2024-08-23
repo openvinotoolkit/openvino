@@ -9,10 +9,8 @@
 #include "compiled_model.hpp"
 #include "compiler.hpp"
 #include "device_helpers.hpp"
-#include "intel_npu/al/config/common.hpp"
-#include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/config/npuw.hpp"
-#include "intel_npu/al/config/runtime.hpp"
+#include "intel_npu/al/config/options.hpp"
 #include "intel_npu/al/itt.hpp"
 #include "npuw/compiled_model.hpp"
 #include "openvino/op/constant.hpp"
@@ -183,9 +181,7 @@ Plugin::Plugin()
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
 
-    registerCommonOptions(*_options, {1, 2, 3});
-    registerCompilerOptions(*_options, {1, 2, 3});
-    registerRunTimeOptions(*_options);
+    registerOptions(*_options, {1, 2, 3});
 
     // parse env_variables to get LOG_LEVEL if needed
     _globalConfig.parseEnvVars();
@@ -559,13 +555,13 @@ Plugin::Plugin()
     //  compvers.vclMajor
     //           << "." << compvers.vclMinor << " \n\n";
     /*
-    std::cout << "[CSOKADBG/pluginInit] " << ov::hint::execution_mode.name()
-              << " IsRegistered: " << _options->has(ov::hint::execution_mode.name())
-              << " isPublic: " << _options->has(ov::hint::execution_mode.name())
-        ? _options->get(ov::hint::execution_mode.name(), OptionMode::Both).isPublic()
-        : false;
-    std::cout << "\n\n" << std::flush;
-*/
+        std::cout << "[CSOKADBG/pluginInit] " << ov::hint::execution_mode.name()
+                  << " IsRegistered: " << _options->has(ov::hint::execution_mode.name())
+                  << " isPublic: " << _options->has(ov::hint::execution_mode.name())
+            ? _options->get(ov::hint::execution_mode.name(), OptionMode::Both).isPublic()
+            : false;
+        std::cout << "\n\n" << std::flush;
+    */
     bool hasTurbo = _options->has(ov::intel_npu::turbo.name());
     if (hasTurbo) {
         bool isTurboPublic = _options->get(ov::intel_npu::turbo.name(), OptionMode::Both).isPublic();

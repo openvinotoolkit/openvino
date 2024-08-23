@@ -7,7 +7,7 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
-#include "intel_npu/al/config/runtime.hpp"
+#include "intel_npu/al/config/options.hpp"
 #include "ze_command_queue_npu_ext.h"
 
 /**

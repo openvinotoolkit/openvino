@@ -8,10 +8,8 @@
 #include <string_view>
 
 #include "async_infer_request.hpp"
-#include "intel_npu/al/config/common.hpp"
-#include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/config/config.hpp"
-#include "intel_npu/al/config/runtime.hpp"
+#include "intel_npu/al/config/options.hpp"
 #include "intel_npu/al/icompiler.hpp"
 #include "intel_npu/al/itt.hpp"
 #include "openvino/pass/constant_folding.hpp"

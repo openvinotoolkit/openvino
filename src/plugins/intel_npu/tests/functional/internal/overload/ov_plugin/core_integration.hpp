@@ -5,36 +5,37 @@
 #pragma once
 
 #include <filesystem>
+
 #include "base/ov_behavior_test_utils.hpp"
 #include "behavior/ov_plugin/properties_tests.hpp"
-#include "common/utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
+#include "common/utils.hpp"
 #include "common_test_utils/subgraph_builders/concat_with_params.hpp"
 #include "common_test_utils/subgraph_builders/kso_func.hpp"
 #include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/config/options.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
                                      >;
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#include <iostream>
-#define GTEST_COUT std::cerr << "[          ] [ INFO ] "
-#include <codecvt>
-#include <functional_test_utils/skip_tests_config.hpp>
-#include "openvino/pass/manager.hpp"
+#    include <iostream>
+#    define GTEST_COUT std::cerr << "[          ] [ INFO ] "
+#    include <codecvt>
+#    include <functional_test_utils/skip_tests_config.hpp>
+
+#    include "openvino/pass/manager.hpp"
 #endif
 
 namespace ov {
 namespace test {
 namespace behavior {
 
-class OVClassBaseTestPNPU :
-        public OVClassNetworkTest,
-        public testing::WithParamInterface<CompilationParams>,
-        public OVPluginTestBase {
+class OVClassBaseTestPNPU : public OVClassNetworkTest,
+                            public testing::WithParamInterface<CompilationParams>,
+                            public OVPluginTestBase {
 protected:
     ov::AnyMap configuration;
     std::string deathTestStyle;
@@ -90,7 +91,6 @@ public:
 };
 
 class OVClassBasicTestPNPU : public OVBasicPropertiesTestsP {
-
 public:
     void TearDown() override {
         for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
@@ -115,14 +115,16 @@ TEST_P(OVClassNetworkTestPNPU, LoadNetworkActualNoThrow) {
 
 TEST_P(OVClassNetworkTestPNPU, LoadNetworkActualHeteroDeviceNoThrow) {
     ov::Core ie = createCoreWithTemplate();
-    OV_ASSERT_NO_THROW(ie.compile_model(
-            actualNetwork, ov::test::utils::DEVICE_HETERO + std::string(":") + target_device, configuration));
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork,
+                                        ov::test::utils::DEVICE_HETERO + std::string(":") + target_device,
+                                        configuration));
 }
 
 TEST_P(OVClassNetworkTestPNPU, LoadNetworkActualHeteroDevice2NoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
-    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, ov::test::utils::DEVICE_HETERO,
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork,
+                                        ov::test::utils::DEVICE_HETERO,
                                         ov::device::priorities(target_device),
                                         ov::device::properties(target_device, configuration)));
 }
@@ -131,7 +133,8 @@ TEST_P(OVClassNetworkTestPNPU, LoadNetworkActualHeteroDeviceUsingDevicePropertie
     ov::Core ie = createCoreWithTemplate();
     configuration.emplace(ov::enable_profiling(true));
 
-    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, ov::test::utils::DEVICE_HETERO,
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork,
+                                        ov::test::utils::DEVICE_HETERO,
                                         ov::device::priorities(target_device),
                                         ov::device::properties(target_device, configuration)));
 }
@@ -181,21 +184,21 @@ TEST_P(OVClassBasicTestPNPU, smoke_registerPluginsLibrariesUnicodePath) {
         std::string unicode_target_device = target_device + "_UNICODE_" + std::to_string(testIndex);
         std::wstring postfix = ov::test::utils::test_unicode_postfix_vector[testIndex];
         std::wstring unicode_path =
-                ov::test::utils::stringToWString(ov::test::utils::getOpenvinoLibDirectory() + "/") + postfix;
+            ov::test::utils::stringToWString(ov::test::utils::getOpenvinoLibDirectory() + "/") + postfix;
         try {
-#ifndef _WIN32
+#    ifndef _WIN32
             std::filesystem::create_directory(ov::util::wstring_to_string(unicode_path));
-#else
+#    else
             std::filesystem::create_directory(unicode_path);
-#endif
+#    endif
             std::string pluginNamePath =
-                    ov::util::make_plugin_library_name(ov::util::wstring_to_string(unicode_path), pluginName);
+                ov::util::make_plugin_library_name(ov::util::wstring_to_string(unicode_path), pluginName);
 
             for (auto&& lib : libs) {
                 auto&& libPath = ov::test::utils::stringToWString(
-                        ov::util::make_plugin_library_name(ov::test::utils::getOpenvinoLibDirectory(), lib));
+                    ov::util::make_plugin_library_name(ov::test::utils::getOpenvinoLibDirectory(), lib));
                 auto&& libPathNew = ov::test::utils::stringToWString(
-                        ov::util::make_plugin_library_name(::ov::util::wstring_to_string(unicode_path), lib));
+                    ov::util::make_plugin_library_name(::ov::util::wstring_to_string(unicode_path), lib));
                 bool is_copy_successfully = ov::test::utils::copyFile(libPath, libPathNew);
                 if (!is_copy_successfully) {
                     FAIL() << "Unable to copy from '" << libPath << "' to '" << libPathNew << "'";

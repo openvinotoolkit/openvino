@@ -6,21 +6,21 @@
 
 #include <base/ov_behavior_test_utils.hpp>
 #include <cstring>
-#include <intel_npu/al/config/compiler.hpp>
+#include <intel_npu/al/config/options.hpp>
 #include <string>
 #include <vector>
+
 #include "common/functions.h"
 #include "common/npu_test_env_cfg.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/config/options.hpp"
 #include "npu_private_properties.hpp"
 
 using CompilerType = ov::intel_npu::CompilerType;
 
 namespace {
 
-class TestCompiledModelNPU :
-        public ov::test::behavior::OVPluginTestBase,
-        public testing::WithParamInterface<std::tuple<std::string, ov::AnyMap>> {
+class TestCompiledModelNPU : public ov::test::behavior::OVPluginTestBase,
+                             public testing::WithParamInterface<std::tuple<std::string, ov::AnyMap>> {
 public:
     void SetUp() override {
         std::tie(target_device, configuration) = GetParam();
@@ -79,9 +79,9 @@ protected:
     void SetUp() override {
         const auto devices = core->get_available_devices();
         const auto isNPUDeviceAvailable =
-                std::find_if(devices.cbegin(), devices.cend(), [this](const std::string& device) {
-                    return device.find(target_device) != std::string::npos;
-                }) != devices.cend();
+            std::find_if(devices.cbegin(), devices.cend(), [this](const std::string& device) {
+                return device.find(target_device) != std::string::npos;
+            }) != devices.cend();
         if (isNPUDeviceAvailable) {
             GTEST_SKIP() << "Skip the tests since device is available";
         }
@@ -105,8 +105,9 @@ TEST_P(TestCompileModelWithoutDeviceNPU, NoThrowIfNoDeviceAndButPlatformPassed) 
 }
 
 const std::map<std::string_view, std::array<std::string_view, 2>> wrongDevice = {
-        // {orig, {wrong for MLIR}}
-        {"VPU3700", {"VPU0000"}}, {"VPU3720", {"VPU0000"}},
+    // {orig, {wrong for MLIR}}
+    {"VPU3700", {"VPU0000"}},
+    {"VPU3720", {"VPU0000"}},
 };
 
 std::string getWrongDevice(const std::string_view platform, const CompilerType&) {
@@ -120,9 +121,9 @@ std::string getWrongDevice(const std::string_view platform, const CompilerType&)
 }
 
 const std::map<std::string_view, std::array<std::string_view, 2>> validDevice = {
-        // {orig, {valid for MLIR}}
-        {"VPU3700", {"VPU3700"}}, {"VPU3720", {"VPU3720"}}
-};
+    // {orig, {valid for MLIR}}
+    {"VPU3700", {"VPU3700"}},
+    {"VPU3720", {"VPU3720"}}};
 
 std::string getValidDevice(const std::string_view platform, const CompilerType&) {
     auto device = validDevice.find(platform);
@@ -138,20 +139,20 @@ TEST_P(TestCompileModelWithoutDeviceNPU, CheckDeviceInBlob) {
         // Compile model to target plugins, wrong platform specified -> expect an exception
         auto netConfigurationMLIR_wrong = configuration;
         netConfigurationMLIR_wrong[ov::intel_npu::platform.name()] =
-                getWrongDevice(PlatformEnvironment::PLATFORM, CompilerType::MLIR);
+            getWrongDevice(PlatformEnvironment::PLATFORM, CompilerType::MLIR);
         netConfigurationMLIR_wrong[ov::intel_npu::compiler_type.name()] = "MLIR";
         const auto& ov_model1 = buildSingleLayerSoftMaxNetwork();
         EXPECT_ANY_THROW(auto compiled_model =
-                                 core->compile_model(ov_model1, target_device, netConfigurationMLIR_wrong));
+                             core->compile_model(ov_model1, target_device, netConfigurationMLIR_wrong));
 
         // Compile model to target plugins, valid platform specified -> expect no exception
         auto netConfigurationMLIR_valid = configuration;
         netConfigurationMLIR_valid[ov::intel_npu::platform.name()] =
-                getValidDevice(PlatformEnvironment::PLATFORM, CompilerType::MLIR);
+            getValidDevice(PlatformEnvironment::PLATFORM, CompilerType::MLIR);
         netConfigurationMLIR_valid[ov::intel_npu::compiler_type.name()] = "MLIR";
         const auto& ov_model2 = buildSingleLayerSoftMaxNetwork();
         EXPECT_NO_THROW(auto compiled_model =
-                                core->compile_model(ov_model2, target_device, netConfigurationMLIR_valid));
+                            core->compile_model(ov_model2, target_device, netConfigurationMLIR_valid));
     }
 }
 

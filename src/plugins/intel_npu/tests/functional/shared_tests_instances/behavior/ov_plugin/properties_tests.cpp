@@ -8,7 +8,7 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/config/options.hpp"
 #include "npu_private_properties.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
@@ -243,8 +243,8 @@ const std::vector<ov::AnyMap> multiConfigs = {{ov::device::priorities(ov::test::
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVClassSetDevicePriorityConfigPropsTest,
                          OVClassSetDevicePriorityConfigPropsTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI,
-                                                ov::test::utils::DEVICE_AUTO,
-                                                ov::test::utils::DEVICE_HETERO),
+                                                              ov::test::utils::DEVICE_AUTO,
+                                                              ov::test::utils::DEVICE_HETERO),
                                             ::testing::ValuesIn(multiConfigs)),
                          (ov::test::utils::appendPlatformTypeTestName<OVClassSetDevicePriorityConfigPropsTest>));
 

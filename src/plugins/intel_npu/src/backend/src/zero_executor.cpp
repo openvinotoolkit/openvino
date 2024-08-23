@@ -11,7 +11,7 @@
 #include <sstream>
 #include <string>
 
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/config/options.hpp"
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/al/prefix.hpp"
 #include "openvino/runtime/properties.hpp"

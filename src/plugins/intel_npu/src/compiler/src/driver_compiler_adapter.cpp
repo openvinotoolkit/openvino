@@ -5,7 +5,7 @@
 #include "driver_compiler_adapter.hpp"
 
 #include "graph_transformations.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/config/options.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "ze_intel_npu_uuid.h"

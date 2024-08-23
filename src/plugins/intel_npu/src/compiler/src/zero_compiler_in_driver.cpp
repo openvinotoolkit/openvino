@@ -9,9 +9,7 @@
 #include <string_view>
 
 #include "graph_transformations.hpp"
-#include "intel_npu/al/config/common.hpp"
-#include "intel_npu/al/config/compiler.hpp"
-#include "intel_npu/al/config/runtime.hpp"
+#include "intel_npu/al/config/options.hpp"
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/al/prefix.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"

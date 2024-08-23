@@ -3,11 +3,12 @@
 //
 
 #include "common/npu_test_env_cfg.hpp"
-#include "intel_npu/al/config/config.hpp"
-#include "intel_npu/al/config/common.hpp"
 
 #include <cstdlib>
 #include <stdexcept>
+
+#include "intel_npu/al/config/config.hpp"
+#include "intel_npu/al/config/options.hpp"
 
 namespace ov::test::utils {
 
@@ -142,14 +143,14 @@ const NpuTestEnvConfig& NpuTestEnvConfig::getInstance() {
 
 std::string getTestsDeviceNameFromEnvironmentOr(const std::string& instead) {
     return (!NpuTestEnvConfig::getInstance().IE_NPU_TESTS_DEVICE_NAME.empty())
-                   ? NpuTestEnvConfig::getInstance().IE_NPU_TESTS_DEVICE_NAME
-                   : instead;
+               ? NpuTestEnvConfig::getInstance().IE_NPU_TESTS_DEVICE_NAME
+               : instead;
 }
 
 std::string getTestsPlatformFromEnvironmentOr(const std::string& instead) {
     return (!NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM.empty())
-                   ? NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM
-                   : instead;
+               ? NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM
+               : instead;
 }
 
 std::string getDeviceNameTestCase(const std::string& str) {

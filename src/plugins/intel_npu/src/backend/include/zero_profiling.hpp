@@ -10,7 +10,7 @@
 #include <climits>
 #include <map>
 
-#include "intel_npu/al/config/compiler.hpp"
+#include "intel_npu/al/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 
