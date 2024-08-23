@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include <cstddef>
-#include <vector>
-
 #include "openvino/core/shape.hpp"
 
 namespace ov {

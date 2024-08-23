@@ -4,11 +4,7 @@
 
 #pragma once
 
-#include <cstddef>
-#include <vector>
-
 #include "openvino/op/op.hpp"
-#include "openvino/op/util/fft_base.hpp"
 
 namespace ov {
 namespace op {
