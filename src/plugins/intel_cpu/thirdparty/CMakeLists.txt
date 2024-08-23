@@ -131,7 +131,7 @@ function(ov_add_onednn)
     # to find our FindACL.cmake
     if(DNNL_USE_ACL)
         list(APPEND CMAKE_MODULE_PATH "${intel_cpu_thirdparty_SOURCE_DIR}")
-        create_acl_version_file()
+        ov_create_acl_version_file()
     endif()
 
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
