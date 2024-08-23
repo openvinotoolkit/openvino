@@ -30,4 +30,4 @@ keras>=2.0.0,<3.0.0
 timm==1.0.7
 
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch>=1.13,<2.4
+torch>=1.13,<2.5
