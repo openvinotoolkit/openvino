@@ -794,7 +794,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::op::v1::Broadcast::get_type_info_static(),
             ov::op::v3::Broadcast::get_type_info_static(),
         };
-        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>(allowed_data_movement_ops);
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
 
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
@@ -842,6 +842,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::SwiGLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
+
+        // This pass should be done after asymmetric quantization matching as it can move zp subtraction upper in the graph
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovPerChannel>();
+
         manager.register_pass<ov::intel_gpu::ConvertStridedSlicesToVariadicSplit>();
 
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
