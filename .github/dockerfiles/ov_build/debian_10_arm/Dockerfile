@@ -54,10 +54,10 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 ENV PATH="$SCCACHE_HOME:$PATH"
 
 # Setup Python
-RUN wget https://www.python.org/ftp/python/3.11.0/Python-3.11.0.tar.xz
+RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
 
-RUN tar -xf Python-3.11.0.tar.xz && \
-    cd Python-3.11.0 && \
+RUN tar -xf Python-3.11.9.tar.xz && \
+    cd Python-3.11.9 && \
     ./configure --enable-optimizations && \
     make -j 8 && \
     make altinstall

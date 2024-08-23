@@ -79,7 +79,7 @@ jobs:
       event-name: ${{ github.event_name }}
       os: 'debian_10'
       arch: 'arm'
-      cmake-options: >-
+      cmake-options: >- 
             -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/arm.toolchain.cmake \
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
