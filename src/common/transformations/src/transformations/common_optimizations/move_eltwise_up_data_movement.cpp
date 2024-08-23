@@ -167,7 +167,8 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
     };
 
     auto eltw_data_flow_in =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Squeeze, ov::op::v0::Unsqueeze>();
+        ov::pass::pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Squeeze, ov::op::v0::Unsqueeze>(
+            pattern::consumers_count(1));
     auto eltw_const_in = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(const_predicate);
     auto eltwise_pattern =
         ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({eltw_data_flow_in, eltw_const_in},
