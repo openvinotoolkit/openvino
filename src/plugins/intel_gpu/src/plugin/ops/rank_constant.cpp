@@ -117,8 +117,14 @@ static void CreateRankConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::in
         auto buf = lock.data();
         auto bufSize = constLayout.bytes_count();
         int rank = op->get_rank();
-        int offset = rank * bufSize;
-        std::memcpy(&buf[0], &data[0] + offset, bufSize);
+        // int offset = rank * bufSize;
+        // std::cout <<
+        int copysize = bufSize / 3;
+        // int index_n = offset / 6;
+        std::memcpy(&buf[0], &data[0] + rank * copysize, copysize);
+        std::memcpy(&buf[0]+ copysize, &data[0] + rank * copysize + copysize * 2, copysize);
+        std::memcpy(&buf[0]+ copysize * 2, &data[0] + rank * copysize + copysize * 4, copysize);
+
         p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
         p.blobMemCache[cache_key] = initialconstPrimID;
         constPrimID = initialconstPrimID;

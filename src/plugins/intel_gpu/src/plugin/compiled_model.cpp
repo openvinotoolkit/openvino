@@ -18,6 +18,7 @@
 #include <sys/types.h>
 #include "plugin/transformations/slice_pagedattention.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "plugin/transformations/fc_horizontal_fusion.hpp"
 namespace ov {
 namespace intel_gpu {
 
@@ -100,16 +101,26 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                                                                  configs_for_tp[i].streamsRankTable[i]};
                 configs_for_tp[i].subStreamExecConfig = std::move(streamExecutorConfig);
                 auto model_clone = model->clone();
+                // ov::serialize(model_clone, "./model_pa_original.xml");
                 // ov::serialize(model_clone, "./model_pa_o.xml", "./model_pa_o.bin");
                 ov::pass::Manager manager;
-                manager.register_pass<PagedAttentionSplitInput>(m_config.get_context_for_tp().size(), i);
-                manager.run_passes(model_clone);
-                // ov::pass::VisualizeTree("pa_slice.svg").run_on_model(model_clone);
-                // ov::serialize(model_clone, "./model_pa.xml", "./model_pa.bin");
+                // manager.register_pass<PagedAttentionSplitInput>(m_config.get_context_for_tp().size(), i);
+                // manager.run_passes(model_clone);
+                // ov::pass::VisualizeTree("pa_slice_821.svg").run_on_model(model_clone);
+                // ov::serialize(model_clone, "./model_pa_slice.xml");
                 // tp related
                 // if (config.get_context_for_tp().size() > 1)
-                //    manager.register_pass<ov::intel_gpu::TensorParallelFusion>(config.get_context_for_tp().size(), i);
-                // // manager.register_pass<ov::pass::ConstantFolding>();
+                manager.register_pass<ov::intel_gpu::TensorParallelFusion>(config.get_context_for_tp().size(), i);
+                manager.run_passes(model_clone);
+                std::cout << "fc tp finished***********************************************\n";
+                // ov::serialize(model_clone, "./model_pa_822-2.xml");
+                // ov::pass::VisualizeTree("pa_slice_8212.svg").run_on_model(model_clone);
+
+                // manager.register_pass<PagedAttentionSplitInput>(m_config.get_context_for_tp().size(), i);
+                // manager.run_passes(model_clone);
+
+                // // // manager.register_pass<ov::pass::ConstantFolding>();
+                // manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>();
                 // manager.run_passes(model_clone);
                 // ov::serialize(model_clone, "bell_saved_" + std::to_string(i) + ".xml");
                 m_sub_compiled_models.push_back(std::make_shared<CompiledModel>(

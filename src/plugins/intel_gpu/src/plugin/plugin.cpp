@@ -40,7 +40,7 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
-
+#include "plugin/transformations/tensor_parallel.hpp"
 // Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
 #ifdef DEVICE_TYPE
 #undef DEVICE_TYPE
@@ -173,7 +173,9 @@ Plugin::Plugin() {
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
-
+    // ov::serialize(model, "./model_pa_oo.xml");
+    // auto model_clone = model->clone();
+    // ov::pass::VisualizeTree("pa_ooo.svg").run_on_model(model_clone);
     std::string device_id = get_device_id(orig_config);
 
     auto context = get_default_context(device_id);
@@ -211,6 +213,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             config.streamsRankTable = get_rank_table();
         }
     }
+    // auto model_clone = model->clone();
+    // if (config.get_context_for_tp().size() > 1) {
+    //     ov::pass::Manager manager;
+    //     manager.register_pass<ov::intel_gpu::TensorParallelFusion>(config.get_context_for_tp().size(), i);
+    // // // manager.register_pass<ov::pass::ConstantFolding>();
+    //     manager.run_passes(model_clone);
+
+    // }
+
     auto transformed_model = clone_and_transform_model(model, config, context);
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
