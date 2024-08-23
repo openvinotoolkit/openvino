@@ -88,7 +88,7 @@ ov::SoPtr<ICompiler> intel_npu::createCompiler(std::shared_ptr<intel_npu::NPUBac
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "intel_npu::createCompiler");
     auto logger = Logger::global().clone("createCompiler");
     try {
-        logger.info("intel_npu::createCompiler - performing createCompilerImpl");
+        logger.debug("performing createCompilerImpl");
         return createCompilerImpl(npuBackends, compilerType, logger);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Got an error during compiler creation: ", ex.what());

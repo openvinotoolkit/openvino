@@ -201,11 +201,10 @@ public:
                                                                     const Config& config) const = 0;
 
     // Needed only by the driver compiler, to release the graph handle
-    virtual void release([[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription){};
+    virtual void release(std::shared_ptr<const NetworkDescription> networkDescription){};
 
     // Needed only by the driver compiler, to populate the actual blob content inside the NetworkDescription
-    virtual std::vector<uint8_t> getCompiledNetwork(
-        [[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription) {
+    virtual std::vector<uint8_t> getCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) {
         return networkDescription->compiledNetwork;
     }
 
