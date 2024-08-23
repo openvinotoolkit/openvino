@@ -18,7 +18,6 @@ namespace ov {
 namespace reference {
 using complex_type = std::complex<float>;
 
-using T = float;
 void stft(const float* signal,
           const float* window,
           float* rdft_result,
@@ -35,7 +34,7 @@ void stft(const float* signal,
     const auto fft_out_shape = Shape{static_cast<size_t>(std::floor(frame_size_dim / 2) + 1), 2};
 
     const auto window_length = window_shape[0] < frame_size_dim ? window_shape[0] : frame_size_dim;
-    std::vector<T> pad_window(frame_size, 0);
+    std::vector<float> pad_window(frame_size, 0);
     std::copy(window, window + window_shape[0], pad_window.begin() + (frame_size_dim - window_length) / 2);
 
     const auto fft_out_shape_size = shape_size(fft_out_shape);
@@ -45,7 +44,7 @@ void stft(const float* signal,
         for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
             const auto frame_start = batch_in_start + frame_idx * frame_step;
             const auto frame_end = frame_start + frame_size;
-            std::vector<T> signal_slice(signal + frame_start, signal + frame_end);
+            std::vector<float> signal_slice(signal + frame_start, signal + frame_end);
             reference::multiply(signal_slice.data(),
                                 pad_window.data(),
                                 signal_slice.data(),
@@ -62,11 +61,11 @@ void stft(const float* signal,
     }
     if (transpose_frames) {
         const auto stft_transp_out_shape = Shape{batch_size, fft_out_shape[0], num_frames, fft_out_shape[1]};
-        std::vector<T> signal_t(rdft_result, rdft_result + shape_size(stft_transp_out_shape));
+        std::vector<float> signal_t(rdft_result, rdft_result + shape_size(stft_transp_out_shape));
         transpose(reinterpret_cast<const char*>(signal_t.data()),
                   reinterpret_cast<char*>(rdft_result),
                   Shape{batch_size, num_frames, fft_out_shape[0], fft_out_shape[1]},
-                  sizeof(T),
+                  sizeof(float),
                   {0, 2, 1, 3},
                   stft_transp_out_shape);
     }
