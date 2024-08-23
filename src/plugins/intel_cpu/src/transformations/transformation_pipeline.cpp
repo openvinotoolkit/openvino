@@ -58,6 +58,7 @@
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 #include "transformations/op_conversions/convert_roi_align_v3_to_v9.hpp"
 #include "transformations/op_conversions/convert_roi_align_v9_to_v3.hpp"
+#include "transformations/op_conversions/convert_scatter_nd_update15_downgrade.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "transformations/op_conversions/convert_shuffle_channels3.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
@@ -296,14 +297,10 @@ void Transformations::UpToLpt() {
         Lpt(defaultPrecisions);
 }
 
-void Transformations::SetSubStreamNum(int SubStreams) {
-    subStreamNum = SubStreams;
-}
-
 void Transformations::CpuSpecificOpSet(void) {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Specific);
 
-    ConvertToCPUSpecificOpset(model, subStreamNum);
+    ConvertToCPUSpecificOpset(model);
 }
 
 void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecisions) {
@@ -640,6 +637,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertTopK11ToTopK3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::HSwishDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::MatMulConstTransposesExtraction);
+    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertScatterNDUpdate15ToScatterNDUpdate3);
     CPU_DISABLE_PASS_X64(manager, ov::pass::HSigmoidDecomposition);
 
     CPU_DISABLE_PASS_X64(manager, ov::pass::ReduceL1Decomposition);
@@ -897,17 +895,16 @@ void Transformations::MainSnippets(void) {
     // ARM has 32 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters, 1 platform register,
     // 3 registers for temporary use, and 2 stack related registers, it has 23 remaining registers.
     size_t data_ptr_gpr_count = 23;
+    bool is_dynamic_mha_token_enabled = false;
 #else
     // X64 has 16 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters,
     // and 2 stack related registers, it has 11 remaining registers.
     size_t data_ptr_gpr_count = 11;
+    bool is_dynamic_mha_token_enabled = true;
 #endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
     bool split_m_dimension = !ignoreCallback;
-    // [113198] Add dynamic Subgraph with MHA pattern inside execution support
-    // To enable dynamic MHA in tests, this flag is on when there is Config::SnippetsMode::IgnoreCallback
-    bool is_dynamic_mha_token_enabled = ignoreCallback;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     std::set<size_t> mha_supported_transpose_ranks = { 4 };
     snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency, data_ptr_gpr_count, split_m_dimension,

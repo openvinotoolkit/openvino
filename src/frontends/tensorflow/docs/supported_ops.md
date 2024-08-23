@@ -111,7 +111,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | BatchMatrixDeterminant                                  | NO                            |                               |
 | BatchMatrixDiag                                         | NO                            |                               |
 | BatchMatrixDiagPart                                     | NO                            |                               |
-| BatchMatrixInverse                                      | NO                            |                               |
+| BatchMatrixInverse                                      | YES                           |                               |
 | BatchMatrixSetDiag                                      | NO                            |                               |
 | BatchMatrixSolve                                        | NO                            |                               |
 | BatchMatrixSolveLs                                      | NO                            |                               |
@@ -1149,7 +1149,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | SparseSparseMaximum                                     | NO                            |                               |
 | SparseSparseMinimum                                     | NO                            |                               |
 | SparseSplit                                             | NO                            |                               |
-| SparseTensorDenseAdd                                    | NO                            |                               |
+| SparseTensorDenseAdd                                    | YES                           |                               |
 | SparseTensorDenseMatMul                                 | YES                           |                               |
 | SparseTensorSliceDataset                                | NO                            |                               |
 | SparseTensorToCSRSparseMatrix                           | NO                            |                               |

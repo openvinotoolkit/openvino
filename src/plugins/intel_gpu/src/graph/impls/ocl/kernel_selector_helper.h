@@ -200,7 +200,12 @@ inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) 
             return kernel_selector::eltwise_mode::IS_INF;
         case eltwise_mode::is_nan:
             return kernel_selector::eltwise_mode::IS_NAN;
+        case eltwise_mode::right_shift:
+            return kernel_selector::eltwise_mode::RIGHT_SHIFT;
+        case eltwise_mode::left_shift:
+            return kernel_selector::eltwise_mode::LEFT_SHIFT;
         default:
+            OPENVINO_ASSERT(false, "Unsupported eltwise mode!");
             return kernel_selector::eltwise_mode::ADD;
     }
 }
