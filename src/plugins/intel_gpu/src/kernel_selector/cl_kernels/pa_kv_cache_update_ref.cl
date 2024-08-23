@@ -172,68 +172,6 @@ KERNEL(pa_kv_cache_update)(
             for (uint i = 0; i < tokens_num; i++) {
                 uint head_idx_index = 0;
 
-#ifdef ENABLE_THIS
-                #define READ_BLOCK_SIZE 8
-                for (; head_idx_index + (READ_BLOCK_SIZE * SUBGROUP_SIZE) <= HEAD_SIZE; head_idx_index += SUBGROUP_SIZE * READ_BLOCK_SIZE) {
-                    #define BLOCK_READ(ptr, offset) BLOCK_READN(INPUT0_TYPE, READ_BLOCK_SIZE, ptr, offset);
-                    #define DATA_VEC MAKE_VECTOR_TYPE(INPUT0_TYPE, READ_BLOCK_SIZE)
-
-                    DATA_VEC input_data = BLOCK_READ(key_data, key_value_in_offset + head_idx_index);
-
-                    unroll_for (uint i = 0; i < READ_BLOCK_SIZE; i++) {
-                        uint key_offset = key_out_offset + (head_idx_index + sglid + SUBGROUP_SIZE * i) * PAGED_ATTENTION_BLOCK_SIZE;
-                        key_cache_data[key_offset] = input_data[i];
-                    }
-
-                    input_data = BLOCK_READ(value_data, key_value_in_offset + head_idx_index);
-
-                    unroll_for (uint i = 0; i < READ_BLOCK_SIZE; i++) {
-                        uint value_offset = value_out_offset + head_idx_index + sglid + SUBGROUP_SIZE * i;
-                        value_cache_data[value_offset] = input_data[i];
-                    }
-                }
-
-                #define READ_BLOCK_SIZE 4
-                for (; head_idx_index + (READ_BLOCK_SIZE * SUBGROUP_SIZE) <= HEAD_SIZE; head_idx_index += SUBGROUP_SIZE * READ_BLOCK_SIZE) {
-                    #define BLOCK_READ(ptr, offset) BLOCK_READN(INPUT0_TYPE, READ_BLOCK_SIZE, ptr, offset);
-                    #define DATA_VEC MAKE_VECTOR_TYPE(INPUT0_TYPE, READ_BLOCK_SIZE)
-
-                    DATA_VEC input_data = BLOCK_READ(key_data, key_value_in_offset + head_idx_index);
-
-                    unroll_for (uint i = 0; i < READ_BLOCK_SIZE; i++) {
-                        uint key_offset = key_out_offset + (head_idx_index + sglid + SUBGROUP_SIZE * i) * PAGED_ATTENTION_BLOCK_SIZE;
-                        key_cache_data[key_offset] = input_data[i];
-                    }
-
-                    input_data = BLOCK_READ(value_data, key_value_in_offset + head_idx_index);
-
-                    unroll_for (uint i = 0; i < READ_BLOCK_SIZE; i++) {
-                        uint value_offset = value_out_offset + head_idx_index + sglid + SUBGROUP_SIZE * i;
-                        value_cache_data[value_offset] = input_data[i];
-                    }
-                }
-
-                #define READ_BLOCK_SIZE 2
-                for (; head_idx_index + (READ_BLOCK_SIZE * SUBGROUP_SIZE) <= HEAD_SIZE; head_idx_index += SUBGROUP_SIZE * READ_BLOCK_SIZE) {
-                    #define BLOCK_READ(ptr, offset) BLOCK_READN(INPUT0_TYPE, READ_BLOCK_SIZE, ptr, offset);
-                    #define DATA_VEC MAKE_VECTOR_TYPE(INPUT0_TYPE, READ_BLOCK_SIZE)
-
-                    DATA_VEC input_data = BLOCK_READ(key_data, key_value_in_offset + head_idx_index);
-
-                    unroll_for (uint i = 0; i < READ_BLOCK_SIZE; i++) {
-                        uint key_offset = key_out_offset + (head_idx_index + sglid + SUBGROUP_SIZE * i) * PAGED_ATTENTION_BLOCK_SIZE;
-                        key_cache_data[key_offset] = input_data[i];
-                    }
-
-                    input_data = BLOCK_READ(value_data, key_value_in_offset + head_idx_index);
-
-                    unroll_for (uint i = 0; i < READ_BLOCK_SIZE; i++) {
-                        uint value_offset = value_out_offset + head_idx_index + sglid + SUBGROUP_SIZE * i;
-                        value_cache_data[value_offset] = input_data[i];
-                    }
-                }
-#endif
-
                 #define READ_BLOCK_SIZE 1
                 for (; head_idx_index + (READ_BLOCK_SIZE * SUBGROUP_SIZE) <= HEAD_SIZE; head_idx_index += SUBGROUP_SIZE * READ_BLOCK_SIZE) {
                     #define BLOCK_READ(ptr, offset) BLOCK_READN(INPUT0_TYPE, READ_BLOCK_SIZE, ptr, offset);
@@ -259,6 +197,5 @@ KERNEL(pa_kv_cache_update)(
                 value_out_offset += HEAD_SIZE;
             }
         }
-
     }
 }
