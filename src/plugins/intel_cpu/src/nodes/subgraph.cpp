@@ -670,33 +670,30 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
 
     using PassPosition = ov::snippets::pass::PassPosition;
     using Place = PassPosition::Place;
-
-#   define SNIPPETS_REGISTER_PASS_RELATIVE_COMMON(PASS_PLACE, TARGET_PASS, PASS, ...) \
+#   define SNIPPETS_REGISTER_PASS_RELATIVE(PASS_PLACE, TARGET_PASS, PASS, ...) \
             backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), std::make_shared<PASS>(__VA_ARGS__))
 
 #if defined(OPENVINO_ARCH_X86_64)
-#   define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...) \
-            backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), std::make_shared<PASS>(__VA_ARGS__))
-#else
-#    define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...)
-#endif  // OPENVINO_ARCH_X86_64
-
-    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::snippets::lowered::pass::MarkLoops,
-                                           ov::intel_cpu::pass::BrgemmCPUBlocking);
-    SNIPPETS_REGISTER_PASS_RELATIVE_COMMON(Place::After, ov::snippets::lowered::pass::InsertLoops,
-                                           ov::intel_cpu::pass::FuseLoadStoreConvert);
-    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
-                                           ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
-
-#ifdef SNIPPETS_LIBXSMM_TPP
-    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before, ov::intel_cpu::pass::BrgemmCPUBlocking,
-                                           ov::intel_cpu::tpp::pass::BrgemmTPPBlocking);
-    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
-                                           ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
+    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::snippets::lowered::pass::MarkLoops,
+                                    ov::intel_cpu::pass::BrgemmCPUBlocking);
 #endif
 
-#undef SNIPPETS_REGISTER_PASS_RELATIVE_COMMON
-#undef SNIPPETS_REGISTER_PASS_RELATIVE_X86_64
+    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::snippets::lowered::pass::InsertLoops,
+                                    ov::intel_cpu::pass::FuseLoadStoreConvert);
+
+#if defined(OPENVINO_ARCH_X86_64)
+    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
+                                    ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
+#endif
+
+#ifdef SNIPPETS_LIBXSMM_TPP
+    SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::intel_cpu::pass::BrgemmCPUBlocking,
+                                    ov::intel_cpu::tpp::pass::BrgemmTPPBlocking);
+    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
+                                    ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
+#endif
+
+#undef SNIPPETS_REGISTER_PASS_RELATIVE
     return backend_passes;
 }
 
