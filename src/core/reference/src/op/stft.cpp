@@ -31,6 +31,8 @@ void stft(const float* signal,
     const auto signal_length = signal_shape[signal_axis];
     const auto num_frames = static_cast<size_t>((signal_length - frame_size) / frame_step) + 1;
     const auto frame_size_dim = static_cast<size_t>(frame_size);
+    const auto frame_size_dim_shape = Shape{frame_size_dim};
+    const auto frame_size_dim_shape_out = Shape{frame_size_dim, 2};
     const auto fft_out_shape = Shape{static_cast<size_t>((frame_size_dim / 2) + 1), 2};
 
     const auto window_length = window_shape[0] < frame_size_dim ? window_shape[0] : frame_size_dim;
@@ -46,14 +48,14 @@ void stft(const float* signal,
             reference::multiply(signal_slice.data(),
                                 pad_window.data(),
                                 signal_slice.data(),
-                                Shape{frame_size_dim},
-                                Shape{frame_size_dim},
+                                frame_size_dim_shape,
+                                frame_size_dim_shape,
                                 op::AutoBroadcastType::NUMPY);
             const auto result_idx = (batch_frames_out + frame_idx) * fft_out_shape_size;
             reference::rdft(signal_slice,
-                            Shape{frame_size_dim},
+                            frame_size_dim_shape,
                             {0},
-                            Shape{frame_size_dim, 2},
+                            frame_size_dim_shape_out,
                             rdft_result + result_idx);
         }
         batch_in_start += signal_length;
