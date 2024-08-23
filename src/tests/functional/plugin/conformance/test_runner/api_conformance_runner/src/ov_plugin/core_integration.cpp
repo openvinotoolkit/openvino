@@ -19,7 +19,7 @@ namespace {
 // OV Class Common tests with <pluginName, deviceName params>
 //
 
-INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory,
+INSTANTIATE_TEST_SUITE_P(ov_plugin,
                          OVClassModelTestP,
                          ::testing::Values(ov::test::utils::target_device),
                          MARK_MANDATORY_FOR_QUERY_MODEL(null_GetTestName));
