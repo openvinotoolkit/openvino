@@ -103,23 +103,39 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
             {
                 // transform to rank constant
                 auto weight_node = m_fc->get_input_node_shared_ptr(1);
-                auto ranked_weight = std::make_shared<ov::intel_gpu::op::RankConstant>(weight_node, world_size, world_rank);
+                auto ranked_weight =
+                    std::make_shared<ov::intel_gpu::op::RankConstant>(weight_node,
+                                                                      world_size,
+                                                                      world_rank,
+                                                                      ov::intel_gpu::op::TP_MODE::ALL_GATHERQKV);
                 std::shared_ptr<ov::Node> ranked_bias, ranked_scale, ranked_zp;
                 auto compressed_fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(m_fc);
                 if (compressed_fc) {
                     if (!std::dynamic_pointer_cast<op::Placeholder>(compressed_fc->get_input_node_shared_ptr(2))) {
                         auto bias_node = compressed_fc->get_input_node_shared_ptr(2);
-                        ranked_bias = std::make_shared<ov::intel_gpu::op::RankConstant>(bias_node, world_size, world_rank);
+                        ranked_bias = std::make_shared<ov::intel_gpu::op::RankConstant>(
+                            bias_node,
+                            world_size,
+                            world_rank,
+                            ov::intel_gpu::op::TP_MODE::ALL_GATHERQKV);
                     }
                     auto scale_node = compressed_fc->get_input_node_shared_ptr(3);
-                    ranked_scale = std::make_shared<ov::intel_gpu::op::RankConstant>(scale_node, world_size, world_rank);
+                    ranked_scale =
+                        std::make_shared<ov::intel_gpu::op::RankConstant>(scale_node,
+                                                                          world_size,
+                                                                          world_rank,
+                                                                          ov::intel_gpu::op::TP_MODE::ALL_GATHERQKV);
                     if (compressed_fc->inputs().size() > 4) {
                         auto zp_node = compressed_fc->get_input_node_shared_ptr(4);
                         // scalar zp
                         auto zp_shape = zp_node->get_output_shape(0);
                         bool is_scalar = (ov::shape_size(zp_node->get_output_shape(0)) == 1);
                         if (!is_scalar) {
-                            ranked_zp = std::make_shared<ov::intel_gpu::op::RankConstant>(zp_node, world_size, world_rank);
+                            ranked_zp = std::make_shared<ov::intel_gpu::op::RankConstant>(
+                                zp_node,
+                                world_size,
+                                world_rank,
+                                ov::intel_gpu::op::TP_MODE::ALL_GATHERQKV);
                         }
                     }
                 }

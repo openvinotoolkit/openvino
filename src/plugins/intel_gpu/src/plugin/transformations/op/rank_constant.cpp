@@ -12,10 +12,13 @@ namespace intel_gpu {
 namespace op {
 
 RankConstant::RankConstant(const std::shared_ptr<ov::Node>& constant_data,
-            const size_t world_size,
-            const size_t world_rank) : ov::op::v0::Constant(*std::dynamic_pointer_cast<ov::op::v0::Constant>(constant_data)),
-            m_world_size(world_size),
-            m_world_rank(world_rank) {
+                           const size_t world_size,
+                           const size_t world_rank,
+                           const TP_MODE tp_mode)
+    : ov::op::v0::Constant(*std::dynamic_pointer_cast<ov::op::v0::Constant>(constant_data)),
+      m_world_size(world_size),
+      m_world_rank(world_rank),
+      m_tp_mode(tp_mode) {
     auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(constant_data);
     m_shape = constant->get_shape();
     m_element_type = constant->get_element_type();

@@ -10,7 +10,8 @@ namespace op {
 enum class TP_MODE {
     ALL_GATHERH = 0,
     ALL_GATHERV,
-    ALL_REDUCE
+    ALL_REDUCE,
+    ALL_GATHERQKV
 };
 }   // namespace op
 }   // namespace intel_gpu
