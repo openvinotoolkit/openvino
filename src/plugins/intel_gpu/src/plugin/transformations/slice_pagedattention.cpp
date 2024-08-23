@@ -188,8 +188,11 @@ PagedAttentionSplitInput::PagedAttentionSplitInput(size_t world_size, size_t ran
             new_pa = std::make_shared<ov::op::PagedAttentionExtension>(params);
 
             std::shared_ptr<ov::intel_gpu::op::SyncTensor> sync_node;
-            sync_node =
-                std::make_shared<ov::intel_gpu::op::SyncTensor>(new_pa, w_size, 4096, new_pa->get_element_type());
+            sync_node = std::make_shared<ov::intel_gpu::op::SyncTensor>(new_pa,
+                                                                        w_size,
+                                                                        4096,
+                                                                        new_pa->get_element_type(),
+                                                                        ov::intel_gpu::op::TP_MODE::ALL_REDUCE);
             sync_node->set_friendly_name(new_pa->get_friendly_name() + "_TP");
 
             auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node->outputs(), -1);

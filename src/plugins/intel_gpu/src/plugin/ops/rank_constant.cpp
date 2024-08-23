@@ -117,14 +117,30 @@ static void CreateRankConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::in
         auto buf = lock.data();
         auto bufSize = constLayout.bytes_count();
         int rank = op->get_rank();
-        if (op->get_tp_mode() == ov::intel_gpu::op::TP_MODE::ALL_GATHERQKV) {
-            // int offset = rank * bufSize;
-            // std::cout <<
+        switch (op->get_tp_mode()) {
+        case ov::intel_gpu::op::TP_MODE::ALL_GATHERH:
+            break;
+        case ov::intel_gpu::op::TP_MODE::ALL_GATHERV:
+            break;
+        case ov::intel_gpu::op::TP_MODE::ALL_REDUCE: {
+            int step_r = bufSize / const_shape[0];
+            int step_h = step_r * 2;
+            for (size_t i = 0; i < const_shape[0]; i++) {
+                std::memcpy(&buf[0] + i * step_r, (&data[0] + (rank * step_r)) + i * step_h, step_r);
+            }
+            break;
+        }
+        case ov::intel_gpu::op::TP_MODE::ALL_GATHERQKV: {
             int copysize = bufSize / 3;
-            // int index_n = offset / 6;
             std::memcpy(&buf[0], &data[0] + rank * copysize, copysize);
             std::memcpy(&buf[0] + copysize, &data[0] + rank * copysize + copysize * 2, copysize);
             std::memcpy(&buf[0] + copysize * 2, &data[0] + rank * copysize + copysize * 4, copysize);
+            break;
+        }
+        default: {
+            OPENVINO_THROW("Doesn't support TP Mode!");
+            break;
+        }
         }
 
         p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));

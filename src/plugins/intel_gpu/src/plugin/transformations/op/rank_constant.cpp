@@ -24,6 +24,25 @@ RankConstant::RankConstant(const std::shared_ptr<ov::Node>& constant_data,
     m_element_type = constant->get_element_type();
     // adjusting the shape here for graph validating
     int split_dim = 0;
+    switch (m_tp_mode) {
+    case ov::intel_gpu::op::TP_MODE::ALL_GATHERH:
+        split_dim = 0;
+        break;
+    case ov::intel_gpu::op::TP_MODE::ALL_GATHERV:
+        break;
+    case ov::intel_gpu::op::TP_MODE::ALL_REDUCE: {
+        split_dim = m_shape.size() - 1;
+        break;
+    }
+    case ov::intel_gpu::op::TP_MODE::ALL_GATHERQKV: {
+        split_dim = 0;
+        break;
+    }
+    default: {
+        OPENVINO_THROW("Doesn't support TP Mode!");
+        break;
+    }
+    }
     auto split_parts = [](int len, int n) {
         int average = len / n;
         std::vector<int> parts(n, average);

@@ -18,24 +18,22 @@ public:
     OPENVINO_OP("SYNCTENSOR", "gpu_opset");
     SyncTensor() = default;
     SyncTensor(const size_t world_size);
-    SyncTensor(const ov::element::Type output_type);
 
     SyncTensor(const Output<Node>& input,
             const size_t world_size,
             int split_dimension,
-            const ov::element::Type output_type = ov::element::undefined,
-            const TP_MODE tp_mode = TP_MODE::ALL_GATHERH);
+            const ov::element::Type output_type,
+            const TP_MODE tp_mode);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
     TP_MODE get_tp_mode() const { return m_tp_mode; }
-    int get_split_dim() const { return m_split_dimension; }
-    size_t m_world_size = 2;
 protected:
-    ov::element::Type m_output_type;
+    size_t m_world_size;
     int m_split_dimension;
-    TP_MODE m_tp_mode = TP_MODE::ALL_GATHERH;
+    ov::element::Type m_output_type;
+    TP_MODE m_tp_mode;
 };
 
 std::vector<ov::PartialShape> shape_infer(const SyncTensor* op, std::vector<ov::PartialShape> input_shapes);

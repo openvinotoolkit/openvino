@@ -30,6 +30,29 @@
 namespace ov {
 namespace intel_gpu {
 
+std::shared_ptr<ov::Node> TensorParallelFusion::find_first_fc_after_pa(std::shared_ptr<ov::Node> root_node) {
+    const auto& users = root_node->get_users();
+    if (users.size() != 1)
+        return nullptr;
+    auto cur_node = users[0];
+
+    if (ov::is_type<ov::op::v0::Result>(cur_node)) {
+        return nullptr;
+    }
+
+    if (ov::is_type<ov::op::PagedAttentionExtension>(cur_node)) {
+        return nullptr;
+    }
+
+    if (ov::is_type<ov::intel_gpu::op::FullyConnected>(cur_node)) {
+        return cur_node;
+    }
+    if (ov::is_type<ov::intel_gpu::op::FullyConnectedCompressed>(cur_node)) {
+        return cur_node;
+    }
+    return find_first_fc_after_pa(cur_node);
+}
+
 TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank) {
     using namespace ov::pass::pattern;
     auto data = any_input();
@@ -315,6 +338,13 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
         } else if (m_fc->get_friendly_name().find("PagedAttentionExtension") != std::string::npos) {
             // const auto& pattern_map = m.get_pattern_value_map();
             // OPENVINO_ASSERT(pattern_map.count(fully_connected));
+            std::shared_ptr<ov::Node> first_fc_after_pa = nullptr;
+            {
+                auto root = m.get_match_root();
+                if (root) {
+                    first_fc_after_pa = find_first_fc_after_pa(root);
+                }
+            }
 
             const auto& m_data_in0 = pattern_map.at(in0).get_node_shared_ptr();
             const auto& m_data_in1 = pattern_map.at(in1).get_node_shared_ptr();
@@ -451,16 +481,93 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
                 std::shared_ptr<Node> new_pa = nullptr;
                 new_pa = std::make_shared<ov::op::PagedAttentionExtension>(params);
 
-                std::shared_ptr<ov::intel_gpu::op::SyncTensor> sync_node;
-                sync_node =
-                    std::make_shared<ov::intel_gpu::op::SyncTensor>(new_pa, w_size, 4096, new_pa->get_element_type());
-                sync_node->set_friendly_name(new_pa->get_friendly_name() + "_TP");
-
-                auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node->outputs(), -1);
-                concat_node->set_friendly_name(new_pa->get_friendly_name() + "_ALLGATHER");
-                copy_runtime_info(m_fc, concat_node);
-                replace_node(m_fc, concat_node);
+                copy_runtime_info(m_fc, new_pa);
+                replace_node(m_fc, new_pa);
                 m_fc->clear_control_dependencies();
+
+                if (first_fc_after_pa) {
+                    auto compressed_fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(first_fc_after_pa);
+
+                    if (compressed_fc && (compressed_fc->get_input_node_shared_ptr(3)->get_shape()[1] % 2 != 0)) {
+                        auto scale_node_dims = compressed_fc->get_input_node_shared_ptr(3)->get_shape()[1];
+                        if (scale_node_dims != 1 && scale_node_dims % 2 != 0)
+                            return true;
+                    }
+
+                    std::map<int, std::shared_ptr<ov::Node>> org_users;
+                    for (auto u : first_fc_after_pa->get_users()) {
+                        for (size_t idx = 0; idx < u->inputs().size(); ++idx) {
+                            if (u->get_input_node_shared_ptr(idx) == first_fc_after_pa) {
+                                org_users.insert({idx, u});
+                            }
+                        }
+                    }
+
+                    auto ranked_weight =
+                        std::make_shared<ov::intel_gpu::op::RankConstant>(compressed_fc->get_input_node_shared_ptr(1),
+                                                                          world_size,
+                                                                          world_rank, ov::intel_gpu::op::TP_MODE::ALL_REDUCE);
+
+                    std::shared_ptr<ov::Node> ranked_bias, ranked_scale, ranked_zp;
+
+                    if (!std::dynamic_pointer_cast<op::Placeholder>(compressed_fc->get_input_node_shared_ptr(2))) {
+                        ranked_bias = std::make_shared<ov::intel_gpu::op::RankConstant>(
+                            compressed_fc->get_input_node_shared_ptr(2),
+                            world_size,
+                            world_rank, ov::intel_gpu::op::TP_MODE::ALL_REDUCE);
+                    }
+
+                    std::shared_ptr<Node> new_fc = nullptr;
+                    if (compressed_fc) {
+                        auto scale_node = compressed_fc->get_input_node_shared_ptr(3);
+                        if (scale_node->get_shape()[1] > 1)
+                            ranked_scale =
+                                std::make_shared<ov::intel_gpu::op::RankConstant>(scale_node, world_size, world_rank, ov::intel_gpu::op::TP_MODE::ALL_REDUCE);
+                        else
+                            ranked_scale = compressed_fc->get_input_node_shared_ptr(3);
+                        if (compressed_fc->inputs().size() > 4) {
+                            auto zp_node = compressed_fc->get_input_node_shared_ptr(4);
+                            if (zp_node->get_shape()[1] > 1)
+                                ranked_zp =
+                                    std::make_shared<ov::intel_gpu::op::RankConstant>(zp_node, world_size, world_rank, ov::intel_gpu::op::TP_MODE::ALL_REDUCE);
+                            else
+                                ranked_zp = compressed_fc->get_input_node_shared_ptr(4);
+                            new_fc = std::make_shared<op::FullyConnectedCompressed>(
+                                first_fc_after_pa->get_input_node_shared_ptr(0),
+                                ranked_weight,
+                                ranked_bias ? ranked_bias : first_fc_after_pa->get_input_node_shared_ptr(2),
+                                ranked_scale,
+                                ranked_zp,
+                                first_fc_after_pa->get_element_type());
+                        } else {
+                            new_fc = std::make_shared<op::FullyConnectedCompressed>(
+                                first_fc_after_pa->get_input_node_shared_ptr(0),
+                                ranked_weight,
+                                ranked_bias ? ranked_bias : first_fc_after_pa->get_input_node_shared_ptr(2),
+                                ranked_scale,
+                                first_fc_after_pa->get_element_type());
+                        }
+                    } else {
+                        new_fc = std::make_shared<op::FullyConnected>(first_fc_after_pa->get_input_node_shared_ptr(0),
+                                                                      ranked_weight,
+                                                                      first_fc_after_pa->get_input_node_shared_ptr(2),
+                                                                      first_fc_after_pa->get_element_type());
+                    }
+
+                    std::shared_ptr<ov::intel_gpu::op::SyncTensor> sync_node;
+                    sync_node = std::make_shared<ov::intel_gpu::op::SyncTensor>(
+                        new_fc,
+                        w_size,
+                        first_fc_after_pa->get_input_node_shared_ptr(1)->get_shape()[-1],
+                        first_fc_after_pa->get_element_type(),
+                        ov::intel_gpu::op::TP_MODE::ALL_REDUCE);
+                    sync_node->set_friendly_name(first_fc_after_pa->get_friendly_name() + "_TP");
+                    copy_runtime_info(first_fc_after_pa, new_fc);
+                    for (auto& iter : org_users) {
+                        iter.second->input(iter.first).replace_source_output(sync_node->output(0));
+                    }
+                    first_fc_after_pa->clear_control_dependencies();
+                }
             }
         }
         return true;

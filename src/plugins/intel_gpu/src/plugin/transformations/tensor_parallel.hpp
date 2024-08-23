@@ -54,6 +54,9 @@ class TensorParallelFusion: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TensorParallelFusion", "0");
     TensorParallelFusion(size_t world_size, size_t world_rank);
+
+private:
+    std::shared_ptr<ov::Node> find_first_fc_after_pa(std::shared_ptr<ov::Node> input);
 };
 
 }   // namespace intel_gpu
