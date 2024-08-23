@@ -13,7 +13,6 @@
 template <ov::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ov::op::v15::STFT>& op, ov::TensorVector& outputs, const ov::TensorVector& inputs) {
     OPENVINO_ASSERT(outputs.size() == 1);
-    OPENVINO_ASSERT(inputs.size() == 4);
 
     const auto input_shapes = ov::util::get_tensors_partial_shapes(inputs);
     const auto output_shape =
