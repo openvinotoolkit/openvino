@@ -390,6 +390,9 @@ void regclass_Tensor(py::module m) {
         py::arg("target_tensor"),
         R"(
         Copy tensor's data to a destination tensor. The destination tensor should have the same element type and shape.
+
+        :param target_tensor: The destination tensor to which the data will be copied.
+        :type target_tensor: openvino.Tensor
     )");
 
     cls.def(
@@ -399,7 +402,11 @@ void regclass_Tensor(py::module m) {
         },
         py::arg("target_tensor"),
         R"(
-        Copy tensor's data to a destination tensor. The destination tensor should have the same element type and shape.
+        Copy tensor's data to a destination remote tensor. The destination remote tensor should have the same element type.
+        In case of RoiRemoteTensor, the destination tensor should also have the same shape.
+
+        :param target_tensor: The destination remote tensor to which the data will be copied.
+        :type target_tensor: openvino.RemoteTensor
     )");
 
     cls.def(
@@ -407,9 +414,12 @@ void regclass_Tensor(py::module m) {
         [](ov::Tensor& self, ov::Tensor& source) {
             return source.copy_to(self);
         },
-        py::arg("source"),
+        py::arg("source_tensor"),
         R"(
         Copy source tensor's data to this tensor. Tensors should have the same element type and shape.
+
+        :param source_tensor: The source tensor from which the data will be copied.
+        :type source_tensor: openvino.Tensor
     )");
 
     cls.def(
@@ -417,9 +427,13 @@ void regclass_Tensor(py::module m) {
         [](ov::Tensor& self, RemoteTensorWrapper& source) {
             return source.tensor.copy_to(self);
         },
-        py::arg("source"),
+        py::arg("source_tensor"),
         R"(
-        Copy source tensor's data to this tensor. Tensors should have the same element type and shape.
+        Copy source remote tensor's data to this tensor. Tensors should have the same element type.
+        In case of RoiTensor, tensors should also have the same shape.
+
+        :param source_tensor: The source remote tensor from which the data will be copied.
+        :type source_tensor: openvino.RemoteTensor
     )");
 
     cls.def(
