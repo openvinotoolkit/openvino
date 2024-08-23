@@ -677,7 +677,7 @@ void jit_store_emitter::emit_data() const {
 }
 
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
-    // offset in store emitter is the offset of dst gpr register, should be parsed from out_ids.
+    // offset in store emitter is the offset of dst gpr register, should be parsed from out_idxs.
     const int offset = out_idxs.size() == 2 ? out_idxs[1] : 0;
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(static_cast<int>(in_idxs[0]), Reg64(out_idxs[0]), offset);
