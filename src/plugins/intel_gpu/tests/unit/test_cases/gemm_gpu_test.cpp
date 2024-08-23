@@ -415,15 +415,15 @@ public:
         ov::Shape in2_shape_aligned = { aligned_batch1_size, aligned_batch2_size, aligned_k_size, aligned_n_size };
 
         // Use dynamic padding for all BFYX dimensions
-        padding::DynPadDimsMask dyn_pad_dims_input1;
-        padding::DynPadDimsMask dyn_pad_dims_input2;
+        padding::DynamicDimsMask dyn_pad_dims_input1;
+        padding::DynamicDimsMask dyn_pad_dims_input2;
 
         if (n_dim_only) {
             dyn_pad_dims_input1 = 0ul;
-            dyn_pad_dims_input2 = padding::DynPadDimsMask("1000");
+            dyn_pad_dims_input2 = padding::DynamicDimsMask("1000");
         } else {
-            dyn_pad_dims_input1 = padding::DynPadDimsMask("1111");
-            dyn_pad_dims_input2 = padding::DynPadDimsMask("1111");
+            dyn_pad_dims_input1 = padding::DynamicDimsMask("1111");
+            dyn_pad_dims_input2 = padding::DynamicDimsMask("1111");
         }
 
         auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, dyn_pad_dims_input1)};
@@ -2707,15 +2707,15 @@ public:
         ov::Shape in2_shape_aligned = { aligned_batch1_size, aligned_batch2_size, aligned_k_size, aligned_n_size };
 
         // Use dynamic padding for all BFYX dimensions
-        padding::DynPadDimsMask dyn_pad_dims_input1;
-        padding::DynPadDimsMask dyn_pad_dims_input2;
+        padding::DynamicDimsMask dyn_pad_dims_input1;
+        padding::DynamicDimsMask dyn_pad_dims_input2;
 
         if (n_dim_only) {
             dyn_pad_dims_input1 = padding::EMPTY_MASK;                  //tensor({0, 0, 0, 0}, 0).sizes();
-            dyn_pad_dims_input2 = padding::DynPadDimsMask("1000");      //tensor({0, 0, 1, 0}, 0).sizes();
+            dyn_pad_dims_input2 = padding::DynamicDimsMask("1000");      //tensor({0, 0, 1, 0}, 0).sizes();
         } else {
-            dyn_pad_dims_input1 = padding::DynPadDimsMask("1111");      //tensor({1, 1, 1, 1}, 0).sizes();
-            dyn_pad_dims_input2 = padding::DynPadDimsMask("1111");      //tensor({1, 1, 1, 1}, 0).sizes();
+            dyn_pad_dims_input1 = padding::DynamicDimsMask("1111");      //tensor({1, 1, 1, 1}, 0).sizes();
+            dyn_pad_dims_input2 = padding::DynamicDimsMask("1111");      //tensor({1, 1, 1, 1}, 0).sizes();
         }
 
         auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, dyn_pad_dims_input1)};
@@ -2858,7 +2858,7 @@ public:
         ov::Shape in1_shape_aligned = in1_shape;
         ov::Shape in2_shape_aligned = { 1, BATCH_SIZE, aligned_n_size, K_SIZE };
 
-        padding::DynPadDimsMask dyn_pad_dims_input2("0100");  // {0, 0, 1, 0};
+        padding::DynamicDimsMask dyn_pad_dims_input2("0100");  // {0, 0, 1, 0};
 
         auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx};
         auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, dyn_pad_dims_input2)};

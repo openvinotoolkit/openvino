@@ -132,35 +132,31 @@ constexpr size_t SHAPE_RANK_MAX = 9;
 
 /// @brief Represents data padding information.
 struct padding {
-    using DynPadDimsMask = std::bitset<SHAPE_RANK_MAX>;
-    static constexpr DynPadDimsMask EMPTY_MASK{0x0};
+    using DynamicDimsMask = std::bitset<SHAPE_RANK_MAX>;
+    static constexpr DynamicDimsMask EMPTY_MASK{0x0};
 
     std::array<int32_t, SHAPE_RANK_MAX> _lower_size = {0};  ///< Lower padding sizes. For spatials, it means size of left (X) and top (Y) padding.
     std::array<int32_t, SHAPE_RANK_MAX> _upper_size = {0};  ///< Upper padding sizes. For spatials, it means size of right (X) and bottom (Y) padding.
-    DynPadDimsMask _dynamic_pad_dims = EMPTY_MASK;         ///< A mask saying which dimension has dynamic pad
-
-    void set_dynamic_pad_dims(const DynPadDimsMask& dynamic_pad_dims) {
-        _dynamic_pad_dims = dynamic_pad_dims;
-    }
+    DynamicDimsMask _dynamic_dims_mask = EMPTY_MASK;         ///< A mask saying which dimension has dynamic pad
 
     /// @brief
     /// @param lower_sizes Top-left padding sizes, in the same size and order as shape.
     /// @param upper_sizes Bottom-right padding sizes, in the same size and order as shape.
     padding(const std::vector<int32_t>& lower_sizes,
             const std::vector<int32_t>& upper_sizes,
-            const DynPadDimsMask& dynamic_pad_dims = EMPTY_MASK) {
+            const DynamicDimsMask& dynamic_pad_dims = EMPTY_MASK) {
             // paddings
             OPENVINO_ASSERT(lower_sizes.size() <= SHAPE_RANK_MAX);
             OPENVINO_ASSERT(upper_sizes.size() <= SHAPE_RANK_MAX);
-            if (lower_sizes.size() > 0) std::copy_n(lower_sizes.begin(), lower_sizes.size(), _lower_size.begin());
-            if (upper_sizes.size() > 0) std::copy_n(upper_sizes.begin(), upper_sizes.size(), _upper_size.begin());
-            _dynamic_pad_dims = dynamic_pad_dims;
+            std::copy_n(lower_sizes.begin(), lower_sizes.size(), _lower_size.begin());
+            std::copy_n(upper_sizes.begin(), upper_sizes.size(), _upper_size.begin());
+            _dynamic_dims_mask = dynamic_pad_dims;
           }
 
     /// @brief Constrcuts symmetric padding.
     /// @param sizes Top-left and bottom-right padding sizes, in the same size and order as shape.
     explicit padding(const std::vector<int32_t>& sizes,
-                     const DynPadDimsMask& dynamic_pad_dims = EMPTY_MASK)
+                     const DynamicDimsMask& dynamic_pad_dims = EMPTY_MASK)
         : padding(sizes, sizes, dynamic_pad_dims) {}
 
     /// @brief Constructs "zero-sized" padding.
@@ -168,18 +164,19 @@ struct padding {
 
     /// @brief Returns true if padding size is not zero.
     explicit operator bool() const {
-        return std::any_of(_lower_size.begin(), _lower_size.end(), [](int i){ return i > 0; }) ||
-               std::any_of(_upper_size.begin(), _upper_size.end(), [](int i){ return i > 0; });
+        OPENVINO_ASSERT(is_dynamic(), "[GPU] padding size checking is called for dynamic shape");
+        return std::any_of(_lower_size.begin(), _lower_size.end(), [](int32_t i){ return i > 0; }) ||
+               std::any_of(_upper_size.begin(), _upper_size.end(), [](int32_t i){ return i > 0; });
     }
 
-    bool is_dynamic_pad() const {
-        return _dynamic_pad_dims.any();
+    bool is_dynamic() const {
+        return _dynamic_dims_mask.any();
     }
 
     friend bool operator==(const padding& lhs, const padding& rhs) {
-        return lhs._dynamic_pad_dims == rhs._dynamic_pad_dims &&
-            std::equal(std::begin(lhs._lower_size), std::end(lhs._lower_size), std::begin(rhs._lower_size)) &&
-            std::equal(std::begin(lhs._upper_size), std::end(lhs._upper_size), std::begin(rhs._upper_size));
+        return lhs._dynamic_dims_mask == rhs._dynamic_dims_mask &&
+               lhs._lower_size == rhs._lower_size &&
+               lhs._upper_size == rhs._upper_size;
     }
 
     friend bool operator!=(const padding& lhs, const padding& rhs) {
@@ -187,22 +184,10 @@ struct padding {
     }
 
     friend bool operator<(const padding& lhs, const padding& rhs) {
-        for (size_t i = 0; i < sizeof(lhs._lower_size); ++i) {
-            if (lhs._lower_size[i] < rhs._lower_size[i])
-                return true;
-            if (rhs._lower_size[i] < lhs._lower_size[i])
-                return false;
-        }
-
-        for (size_t i = 0; i < sizeof(lhs._upper_size); ++i) {
-            if (lhs._upper_size[i] < rhs._upper_size[i])
-                return true;
-            if (rhs._upper_size[i] < lhs._upper_size[i])
-                return false;
-        }
-
-        // TODO: how about dynamic_pad_dims?
-
+        OPENVINO_ASSERT(!lhs.is_dynamic() && !rhs.is_dynamic(), "[GPU] padding compare is called for dynamic shape");
+        if (lhs._lower_size < rhs._lower_size) return true;
+        else if (lhs._lower_size > rhs._lower_size) return false;
+        if (lhs._upper_size < rhs._upper_size) return true;
         return false;
     }
 
@@ -212,7 +197,7 @@ struct padding {
             ret._lower_size[i] = std::max(ret._lower_size[i], rhs._lower_size[i]);
             ret._upper_size[i] = std::max(ret._upper_size[i], rhs._upper_size[i]);
         }
-        ret._dynamic_pad_dims = ret._dynamic_pad_dims | rhs._dynamic_pad_dims;
+        ret._dynamic_dims_mask = ret._dynamic_dims_mask | rhs._dynamic_dims_mask;
         return ret;
     }
 
@@ -220,7 +205,7 @@ struct padding {
         size_t seed = 0;
         seed = hash_range(seed, std::begin(_lower_size), std::end(_lower_size));
         seed = hash_range(seed, std::begin(_upper_size), std::end(_upper_size));
-        seed = cldnn::hash_combine(seed, _dynamic_pad_dims);
+        seed = cldnn::hash_combine(seed, _dynamic_dims_mask);
         return seed;
     }
 
@@ -230,9 +215,9 @@ struct padding {
         ob << sizes;
         sizes.assign(_upper_size.begin(), _upper_size.end());
         ob << sizes;
-        OPENVINO_ASSERT(sizes.size() == _dynamic_pad_dims.size(), "invalid size.");
-        for (size_t i = 0; i < _dynamic_pad_dims.size(); i++)
-            sizes[i] = static_cast<int32_t>(_dynamic_pad_dims[i]);
+        OPENVINO_ASSERT(sizes.size() == _dynamic_dims_mask.size(), "invalid size.");
+        for (size_t i = 0; i < _dynamic_dims_mask.size(); i++)
+            sizes[i] = static_cast<int32_t>(_dynamic_dims_mask[i]);
         ob << sizes;
     }
 
@@ -243,9 +228,9 @@ struct padding {
         ib >> sizes;
         std::copy_n(sizes.begin(), sizes.size(), _upper_size.begin());
         ib >> sizes;
-        OPENVINO_ASSERT(sizes.size() == _dynamic_pad_dims.size(), "invalid size.");
-        for (size_t i = 0; i < _dynamic_pad_dims.size(); i++)
-            _dynamic_pad_dims[i] = static_cast<bool>(sizes[i]);
+        OPENVINO_ASSERT(sizes.size() == _dynamic_dims_mask.size(), "invalid size.");
+        for (size_t i = 0; i < _dynamic_dims_mask.size(); i++)
+            _dynamic_dims_mask[i] = static_cast<bool>(sizes[i]);
     }
 };
 
@@ -453,8 +438,7 @@ struct layout {
         for (size_t i = 0; i < sizes.size(); ++i) {
             auto c = output_order[i];
             auto pos = default_order.find(c);
-            if (pos == std::string::npos)
-                throw std::domain_error(std::string("Unknown coord type: ") + c);
+            OPENVINO_ASSERT(pos != std::string::npos, "[GPU] Unknown coord type: ", c);
 
             sizes[i] = static_cast<int32_t>(_sizes[pos]);
         }

@@ -422,7 +422,7 @@ void primitive_inst::update_shape() {
     for (size_t i = 0; i != _impl_params->output_layouts.size(); ++i) {
         set_shape_change();
         _impl_params->output_layouts[i].set_partial_shape(new_layouts[i].get_partial_shape());
-        if (!_node->is_type<reshape>() || (!_node->get_input_layout(0).data_padding.is_dynamic_pad() && !_node->can_be_optimized())) {
+        if (!_node->is_type<reshape>() || (!_node->get_input_layout(0).data_padding.is_dynamic() && !_node->can_be_optimized())) {
             _impl_params->output_layouts[i].data_padding = padding::max(_impl_params->output_layouts[i].data_padding, new_layouts[i].data_padding);
         }
     }
@@ -651,9 +651,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     // update layout to ensure that it repsects paddings for correct allocation size
-    if (_node_output_layout.data_padding.is_dynamic_pad()) { // Cecilia: dynamic shape!!
-        // size_t rank = updated_layouts[0].get_partial_shape().size();
-        // auto current_buf_shape = updated_layouts[0].get_buffer_size().get_partial_shape(rank, std::min(static_cast<size_t>(4), rank));
+    if (_node_output_layout.data_padding.is_dynamic()) {
         auto current_dims = updated_layouts[0].get_padded_dims();
 
         std::vector<size_t> current_buf_shape;
@@ -792,7 +790,7 @@ event::ptr primitive_inst::realloc_if_needed() {
                 break;
             }
         }
-        if (present_layout.data_padding._dynamic_pad_dims[sequence_axis] == 1) {
+        if (present_layout.data_padding._dynamic_dims_mask[sequence_axis] == 1) {
             // Apply padding of variable to make it be optimized in the next iteration
             auto max_pad = kv_cache_inst::get_max_pad(present_layout,
                                                       _max_output_layout_count[0],
@@ -914,7 +912,7 @@ void primitive_inst::fill_shape_info_data(const layout& runtime_layout, const la
         GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << shape_with_max_rank[j] << std::endl;
         shape_info_ptr[offset++] = static_cast<int32_t>(shape_with_max_rank[j]);
     }
-    const auto& dynamic_pad = node_layout.data_padding._dynamic_pad_dims;
+    const auto& dynamic_pad = node_layout.data_padding._dynamic_dims_mask;
     const auto& data_padding = runtime_layout.data_padding;
     const auto& lower_pads = data_padding._lower_size;
     const auto& upper_pads = data_padding._upper_size;
@@ -987,10 +985,10 @@ bool primitive_inst::update_impl(bool use_async_compilation) {
         }
 
         for (auto& i : updated_params.input_layouts) {
-            i.data_padding.set_dynamic_pad_dims(padding::EMPTY_MASK);
+            i.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
         }
         for (auto& o : updated_params.output_layouts) {
-            o.data_padding.set_dynamic_pad_dims({padding::EMPTY_MASK});
+            o.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
         }
 
         const auto is_current_impl_dynamic = _impl && _impl->is_dynamic();
@@ -1080,7 +1078,7 @@ void primitive_inst::update_paddings() {
             while (inst) {
                 reset_pad(*inst->_impl_params, inst->_node);
                 auto& users = inst->_node->get_users();
-                if (users.size() == 1 && users.front()->get_output_layout(0).data_padding.is_dynamic_pad()) {
+                if (users.size() == 1 && users.front()->get_output_layout(0).data_padding.is_dynamic()) {
                     inst = inst->get_user_insts().front();
                 } else {
                     inst = nullptr;
@@ -1090,7 +1088,7 @@ void primitive_inst::update_paddings() {
         return;
     }
 
-    if (_node->is_type<gather>() && _impl_params->output_layouts[0].data_padding.is_dynamic_pad()) {
+    if (_node->is_type<gather>() && _impl_params->output_layouts[0].data_padding.is_dynamic()) {
         if (can_be_optimized())
             _impl_params->output_layouts[0] = _impl_params->input_layouts[0];
         else
@@ -1099,7 +1097,7 @@ void primitive_inst::update_paddings() {
     }
     // Reset paddings used in the previous iteration for crop before executing do_runtime_in_place_crop
     for (auto u : get_user_insts()) {
-        if (u->get_node().is_type<crop>() && u->_impl_params->output_layouts[0].data_padding.is_dynamic_pad()) {
+        if (u->get_node().is_type<crop>() && u->_impl_params->output_layouts[0].data_padding.is_dynamic()) {
             if (u->get_node().can_be_optimized()) {
                 reset_pad(*u->_impl_params, u->_node);
             }
@@ -1191,7 +1189,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
     }
 
     auto sequence_axis = kv_cache_inst::get_sequence_axis(desc->concat_axis, past_layout.get_partial_shape().size());
-    if (present_layout.data_padding._dynamic_pad_dims[sequence_axis] != 1)
+    if (present_layout.data_padding._dynamic_dims_mask[sequence_axis] != 1)
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial present_layout : " << present_layout.to_string() << std::endl;
@@ -1268,7 +1266,7 @@ void primitive_inst::do_runtime_skip_gather() {
         for (int64_t i = 0; i < static_cast<int32_t>(idx_shape[0]); ++i) {
             if (idx_data[i] != i) {
                 GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because idx_data [" << i << "] (" << idx_data[i] << ") != " << i << std::endl;
-                if (_impl_params->output_layouts[0].data_padding.is_dynamic_pad())
+                if (_impl_params->output_layouts[0].data_padding.is_dynamic())
                     _impl_params->output_layouts[0].data_padding = padding();
                 set_can_be_optimized(false);
                 return;

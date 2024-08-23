@@ -15,7 +15,7 @@
 
 namespace cldnn {
 /* c++11 requires to have a definition in cpp file */
-constexpr padding::DynPadDimsMask padding::EMPTY_MASK;
+constexpr padding::DynamicDimsMask padding::EMPTY_MASK;
 
 static inline bool check_redundant_1d_along_feature(layout const& l1, layout const& l2);
 namespace {
@@ -211,7 +211,7 @@ std::string layout::to_string() const {
       << "\tpad_u=[";
     std::copy(std::begin(data_padding._upper_size), std::end(data_padding._upper_size), std::ostream_iterator<tensor::value_type>(s, ", "));
     s << "];\n"
-      << "\tdyn_pad_dims=[" << data_padding._dynamic_pad_dims.to_string() << "];\n"
+      << "\tdyn_pad_dims=[" << data_padding._dynamic_dims_mask.to_string() << "];\n"
       << "}";
     return s.str();
 }
@@ -233,7 +233,7 @@ std::string layout::to_short_string() const {
     s << ov::element::Type(data_type) << ":" << format.to_string() << ":";
     dump_shape(s, size);
 
-    if (data_padding.is_dynamic_pad()) {
+    if (data_padding.is_dynamic()) {
         s << ":dyn_pad_dims";
     } else {
         if (data_padding)
@@ -374,7 +374,6 @@ size_t layout::get_linear_offset(tensor element) const {
 
 /// @brief Get aligned linear size calculated as multiplication of all elements.
 size_t layout::get_linear_size() const {
-    // auto sizes = get_buffer_size().sizes();  // cecilia: logical order
     auto sizes = get_padded_dims();
 
     std::set<size_t> processed_dims;

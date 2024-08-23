@@ -63,7 +63,7 @@ dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batche
     return res;
 }
 
-dnnl::memory::dims convert_gemm_dims(const std::vector<cldnn::tensor::value_type> &sizes, size_t dims, bool batched_dims_can_be_removed) {
+dnnl::memory::dims convert_gemm_dims(const std::vector<int32_t> &sizes, size_t dims, bool batched_dims_can_be_removed) {
     dnnl::memory::dims res(sizes.begin(), sizes.end());
     if (dims > 4) {
         for (size_t i = 0; i < dims - 4; i++) {
@@ -554,8 +554,7 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
     for (int i = 0; i < inner_nblks; i++) {
         auto c = internal_order[block_sizes[i].first];
         auto pos = outer_order.find(c);
-        if (pos == std::string::npos)
-            throw std::domain_error(std::string("Unknown coord type: ") + c);
+        OPENVINO_ASSERT(pos != std::string::npos, "[GPU] Unknown coord type: ", c);
 
         logic_block_sizes[i] = std::make_pair(order[pos], inner_blks[i]);
     }

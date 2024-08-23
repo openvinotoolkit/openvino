@@ -55,7 +55,7 @@ public:
     int32_t get_prealloc_iter_num() override;
 
     static void update_pad(layout& l, int64_t pad, int64_t sequence_axis) {
-        l.data_padding._upper_size[sequence_axis] = static_cast<tensor::value_type>(pad);
+        l.data_padding._upper_size[sequence_axis] = static_cast<int32_t>(pad);
     }
 
     static int64_t get_sequence_axis(int64_t sequence_axis, size_t past_layout_rank) {

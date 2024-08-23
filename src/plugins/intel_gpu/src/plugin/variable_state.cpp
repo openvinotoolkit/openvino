@@ -58,8 +58,8 @@ void VariableState::set_layout(const cldnn::layout& new_layout) {
 void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
     auto src_shape = state->get_shape();
     size_t src_rank = src_shape.size();
-    cldnn::padding::DynPadDimsMask dynamic_pad_dims;
-    for (size_t i = 0; i < src_rank; i++) dynamic_pad_dims[i] = m_layout.data_padding._dynamic_pad_dims[i];
+    cldnn::padding::DynamicDimsMask dynamic_pad_dims;
+    for (size_t i = 0; i < src_rank; i++) dynamic_pad_dims[i] = m_layout.data_padding._dynamic_dims_mask[i];
     m_layout.data_padding = cldnn::padding(std::vector<int32_t>(src_rank, 0),
                                            std::vector<int32_t>(src_rank, 0),
                                            dynamic_pad_dims);
@@ -72,8 +72,8 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
 
     // check whether the src tensor is padded
     std::vector<size_t> src_stride_no_pad(src_rank, 1);
-    std::vector<int32_t> upper_pad(std::max<size_t>(src_rank, 4), 0);
-    std::vector<int32_t> lower_pad(std::max<size_t>(src_rank, 4), 0);
+    std::vector<int32_t> upper_pad(src_rank, 0);
+    std::vector<int32_t> lower_pad(src_rank, 0);
     for (int32_t i = static_cast<int32_t>(src_stride.size()) - 1; i >= 0; --i) {
         if (i <= static_cast<int32_t>(src_stride.size()) - 2)
             src_stride_no_pad[i] = src_stride_no_pad[i + 1] * src_shape[i + 1];
@@ -81,8 +81,8 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
             OPENVINO_ASSERT(src_stride[i] > src_stride_no_pad[i]);
             size_t padded_size = src_stride[i] / src_stride[i + 1];
             size_t non_padded_size = src_stride_no_pad[i] / src_stride_no_pad[i + 1];
-            int32_t pad_dim_legacy = i + 1;
-            upper_pad[pad_dim_legacy] = static_cast<int32_t>(padded_size) - static_cast<int32_t>(non_padded_size);
+            int32_t pad_dim = i + 1;
+            upper_pad[pad_dim] = static_cast<int32_t>(padded_size) - static_cast<int32_t>(non_padded_size);
         }
     }
     cldnn::padding src_padd = cldnn::padding(lower_pad, upper_pad, 0.f);

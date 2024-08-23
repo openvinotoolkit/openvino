@@ -1340,7 +1340,7 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_x) {
     auto& engine = get_test_engine();
 
     ov::Shape in_shape{1, 1, 4, 2};
-    padding::DynPadDimsMask dyn_pad_dims("1000"); // {0, 0, 0, 1}
+    padding::DynamicDimsMask dyn_pad_dims("1000"); // {0, 0, 0, 1}
     layout in_dynamic_layout{ov::PartialShape::dynamic(in_shape.size()),
                              data_types::f16,
                              format::bfyx,
@@ -1402,7 +1402,7 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_f) {
     auto& engine = get_test_engine();
 
     ov::Shape in_shape{2, 3, 2, 1};
-    padding::DynPadDimsMask dyn_pad_dims("10");
+    padding::DynamicDimsMask dyn_pad_dims("10");
     layout in_dynamic_layout{ov::PartialShape::dynamic(in_shape.size()),
                              data_types::f16,
                              format::bfyx,

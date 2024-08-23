@@ -1557,7 +1557,7 @@ TEST(eltwise_gpu_f32, dynamic_padding) {
     ov::Shape in_shape = {2, 2, 2, 2};
     auto in_layout_1 = layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f32, format::bfyx};
     auto in_const_layout = layout{{1, 1, 1, 2}, data_types::f32, format::bfyx};
-    const padding::DynPadDimsMask mask("1000");
+    const padding::DynamicDimsMask mask("1000");
     auto in_layout_2 = layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f32, format::bfyx, padding{{0, 0, 0, 1}, {0, 0, 0, 1}, mask}};
     auto in_mem_layout = layout{ov::PartialShape(in_shape), data_types::f32, format::bfyx};
     auto in_const_mem_layout = layout{{1, 1, 1, 2}, data_types::f32, format::bfyx};

@@ -75,7 +75,7 @@ public:
     bool has_padding() const {
         return (this->get_output_layout().data_padding
                 || input().get_output_layout(false).data_padding
-                || input().get_output_layout(false).data_padding.is_dynamic_pad());
+                || input().get_output_layout(false).data_padding.is_dynamic());
     }
 
     bool has_outer_padding_offset() const {
@@ -107,7 +107,7 @@ public:
         if (this->is_output() || this->has_fused_primitives())
             return false;
 
-        if (input().get_output_layout(false).data_padding.is_dynamic_pad() && is_runtime_propagatable_padding())
+        if (input().get_output_layout(false).data_padding.is_dynamic() && is_runtime_propagatable_padding())
             return true;
 
         if (has_padding())
@@ -122,7 +122,7 @@ public:
 
         auto input_layout = input().get_output_layout(false);
         auto output_layout = this->get_output_layout();
-        if (input_layout.data_padding.is_dynamic_pad()) {
+        if (input_layout.data_padding.is_dynamic()) {
             auto prim = typed_desc();
             // TODO: If outer padding exists, ouput padding propagation is not supported in the base mode
             if (prim->mode == reshape::reshape_mode::base)
