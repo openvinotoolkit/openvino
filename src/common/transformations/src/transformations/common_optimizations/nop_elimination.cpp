@@ -789,8 +789,10 @@ pass::EliminateEltwise::EliminateEltwise() {
 
 pass::EliminateScatterUpdate::EliminateScatterUpdate() {
     MATCHER_SCOPE(EliminateScatterUpdate);
-    auto scatter_pattern =
-        pattern::wrap_type<ov::op::v3::ScatterUpdate, ov::op::v3::ScatterNDUpdate, ov::op::v3::ScatterElementsUpdate>();
+    auto scatter_pattern = pattern::wrap_type<ov::op::v3::ScatterUpdate,
+                                              ov::op::v3::ScatterNDUpdate,
+                                              ov::op::v15::ScatterNDUpdate,
+                                              ov::op::v3::ScatterElementsUpdate>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto scatter = m.get_match_root();

@@ -1746,3 +1746,25 @@ TEST_F(TransformationTestsF, TransposeElimination) {
         model_ref = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data});
     }
 }
+
+TEST_F(TransformationTestsF, ScatterNDUpdates15Elimination) {
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{100, 256, 10, 15});
+        auto indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{25, 0, 3});
+        auto updates = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{25, 0, 15});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto scatter = std::make_shared<op::v15::ScatterNDUpdate>(relu, indices, updates);
+
+        auto result = std::make_shared<op::v0::Result>(scatter);
+        model = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data, indices, updates});
+        manager.register_pass<ov::pass::EliminateScatterUpdate>();
+    }
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{100, 256, 10, 15});
+        auto indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{25, 0, 3});
+        auto updates = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{25, 0, 15});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto result = std::make_shared<op::v0::Result>(relu);
+        model_ref = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data, indices, updates});
+    }
+}

@@ -58,6 +58,7 @@
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 #include "transformations/op_conversions/convert_roi_align_v3_to_v9.hpp"
 #include "transformations/op_conversions/convert_roi_align_v9_to_v3.hpp"
+#include "transformations/op_conversions/convert_scatter_nd_update15_downgrade.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "transformations/op_conversions/convert_shuffle_channels3.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
@@ -636,6 +637,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertTopK11ToTopK3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::HSwishDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::MatMulConstTransposesExtraction);
+    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertScatterNDUpdate15ToScatterNDUpdate3);
     CPU_DISABLE_PASS_X64(manager, ov::pass::HSigmoidDecomposition);
 
     CPU_DISABLE_PASS_X64(manager, ov::pass::ReduceL1Decomposition);
