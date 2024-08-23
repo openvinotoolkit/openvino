@@ -39,7 +39,7 @@ class TestBinaryComparison(CommonTFLayerTest):
         # generate x value so that some elements will be equal, less, greater than y value element-wise
         squeeze_dims = 0 if len(y_shape) <= len(x_shape) else len(y_shape) - len(x_shape)
         zeros_list = [0] * squeeze_dims
-        y_value = y_value[*zeros_list]
+        y_value = y_value[tuple(zeros_list)]
         y_value_minus_one = y_value - 1
         y_value_plus_one = y_value + 1
 
