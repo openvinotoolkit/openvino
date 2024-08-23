@@ -46,8 +46,7 @@ std::vector<TRShape> shape_infer(const STFT* op,
     if (signal_shape.rank().is_dynamic()) {
         return {signal_shape};
     } else if (!frame_size || !frame_step) {
-        TRShape output_shape{signal_shape[0], -1, -1, 2};
-        return {output_shape};
+        return {TRShape{signal_shape[0], -1, -1, 2}};
     }
 
     const auto& frame_size_val = (*frame_size)[0];
@@ -89,11 +88,11 @@ std::vector<TRShape> shape_infer(const STFT* op,
 
     TRShape output_shape;
     if (op->get_transpose_frames()) {
-        output_shape = TRShape{batch_dim, fft_samples_dim, frames_dim, 2};
+        output_shape = TRShape{std::move(batch_dim), std::move(fft_samples_dim), std::move(frames_dim), 2};
     } else {
-        output_shape = TRShape{batch_dim, frames_dim, fft_samples_dim, 2};
+        output_shape = TRShape{std::move(batch_dim), std::move(frames_dim), std::move(fft_samples_dim), 2};
     }
-    return {output_shape};
+    return {std::move(output_shape)};
 }
 }  // namespace v15
 }  // namespace op
