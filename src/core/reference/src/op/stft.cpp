@@ -31,7 +31,7 @@ void stft(const float* signal,
     const auto signal_length = signal_shape[signal_axis];
     const auto num_frames = static_cast<size_t>((signal_length - frame_size) / frame_step) + 1;
     const auto frame_size_dim = static_cast<size_t>(frame_size);
-    const auto fft_out_shape = Shape{static_cast<size_t>(std::floor(frame_size_dim / 2) + 1), 2};
+    const auto fft_out_shape = Shape{static_cast<size_t>((frame_size_dim / 2) + 1), 2};
 
     const auto window_length = window_shape[0] < frame_size_dim ? window_shape[0] : frame_size_dim;
     std::vector<float> pad_window(frame_size, 0);
