@@ -76,6 +76,15 @@ public:
     template <PropertyVisibility visibility, typename... PropertyInitializer, typename std::enable_if<(sizeof...(PropertyInitializer) == 0), bool>::type = true>
     void register_property_impl() { }
 
+    template <PropertyVisibility visibility, typename ValueT, typename... PropertyInitializer>
+    void register_property_impl(const std::tuple<ov::device::Priorities, ValueT>& property,
+                                PropertyInitializer&&... properties) {
+        auto p = std::get<0>(property)(std::get<1>(property));
+        auto v = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<PropertyTypeValidator<std::string>>());
+        register_property_impl(std::move(p), visibility, std::move(v));
+        register_property_impl<visibility>(properties...);
+    }
+
     template <PropertyVisibility visibility, typename T,  PropertyMutability mutability, typename ValueT, typename... PropertyInitializer>
     void register_property_impl(const std::tuple<ov::Property<T, mutability>, ValueT>& property, PropertyInitializer&&... properties) {
         auto p = std::get<0>(property)(std::get<1>(property));
