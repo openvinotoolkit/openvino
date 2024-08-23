@@ -11,6 +11,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd4305)
 endif()
 
+if(OV_COMPILER_IS_INTEL_LLVM)
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fuse-ld=lld")
+  string(REPLACE "-pie" "" CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
+endif()
+
 set(TARGET_NAME "ov_gpu_unit_tests")
 
 file(GLOB_RECURSE SOURCES_MAIN
