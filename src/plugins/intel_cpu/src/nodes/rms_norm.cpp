@@ -34,7 +34,7 @@ struct RMSNormKey {
     ov::element::Type precision;
     size_t data_size;
     size_t scale_size;
-    size_t eps;
+    float eps;
     size_t hash() const;
     bool operator==(const RMSNormKey& rhs) const;
 };
@@ -162,7 +162,7 @@ void RMSNorm::createPrimitive() {
     size_t data_size = data_dims[data_dims.size() - 1];
     size_t scale_size = shape_size(getSrcMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getBlockDims());
 
-    RMSNormKey key = {precision, data_size, scale_size, static_cast<size_t>(dnnl::impl::float2int(m_eps))};
+    RMSNormKey key = {precision, data_size, scale_size, m_eps};
 
     auto builder = [&](const RMSNormKey& key) -> std::shared_ptr<RMSNormExecutor> {
 #ifdef OPENVINO_ARCH_X86_64
