@@ -20,7 +20,9 @@ jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::aarch64::jit_generator *host
                                    ov::element::Type exec_prc, emitter_in_out_map in_out_type)
 : jit_emitter(host, host_isa, exec_prc, in_out_type), name_("unknown"), load_num_(load_num), byte_offset_(byte_offset),
               src_prc_(src_prc), dst_prc_(dst_prc) {
-    convert_truncation_emitter.reset(new jit_convert_truncation_emitter(host, host_isa, src_prc, dst_prc, exec_prc));
+    if (src_prc_ != dst_prc_) {
+        convert_truncation_emitter.reset(new jit_convert_truncation_emitter(host, host_isa, src_prc, dst_prc, exec_prc));
+    }
 }
 
 void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
@@ -178,12 +180,14 @@ jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::aarch64::jit_generator *ho
                                      arithmetic_mode mode, ov::element::Type exec_prc, emitter_in_out_map in_out_type)
     : jit_emitter(host, host_isa, exec_prc, in_out_type), name_("unknown"), store_num_(store_num), byte_offset_(byte_offset),
                   src_prc_(src_prc), dst_prc_(dst_prc) {
-    if (mode == arithmetic_mode::truncation) {
-        convert_emitter.reset(new jit_convert_truncation_emitter(host, host_isa, src_prc, dst_prc, exec_prc));
-    } else if (mode == arithmetic_mode::saturation) {
-        convert_emitter.reset(new jit_convert_saturation_emitter(host, host_isa, src_prc, dst_prc, exec_prc));
-    } else {
-        OV_CPU_JIT_EMITTER_THROW("Unsupported Convert emitter.");
+    if (src_prc_ != dst_prc_) {
+        if (mode == arithmetic_mode::truncation) {
+            convert_emitter.reset(new jit_convert_truncation_emitter(host, host_isa, src_prc, dst_prc, exec_prc));
+        } else if (mode == arithmetic_mode::saturation) {
+            convert_emitter.reset(new jit_convert_saturation_emitter(host, host_isa, src_prc, dst_prc, exec_prc));
+        } else {
+            OV_CPU_JIT_EMITTER_THROW("Unsupported Convert emitter.");
+        }
     }
 }
 
