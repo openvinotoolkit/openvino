@@ -4,53 +4,66 @@
 
 #pragma once
 
+#include "openvino/core/axis_vector.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 
 namespace ov {
 namespace reference {
-template <class T>
-void slice_scatter(const T* data,
+/**
+ * @brief Reference implementation of SliceScatter operator.
+ *
+ * @param data            Pointer to input 0 data containing values to be updated from `data`.
+ * @param data_shape      Input 0 shape.
+ * @param updates         Pointer to input 1 data containing updated values from `updates`.
+ * @param updates_shape   Input 1 shape.
+ * @param out             Pointer to output data.
+ * @param elem_size       Element type size for data and updates input.
+ * @param starts          Vector containing start coordinates for given axes.
+ * @param steps           Vector containing step values for given axes.
+ * @param axes            Vector containing axes indices.
+ */
+void slice_scatter(const char* data,
                    const Shape& data_shape,
-                   const T* updates,
+                   const char* updates,
                    const Shape& updates_shape,
-                   T* out,
+                   char* out,
                    size_t elem_size,
                    const std::vector<int64_t>& starts,
                    const std::vector<int64_t>& steps,
-                   const std::vector<int64_t>& axes) {
+                   const AxisVector& axes) {
     std::memcpy(out, data, elem_size * shape_size(data_shape));
     const auto ind_size = starts.size();
 
     // Align inputs rank with data shape and normalize
     const auto data_rank = data_shape.size();
-    std::vector<int64_t> aligned_starts(data_rank, 0);
-    std::vector<int64_t> aligned_steps(data_rank, 1);
+    ov::Coordinate aligned_starts(data_rank, 0);
+    ov::Coordinate aligned_steps(data_rank, 1);
+    auto tmp_axes = axes;
+    if (tmp_axes.empty()) {
+        tmp_axes.resize(ind_size);
+        std::iota(tmp_axes.begin(), tmp_axes.end(), 0);
+    }
     for (size_t i = 0; i < ind_size; ++i) {
-        int64_t axis = i;
-        if (!axes.empty()) {
-            axis = axes[i] >= 0 ? axes[i] : axes[i] + static_cast<int64_t>(data_rank);
-            OPENVINO_ASSERT(axis >= 0 && static_cast<size_t>(axis) < data_rank,
-                            "Slice `axes` arg has out of range value.");
-        }
-        const auto& dim = data_shape[axis];
-        aligned_starts[axis] = starts[i] >= 0 ? std::min<int64_t>(starts[i], steps[i] < 0 ? dim - 1 : dim)
-                                              : std::min<int64_t>(std::max<int64_t>(0, starts[i] + dim), dim - 1);
-        aligned_steps[axis] = steps[i];
+        const auto& dim = data_shape[tmp_axes[i]];
+        aligned_starts[tmp_axes[i]] = starts[i] >= 0
+                                          ? std::min<int64_t>(starts[i], steps[i] < 0 ? dim - 1 : dim)
+                                          : std::min<int64_t>(std::max<int64_t>(0, starts[i] + dim), dim - 1);
+        aligned_steps[tmp_axes[i]] = steps[i];
     }
 
     // Slice elements
     const auto in_data_strides = row_major_strides(data_shape);
     const auto out_data_strides = row_major_strides(updates_shape);
-    std::vector<int64_t> in_data_coord(aligned_starts);
+    ov::Coordinate in_data_coord(aligned_starts);
     for (size_t upd_idx = 0; upd_idx < shape_size(updates_shape); ++upd_idx) {
         for (size_t i = 0; i < in_data_coord.size(); ++i) {
             in_data_coord[i] =
                 aligned_starts[i] + (upd_idx / out_data_strides[i] % updates_shape[i]) * aligned_steps[i];
         }
-        const auto in_idx =
-            std::inner_product(in_data_coord.begin(), in_data_coord.end(), in_data_strides.begin(), uint64_t(0));
-        std::memcpy(out + in_idx, updates + upd_idx, elem_size);
+        const auto in_idx = ov::coordinate_offset(in_data_coord, in_data_strides) * elem_size;
+        std::memcpy(out + in_idx, updates + (upd_idx * elem_size), elem_size);
     }
 }
 }  // namespace reference

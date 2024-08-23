@@ -21,13 +21,13 @@ std::vector<TRShape> shape_infer(const SliceScatter* op,
     using DimType = typename T::value_type;
     const auto& num_of_inputs = input_shapes.size();
 
-    NODE_SHAPE_INFER_CHECK(op,
-                           input_shapes,
-                           num_of_inputs == 5 || num_of_inputs == 6,
-                           "SliceScatter has to have 5 or 6 inputs. Got: ",
-                           num_of_inputs);
+    NODE_VALIDATION_CHECK(op,
+                          num_of_inputs == 5 || num_of_inputs == 6,
+                          "SliceScatter has to have 5 or 6 inputs. Got: ",
+                          num_of_inputs);
     const auto& data_rank = input_shapes[0].rank();
-    auto output_shape = input_shapes[0];
+    auto output_shapes = std::vector<TRShape>{input_shapes[0]};
+    auto& output_shape = output_shapes.front();
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            output_shape.merge_rank(input_shapes[1].rank()),
@@ -37,7 +37,6 @@ std::vector<TRShape> shape_infer(const SliceScatter* op,
                            input_shapes,
                            output_shape.is_dynamic() || output_shape.rank().get_length() > 0,
                            "SliceScatter `data` and `updates` input can't be a scalar.");
-    constexpr std::array<char const*, 4> shape_names{"start", "stop", "step", "axes"};
     for (size_t i = 2; i < input_shapes.size(); ++i) {
         const auto& shape = input_shapes[i];
         const auto& shape_rank = shape.rank();
@@ -45,18 +44,18 @@ std::vector<TRShape> shape_infer(const SliceScatter* op,
                                input_shapes,
                                shape_rank.compatible(1),
                                "SliceScatter `",
-                               shape_names[i - 2],
+                               slice::shape_names[i - 2],
                                "` input must be a 1D tensor. Got rank: ",
                                shape_rank);
 
         if (output_shape.rank().is_static()) {
-            NODE_SHAPE_INFER_CHECK(op,
-                                   input_shapes,
-                                   shape_rank.is_dynamic() || static_cast<int64_t>(shape[0].get_min_length()) <=
-                                                                  output_shape.rank().get_length(),
-                                   "SliceScatter `",
-                                   shape_names[i - 2],
-                                   "` input dim size can't be bigger than `data` or `updates` rank.");
+            NODE_SHAPE_INFER_CHECK(
+                op,
+                input_shapes,
+                shape_rank.is_dynamic() || ov::cmp::le(shape[0].get_min_length(), output_shape.rank().get_length()),
+                "SliceScatter `",
+                slice::shape_names[i - 2],
+                "` input dim size can't be bigger than `data` or `updates` rank.");
         }
     }
 
@@ -122,17 +121,15 @@ std::vector<TRShape> shape_infer(const SliceScatter* op,
                 expected_updates_shape_vector.push_back(DimType{0, input_dim.get_max_length()});
             }
         }
-        T expected_updates_shape{expected_updates_shape_vector};
+        TRShape expected_updates_shape{expected_updates_shape_vector};
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                input_shapes[1].compatible(expected_updates_shape),
-                               "SliceScatter updates of shape ",
-                               input_shapes[1],
-                               " are not compatible with expected slice shape ",
+                               "SliceScatter updates at index 1 are not compatible with expected slice shape ",
                                expected_updates_shape);
     }
 
-    return {output_shape};
+    return output_shapes;
 }
 }  // namespace v15
 }  // namespace op

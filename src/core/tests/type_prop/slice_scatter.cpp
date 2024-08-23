@@ -13,8 +13,8 @@
 #include "openvino/op/constant.hpp"
 #include "sequence_generator.hpp"
 
-using namespace ov;
-using namespace testing;
+namespace ov {
+namespace test {
 
 using ov::op::v0::Constant;
 using ov::op::v0::Parameter;
@@ -61,18 +61,18 @@ TEST_F(TypePropSliceScatterTest, default_ctor) {
 }
 
 TEST_F(TypePropSliceScatterTest, default_ctor_axes) {
-    const auto data = std::make_shared<Parameter>(element::f32, Shape{5, 5, 5});
-    const auto updates = std::make_shared<Parameter>(element::f32, Shape{2, 5, 5});
-    const auto start = std::make_shared<Constant>(element::i32, Shape{2}, std::vector<int64_t>{0, 1});
-    const auto stop = std::make_shared<Constant>(element::i32, Shape{2}, std::vector<int64_t>{25, 5});
-    const auto step = std::make_shared<Constant>(element::i32, Shape{2}, std::vector<int64_t>{1, 2});
+    const auto data = std::make_shared<Parameter>(element::f64, Shape{5, 5, 5});
+    const auto updates = std::make_shared<Parameter>(element::f64, Shape{2, 5, 5});
+    const auto start = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{0, 1});
+    const auto stop = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{25, 5});
+    const auto step = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{1, 2});
     const auto axes = std::make_shared<Constant>(element::i32, Shape{2}, std::vector<int64_t>{2, 0});
     const auto op = make_op();
     op->set_arguments(OutputVector{data, updates, start, stop, step, axes});
     op->validate_and_infer_types();
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_input_size(), 6);
-    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_element_type(0), element::f64);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({5, 5, 5}));
 }
 
@@ -87,7 +87,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs) {
     std::vector<int32_t> axes_val(start_val.size());
     std::iota(axes_val.begin(), axes_val.end(), 0);
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i32;
 
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
@@ -104,7 +104,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_dif_steps) {
     std::vector<int32_t> stop_val{5, 5, 5, 5, 9, 9};
     std::vector<int32_t> step_val{2, 3, 4, 5, 2, 3};
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::u8;
 
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
@@ -121,7 +121,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_dif_neg_steps) {
     std::vector<int32_t> stop_val{0, 0, 0, 0, 0, 0};
     std::vector<int32_t> step_val{-2, -3, -4, -5, -2, -3};
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i8;
 
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
@@ -138,7 +138,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_default_axes) {
     std::vector<int32_t> stop_val{8, 8, 20, -11, 0, -10, -11, -20};
     std::vector<int32_t> step_val{1, 2, 1, -1, -1, -1, -2, -1};
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i16;
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
 
@@ -154,7 +154,7 @@ TEST_F(TypePropSliceScatterTest, const_inputs_output_zero_dims) {
     std::vector<int32_t> stop_val{5, 5, 5, 5, 9, 9};
     std::vector<int32_t> step_val{2, -3, 1, 5, 2, 1};
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i32;
 
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
@@ -173,7 +173,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_unordered_axes) {
 
     std::vector<int32_t> axes_val{2, 0, 3, 7, 1, 5, 6, 4};
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i32;
 
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
@@ -215,7 +215,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_data_dynamic_bounds_dimensio
     std::vector<int32_t> axes_val(start_val.size());
     std::iota(axes_val.begin(), axes_val.end(), 0);
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::u64;
 
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
@@ -235,7 +235,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_data_dynamic_rank) {
     std::vector<int32_t> axes_val(start_val.size());
     std::iota(axes_val.begin(), axes_val.end(), 0);
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i32;
 
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
@@ -272,7 +272,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_MAX_MIN_INT_dynamic_dimensio
     std::vector<int32_t> axes_val(start_val.size());
     std::iota(axes_val.begin(), axes_val.end(), 0);
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i32;
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
 
@@ -327,7 +327,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_MAX_MIN_INT_dynamic_dimensio
     std::vector<int32_t> axes_val(start_val.size());
     std::iota(axes_val.begin(), axes_val.end(), 0);
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i32;
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
 
@@ -346,7 +346,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_data_full_dynamic_dims) {
     std::vector<int32_t> axes_val(start_val.size());
     std::iota(axes_val.begin(), axes_val.end(), 0);
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i32;
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
 
@@ -365,7 +365,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_data_full_dynamic_dims_neg_i
     std::vector<int32_t> axes_val(start_val.size());
     std::iota(axes_val.begin(), axes_val.end(), 0);
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i32;
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
 
@@ -384,7 +384,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_data_full_dynamic_dims_neg_s
     std::vector<int32_t> axes_val(start_val.size());
     std::iota(axes_val.begin(), axes_val.end(), 0);
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i32;
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
 
@@ -403,7 +403,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_data_full_dynamic_dims_neg_s
     std::vector<int32_t> axes_val(start_val.size());
     std::iota(axes_val.begin(), axes_val.end(), 0);
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i32;
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
 
@@ -422,7 +422,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_data_full_dynamic_dims_neg_s
     std::vector<int32_t> axes_val(start_val.size());
     std::iota(axes_val.begin(), axes_val.end(), 0);
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i32;
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
 
@@ -441,7 +441,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_dynamic_dims_maxint32) {
     std::vector<int32_t> axes_val(start_val.size());
     std::iota(axes_val.begin(), axes_val.end(), 0);
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i32;
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
 
@@ -460,7 +460,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_dynamic_dims_maxint64) {
     std::vector<int64_t> axes_val(start_val.size());
     std::iota(axes_val.begin(), axes_val.end(), 0);
 
-    element::Type_t et = element::i64;
+    constexpr auto et = element::i64;
     std::vector<std::vector<int64_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
 
@@ -478,7 +478,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_dynamic_dims_maxint32_start1
 
     std::vector<int32_t> axes_val{1};
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i32;
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
 
@@ -496,7 +496,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_dynamic_dims_maxint64_start1
 
     std::vector<int64_t> axes_val{1};
 
-    element::Type_t et = element::i64;
+    constexpr auto et = element::i64;
     std::vector<std::vector<int64_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
 
@@ -551,7 +551,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_MAX_MIN_INT_64_dynamic_dimen
     std::vector<int64_t> axes_val(start_val.size());
     std::iota(axes_val.begin(), axes_val.end(), 0);
 
-    element::Type_t et = element::i64;
+    constexpr auto et = element::i64;
     std::vector<std::vector<int64_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
 
@@ -570,7 +570,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_MAX_MIN_64_no_upper_bounds_n
     std::vector<int64_t> axes_val(start_val.size());
     std::iota(axes_val.begin(), axes_val.end(), 0);
 
-    element::Type_t et = element::i64;
+    constexpr auto et = element::i64;
     std::vector<std::vector<int64_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
 
@@ -589,7 +589,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_MAX_MIN_64_no_upper_bounds) 
     std::vector<int64_t> axes_val(start_val.size());
     std::iota(axes_val.begin(), axes_val.end(), 0);
 
-    element::Type_t et = element::i64;
+    constexpr auto et = element::i64;
     std::vector<std::vector<int64_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
 
@@ -611,7 +611,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_MAX_MIN_32_no_upper_bounds) 
     std::vector<int32_t> axes_val(start_val.size());
     std::iota(axes_val.begin(), axes_val.end(), 0);
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i32;
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
 
@@ -630,7 +630,7 @@ TEST_F(TypePropSliceScatterTest, basic_const_inputs_MAX_MIN_32_no_upper_bounds_n
     std::vector<int32_t> axes_val(start_val.size());
     std::iota(axes_val.begin(), axes_val.end(), 0);
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i32;
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
 
@@ -648,7 +648,7 @@ TEST_F(TypePropSliceScatterTest, dynamic_dim_zero_start_negative_stop) {
 
     std::vector<int32_t> axes_val{0};
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i32;
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_op_const_inputs(input_vals, data_shape, updates_shape, et);
 
@@ -666,7 +666,7 @@ TEST_F(TypePropSliceScatterTest, duplicated_axes) {
 
     std::vector<int32_t> axes_val{2, 1, 2, 3};
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i32;
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
 
     EXPECT_THROW(make_op_const_inputs(input_vals, data_shape, updates_shape, et), NodeValidationFailure);
@@ -682,22 +682,22 @@ TEST_F(TypePropSliceScatterTest, zero_step) {
 
     std::vector<int32_t> axes_val{1, 2, 3};
 
-    element::Type_t et = element::i32;
+    constexpr auto et = element::i32;
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
 
     EXPECT_THROW(make_op_const_inputs(input_vals, data_shape, updates_shape, et), NodeValidationFailure);
 }
 
 TEST_F(TypePropSliceScatterTest, all_params_dynamic) {
-    const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto updates = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto data = std::make_shared<Parameter>(element::boolean, PartialShape::dynamic());
+    const auto updates = std::make_shared<Parameter>(element::boolean, PartialShape::dynamic());
     const auto start = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
     const auto stop = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
     const auto step = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
     const auto op = make_op(data, updates, start, stop, step);
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_input_size(), 5);
-    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_element_type(0), element::boolean);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
 }
 
@@ -716,43 +716,43 @@ TEST_F(TypePropSliceScatterTest, all_params_dynamic_dynamic_types) {
 }
 
 TEST_F(TypePropSliceScatterTest, all_params_dynamic_with_axes) {
-    const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto updates = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto start = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
-    const auto stop = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
-    const auto step = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
-    const auto axes = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
+    const auto data = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto updates = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto start = std::make_shared<Parameter>(element::u16, PartialShape::dynamic());
+    const auto stop = std::make_shared<Parameter>(element::u16, PartialShape::dynamic());
+    const auto step = std::make_shared<Parameter>(element::u16, PartialShape::dynamic());
+    const auto axes = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
     const auto op = make_op(data, updates, start, stop, step, axes);
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_input_size(), 6);
-    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_element_type(0), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
 }
 
 TEST_F(TypePropSliceScatterTest, all_params_dynamic_merge_rank) {
-    const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto updates = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(Dimension(5)));
+    const auto data = std::make_shared<Parameter>(element::bf16, PartialShape::dynamic());
+    const auto updates = std::make_shared<Parameter>(element::bf16, PartialShape::dynamic(Dimension(5)));
     const auto start = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
     const auto stop = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
     const auto step = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
-    const auto axes = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
+    const auto axes = std::make_shared<Parameter>(element::u8, PartialShape::dynamic());
     const auto op = make_op(data, updates, start, stop, step, axes);
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_input_size(), 6);
-    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_element_type(0), element::bf16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic(Dimension(5)));
 }
 
 TEST_F(TypePropSliceScatterTest, all_params_static) {
-    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{5, 5, 5});
-    const auto updates = std::make_shared<Parameter>(element::f32, PartialShape{5, 1, 2});
+    const auto data = std::make_shared<Parameter>(element::i32, PartialShape{5, 5, 5});
+    const auto updates = std::make_shared<Parameter>(element::i32, PartialShape{5, 1, 2});
     const auto start = std::make_shared<Parameter>(element::i32, PartialShape{3});
     const auto stop = std::make_shared<Parameter>(element::i32, PartialShape{3});
     const auto step = std::make_shared<Parameter>(element::i32, PartialShape{3});
     const auto op = make_op(data, updates, start, stop, step);
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_input_size(), 5);
-    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_element_type(0), element::i32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({5, 5, 5}));
 }
 
@@ -771,8 +771,8 @@ TEST_F(TypePropSliceScatterTest, all_params_static_types_dynamic) {
 }
 
 TEST_F(TypePropSliceScatterTest, all_params_static_with_axes) {
-    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{5, 5, 5});
-    const auto updates = std::make_shared<Parameter>(element::f32, PartialShape{5, 1, 2});
+    const auto data = std::make_shared<Parameter>(element::i64, PartialShape{5, 5, 5});
+    const auto updates = std::make_shared<Parameter>(element::i64, PartialShape{5, 1, 2});
     const auto start = std::make_shared<Parameter>(element::i32, PartialShape{3});
     const auto stop = std::make_shared<Parameter>(element::i32, PartialShape{3});
     const auto step = std::make_shared<Parameter>(element::i32, PartialShape{3});
@@ -780,7 +780,7 @@ TEST_F(TypePropSliceScatterTest, all_params_static_with_axes) {
     const auto op = make_op(data, updates, start, stop, step, axes);
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_input_size(), 6);
-    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_element_type(0), element::i64);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({5, 5, 5}));
 }
 
@@ -793,7 +793,7 @@ TEST_F(TypePropSliceScatterTest, incompatible_input_size) {
     op->set_arguments(OutputVector{data, updates, start, stop});
     OV_EXPECT_THROW(op->validate_and_infer_types(),
                     NodeValidationFailure,
-                    HasSubstr("SliceScatter has to have 5 or 6 inputs. Got: 4"));
+                    testing::HasSubstr("SliceScatter has to have 5 or 6 inputs. Got: 4"));
 }
 
 TEST_F(TypePropSliceScatterTest, incompatible_data_updates_shape_scalar) {
@@ -807,12 +807,12 @@ TEST_F(TypePropSliceScatterTest, incompatible_data_updates_shape_scalar) {
     {
         OV_EXPECT_THROW(std::ignore = make_op(scalar, updates, start, stop, step, axes),
                         NodeValidationFailure,
-                        HasSubstr("SliceScatter `data` and `updates` input can't be a scalar."));
+                        testing::HasSubstr("SliceScatter `data` and `updates` input can't be a scalar."));
     }
     {
         OV_EXPECT_THROW(std::ignore = make_op(data, scalar, start, stop, step, axes),
                         NodeValidationFailure,
-                        HasSubstr("SliceScatter `data` and `updates` input can't be a scalar."));
+                        testing::HasSubstr("SliceScatter `data` and `updates` input can't be a scalar."));
     }
 }
 
@@ -825,7 +825,7 @@ TEST_F(TypePropSliceScatterTest, incompatible_updates_shape_rank) {
     const auto axes = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
     OV_EXPECT_THROW(std::ignore = make_op(data, updates, start, stop, step, axes),
                     NodeValidationFailure,
-                    HasSubstr("SliceScatter `data` and `updates` need to have compatible rank."));
+                    testing::HasSubstr("SliceScatter `data` and `updates` need to have compatible rank."));
 }
 
 TEST_F(TypePropSliceScatterTest, incompatible_updates_shape_expected_slice_const) {
@@ -841,8 +841,8 @@ TEST_F(TypePropSliceScatterTest, incompatible_updates_shape_expected_slice_const
         OV_EXPECT_THROW(
             std::ignore = make_op(data, updates, start, stop, step, axes),
             NodeValidationFailure,
-            HasSubstr(
-                "SliceScatter updates of shape [5,2,3,?,?] are not compatible with expected slice shape [0,4,5,?,?]"));
+            testing::HasSubstr(
+                "SliceScatter updates at index 1 are not compatible with expected slice shape [0,4,5,?,?]"));
     }
     {
         const auto start = std::make_shared<Constant>(element::i32, Shape{3}, std::vector<int64_t>{25, -125, 5});
@@ -852,8 +852,8 @@ TEST_F(TypePropSliceScatterTest, incompatible_updates_shape_expected_slice_const
         OV_EXPECT_THROW(
             std::ignore = make_op(data, updates, start, stop, step, axes),
             NodeValidationFailure,
-            HasSubstr(
-                "SliceScatter updates of shape [5,2,3,?,?] are not compatible with expected slice shape [0,0,0,?,?]"));
+            testing::HasSubstr(
+                "SliceScatter updates at index 1 are not compatible with expected slice shape [0,0,0,?,?]"));
     }
     {
         const auto start = std::make_shared<Constant>(element::i32, Shape{2}, std::vector<int64_t>{25, -25});
@@ -863,8 +863,8 @@ TEST_F(TypePropSliceScatterTest, incompatible_updates_shape_expected_slice_const
         OV_EXPECT_THROW(
             std::ignore = make_op(data, updates, start, stop, step, axes),
             NodeValidationFailure,
-            HasSubstr(
-                "SliceScatter updates of shape [5,2,3,?,?] are not compatible with expected slice shape [0,4,5,?,?]"));
+            testing::HasSubstr(
+                "SliceScatter updates at index 1 are not compatible with expected slice shape [0,4,5,?,?]"));
     }
     {
         const auto start = std::make_shared<Constant>(element::i32, Shape{2}, std::vector<int64_t>{25, -25});
@@ -873,8 +873,8 @@ TEST_F(TypePropSliceScatterTest, incompatible_updates_shape_expected_slice_const
         OV_EXPECT_THROW(
             std::ignore = make_op(data, updates, start, stop, step),
             NodeValidationFailure,
-            HasSubstr(
-                "SliceScatter updates of shape [5,2,3,?,?] are not compatible with expected slice shape [0,4,5,?,?]"));
+            testing::HasSubstr(
+                "SliceScatter updates at index 1 are not compatible with expected slice shape [0,4,5,?,?]"));
     }
 }
 
@@ -889,23 +889,24 @@ TEST_F(TypePropSliceScatterTest, incompatible_slice_shapes) {
     {
         OV_EXPECT_THROW(std::ignore = make_op(data, updates, incorrect_shape, stop, step, axes),
                         NodeValidationFailure,
-                        HasSubstr("SliceScatter `start`, `stop`, `step` inputs must have compatible shapes."));
+                        testing::HasSubstr("SliceScatter `start`, `stop`, `step` inputs must have compatible shapes."));
     }
     {
         OV_EXPECT_THROW(std::ignore = make_op(data, updates, start, incorrect_shape, step, axes),
                         NodeValidationFailure,
-                        HasSubstr("SliceScatter `start`, `stop`, `step` inputs must have compatible shapes."));
+                        testing::HasSubstr("SliceScatter `start`, `stop`, `step` inputs must have compatible shapes."));
     }
     {
         OV_EXPECT_THROW(std::ignore = make_op(data, updates, start, stop, incorrect_shape, axes),
                         NodeValidationFailure,
-                        HasSubstr("SliceScatter `start`, `stop`, `step` inputs must have compatible shapes."));
+                        testing::HasSubstr("SliceScatter `start`, `stop`, `step` inputs must have compatible shapes."));
     }
     {
         OV_EXPECT_THROW(
             std::ignore = make_op(data, updates, start, stop, step, incorrect_shape),
             NodeValidationFailure,
-            HasSubstr("SliceScatter `axes` input must have compatible shape with `start`, `stop`, `step` inputs."));
+            testing::HasSubstr(
+                "SliceScatter `axes` input must have compatible shape with `start`, `stop`, `step` inputs."));
     }
 }
 
@@ -920,22 +921,22 @@ TEST_F(TypePropSliceScatterTest, incompatible_slice_rank) {
     {
         OV_EXPECT_THROW(std::ignore = make_op(data, updates, incorrect_rank, stop, step, axes),
                         NodeValidationFailure,
-                        HasSubstr("SliceScatter `start` input must be a 1D tensor. Got rank: 0"));
+                        testing::HasSubstr("SliceScatter `start` input must be a 1D tensor. Got rank: 0"));
     }
     {
         OV_EXPECT_THROW(std::ignore = make_op(data, updates, start, incorrect_rank, step, axes),
                         NodeValidationFailure,
-                        HasSubstr("SliceScatter `stop` input must be a 1D tensor. Got rank: 0"));
+                        testing::HasSubstr("SliceScatter `stop` input must be a 1D tensor. Got rank: 0"));
     }
     {
         OV_EXPECT_THROW(std::ignore = make_op(data, updates, start, stop, incorrect_rank, axes),
                         NodeValidationFailure,
-                        HasSubstr("SliceScatter `step` input must be a 1D tensor. Got rank: 0"));
+                        testing::HasSubstr("SliceScatter `step` input must be a 1D tensor. Got rank: 0"));
     }
     {
         OV_EXPECT_THROW(std::ignore = make_op(data, updates, start, stop, step, incorrect_rank),
                         NodeValidationFailure,
-                        HasSubstr("SliceScatter `axes` input must be a 1D tensor. Got rank: 0"));
+                        testing::HasSubstr("SliceScatter `axes` input must be a 1D tensor. Got rank: 0"));
     }
 }
 
@@ -951,22 +952,25 @@ TEST_F(TypePropSliceScatterTest, incompatible_slice_length_data_rank) {
         OV_EXPECT_THROW(
             std::ignore = make_op(data, updates, incorrect_rank, stop, step, axes),
             NodeValidationFailure,
-            HasSubstr("SliceScatter `start` input dim size can't be bigger than `data` or `updates` rank."));
+            testing::HasSubstr("SliceScatter `start` input dim size can't be bigger than `data` or `updates` rank."));
     }
     {
-        OV_EXPECT_THROW(std::ignore = make_op(data, updates, start, incorrect_rank, step, axes),
-                        NodeValidationFailure,
-                        HasSubstr("SliceScatter `stop` input dim size can't be bigger than `data` or `updates` rank."));
+        OV_EXPECT_THROW(
+            std::ignore = make_op(data, updates, start, incorrect_rank, step, axes),
+            NodeValidationFailure,
+            testing::HasSubstr("SliceScatter `stop` input dim size can't be bigger than `data` or `updates` rank."));
     }
     {
-        OV_EXPECT_THROW(std::ignore = make_op(data, updates, start, stop, incorrect_rank, axes),
-                        NodeValidationFailure,
-                        HasSubstr("SliceScatter `step` input dim size can't be bigger than `data` or `updates` rank."));
+        OV_EXPECT_THROW(
+            std::ignore = make_op(data, updates, start, stop, incorrect_rank, axes),
+            NodeValidationFailure,
+            testing::HasSubstr("SliceScatter `step` input dim size can't be bigger than `data` or `updates` rank."));
     }
     {
-        OV_EXPECT_THROW(std::ignore = make_op(data, updates, start, stop, step, incorrect_rank),
-                        NodeValidationFailure,
-                        HasSubstr("SliceScatter `axes` input dim size can't be bigger than `data` or `updates` rank."));
+        OV_EXPECT_THROW(
+            std::ignore = make_op(data, updates, start, stop, step, incorrect_rank),
+            NodeValidationFailure,
+            testing::HasSubstr("SliceScatter `axes` input dim size can't be bigger than `data` or `updates` rank."));
     }
 }
 
@@ -984,22 +988,25 @@ TEST_F(TypePropSliceScatterTest, incompatible_slice_length_updates_rank) {
         OV_EXPECT_THROW(
             std::ignore = make_op(data, updates, incorrect_rank, stop, step, axes),
             NodeValidationFailure,
-            HasSubstr("SliceScatter `start` input dim size can't be bigger than `data` or `updates` rank."));
+            testing::HasSubstr("SliceScatter `start` input dim size can't be bigger than `data` or `updates` rank."));
     }
     {
-        OV_EXPECT_THROW(std::ignore = make_op(data, updates, start, incorrect_rank, step, axes),
-                        NodeValidationFailure,
-                        HasSubstr("SliceScatter `stop` input dim size can't be bigger than `data` or `updates` rank."));
+        OV_EXPECT_THROW(
+            std::ignore = make_op(data, updates, start, incorrect_rank, step, axes),
+            NodeValidationFailure,
+            testing::HasSubstr("SliceScatter `stop` input dim size can't be bigger than `data` or `updates` rank."));
     }
     {
-        OV_EXPECT_THROW(std::ignore = make_op(data, updates, start, stop, incorrect_rank, axes),
-                        NodeValidationFailure,
-                        HasSubstr("SliceScatter `step` input dim size can't be bigger than `data` or `updates` rank."));
+        OV_EXPECT_THROW(
+            std::ignore = make_op(data, updates, start, stop, incorrect_rank, axes),
+            NodeValidationFailure,
+            testing::HasSubstr("SliceScatter `step` input dim size can't be bigger than `data` or `updates` rank."));
     }
     {
-        OV_EXPECT_THROW(std::ignore = make_op(data, updates, start, stop, step, incorrect_rank),
-                        NodeValidationFailure,
-                        HasSubstr("SliceScatter `axes` input dim size can't be bigger than `data` or `updates` rank."));
+        OV_EXPECT_THROW(
+            std::ignore = make_op(data, updates, start, stop, step, incorrect_rank),
+            NodeValidationFailure,
+            testing::HasSubstr("SliceScatter `axes` input dim size can't be bigger than `data` or `updates` rank."));
     }
 }
 
@@ -1014,13 +1021,13 @@ TEST_F(TypePropSliceScatterTest, incorrect_slice_values) {
         const auto incorrect_step_val = std::make_shared<Constant>(element::i32, Shape{1}, std::vector<int64_t>{0});
         OV_EXPECT_THROW(std::ignore = make_op(data, updates, start, stop, incorrect_step_val, axes),
                         NodeValidationFailure,
-                        HasSubstr("SliceScatter step values must be non-zero."));
+                        testing::HasSubstr("SliceScatter step values must be non-zero."));
     }
     {
         const auto duplicated_axes = std::make_shared<Constant>(element::i32, Shape{2}, std::vector<int64_t>{0, 0});
         OV_EXPECT_THROW(std::ignore = make_op(data, updates, start, stop, step, duplicated_axes),
                         NodeValidationFailure,
-                        HasSubstr("SliceScatter values in `axes` input must be unique."));
+                        testing::HasSubstr("SliceScatter values in `axes` input must be unique."));
     }
 }
 
@@ -1035,21 +1042,23 @@ TEST_F(TypePropSliceScatterTest, incompatible_slice_param_types) {
     {
         OV_EXPECT_THROW(std::ignore = make_op(data, updates, incorrect_rank, stop, step, axes),
                         NodeValidationFailure,
-                        HasSubstr("SliceScatter `start` input type must be integer."));
+                        testing::HasSubstr("SliceScatter `start` input type must be integer."));
     }
     {
         OV_EXPECT_THROW(std::ignore = make_op(data, updates, start, incorrect_rank, step, axes),
                         NodeValidationFailure,
-                        HasSubstr("SliceScatter `stop` input type must be integer."));
+                        testing::HasSubstr("SliceScatter `stop` input type must be integer."));
     }
     {
         OV_EXPECT_THROW(std::ignore = make_op(data, updates, start, stop, incorrect_rank, axes),
                         NodeValidationFailure,
-                        HasSubstr("SliceScatter `step` input type must be integer."));
+                        testing::HasSubstr("SliceScatter `step` input type must be integer."));
     }
     {
         OV_EXPECT_THROW(std::ignore = make_op(data, updates, start, stop, step, incorrect_rank),
                         NodeValidationFailure,
-                        HasSubstr("SliceScatter `axes` input type must be integer."));
+                        testing::HasSubstr("SliceScatter `axes` input type must be integer."));
     }
 }
+}  // namespace test
+}  // namespace ov
