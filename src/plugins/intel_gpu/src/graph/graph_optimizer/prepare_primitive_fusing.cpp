@@ -1051,17 +1051,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                     // this whitelist condition is temporarily and to be relaxed soon.
                     && !fused_node->is_type<fully_connected>())
                     return;
-
-                // We need to broadcast batch dimention for OneDNN binary add fusions.
-                // But, it's not possible for dynamic layers.
-                #ifdef ENABLE_ONEDNN_FOR_GPU
-                    if ((fused_node->is_type<gemm>() || fused_node->is_type<fully_connected>())
-                        && _lo.get_preferred_impl_type(const_cast<program_node&>(*fused_node), format::any /*dummy*/) == impl_types::onednn
-                        && one_of(prim->mode, {eltwise_mode::sum, eltwise_mode::sub, eltwise_mode::prod})
-                        && (fused_node->get_output_layout().is_dynamic() || node.get_output_layout().is_dynamic())) {
-                        return;
-                    }
-                #endif
             }
             if (parent1.first->is_type<convolution>() && !conv_supports_fusings(parent1.first->as<convolution>()))
                 return;

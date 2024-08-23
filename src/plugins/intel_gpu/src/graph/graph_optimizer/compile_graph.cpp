@@ -14,6 +14,7 @@
 #include "quantize_inst.h"
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
+#include "shape_of_inst.h"
 #include "gemm_inst.h"
 #include "condition_inst.h"
 #include "loop_inst.h"
@@ -106,6 +107,10 @@ void compile_graph::run(program& p) {
         // TODO: need to come up with better handling of unsupported shape agnostic cases
         // e.g. process exceptions from choose_impl() and ignore those for dynamic parameters
         if (node->is_type<fully_connected>() && node->is_dynamic() && node->get_output_pshape().size() > 3)
+            can_select_impl = false;
+
+        if (node->is_type<fully_connected>() && node->is_dynamic() && node->can_be_optimized() &&
+            node->get_users().size() == 1 && node->get_users().front()->is_type<shape_of>())
             can_select_impl = false;
 
         // onednn impls do not support shape agnostic kernel currently.
