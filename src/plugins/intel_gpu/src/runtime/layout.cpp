@@ -332,12 +332,6 @@ std::vector<tensor::value_type> layout::get_pitches() const {
                                                                                 format::is_weights_format(format),
                                                                                 format::is_grouped(format)));
 
-    // std::cout << "=============layout::get_pitches [";
-    // std::copy(pitches.begin(), pitches.end(), std::ostream_iterator<tensor::value_type>(std::cout, ", "));
-    // std::cout << "] for format: " << format;
-    // std::cout << " and shape [";
-    // std::copy(padded_dims.begin(), padded_dims.end(), std::ostream_iterator<tensor::value_type>(std::cout, ", "));
-    // std::cout << "]" << std::endl;
     return pitches;
 }
 
@@ -430,15 +424,6 @@ size_t layout::get_linear_size() const {
         static_cast<size_t>(1),
         std::multiplies<size_t>());
 
-    GPU_DEBUG_LOG << total << std::endl;
-    // std::cout << "=========== layout::get_linear_size = " << total;
-    // std::cout << " accumulate [";
-    // std::copy(sizes.begin(), sizes.end(), std::ostream_iterator<tensor::value_type>(std::cout, ", "));
-    // std::cout << " ]";
-    // std::cout << " for shape [";
-    // auto def_sizes = get_padded_dims();
-    // std::copy(def_sizes.begin(), def_sizes.end(), std::ostream_iterator<tensor::value_type>(std::cout, ", "));
-    // std::cout << "] and format " << this->format.to_string() << std::endl;
     return total;
 }
 

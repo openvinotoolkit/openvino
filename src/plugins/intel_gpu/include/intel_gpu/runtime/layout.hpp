@@ -164,7 +164,6 @@ struct padding {
 
     /// @brief Returns true if padding size is not zero.
     explicit operator bool() const {
-        OPENVINO_ASSERT(is_dynamic(), "[GPU] padding size checking is called for dynamic shape");
         return std::any_of(_lower_size.begin(), _lower_size.end(), [](int32_t i){ return i > 0; }) ||
                std::any_of(_upper_size.begin(), _upper_size.end(), [](int32_t i){ return i > 0; });
     }
