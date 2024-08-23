@@ -43,7 +43,7 @@ endif()
 
 ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
 
-if(X86_64)
+if(X86_64 AND (LINUX OR WIN32))
     set(ENABLE_INTEL_NPU_DEFAULT ON)
 else()
     set(ENABLE_INTEL_NPU_DEFAULT OFF)
@@ -85,12 +85,11 @@ ov_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file ge
 #
 
 # "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
-if(RISCV64 OR ANDROID)
-    # oneDNN does not support non-SEQ for RISC-V architecture
+if(ANDROID)
     # on Android we experience SEGFAULT during compilation
     set(THREADING_DEFAULT "SEQ")
 else()
-    set(THREADING_DEFAULT "TBB")
+    set(THREADING_DEFAULT "OMP")
 endif()
 
 set(THREADING_OPTIONS "TBB" "TBB_AUTO" "SEQ" "OMP")
