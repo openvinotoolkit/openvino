@@ -23,8 +23,8 @@ bool evaluate(const std::shared_ptr<ov::op::v15::STFT>& op, ov::TensorVector& ou
     const auto frame_size = ov::get_tensor_data_as<int64_t>(inputs[2]).front();
     const auto frame_step = ov::get_tensor_data_as<int64_t>(inputs[3]).front();
 
-    std::vector<float> signal_f32 = get_floats(inputs[0], inputs[0].get_shape());
-    std::vector<float> window_f32 = get_floats(inputs[1], inputs[1].get_shape());
+    const std::vector<float> signal_f32 = get_floats(inputs[0], inputs[0].get_shape());
+    const std::vector<float> window_f32 = get_floats(inputs[1], inputs[1].get_shape());
     std::vector<float> result_f32(shape_size(output_shape), 0.f);
 
     ov::reference::stft(signal_f32.data(),
@@ -36,7 +36,7 @@ bool evaluate(const std::shared_ptr<ov::op::v15::STFT>& op, ov::TensorVector& ou
                         frame_step,
                         op->get_transpose_frames());
 
-    const auto output_type = op->get_input_element_type(0);
+    const auto& output_type = op->get_input_element_type(0);
     ov::reference::fft_postprocessing(outputs, output_type, result_f32);
     return true;
 }
