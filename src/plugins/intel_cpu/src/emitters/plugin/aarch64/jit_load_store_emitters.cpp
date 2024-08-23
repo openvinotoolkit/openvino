@@ -136,8 +136,7 @@ void jit_load_emitter::emit_isa(const std::vector<size_t> &in_idxs, const std::v
     bool is_supported_precision = one_of(src_prc_, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
                                   (src_prc_ == dst_prc_ || one_of(dst_prc_, ov::element::f32, ov::element::i32));
     OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
-    OV_CPU_JIT_EMITTER_ASSERT(load_num_ <= static_cast<int>((get_vec_length() / dst_prc_.size())),
-                              "Unexpected number of elements to load.");
+    OV_CPU_JIT_EMITTER_ASSERT(load_num_ <= 4, "Unexpected number of elements to load.");
 
     switch (src_prc_) {
         case ov::element::f32:
@@ -303,8 +302,7 @@ void jit_store_emitter::emit_isa(const std::vector<size_t> &in_idxs, const std::
     bool is_supported_precision = one_of(dst_prc_, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
                                   (src_prc_ == dst_prc_ || one_of(src_prc_, ov::element::f32, ov::element::i32));
     OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
-    OV_CPU_JIT_EMITTER_ASSERT(store_num_ <= static_cast<int>((get_vec_length() / dst_prc_.size())),
-                              "Unexpected number of elements to store.");
+    OV_CPU_JIT_EMITTER_ASSERT(store_num_ <= 4, "Unexpected number of elements to store.");
 
     if (src_prc_ != dst_prc_) {
         OPENVINO_ASSERT(convert_emitter, "Invalid convert_emitter.");
