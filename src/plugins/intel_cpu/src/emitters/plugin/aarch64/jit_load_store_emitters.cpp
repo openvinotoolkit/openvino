@@ -140,26 +140,33 @@ void jit_load_emitter::emit_isa(const std::vector<size_t> &in_idxs, const std::v
     switch (src_prc_) {
         case ov::element::f32:
         case ov::element::i32:
-            load_qbyte<isa>(in_idxs, out_idxs);
+            load_qbyte<isa>(in_idxs, src_prc_ == dst_prc_ ? out_idxs : aux_vec_idxs);
             break;
         case ov::element::f16:
-            load_dbyte<isa>(in_idxs, out_idxs);
+            load_dbyte<isa>(in_idxs, src_prc_ == dst_prc_ ? out_idxs : aux_vec_idxs);
             break;
         case ov::element::i8:
         case ov::element::u8:
-            load_byte<isa>(in_idxs, out_idxs);
+            load_byte<isa>(in_idxs, src_prc_ == dst_prc_ ? out_idxs : aux_vec_idxs);
             break;
         default:
             OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", src_prc_.get_type_name());
     }
 
     if (src_prc_ != dst_prc_) {
-        convert_emitter->emit_code(out_idxs, out_idxs);
+        convert_emitter->emit_code(aux_vec_idxs, out_idxs);
     }
 }
 
 size_t jit_load_emitter::get_aux_gprs_count() const {
     if (load_num_ == 3)
+        return 1;
+
+    return 0;
+}
+
+size_t jit_load_emitter::get_aux_vecs_count() const {
+    if (src_prc_ != dst_prc_)
         return 1;
 
     return 0;
@@ -295,20 +302,20 @@ void jit_store_emitter::emit_isa(const std::vector<size_t> &in_idxs, const std::
                               "Unexpected number of elements to store.");
 
     if (src_prc_ != dst_prc_) {
-        convert_emitter->emit_code(in_idxs, in_idxs);
+        convert_emitter->emit_code(in_idxs, aux_vec_idxs);
     }
 
     switch (dst_prc_) {
         case ov::element::f32:
         case ov::element::i32:
-            store_qbyte<isa>(in_idxs, out_idxs);
+            store_qbyte<isa>(src_prc_ == dst_prc_ ? in_idxs : aux_vec_idxs, out_idxs);
             break;
         case ov::element::f16:
-            store_dbyte<isa>(in_idxs, out_idxs);
+            store_dbyte<isa>(src_prc_ == dst_prc_ ? in_idxs : aux_vec_idxs, out_idxs);
             break;
         case ov::element::i8:
         case ov::element::u8:
-            store_byte<isa>(in_idxs, out_idxs);
+            store_byte<isa>(src_prc_ == dst_prc_ ? in_idxs : aux_vec_idxs, out_idxs);
             break;
         default:
             OV_CPU_JIT_EMITTER_THROW("Unsupported output type: ", dst_prc_.get_type_name());
@@ -317,6 +324,13 @@ void jit_store_emitter::emit_isa(const std::vector<size_t> &in_idxs, const std::
 
 size_t jit_store_emitter::get_aux_gprs_count() const {
     if (store_num_ == 3)
+        return 1;
+
+    return 0;
+}
+
+size_t jit_store_emitter::get_aux_vecs_count() const {
+    if (src_prc_ != dst_prc_)
         return 1;
 
     return 0;

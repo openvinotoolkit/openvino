@@ -38,6 +38,7 @@ private:
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
     void load_byte(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const;
     size_t get_aux_gprs_count() const override;
+    size_t get_aux_vecs_count() const override;
 
     std::unique_ptr<jit_convert_emitter> convert_emitter = nullptr;
 
@@ -68,6 +69,7 @@ private:
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
     void store_byte(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const;
     size_t get_aux_gprs_count() const override;
+    size_t get_aux_vecs_count() const override;
 
     std::unique_ptr<jit_convert_emitter> convert_emitter = nullptr;
 
