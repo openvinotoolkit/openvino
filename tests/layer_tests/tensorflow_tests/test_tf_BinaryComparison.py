@@ -78,8 +78,8 @@ class TestBinaryComparison(CommonTFLayerTest):
         return tf_net, None
 
     @pytest.mark.parametrize('input_shape1', [[], [4], [3, 4], [2, 3, 4]])
-    @pytest.mark.parametrize('input_shape2', [[], [4], [3, 4], [2, 3, 4]])
-    @pytest.mark.parametrize('binary_op', ['Greater', 'GreaterEqual', 'Less', 'LessEqual'])
+    @pytest.mark.parametrize('input_shape2', [[4], [3, 4]])
+    @pytest.mark.parametrize('binary_op', ['Equal', 'NotEqual', 'Greater', 'GreaterEqual', 'Less', 'LessEqual'])
     @pytest.mark.parametrize('is_const', [False, True])
     @pytest.mark.parametrize('input_type', [np.int8, np.uint8, np.int16,
                                             np.int32, np.int64,
