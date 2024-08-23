@@ -38,6 +38,12 @@ private:
 
     const MemoryCPtr packedWeights;
 
+    size_t dim_M = 0;
+    size_t dim_In = 0;
+    size_t dim_Out = 0;
+    size_t LDA = 0;
+    size_t LDC = 0;
+
     bool with_bias = false;
 };
 using ShlFCExecutorPtr = std::shared_ptr<ShlFCExecutor>;

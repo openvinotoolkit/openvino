@@ -33,9 +33,6 @@ set(CMAKE_CXX_COMPILER ${RISCV_TOOLCHAIN_ROOT}/bin/riscv64-unknown-linux-gnu-g++
 set(CMAKE_STRIP ${RISCV_TOOLCHAIN_ROOT}/bin/riscv64-unknown-linux-gnu-strip)
 set(PKG_CONFIG_EXECUTABLE "NOT-FOUND" CACHE PATH "Path to RISC-V pkg-config")
 
-# Don't run the linker on compiler check
-set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
-
 set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -march=rv64gcv0p7_zfh_xtheadc -mabi=lp64d")
 set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} -march=rv64gcv0p7_zfh_xtheadc -mabi=lp64d")
 
