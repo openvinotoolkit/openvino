@@ -16,7 +16,6 @@
 #include "openvino/pass/manager.hpp"
 #include "plugin/transformations/tensor_parallel.hpp"
 #include <sys/types.h>
-#include "plugin/transformations/slice_pagedattention.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 namespace ov {
@@ -104,6 +103,14 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                 // ov::serialize(model_clone, "./model_pa_original.xml");
                 ov::serialize(model_clone, "./model_pa_o.xml", "./model_pa_o.bin");
                 ov::pass::Manager manager;
+                //bool has_pa_op = false;
+                //for (const auto& op : model_clone->get_ops()) {
+                //    if (std::dynamic_pointer_cast<ov::op::PagedAttentionExtension>(op)) {
+                //        has_pa_op = true;
+                //        break;
+                //    }
+                //}
+                //manager.register_pass<MarkFCSplitStrategy>(has_pa_op);
                 // manager.register_pass<PagedAttentionSplitInput>(m_config.get_context_for_tp().size(), i);
                 // manager.run_passes(model_clone);
                 // ov::pass::VisualizeTree("pa_slice_821.svg").run_on_model(model_clone);
@@ -112,7 +119,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                 // if (config.get_context_for_tp().size() > 1)
                 manager.register_pass<ov::intel_gpu::TensorParallelFusion>(config.get_context_for_tp().size(), i);
                 manager.run_passes(model_clone);
-                ov::serialize(model_clone, "xj_saved_" + std::to_string(i) + ".xml");
+                ov::serialize(model_clone, "integrated_vllm_pa_" + std::to_string(i) + ".xml");
                 // std::cout << "fc tp finished***********************************************\n";
                 // ov::serialize(model_clone, "./model_pa_822-2.xml");
                 // ov::pass::VisualizeTree("pa_slice_8212.svg").run_on_model(model_clone);

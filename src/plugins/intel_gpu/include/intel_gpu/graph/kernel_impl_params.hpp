@@ -155,6 +155,7 @@ struct kernel_impl_params final {
     bool operator==(const kernel_impl_params& rhs) const;
     int w_size = 1;
     int w_rank = -1;
+    bool need_add = false;
 };
 
 }  // namespace cldnn

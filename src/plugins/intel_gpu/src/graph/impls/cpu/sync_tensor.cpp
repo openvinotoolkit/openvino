@@ -86,7 +86,8 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                 break;
             }
         }
-        {
+
+        if (instance.get_impl_params()->need_add) {
             std::shared_ptr<ov::op::Op> op;
             ov::TensorVector input_host_tensors;
             ov::TensorVector output_host_tensors;
@@ -107,6 +108,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
             for (size_t i = 0; i < input_mem_ptrs.size(); i++)
                 input_mem_ptrs[i]->unlock(stream);
         }
+
         {
             std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
             sub_mem_mgr->_use_count[id]++;

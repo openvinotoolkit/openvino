@@ -23,7 +23,7 @@ public:
             const size_t world_size,
             int split_dimension,
             const ov::element::Type output_type,
-            const TP_MODE tp_mode);
+            const TP_MODE tp_mode = TP_MODE::ALL_GATHERH);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;

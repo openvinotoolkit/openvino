@@ -34,6 +34,7 @@ public:
         if (is_dynamic()) {
             params->w_rank = w_rank;
             params->w_size = w_size;
+            params->need_add = get_primitive()->m_tp_mode == ov::intel_gpu::op::TP_MODE::ALL_REDUCE;
         }
         return params;
     }

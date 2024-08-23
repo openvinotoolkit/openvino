@@ -80,7 +80,7 @@ std::shared_ptr<Node> SyncTensor::clone_with_new_inputs(const ov::OutputVector& 
 std::vector<ov::PartialShape> shape_infer(const SyncTensor* op, std::vector<ov::PartialShape> input_shapes) {
     std::vector<ov::PartialShape> out_shapes;
     for (size_t i = 0; i < op->get_output_size(); i++)
-            out_shapes.push_back(input_shapes[0]);
+        out_shapes.push_back(input_shapes[0]);
     return out_shapes;
 }
 }  // namespace op

@@ -20,7 +20,7 @@ public:
     RankConstant(const std::shared_ptr<ov::Node>& other,
                  const size_t world_size,
                  const size_t world_rank,
-                 const TP_MODE tp_mode);
+                 const TP_MODE tp_mode = TP_MODE::ALL_GATHERH);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
