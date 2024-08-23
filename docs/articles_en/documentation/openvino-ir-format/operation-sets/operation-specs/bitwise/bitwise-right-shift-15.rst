@@ -26,6 +26,9 @@ After broadcasting input tensors *a* and *b*, *BitwiseRightShift* performs a bit
 
     If the number of shifts is negative, or if it equals or exceeds the total number of bits in the type **T**, the behavior can be undefined or implementation-defined (depends on the hardware).
 
+    Unsigned integer shift is always performed modulo 2^n where n is the number of bits in the type **T**.
+
+    When signed integer shift operation overflows (the result does not fit in the result type), the behavior is undefined.
 
 **Attributes**:
 
