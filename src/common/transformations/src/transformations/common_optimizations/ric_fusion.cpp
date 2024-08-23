@@ -24,6 +24,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/pad_base.hpp"
+#include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
