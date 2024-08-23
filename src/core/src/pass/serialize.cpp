@@ -916,11 +916,23 @@ void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::
         child.append_attribute("name").set_value(name.c_str());
     }
     if (data.is<std::shared_ptr<ov::Meta>>()) {
-        std::shared_ptr<ov::Meta> meta = data.as<std::shared_ptr<ov::Meta>>();
-        ov::AnyMap& map = *meta;
-        for (const auto& it : map) {
-            serialize_rt_info(child, it.first, it.second);
-        }
+        auto meta = data.as<std::shared_ptr<ov::Meta>>();
+        do {
+            if (auto meta_with_pugixml_node = std::dynamic_pointer_cast<ov::MetaDataWithPugixml>(meta)) {
+                if (auto pugi_node = meta_with_pugixml_node->get_pugi_node()) {
+                    root.remove_child(child);
+                    auto added_node = root.append_copy(pugi_node);
+                    OPENVINO_ASSERT(added_node, "Cannot add pugixml node with name: ", name);
+                    added_node.set_name(name.c_str());
+                    break;
+                }
+            }
+            // Meta in ov::Meta cannot be accessed by MetaDataWithPugixml::get_pugi_node. Read it as ov::AnyMap
+            ov::AnyMap& map = *meta;
+            for (const auto& it : map) {
+                serialize_rt_info(child, it.first, it.second);
+            }
+        } while (false);
     } else if (data.is<ov::AnyMap>()) {
         const ov::AnyMap& any_map = data.as<ov::AnyMap>();
         for (const auto& it : any_map) {
