@@ -200,10 +200,9 @@ public:
                                                                     const std::vector<uint8_t>& network,
                                                                     const Config& config) const = 0;
 
-    // Needed only by the driver compiler, to release the graph handle
-    virtual void release(std::shared_ptr<const NetworkDescription> networkDescription){};
+    // Driver compiler can use this to release graphHandle, if we do not have executor
+    virtual void release([[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription){};
 
-    // Needed only by the driver compiler, to populate the actual blob content inside the NetworkDescription
     virtual std::vector<uint8_t> getCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) {
         return networkDescription->compiledNetwork;
     }
