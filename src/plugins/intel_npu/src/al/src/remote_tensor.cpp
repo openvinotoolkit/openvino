@@ -13,7 +13,7 @@ namespace intel_npu {
 RemoteTensor::RemoteTensor(std::shared_ptr<ov::IRemoteContext> context,
                            const ov::element::Type& element_type,
                            const ov::Shape& shape)
-    : _context(context),
+    : _context(std::move(context)),
       _element_type(element_type),
       _shape(shape),
       _capacity(shape) {

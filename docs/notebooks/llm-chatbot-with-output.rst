@@ -18,7 +18,7 @@ accuracy.
 
 Previously, we already discussed how to build an instruction-following
 pipeline using OpenVINO and Optimum Intel, please check out `Dolly
-example <../dolly-2-instruction-following>`__ for reference. In this
+example <dolly-2-instruction-following-with-output.html>`__ for reference. In this
 tutorial, we consider how to use the power of OpenVINO for running Large
 Language Models for chat. We will use a pre-trained model from the
 `Hugging Face
@@ -62,6 +62,16 @@ The tutorial consists of the following steps:
    Intel <#instantiate-model-using-optimum-intel>`__
 -  `Run Chatbot <#run-chatbot>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -77,24 +87,16 @@ Install required dependencies
 
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
-    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
-    "git+https://github.com/huggingface/optimum-intel.git"\
+    "git+https://github.com/eaidova/optimum-intel.git@transformers_4.43"\
     "git+https://github.com/openvinotoolkit/nncf.git"\
     "torch>=2.1"\
     "datasets" \
     "accelerate"\
     "gradio>=4.19"\
     "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.40" "bitsandbytes"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    %pip install -q "transformers>=4.43" --extra-index-url https://download.pytorch.org/whl/cpu
 
 .. code:: ipython3
 
@@ -137,7 +139,11 @@ provided options to compare the quality of open source LLM solutions.
 >\ **Note**: conversion of some models can require additional actions
 from user side and at least 64GB RAM for conversion.
 
-The available options are:
+.. raw:: html
+
+   <details>
+
+Click here to see available models options
 
 -  **tiny-llama-1b-chat** - This is the chat model finetuned on top of
    `TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T <https://huggingface.co/TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T>`__.
@@ -282,6 +288,37 @@ The available options are:
    agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__,
+   carefully read terms of usage and click accept button. You will need
+   to use an access token for the code below to run. For more
+   information on access tokens, refer to `this section of the
+   documentation <https://huggingface.co/docs/hub/security-tokens>`__.
+   >You can login on Hugging Face Hub in notebook environment, using
+   following code:
+
+.. code:: python
+
+       ## login to huggingfacehub to get access to pretrained model
+
+       from huggingface_hub import notebook_login, whoami
+
+       try:
+           whoami()
+           print('Authorization token already provided')
+       except OSError:
+           notebook_login()
+
+-  **llama-3.1-8b-instruct** - The Llama 3.1 instruction tuned text only
+   models (8B, 70B, 405B) are optimized for multilingual dialogue use
+   cases and outperform many of the available open source and closed
+   chat models on common industry benchmarks. More details about model
+   can be found in `Meta blog
+   post <https://ai.meta.com/blog/meta-llama-3-1/>`__, `model
+   website <https://llama.meta.com>`__ and `model
+   card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__.
+   >\ **Note**: run model with demo, you will need to accept license
+   agreement. >You must be a registered user in Hugging Face Hub.
+   Please visit `HuggingFace model
+   card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__,
    carefully read terms of usage and click accept button. You will need
    to use an access token for the code below to run. For more
    information on access tokens, refer to `this section of the
@@ -472,7 +509,7 @@ The available options are:
 
 .. parsed-literal::
 
-    Dropdown(description='Model:', index=2, options=('tiny-llama-1b-chat', 'gemma-2b-it', 'phi-3-mini-instruct', '…
+    Dropdown(description='Model:', options=('qwen2-0.5b-instruct', 'tiny-llama-1b-chat', 'qwen2-1.5b-instruct', 'g…
 
 
 
@@ -484,7 +521,7 @@ The available options are:
 
 .. parsed-literal::
 
-    Selected model qwen2-7b-instruct
+    Selected model qwen2-0.5b-instruct
 
 
 Convert model using Optimum-CLI tool
@@ -635,6 +672,13 @@ with INT4 precision.
     )
     display(enable_awq)
 
+
+
+.. parsed-literal::
+
+    Checkbox(value=False, description='Enable AWQ')
+
+
 We can now save floating point and compressed model variants
 
 .. code:: ipython3
@@ -717,6 +761,11 @@ We can now save floating point and compressed model variants
                 "group_size": 128,
                 "ratio": 0.8,
             },
+            "llama-3.1-8b-instruct": {
+                "sym": True,
+                "group_size": 128,
+                "ratio": 1.0,
+            },
             "gemma-7b-it": {
                 "sym": True,
                 "group_size": 128,
@@ -766,18 +815,7 @@ We can now save floating point and compressed model variants
     if prepare_int4_model.value:
         convert_to_int4()
 
-
-
-**Export command:**
-
-
-
-``optimum-cli export openvino --model Qwen/Qwen2-7B-Instruct --task text-generation-with-past --weight-format int4 --group-size 128 --ratio 0.8 qwen2-7b-instruct/INT4_compressed_weights``
-
-
-.. parsed-literal::
-
-   Let’s compare model size for different compression types
+Let’s compare model size for different compression types
 
 .. code:: ipython3
 
@@ -796,7 +834,7 @@ We can now save floating point and compressed model variants
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 4929.13 MB
+    Size of model with INT4 compressed weights is 358.86 MB
 
 
 Select device for inference and model variant
@@ -831,7 +869,7 @@ Select device for inference and model variant
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
 
 
 
@@ -939,13 +977,11 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
 
 .. parsed-literal::
 
-    Loading model from qwen2-7b-instruct/INT4_compressed_weights
+    Loading model from qwen2-0.5b-instruct/INT4_compressed_weights
 
 
 .. parsed-literal::
 
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-    The argument `trust_remote_code` is to be used along with export=True. It will be ignored.
     Compiling the model to CPU ...
 
 
@@ -1062,6 +1098,7 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
     model_name = model_configuration["model_id"]
     start_message = model_configuration["start_message"]
     history_template = model_configuration.get("history_template")
+    has_chat_template = model_configuration.get("has_chat_template", history_template is None)
     current_message_template = model_configuration.get("current_message_template")
     stop_tokens = model_configuration.get("stop_tokens")
     tokenizer_kwargs = model_configuration.get("tokenizer_kwargs", {})
@@ -1160,7 +1197,7 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
             input_tokens.extend(tok.encode(history[-1][0]))
             input_tokens.append(196)
             input_token = torch.LongTensor([input_tokens])
-        elif history_template is None:
+        elif history_template is None or has_chat_template:
             messages = [{"role": "system", "content": start_message}]
             for idx, (user_msg, model_msg) in enumerate(history):
                 if idx == len(history) - 1 and not model_msg:
@@ -1396,7 +1433,24 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
     # if you have any issue to launch on your platform, you can pass share=True to launch method:
     # demo.launch(share=True)
     # it creates a publicly shareable link for the interface. Read more in the docs: https://gradio.app/docs/
-    demo.launch()
+    try:
+        demo.launch()
+    except Exception:
+        demo.launch(share=True)
+
+
+.. parsed-literal::
+
+    Running on local URL:  http://127.0.0.1:7860
+
+    To create a public link, set `share=True` in `launch()`.
+
+
+
+
+
+
+
 
 .. code:: ipython3
 
@@ -1410,4 +1464,4 @@ Besides chatbot, we can use LangChain to augmenting LLM knowledge with
 additional data, which allow you to build AI applications that can
 reason about private data or data introduced after a model’s cutoff
 date. You can find this solution in `Retrieval-augmented generation
-(RAG) example <../llm-rag-langchain/>`__.
+(RAG) example <llm-rag-langchain-with-output.html>`__.

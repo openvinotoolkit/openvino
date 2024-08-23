@@ -67,7 +67,7 @@ TEST_F(TypePropStringTensorPackV15Test, ends_static_begins_dynamic) {
 
     EXPECT_EQ(op->get_output_element_type(0), element::string);
     EXPECT_EQ(op->get_output_partial_shape(0), ends_shape);
-    EXPECT_EQ(get_shape_symbols(op->get_output_partial_shape(0)), ends_symbols);
+    EXPECT_EQ(get_shape_symbols(op->get_output_partial_shape(0)), begins_symbols);
 }
 
 TEST_F(TypePropStringTensorPackV15Test, default_case) {
@@ -105,7 +105,7 @@ TEST_F(TypePropStringTensorPackV15Test, begins_ends_shape_mismatch) {
     const auto symbols = std::make_shared<Parameter>(element::u8, PartialShape{100});
     OV_EXPECT_THROW(std::ignore = make_op(begins, ends, symbols),
                     NodeValidationFailure,
-                    HasSubstr("Check 'begins_shape.compatible(ends_shape)' failed"));
+                    HasSubstr("The shapes of begins and ends have to be compatible"));
 }
 
 TEST_F(TypePropStringTensorPackV15Test, incorrect_types) {

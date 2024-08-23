@@ -132,13 +132,17 @@ Dimension Dimension::operator+(const Dimension& dim) const {
         return *this;
     else if (m_dimension == 0)
         return dim;
-    return Dimension(m_dimension + dim.m_dimension);
+    auto result = Dimension(m_dimension + dim.m_dimension);
+    result.m_symbol = m_symbol + dim.m_symbol;
+    return result;
 }
 
 Dimension Dimension::operator-(const Dimension& dim) const {
     if (dim.m_dimension == 0)
         return *this;
-    return Dimension(m_dimension - dim.m_dimension);
+    auto result = Dimension(m_dimension - dim.m_dimension);
+    result.m_symbol = m_symbol - dim.m_symbol;
+    return result;
 }
 
 Dimension Dimension::operator/(const value_type divisor) const {

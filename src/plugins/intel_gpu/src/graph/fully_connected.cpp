@@ -117,7 +117,7 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
     }
 
-    if (desc->input_size > 3) {
+    if (desc->input_size > 4) {
        input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
     }
     if (weights_pshape.size() != 2) {
@@ -127,6 +127,8 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     auto output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
     if (desc->input_size == 3) {
         output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
+    } else if (desc->input_size == 4) {
+        output_size = tensor(input_layout.batch(), input_layout.feature(), weights_layout.batch(), input_layout.spatial(1));
     }
     format output_format = get_preferred_format(node, impl_param);
 
@@ -210,7 +212,7 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
     }
 
     if (orig_input_layout.format == format::bfyx && orig_output_layout.format == format::bfyx && can_apply_fake_alignment) {
-         auto batch_size = std::accumulate(input_shape.begin(),
+        auto batch_size = std::accumulate(input_shape.begin(),
                                           input_shape.end() - 1,
                                           size_t{1},
                                           std::multiplies<size_t>());
@@ -234,16 +236,6 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         input_shape[0] = align_to(batch_size, fake_align_base);
         output_shape[0] = align_to(batch_size, fake_align_base);
 
-        const auto &dev_info = orig_impl_param.get_program().get_engine().get_device_info();
-
-        // The target HW of this patch is limited because of performance concern
-        if (dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu) {
-            // Check whether the input node has enough space for output data. Otherwise, fake alignment is not possible due to page fault
-            // i.e. predecessor node was supposed be increased already
-            if (orig_input_layout.is_static() && dep_memory(0).count() < ov::shape_size(input_shape)) {
-               return std::move(orig_impl_param);
-            }
-        }
         auto updated_param = orig_impl_param;
         updated_param.input_layouts[0] = orig_input_layout.clone_with_other_shape(input_shape);
         updated_param.output_layouts[0] = orig_output_layout.clone_with_other_shape(output_shape);

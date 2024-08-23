@@ -75,6 +75,9 @@
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "impls/onednn/register.hpp"
 #endif
+#ifdef OV_GPU_WITH_SYCL
+#include "impls/sycl/register.hpp"
+#endif
 
 #include "kernel_base.h"
 
@@ -225,6 +228,8 @@ void program::init_program() {
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
                                                                       kernel_selector::KernelBase::get_db().get_batch_headers()));
 
+    _kernels_cache->set_kernels_reuse(get_config().get_property(ov::intel_gpu::hint::enable_kernels_reuse));
+
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);
 
@@ -255,6 +260,9 @@ void program::init_primitives() {
         onednn::register_implementations();
 #endif
         cpu::register_implementations();
+#ifdef OV_GPU_WITH_SYCL
+        sycl::register_implementations();
+#endif
         is_initialized = true;
     }
 }
