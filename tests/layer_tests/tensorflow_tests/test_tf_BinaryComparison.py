@@ -26,19 +26,24 @@ class TestBinaryComparison(CommonTFLayerTest):
         input_type = self.input_type
 
         inputs_data = {}
+        y_value = None
         if self.is_const:
             y_value = self.y_value
+            y_shape = y_value.shape
         else:
             assert 'y:0' in inputs_info, "Test error: inputs_info must contain `y`"
             y_shape = inputs_info['y:0']
-            y_value = _generate_value(y_shape, input_type)
+            y_value = self._generate_value(y_shape, input_type)
             inputs_data['y:0'] = y_value
 
         # generate x value so that some elements will be equal, less, greater than y value element-wise
+        squeeze_dims = 0 if len(y_shape) <= len(x_shape) else len(y_shape) - len(x_shape)
+        zeros_list = [0] * squeeze_dims
+        y_value = y_value[*zeros_list]
         y_value_minus_one = y_value - 1
         y_value_plus_one = y_value + 1
 
-        x_value = _generate_value(x_shape, input_type)
+        x_value = self._generate_value(x_shape, input_type)
         # mix input data with preferable values
         x_value = mix_array_with_several_values(x_value, [y_value, y_value_plus_one, y_value_minus_one], rng)
         inputs_data['x:0'] = x_value
@@ -63,7 +68,7 @@ class TestBinaryComparison(CommonTFLayerTest):
             x = tf.compat.v1.placeholder(input_type, input_shape1, 'x')
             y = tf.compat.v1.placeholder(input_type, input_shape2, 'y')
             if is_const:
-                self.y_value = _generate_value(input_shape2, input_type)
+                self.y_value = self._generate_value(input_shape2, input_type)
                 y = tf.constant(self.y_value, dtype=input_type)
             compare_ops_map[binary_op](x=x, y=y)
             tf.compat.v1.global_variables_initializer()
