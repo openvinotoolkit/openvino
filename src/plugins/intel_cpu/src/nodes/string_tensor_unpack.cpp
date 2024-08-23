@@ -64,23 +64,14 @@ void StringTensorUnpack::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void StringTensorUnpack::executeImpl() {
-    const auto string_count = ov::shape_size(getSrcMemoryAtPort(0)->getStaticDims());
+void StringTensorUnpack::execute(dnnl::stream strm) {
+    const auto stringCount = ov::shape_size(getSrcMemoryAtPort(0)->getStaticDims());
     ov::reference::string_tensor_unpack(
         getSrcDataAtPortAs<const std::string>(0),
         getDstDataAtPortAs<int32_t>(0),
         getDstDataAtPortAs<int32_t>(1),
         getDstDataAtPortAs<uint8_t>(2),
-        string_count);
-}
-
-struct StringTensorUnpack::StringTensorUnpackExecute {
-    void operator()(StringTensorUnpack& node) {
-            node.executeImpl();
-        }
-};
-void StringTensorUnpack::execute(dnnl::stream strm) {
-    StringTensorUnpackExecute()(*this);
+        stringCount);
 }
 }  // namespace node
 }  // namespace intel_cpu
