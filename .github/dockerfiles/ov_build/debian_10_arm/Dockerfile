@@ -1,4 +1,4 @@
-FROM openvinogithubactions.azurecr.io/dockerio/library/debian:10.13
+FROM debian:10.13
 
 USER root
 
@@ -24,6 +24,7 @@ RUN apt-get update && \
         python3-dev \
         python3-venv \
         python3-distutils \
+        libhdf5-dev \
         # For building Python from source
         build-essential \
         zlib1g-dev \
