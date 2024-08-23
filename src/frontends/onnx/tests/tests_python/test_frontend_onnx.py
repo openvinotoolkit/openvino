@@ -10,6 +10,8 @@ from onnx.helper import make_graph, make_model, make_tensor_value_info
 import pytest
 from pathlib import Path
 from itertools import chain
+import tempfile
+import shutil
 
 from openvino.frontend import FrontEndManager
 from tests.runtime import get_runtime
@@ -789,6 +791,33 @@ def get_builtin_extensions_path():
     return ""
 
 
+@pytest.mark.skipif(
+    len(get_builtin_extensions_path()) == 0,
+    reason="The extension library path was not found",
+)
+def test_add_extension_unicode_paths():
+    skip_if_onnx_frontend_is_disabled()
+
+    test_directory = os.path.dirname(os.path.realpath(__file__))
+    with tempfile.TemporaryDirectory(dir=test_directory, prefix=r"晚安_путь_к_файлу") as temp_dir:
+        extension_path = Path(get_builtin_extensions_path())
+        temp_extension_path = os.path.join(temp_dir, extension_path.name)
+        shutil.copyfile(extension_path, temp_extension_path)
+
+        assert os.path.exists(temp_extension_path), "Could not create an extension library with unicode path."
+
+        def load_model(path):
+            fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+            fe.add_extension(path)
+            in_model = fe.load(onnx_model_2_filename)
+            return fe.convert(in_model)
+
+        model = load_model(temp_extension_path)  # model has longer lifetime than frontend
+
+        assert any(op.get_type_name() == "Swish" for op in model.get_ops())
+        assert all(op.get_type_name() != "Relu" for op in model.get_ops())
+   
+    
 @pytest.mark.skipif(
     len(get_builtin_extensions_path()) == 0,
     reason="The extension library path was not found",
