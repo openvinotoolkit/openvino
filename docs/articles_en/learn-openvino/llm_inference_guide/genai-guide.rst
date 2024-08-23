@@ -317,6 +317,7 @@ OpenVINO GenAI Flavor includes the following API:
 
 * visibility  -  controls the visibility of the GenAI library.
 
+
 Learn more in the `GenAI API reference <https://docs.openvino.ai/2024/api/genai_api/api.html>`__.
 
 Additional Resources
