@@ -70,6 +70,7 @@ static std::map<ActivationTypes, std::string> activationNames = {
         {ActivationTypes::IsInf,                 "IsInf"},
         {ActivationTypes::IsFinite,              "IsFinite"},
         {ActivationTypes::IsNaN,                 "IsNaN"},
+        {ActivationTypes::LogicalNot,            "LogicalNot"},
 };
 
 typedef std::tuple<
