@@ -68,11 +68,11 @@ public:
     }
 
     const std::unordered_set<std::string>& get_names() const override {
-        return m_output_names.empty() ? m_shared_tensor->get_names() : m_output_names;
+        return m_shared_tensor->get_names();
     }
 
     const std::string& get_any_name() const override {
-        return m_output_names.empty() ? m_shared_tensor->get_any_name() : *m_output_names.begin();
+        return m_shared_tensor->get_any_name();
     }
 
     /** @brief Gets runtime map from shared tensor. */
