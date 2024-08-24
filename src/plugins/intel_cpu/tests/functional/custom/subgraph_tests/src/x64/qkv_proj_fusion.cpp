@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -12,8 +13,7 @@ namespace ov {
 namespace test {
 
 struct QKVProjFusionParams {
-    size_t batch;
-    size_t len;
+    ov::test::InputShape inputShape;
     size_t hidden;
     size_t q_proj_size;
     size_t k_proj_size;
@@ -21,12 +21,16 @@ struct QKVProjFusionParams {
 };
 
 class QKVProjFusionTest : public testing::WithParamInterface<QKVProjFusionParams>,
-                          public ov::test::SubgraphBaseStaticTest {
+                          public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<QKVProjFusionParams>& obj) {
         std::ostringstream result;
-        result << "batch=" << obj.param.batch << "_";
-        result << "len=" << obj.param.len << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({obj.param.inputShape.first}) << "_";
+        result << "TS=";
+        for (const auto& shape : obj.param.inputShape.second) {
+            result << ov::test::utils::vec2str(shape);
+            result << "_";
+        }
         result << "hidden=" << obj.param.hidden << "_";
         result << "q_proj_size=" << obj.param.q_proj_size << "_";
         result << "k_proj_size=" << obj.param.k_proj_size << "_";
@@ -43,21 +47,22 @@ protected:
 
         configuration[ov::hint::inference_precision.name()] = "bf16";
 
-        std::vector<size_t> shape_in = {param.batch, param.len, param.hidden};
+        init_input_shapes({param.inputShape});
 
-        auto src = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(shape_in));
+        auto src = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]);
 
-        std::vector<float> q_proj_w(param.q_proj_size * param.hidden, 0);
-        std::vector<float> k_proj_w(param.k_proj_size * param.hidden, 0);
-        std::vector<float> v_proj_w(param.v_proj_size * param.hidden, 0);
+        auto create_const = [](ov::Shape shape, int resolution) {
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = -0.5;
+            in_data.range = 1;
+            in_data.resolution = resolution;
+            auto tensor = ov::test::utils::create_and_fill_tensor(ov::element::f32, shape, in_data);
+            return std::make_shared<ov::op::v0::Constant>(tensor);
+        };
 
-        for (auto& v : q_proj_w) v = ((std::rand() & 255) - 128)/128.0f;
-        for (auto& v : k_proj_w) v = ((std::rand() & 255) - 128)/128.0f;
-        for (auto& v : v_proj_w) v = ((std::rand() & 255) - 128)/128.0f;
-
-        auto q_proj_weight = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{param.q_proj_size, param.hidden}, q_proj_w);
-        auto k_proj_weight = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{param.k_proj_size, param.hidden}, k_proj_w);
-        auto v_proj_weight = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{param.v_proj_size, param.hidden}, v_proj_w);
+        auto q_proj_weight = create_const(ov::Shape{param.q_proj_size, param.hidden}, 128);
+        auto k_proj_weight = create_const(ov::Shape{param.k_proj_size, param.hidden}, 128);
+        auto v_proj_weight = create_const(ov::Shape{param.v_proj_size, param.hidden}, 128);
 
         auto q_proj = std::make_shared<ov::op::v0::MatMul>(src, q_proj_weight, false, true);
         auto k_proj = std::make_shared<ov::op::v0::MatMul>(src, k_proj_weight, false, true);
@@ -87,9 +92,20 @@ TEST_P(QKVProjFusionTest, CompareWithRefs) {
 
 namespace {
 
+// the shape size is divided by a const to reduce test time
 const std::vector<QKVProjFusionParams> qkv_params = {
-    {5, 37, 4096, 4096, 4096, 4096},       // Llama-7B
-    {7, 37, 3584, 128*28, 128*4, 128*4},   // Qwen2-7B: hidden_size_per_head:128, num_attention_heads:28, num_key_value_heads:4
+    // Llama-7B
+    {ov::test::InputShape{ov::PartialShape{-1, -1, 4096 / 4}, {ov::Shape{1, 8, 4096 / 4}, ov::Shape{5, 7, 4096 / 4}}},
+     4096 / 4,
+     4096 / 4,
+     4096 / 4,
+     4096 / 4},
+    // Qwen2-7B: hidden_size_per_head:128, num_attention_heads:28, num_key_value_heads:4
+    {ov::test::InputShape{ov::PartialShape{-1, -1, 3584 / 2}, {ov::Shape{1, 8, 3584 / 2}, ov::Shape{5, 7, 3584 / 2}}},
+     3584 / 2,
+     128 * 28 / 2,
+     128 * 4 / 2,
+     128 * 4 / 2},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_QKVProjFusion,

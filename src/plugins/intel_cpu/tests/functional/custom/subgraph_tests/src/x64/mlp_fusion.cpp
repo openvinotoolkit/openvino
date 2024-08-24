@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -12,20 +13,22 @@ namespace ov {
 namespace test {
 
 struct LLMMLPFusionParams {
-    size_t batch;
-    size_t len;
+    ov::test::InputShape inputShape;
     size_t down_size;
     size_t up_size;
     std::string act_type;
 };
 
-class LLMMLPFusionTest : public testing::WithParamInterface<LLMMLPFusionParams>,
-                          public ov::test::SubgraphBaseStaticTest {
+class LLMMLPFusionTest : public testing::WithParamInterface<LLMMLPFusionParams>, public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<LLMMLPFusionParams>& obj) {
         std::ostringstream result;
-        result << "batch=" << obj.param.batch << "_";
-        result << "len=" << obj.param.len << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({obj.param.inputShape.first}) << "_";
+        result << "TS=";
+        for (const auto& shape : obj.param.inputShape.second) {
+            result << ov::test::utils::vec2str(shape);
+            result << "_";
+        }
         result << "down_size=" << obj.param.down_size << "_";
         result << "up_size=" << obj.param.up_size << "_";
         result << "act_type=" << obj.param.act_type << "_";
@@ -41,21 +44,23 @@ protected:
 
         configuration[ov::hint::inference_precision.name()] = "bf16";
 
-        std::vector<size_t> shape_in = {param.batch, param.len, param.down_size};
+        init_input_shapes({param.inputShape});
 
-        auto src = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(shape_in));
+        auto src = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]);
 
-        std::vector<float> gate_proj_w(param.up_size * param.down_size, 0);
-        std::vector<float> up_proj_w(param.up_size * param.down_size, 0);
-        std::vector<float> down_proj_w(param.up_size * param.down_size, 0);
+        auto create_const = [](ov::Shape shape, int resolution) {
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = -0.5;
+            in_data.range = 1;
+            in_data.resolution = resolution;
+            auto tensor = ov::test::utils::create_and_fill_tensor(ov::element::f32, shape, in_data);
+            return std::make_shared<ov::op::v0::Constant>(tensor);
+        };
 
-        for (auto& v : gate_proj_w) v = ((std::rand() & 15) - 8)/8.0f;
-        for (auto& v : up_proj_w) v = ((std::rand() & 15) - 8)/8.0f;
-        for (auto& v : down_proj_w) v = ((std::rand() & 15) - 8)/8.0f;
-
-        auto gate_weight = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{param.up_size, param.down_size}, gate_proj_w);
-        auto up_weight = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{param.up_size, param.down_size}, up_proj_w);
-        auto down_weight = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{param.down_size, param.up_size}, down_proj_w);
+        auto gate_weight = create_const(ov::Shape{param.up_size, param.down_size}, 100);
+        auto up_weight = create_const(ov::Shape{param.up_size, param.down_size}, 100);
+        // down_proj has special cache blocking along K dimension requires lower weight resolution
+        auto down_weight = create_const(ov::Shape{param.down_size, param.up_size}, 16);
 
         auto gate_proj = std::make_shared<ov::op::v0::MatMul>(src, gate_weight, false, true);
         auto up_proj = std::make_shared<ov::op::v0::MatMul>(src, up_weight, false, true);
@@ -95,8 +100,14 @@ TEST_P(LLMMLPFusionTest, CompareWithRefs) {
 namespace {
 
 const std::vector<LLMMLPFusionParams> mlp_params = {
-    {5, 37, 4096, 11008, "Gelu"},
-    {5, 37, 4096, 11008, "Swish"},
+    {ov::test::InputShape{ov::PartialShape{-1, -1, 4096 / 4}, {ov::Shape{1, 8, 4096 / 4}, ov::Shape{5, 37, 4096 / 4}}},
+     4096 / 4,
+     11008 / 4,
+     "Gelu"},
+    {ov::test::InputShape{ov::PartialShape{-1, -1, 4096 / 4}, {ov::Shape{1, 8, 4096 / 4}, ov::Shape{5, 37, 4096 / 4}}},
+     4096 / 4,
+     11008 / 4,
+     "Swish"},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LLMMLPFusion,

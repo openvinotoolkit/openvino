@@ -190,10 +190,10 @@ public:
     }
 };
 
-static FP16ToBF16Kernel fp16_to_bf16;
-
 template <typename T>
 void MKernel::repackB(ov::bfloat16* dst, T* src, int N_stride, int N, int K) {
+    static FP16ToBF16Kernel fp16_to_bf16;
+
     if (N == 16 && K == 32 && (std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value)) {
         // SIMD optimized version
         ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst, src, N_stride * sizeof(T));
