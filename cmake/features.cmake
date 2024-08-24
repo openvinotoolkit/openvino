@@ -88,6 +88,8 @@ ov_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file ge
 if(ANDROID)
     # on Android we experience SEGFAULT during compilation
     set(THREADING_DEFAULT "SEQ")
+elseif(RISCV64)
+    set(THREADING_DEFAULT "OMP")
 else()
     set(THREADING_DEFAULT "OMP")
 endif()
