@@ -9,6 +9,7 @@ import pytest
 
 from openvino import Type
 import openvino.runtime.opset13 as ov
+import openvino.runtime.opset15 as ov_opset15
 
 
 @pytest.mark.parametrize(
@@ -187,7 +188,7 @@ def test_power_v1():
 
 @pytest.mark.parametrize(
     "graph_api_helper",
-    [ov.bitwise_and, ov.bitwise_or, ov.bitwise_xor],
+    [ov.bitwise_and, ov.bitwise_or, ov.bitwise_xor, ov_opset15.bitwise_left_shift, ov_opset15.bitwise_right_shift],
 )
 @pytest.mark.parametrize(
     "dtype",
@@ -204,6 +205,9 @@ def test_power_v1():
     ],
 )
 def test_binary_bitwise_op(graph_api_helper, dtype, shape_a, shape_b, broadcast, shape_out):
+    if "shift" in graph_api_helper.__name__ and dtype == bool:
+        pytest.skip(f"The element type of the input tensor for {graph_api_helper.__name__} must be integer number.")
+
     parameter_a = ov.parameter(shape_a, name="A", dtype=dtype)
     parameter_b = ov.parameter(shape_b, name="B", dtype=dtype)
 
@@ -216,13 +220,16 @@ def test_binary_bitwise_op(graph_api_helper, dtype, shape_a, shape_b, broadcast,
 
 @pytest.mark.parametrize(
     "graph_api_helper",
-    [ov.bitwise_and, ov.bitwise_or, ov.bitwise_xor],
+    [ov.bitwise_and, ov.bitwise_or, ov.bitwise_xor, ov_opset15.bitwise_left_shift, ov_opset15.bitwise_right_shift],
 )
 @pytest.mark.parametrize(
     "dtype",
     [bool, np.int32],
 )
 def test_binary_bitwise_op_with_constant(graph_api_helper, dtype):
+    if "shift" in graph_api_helper.__name__ and dtype == bool:
+        pytest.skip(f"The element type of the input tensor for {graph_api_helper.__name__} must be integer number.")
+
     value_b = np.array([[3, 0], [-7, 21]], dtype=dtype)
 
     shape = [2, 2]
