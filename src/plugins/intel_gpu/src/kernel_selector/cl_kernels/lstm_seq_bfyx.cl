@@ -17,7 +17,7 @@ KERNEL(lstm_seq)(
     const __global INPUT2_TYPE* initial_cell_state,
     const __global INPUT3_TYPE* R,
 #ifdef SEQUENCE
-    const __global INPUT6_TYPE* sequence_lengths,
+    const __global INPUT4_TYPE* sequence_lengths,
     __global OUTPUT_TYPE* hidden_history,
     __global OUTPUT1_TYPE* hidden_state,
     __global OUTPUT2_TYPE* cell_state
