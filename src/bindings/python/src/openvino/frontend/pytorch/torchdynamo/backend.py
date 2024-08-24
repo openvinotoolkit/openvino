@@ -47,17 +47,24 @@ logger.setLevel(logging.WARNING)
     2) model = torch.compile(model, backend="openvino")
 """
 
+openvino_options = {}
 
 @register_backend
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs, options=None):
-    decompositions = _get_decompositions(options) + get_inf_decomposition_list() + get_aot_decomposition_list()
-    return aot_autograd(fw_compiler=fx_openvino,
+    if (_get_aot_autograd(options)):
+        global openvino_options
+        openvino_options = options
+        decompositions = _get_decompositions(options) + get_inf_decomposition_list() + get_aot_decomposition_list()
+        return aot_autograd(fw_compiler=fx_openvino,
                             bw_compiler=fx_openvino,
                             decompositions=get_decompositions(decompositions))(subgraph, example_inputs)
+    return fx_openvino(subgraph, example_inputs, options)
 
 def fx_openvino(subgraph, example_inputs, options=None):
     try:
+        if len(openvino_options) != 0:
+            options = openvino_options
         executor_parameters = None
         inputs_reversed = False
         openvino_model_caching = _get_model_caching(options)
@@ -79,14 +86,23 @@ def fx_openvino(subgraph, example_inputs, options=None):
         if inputs_reversed:
             example_inputs.reverse()
 
-        if tracing_context := torch._guards.TracingContext.try_get():
-            fw_metadata = tracing_context.fw_metadata
-            params_flat = tracing_context.params_flat
-            assert fw_metadata is not None and params_flat is not None
-        preserved_arg_indices = replace_params_with_constants(subgraph, params_flat, fw_metadata)
-        example_inputs = [example_inputs[ind] for ind in preserved_arg_indices]
-        model = subgraph
+        preserved_arg_indices = []
+        if (_get_aot_autograd(options)):
+            if tracing_context := torch._guards.TracingContext.try_get():
+                fw_metadata = tracing_context.fw_metadata
+                params_flat = tracing_context.params_flat
+                assert fw_metadata is not None and params_flat is not None
+            preserved_arg_indices = replace_params_with_constants(subgraph, params_flat, fw_metadata)
+            example_inputs = [example_inputs[ind] for ind in preserved_arg_indices]
+            model = subgraph
+        else:
+            from torch._subclasses.fake_tensor import FakeTensorMode
+            decompositions = _get_decompositions(options) + get_inf_decomposition_list()
+            with FakeTensorMode(allow_non_fake_inputs=True):
+                model = make_fx(subgraph, decomposition_table=get_decompositions(decompositions))(*example_inputs)
 
+            with torch.no_grad():
+                model.eval()
         partitioner = Partitioner(options)
         compiled_model = partitioner.make_partitions(model, options)
 
@@ -97,9 +113,11 @@ def fx_openvino(subgraph, example_inputs, options=None):
                 executor_parameters["model_hash_str"] += "_fs"
 
         def _call(*args):
-            args_list = args[0]
-            args_new = [args_list[i] for i in preserved_arg_indices]
-            res = execute(compiled_model, *args_new, executor="openvino",
+            if(_get_aot_autograd(options)):
+                args_list = args[0]
+                args_new = [args_list[i] for i in preserved_arg_indices]
+                args = args_new
+            res = execute(compiled_model, *args, executor="openvino",
                           executor_parameters=executor_parameters, options=options)
             return res
         _call._boxed_call = True # type: ignore[attr-defined]
