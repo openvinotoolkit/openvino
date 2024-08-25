@@ -20,7 +20,7 @@ namespace {
 INSTANTIATE_TEST_SUITE_P(ov_plugin,
                          OVClassModelTestP,
                          ::testing::Values(ov::test::utils::target_device),
-                         MARK_MANDATORY_FOR_API_HW_DEVICE());
+                         MARK_MANDATORY_API_FOR_HW_DEVICE());
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin,
                          OVClassModelOptionalTestP,
@@ -31,5 +31,5 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin,
 INSTANTIATE_TEST_SUITE_P(ov_plugin,
                          OVClassQueryModelTest,
                          ::testing::Values(ov::test::utils::target_device),
-                         MARK_MANDATORY_FOR_API_HW_DEVICE());
+                         MARK_MANDATORY_API_FOR_HW_DEVICE());
 }  // namespace
