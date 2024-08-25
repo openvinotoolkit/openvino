@@ -75,7 +75,7 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
     unsigned int direction = 0;
     assert(!inputs[5].pid.empty());
     cldnn::primitive_id lstm_fc_id = layerName + "_fully_connected";
-    p.add_primitive(*op, cldnn::fully_connected(lstm_fc_id, inputs[0], inputs[3].pid, inputs[5].pid, 3));
+    p.add_primitive(*op, cldnn::fully_connected(lstm_fc_id, inputs[0], inputs[3].pid, inputs[5].pid));
     if (p.use_new_shape_infer()) {
         auto prim =  cldnn::lstm_cell({layerName+".out0", cldnn::input_info(lstm_fc_id), inputs[1], inputs[2], inputs[4], \
         cldnn::input_info(), "", "", clip, activations, \
