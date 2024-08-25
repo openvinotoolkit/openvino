@@ -1,0 +1,84 @@
+{
+    "Precisions": {
+        "INT4 - 1ST TOKEN LATENCY": "INT4 - 1ST TOKEN LATENCY",
+        "INT4 - 2ND TOKEN LATENCY": "INT4 - 2ND TOKEN LATENCY"
+    },
+    "UnitDescription": {
+        "msec.": "(lower is better)",
+        "msec/token": "(lower is better)",
+        "Generating time, sec.": "(lower is better)",
+        "msec/token/TDP": "(lower is better)",
+        "FPS": "(higher is better)",
+        "FPS/$": "(higher is better)",
+        "FPS/TDP": "(higher is better)"
+    },
+    "PrecisionData": {
+        "int4": {
+            "data": null,
+            "color": "#5bd0f0",
+            "label": "INT4"
+        },
+        "int8": {
+            "data": null,
+            "color": "#00C7FD",
+            "label": "INT8"
+        },
+        "fp16": {
+            "data": null,
+            "color": "#009fca",
+            "label": "FP16"
+        },
+        "fp32": {
+            "data": null,
+            "color": "#007797",
+            "label": "FP32"
+        },
+        "bf16": {
+            "data": null,
+            "color": "#00536a",
+            "label": "BF16"
+        }
+    },
+    "Filters": [
+        "PlatformType"
+    ],
+    "DefaultSelections": {
+        "platformTypes": {
+            "name": "ietype",
+            "data": [
+                "Select All"
+            ]
+        },
+        "platforms": {
+            "name": "platform",
+            "data": [
+            ]
+        },
+        "platformFilters": {
+            "name": "coretype",
+            "data": [
+                "CPU"
+            ]
+        },
+        "models": {
+            "name": "networkmodel",
+            "data": [
+                "baichuan2-13b-chat"
+            ]
+        },
+        "parameters": {
+            "name": "parameters",
+            "data": [
+                "Input size - 32",
+                "Input size - 1024"
+            ]
+        },
+        "precision": {
+            "name": "precision",
+            "data": [
+                "INT4 - 1ST TOKEN LATENCY",
+                "INT4 - 2ND TOKEN LATENCY"
+            ]
+        }
+    }
+}

@@ -279,12 +279,13 @@ $(document).ready(function () {
             modal.append(modalContent);
 
             const models = networkModels.map((networkModel) => createCheckMark(networkModel, 'networkmodel'));
-            const selectAllModelsButton = createCheckMark('', 'networkmodel');
-
             modal.find('.models-column').append(models);
+
+            const selectAllModelsButton = createCheckMark('', 'networkmodel');            
             modal.find('.models-selectall').append(selectAllModelsButton);
 
-            // modal.find('.platforms-selectall').append(selectAllModelsButton)
+            const selectAllPlatformsButton = createCheckMark('', 'platform');  
+            modal.find('.platforms-selectall').append(selectAllPlatformsButton);
 
             const precisions = Modal.getPrecisionsLabels(graph).map((precision) => createCheckMark(precision, 'precision', false));
             modal.find('.precisions-column').append(precisions);
@@ -307,7 +308,7 @@ $(document).ready(function () {
             $('body').prepend(modal);
             preselectDefaultSettings(graph, modal, appConfig);
 
-            //this is not generic solution :(
+            //is not generic solution :(
             if (appConfig.DefaultSelections.platformTypes?.data?.includes('Select All')) {
                 selectAllCheckboxes(iefilter);
                 renderClientPlatforms(graph, modal);
@@ -333,6 +334,14 @@ $(document).ready(function () {
                 else deSelectAllCheckboxes(models);
                 
                 renderClientPlatforms(graph, modal)
+            });
+
+            modal.find('.platforms-selectall input').on('click', function () {
+                if ($(this).prop('checked')) renderClientPlatforms(graph, modal)
+                    // selectAllCheckboxes(models);
+                // else deSelectAllCheckboxes(models);
+                
+                
             });
 
             modal.find('.models-column input').on('click', function () {

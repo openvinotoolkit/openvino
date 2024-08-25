@@ -3,7 +3,7 @@
     "Platform": "Intel 1 CPU-only",
     "Model": "bert-base-cased",
     "Checked": true,
-    "PlatformType": "atom",
+    "PlatformType": "Mobile Platforms (Intel® Atom™) CPU",
     "Parameters": {
       "throughput": {
         "Precisions": [
@@ -33,7 +33,7 @@
     "Platform": "Intel 2 CPU-only",
     "Model": "bert-base-cased",
     "Checked": true,
-    "PlatformType": "atom",
+    "PlatformType": "Mobile Platforms (Intel® Atom™) CPU",
     "Parameters": {
       "throughput": {
         "Precisions": [
@@ -56,15 +56,6 @@
         ],
         "Unit": "FPS",
         "UnitDesc": "higher is better"
-      },
-      "value": {
-        "Precisions": [
-          {
-            "int4": "244.4"
-          }
-        ],
-        "Unit": "FPS",
-        "UnitDesc": "higher is better"
       }
     }
   },
@@ -72,7 +63,7 @@
     "Platform": "Intel® Xeon X64321325E CPU-only",
     "Model": "Cornlake",
     "Checked": false,
-    "PlatformType": "atom",
+    "PlatformType": "Mobile Platforms (Intel® Atom™) CPU",
     "Parameters": {
       "throughput": {
         "Precisions": [
