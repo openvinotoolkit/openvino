@@ -188,7 +188,7 @@ def test_power_v1():
 
 @pytest.mark.parametrize(
     "graph_api_helper",
-    [ov.bitwise_and, ov.bitwise_or, ov.bitwise_xor, ov_opset15.bitwise_left_shift, ov_opset15.bitwise_right_shift],
+    [ov.bitwise_and, ov.bitwise_or, ov.bitwise_xor],
 )
 @pytest.mark.parametrize(
     "dtype",
@@ -205,9 +205,6 @@ def test_power_v1():
     ],
 )
 def test_binary_bitwise_op(graph_api_helper, dtype, shape_a, shape_b, broadcast, shape_out):
-    if "shift" in graph_api_helper.__name__ and dtype == bool:
-        pytest.skip(f"The element type of the input tensor for {graph_api_helper.__name__} must be integer number.")
-
     parameter_a = ov.parameter(shape_a, name="A", dtype=dtype)
     parameter_b = ov.parameter(shape_b, name="B", dtype=dtype)
 
@@ -220,16 +217,13 @@ def test_binary_bitwise_op(graph_api_helper, dtype, shape_a, shape_b, broadcast,
 
 @pytest.mark.parametrize(
     "graph_api_helper",
-    [ov.bitwise_and, ov.bitwise_or, ov.bitwise_xor, ov_opset15.bitwise_left_shift, ov_opset15.bitwise_right_shift],
+    [ov.bitwise_and, ov.bitwise_or, ov.bitwise_xor],
 )
 @pytest.mark.parametrize(
     "dtype",
     [bool, np.int32],
 )
 def test_binary_bitwise_op_with_constant(graph_api_helper, dtype):
-    if "shift" in graph_api_helper.__name__ and dtype == bool:
-        pytest.skip(f"The element type of the input tensor for {graph_api_helper.__name__} must be integer number.")
-
     value_b = np.array([[3, 0], [-7, 21]], dtype=dtype)
 
     shape = [2, 2]
@@ -239,4 +233,39 @@ def test_binary_bitwise_op_with_constant(graph_api_helper, dtype):
 
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == shape
+    assert model.get_output_element_type(0) == Type(dtype)
+
+
+@pytest.mark.parametrize(
+    "graph_api_helper",
+    [ov_opset15.bitwise_left_shift, ov_opset15.bitwise_right_shift],
+)
+@pytest.mark.parametrize(
+    "dtype",
+    [np.int32],
+)
+@pytest.mark.parametrize(
+    ("shape_a", "shape_b", "broadcast", "shape_out", "is_const"),
+    [
+        ([2, 2], [2, 2], "NONE", [2, 2], False),
+        ([2, 2], [2, 2], "NONE", [2, 2], True),
+        ([2, 1, 5], [1, 4, 5], "NUMPY", [2, 4, 5], False),
+        ([3, 2, 1, 4], [5, 4], "NUMPY", [3, 2, 5, 4], False),
+        ([2, 3, 4, 5], [], "PDPD", [2, 3, 4, 5], False),
+        ([2, 3, 4, 5], [2, 3, 1, 5], "PDPD", [2, 3, 4, 5], False),
+    ],
+)
+def test_binary_bitwise_shift_op(graph_api_helper, dtype, shape_a,
+                                 shape_b, broadcast, shape_out, is_const):
+    parameter_a = ov.parameter(shape_a, name="A", dtype=dtype)
+    parameter_b = ov.parameter(shape_b, name="B", dtype=dtype)
+
+    if is_const:
+        value_b = np.array([[3, 0], [7, 21]], dtype=dtype)
+        model = graph_api_helper(parameter_a, value_b, broadcast)
+    else:
+        model = graph_api_helper(parameter_a, parameter_b, broadcast)
+
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == shape_out
     assert model.get_output_element_type(0) == Type(dtype)
