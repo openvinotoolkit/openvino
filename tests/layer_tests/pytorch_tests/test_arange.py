@@ -116,7 +116,7 @@ class TestArange(PytorchLayerTest):
                                        skip_if_export("int32"),
                                        "int64",
                                        skip_if_export("int8"),
-                                       "uint8"])
+                                       skip_if_export("uint8")])
     @pytest.mark.parametrize("end", [1, 2, 3])
     @pytest.mark.parametrize("use_out", [skip_check(True), False])
     def test_arange_end_only(self, dtype, end, use_out, ie_device, precision, ir_version):
