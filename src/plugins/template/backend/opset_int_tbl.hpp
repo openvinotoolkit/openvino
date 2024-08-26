@@ -173,6 +173,7 @@ _OPENVINO_OP_REG(StringTensorUnpack, ov::op::v15)
 _OPENVINO_OP_REG(StringTensorPack, ov::op::v15)
 _OPENVINO_OP_REG(BitwiseLeftShift, ov::op::v15)
 _OPENVINO_OP_REG(BitwiseRightShift, ov::op::v15)
+_OPENVINO_OP_REG(SliceScatter, ov::op::v15)
 
 _OPENVINO_OP_REG(AUGRUCell, ov::op::internal)
 _OPENVINO_OP_REG(AUGRUSequence, ov::op::internal)

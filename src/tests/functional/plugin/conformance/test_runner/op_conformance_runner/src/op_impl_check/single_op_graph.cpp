@@ -1929,6 +1929,18 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::StringTen
     return std::make_shared<ov::Model>(results, ov::ParameterVector{begins, ends, symbols}, "StringTensorPackGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::SliceScatter> &node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{2, 4, 3, 5}}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 2, 2, 5}})};
+    const auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 0, 4});
+    const auto stop = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{2, 4, -5});
+    const auto step = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{3, 2, -2});
+    const auto axes = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 1, 2});
+    auto Node = std::make_shared<ov::op::v15::SliceScatter>(params.at(0), params.at(1), start, stop, step, axes);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node)};
+    return std::make_shared<ov::Model>(results, params, "SliceScatterGraph");
+}
+
 std::shared_ptr<ov::Model> generateRNNCellBase(const std::shared_ptr<ov::op::Op> &node) {
     std::shared_ptr<ov::Node> RNNCellBaseNode;
     if (ov::is_type<ov::op::v3::GRUCell>(node)) {
