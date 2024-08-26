@@ -1,5 +1,3 @@
-.. {#convert-model-tensorflow_Lite}
-
 Converting a TensorFlow Lite Model
 ==================================
 
@@ -44,7 +42,7 @@ Supported TensorFlow Lite Layers
 ###################################
 
 For the list of supported standard layers, refer to the
-:doc:`Supported Operations <../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>`
+:doc:`Supported Operations <../../about-openvino/compatibility-and-support/supported-operations>`
 page.
 
 Supported TensorFlow Lite Models

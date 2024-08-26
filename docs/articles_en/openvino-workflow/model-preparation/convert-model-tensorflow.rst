@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow}
-
 Converting a TensorFlow Model
 =============================
 
@@ -38,9 +36,9 @@ or `Hugging Face <https://huggingface.co/models>`__.
 
 .. note::
 
-   Examples below that convert TensorFlow models from a file, do not require any version
-   of TensorFlow to be installed on the system, except in cases when the ``tensorflow``
-   module is imported explicitly.
+   The examples converting TensorFlow models from a file do not require any version
+   of TensorFlow installed on the system, unless the ``tensorflow`` module is imported
+   explicitly.
 
 Converting TensorFlow 2 Models
 ##############################
@@ -385,15 +383,7 @@ Supported TensorFlow and TensorFlow 2 Keras Layers
 ##################################################
 
 For the list of supported standard layers, refer to the
-:doc:`Supported Operations <../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>`
+:doc:`Supported Operations <../../about-openvino/compatibility-and-support/supported-operations>`
 page.
 
-Summary
-#######
-
-In this document, you learned:
-
-* Basic information about how the model conversion API works with TensorFlow models.
-* Which TensorFlow models are supported.
-* How to freeze a TensorFlow model.
 
