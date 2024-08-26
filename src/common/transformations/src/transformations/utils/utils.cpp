@@ -135,24 +135,37 @@ bool has_f16_constants(const std::shared_ptr<const ov::Model>& function) {
 }
 
 bool check_for_broadcast(const ov::PartialShape& ref_shape, const ov::PartialShape& other_shape) {
-    // Check that other_shape doesn't broadcast ref_shape
-    if (ref_shape.rank().is_dynamic() || other_shape.rank().is_dynamic() || other_shape.size() > ref_shape.size()) {
-        return true;
+    if (ref_shape.rank().is_dynamic() || other_shape.rank().is_dynamic()) {
+        return false;
+    }
+
+    // Check that other_shape's rank is not bigger
+    // than ref_shape's rank and the other way
+    // broadcasting is needed.
+    if (other_shape.size() > ref_shape.size()) {
+        return false;
     }
     auto ref_it = ref_shape.rbegin();
     auto other_it = other_shape.rbegin();
-    // Check that other_shape dims are equal to ref_shape dims
-    // In case if other_shape rank is less than ref_shape rank
-    // we stop comparison and return true
+
+    // Align shapes to the right and run iterator from
+    // the right of a smaller shape.
+    // Check if other_shape's dimension is equal to the
+    // corresponding dimension of ref_shape or if
+    // other_shape's dimension is equal to 1.
+    // (standard broadcasting rules)
     while (other_it != other_shape.rend()) {
-        if ((other_it->is_dynamic() || other_it->get_length() != 1) &&
-            (ref_it->is_dynamic() || ref_it->get_length() == 1)) {
-            return true;
+        if (other_it->is_dynamic() || ref_it->is_dynamic()) {
+            return false;
+        }
+
+        if (*other_it != *ref_it && *other_it != 1) {
+            return false;
         }
         ++other_it;
         ++ref_it;
     }
-    return false;
+    return true;
 }
 
 std::shared_ptr<ov::Node> activation(const std::string& activation_name, const ov::Output<ov::Node>& apply_to) {
