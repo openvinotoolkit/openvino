@@ -97,21 +97,15 @@ protected:
     DCOffMode m_dcoff_mode = DCOffMode::CAST_ONLY;
     ov::element::Type m_dcoff_type;
     DCOFFParamRef m_params_to;
-    bool m_transpose_weights = false;
+    bool m_reshape_weights = false;
 
     std::shared_ptr<ov::Node> paramA, constB, paramC, cvtA, cvtB, subtr, mulply;
     bool matcher_callback(ov::pass::pattern::Matcher& m);
 
 public:
-    DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
+    DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool reshape_weights);
 
-    void setTransposeWeights(bool transpose) {
-        m_transpose_weights = transpose;
-    }
-
-    bool getTransposeWeights() const {
-        return m_transpose_weights;
-    }
+    bool reshape_parameter_if_needed(const std::shared_ptr<ov::op::v0::Parameter>& param);
 
     virtual void build();
     virtual void reconnect_root(ov::pass::pattern::Matcher& m) = 0;
