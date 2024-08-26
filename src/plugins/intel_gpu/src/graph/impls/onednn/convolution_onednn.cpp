@@ -29,6 +29,10 @@ struct convolution_onednn : typed_primitive_onednn_impl<convolution> {
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::convolution_onednn)
 
+private:
+    int _zero_point_mask;
+    dnnl::memory::data_type _wzp_data_type;
+
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<convolution_onednn>(*this);
@@ -51,51 +55,42 @@ protected:
 
         if (instance.activations_zero_points_term()) {
             auto a_zp = instance.activations_zero_points_memory();
+
+            // In the case of dynamic model, if choose_impl was executed in runtime,
+            // a_zp could be remained as u8 or i8.
+            if (a_zp->get_layout().data_type != data_types::i32) {
+                auto& conv_node = instance.get_node().as<convolution>();
+                auto& a_zp_node = conv_node.activations_zero_points().as<data>();
+                a_zp = a_zp_node.get_attached_memory_ptr();
+            }
+
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
 
             GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= static_cast<int>(ov::intel_gpu::LogLevel::TRACE_DETAIL)) {
-                auto dnnl_mem = a_zp->get_onednn_memory(desc);
-                void *mapped_ptr = dnnl_mem.map_data();
-                if (mapped_ptr) {
-                    GPU_DEBUG_TRACE_DETAIL << instance.id() << " activations_zero_points: ";
-                    for (size_t i = 0; i < desc.get_size(); ++i) {
-                        GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
-                    }
-                    GPU_DEBUG_TRACE_DETAIL << std::endl;
-                    dnnl_mem.unmap_data(mapped_ptr);
-                }
-            }
+            GPU_DEBUG_TRACE_DETAIL << instance.id() << " activations_zero_points: "
+                << " " << a_zp->get_layout().to_short_string() << std::endl;
         }
 
         if (instance.weights_zero_points_term()) {
-            throw std::runtime_error("Convolution oneDNN primitive doesn't support asymmetric weights quantization");
-            // auto w_zp = instance.weights_zero_points_memory();
-            // dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
-            // args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
+            auto w_zp = instance.weights_zero_points_memory();
+            dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
+            args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
 
-            // GPU_DEBUG_GET_INSTANCE(debug_config);
-            // GPU_DEBUG_IF(debug_config->verbose >= static_cast<int>(ov::intel_gpu::LogLevel::TRACE_DETAIL)) {
-            //     auto dnnl_mem = w_zp->get_onednn_memory(desc);
-            //     void *mapped_ptr = dnnl_mem.map_data();
-            //     if (mapped_ptr) {
-            //         GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: ";
-            //         for (size_t i = 0; i < desc.get_size(); ++i) {
-            //             GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
-            //         }
-            //         GPU_DEBUG_TRACE_DETAIL << std::endl;
-            //         dnnl_mem.unmap_data(mapped_ptr);
-            //     }
-            // }
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: "
+                << " " << w_zp->get_layout().to_short_string() << std::endl;
         }
 
         return args;
     }
 
-    int _zero_point_mask;
     void set_zero_point_mask(int zero_point_mask) {
         _zero_point_mask = zero_point_mask;
+    }
+
+    void set_weights_zero_point_data_type(dnnl::memory::data_type data_type) {
+        _wzp_data_type = data_type;
     }
 
     template <typename T>
@@ -111,7 +106,8 @@ protected:
 
     static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<convolution>& arg,
                                                                             const kernel_impl_params& impl_params,
-                                                                            int& zero_point_mask) {
+                                                                            int& zero_point_mask,
+                                                                            dnnl::memory::data_type& wzp_data_type) {
         auto attrs = impl_params.attrs_onednn;
 
         if (arg.activations_zero_points_term()) {
@@ -130,12 +126,14 @@ protected:
         }
 
         if (arg.weights_zero_points_term()) {
-            throw std::runtime_error("Convolution oneDNN primitive doesn't support asymmetric weights quantization");
-
-            // Commented out since oneDNN doesn't support asymmetric weights quantization
-            // auto& w_zp = arg.weights_zero_points();
-            // int mask = w_zp.get_output_layout().count() > 1 ? 2 : 0;
-            // attrs->set_zero_points(DNNL_ARG_WEIGHTS, mask, {DNNL_RUNTIME_S32_VAL});
+            auto& wzp = arg.weights_zero_points();
+            auto wzp_layout = wzp.get_output_layout();
+            wzp_data_type = convert_data_type(wzp_layout.data_type);
+            if (wzp_layout.count() == 1) {
+                attrs->set_zero_points(DNNL_ARG_WEIGHTS, 0, dnnl::memory::dims{}, wzp_data_type);
+            } else {
+                throw std::runtime_error("Convolution oneDNN primitive doesn't support PER_OC weights zero points");
+            }
         }
 
         return attrs;
@@ -183,6 +181,13 @@ public:
         ob << typed_pd->get_padding_r();
         ob << typed_pd->bias_desc().is_zero();
 
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernelImplParams());
+        auto prim = impl_params->typed_desc<convolution>();
+        bool has_wzp = !prim->weights_zero_points.empty();
+        if (has_wzp) {
+            ob << make_data(&_wzp_data_type, sizeof(dnnl::memory::data_type));
+        }
+
         std::vector<uint8_t> prim_cache;
         prim_cache = _prim.get_cache_blob();
         ob << prim_cache;
@@ -216,6 +221,13 @@ public:
         bool zero_bias;
         ib >> zero_bias;
 
+        auto prim = impl_params->typed_desc<convolution>();
+        bool has_wzp = !prim->weights_zero_points.empty();
+        if (has_wzp) {
+            ib >> make_data(&_wzp_data_type, sizeof(dnnl::memory::data_type));
+            _attrs->set_zero_points(DNNL_ARG_WEIGHTS, 0, dnnl::memory::dims{}, _wzp_data_type);
+        }
+
         if (zero_bias) {
             auto prim_desc = std::make_shared<dnnl::convolution_forward::primitive_desc>(
                                     ib.get_engine().get_onednn_engine(),
@@ -248,13 +260,18 @@ public:
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
         int zero_point_mask = -1;
-        auto attr = get_primitive_attributes(arg, impl_params, zero_point_mask);
+        dnnl::memory::data_type wzp_data_type = dnnl::memory::data_type::undef;
+
+        auto attr = get_primitive_attributes(arg, impl_params, zero_point_mask, wzp_data_type);
 
         auto prim_desc = get_convolution_primitive_descriptor(impl_params, *attr);
 
         auto conv_onednn_impl = cldnn::make_unique<convolution_onednn>(engine, config, attr, *prim_desc,
                                                 get_weights_reorder(impl_params, *prim_desc, arg.get_transposed()));
+
         conv_onednn_impl->set_zero_point_mask(zero_point_mask);
+        conv_onednn_impl->set_weights_zero_point_data_type(wzp_data_type);
+
         return conv_onednn_impl;
     }
 };

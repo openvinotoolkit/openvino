@@ -74,12 +74,13 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
     auto bitwise_and = wrap_type<ov::op::v13::BitwiseAnd>({add_or_convert, convert_2});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
+
         auto bitwise_and = m.get_match_root();
         if (!bitwise_and) {
             return false;
         }
         const auto& pattern_map = m.get_pattern_value_map();
-        auto input_node = pattern_map.at(unsqueeze_1).get_node_shared_ptr();
+        const auto& input_node = pattern_map.at(unsqueeze_1).get_node_shared_ptr();
         auto weights_u32 = std::dynamic_pointer_cast<v0::Constant>(input_node->get_input_node_shared_ptr(0));
         auto axis = std::dynamic_pointer_cast<v0::Constant>(input_node->get_input_node_shared_ptr(1));
         auto axis_data = axis->get_data_ptr<uint32_t>();
@@ -124,7 +125,7 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
             }
         }
 
-        copy_runtime_info_and_name(weights_u32, {new_const}, {weights_u32, bitwise_and, bitwise_right_shift});
+        copy_runtime_info_and_name(weights_u32, {new_const}, {weights_u32, bitwise_and});
 
         auto new_convert = std::make_shared<v0::Convert>(new_const, bitwise_and->get_output_element_type(0));
         copy_runtime_info_and_name(bitwise_and, {new_convert}, {input_node});
@@ -154,6 +155,7 @@ GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
     auto const_6 = wrap_type<v0::Constant>();
     auto const_7 = wrap_type<v0::Constant>();
     auto reshape_3 = wrap_type<v1::Reshape>({const_6, const_7});
+
 
     auto mult = wrap_type<v1::Multiply>({reshape_3, convert_3});
 
@@ -190,6 +192,7 @@ GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
         }
         auto add_in0_shape = add_input0_const->get_shape();
         auto static_shape_1 = reshape_node->get_shape();
+
         size_t add_in0_size = shape_size(add_in0_shape);
         auto add_replace_const = std::make_shared<v0::Constant>(element::f32, static_shape_1);
         auto add_replace_ptr = const_cast<float*>(reinterpret_cast<const float*>(add_replace_const->get_data_ptr()));
@@ -204,7 +207,7 @@ GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
             add_replace_ptr[i] = (float)val;
         }
 
-        auto static_shape_2 = reshape2_node->get_shape();
+        const auto& static_shape_2 = reshape2_node->get_shape();
         auto reshape2_in0_const = std::dynamic_pointer_cast<v0::Constant>(convert_4_node->get_input_node_shared_ptr(0));
         auto sub_replace_const = std::make_shared<v0::Constant>(reshape2_in0_const->get_element_type(),
                                                                 static_shape_2,
@@ -212,7 +215,7 @@ GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
         auto new_convert_node = std::make_shared<v0::Convert>(sub_replace_const, element::f32);
         auto new_sub_node = std::make_shared<v1::Subtract>(new_convert_node, add_replace_const);
 
-        auto static_shape_3 = reshape3_node->get_shape();
+        const auto& static_shape_3 = reshape3_node->get_shape();
         auto reshape3_in0_const = std::dynamic_pointer_cast<v0::Constant>(reshape3_node->get_input_node_shared_ptr(0));
         auto mult_scale_const = std::make_shared<v0::Constant>(reshape3_in0_const->get_element_type(),
                                                                static_shape_3,
