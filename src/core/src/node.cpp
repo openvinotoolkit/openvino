@@ -487,7 +487,7 @@ const ov::element::Type& ov::Node::get_input_element_type(size_t i) const {
 
 const ov::Shape& ov::Node::get_input_shape(size_t i) const {
     OPENVINO_ASSERT(i < m_inputs.size(), idx_txt, i, out_of_range_txt);
-    return m_inputs[i].get_shape();
+    return static_cast<const ov::Shape&>(m_inputs[i].get_shape());
 }
 
 const ov::PartialShape& ov::Node::get_input_partial_shape(size_t i) const {
