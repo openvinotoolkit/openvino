@@ -188,6 +188,44 @@ def roi_align_rotated(
     )
 
 
+@nameable_op
+def string_tensor_unpack(
+    data: NodeInput,
+    name: Optional[str] = None,
+) -> Node:
+    """Perform an operation which unpacks a batch of strings into three tensors.
+
+    :param data: The node providing input data.
+
+    :return: The new node performing StringTensorUnpack operation.
+    """
+    return _get_node_factory_opset15().create(
+        "StringTensorUnpack",
+        as_nodes(data, name=name)
+    )
+
+
+@nameable_op
+def string_tensor_pack(
+    begins: NodeInput,
+    ends: NodeInput,
+    symbols: NodeInput,
+    name: Optional[str] = None,
+) -> Node:
+    """Perform an operation which packs a concatenated batch of strings into a batched string tensor.
+
+    :param begins: ND tensor of non-negative integer numbers containing indices of each string's beginnings.
+    :param ends: ND tensor of non-negative integer numbers containing indices of each string's endings.
+    :param symbols: 1D tensor of concatenated strings data encoded in utf-8 bytes.
+
+    :return: The new node performing StringTensorPack operation.
+    """
+    return _get_node_factory_opset15().create(
+        "StringTensorPack",
+        as_nodes(begins, ends, symbols, name=name)
+    )
+
+
 @binary_op
 def bitwise_left_shift(
     arg0: NodeInput,
