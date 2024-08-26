@@ -491,11 +491,23 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
 
-    // TODO: force 2d shapes for now
-    NPUW_ASSERT(scale->get_shape().size() == 2);
+    const auto& from_shape = from->get_shape();
+    NPUW_ASSERT(from_shape.back() % 64 == 0);
 
-    NPUW_ASSERT(scale->get_shape()[0] == from->get_shape()[0]);
-    NPUW_ASSERT(scale->get_shape()[1] == 1);
+    // 2-channel (Symmetric) and 3-channel (group-wise)
+    // scale factors are supported. The scale/value loop
+    // iteration is based on stotal, so should work for
+    // both cases.
+    const auto& scale_shape = scale->get_shape();
+    NPUW_ASSERT(scale_shape.size() == 3 || scale_shape.size() == 2);
+    if (scale_shape.size() == 3) {
+        NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+        NPUW_ASSERT(scale_shape[1] == from_shape[1]);
+        NPUW_ASSERT(scale_shape[2] == 1);
+    } else {
+        NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+        NPUW_ASSERT(scale_shape[1] == 1);
+    }
 
     const auto scale_elem_type = scale->get_element_type();
     NPUW_ASSERT(scale_elem_type == ov::element::f32 || scale_elem_type == ov::element::f16);

@@ -131,9 +131,14 @@ public:
     DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
 };
 
-class DCOFFPassCWAI3 : public ov::pass::MatcherPass {
+class DCOFFPassReshape3 : public ov::pass::MatcherPass {
 public:
-    DCOFFPassCWAI3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
+    DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
+};
+
+class DCOFFPassReshape4 : public ov::pass::MatcherPass {
+public:
+    DCOFFPassReshape4(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
 };
 
 class CWAI1 : public ov::pass::MatcherPass {
