@@ -131,6 +131,8 @@ function(ov_add_onednn)
     # to find our FindACL.cmake
     if(DNNL_USE_ACL)
         list(APPEND CMAKE_MODULE_PATH "${intel_cpu_thirdparty_SOURCE_DIR}")
+        # oneDNN needs arm_compute_version.embed file to detect ACL version
+        # since the file has not been generated yet, it is created manually
         ov_create_acl_version_file()
     endif()
 
