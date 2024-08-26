@@ -391,5 +391,5 @@ elseif(NOT TARGET arm_compute::arm_compute)
     endforeach()
 
     # required by oneDNN to attempt to parse ACL version
-    set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_SOURCE_DIR}")
+    set(ACL_INCLUDE_DIR "${ARM_COMPUTE_SOURCE_DIR}")
 endif()
