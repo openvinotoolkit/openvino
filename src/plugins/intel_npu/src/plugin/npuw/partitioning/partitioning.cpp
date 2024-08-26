@@ -1240,7 +1240,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             instances.insert(const_cache.at(l));
         }
         auto& proto_node = *instances.begin();
-        auto& proto_shape = proto_node->output(0).get_shape();
+        auto proto_shape = proto_node->output(0).get_shape();
 
         LOG_DEBUG("Checking a bank with prototype node " << proto_node << "...");
         LOG_BLOCK();
