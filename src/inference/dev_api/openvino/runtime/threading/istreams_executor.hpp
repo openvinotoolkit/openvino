@@ -38,6 +38,19 @@ public:
      */
     using Ptr = std::shared_ptr<IStreamsExecutor>;
 
+    enum MsgType{
+        TP,
+        START_INFER,
+        CALL_BACK
+    };
+
+    struct MessageInfo{
+        MsgType msg_type;
+        std::vector<int> rank;
+        void* buf;
+        Task task;
+    };
+
     /**
      * @brief Defines inference thread binding type
      */
@@ -135,13 +148,13 @@ public:
                bool cpu_pinning = false,
                std::vector<std::vector<int>> streams_info_table = {},
                std::vector<int> rank = {})
-            : _name{name},
+            : _name{std::move(name)},
               _streams{streams},
               _threads_per_stream{threads_per_stream},
               _thread_preferred_core_type(thread_preferred_core_type),
               _cpu_reservation{cpu_reservation},
               _cpu_pinning{cpu_pinning},
-              _streams_info_table{streams_info_table},
+              _streams_info_table{std::move(streams_info_table)},
               _rank{rank} {
             update_executor_config();
         }
@@ -268,27 +281,6 @@ public:
      * @param task A task to start
      */
     virtual void execute(Task task) = 0;
-
-    /**
-     * @brief Execute ov::Task inside sub stream of task executor context
-     * @param task A task to start
-     * @param id Sub stream id
-     */
-    virtual void run_sub_stream(Task task, int id) = 0;
-
-    /**
-     * @brief Execute all of the tasks and waits for its completion.
-     *        Default run_sub_stream_and_wait() method implementation uses run_sub_stream() pure virtual method
-     *        and higher level synchronization primitives from STL.
-     *        The task is wrapped into std::packaged_task which returns std::future.
-     *        std::packaged_task will call the task and signal to std::future that the task is finished
-     *        or the exception is thrown from task
-     *        Than std::future is used to wait for task execution completion and
-     *        task exception extraction
-     * @note run_sub_stream_and_wait() does not copy or capture tasks!
-     * @param tasks A vector of tasks to execute
-     */
-    void run_sub_stream_and_wait(const std::vector<Task>& tasks);
 };
 
 }  // namespace threading

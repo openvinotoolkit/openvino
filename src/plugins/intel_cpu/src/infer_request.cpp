@@ -108,18 +108,9 @@ void SyncInferRequest::infer() {
     auto message = ov::threading::message_manager();
 
     throw_if_canceled();
-    // std::cout << "[ infer ] " << m_asyncRequest->m_has_sub_infers << "\n";
     if (m_asyncRequest->m_has_sub_infers) {
+        sub_streams_infer();
         message->server_wait();
-        ov::threading::MessageInfo msg_info;
-        msg_info.msg_type = ov::threading::MsgType::START_INFER;
-        ov::threading::Task task = [&] {
-            SyncInferRequest::sub_streams_infer();
-        };
-        msg_info.task = std::move(task);
-        message->send_message(msg_info);
-        message->infer_wait();
-        // std::cout << "------ infer end -----\n";
         return;
     }
 
@@ -634,7 +625,6 @@ void SyncInferRequest::sub_streams_infer() {
     auto outputs = get_outputs();
 
     size_t requests_num = requests.size();
-    std::cout << "[ sub_streams_infer ] inputs: " << inputs.size() << " requests: " << requests_num << "\n";
 
     if (requests.size() > 0) {
         for (const auto& output : outputs) {
@@ -648,14 +638,12 @@ void SyncInferRequest::sub_streams_infer() {
             }
 
             requests[i]->set_callback([message](const std::exception_ptr& ptr) {
-                // std::cout << "set_callback------ " << i << "\n";
                 ov::threading::MessageInfo msg_info;
                 msg_info.msg_type = ov::threading::MsgType::CALL_BACK;
                 message->send_message(msg_info);
             });
         }
         for (size_t i = 0; i < requests_num; i++) {
-            // std::cout << "start_async : " << i << "\n";
             requests[i]->start_async();
         }
     }
@@ -663,4 +651,3 @@ void SyncInferRequest::sub_streams_infer() {
 
 }   // namespace intel_cpu
 }   // namespace ov
-

@@ -181,7 +181,9 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DisableRuntimeSkipReorder", "Disable runtime skip reorder.");
     message_list.emplace_back("OV_GPU_DisablePrimitiveFusing", "Disable primitive fusing");
     message_list.emplace_back("OV_GPU_DisableFakeAlignment", "Disable fake alignment");
-    message_list.emplace_back("OV_GPU_EnableDynamicQuantize", "Enable Dynamic quantization for fully connected primitive");
+    message_list.emplace_back("OV_GPU_EnableDynamicQuantize", "Enable Dynamic quantization for Fully connected primitive");
+    message_list.emplace_back("OV_GPU_DynamicQuantizeLayersWithoutOnednn", "Enable Dynamic quantization for specified Fully connected layers only, "
+                                "separated by space. Support case-insensitive and regular expression. For example .*fully_connected.*");
     message_list.emplace_back("OV_GPU_DisableHorizontalFCFusion", "Disable horizontal fc fusion");
     message_list.emplace_back("OV_GPU_CheckKernelsProperties", "Print info for all OpenCL kernels related to TPM (Thread Private Memory), "
                               "SLM (Shared Local Memory) memory usage or SPILLs and print warnings if there are issues");
@@ -312,6 +314,8 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("MemPreallocationOptions", mem_preallocation_params_str);
     std::string load_dump_raw_bin_str;
     get_gpu_debug_env_var("LoadDumpRawBinary", load_dump_raw_bin_str);
+    std::string dynamic_quantize_layers_without_onednn_str;
+    get_gpu_debug_env_var("DynamicQuantizeLayersWithoutOnednn", dynamic_quantize_layers_without_onednn_str);
 
     if (help > 0) {
         print_help_messages();
@@ -347,6 +351,16 @@ debug_configuration::debug_configuration()
         std::string layer;
         while (ss >> layer) {
             dump_layers.push_back(layer);
+        }
+    }
+
+    if (dynamic_quantize_layers_without_onednn_str.length() > 0) {
+        // Insert delimiter for easier parsing when used
+        dynamic_quantize_layers_without_onednn_str = " " + dynamic_quantize_layers_without_onednn_str + " ";
+        std::stringstream ss(dynamic_quantize_layers_without_onednn_str);
+        std::string layer;
+        while (ss >> layer) {
+            dynamic_quantize_layers_without_onednn.push_back(layer);
         }
     }
 
@@ -506,6 +520,28 @@ std::string debug_configuration::get_name_for_dump(const std::string& file_name)
     return filename;
 }
 
+bool debug_configuration::is_layer_name_matched(const std::string& layer_name, const std::string& pattern) const {
+#ifdef GPU_DEBUG_CONFIG
+    auto upper_layer_name = std::string(layer_name.length(), '\0');
+    std::transform(layer_name.begin(), layer_name.end(), upper_layer_name.begin(), ::toupper);
+    auto upper_pattern = std::string(pattern.length(), '\0');
+    std::transform(pattern.begin(), pattern.end(), upper_pattern.begin(), ::toupper);
+
+    // Check pattern from exec_graph
+    size_t pos = upper_layer_name.find(':');
+    auto upper_exec_graph_name = upper_layer_name.substr(pos + 1, upper_layer_name.size());
+    if (upper_exec_graph_name.compare(upper_pattern) == 0) {
+        return true;
+    }
+
+    // Check pattern with regular expression
+    std::regex re(upper_pattern);
+    return std::regex_match(upper_layer_name, re);
+#else
+    return false;
+#endif
+}
+
 bool debug_configuration::is_layer_for_dumping(const std::string& layer_name, bool is_output, bool is_input) const {
 #ifdef GPU_DEBUG_CONFIG
     // Dump result layer
@@ -522,24 +558,8 @@ bool debug_configuration::is_layer_for_dumping(const std::string& layer_name, bo
     if (is_input == true && type == "parameter" && dump_layers_input == 1)
         return true;
 
-    auto is_match = [](const std::string& layer_name, const std::string& pattern) -> bool {
-        auto upper_layer_name = std::string(layer_name.length(), '\0');
-        std::transform(layer_name.begin(), layer_name.end(), upper_layer_name.begin(), ::toupper);
-        auto upper_pattern = std::string(pattern.length(), '\0');
-        std::transform(pattern.begin(), pattern.end(), upper_pattern.begin(), ::toupper);
-        // Check pattern from exec_graph
-        size_t pos = upper_layer_name.find(':');
-        auto upper_exec_graph_name = upper_layer_name.substr(pos + 1, upper_layer_name.size());
-        if (upper_exec_graph_name.compare(upper_pattern) == 0) {
-            return true;
-        }
-        // Check pattern with regular expression
-        std::regex re(upper_pattern);
-        return std::regex_match(upper_layer_name, re);
-    };
-
     auto iter = std::find_if(dump_layers.begin(), dump_layers.end(), [&](const std::string& dl){
-        return is_match(layer_name, dl);
+        return is_layer_name_matched(layer_name, dl);
     });
     return (iter != dump_layers.end());
 #else

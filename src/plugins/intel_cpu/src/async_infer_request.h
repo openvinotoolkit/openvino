@@ -28,8 +28,10 @@ public:
     }
 
     void throw_if_canceled() const;
+
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_sub_infer_requests;
     bool m_has_sub_infers = false;
 };
+
 }  // namespace intel_cpu
 }  // namespace ov

@@ -76,6 +76,9 @@
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "impls/onednn/register.hpp"
 #endif
+#ifdef OV_GPU_WITH_SYCL
+#include "impls/sycl/register.hpp"
+#endif
 
 #include "kernel_base.h"
 
@@ -258,6 +261,9 @@ void program::init_primitives() {
         onednn::register_implementations();
 #endif
         cpu::register_implementations();
+#ifdef OV_GPU_WITH_SYCL
+        sycl::register_implementations();
+#endif
         is_initialized = true;
     }
 }

@@ -57,8 +57,6 @@ public:
 
     std::vector<int> get_rank() override;
 
-    void run_sub_stream(Task task, int id) override;
-
 private:
     struct Impl;
     std::unique_ptr<Impl> _impl;

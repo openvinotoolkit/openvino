@@ -63,13 +63,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         // special case when all InferRequests are muxed into a single queue
         m_task_executor = m_plugin->get_executor_manager()->get_executor("CPU");
     } else {
-        executor_confg = m_cfg.enableSubStreams ? IStreamsExecutor::Config{"CPUMainStreamExecutor",
-                                                                           1,
-                                                                           1,
-                                                                           ov::hint::SchedulingCoreType::ANY_CORE,
-                                                                           false,
-                                                                           true}
-                                                : m_cfg.streamExecutorConfig;
+        executor_confg = m_cfg.numSubStreams > 0 ? IStreamsExecutor::Config{"CPUMainStreamExecutor",
+                                                                            1,
+                                                                            1,
+                                                                            ov::hint::SchedulingCoreType::ANY_CORE,
+                                                                            false,
+                                                                            true}
+                                                 : m_cfg.streamExecutorConfig;
         m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(executor_confg);
     }
     if (0 != m_cfg.streamExecutorConfig.get_streams()) {
@@ -112,16 +112,16 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     } else {
         CompiledModel::get_graph();
     }
-    // std::cout << "m_has_sub_compiled_models: " << m_cfg.enableSubStreams << ", " << m_cfg.streamExecutorConfig.get_sub_streams() << "\n";
-    if (m_cfg.enableSubStreams) {
-        m_cfg.enableSubStreams = false;
+    if (m_cfg.numSubStreams > 0) {
         m_has_sub_compiled_models = true;
         auto sub_cfg = m_cfg;
+        sub_cfg.numSubStreams = 0;
+        sub_cfg.enableNodeSplit = true;
         auto streams_info_table = m_cfg.streamExecutorConfig.get_streams_info_table();
         auto message = message_manager();
-        m_sub_memory_manager = std::make_shared<SubMemoryManager>(m_cfg.streamExecutorConfig.get_sub_streams());
-        message->set_num_sub_streams(m_cfg.streamExecutorConfig.get_sub_streams());
-        for (int i = 0; i < m_cfg.streamExecutorConfig.get_sub_streams(); i++) {
+        m_sub_memory_manager = std::make_shared<SubMemoryManager>(m_cfg.numSubStreams);
+        message->set_num_sub_streams(m_cfg.numSubStreams);
+        for (int i = 0; i < m_cfg.numSubStreams; i++) {
             std::vector<std::vector<int>> sub_streams_table;
             sub_streams_table.push_back(streams_info_table[i + 1]);
             sub_streams_table[0][NUMBER_OF_STREAMS] = 1;
@@ -165,10 +165,14 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                 GraphContext::Ptr ctx;
                 {
                     std::lock_guard<std::mutex> lock{*m_mutex.get()};
-                    auto isQuantizedFlag =
-                        (m_cfg.lpTransformsMode == Config::On) &&
-                        ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
-                    ctx = std::make_shared<GraphContext>(m_cfg, m_socketWeights[socketId], isQuantizedFlag, streamsExecutor);
+                    auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
+                                           ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
+
+                    ctx = std::make_shared<GraphContext>(m_cfg,
+                                                         m_socketWeights[socketId],
+                                                         isQuantizedFlag,
+                                                         streamsExecutor,
+                                                         m_sub_memory_manager);
                 }
                 const std::shared_ptr<const ov::Model> model = m_model;
                 graphLock._graph.CreateGraph(model, ctx);

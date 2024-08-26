@@ -9,14 +9,14 @@
 #include <mutex>
 #include <memory>
 #include <assert.h>
+#include "cpu_memory.h"
 
 namespace ov {
-
+namespace intel_cpu {
 class SubMemoryManager {
 public:
     struct MemoryInfo {
         void* send_buf;
-        std::shared_ptr<void> buf;
         bool flag;
         bool last_used;
     };
@@ -52,4 +52,6 @@ public:
     std::vector<int> _use_count;
     std::mutex _flagMutex;
 };
+}  // namespace intel_cpu
+
 }  // namespace ov

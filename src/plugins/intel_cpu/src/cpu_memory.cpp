@@ -706,7 +706,7 @@ MemoryPtr split_horizontal(const dnnl::engine& eng, const MemoryPtr src, int dim
     }
 
     auto srcPtr = static_cast<uint8_t*>(src->getData());
-    if (prec == ov::element::u4) {
+    if (prec == ov::element::u4 || prec == ov::element::i4) {
         stride /= 2;
     }
 
@@ -742,6 +742,7 @@ MemoryPtr split_vertical(const dnnl::engine& eng, const MemoryPtr src, int dim, 
         return ptr;
     }
     assert(dims[dim] >= w_size);
+    const auto splited_size = dims[dim] * prec.size();
     auto splited_dim_vec = split_parts(dims[dim], w_size);
     auto element_size = prec.size();
 
@@ -756,17 +757,22 @@ MemoryPtr split_vertical(const dnnl::engine& eng, const MemoryPtr src, int dim, 
     // copy
     auto srcPtr = static_cast<uint8_t*>(src->getData());
     auto dstPtr = static_cast<uint8_t*>(ptr->getData());
-    auto mem_size = src->getSize(); // total bytes
-    auto channel_size = dims[dim] * element_size; // selected dim bytes
-    const int step = (mem_size / channel_size); // the steps need to copy.
-    int stride = splited_dim_vec[0]; // elements of half selected dim.
-    if (prec == ov::element::u4) {
-        stride /= 2;
+    // selected dim bytes
+    auto channel_size = dims[dim] * element_size;
+    // total bytes
+    auto mem_size = src->getSize();
+    // the steps need to copy.
+    const int step = (mem_size / channel_size);
+    // bytes of selected dim.
+    auto strideSize = splited_dim_vec[0] * element_size;
+    auto copySize = splited_dim_vec[w_rank] * element_size;
+    if (prec == ov::element::u4 || prec == ov::element::i4) {
+        strideSize /= 2;
+        copySize /= 2;
     }
-    const auto copySize = stride * element_size; // bytes of half selected dim.
     parallel_for(step, [&](int i){
         int dst_offset = i * copySize;
-        int src_offset = i * copySize* 2 + w_rank * copySize;
+        int src_offset = i * splited_size + w_rank * strideSize;
         cpu_parallel_memcpy(dstPtr + dst_offset, srcPtr + src_offset, copySize);
     });
     return ptr;

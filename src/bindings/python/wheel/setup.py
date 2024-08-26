@@ -122,6 +122,12 @@ LIB_INSTALL_CFG = {
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
+    "intel_openmp_libs": {
+        "name": "intel_omp",
+        "prefix": f"{BUILD_BASE}/libs.intel_omp",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "binary_dir": OPENVINO_BINARY_DIR,
+    },
     "pugixml_libs": {
         "name": "pugixml",
         "prefix": f"{BUILD_BASE}/libs.pugixml",
@@ -476,6 +482,8 @@ class PrepareLibs(build_clib):
         os.makedirs(package_cmake_dir, exist_ok=True)
 
         openvino_replacements = {
+            # change the location of TBBConfig.cmake (runtime/3rdparty/tbb -> openvino/cmake)
+            r"(\{PACKAGE_PREFIX_DIR\})\/runtime\/3rdparty\/tbb": rf"\1/{WHEEL_PACKAGE_DIR}/cmake",
             # change the path where the libraries are installed (runtime/lib/intel64/Release -> openvino/libs)
             r"(\{_IMPORT_PREFIX\})\/(.*)\/(.+\.[lib|dylib|so|dll])": rf"\1/{WHEEL_LIBS_INSTALL_DIR}/\3",
             # change the path where the include files are installed (runtime/include -> openvino/include)
@@ -487,7 +495,7 @@ class PrepareLibs(build_clib):
 
         tbb_replacements = {
             # change the path where the TBBConfig.cmake is installed (<root>/lib/cmake/TBB -> openvino/cmake)
-            r"(\{CMAKE_CURRENT_LIST_FILE\})": r"\1/fake_dir",
+            r"(_IMPORT_PREFIX \"\$\{CMAKE_CURRENT_LIST_FILE\})": r"\1/fake_dir",
             # change the path where the libraries are installed (<root>/lib -> openvino/libs)
             r"(\{_IMPORT_PREFIX\})\/(.*)\/(.+\.[lib|dylib|so|dll])": rf"\1/{WHEEL_LIBS_INSTALL_DIR}/\3",
             # change the path where the include files are installed (<root>/include -> openvino/include)
