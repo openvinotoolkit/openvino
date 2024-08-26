@@ -143,7 +143,7 @@ class TestArange(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend    
-    @pytest.mark.parametrize("dtype", [skip_if_export(None),
+    @pytest.mark.parametrize("dtype", [skip_check(None),
                                        skip_if_export("float32"),
                                        skip_if_export("float64"),
                                        skip_if_export("int32"),
