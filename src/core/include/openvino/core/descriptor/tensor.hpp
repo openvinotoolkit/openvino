@@ -106,8 +106,10 @@ protected:
 
     friend OPENVINO_API std::string get_ov_tensor_legacy_name(const Tensor& tensor);
     friend OPENVINO_API void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
-    friend void set_element_type(Tensor& tensor, const element::Type& elemenet_type);
-    friend void set_tensor_type(Tensor& tensor, const element::Type& element_type, const PartialShape& pshape);
+    friend OPENVINO_API void set_element_type(Tensor& tensor, const element::Type& elemenet_type);
+    friend OPENVINO_API void set_tensor_type(Tensor& tensor,
+                                             const element::Type& element_type,
+                                             const PartialShape& pshape);
     friend class pass::ReverseShapeAndTypeInfer;
 
 private:

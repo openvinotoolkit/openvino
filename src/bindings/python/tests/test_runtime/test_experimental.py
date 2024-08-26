@@ -2,7 +2,7 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.experimental import evaluate_as_partial_shape, evaluate_both_bounds
+from openvino.experimental import evaluate_as_partial_shape, evaluate_both_bounds, set_element_type, set_tensor_type
 
 import pytest
 from openvino.runtime import Shape, PartialShape, Dimension, Type
@@ -51,3 +51,20 @@ def test_evaluate_as_partial_shape(graph_with_partial_value):
     node = ops.abs(graph_with_partial_value)
     output_value = PartialShape([])
     assert evaluate_as_partial_shape(node.output(0), output_value)
+
+
+def test_tensor_descriptor():
+    data1 = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.int64)
+    data2 = np.array([3, 2, 1], dtype=np.int64)
+
+    node = ops.add(data1, data2)
+    input_tensor1 = node.get_input_tensor(0)
+
+    assert input_tensor1.get_element_type() == Type.i64
+    set_element_type(input_tensor1, Type.f64)
+    assert input_tensor1.get_element_type() == Type.f64
+
+    partial_shape = PartialShape([-1, 6])
+    set_tensor_type(input_tensor1, Type.i64, partial_shape)
+    assert input_tensor1.get_partial_shape() == partial_shape
+    assert input_tensor1.get_element_type() == Type.i64
