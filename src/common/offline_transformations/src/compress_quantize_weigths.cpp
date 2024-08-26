@@ -32,7 +32,8 @@ static bool compute_scale_and_zero_point(const std::shared_ptr<ov::op::v0::Const
                                          size_t levels,
                                          ov::Tensor& scale_tensor,
                                          ov::Tensor& zero_point_tensor,
-                                         bool& zero_point_is_zero);
+                                         bool& zero_point_is_zero,
+                                         ov::element::Type& low_precision_type);
 
 static std::shared_ptr<ov::op::v0::Constant> compress_quantized_weights(
     const std::shared_ptr<ov::op::v0::Constant>& weights,
@@ -62,6 +63,18 @@ static void replace_with_dequantize_subgraph(const std::shared_ptr<ov::op::v0::F
                                              const ov::Tensor& scale_tensor,
                                              bool zero_point_is_zero,
                                              const ov::Tensor& zero_point_tensor = {});
+
+template <typename T>
+bool is_non_negative(const T* data, const ov::Shape& shape) {
+    bool non_neg = true;
+    for (size_t i = 0; i < ov::shape_size(shape); ++i) {
+        non_neg &= (data[i] >= 0);
+        if (!non_neg) {
+            return false;
+        }
+    }
+    return true;
+}
 
 ov::pass::CompressWeightsWithFakeQuantize::CompressWeightsWithFakeQuantize() {
     auto weights_const_pattern = pattern::wrap_type<op::v0::Constant>();
@@ -166,7 +179,7 @@ ov::pass::CompressWeightsWithFakeQuantize::CompressWeightsWithFakeQuantize() {
                 return false;
             auto low_precision_type = element::undefined;
             // Currently we support two weights quantize types: i4, u4, i8, u8
-            // we determine that weights should be cast to u4, u8 inside compress_quantized_weights_internal
+            // we determine that the weights should be cast to u4, u8 inside compute_scale_and_zero_point
             if (levels <= 16) {
                 low_precision_type = element::i4;
             } else if (levels <= 256) {
@@ -185,7 +198,8 @@ ov::pass::CompressWeightsWithFakeQuantize::CompressWeightsWithFakeQuantize() {
                                               levels,
                                               scale_tensor,
                                               zero_point_tensor,
-                                              zero_point_is_zero)) {
+                                              zero_point_is_zero,
+                                              low_precision_type)) {
                 return false;
             }
 
@@ -429,10 +443,20 @@ static void compute_scale_and_zero_point_internal(const std::shared_ptr<ov::op::
                                                   size_t levels,
                                                   ov::Tensor& scale_tensor,
                                                   ov::Tensor& zero_point_tensor,
-                                                  bool& zero_point_is_zero) {
+                                                  bool& zero_point_is_zero,
+                                                  ov::element::Type& low_precision_type) {
+    // we consider that if all output low values are non negative then unsigned int (u8, u4) need to be used.
+    bool out_low_non_neg = is_non_negative(output_low->get_data_ptr<T>(), output_low->get_shape());
     zero_point_is_zero = true;
+    float new_output_low;
+    if (out_low_non_neg) {
+        new_output_low = 0;
+        low_precision_type = (low_precision_type == ov::element::i8) ? ov::element::u8 : ov::element::u4;
+    } else {
+        new_output_low = -static_cast<float>(levels / 2);
+    }
+
     float input_range = static_cast<float>(levels - 1);
-    float new_output_low = -static_cast<float>(levels / 2);
     T* zero_point = zero_point_tensor.data<T>();
     T* scale = scale_tensor.data<T>();
     ov::reference::autobroadcast_binop(
@@ -459,7 +483,8 @@ bool compute_scale_and_zero_point(const std::shared_ptr<ov::op::v0::Constant>& o
                                   size_t levels,
                                   ov::Tensor& scale_tensor,
                                   ov::Tensor& zero_point_tensor,
-                                  bool& zero_point_is_zero) {
+                                  bool& zero_point_is_zero,
+                                  ov::element::Type& low_precision_type) {
     const auto type = output_low->get_element_type();
     switch (type) {
     case ov::element::Type_t::f32: {
@@ -468,7 +493,8 @@ bool compute_scale_and_zero_point(const std::shared_ptr<ov::op::v0::Constant>& o
                                                      levels,
                                                      scale_tensor,
                                                      zero_point_tensor,
-                                                     zero_point_is_zero);
+                                                     zero_point_is_zero,
+                                                     low_precision_type);
         break;
     }
     case ov::element::f16: {
@@ -477,7 +503,8 @@ bool compute_scale_and_zero_point(const std::shared_ptr<ov::op::v0::Constant>& o
                                                            levels,
                                                            scale_tensor,
                                                            zero_point_tensor,
-                                                           zero_point_is_zero);
+                                                           zero_point_is_zero,
+                                                           low_precision_type);
         break;
     }
     case ov::element::bf16: {
@@ -486,7 +513,8 @@ bool compute_scale_and_zero_point(const std::shared_ptr<ov::op::v0::Constant>& o
                                                             levels,
                                                             scale_tensor,
                                                             zero_point_tensor,
-                                                            zero_point_is_zero);
+                                                            zero_point_is_zero,
+                                                            low_precision_type);
         break;
     }
 
@@ -724,17 +752,11 @@ static std::shared_ptr<ov::op::v0::Constant> compress_quantized_weights_internal
     size_t levels,
     bool& can_fuse_zero_point) {
     ov::element::Type new_low_precision_type = low_precision_type;
-    bool all_low_not_neg = true;
-    for (int i = 0; i < ov::shape_size(output_low_shape); ++i) {
-        all_low_not_neg = all_low_not_neg && (output_low[i] >= 0);
-        if (!all_low_not_neg) {
-            break;
-        }
-    }
+    bool out_low_not_neg = is_non_negative(output_low, output_low_shape);
 
-    if (low_precision_type == ov::element::i8 && all_low_not_neg) {
+    if (low_precision_type == ov::element::i8 && out_low_not_neg) {
         new_low_precision_type = ov::element::u8;
-    } else if (low_precision_type == ov::element::i4 && all_low_not_neg) {
+    } else if (low_precision_type == ov::element::i4 && out_low_not_neg) {
         new_low_precision_type = ov::element::u4;
     }
 
@@ -942,49 +964,108 @@ static std::shared_ptr<ov::op::v0::Constant> compress_quantized_weights_internal
     bool zero_point_is_zero,
     bool& can_fuse_zero_point) {
     using namespace ov::reference::fake_quantize_details;
-    ov::Tensor compressed_weights_tensor(ov::element::i8, weights_shape);
-    int8_t* compressed_weights = compressed_weights_tensor.data<int8_t>();
-    int8_t* compressed_weights_with_fused_zero_point = nullptr;
+
+    ov::element::Type tensor_el_type;
+    if (low_precision_type == ov::element::i8 || low_precision_type == ov::element::i4) {
+        tensor_el_type = ov::element::i8;
+    } else if (low_precision_type == ov::element::u8 || low_precision_type == ov::element::u4) {
+        tensor_el_type = ov::element::u8;
+    }
+
+    ov::Tensor compressed_weights_tensor(tensor_el_type, weights_shape);
     ov::Tensor compressed_weights_with_fused_zero_point_tensor;
     if (!zero_point_is_zero) {
-        compressed_weights_with_fused_zero_point_tensor = ov::Tensor(ov::element::i8, weights_shape);
-        compressed_weights_with_fused_zero_point = compressed_weights_with_fused_zero_point_tensor.data<int8_t>();
+        compressed_weights_with_fused_zero_point_tensor = ov::Tensor(tensor_el_type, weights_shape);
     }
-    T levels_minus_one = static_cast<T>(levels - 1);
-    T output_low = -static_cast<T>(levels / 2);
-    T output_high = levels_minus_one + output_low;
-    can_fuse_zero_point = !zero_point_is_zero;
-    const auto convert_to_low_precision = low_precision_type == ov::element::i4 ? convert_to_int4 : convert_to_int8;
 
-    auto f = [compressed_weights_with_fused_zero_point,
-              levels_minus_one,
-              output_low,
-              output_high,
-              zero_point_is_zero,
-              convert_to_low_precision,
-              &can_fuse_zero_point](T weights_value, T input_low, T input_high, T zero_point) mutable {
-        int8_t compressed_weights_value = convert_to_low_precision(
-            quantize(weights_value, input_low, input_high, output_low, output_high, levels_minus_one));
-        if (!zero_point_is_zero && can_fuse_zero_point) {
-            T weights_minus_zero_point = static_cast<T>(compressed_weights_value) - zero_point;
-            int8_t compressed_weights_with_fused_zero_point_value = convert_to_low_precision(weights_minus_zero_point);
-            can_fuse_zero_point &=
-                std::fabs(compressed_weights_with_fused_zero_point_value - weights_minus_zero_point) < 1e-4;
-            *compressed_weights_with_fused_zero_point++ = compressed_weights_with_fused_zero_point_value;
+    if (tensor_el_type == ov::element::i8) {
+        int8_t* compressed_weights = compressed_weights_tensor.data<int8_t>();
+        int8_t* compressed_weights_with_fused_zero_point = nullptr;
+
+        if (!zero_point_is_zero) {
+            compressed_weights_with_fused_zero_point = compressed_weights_with_fused_zero_point_tensor.data<int8_t>();
         }
-        return compressed_weights_value;
-    };
+        T levels_minus_one = static_cast<T>(levels - 1);
+        T output_low = -static_cast<T>(levels / 2);
+        T output_high = levels_minus_one + output_low;
+        can_fuse_zero_point = !zero_point_is_zero;
+        const auto convert_to_low_precision = low_precision_type == ov::element::i4 ? convert_to_int4 : convert_to_int8;
 
-    numpy_broadcast_4inputs(weights,
-                            weights_shape,
-                            input_low,
-                            input_low_shape,
-                            input_high,
-                            input_high_shape,
-                            zero_point,
-                            zero_point_shape,
-                            compressed_weights,
-                            f);
+        auto f = [compressed_weights_with_fused_zero_point,
+                  levels_minus_one,
+                  output_low,
+                  output_high,
+                  zero_point_is_zero,
+                  convert_to_low_precision,
+                  &can_fuse_zero_point](T weights_value, T input_low, T input_high, T zero_point) mutable {
+            int8_t compressed_weights_value = convert_to_low_precision(
+                quantize(weights_value, input_low, input_high, output_low, output_high, levels_minus_one));
+            if (!zero_point_is_zero && can_fuse_zero_point) {
+                T weights_minus_zero_point = static_cast<T>(compressed_weights_value) - zero_point;
+                int8_t compressed_weights_with_fused_zero_point_value =
+                    convert_to_low_precision(weights_minus_zero_point);
+                can_fuse_zero_point &=
+                    std::fabs(compressed_weights_with_fused_zero_point_value - weights_minus_zero_point) < 1e-4;
+                *compressed_weights_with_fused_zero_point++ = compressed_weights_with_fused_zero_point_value;
+            }
+            return compressed_weights_value;
+        };
+
+        numpy_broadcast_4inputs(weights,
+                                weights_shape,
+                                input_low,
+                                input_low_shape,
+                                input_high,
+                                input_high_shape,
+                                zero_point,
+                                zero_point_shape,
+                                compressed_weights,
+                                f);
+    } else if (tensor_el_type == ov::element::u8) {
+        uint8_t* compressed_weights = compressed_weights_tensor.data<uint8_t>();
+        uint8_t* compressed_weights_with_fused_zero_point = nullptr;
+
+        if (!zero_point_is_zero) {
+            compressed_weights_with_fused_zero_point = compressed_weights_with_fused_zero_point_tensor.data<uint8_t>();
+        }
+        T levels_minus_one = static_cast<T>(levels - 1);
+        T output_low = 0;
+        T output_high = levels_minus_one + output_low;
+        can_fuse_zero_point = !zero_point_is_zero;
+        const auto convert_to_low_precision =
+            low_precision_type == ov::element::u4 ? convert_to_uint4 : convert_to_uint8;
+
+        auto f = [compressed_weights_with_fused_zero_point,
+                  levels_minus_one,
+                  output_low,
+                  output_high,
+                  zero_point_is_zero,
+                  convert_to_low_precision,
+                  &can_fuse_zero_point](T weights_value, T input_low, T input_high, T zero_point) mutable {
+            uint8_t compressed_weights_value = convert_to_low_precision(
+                quantize(weights_value, input_low, input_high, output_low, output_high, levels_minus_one));
+            if (!zero_point_is_zero && can_fuse_zero_point) {
+                T weights_minus_zero_point = static_cast<T>(compressed_weights_value) - zero_point;
+                uint8_t compressed_weights_with_fused_zero_point_value =
+                    convert_to_low_precision(weights_minus_zero_point);
+                can_fuse_zero_point &=
+                    std::fabs(compressed_weights_with_fused_zero_point_value - weights_minus_zero_point) < 1e-4;
+                *compressed_weights_with_fused_zero_point++ = compressed_weights_with_fused_zero_point_value;
+            }
+            return compressed_weights_value;
+        };
+
+        numpy_broadcast_4inputs(weights,
+                                weights_shape,
+                                input_low,
+                                input_low_shape,
+                                input_high,
+                                input_high_shape,
+                                zero_point,
+                                zero_point_shape,
+                                compressed_weights,
+                                f);
+    }
 
     return create_weights_constant(
         can_fuse_zero_point ? compressed_weights_with_fused_zero_point_tensor : compressed_weights_tensor,
