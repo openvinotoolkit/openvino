@@ -344,7 +344,7 @@ public:
 
     /// Returns the shape of input i
     // TODO: deprecate in favor of node->get_input_shape(i)
-    Shape get_input_shape(size_t i) const;
+    const Shape& get_input_shape(size_t i) const;
 
     /// Returns the partial shape of input i
     // TODO: deprecate in favor of node->get_input_partial_shape(i)
