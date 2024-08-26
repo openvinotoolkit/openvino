@@ -25,7 +25,7 @@ ParamsKey LSTMSeqKernel_bfyx::GetSupportedKey() const {
 }
 
 KernelsData LSTMSeqKernel_bfyx::GetKernelsData(const Params& params) const {
-    return GetCommonKernelsData(params, true, true);
+    return GetCommonKernelsData(params, true);
 }
 
 KernelsPriority LSTMSeqKernel_bfyx::GetKernelsPriority(const Params& /*params*/) const {

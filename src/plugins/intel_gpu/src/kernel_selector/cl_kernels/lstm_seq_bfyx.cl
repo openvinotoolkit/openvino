@@ -27,9 +27,8 @@ KERNEL(lstm_seq)(
 #endif
 )
 {
-    __local ACCUMULATOR_TYPE gate_output[GATE_NUM];
     #ifdef SEQUENCE && HBLOCK_NUM > 0
-        INPUT3_TYPE_VEC r_block[NUM_HIDDEN_TO_DO][HBLOCK_NUM];
+        INPUT3_TYPE_VEC r_block[NUM_HIDDEN_TO_DO][GATE_NUM][HBLOCK_NUM];
     #endif    
     const uint b = get_global_id(1);
     const uint local_idx = get_local_id(0);
@@ -39,7 +38,6 @@ KERNEL(lstm_seq)(
     #else
         const uint real_seq_length = 1;
     #endif
-    uint k = get_local_id(2);
     unroll_for(uint i=0;i<real_seq_length;++i){
         #ifdef SEQUENCE
             #if DIRECTION == 1 //reverse
@@ -56,68 +54,65 @@ KERNEL(lstm_seq)(
             if (hidden_idx >= HIDDEN_SIZE) {
                 continue;
             }
-            
+            ACCUMULATOR_TYPE gate_output[GATE_NUM];
+            unroll_for(uint k=0;k<GATE_NUM;++k){
+                ACCUMULATOR_TYPE hidden_result = 0;
+                const uint weight_idx = hidden_idx+weight_offsets[k];
+                #if HBLOCK_NUM > 0
+                    unroll_for(uint j=0;j<HBLOCK_NUM;++j) {
+                        if(i==0){
+                            #ifdef SEQUENCE
+                                INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, 0, j*VEC_SIZE, 0)]);
+                                r_block[l][k][j] = READ_VEC(0, &R[INPUT3_GET_INDEX_SAFE(weight_idx, j*VEC_SIZE, 0, 0)]);
+                                hidden_result += initial_block.s0*r_block[l][k][j].s0 + initial_block.s1*r_block[l][k][j].s1 + initial_block.s2*r_block[l][k][j].s2 + initial_block.s3*r_block[l][k][j].s3 + initial_block.s4*r_block[l][k][j].s4 + initial_block.s5*r_block[l][k][j].s5 + initial_block.s6*r_block[l][k][j].s6 + initial_block.s7*r_block[l][k][j].s7;
+                            #else
+                                INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, j*VEC_SIZE, 0, 0)]);
+                                INPUT3_TYPE_VEC r_block = READ_VEC(0, &R[INPUT3_GET_INDEX_SAFE(weight_idx, j*VEC_SIZE, 0, 0)]);
+                                hidden_result += initial_block.s0*r_block.s0 + initial_block.s1*r_block.s1 + initial_block.s2*r_block.s2 + initial_block.s3*r_block.s3 + initial_block.s4*r_block.s4 + initial_block.s5*r_block.s5 + initial_block.s6*r_block.s6 + initial_block.s7*r_block.s7;
 
-            ACCUMULATOR_TYPE hidden_result = 0;
-            const uint weight_idx = hidden_idx+weight_offsets[k];
-            #if HBLOCK_NUM > 0
-                unroll_for(uint j=0;j<HBLOCK_NUM;++j) {
+                            #endif
+                        }else{
+                            #ifdef SEQUENCE
+                                OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX_SAFE(b, 0, prev_idx, j*VEC_SIZE)]);
+                                hidden_result += h_block.s0*r_block[l][k][j].s0 + h_block.s1*r_block[l][k][j].s1 + h_block.s2*r_block[l][k][j].s2 + h_block.s3*r_block[l][k][j].s3 + h_block.s4*r_block[l][k][j].s4 + h_block.s5*r_block[l][k][j].s5 + h_block.s6*r_block[l][k][j].s6 + h_block.s7*r_block[l][k][j].s7;
+                            #endif
+                        }
+                    }
+                #endif //HBLOCK_NUM > 0
+                unroll_for(uint j=HBLOCK_NUM*VEC_SIZE;j<HIDDEN_SIZE;++j) {
                     if(i==0){
                         #ifdef SEQUENCE
-                            INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, 0, j*VEC_SIZE, 0)]);
-                            r_block[l][j] = READ_VEC(0, &R[INPUT3_GET_INDEX_SAFE(weight_idx, j*VEC_SIZE, 0, 0)]);
-                            hidden_result += initial_block.s0*r_block[l][j].s0 + initial_block.s1*r_block[l][j].s1 + initial_block.s2*r_block[l][j].s2 + initial_block.s3*r_block[l][j].s3 + initial_block.s4*r_block[l][j].s4 + initial_block.s5*r_block[l][j].s5 + initial_block.s6*r_block[l][j].s6 + initial_block.s7*r_block[l][j].s7;
+                            hidden_result += initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, 0, j, 0)]*R[INPUT3_GET_INDEX_SAFE(0, weight_idx, j, 0)];
                         #else
-                            INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, j*VEC_SIZE, 0, 0)]);
-                            INPUT3_TYPE_VEC r_block = READ_VEC(0, &R[INPUT3_GET_INDEX_SAFE(weight_idx, j*VEC_SIZE, 0, 0)]);
-                            hidden_result += initial_block.s0*r_block.s0 + initial_block.s1*r_block.s1 + initial_block.s2*r_block.s2 + initial_block.s3*r_block.s3 + initial_block.s4*r_block.s4 + initial_block.s5*r_block.s5 + initial_block.s6*r_block.s6 + initial_block.s7*r_block.s7;
-
+                            hidden_result += initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, j, 0, 0)]*R[INPUT3_GET_INDEX_SAFE(weight_idx, j, 0, 0)];
                         #endif
                     }else{
                         #ifdef SEQUENCE
-                            OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX_SAFE(b, 0, prev_idx, j*VEC_SIZE)]);
-                            hidden_result += h_block.s0*r_block[l][j].s0 + h_block.s1*r_block[l][j].s1 + h_block.s2*r_block[l][j].s2 + h_block.s3*r_block[l][j].s3 + h_block.s4*r_block[l][j].s4 + h_block.s5*r_block[l][j].s5 + h_block.s6*r_block[l][j].s6 + h_block.s7*r_block[l][j].s7;
+                            hidden_result += hidden_history[OUTPUT_GET_INDEX_SAFE(b, 0, prev_idx, j)]*R[INPUT3_GET_INDEX_SAFE(0, weight_idx, j, 0)];
                         #endif
                     }
                 }
-            #endif //HBLOCK_NUM > 0
-            unroll_for(uint j=HBLOCK_NUM*VEC_SIZE;j<HIDDEN_SIZE;++j) {
-                if(i==0){
-                    #ifdef SEQUENCE
-                        hidden_result += initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, 0, j, 0)]*R[INPUT3_GET_INDEX_SAFE(0, weight_idx, j, 0)];
-                    #else
-                        hidden_result += initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, j, 0, 0)]*R[INPUT3_GET_INDEX_SAFE(weight_idx, j, 0, 0)];
-                    #endif
-                }else{
-                    #ifdef SEQUENCE
-                        hidden_result += hidden_history[OUTPUT_GET_INDEX_SAFE(b, 0, prev_idx, j)]*R[INPUT3_GET_INDEX_SAFE(0, weight_idx, j, 0)];
-                    #endif
-                }
-            }
-            #if DIRECTION == 1 //reverse
-                gate_output[k] = hidden_result + xWB[INPUT0_GET_INDEX_SAFE(b, real_seq_length-1-i, weight_idx, 0)];
-            #else
-                #ifdef SEQUENCE
-                    gate_output[k] = hidden_result + xWB[INPUT0_GET_INDEX_SAFE(b, i, weight_idx, 0)];
+                #if DIRECTION == 1 //reverse
+                    gate_output[k] = hidden_result + xWB[INPUT0_GET_INDEX_SAFE(b, real_seq_length-1-i, weight_idx, 0)];
                 #else
-                    gate_output[k] = hidden_result + xWB[INPUT0_GET_INDEX_SAFE(b, weight_idx, 0, 0)];
-                #endif
-            #endif //DIRECTION
-            switch(k){
-                case 0:
-                case 1:
-                case 3:
-                    gate_output[k] = ACTIVATION_F(ACTIVATION_CLIP(TO_OUTPUT_TYPE(gate_output[k]), ACTIVATION_PARAMS_CLIP), ACTIVATION_PARAMS_F);
-                    break;
-                case 2:
-                    gate_output[k] = ACTIVATION_G(ACTIVATION_CLIP(TO_OUTPUT_TYPE(gate_output[k]), ACTIVATION_PARAMS_CLIP), ACTIVATION_PARAMS_G);
-                    break;
-                default:
-                    break;
-            }
-            barrier(CLK_LOCAL_MEM_FENCE);
-            if(k!=0) {
-                continue;
+                    #ifdef SEQUENCE
+                        gate_output[k] = hidden_result + xWB[INPUT0_GET_INDEX_SAFE(b, i, weight_idx, 0)];
+                    #else
+                        gate_output[k] = hidden_result + xWB[INPUT0_GET_INDEX_SAFE(b, weight_idx, 0, 0)];
+                    #endif
+                #endif //DIRECTION
+                switch(k){
+                    case 0:
+                    case 1:
+                    case 3:
+                        gate_output[k] = ACTIVATION_F(ACTIVATION_CLIP(TO_OUTPUT_TYPE(gate_output[k]), ACTIVATION_PARAMS_CLIP), ACTIVATION_PARAMS_F);
+                        break;
+                    case 2:
+                        gate_output[k] = ACTIVATION_G(ACTIVATION_CLIP(TO_OUTPUT_TYPE(gate_output[k]), ACTIVATION_PARAMS_CLIP), ACTIVATION_PARAMS_G);
+                        break;
+                    default:
+                        break;
+                }
             }
             ACCUMULATOR_TYPE temp_cell_state;
             if (i==0){
