@@ -67,7 +67,7 @@ protected:
 
 TEST_P(AlignMatMulInputRanksTest, CompareWithRefs) {
     run();
-    CheckNumberOfNodesWithType(compiledModel,
+    utils::CheckNumberOfNodesWithType(compiledModel,
                                "Reshape",
                                expectedNumOfReshapes);  // Squeeze / Unsqueeze turns into Reshape
 }

@@ -68,7 +68,7 @@ protected:
 
 TEST_P(ConvertToPluginSpecificNode, CompareWithRefs) {
     run();
-    CheckNumberOfNodesWithType(compiledModel, "Const", constNodeNum);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Const", constNodeNum);
 }
 
 namespace {

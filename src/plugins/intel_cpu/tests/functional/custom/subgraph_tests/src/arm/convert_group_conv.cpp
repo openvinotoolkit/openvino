@@ -68,9 +68,9 @@ protected:
 
 TEST_P(GroupConvToConvTransformationCPUTest, CompareWithRefs) {
     run();
-    CheckNumberOfNodesWithType(compiledModel, "Split", 1);
-    CheckNumberOfNodesWithType(compiledModel, "Convolution", numOfGroups);
-    CheckNumberOfNodesWithType(compiledModel, "Concatenation", 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Split", 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Convolution", numOfGroups);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Concatenation", 1);
 }
 
 namespace {

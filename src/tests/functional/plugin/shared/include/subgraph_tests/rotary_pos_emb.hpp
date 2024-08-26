@@ -5,6 +5,7 @@
 #pragma once
 
 #include "shared_test_classes/subgraph/rotary_pos_emb.hpp"
+#include "functional_test_utils/check_node_type.hpp"
 
 namespace ov {
 namespace test {
@@ -12,55 +13,55 @@ namespace test {
 TEST_P(RoPETestLlama2StridedSlice, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
-    CheckNumberOfNodesWithType(compiledModel, {"RoPE"}, 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, {"RoPE"}, 1);
 };
 
 TEST_P(RoPETestChatGLMStridedSlice, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
-    CheckNumberOfNodesWithType(compiledModel, {"RoPE"}, 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, {"RoPE"}, 1);
 };
 
 TEST_P(RoPETestQwen7bStridedSlice, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
-    CheckNumberOfNodesWithType(compiledModel, {"RoPE"}, 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, {"RoPE"}, 1);
 };
 
 TEST_P(RoPETestGPTJStridedSlice, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
-    CheckNumberOfNodesWithType(compiledModel, {"RoPE"}, 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, {"RoPE"}, 1);
 };
 
 TEST_P(RoPETestRotateHalfWithoutTranspose, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
-    CheckNumberOfNodesWithType(compiledModel, {"RoPE"}, 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, {"RoPE"}, 1);
 }
 
 TEST_P(RoPETestLlama2Slice, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
-    CheckNumberOfNodesWithType(compiledModel, {"RoPE"}, 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, {"RoPE"}, 1);
 };
 
 TEST_P(RoPETestChatGLMSlice, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
-    CheckNumberOfNodesWithType(compiledModel, {"RoPE"}, 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, {"RoPE"}, 1);
 };
 
 TEST_P(RoPETestQwen7bSlice, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
-    CheckNumberOfNodesWithType(compiledModel, {"RoPE"}, 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, {"RoPE"}, 1);
 };
 
 TEST_P(RoPETestGPTJSlice, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
-    CheckNumberOfNodesWithType(compiledModel, {"RoPE"}, 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, {"RoPE"}, 1);
 };
 
 }  // namespace test

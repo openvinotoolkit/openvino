@@ -211,7 +211,7 @@ protected:
 
 TEST_F(CausalMaskPreprocessCausalMaskPreprocess, smoke_CompareWithRefs) {
     run();
-    CheckNumberOfNodesWithType(compiledModel, "CausalMaskPreprocess", 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, "CausalMaskPreprocess", 1);
 }
 
 }  // namespace test

@@ -5,6 +5,7 @@
 #include "shared_test_classes/subgraph/matmul_split_decompose.hpp"
 
 #include "common_test_utils/node_builders/constant.hpp"
+#include "functional_test_utils/check_node_type.hpp"
 
 namespace ov {
 namespace test {
@@ -109,7 +110,7 @@ void MatMulGatherDecompose::SetUp() {
 }
 
 void MatMulGatherDecompose::check_results() {
-    CheckNumberOfNodesWithType(compiledModel, {"FullyConnected"}, 3);
+    utils::CheckNumberOfNodesWithType(compiledModel, {"FullyConnected"}, 3);
 }
 
 }  // namespace test

@@ -108,7 +108,7 @@ protected:
 TEST_P(ShapeOfAnyLayoutCPUTest, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, "ShapeOf");
-    CheckNumberOfNodesWithType(compiledModel, "Reorder", 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Reorder", 1);
 }
 
 namespace {

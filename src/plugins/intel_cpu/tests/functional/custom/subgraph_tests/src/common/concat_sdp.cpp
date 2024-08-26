@@ -214,10 +214,10 @@ TEST_P(ConcatSDPTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     auto actualOutputs = run_test(function);
     if (!hasShapeOf) {
-        CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
-        CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
-        CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
-        CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
+        utils::CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
+        utils::CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
+        utils::CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
+        utils::CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
     } else {
         // SimplifyGatherShapeOf will generate subgraph which contains Gather/Concat/Reorder, so could not check the number to confirm it's expected.
         // W/ or w/o fusion the SDPA name is the same, but if fused the output number should be 3(data+pastk+pastv)
@@ -228,7 +228,7 @@ TEST_P(ConcatSDPTest, CompareWithRefs) {
         }
     }
     auto expectedOutputs = run_test(functionRefs);
-    CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
+    utils::CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
         ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
     }

@@ -62,8 +62,8 @@ namespace {
 TEST_F(AddConvertToReorderTest, smoke_TestAddReorder_CPU) {
     BuildGraph(ov::element::i8);
     run();
-    CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
-    CheckNumberOfNodesWithType(compiledModel, "Reorder", 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Reorder", 1);
 }
 }  // namespace
 }  // namespace test

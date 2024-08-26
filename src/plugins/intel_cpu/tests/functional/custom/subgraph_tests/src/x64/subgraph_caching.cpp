@@ -101,8 +101,8 @@ protected:
 TEST_P(SubgraphCacheTest, CompareWithRefs) {
     run();
 
-    CheckNumberOfNodesWithType(compiledModel, "MatMul", 0);
-    CheckNumberOfNodesWithType(compiledModel, "Subgraph", 2);
+    utils::CheckNumberOfNodesWithType(compiledModel, "MatMul", 0);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Subgraph", 2);
 }
 
 namespace {

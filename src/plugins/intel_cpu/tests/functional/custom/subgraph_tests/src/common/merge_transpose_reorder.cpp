@@ -133,9 +133,9 @@ protected:
     }
 
     void validate_exec_graph() {
-        CheckNumberOfNodesWithType(compiledModel, "Reshape", m_expected_result.expected_reshape_count);
-        CheckNumberOfNodesWithType(compiledModel, "Transpose", m_expected_result.expected_transpose_count);
-        CheckNumberOfNodesWithType(compiledModel, "Reorder", m_expected_result.expected_reorder_count);
+        utils::CheckNumberOfNodesWithType(compiledModel, "Reshape", m_expected_result.expected_reshape_count);
+        utils::CheckNumberOfNodesWithType(compiledModel, "Transpose", m_expected_result.expected_transpose_count);
+        utils::CheckNumberOfNodesWithType(compiledModel, "Reorder", m_expected_result.expected_reorder_count);
     }
 
 private:

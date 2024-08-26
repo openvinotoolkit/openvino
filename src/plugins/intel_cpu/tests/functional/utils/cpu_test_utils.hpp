@@ -9,6 +9,7 @@
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
+#include "functional_test_utils/check_node_type.hpp"
 
 namespace CPUTestUtils {
 typedef enum {

@@ -224,10 +224,10 @@ protected:
 
     void check_execution_graph() {
         CheckPluginRelatedResults(compiledModel, "FullyConnected");
-        CheckNumberOfNodesWithType(compiledModel, "FullyConnected", fullyConnectedCount);
-        CheckNumberOfNodesWithType(compiledModel, "Transpose", transposeCount);
-        CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
-        CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
+        utils::CheckNumberOfNodesWithType(compiledModel, "FullyConnected", fullyConnectedCount);
+        utils::CheckNumberOfNodesWithType(compiledModel, "Transpose", transposeCount);
+        utils::CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
+        utils::CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
         check_fc_weights_precision(expectedWeiConstElemType);
     }
 

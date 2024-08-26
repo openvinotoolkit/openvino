@@ -259,7 +259,7 @@ TEST_P(MHATest, CompareWithRefs) {
     run();
 
     for (const auto& node : expectedNodes) {
-        CheckNumberOfNodesWithType(compiledModel, node.first, node.second);
+        utils::CheckNumberOfNodesWithType(compiledModel, node.first, node.second);
     }
 }
 
@@ -639,7 +639,7 @@ TEST_P(MHAQuantTest, CompareWithRefs) {
     run();
 
     for (const auto& node : expectedNodes) {
-        CheckNumberOfNodesWithType(compiledModel, node.first, node.second);
+        utils::CheckNumberOfNodesWithType(compiledModel, node.first, node.second);
     }
 }
 

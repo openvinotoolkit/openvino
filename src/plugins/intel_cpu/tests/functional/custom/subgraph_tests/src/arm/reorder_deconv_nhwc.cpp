@@ -61,7 +61,7 @@ public:
 
 TEST_F(ReorderDeconvNHWCTest, smoke_ReorderDeconvNHWC_CPU) {
     run();
-    CheckNumberOfNodesWithType(compiledModel, "Reorder", 2);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Reorder", 2);
 }
 
 }  // namespace test
