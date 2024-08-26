@@ -2,278 +2,43 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "custom/single_layer_tests/classes/interpolate.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
-#include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
-#include "openvino/pass/manager.hpp"
 
 using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
+namespace Interpolate {
+namespace {
 
-using InterpolateSpecificParams =
-    std::tuple<ov::op::v11::Interpolate::InterpolateMode,          // InterpolateMode
-               ov::op::v11::Interpolate::CoordinateTransformMode,  // CoordinateTransformMode
-               ov::op::v11::Interpolate::NearestMode,              // NearestMode
-               bool,                                               // AntiAlias
-               std::vector<size_t>,                                // PadBegin
-               std::vector<size_t>,                                // PadEnd
-               double>;                                            // Cube coef
-
-using ShapeParams = std::tuple<ov::op::v11::Interpolate::ShapeCalcMode,  // ShapeCalculationMode
-                               InputShape,                               // Input shapes
-                               // params describing input, choice of which depends on ShapeCalcMode
-                               ov::test::utils::InputLayerType,  // input type
-                               std::vector<std::vector<float>>,  // scales or sizes values
-                               std::vector<int64_t>>;            // axes
-
-using InterpolateLayerCPUTestParamsSet = std::tuple<InterpolateSpecificParams,
-                                                    ShapeParams,
-                                                    ElementType,
-                                                    CPUSpecificParams,
-                                                    fusingSpecificParams,
-                                                    ov::AnyMap>;
-
-class InterpolateLayerCPUTest : public testing::WithParamInterface<InterpolateLayerCPUTestParamsSet>,
-                                virtual public SubgraphBaseTest, public CpuTestWithFusing {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<InterpolateLayerCPUTestParamsSet> obj) {
-        InterpolateSpecificParams specificParams;
-        ShapeParams shapeParams;
-        ElementType prec;
-        CPUSpecificParams cpuParams;
-        fusingSpecificParams fusingParams;
-        ov::AnyMap additionalConfig;
-        std::tie(specificParams, shapeParams, prec, cpuParams, fusingParams, additionalConfig) = obj.param;
-
-        ov::op::v11::Interpolate::InterpolateMode mode;
-        ov::op::v11::Interpolate::CoordinateTransformMode transfMode;
-        ov::op::v11::Interpolate::NearestMode nearMode;
-        bool antiAlias;
-        std::vector<size_t> padBegin;
-        std::vector<size_t> padEnd;
-        double cubeCoef;
-        std::tie(mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef) = specificParams;
-
-        ov::op::v11::Interpolate::ShapeCalcMode shapeCalcMode;
-        InputShape inputShapes;
-        ov::test::utils::InputLayerType shapeInputType;
-        std::vector<std::vector<float>> shapeDataForInput;
-        std::vector<int64_t> axes;
-        std::tie(shapeCalcMode, inputShapes, shapeInputType, shapeDataForInput, axes) = shapeParams;
-
-        using ov::test::utils::operator<<;
-        std::ostringstream result;
-        result << "ShapeCalcMode=" << shapeCalcMode << "_";
-        result << "IS=";
-        result << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
-        result << "TS=";
-        for (const auto& shape : inputShapes.second) {
-            result << ov::test::utils::vec2str(shape) << "_";
-        }
-        if (shapeCalcMode == ov::op::v11::Interpolate::ShapeCalcMode::SCALES) {
-            result << "Scales=";
-        } else {
-            result << "Sizes=";
-        }
-        for (const auto &data : shapeDataForInput) {
-            result << ov::test::utils::vec2str(data) << "_";
-        }
-        result << shapeInputType << "_";
-        result << "InterpolateMode=" << mode << "_";
-        result << "CoordinateTransformMode=" << transfMode << "_";
-        result << "NearestMode=" << nearMode << "_";
-        result << "CubeCoef=" << cubeCoef << "_";
-        result << "Antialias=" << antiAlias << "_";
-        result << "PB=" << ov::test::utils::vec2str(padBegin) << "_";
-        result << "PE=" << ov::test::utils::vec2str(padEnd) << "_";
-        result << "Axes=" << ov::test::utils::vec2str(axes) << "_";
-        result << "PRC=" << prec << "_";
-
-        result << CPUTestsBase::getTestCaseName(cpuParams);
-        result << CpuTestWithFusing::getTestCaseName(fusingParams);
-
-        if (!additionalConfig.empty()) {
-            result << "_PluginConf";
-            for (auto& item : additionalConfig) {
-                result << "_" << item.first << "=" << item.second.as<std::string>();
-            }
-        }
-
-        return result.str();
+const std::vector<ov::AnyMap> filterAdditionalConfig() {
+    if (ov::with_cpu_x86_avx512f()) {
+        return {{{ov::hint::inference_precision(ov::element::f32)}},
+                {{ov::hint::inference_precision(ov::element::bf16)}}};
+    } else {
+        return {// default config as an stub for target without avx512, otherwise all tests with BF16 in its name are
+                // skipped
+                {}};
     }
-
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
-        inputs.clear();
-        const auto& funcInputs = function->inputs();
-        for (size_t i = 0; i < funcInputs.size(); ++i) {
-            const auto& funcInput = funcInputs[i];
-            ov::Tensor tensor;
-
-            if (i == 1) {
-                if (shapeCalcMode == ov::op::v4::Interpolate::ShapeCalcMode::SIZES) {
-                    tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i], sizes[inferRequestNum].data());
-                } else {
-                    tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i], scales[inferRequestNum].data());
-                }
-            } else {
-                ov::test::utils::InputGenerateData in_data;
-                in_data.start_from = 0;
-                in_data.range = 2560;
-                in_data.resolution = 256;
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
-            }
-
-            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
-        }
-        inferRequestNum++;
-    }
-
-    void configure_model() override {
-        ov::preprocess::PrePostProcessor p(function);
-        {
-            auto& params = function->get_parameters();
-            for (size_t i = 0; i < params.size(); i++) {
-                if (i > 0) {
-                    continue;
-                }
-                if (inType != ov::element::Type_t::undefined) {
-                    p.input(i).tensor().set_element_type(inType);
-                }
-            }
-        }
-        {
-            auto results = function->get_results();
-            for (size_t i = 0; i < results.size(); i++) {
-                if (outType != ov::element::Type_t::undefined) {
-                    p.output(i).tensor().set_element_type(outType);
-                }
-            }
-        }
-        function = p.build();
-    }
-
-protected:
-    std::vector<std::vector<float>> scales;
-    std::vector<std::vector<int32_t>> sizes;
-    ov::op::v4::Interpolate::ShapeCalcMode shapeCalcMode;
-    size_t inferRequestNum = 0;
-
-    void SetUp() override {
-        targetDevice = ov::test::utils::DEVICE_CPU;
-
-        InterpolateSpecificParams specificParams;
-        ShapeParams shapeParams;
-        ElementType ngPrc;
-        CPUSpecificParams cpuParams;
-        fusingSpecificParams fusingParams;
-        ov::AnyMap additionalConfig;
-        std::tie(specificParams, shapeParams, ngPrc, cpuParams, fusingParams, additionalConfig) = this->GetParam();
-
-        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        std::tie(postOpMgrPtr, fusedOps) = fusingParams;
-        configuration.insert(additionalConfig.begin(), additionalConfig.end());
-
-        ov::op::v11::Interpolate::InterpolateMode mode;
-        ov::op::v11::Interpolate::CoordinateTransformMode transfMode;
-        ov::op::v11::Interpolate::NearestMode nearMode;
-        bool antiAlias;
-        std::vector<size_t> padBegin;
-        std::vector<size_t> padEnd;
-        double cubeCoef;
-        std::tie(mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef) = specificParams;
-
-        InputShape dataShape;
-        ov::test::utils::InputLayerType shapeInputType;
-        std::vector<std::vector<float>> shapeDataForInput;
-        std::vector<int64_t> axes;
-        std::tie(shapeCalcMode, dataShape, shapeInputType, shapeDataForInput, axes) = shapeParams;
-
-        if (shapeCalcMode == ov::op::v11::Interpolate::ShapeCalcMode::SCALES) {
-            scales = shapeDataForInput;
-        } else {
-            sizes.resize(shapeDataForInput.size());
-            for (size_t i = 0; i < shapeDataForInput.size(); i++) {
-                for (size_t j = 0; j < shapeDataForInput[i].size(); j++) {
-                    sizes[i].push_back(shapeDataForInput[i][j]);
-                }
-            }
-        }
-
-        std::vector<InputShape> inputShapes;
-        inputShapes.push_back(dataShape);
-        if (shapeInputType == ov::test::utils::InputLayerType::PARAMETER) {
-            inputShapes.push_back(InputShape({static_cast<int64_t>(axes.size())}, std::vector<ov::Shape>(dataShape.second.size(), {axes.size()})));
-        }
-
-        auto it = additionalConfig.find(ov::hint::inference_precision.name());
-        if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
-            inType = outType = ngPrc = ElementType::bf16;
-            rel_threshold = 1e-2f;
-        } else {
-            inType = outType = ngPrc;
-        }
-
-        init_input_shapes(inputShapes);
-
-        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, inputDynamicShapes.front())};
-        std::shared_ptr<ov::Node> sizesInput, scalesInput;
-        if (shapeCalcMode == ov::op::v11::Interpolate::ShapeCalcMode::SCALES) {
-            if (shapeInputType == ov::test::utils::InputLayerType::PARAMETER) {
-                auto paramNode = std::make_shared<ov::op::v0::Parameter>(ElementType::f32, ov::Shape{scales.front().size()});
-                params.push_back(paramNode);
-                scalesInput = paramNode;
-            } else {
-                scalesInput = std::make_shared<ov::op::v0::Constant>(ElementType::f32, ov::Shape{scales.front().size()}, scales.front());
-            }
-        } else {
-            if (shapeInputType == ov::test::utils::InputLayerType::PARAMETER) {
-                auto paramNode = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::Shape{sizes.front().size()});
-                params.push_back(paramNode);
-                sizesInput = paramNode;
-            } else {
-                sizesInput = std::make_shared<ov::op::v0::Constant>(ElementType::i32, ov::Shape{sizes.front().size()}, sizes.front());
-            }
-        }
-        auto axesInput = std::make_shared<ov::op::v0::Constant>(ElementType::i64, ov::Shape{axes.size()}, axes);
-
-        for (size_t i = 0; i < params.size(); i++) {
-            params[i]->set_friendly_name(std::string("param_") + std::to_string(i));
-        }
-
-        ov::op::v11::Interpolate::InterpolateAttrs interpAttr{mode, shapeCalcMode, padBegin, padEnd, transfMode, nearMode,
-                                                                            antiAlias, cubeCoef};
-
-        std::shared_ptr<ov::op::v11::Interpolate> interp = nullptr;
-        if (shapeCalcMode == ov::op::v11::Interpolate::ShapeCalcMode::SCALES) {
-            interp = std::make_shared<ov::op::v11::Interpolate>(params[0], scalesInput, axesInput, interpAttr);
-        } else {
-            interp = std::make_shared<ov::op::v11::Interpolate>(params[0], sizesInput, axesInput, interpAttr);
-        }
-
-        function = makeNgraphFunction(ngPrc, params, interp, "InterpolateCPU");
-
-        ov::pass::Manager m;
-        m.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
-        m.run_passes(function);
-
-        if (selectedType.empty()) {
-            selectedType = getPrimitiveType();
-        }
-        selectedType = makeSelectedTypeStr(selectedType, ngPrc);
-    }
-};
-
-TEST_P(InterpolateLayerCPUTest, CompareWithRefs) {
-    run();
-    CheckPluginRelatedResults(compiledModel, "Interpolate");
 }
 
-namespace {
+const std::vector<CPUSpecificParams> filterCPUInfoForDevice3D() {
+    if (ov::with_cpu_x86_avx2()) {
+        return { CPUSpecificParams{{ncw, x, x, x}, {ncw}, {"jit_avx2"}, "jit_avx2"} };
+    } else {
+        return { CPUSpecificParams{{ncw, x, x, x}, {ncw}, {"ref"}, "ref"} };
+    }
+}
+
+const std::vector<ov::AnyMap> filterAdditionalConfig3D() {
+    return { {} };
+}
+
 const std::vector<ov::op::v11::Interpolate::CoordinateTransformMode> coordinateTransformModes_Smoke = {
         ov::op::v11::Interpolate::CoordinateTransformMode::HALF_PIXEL,
         ov::op::v11::Interpolate::CoordinateTransformMode::ASYMMETRIC,
@@ -301,53 +66,11 @@ const std::vector<ov::op::v11::Interpolate::NearestMode> nearestModes_Full = {
         ov::op::v11::Interpolate::NearestMode::ROUND_PREFER_CEIL,
 };
 
-const std::vector<ov::op::v11::Interpolate::NearestMode> defNearestModes = {
-        ov::op::v11::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
-};
-
-const std::vector<bool> antialias = {
-        false,
-};
-
-const std::vector<double> cubeCoefs = {
-        -0.75f,
-};
-
 const std::vector<fusingSpecificParams> interpolateFusingParamsSet{
         emptyFusingSpec,
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         fusingSwish,
-        fusingFakeQuantizePerTensorRelu,
-#endif
+        fusingFakeQuantizePerTensorRelu
 };
-
-std::vector<ov::AnyMap> filterAdditionalConfig() {
-    if (ov::with_cpu_x86_avx512f()) {
-        return {{{ov::hint::inference_precision(ov::element::f32)}},
-                {{ov::hint::inference_precision(ov::element::bf16)}}};
-    } else {
-        return {// default config as an stub for target without avx512, otherwise all tests with BF16 in its name are
-                // skipped
-                {}};
-    }
-}
-
-// 3D
-std::vector<CPUSpecificParams> filterCPUInfoForDevice3D() {
-    std::vector<CPUSpecificParams> resCPUParams;
-    if (ov::with_cpu_x86_avx2()) {
-        resCPUParams.push_back(CPUSpecificParams{{ncw, x, x, x}, {ncw}, {"jit_avx2"}, "jit_avx2"});
-    } else {
-        resCPUParams.push_back(CPUSpecificParams{{ncw, x, x, x}, {ncw}, {"ref"}, "ref"});
-    }
-    return resCPUParams;
-}
-
-std::vector<ov::AnyMap> filterAdditionalConfig3D() {
-    return {
-        {}
-    };
-}
 
 const std::vector<std::vector<size_t>> pads3D_smoke = {
     {0, 0, 0},
@@ -382,10 +105,10 @@ const auto interpolateCasesNN_Smoke_3D = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::NEAREST),
         ::testing::ValuesIn(coordinateTransformModes_Smoke),
         ::testing::ValuesIn(nearestModes_Smoke),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads3D_smoke),
         ::testing::ValuesIn(pads3D_smoke),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_Test_3D, InterpolateLayerCPUTest,
         ::testing::Combine(
              interpolateCasesNN_Smoke_3D,
@@ -400,10 +123,10 @@ const auto interpolateCasesNN_Full_3D = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::NEAREST),
         ::testing::ValuesIn(coordinateTransformModes_Full),
         ::testing::ValuesIn(nearestModes_Full),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads3D_full),
         ::testing::ValuesIn(pads3D_full),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_Test_3D, InterpolateLayerCPUTest,
          ::testing::Combine(
              interpolateCasesNN_Full_3D,
@@ -414,7 +137,6 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_Test_3D, InterpolateLayerCPUTest,
              ::testing::ValuesIn(filterAdditionalConfig3D())),
      InterpolateLayerCPUTest::getTestCaseName);
 
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 const std::vector<fusingSpecificParams> interpolateFusingParamsSet3D_fixed_C() {
     std::vector<fusingSpecificParams> fuseParams;
     if (ov::with_cpu_x86_avx2()) {
@@ -461,25 +183,24 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_PerChannelFuse3D_Test, Interpolate
             ::testing::ValuesIn(interpolateFusingParamsSet3D_fixed_C()),
             ::testing::ValuesIn(filterAdditionalConfig3D())),
     InterpolateLayerCPUTest::getTestCaseName);
-#endif
 
 const auto interpolateCasesLinear3D_Smoke = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::LINEAR),
         ::testing::ValuesIn(coordinateTransformModes_Smoke),
-        ::testing::ValuesIn(defNearestModes),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(defNearestModes()),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads3D_smoke),
         ::testing::ValuesIn(pads3D_smoke),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 
 const auto interpolateCasesLinear3D_Full = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::LINEAR),
         ::testing::ValuesIn(coordinateTransformModes_Full),
-        ::testing::ValuesIn(defNearestModes),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(defNearestModes()),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads3D_full),
         ::testing::ValuesIn(pads3D_full),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinear_Layout3D_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
@@ -504,20 +225,20 @@ INSTANTIATE_TEST_SUITE_P(InterpolateLinear_Layout3D_Test, InterpolateLayerCPUTes
 const auto interpolateCasesCubic3D_Smoke = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::CUBIC),
         ::testing::ValuesIn(coordinateTransformModes_Smoke),
-        ::testing::ValuesIn(defNearestModes),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(defNearestModes()),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads3D_smoke),
         ::testing::ValuesIn(pads3D_smoke),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 
 const auto interpolateCasesCubic3D_Full = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::CUBIC),
         ::testing::ValuesIn(coordinateTransformModes_Full),
-        ::testing::ValuesIn(defNearestModes),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(defNearestModes()),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads3D_full),
         ::testing::ValuesIn(pads3D_full),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateCubic_Layout3D_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
@@ -619,19 +340,19 @@ const auto interpolateCasesNN_Smoke = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::NEAREST),
         ::testing::ValuesIn(coordinateTransformModes_Smoke),
         ::testing::ValuesIn(nearestModes_Smoke),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads4D),
         ::testing::ValuesIn(pads4D),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 
 const auto interpolateCasesNN_Full = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::NEAREST),
         ::testing::ValuesIn(coordinateTransformModes_Full),
         ::testing::ValuesIn(nearestModes_Full),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads4D),
         ::testing::ValuesIn(pads4D),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
@@ -653,7 +374,6 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_Test, InterpolateLayerCPUTest,
              ::testing::ValuesIn(filterAdditionalConfig())),
      InterpolateLayerCPUTest::getTestCaseName);
 
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 const std::vector<fusingSpecificParams> interpolateFusingParamsSet_fixed_C{
         fusingFakeQuantizePerChannelRelu,
         fusingMultiplyPerChannel,
@@ -695,25 +415,24 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_PerChannelFuse_Test, InterpolateLa
             ::testing::ValuesIn(interpolateFusingParamsSet_fixed_C),
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
-#endif
 
 const auto interpolateCasesLinearOnnx_Smoke = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::LINEAR_ONNX),
         ::testing::ValuesIn(coordinateTransformModes_Smoke),
-        ::testing::ValuesIn(defNearestModes),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(defNearestModes()),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads4D),
         ::testing::ValuesIn(pads4D),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 
 const auto interpolateCasesLinearOnnx_Full = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::LINEAR_ONNX),
         ::testing::ValuesIn(coordinateTransformModes_Full),
-        ::testing::ValuesIn(defNearestModes),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(defNearestModes()),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads4D),
         ::testing::ValuesIn(pads4D),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinearOnnx_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
@@ -738,20 +457,20 @@ INSTANTIATE_TEST_SUITE_P(InterpolateLinearOnnx_Layout_Test, InterpolateLayerCPUT
 const auto interpolateCasesLinear_Smoke = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::LINEAR),
         ::testing::ValuesIn(coordinateTransformModes_Smoke),
-        ::testing::ValuesIn(defNearestModes),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(defNearestModes()),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads4D),
         ::testing::ValuesIn(pads4D),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 
 const auto interpolateCasesLinear_Full = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::LINEAR),
         ::testing::ValuesIn(coordinateTransformModes_Full),
-        ::testing::ValuesIn(defNearestModes),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(defNearestModes()),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads4D),
         ::testing::ValuesIn(pads4D),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinear_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
@@ -776,20 +495,20 @@ INSTANTIATE_TEST_SUITE_P(InterpolateLinear_Layout_Test, InterpolateLayerCPUTest,
 const auto interpolateCasesCubic_Smoke = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::CUBIC),
         ::testing::ValuesIn(coordinateTransformModes_Smoke),
-        ::testing::ValuesIn(defNearestModes),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(defNearestModes()),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads4D),
         ::testing::ValuesIn(pads4D),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 
 const auto interpolateCasesCubic_Full = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::CUBIC),
         ::testing::ValuesIn(coordinateTransformModes_Full),
-        ::testing::ValuesIn(defNearestModes),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(defNearestModes()),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads4D),
         ::testing::ValuesIn(pads4D),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateCubic_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
@@ -889,19 +608,19 @@ const std::vector<ShapeParams> shapeParams5D_Full = {
 const auto interpolateCasesLinearOnnx5D_Smoke = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::LINEAR_ONNX),
         ::testing::ValuesIn(coordinateTransformModes_Smoke),
-        ::testing::ValuesIn(defNearestModes),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(defNearestModes()),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads5D),
         ::testing::ValuesIn(pads5D),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 const auto interpolateCasesLinearOnnx5D_Full = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::LINEAR_ONNX),
         ::testing::ValuesIn(coordinateTransformModes_Full),
-        ::testing::ValuesIn(defNearestModes),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(defNearestModes()),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads5D),
         ::testing::ValuesIn(pads5D),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinearOnnx5D_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
@@ -927,19 +646,19 @@ const auto interpolateCasesNN5D_Smoke = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::NEAREST),
         ::testing::ValuesIn(coordinateTransformModes_Smoke),
         ::testing::ValuesIn(nearestModes_Smoke),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads5D),
         ::testing::ValuesIn(pads5D),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 
 const auto interpolateCasesNN5D_Full = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::NEAREST),
         ::testing::ValuesIn(coordinateTransformModes_Full),
         ::testing::ValuesIn(nearestModes_Full),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads5D),
         ::testing::ValuesIn(pads5D),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN5D_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
@@ -983,10 +702,10 @@ const auto interpolateCornerCases = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::NEAREST),
         ::testing::Values(ov::op::v11::Interpolate::CoordinateTransformMode::ASYMMETRIC),
         ::testing::Values(ov::op::v11::Interpolate::NearestMode::SIMPLE),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(antialias()),
         ::testing::Values(std::vector<size_t>{0, 0, 0, 0}),
         ::testing::Values(std::vector<size_t>{0, 0, 0, 0}),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_corner_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
@@ -1101,8 +820,8 @@ std::vector<ov::AnyMap> filterPillowAdditionalConfig() {
 const auto interpolateCasesBilinearPillow_Smoke = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::BILINEAR_PILLOW),
         ::testing::ValuesIn(coordinateTransformModesPillow_Smoke),
-        ::testing::ValuesIn(defNearestModes),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(defNearestModes()),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads4D),
         ::testing::ValuesIn(pads4D),
         ::testing::ValuesIn(cubeCoefsPillow));
@@ -1110,8 +829,8 @@ const auto interpolateCasesBilinearPillow_Smoke = ::testing::Combine(
 const auto interpolateCasesBicubicPillow_Smoke = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::BICUBIC_PILLOW),
         ::testing::ValuesIn(coordinateTransformModesPillow_Smoke),
-        ::testing::ValuesIn(defNearestModes),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(defNearestModes()),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads4D),
         ::testing::ValuesIn(pads4D),
         ::testing::ValuesIn(cubeCoefsPillow));
@@ -1191,8 +910,8 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice_pillow_nchw_as_nhwc() {
 const auto interpolateCasesBilinearPillow_Smoke_nchw_as_nhwc = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::BILINEAR_PILLOW),
         ::testing::ValuesIn(coordinateTransformModesPillow_Smoke),
-        ::testing::ValuesIn(defNearestModes),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(defNearestModes()),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads4D_nchw_as_nhwc),
         ::testing::ValuesIn(pads4D_nchw_as_nhwc),
         ::testing::ValuesIn(cubeCoefsPillow));
@@ -1210,8 +929,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateBilinearPillow_LayoutAlign_Test, Inter
 const auto interpolateCasesBicubicPillow_Smoke_nchw_as_nhwc = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::BICUBIC_PILLOW),
         ::testing::ValuesIn(coordinateTransformModesPillow_Smoke),
-        ::testing::ValuesIn(defNearestModes),
-        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(defNearestModes()),
+        ::testing::ValuesIn(antialias()),
         ::testing::ValuesIn(pads4D_nchw_as_nhwc),
         ::testing::ValuesIn(pads4D_nchw_as_nhwc),
         ::testing::ValuesIn(cubeCoefsPillow));
@@ -1227,5 +946,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateBicubicPillow_LayoutAlign_Test, Interp
     InterpolateLayerCPUTest::getTestCaseName);
 
 }  // namespace
+}  // namespace Interpolate
 }  // namespace test
 }  // namespace ov
