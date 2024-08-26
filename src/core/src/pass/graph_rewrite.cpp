@@ -14,6 +14,7 @@
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
@@ -64,6 +65,13 @@ PerfCounters& perf_counters_graph_rewrite() {
 }  // namespace ov
 
 #endif  // ENABLE_PROFILING_ITT
+std::shared_ptr<ov::pass::MatcherPass> ov::pass::GraphRewrite::add_matcher(
+    const std::shared_ptr<ov::pass::MatcherPass>& pass) {
+    auto pass_config = get_pass_config();
+    pass->set_pass_config(pass_config);
+    m_matchers.push_back(pass);
+    return pass;
+}
 
 bool ov::pass::BackwardGraphRewrite::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(BackwardGraphRewrite);
