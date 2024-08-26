@@ -327,7 +327,10 @@ namespace SymmZP {
 //                    V                     >
 //
 
-DCOFFPassBase::DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool reshape_weights)
+DCOFFPassBase::DCOFFPassBase(DCOffMode dcoff_mode,
+                             ov::element::Type dcoff_type,
+                             DCOFFParamRef pref,
+                             bool reshape_weights)
     : m_dcoff_mode(dcoff_mode),
       m_dcoff_type(dcoff_type),
       m_params_to(pref),
@@ -347,7 +350,8 @@ bool DCOFFPassBase::reshape_parameter_if_needed(const std::shared_ptr<ov::op::v0
     ov::PartialShape current_shape = param->get_partial_shape();
     if (current_shape.rank().is_static() && current_shape.rank().get_length() == 3) {
         auto dimensions = current_shape.to_shape();
-        size_t max_dim_index = std::distance(dimensions.begin(), std::max_element(dimensions.begin(), dimensions.end()));
+        size_t max_dim_index =
+            std::distance(dimensions.begin(), std::max_element(dimensions.begin(), dimensions.end()));
         std::rotate(dimensions.begin(), dimensions.begin() + max_dim_index, dimensions.end());
         param->set_partial_shape(ov::PartialShape(dimensions));
         return true;
