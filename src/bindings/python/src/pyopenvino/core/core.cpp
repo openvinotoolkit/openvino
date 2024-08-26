@@ -591,9 +591,7 @@ void regclass_Core(py::module m) {
                 }
             } else {
                 std::stringstream _stream;
-                _stream << model_stream
-                            .attr("read")()
-                            .cast<std::string>();
+                _stream << model_stream.attr("read")().cast<std::string>();
                 py::gil_scoped_release release;
                 result = self.import_model(_stream, device_name, _properties);
             }
