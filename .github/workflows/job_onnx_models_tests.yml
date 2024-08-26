@@ -57,6 +57,7 @@ jobs:
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "MODELS_SHARE_PATH=/mount/testdata$((GITHUB_RUN_NUMBER % NUMBER_OF_REPLICAS))" >> "$GITHUB_ENV"
           echo $MODELS_SHARE_PATH
+          echo "LOGS_FOLDER=$GITHUB_WORKSPACE/onnx_models_tests_logs" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO packages
         run: |
@@ -101,8 +102,18 @@ jobs:
         run: |
           find ${MODELS_SHARE_PATH} -depth -type f -name "*.onnx" -print
 
-      - name: ONNX Models Tests
+      - name: Collect ONNX Models tests
         run: |
           python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n auto --forked -k 'not _cuda' --model_zoo_xfail --collect-only
 
-          python3 -m pytest --backend="CPU" -s --capture=no -o log-cli=true --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n auto --forked -k 'not _cuda' --model_zoo_xfail
+      - name: ONNX Models Tests
+        run: |
+          python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n auto --forked -k 'not _cuda' --model_zoo_xfail
+
+      - name: Upload logs from pytest
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        if: always()
+        with:
+          name: onnx_models_tests_logs
+          path: ${{ env.LOGS_FOLDER }}
+          if-no-files-found: 'ignore'
