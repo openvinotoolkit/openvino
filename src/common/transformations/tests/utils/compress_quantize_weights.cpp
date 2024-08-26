@@ -85,7 +85,7 @@ class CompressQuantizeWeightsTests
 #ifdef OPENVINO_ARCH_ARM64
 // Ticket: CVS-122397
 TEST_P(CompressQuantizeWeightsTests, DISABLED_FusionTest) {}
-#elseg
+#else
 TEST_P(CompressQuantizeWeightsTests, FusionTest) {}
 #endif
 
