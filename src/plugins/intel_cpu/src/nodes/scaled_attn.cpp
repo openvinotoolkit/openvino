@@ -38,6 +38,7 @@
 #include "kernels/scaled_attn/attn_quant.hpp"
 #include "kernels/x64/brgemm_kernel.hpp"
 #include "nodes/common/cpu_convert.h"
+#include "utils/precision_support.h"
 
 #include <algorithm>
 #include <string>
@@ -511,10 +512,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
     explicit MHAKernel(GraphContext::CPtr ctx): context(ctx) {
         m_block_size = 512;
         select_nfltmax_at_0 = false;
-        if (std::is_same<T, ov::float16>::value)
-            precision = ov::element::f16;
-        else
-            precision = ov::element::f32;
+        precision = ov::element::from<T>();
     }
 
     PlainTensor causal_mask;
@@ -1076,13 +1074,11 @@ void ScaledDotProductAttention::createPrimitive() {
             executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context);
 #endif
         } else {
-#if defined(OV_CPU_WITH_ACL) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#if defined(OV_CPU_WITH_ACL)
             if (rtPrecision == ov::element::f16)
                 executor = std::make_shared<AttentionExecutor<KT_ACL, ov::float16>>(context);
             else
                 executor = std::make_shared<AttentionExecutor<KT_ACL, float>>(context);
-#elif defined(OV_CPU_WITH_ACL)
-            executor = std::make_shared<AttentionExecutor<KT_ACL, float>>(context);
 #elif defined(OV_CPU_WITH_MLAS)
             executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context);
 #elif defined(OPENVINO_ARCH_X86_64)
@@ -1710,8 +1706,8 @@ ov::element::Type ScaledDotProductAttention::getRuntimePrecision() const {
     // bf16 should be enabled only when platform supports
     if (rtPrecision == ov::element::bf16 && ov::with_cpu_x86_bfloat16()) {
         rtPrecision = ov::element::bf16;
-#if defined(OPENVINO_ARCH_ARM64) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-    } else if (rtPrecision == ov::element::f16) {
+#if defined(OPENVINO_ARCH_ARM64)
+    } else if (rtPrecision == ov::element::f16 && ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         rtPrecision = ov::element::f16;
 #endif
     } else {

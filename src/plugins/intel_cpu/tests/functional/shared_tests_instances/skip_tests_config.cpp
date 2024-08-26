@@ -527,6 +527,9 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*Snippets.*MHA.*)");
         retVector.emplace_back(R"(.*Snippets.*(MatMul|Matmul).*)");
     }
+#if (defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)) && (!defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC))
+    retVector.emplace_back(R"(.*Prc=(F|f)16.*)");
+#endif
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     if (!ov::with_cpu_x86_avx512_core_fp16()) {
         // Skip fp16 tests for paltforms that don't support fp16 precision
@@ -541,9 +544,6 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(
             R"(.*EltwiseLayerCPUTest.*IS=\(\[1\.\.10\.2\.5\.6\]_\).*eltwiseOpType=SqDiff.*_configItem=INFERENCE_PRECISION_HINT=f16.*)");
     }
-#endif
-#if (defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)) && (!defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC))
-    retVector.emplace_back(R"(.*Prc=(F|f)16.*)");
 #endif
     if (!ov::with_cpu_x86_avx512_core_vnni() &&
         !ov::with_cpu_x86_avx2_vnni() &&

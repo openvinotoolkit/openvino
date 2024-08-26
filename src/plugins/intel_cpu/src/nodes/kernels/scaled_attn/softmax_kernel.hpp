@@ -495,6 +495,7 @@ inline void scale_add2_reduce_max(ov::float16* a,
         v_max = vmaxq_f16(v_max, v_a);
         vst1q_f16(reinterpret_cast<float16_t*>(a + i), v_a);
     }
+    max = vmaxvq_f16(v_max);
     // process tails
     for (; i < size; i++) {
         a[i] *= scale;
@@ -504,7 +505,6 @@ inline void scale_add2_reduce_max(ov::float16* a,
 
         if (has_attn_mask)
             a[i] += attn_mask[i];
-
         if (has_causal_mask) {
             if (select_nfltmax_at_0) {
                 if (causal_mask[i] == 0)
@@ -516,7 +516,6 @@ inline void scale_add2_reduce_max(ov::float16* a,
         }
         max = a[i] > max ? a[i] : max;
     }
-    max = vmaxvq_f16(v_max);
 }
 #endif
 

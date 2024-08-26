@@ -8,11 +8,6 @@
 #include <iostream>
 #include <limits>
 #include <type_traits>
-
-#if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
-#    include <immintrin.h>
-#endif
-
 #include "openvino/core/type/bfloat16.hpp"
 #include "softmax.hpp"
 #include "softmax_kernel.hpp"

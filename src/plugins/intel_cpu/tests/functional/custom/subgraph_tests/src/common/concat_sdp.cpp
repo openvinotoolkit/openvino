@@ -69,7 +69,10 @@ public:
         std::tie(inType, inputShapes, hasShapeOf) = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
-        if (inType == ElementType::bf16 || inType == ElementType::f16) {
+        if (inType == ElementType::bf16) {
+            configuration.insert({"ENFORCE_BF16", "YES"});
+            rel_threshold = 0.01f;
+        } else if (inType == ElementType::f16) {
             configuration.insert({"INFERENCE_PRECISION_HINT", ov::element::Type(inType).get_type_name()});
         }
         init_input_shapes(inputShapes);
@@ -164,7 +167,7 @@ public:
                 inputs.insert({param, t});
             } else if (param->get_element_type() == element::f16) {
                 ov::Tensor t{ov::element::f16, shape};
-                strided_iota(static_cast<ov::float16 *>(t.data()), t.get_size(), val - 200, 0.0f);
+                strided_iota(static_cast<ov::float16 *>(t.data()), t.get_size(), val, 0.0f);
                 inputs.insert({param, t});
             } else {
                 ov::Tensor t{ov::element::bf16, shape};
