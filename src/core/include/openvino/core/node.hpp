@@ -327,7 +327,7 @@ public:
     // TODO: deprecate in favor of node->get_output_shape(0) with a suitable check in the
     // calling code, or updates to the calling code if it is making an invalid assumption of
     // only one output.
-    const Shape& get_shape() const;
+    Shape get_shape() const;
 
     /// Returns the tensor for output or input i
     descriptor::Tensor& get_output_tensor(size_t i) const;
@@ -344,7 +344,7 @@ public:
 
     /// Returns the shape of input i
     // TODO: deprecate in favor of node->get_input_shape(i)
-    const Shape& get_input_shape(size_t i) const;
+    Shape get_input_shape(size_t i) const;
 
     /// Returns the partial shape of input i
     // TODO: deprecate in favor of node->get_input_partial_shape(i)
