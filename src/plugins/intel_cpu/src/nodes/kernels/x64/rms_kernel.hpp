@@ -6,9 +6,7 @@
 
 #include "jit_kernel_base.hpp"
 
-#if defined(OPENVINO_ARCH_X86_64)
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
-#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -27,8 +25,6 @@ struct jit_rms_call_args {
     const float* scale;
     uint8_t* dst;
 };
-
-#if defined(OPENVINO_ARCH_X86_64)
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 struct jit_rms_kernel : public JitKernel<jit_rms_compile_params, jit_rms_call_args> {
@@ -80,8 +76,6 @@ private:
     const std::vector<size_t> pool_aux_gpr_idxs = { static_cast<size_t>(rax.getIdx()), static_cast<size_t>(r9.getIdx()) };
     const std::vector<size_t> pool_aux_vmm_idxs = { 7 };
 };
-
-#endif
 
 }   // namespace kernel
 }   // namespace intel_cpu

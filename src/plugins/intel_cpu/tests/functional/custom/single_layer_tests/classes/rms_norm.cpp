@@ -122,8 +122,5 @@ TEST_P(RMSNormLayerCPUTest, CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "RMS", m_rms_decomposed ? 0 : 1);
 }
 
-namespace RMSNorm {
-
-}  // namespace RMSNorm
 }  // namespace test
 }  // namespace ov

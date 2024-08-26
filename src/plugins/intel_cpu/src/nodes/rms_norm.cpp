@@ -16,7 +16,9 @@
 #include "ov_ops/rms.hpp"
 #include "shape_inference/custom/rms_norm.hpp"
 #include "openvino/opsets/opset6.hpp"
+#ifdef OPENVINO_ARCH_X86_64
 #include "kernels/x64/rms_kernel.hpp"
+#endif
 
 #include <algorithm>
 #include <string>
@@ -58,12 +60,9 @@ bool RMSNormKey::operator==(const RMSNormKey& rhs) const {
     return retVal;
 }
 
+#if defined(OPENVINO_ARCH_X86_64)
 static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rms_compile_params& param) {
     std::shared_ptr<kernel::JitKernelBase> res;
-
-    MAYBE_UNUSED(param);
-
-#if defined(OPENVINO_ARCH_X86_64)
 
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
         res = std::make_shared<jit_rms_kernel<dnnl::impl::cpu::x64::avx512_core>>(param);
@@ -74,26 +73,15 @@ static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rms_comp
     if (res)
         res->create_kernel();
 
-#endif // OPENVINO_ARCH_X86_64
-
     return res;
 }
 
 static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker, const uint8_t* src, uint8_t* dst, const float* scale) {
-    MAYBE_UNUSED(ker);
-    MAYBE_UNUSED(src);
-    MAYBE_UNUSED(dst);
-    MAYBE_UNUSED(scale);
-
-#if defined(OPENVINO_ARCH_X86_64)
-
     jit_rms_call_args call_args;
     call_args.src = src;
     call_args.dst = dst;
     call_args.scale = scale;
     (*ker)(&call_args);
-
-#endif // OPENVINO_ARCH_X86_64
 }
 
 struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
@@ -126,6 +114,7 @@ private:
     ov::element::Type m_precision;
     std::shared_ptr<kernel::JitKernelBase> m_kernel;
 };
+#endif // OPENVINO_ARCH_X86_64
 
 RMSNorm::RMSNorm(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, RMSNormShapeInferFactory(op)) {
@@ -141,6 +130,8 @@ void RMSNorm::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
     auto precision = getOriginalInputPrecisionAtPort(0);
+    if (!one_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16))
+        precision = ov::element::f32;
 
     impl_desc_type impl_type;
     if (mayiuse(cpu::x64::avx512_core)) {
@@ -206,12 +197,12 @@ bool RMSNorm::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
                 return false;
             }
             const auto& data_rank = op->get_input_partial_shape(0).rank().get_length();
-            if (data_pshape[data_rank - 1].is_dynamic()) {
-                errorMessage = "RMSNorm last dimension of data is not static.";
+            if (data_rank <= 1) {
+                errorMessage = "RMSNorm data rank must be greater than 1.";
                 return false;
             }
-            if (data_rank == 1) {
-                errorMessage = "RMSNorm data rank must be greater than 1.";
+            if (data_pshape[data_rank - 1].is_dynamic()) {
+                errorMessage = "RMSNorm last dimension of data is not static.";
                 return false;
             }
 

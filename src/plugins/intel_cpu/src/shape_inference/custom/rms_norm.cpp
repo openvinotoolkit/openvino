@@ -23,22 +23,6 @@ public:
     }
 };
 
-class PAShapeInfer : public ShapeInferEmptyPads {
-public:
-    PAShapeInfer() {}
-
-    IShapeInfer::Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                              const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        const auto& query_dims = input_shapes.front().get();
-
-        return {{query_dims}, ShapeInferStatus::success};
-    }
-
-    port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-};
-
 ShapeInferPtr RMSNormShapeInferFactory::makeShapeInfer() const {
     return std::make_shared<RMSNormShapeInfer>();
 }

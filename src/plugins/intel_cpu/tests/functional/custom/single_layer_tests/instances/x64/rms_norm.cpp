@@ -9,7 +9,7 @@ using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-namespace ScaledAttn {
+namespace RMSNorm {
 const auto cpuSpec = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
 
 const std::vector<std::vector<InputShape>> shapes{
@@ -58,6 +58,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_RMSNorm_CPU,
                          params,
                          RMSNormLayerCPUTest::getTestCaseName);
 
-}  // namespace ScaledAttn
+}  // namespace RMSNorm
 }  // namespace test
 }  // namespace ov
