@@ -302,20 +302,6 @@ static constexpr ov::Property<std::string> compilation_mode{"NPU_COMPILATION_MOD
 static constexpr ov::Property<int64_t> dpu_groups{"NPU_DPU_GROUPS"};
 
 /**
- * @brief [Only for NPU Compiler]
- * Type: integer, default is -1
- * Sets the number of npu tiles that will be used to execute the model. (Replaces NPU_DPU_GROUPS)
- */
-static constexpr ov::Property<int64_t> tiles{"NPU_TILES"};
-
-/**
- * @brief
- * Type: integer, default is -1
- * Maximum number of tiles supported by the device. If unset, it will be automatically obtained from driver
- */
-static constexpr ov::Property<int64_t> max_tiles{"NPU_MAX_TILES"};
-
-/**
  * @brief [Only for NPU Plugin]
  * Type: integer, default is -1
  * Sets the number of DMA engines that will be used to execute the model.

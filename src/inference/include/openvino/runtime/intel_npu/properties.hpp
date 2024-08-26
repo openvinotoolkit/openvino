@@ -72,5 +72,20 @@ static constexpr ov::Property<std::string> compilation_mode_params{"NPU_COMPILAT
  */
 static constexpr ov::Property<bool> turbo{"NPU_TURBO"};
 
+/**
+ * @brief [Only for NPU Compiler]
+ * Type: integer, default is -1
+ * Sets the number of npu tiles to compile the model for.
+ */
+static constexpr ov::Property<int64_t> tiles{"NPU_TILES"};
+
+/**
+ * @brief
+ * Type: integer, default is -1
+ * Maximum number of tiles supported by the device we compile for. Can be set for offline compilation. If not set, it
+ * will be populated by driver.
+ */
+static constexpr ov::Property<int64_t> max_tiles{"NPU_MAX_TILES"};
+
 }  // namespace intel_npu
 }  // namespace ov
