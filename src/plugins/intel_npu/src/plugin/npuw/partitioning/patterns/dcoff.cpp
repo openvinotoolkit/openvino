@@ -327,10 +327,11 @@ namespace SymmZP {
 //                    V                     >
 //
 
-DCOFFPassBase::DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref)
+DCOFFPassBase::DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool reshape_weights)
     : m_dcoff_mode(dcoff_mode),
       m_dcoff_type(dcoff_type),
-      m_params_to(pref) {}
+      m_params_to(pref),
+      m_reshape_weights(reshape_weights) {}
 
 void DCOFFPassBase::build() {
     paramA = opp::wrap_type<ov::op::v0::Parameter>();
@@ -340,6 +341,19 @@ void DCOFFPassBase::build() {
     cvtB = opp::wrap_type<ov::op::v0::Convert>({constB});
     subtr = opp::wrap_type<ov::op::v1::Subtract>({cvtA, cvtB});
     mulply = opp::wrap_type<ov::op::v1::Multiply>({subtr, paramC});
+}
+
+bool DCOFFPassBase::reshape_parameter_if_needed(const std::shared_ptr<ov::op::v0::Parameter>& param) {
+    ov::PartialShape current_shape = param->get_partial_shape();
+    if (current_shape.rank().is_static() && current_shape.rank().get_length() == 3) {
+        auto dimensions = current_shape.to_shape();
+        size_t max_dim_index = std::distance(dimensions.begin(), std::max_element(dimensions.begin(), dimensions.end()));
+        std::rotate(dimensions.begin(), dimensions.begin() + max_dim_index, dimensions.end());
+        param->set_partial_shape(ov::PartialShape(dimensions));
+        return true;
+    }
+
+    return false;
 }
 
 bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
@@ -353,16 +367,16 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
     NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeC));
 
     auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
-    // Transpose weights specifically for QWEN as of now.
-    if (getTransposeWeights()) {
-        ov::PartialShape current_shape = matched_paramA->get_partial_shape();
-        ov::Shape static_shape = current_shape.to_shape();
-        ov::Shape new_order = {static_shape[1], static_shape[2], static_shape[0]};
-        ov::PartialShape new_shape(new_order);
-        matched_paramA->set_partial_shape(new_shape);
-    }
     auto matched_valueB = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeB);
     auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
+    if (m_reshape_weights) {
+        if (!reshape_parameter_if_needed(matched_paramA)) {
+            LOG_DEBUG("Can not Reshape the weight parameter.");
+        }
+        if (!reshape_parameter_if_needed(matched_paramC)) {
+            LOG_DEBUG("Can not Reshape the scale parameter.");
+        }
+    }
 
     if (ov::element::u4 == matched_paramA->get_element_type() &&
         ov::element::u4 == matched_valueB->get_element_type() &&

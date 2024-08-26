@@ -800,7 +800,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
                           BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
-                          BIND(npuw::partitioning::transpose_weights, NPUW_TRANSPOSE_WEIGHTS),
+                          BIND(npuw::partitioning::reshape_weights, NPUW_RESHAPE_WEIGHTS),
                           BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                           BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),
                           BIND(npuw::weights_bank, NPUW_WEIGHTS_BANK),
