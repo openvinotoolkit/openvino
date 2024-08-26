@@ -7,10 +7,14 @@ include(GNUInstallDirs)
 if(APPLE)
     # on macOS versions with SIP enabled, we need to use @rpath
     # because DYLD_LIBRARY_PATH is ignored
-    set(CMAKE_SKIP_INSTALL_RPATH OFF)
+    set(CMAKE_SKIP_INSTALL_RPATH_DEFAULT OFF)
 else()
     # we don't need RPATHs, because setupvars.sh is used
-    set(CMAKE_SKIP_INSTALL_RPATH ON)
+    set(CMAKE_SKIP_INSTALL_RPATH_DEFAULT ON)
+endif()
+
+if(NOT DEFINED CMAKE_SKIP_INSTALL_RPATH)
+    set(CMAKE_SKIP_INSTALL_RPATH ${CMAKE_SKIP_INSTALL_RPATH_DEFAULT})
 endif()
 
 #
@@ -70,6 +74,8 @@ macro(ov_define_component_include_rules)
     # tbb
     unset(OV_CPACK_COMP_TBB_EXCLUDE_ALL)
     unset(OV_CPACK_COMP_TBB_DEV_EXCLUDE_ALL)
+    # openmp
+    unset(OV_CPACK_COMP_OPENMP_EXCLUDE_ALL)
     # licensing
     unset(OV_CPACK_COMP_LICENSING_EXCLUDE_ALL)
     # samples

@@ -1630,6 +1630,12 @@ void Partitioner::decompressionCutOff(const std::string& func_name) {
         // LLaMaGPTQ
         rewr.add_matcher<ov::npuw::patterns::SymmZP::DCOFFPassReshape2>(dcoff_mode, dcoff_type, std::ref(params_to));
 
+        // Phi-3 4SymW16A/GPTQ
+        rewr.add_matcher<ov::npuw::patterns::SymmZP::DCOFFPassCWAI3>(dcoff_mode, dcoff_type, std::ref(params_to));
+
+        // Asymmetric zeropoints
+        rewr.add_matcher<ov::npuw::patterns::AsymmZP::DCOFFPassReshape>(dcoff_mode, dcoff_type, std::ref(params_to));
+
         rewr.run_on_model(f._model);
 
         ov::pass::Validate val;
