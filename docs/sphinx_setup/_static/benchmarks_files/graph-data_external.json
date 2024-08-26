@@ -1,0 +1,92 @@
+[
+  {
+    "Platform": "Intel 1 CPU-only",
+    "Model": "bert-base-cased",
+    "Checked": true,
+    "PlatformType": "Mobile Platforms (Intel® Atom™) CPU",
+    "Parameters": {
+      "throughput": {
+        "Precisions": [
+          {
+            "int4": "344.4",
+            "int8": "404.9",
+            "fp16": "233.5"
+          }
+        ],
+        "Unit": "FPS",
+        "UnitDesc": "higher is better"
+      },
+      "latency": {
+        "Precisions": [
+          {
+            "int4": "444.4",
+            "int8": "404.9",
+            "fp16": "233.5"
+          }
+        ],
+        "Unit": "FPS",
+        "UnitDesc": "higher is better"
+      }
+    }
+  },
+  {
+    "Platform": "Intel 2 CPU-only",
+    "Model": "bert-base-cased",
+    "Checked": true,
+    "PlatformType": "Mobile Platforms (Intel® Atom™) CPU",
+    "Parameters": {
+      "throughput": {
+        "Precisions": [
+          {
+            "int4": "290",
+            "int8": "1804.9",
+            "fp16": "115.5"
+          }
+        ],
+        "Unit": "FPS",
+        "UnitDesc": "higher is better"
+      },
+      "latency": {
+        "Precisions": [
+          {
+            "int4": "144.4",
+            "int8": "404.9",
+            "fp16": "33.5"
+          }
+        ],
+        "Unit": "FPS",
+        "UnitDesc": "higher is better"
+      }
+    }
+  },
+  {
+    "Platform": "Intel® Xeon X64321325E CPU-only",
+    "Model": "Cornlake",
+    "Checked": false,
+    "PlatformType": "Mobile Platforms (Intel® Atom™) CPU",
+    "Parameters": {
+      "throughput": {
+        "Precisions": [
+          {
+            "int4": "244.4",
+            "int8": "515.9",
+            "fp16": "233.5"
+          }
+        ],
+        "Unit": "FPS",
+        "UnitDesc": "higher is better"
+      },
+      "latency": {
+        "Precisions": [
+          {
+            "int4": "344.4",
+            "int8": "404.9",
+            "fp16": "233.5"
+          }
+        ],
+        "Unit": "FPS",
+        "UnitDesc": "higher is better"
+      }
+    }
+  }
+]

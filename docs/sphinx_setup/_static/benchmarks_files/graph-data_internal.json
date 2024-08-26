@@ -3,7 +3,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "baichuan2-13b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -34,7 +34,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "baichuan2-13b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -65,7 +65,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "baichuan2-13b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -96,7 +96,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "baichuan2-13b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -127,7 +127,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "baichuan2-7b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -158,7 +158,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "baichuan2-7b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -189,7 +189,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "baichuan2-7b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -220,7 +220,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "baichuan2-7b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -251,7 +251,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "chatglm3-6b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -282,7 +282,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "chatglm3-6b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -313,7 +313,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "chatglm3-6b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -344,7 +344,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "chatglm3-6b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -375,7 +375,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "codegen25-7b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -406,7 +406,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "codegen25-7b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -437,7 +437,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "codegen25-7b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -468,7 +468,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "codegen25-7b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -499,7 +499,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "dolly-v2-3b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -530,7 +530,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "dolly-v2-3b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -561,7 +561,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "dolly-v2-3b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -592,7 +592,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "dolly-v2-3b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -623,7 +623,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "falcon-7b-instruct",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -654,7 +654,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "falcon-7b-instruct",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -685,7 +685,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "flan-t5-xxl",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -716,7 +716,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "flan-t5-xxl",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -747,7 +747,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "flan-t5-xxl",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -778,7 +778,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "gpt-j-6b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -809,7 +809,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "gpt-j-6b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -840,7 +840,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "gpt-j-6b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -871,7 +871,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "gpt-j-6b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -902,7 +902,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "llama-2-13b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -933,7 +933,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "llama-2-13b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -964,7 +964,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "llama-2-13b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -995,7 +995,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "llama-2-13b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1026,7 +1026,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "llama-2-7b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1057,7 +1057,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "llama-2-7b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1088,7 +1088,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "llama-2-7b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1119,7 +1119,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "llama-2-7b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1150,7 +1150,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "llama-2-7b-gptq",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1181,7 +1181,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "llama-2-7b-gptq",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1212,7 +1212,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "llama-2-7b-gptq",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1243,7 +1243,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "llama-2-7b-gptq",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1274,7 +1274,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "llama-3-8b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1305,7 +1305,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "llama-3-8b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1336,7 +1336,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "llama-3-8b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1367,7 +1367,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "llama-3-8b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1398,7 +1398,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "llama-7b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1429,7 +1429,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "llama-7b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1460,7 +1460,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "llama-7b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1491,7 +1491,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "llama-7b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1522,7 +1522,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "mistral-7b-v0.1",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1553,7 +1553,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "mistral-7b-v0.1",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1584,7 +1584,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "mistral-7b-v0.1",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1615,7 +1615,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "mistral-7b-v0.1",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1646,7 +1646,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "mixtral-8x7b-v0.1",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1677,7 +1677,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "mixtral-8x7b-v0.1",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1708,7 +1708,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "mixtral-8x7b-v0.1",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1739,7 +1739,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "mixtral-8x7b-v0.1",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1770,7 +1770,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "opt-125m-gptq",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1801,7 +1801,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "opt-125m-gptq",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1832,7 +1832,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "opt-125m-gptq",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1863,7 +1863,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "opt-125m-gptq",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1894,7 +1894,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "opt-2.7b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1925,7 +1925,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "opt-2.7b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1956,7 +1956,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "opt-2.7b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -1987,7 +1987,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "opt-2.7b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2018,7 +2018,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "orca-mini-3b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2049,7 +2049,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "orca-mini-3b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2080,7 +2080,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "orca-mini-3b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2111,7 +2111,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "orca-mini-3b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2142,7 +2142,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "phi-2",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2173,7 +2173,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "phi-2",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2204,7 +2204,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "phi-2",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2235,7 +2235,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "phi-2",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2266,7 +2266,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "phi-3-mini-4k-instruct",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2297,7 +2297,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "phi-3-mini-4k-instruct",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2328,7 +2328,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "phi-3-mini-4k-instruct",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2359,7 +2359,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "qwen-7b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2390,7 +2390,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "qwen-7b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2421,7 +2421,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "qwen-7b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2452,7 +2452,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "qwen-7b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2483,7 +2483,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "qwen-7b-chat-gptq",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2514,7 +2514,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "qwen-7b-chat-gptq",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2545,7 +2545,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "qwen-7b-chat-gptq",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2576,7 +2576,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "qwen-7b-chat-gptq",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2607,7 +2607,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "qwen1.5-7b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2638,7 +2638,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "qwen1.5-7b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2669,7 +2669,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "qwen1.5-7b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2700,7 +2700,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "qwen1.5-7b-chat",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2731,7 +2731,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "red-pajama-incite-chat-3b-v1",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2762,7 +2762,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "red-pajama-incite-chat-3b-v1",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2793,7 +2793,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "red-pajama-incite-chat-3b-v1",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2824,7 +2824,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "red-pajama-incite-chat-3b-v1",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2855,7 +2855,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "stable-zephyr-3b-dpo",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2886,7 +2886,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "stable-zephyr-3b-dpo",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2917,7 +2917,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "stable-zephyr-3b-dpo",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2948,7 +2948,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "stable-zephyr-3b-dpo",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -2979,7 +2979,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "stablelm-3b-4e1t",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -3010,7 +3010,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "stablelm-3b-4e1t",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -3041,7 +3041,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "stablelm-3b-4e1t",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -3072,7 +3072,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "stablelm-3b-4e1t",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -3103,7 +3103,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "stablelm-7b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -3134,7 +3134,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "stablelm-7b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -3165,7 +3165,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "stablelm-7b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -3196,7 +3196,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "stablelm-7b",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -3227,7 +3227,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "starcoder",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -3258,7 +3258,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "starcoder",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -3289,7 +3289,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "vicuna-7b-v1.5",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -3320,7 +3320,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "vicuna-7b-v1.5",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -3351,7 +3351,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "vicuna-7b-v1.5",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -3382,7 +3382,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "vicuna-7b-v1.5",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -3413,7 +3413,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
         "Model": "zephyr-7b-beta",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -3444,7 +3444,7 @@
         "Platform": "CPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
         "Model": "zephyr-7b-beta",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -3475,7 +3475,7 @@
         "Platform": "GPU: 12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
         "Model": "zephyr-7b-beta",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {
@@ -3506,7 +3506,7 @@
         "Platform": "GPU: Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
         "Model": "zephyr-7b-beta",
         "Checked": true,
-        "PlatformType": "atom",
+        "PlatformType": "Intel Atom x3",
         "PlatformTypeDesc": "",
         "Parameters": {
             "Input size - 32": {

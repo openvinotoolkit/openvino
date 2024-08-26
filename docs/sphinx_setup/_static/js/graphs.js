@@ -100,7 +100,7 @@ class Modal {
 
     static getPrecisions(appConfig, labels) {
         return labels.map((label) => {
-            var prec = appConfig.Precisions[label];
+            var prec = appConfig.PrecisionsMap[label];
             if (prec !== undefined) {
                 return prec;
             }
@@ -129,12 +129,12 @@ class Graph {
         return graphDataArr.map((data) => data.Platform);
     }
 
-    // param: GraphData[], kpi: string, precisions: list
-    static getDatabyKPI(graphDataArr, kpi, precisions) {
+    // param: GraphData[], parameterName: string, precisions: list
+    static getDatabyParameter(graphDataArr, parameterName, precisions) {
         var array = [];
         graphDataArr.forEach((item) => {
-            if (item.Parameters[kpi] !== undefined) {
-                array.push(item.Parameters[kpi].Precisions);
+            if (item.Parameters[parameterName] !== undefined) {
+                array.push(item.Parameters[parameterName].Precisions);
             }
             else {
                 var obj = {};
@@ -144,16 +144,17 @@ class Graph {
                 array.push([obj])
             }
         })
+        
         return array;
 
     }
 
     // this returns an object that is used to ender the chart
-    static getGraphConfig(kpi, item, precisions, appConfig) {
+    static getGraphConfig(parameterName, item, precisions, appConfig) {
         return {
-            chartTitle: Graph.capitalizeFirstLetter(kpi),
-            iconClass: kpi + '-icon',
-            unit: item.Parameters[kpi]?.Unit,
+            chartTitle: Graph.capitalizeFirstLetter(parameterName),
+            iconClass: parameterName + '-icon',
+            unit: item.Parameters[parameterName]?.Unit,
             datasets: precisions.map((precision) => appConfig.PrecisionData[precision]),
         };
     }
@@ -691,10 +692,11 @@ $(document).ready(function () {
         chartContainer.append(chartWrap);
         var graphConfigs = parameters.map((parameter) => {
             var groupUnit = model[0];
-            var kpiData = Graph.getDatabyKPI(model, parameter.toLowerCase(), precisions);
-            var config = Graph.getGraphConfig(parameter.toLowerCase(), groupUnit, precisions, JSON.parse(JSON.stringify(appConfig)));
+            var kpiData = Graph.getDatabyParameter(model, appConfig.ParametersMap[parameter], precisions);
+            var config = Graph.getGraphConfig(appConfig.ParametersMap[parameter], groupUnit, precisions, JSON.parse(JSON.stringify(appConfig)));
             precisions.forEach((precision, index) => {
-                config.datasets[index].data = kpiData.map(tData => tData[0][precision]);
+                config.datasets[index].data = kpiData.map(tData => tData[0][precision]
+                );
             });
             return config;
         });
@@ -712,7 +714,7 @@ $(document).ready(function () {
         graphConfigs.forEach((graphConfig, index) => {
             const id = getRandomNumber();
             if (graphConfig.unit === undefined) {
-                graphConfig.unit = 'Data not complete!';
+                graphConfig.unit = 'No unit.';
             }
 
             var graphItem = $(`<div id=${id}>`);
@@ -724,7 +726,6 @@ $(document).ready(function () {
             columnHeaderContainer.append(columnIcon);
             var columnHeader = $('<div class="chart-header">');
             columnHeader.append($('<div class="title">' + graphConfig.chartTitle + '</div>'));
-            // columnHeader.append($('<div class="title">' + ietype + '</div>'));
             columnHeader.append($('<div class="subtitle">' + graphConfig.unit + ' ' + appConfig.UnitDescription[graphConfig.unit] + '</div>'));
             columnHeaderContainer.append(columnHeader);
             chartGraphsContainer.append(graphItem);

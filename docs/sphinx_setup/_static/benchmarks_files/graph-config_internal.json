@@ -1,7 +1,11 @@
 {
-    "Precisions": {
-        "INT4 - 1ST TOKEN LATENCY": "INT4 - 1ST TOKEN LATENCY",
-        "INT4 - 2ND TOKEN LATENCY": "INT4 - 2ND TOKEN LATENCY"
+    "PrecisionsMap": {
+        "INT4 - 1ST TOKEN LATENCY": "INT4 - 1st token latency",
+        "INT4 - 2ND TOKEN LATENCY": "INT4 - 2nd token latency"
+    },
+    "ParametersMap": {
+        "Input size - 32": "Input size - 32",
+        "Input size - 1024": "Input size - 1024"
     },
     "UnitDescription": {
         "msec.": "(lower is better)",
@@ -10,33 +14,19 @@
         "msec/token/TDP": "(lower is better)",
         "FPS": "(higher is better)",
         "FPS/$": "(higher is better)",
-        "FPS/TDP": "(higher is better)"
+        "FPS/TDP": "(higher is better)",
+        "No unit.": "Data not complete!"
     },
     "PrecisionData": {
-        "int4": {
+        "INT4 - 1st token latency": {
             "data": null,
             "color": "#5bd0f0",
-            "label": "INT4"
+            "label": "INT4 - 1st token latency"
         },
-        "int8": {
+        "INT4 - 2nd token latency": {
             "data": null,
             "color": "#00C7FD",
-            "label": "INT8"
-        },
-        "fp16": {
-            "data": null,
-            "color": "#009fca",
-            "label": "FP16"
-        },
-        "fp32": {
-            "data": null,
-            "color": "#007797",
-            "label": "FP32"
-        },
-        "bf16": {
-            "data": null,
-            "color": "#00536a",
-            "label": "BF16"
+            "label": "INT4 - 2nd token latency"
         }
     },
     "Filters": [
@@ -76,8 +66,8 @@
         "precision": {
             "name": "precision",
             "data": [
-                "INT4 - 1ST TOKEN LATENCY",
-                "INT4 - 2ND TOKEN LATENCY"
+                "INT4 - 1st token latency",
+                "INT4 - 2nd token latency"
             ]
         }
     }

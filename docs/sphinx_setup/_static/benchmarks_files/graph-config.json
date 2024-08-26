@@ -1,5 +1,6 @@
+
 {
-    "Precisions": {
+    "PrecisionsMap": {
         "OV-INT8 (reference)": "ovmsint8",
         "OV-FP32 (reference)": "ovmsfp32",
         "INT4": "int4",
@@ -8,6 +9,10 @@
         "FP32": "fp32",
         "BF16": "bf16"
     },
+    "ParametersMap": {
+        "Throughput": "throughput",
+        "Latency": "latency"
+    },
     "UnitDescription": {
         "msec.": "(lower is better)",
         "msec/token": "(lower is better)",
@@ -15,33 +20,34 @@
         "msec/token/TDP": "(lower is better)",
         "FPS": "(higher is better)",
         "FPS/$": "(higher is better)",
-        "FPS/TDP": "(higher is better)"
+        "FPS/TDP": "(higher is better)",
+        "No unit.": "Data not complete!"
     },
     "PrecisionData": {
         "int4": {
             "data": null,
             "color": "#5bd0f0",
-            "label": "INT4"
+            "label": "int4"
         },
         "int8": {
             "data": null,
             "color": "#00C7FD",
-            "label": "INT8"
+            "label": "int8"
         },
         "fp16": {
             "data": null,
             "color": "#009fca",
-            "label": "FP16"
+            "label": "fp16"
         },
         "fp32": {
             "data": null,
             "color": "#007797",
-            "label": "FP32"
+            "label": "fp32"
         },
         "bf16": {
             "data": null,
             "color": "#00536a",
-            "label": "BF16"
+            "label": "bf16"
         }
     },
     "Filters": [
