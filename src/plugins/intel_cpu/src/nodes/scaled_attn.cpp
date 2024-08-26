@@ -204,22 +204,15 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     // k: [B, H, kv_len, S]
     // v: [B, H, kv_len, S]
     const GraphContext::CPtr context;
-    dnnl::memory::desc q_md;
-    dnnl::memory::desc k_md;
-    dnnl::memory::desc weight_md;
-    dnnl::memory::desc v_md;
     dnnl::memory::desc out_md;
-    dnnl::memory attn_score;
-    dnnl::memory attn_weight;
     PlainTensor fp32_out;
     PlainTensor qk_scratch_a;
     PlainTensor qk_scratch_b;
     PlainTensor wv_scratch_a;
     PlainTensor wv_scratch_b;
+    PlainTensor weight_score;
     std::vector<size_t> wsp;
     size_t wsp_size_per_thread = 0;
-    dnnl::matmul qk_prim;
-    dnnl::matmul wv_prim;
     using tag = dnnl::memory::format_tag;
     using dt = dnnl::memory::data_type;
     struct brgemmKey {
@@ -294,8 +287,6 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         }
 
         qk_gemm_ptr = qk_result.first;
-        dnnl::memory::desc attn_md(make_dnnl_dims({B, H, q_len, kv_len}), dt::f32, tag::abcd);
-        weight_md = dnnl::memory::desc(make_dnnl_dims({B, H, q_len, kv_len}), qkv_dt, tag::abcd);
         if (has_out_transpose)
             out_md = dnnl::memory::desc(make_dnnl_dims({B, q_len, H, head_size}), qkv_dt, tag::abcd);
         else
@@ -308,7 +299,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         brgemmKey wv_key = {q_len,
                             head_size,
                             kv_len,
-                            kv_len,
+                            kv_len * (in_type == ov::element::Type_t::f32 ? 1 : 2),
                             present_key.stride(2),
                             static_cast<size_t>(out_md.get_strides()[ldc_index]),
                             false,
@@ -334,10 +325,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
 
         qk_scratch_b.resize<T>({B, Hk, qk_gemm_ptr->get_scratch_b_size() / data_size});
         wv_scratch_b.resize<T>({B, Hk, wv_gemm_ptr->get_scratch_b_size() / data_size});
-        if (!attn_score || attn_md.get_size() > attn_score.get_desc().get_size()) {
-            attn_score = dnnl::memory(attn_md, strm.get_engine());
-            attn_weight = dnnl::memory(weight_md, strm.get_engine());
-        }
+        const size_t m_block_size = qk_gemm_ptr->get_mblk_size();
+        weight_score.resize<float>({static_cast<size_t>(parallel_get_max_threads()), H, m_block_size, kv_len});
         if (has_out_transpose) {
             fp32_out.resize<float>({B, q_len, H, head_size});
         } else {
@@ -362,9 +351,6 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         const auto Hk = present_key.size(1);
         const auto kv_len = present_key.size(2);
         size_t h_each_group_len = H / Hk;
-        PlainTensor score, weight;
-        score.resize({B, H, q_len, kv_len}, static_cast<float*>(attn_score.get_data_handle()));
-        weight.resize({B, H, q_len, kv_len}, static_cast<T*>(attn_weight.get_data_handle()));
         const size_t m_block_size = qk_gemm_ptr->get_mblk_size();
         auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
         bool is_bf16 = precision_of<T>::value == ov::element::bf16;
@@ -378,13 +364,13 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         });
 
         // attention
-        parallel_for3d(B, H, m_blocks, [&](size_t b, size_t h, size_t m_blk) {
+        parallel_for3d(B, H, m_blocks, [&](size_t ithr, size_t b, size_t h, size_t m_blk) {
             auto m_start = m_blk * m_block_size;
             auto m_end = std::min(m_start + m_block_size, q_len);
             auto m_cnt = m_end - m_start;
             size_t tid = parallel_get_thread_num();
             T* q_ptr = &query.at<T>({b, h, m_start, 0});
-            float* c_ptr = &score.at<float>({b, h, m_start, 0});
+            float* c_ptr = weight_score.ptr<float>(ithr, h, 0, 0);
             T* k_ptr = &qk_scratch_b.at<T>({b, h / h_each_group_len, 0});
             qk_gemm_ptr->executeGemm(m_cnt < m_block_size,
                                      q_ptr,
@@ -417,8 +403,9 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                attn_softmax(&score.at<float>({b, h, m, 0}),
-                            &weight.at<T>({b, h, m, 0}),
+                auto score = weight_score.ptr<float>(ithr, h, m - m_start);
+                attn_softmax(score,
+                            reinterpret_cast<T*>(score),
                             d_scale,
                             alibi_ptr + m * alibi_stride,
                             attn_mask_ptr + m * attn_mask_stride,
@@ -429,7 +416,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                             precision_of<T>::value,
                             precision_of<T>::value);
             }
-            T* w_ptr = &weight.at<T>({b, h, m_start, 0});
+            auto* w_ptr = reinterpret_cast<T*>(weight_score.ptr<float>(ithr, h, 0, 0));
             float* fp32_out_ptr;
             if (is_bf16) {
                 fp32_out_ptr = has_out_transpose ? &fp32_out.at<float>({b, m_start, h, 0}) : &fp32_out.at<float>({b, h, m_start, 0});
