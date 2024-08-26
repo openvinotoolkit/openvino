@@ -53,13 +53,13 @@ void write_u4_data(void* array, size_t index, uint32_t data) {
 };
 
 GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
-    auto const_1 = wrap_type<v0::Constant>();//Parameter
+    auto const_1 = wrap_type<v0::Constant>();
     auto const_2 = wrap_type<v0::Constant>();
     auto unsqueeze_1 = wrap_type<v0::Unsqueeze>({const_1, const_2});
     auto const_abs = wrap_type<v0::Constant>();
     auto abs = wrap_type<v0::Abs>({const_abs});
     auto broadcast = wrap_type<ov::op::v3::Broadcast>({unsqueeze_1, abs});
-    auto const_3 = wrap_type<v0::Constant>();//Parameter
+    auto const_3 = wrap_type<v0::Constant>();
     auto const_4 = wrap_type<v0::Constant>();
     auto unsqueeze_2 = wrap_type<v0::Unsqueeze>({const_3, const_4});
     auto bitwise_right_shift = wrap_type<ov::op::util::FrameworkNode>({broadcast, unsqueeze_2});

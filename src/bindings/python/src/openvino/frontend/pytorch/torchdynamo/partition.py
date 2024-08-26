@@ -24,11 +24,13 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
+
 class PatternNode:
     op_types = {}
 
     def __init__(self):
         self.op_types = {}
+
 
 class Partitioner:
     def __init__(self, options):
@@ -63,10 +65,10 @@ class Partitioner:
 
     def check_pattern(self, node: torch.fx.Node, pattern: PatternNode, enabled_ops: list) -> bool:
         if node.op == "call_function":
-            if ("call_function"+":"+str(node.target)) in pattern.op_types:
+            if ("call_function" + ":"+str(node.target)) in pattern.op_types:
                 pt_input_nodes = node.all_input_nodes
-                pattern_input_ops = pattern.op_types["call_function"+":"+str(node.target)]
-                if pattern_input_ops == None:
+                pattern_input_ops = pattern.op_types["call_function" + ":" + str(node.target)]
+                if pattern_input_ops is None:
                     enabled_ops.append(node)
                     return True
                 if len(pt_input_nodes) != len(pattern_input_ops):
@@ -103,7 +105,6 @@ class Partitioner:
         add_or_to_copy_node.op_types["call_function:aten.add.Tensor"] = [to_copy_node,]
         bitwise_and_node = PatternNode
         bitwise_and_node.op_types["call_function:aten.bitwise_and.Scalar"] = [add_or_to_copy_node,]
-
 
         for node in graph_module.graph.nodes:
             if str(node.op) == "call_function" and str(node.target) == "aten.bitwise_and.Scalar":
