@@ -2202,3 +2202,17 @@ TEST_P(general_reduce_gpu_xy_i8, base_cached) { execute(true); }
 TEST(reduce_gpu, common_bfyx_cached) {
     test_common_bfyx<float>(true);
 }
+
+class reduce_scalar_output_f16_f16 : public ReduceTestBase<data_types::f16, data_types::f16> {};
+TEST_P(reduce_scalar_output_f16_f16, base) { execute(false); }
+
+INSTANTIATE_TEST_SUITE_P(reduce_scalar_output_f16_f16,
+                        reduce_scalar_output_f16_f16,
+                        ::testing::Values(
+                            TestParamType_general_reduce_gpu(1, 1, 1, 1, 1013, 2, format::bfyx, reduce_mode::sum, {3, 2, 1, 0},  "reduce_simple_to_scalar", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(1, 1, 1, 1, 1013, 2, format::bfyx, reduce_mode::min, {3, 2, 1, 0},  "reduce_simple_to_scalar", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(1, 1, 1, 1, 1013, 2, format::bfyx, reduce_mode::mean, {3, 2, 1, 0}, "reduce_simple_to_scalar", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(1, 1, 1, 1, 1013, 2, format::bfyx, reduce_mode::max, {3, 2, 1, 0},  "reduce_simple_to_scalar", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(1, 1, 1, 1, 1024, 1, format::bfyx, reduce_mode::min, {3, 2, 1, 0},  "reduce_simple_to_scalar", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(1, 1, 1, 1, 1025, 1, format::bfyx, reduce_mode::min, {3, 2, 1, 0},  "reduce_simple_to_scalar", false, data_types::f16, false, data_types::f16)
+                        ), general_reduce_gpu::PrintToStringParamName);
