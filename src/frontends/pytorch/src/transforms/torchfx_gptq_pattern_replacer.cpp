@@ -74,7 +74,6 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
     auto bitwise_and = wrap_type<ov::op::v13::BitwiseAnd>({add_or_convert, convert_2});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
-
         auto bitwise_and = m.get_match_root();
         if (!bitwise_and) {
             return false;
@@ -155,8 +154,6 @@ GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
     auto const_6 = wrap_type<v0::Constant>();
     auto const_7 = wrap_type<v0::Constant>();
     auto reshape_3 = wrap_type<v1::Reshape>({const_6, const_7});
-
-
     auto mult = wrap_type<v1::Multiply>({reshape_3, convert_3});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
