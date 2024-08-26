@@ -41,7 +41,7 @@ ov::descriptor::Tensor& ov::descriptor::Output::get_tensor() const {
     return *m_tensor;
 }
 
-const ov::Shape& ov::descriptor::Output::get_shape() const {
+ov::Shape ov::descriptor::Output::get_shape() const {
     return m_tensor->get_shape();
 }
 
