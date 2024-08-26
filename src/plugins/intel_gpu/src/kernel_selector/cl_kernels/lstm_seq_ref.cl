@@ -20,6 +20,9 @@ KERNEL(lstm_seq)(
 #endif
 )
 {
+    #ifdef SEQUENCE
+        INPUT3_TYPE R_copy[NUM_HIDDEN_TO_DO][4][HIDDEN_SIZE];
+    #endif
     const uint b = get_global_id(1);
     const uint local_idx = get_local_id(0);
     const uint weight_offsets[4] = {GEMM_OFFSET_F, GEMM_OFFSET_I, GEMM_OFFSET_Z, GEMM_OFFSET_O};
@@ -54,13 +57,14 @@ KERNEL(lstm_seq)(
                 unroll_for(uint j=0;j<HIDDEN_SIZE;++j) {
                     if(i==0){
                         #ifdef SEQUENCE
-                            hidden_result += initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, 0, j, 0)]*R[INPUT3_GET_INDEX_SAFE(0, weight_idx, j, 0)];
+                            R_copy[l][k][j] = R[INPUT3_GET_INDEX_SAFE(0, weight_idx, j, 0)];
+                            hidden_result += initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, 0, j, 0)]*R_copy[l][k][j];
                         #else
                             hidden_result += initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, j, 0, 0)]*R[INPUT3_GET_INDEX_SAFE(weight_idx, j, 0, 0)];
                         #endif
                     }else{
                         #ifdef SEQUENCE
-                            hidden_result += hidden_history[OUTPUT_GET_INDEX_SAFE(b, 0, prev_idx, j)]*R[INPUT3_GET_INDEX_SAFE(0, weight_idx, j, 0)];
+                            hidden_result += hidden_history[OUTPUT_GET_INDEX_SAFE(b, 0, prev_idx, j)]*R_copy[l][k][j];
                         #endif
                     }
                 }

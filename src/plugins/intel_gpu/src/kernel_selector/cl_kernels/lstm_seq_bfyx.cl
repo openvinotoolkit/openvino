@@ -28,6 +28,9 @@ KERNEL(lstm_seq)(
 )
 {
     __local ACCUMULATOR_TYPE gate_output[GATE_NUM];
+    #ifdef SEQUENCE
+        INPUT3_TYPE_VEC r_block[NUM_HIDDEN_TO_DO][HIDDEN_SIZE/VEC_SIZE];
+    #endif    
     const uint b = get_global_id(1);
     const uint local_idx = get_local_id(0);
     const uint weight_offsets[4] = {GEMM_OFFSET_F, GEMM_OFFSET_I, GEMM_OFFSET_Z, GEMM_OFFSET_O};
@@ -63,8 +66,8 @@ KERNEL(lstm_seq)(
                 if(i==0){
                     #ifdef SEQUENCE
                         INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, 0, j*VEC_SIZE, 0)]);
-                        INPUT3_TYPE_VEC r_block = READ_VEC(0, &R[INPUT3_GET_INDEX_SAFE(0, weight_idx, j*VEC_SIZE, 0)]);
-                        hidden_result += initial_block.s0*r_block.s0 + initial_block.s1*r_block.s1 + initial_block.s2*r_block.s2 + initial_block.s3*r_block.s3 + initial_block.s4*r_block.s4 + initial_block.s5*r_block.s5 + initial_block.s6*r_block.s6 + initial_block.s7*r_block.s7;
+                        r_block[l][j] = READ_VEC(0, &R[INPUT3_GET_INDEX_SAFE(weight_idx, j*VEC_SIZE, 0, 0)]);
+                        hidden_result += initial_block.s0*r_block[l][j].s0 + initial_block.s1*r_block[l][j].s1 + initial_block.s2*r_block[l][j].s2 + initial_block.s3*r_block[l][j].s3 + initial_block.s4*r_block[l][j].s4 + initial_block.s5*r_block[l][j].s5 + initial_block.s6*r_block[l][j].s6 + initial_block.s7*r_block[l][j].s7;
                     #else
                         INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, j*VEC_SIZE, 0, 0)]);
                         INPUT3_TYPE_VEC r_block = READ_VEC(0, &R[INPUT3_GET_INDEX_SAFE(weight_idx, j*VEC_SIZE, 0, 0)]);
@@ -74,8 +77,7 @@ KERNEL(lstm_seq)(
                 }else{
                     #ifdef SEQUENCE
                         OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX_SAFE(b, 0, prev_idx, j*VEC_SIZE)]);
-                        INPUT3_TYPE_VEC r_block = READ_VEC(0, &R[INPUT3_GET_INDEX_SAFE(0, weight_idx, j*VEC_SIZE, 0)]);
-                        hidden_result += h_block.s0*r_block.s0 + h_block.s1*r_block.s1 + h_block.s2*r_block.s2 + h_block.s3*r_block.s3 + h_block.s4*r_block.s4 + h_block.s5*r_block.s5 + h_block.s6*r_block.s6 + h_block.s7*r_block.s7;
+                        hidden_result += h_block.s0*r_block[l][j].s0 + h_block.s1*r_block[l][j].s1 + h_block.s2*r_block[l][j].s2 + h_block.s3*r_block[l][j].s3 + h_block.s4*r_block[l][j].s4 + h_block.s5*r_block[l][j].s5 + h_block.s6*r_block[l][j].s6 + h_block.s7*r_block[l][j].s7;
                     #endif
                 }
             }
