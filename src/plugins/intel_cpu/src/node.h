@@ -737,7 +737,7 @@ protected:
                               impl_desc_type implType);
 
     void prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs);
-    void prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx);
+    virtual void prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx);
     void prepareMemory(dnnl::primitive_desc_iterator& itpd);
 
     MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryDescPtr srcWeightDesc = nullptr);
@@ -773,7 +773,7 @@ protected:
                                        NameFromType(getType()));
     }
 
-    MemoryPtr getScratchPadMem(const DnnlMemoryDescPtr& desc) {
+    MemoryPtr getScratchPadMem(const MemoryDescPtr& desc) {
         if (!scratchpadMem || !scratchpadMem->getDesc().isCompatible(*desc)) {
             scratchpadMem = context->getScratchPad(curNumaNode)->createScratchPadMem(desc);
         }
