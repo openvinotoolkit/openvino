@@ -43,6 +43,8 @@ bool is_python_scalar_input(const NodeContext& context, size_t index);
 
 element::Type convert_dtype(int64_t pt_type);
 
+OutputVector make_framework_node(const NodeContext& context, const std::string& exception);
+
 namespace op {
 
 template <typename T>

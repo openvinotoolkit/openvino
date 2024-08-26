@@ -191,17 +191,12 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
         OPENVINO_DEBUG("No translator found for: ", context.get_op_type(), "\n");
     } catch (std::exception& e) {
         exception = e.what();
-        if (m_telemetry) {
-            auto cropped_message = ov::util::filter_lines_by_prefix(exception, get_jax_prefix());
-            if (cropped_message.size()) {
-                m_telemetry->send_event("error_info", cropped_message);
-            }
-        }
     } catch (...) {
         exception = "Unknown exception type.";
     }
-    exception += "Failed to convert operation: " + context.get_op_type() + ". Reason: ";
-    FRONT_END_THROW(exception);
+    OPENVINO_DEBUG(exception, "\n");
+    // Create JaxFrameworkNode for everything that wasn't able to be converted normally
+    return make_framework_node(context, exception);
 }
 
 void TranslateSession::encode_tensor_name(Output<Node> output,
