@@ -50,7 +50,7 @@ KERNEL(lstm_seq)(
             }
             ACCUMULATOR_TYPE gate_output[GATE_NUM];
             unroll_for(uint k=0;k<GATE_NUM;++k){
-                ACCUMULATOR_TYPE hidden_result = 0;
+                INPUT3_TYPE hidden_result = 0;
                 const uint weight_idx = hidden_idx+weight_offsets[k];
                 unroll_for(uint j=0;j<HIDDEN_SIZE;++j) {
                     if(i==0){
