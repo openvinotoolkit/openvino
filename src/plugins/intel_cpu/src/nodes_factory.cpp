@@ -88,6 +88,8 @@
 #include "nodes/rope.h"
 #include "nodes/scaled_attn.h"
 #include "nodes/scatter_update.h"
+#include "nodes/string_tensor_pack.h"
+#include "nodes/string_tensor_unpack.h"
 #include "nodes/shapeof.h"
 #include "nodes/shuffle_channels.h"
 #include "nodes/softmax.h"
@@ -174,6 +176,8 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(ScatterUpdate, Type::ScatterUpdate);
     INTEL_CPU_NODE(ScatterUpdate, Type::ScatterElementsUpdate);
     INTEL_CPU_NODE(ScatterUpdate, Type::ScatterNDUpdate);
+    INTEL_CPU_NODE(StringTensorPack, Type::StringTensorPack);
+    INTEL_CPU_NODE(StringTensorUnpack, Type::StringTensorUnpack);
     INTEL_CPU_NODE(ShuffleChannels, Type::ShuffleChannels);
     INTEL_CPU_NODE(TensorIterator, Type::TensorIterator);
     INTEL_CPU_NODE(Concat, Type::Concatenation);
