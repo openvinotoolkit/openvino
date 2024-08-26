@@ -28,10 +28,8 @@ void regclass_Tensor(py::module m) {
 
                 :param array: Array to create the tensor from.
                 :type array: numpy.array
-                :param shared_memory: If `True`, this Tensor memory is being shared with a host,
-                                      that means the responsibility of keeping host memory is
-                                      on the side of a user. Any action performed on the host
-                                      memory is reflected on this Tensor's memory!
+                :param shared_memory: If `True`, this Tensor memory is being shared with a host.
+                                      Any action performed on the host memory is reflected on this Tensor's memory!
                                       If `False`, data is being copied to this Tensor.
                                       Requires data to be C_CONTIGUOUS if `True`.
                 :type shared_memory: bool
@@ -43,6 +41,7 @@ void regclass_Tensor(py::module m) {
             py::arg("array"),
             py::arg("shape"),
             py::arg("type") = ov::element::undefined,
+            py::keep_alive<1, 2>(),
             R"(
                 Another Tensor's special constructor.
 
@@ -52,10 +51,8 @@ void regclass_Tensor(py::module m) {
 
                 :param array: C_CONTIGUOUS numpy array which will be wrapped in
                               openvino.runtime.Tensor with given parameters (shape
-                              and element_type). Array's memory is being shared with
-                              a host, that means the responsibility of keeping host memory is
-                              on the side of a user. Any action performed on the host
-                              memory will be reflected on this Tensor's memory!
+                              and element_type). Array's memory is being shared with a host.
+                              Any action performed on the host memory will be reflected on this Tensor's memory!
                 :type array: numpy.array
                 :param shape: Shape of the new tensor.
                 :type shape: openvino.runtime.Shape
@@ -78,6 +75,7 @@ void regclass_Tensor(py::module m) {
             py::arg("array"),
             py::arg("shape"),
             py::arg("type") = ov::element::undefined,
+            py::keep_alive<1, 2>(),
             R"(
                  Another Tensor's special constructor.
 
@@ -87,10 +85,8 @@ void regclass_Tensor(py::module m) {
 
                 :param array: C_CONTIGUOUS numpy array which will be wrapped in
                               openvino.runtime.Tensor with given parameters (shape
-                              and element_type). Array's memory is being shared with
-                              a host, that means the responsibility of keeping host memory is
-                              on the side of a user. Any action performed on the host
-                              memory will be reflected on this Tensor's memory!
+                              and element_type). Array's memory is being shared with a host.
+                              Any action performed on the host memory will be reflected on this Tensor's memory!
                 :type array: numpy.array
                 :param shape: Shape of the new tensor.
                 :type shape: list or tuple
@@ -168,6 +164,7 @@ void regclass_Tensor(py::module m) {
             }),
             py::arg("port"),
             py::arg("array"),
+            py::keep_alive<1, 3>(),
             R"(
                 Constructs Tensor using port from node.
                 Type and shape will be taken from the port.
@@ -175,10 +172,8 @@ void regclass_Tensor(py::module m) {
                 :param port: Output port from a node.
                 :type param: openvino.runtime.Output
                 :param array: C_CONTIGUOUS numpy array which will be wrapped in
-                              openvino.runtime.Tensor. Array's memory is being shared with
-                              a host, that means the responsibility of keeping host memory is
-                              on the side of a user. Any action performed on the host
-                              memory will be reflected on this Tensor's memory!
+                              openvino.runtime.Tensor. Array's memory is being shared wi a host.
+                              Any action performed on the host memory will be reflected on this Tensor's memory!
                 :type array: numpy.array
              )");
 
@@ -197,6 +192,7 @@ void regclass_Tensor(py::module m) {
             }),
             py::arg("port"),
             py::arg("array"),
+            py::keep_alive<1, 3>(),
             R"(
                 Constructs Tensor using port from node.
                 Type and shape will be taken from the port.
@@ -204,10 +200,8 @@ void regclass_Tensor(py::module m) {
                 :param port: Output port from a node.
                 :type param: openvino.runtime.ConstOutput
                 :param array: C_CONTIGUOUS numpy array which will be wrapped in
-                              openvino.runtime.Tensor. Array's memory is being shared with
-                              a host, that means the responsibility of keeping host memory is
-                              on the side of a user. Any action performed on the host
-                              memory will be reflected on this Tensor's memory!
+                              openvino.runtime.Tensor. Array's memory is being shared with a host.
+                              Any action performed on the host memory will be reflected on this Tensor's memory!
                 :type array: numpy.array
              )");
 
