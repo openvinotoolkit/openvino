@@ -4,7 +4,6 @@
 
 import sys
 import pytest
-import random
 import numpy as np
 
 from tests.utils.helpers import (
