@@ -104,10 +104,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_3D,
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MHA::getTestCaseName);
 
+const auto& splitm_static_shapes = STATIC_SHAPES({{1, 128, 2, 64}, {1, 128, 2, 64}, {1, 1, 1, 1}, {1, 128, 2, 64}});
+
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Snippets_MHA_4D_SplitDimensionM,
+    smoke_Snippets_MHA_4D_SplitDimensionM_static,
     MHA,
-    ::testing::Combine(::testing::ValuesIn(STATIC_SHAPES({{1, 128, 2, 64}, {1, 128, 2, 64}, {1, 1, 1, 1}, {1, 128, 2, 64}})),
+    ::testing::Combine(::testing::ValuesIn(splitm_static_shapes),
                        ::testing::ValuesIn(precision_f32(4)),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(true),
@@ -119,7 +121,7 @@ INSTANTIATE_TEST_SUITE_P(
     MHA::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Snippets_MHA_3D_SplitDimensionM,
+    smoke_Snippets_MHA_3D_SplitDimensionM_static,
     MHA,
     ::testing::Combine(
         ::testing::ValuesIn(STATIC_SHAPES({{384, 2, 64}, {384, 2, 64}, {1, 384, 384}, {384, 2, 64}})),
@@ -131,6 +133,76 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(1),   // MHA
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(enable_callback())),
+    MHA::getTestCaseName);
+
+std::vector<std::vector<ov::test::InputShape>> splitm_dynamic_shapes_4d = {
+    {
+        {PartialShape{-1, -1, -1, -1}, {{1, 128, 2, 64}, {1, 17, 2, 64}, {1, 128, 2, 64}}},
+        {PartialShape{-1, -1, -1, -1}, {{1, 128, 2, 64}, {1, 17, 2, 64}, {1, 128, 2, 64}}},
+        {PartialShape{-1, -1, -1, -1}, {{1, 1, 1, 128}, {1, 1, 1, 17}, {1, 1, 1, 128}}},
+        {PartialShape{-1, -1, -1, -1}, {{1, 128, 2, 64}, {1, 17, 2, 64}, {1, 128, 2, 64}}},
+    },
+    {
+        {PartialShape{-1, 128, -1, -1}, {{1, 128, 2, 64}}},
+        {PartialShape{-1, -1, -1, -1}, {{1, 16, 2, 64}}},
+        {PartialShape{-1, -1, 128, -1}, {{1, 1, 128, 16}}},
+        {PartialShape{-1, -1, -1, -1}, {{1, 16, 2, 32}}},
+    },
+    {
+        {PartialShape{-1, 32, -1, -1}, {{1, 32, 2, 64}}},
+        {PartialShape{-1, -1, -1, -1}, {{1, 16, 2, 64}}},
+        {PartialShape{-1, -1, 32, -1}, {{1, 1, 32, 16}}},
+        {PartialShape{-1, -1, -1, -1}, {{1, 16, 2, 32}}},
+    },
+    {
+        {PartialShape{-1, -1, -1, -1}, {{1, 16, 2, 64}}},
+        {PartialShape{-1, -1, -1, -1}, {{1, 16, 2, 64}}},
+        {PartialShape{-1, -1, 16, -1}, {{1, 1, 16, 16}}},
+        {PartialShape{-1, -1, -1, -1}, {{1, 16, 2, 32}}},
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Snippets_MHA_4D_SplitDimensionM_dynamic,
+    MHA,
+    ::testing::Combine(::testing::ValuesIn(splitm_dynamic_shapes_4d),
+                       ::testing::ValuesIn(precision_f32(4)),
+                       ::testing::Values(ov::element::f32),
+                       ::testing::Values(false),
+                       ::testing::Values(4),  // 4 Threads
+                       ::testing::Values(1),
+                       ::testing::Values(1),
+                       ::testing::Values(ov::test::utils::DEVICE_CPU),
+                       ::testing::Values(CPUTestUtils::empty_plugin_config)),
+    MHA::getTestCaseName);
+
+std::vector<std::vector<ov::test::InputShape>> splitm_dynamic_shapes_3d = {
+    {
+        {PartialShape{-1, -1, -1}, {{128, 2, 64}, {17, 2, 64}, {128, 2, 64}}},
+        {PartialShape{-1, -1, -1}, {{128, 2, 64}, {17, 2, 64}, {128, 2, 64}}},
+        {PartialShape{-1, -1, -1}, {{1, 1, 128}, {1, 1, 17}, {1, 1, 128}}},
+        {PartialShape{-1, -1, -1}, {{128, 2, 64}, {17, 2, 64}, {128, 2, 64}}},
+    },
+    {
+        {PartialShape{-1, 2, 64}, {{128, 2, 64}, {64, 2, 64}, {128, 2, 64}}},
+        {PartialShape{-1, 2, 64}, {{128, 2, 64}, {64, 2, 64}, {128, 2, 64}}},
+        {PartialShape{1, 1, -1}, {{1, 1, 128}, {1, 1, 64}, {1, 1, 128}}},
+        {PartialShape{-1, 2, 64}, {{128, 2, 64}, {64, 2, 64}, {128, 2, 64}}},
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Snippets_MHA_3D_SplitDimensionM_dynamic,
+    MHA,
+    ::testing::Combine(::testing::ValuesIn(splitm_dynamic_shapes_3d),
+                       ::testing::ValuesIn(precision_f32(4)),
+                       ::testing::Values(ov::element::f32),
+                       ::testing::Values(false),
+                       ::testing::Values(4),  // 4 Threads
+                       ::testing::Values(5),  // Subgraph + 4 Transpose
+                       ::testing::Values(2),  // MHA + one of the transposes is executed via Subgraph (because callback is disabled)
+                       ::testing::Values(ov::test::utils::DEVICE_CPU),
+                       ::testing::Values(CPUTestUtils::empty_plugin_config)),
     MHA::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHABF16_4D,
@@ -454,6 +526,35 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                        ::testing::Values(CPUTestUtils::empty_plugin_config)),
     MHA::getTestCaseName);
+
+std::vector<std::vector<ov::test::InputShape>> inputShapes_4D_WithMul_dynamic{
+        {
+            {PartialShape{-1, -1, -1, -1}, {{1, 128, 3, 64}, {1, 70, 3, 19}, {1, 128, 3, 64}, {1, 68, 6, 87}}},
+            {PartialShape{-1, -1, -1, -1}, {{1, 128, 1, 64}, {2, 49, 1, 19}, {1, 128, 1, 64}, {2, 13, 6, 87}}},
+            {PartialShape{1},              {{1},             {1},            {1},             {1} }},
+            {PartialShape{-1, -1, -1, -1}, {{2, 1, 128, 128}, {1, 1, 70, 49}, {2, 1, 128, 128}, {1, 1, 68, 13}}},
+            {PartialShape{-1, -1, -1, -1}, {{1, 128, 3, 64}, {1, 49, 3, 19}, {1, 128, 3, 64}, {2, 13, 6, 87}}},
+        },
+        {
+            {PartialShape{-1, -1, 12, 64}, {{1, 70, 12, 64}, {1, 20, 12, 64}, {1, 20, 12, 64}, {1, 20, 12, 64}, {1, 70, 12, 64}}},
+            {PartialShape{-1, -1, 12, 64}, {{1, 35, 12, 64}, {2, 10, 12, 64}, {2, 1, 12, 64},  {2, 10, 12, 64}, {1, 35, 12, 64}}},
+            {PartialShape{-1, 12, 64, -1}, {{1, 12, 64, 35}, {1, 12, 64, 10}, {1, 12, 64, 10}, {1, 12, 64, 1},  {1, 12, 64, 35}}},
+            {PartialShape{-1, 12, -1, -1}, {{2, 12, 70, 35}, {1, 12, 20, 10}, {1, 12, 20, 10}, {1, 12, 20, 1},  {2, 12, 70, 35}}},
+            {PartialShape{-1, -1, 12, 64}, {{1, 35, 12, 64}, {1, 10, 12, 64}, {1, 10, 12, 64}, {1, 10, 12, 64}, {1, 35, 12, 64}}},
+        }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMHA_4D_WithMul,
+                         MHAWithDynamicMul,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes_4D_WithMul_dynamic),
+                                            ::testing::ValuesIn(precision_f32(5)),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(MHA::default_thread_count),
+                                            ::testing::Values(1),
+                                            ::testing::Values(1),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         MHAWithDynamicMul::getTestCaseName);
 
 }  // namespace
 }  // namespace snippets

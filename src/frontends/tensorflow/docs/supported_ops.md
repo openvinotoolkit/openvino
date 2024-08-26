@@ -111,7 +111,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | BatchMatrixDeterminant                                  | NO                            |                               |
 | BatchMatrixDiag                                         | NO                            |                               |
 | BatchMatrixDiagPart                                     | NO                            |                               |
-| BatchMatrixInverse                                      | NO                            |                               |
+| BatchMatrixInverse                                      | YES                           |                               |
 | BatchMatrixSetDiag                                      | NO                            |                               |
 | BatchMatrixSolve                                        | NO                            |                               |
 | BatchMatrixSolveLs                                      | NO                            |                               |
@@ -829,7 +829,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | RFFT                                                    | YES                           |                               |
 | RFFT2D                                                  | YES                           |                               |
 | RFFT3D                                                  | YES                           |                               |
-| RGBToHSV                                                | NO                            |                               |
+| RGBToHSV                                                | YES                           |                               |
 | RaggedBincount                                          | NO                            |                               |
 | RaggedCountSparseOutput                                 | NO                            |                               |
 | RaggedCross                                             | NO                            |                               |
@@ -1149,8 +1149,8 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | SparseSparseMaximum                                     | NO                            |                               |
 | SparseSparseMinimum                                     | NO                            |                               |
 | SparseSplit                                             | NO                            |                               |
-| SparseTensorDenseAdd                                    | NO                            |                               |
-| SparseTensorDenseMatMul                                 | NO                            |                               |
+| SparseTensorDenseAdd                                    | YES                           |                               |
+| SparseTensorDenseMatMul                                 | YES                           |                               |
 | SparseTensorSliceDataset                                | NO                            |                               |
 | SparseTensorToCSRSparseMatrix                           | NO                            |                               |
 | SparseToDense                                           | YES                           |                               |
@@ -1318,7 +1318,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | TensorScatterMax                                        | NO                            |                               |
 | TensorScatterMin                                        | NO                            |                               |
 | TensorScatterSub                                        | NO                            |                               |
-| TensorScatterUpdate                                     | NO                            |                               |
+| TensorScatterUpdate                                     | YES                           |                               |
 | TensorSliceDataset                                      | NO                            |                               |
 | TensorStridedSliceUpdate                                | NO                            |                               |
 | TensorSummary                                           | NO                            |                               |
