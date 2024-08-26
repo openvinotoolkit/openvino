@@ -781,9 +781,9 @@ def test_op_extension_via_frontend_extension_map_attributes():
 
 
 def get_builtin_extensions_path():
-    folder_path = Path(__file__).resolve().parents[5].joinpath("bin")
+    ci_tests_path = Path(__file__).resolve().parents[3]
     for lib_path in chain(
-        folder_path.glob("**/**/*.dll"), folder_path.glob("**/**/*.so")
+        ci_tests_path.glob("*.dll"), ci_tests_path.glob("*.so")
     ):
         if "test_builtin_extensions" in lib_path.name:
             return str(lib_path)
