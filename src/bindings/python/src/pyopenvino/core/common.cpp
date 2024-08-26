@@ -10,6 +10,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
+#include "pyopenvino/core/remote_tensor.hpp"
 
 #define C_CONTIGUOUS py::detail::npy_api::constants::NPY_ARRAY_C_CONTIGUOUS_
 
@@ -565,7 +566,13 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
 }
 
 const ov::Tensor& cast_to_tensor(const py::handle& tensor) {
-    return tensor.cast<const ov::Tensor&>();
+    if (py::isinstance<ov::Tensor>(tensor)) {
+        return tensor.cast<const ov::Tensor&>();
+    } else if (py::isinstance<RemoteTensorWrapper>(tensor)) {
+        return tensor.cast<const RemoteTensorWrapper&>().tensor;
+    }
+
+    throw py::type_error("Unable to cast " + std::string(py::str(tensor.get_type())) + " object to ov::Tensor");
 }
 
 void set_request_tensors(ov::InferRequest& request, const py::dict& inputs) {

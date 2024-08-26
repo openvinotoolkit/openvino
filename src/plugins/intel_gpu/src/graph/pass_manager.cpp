@@ -50,7 +50,7 @@ void pass_manager::run(program& p, base_pass& pass) {
     using ms = std::chrono::duration<double, std::ratio<1, 1000>>;
     using Time = std::chrono::high_resolution_clock;
 
-    GPU_DEBUG_LOG << "Run pass " << pass.get_name() << std::endl;
+    GPU_DEBUG_LOG << "Run pass " << pass.get_name() << " (program_id=" << p.get_id() << ")" << std::endl;
     GPU_DEBUG_DEFINE_MEM_LOGGER(pass.get_name());
     auto start = Time::now();
     pass.run(p);

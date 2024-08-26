@@ -737,6 +737,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     auto& engine = m_graph->get_engine();
     auto& stream = network->get_stream();
 
+    auto need_lockable_mem = network->does_node_need_lockable_output(internal_name);
+
     OPENVINO_ASSERT(pshape.compatible(ov::PartialShape(user_tensor->get_shape())) || is_batched_input(port),
                     "[GPU] The input tensor size is not equal to model port shape, can't handle input tensor with name: ",
                     internal_name,
@@ -749,7 +751,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     auto device_tensor_et = convert_to_supported_device_type(element_type);
     bool convert_needed = is_convert_required(element_type, device_tensor_et);
 
-    if (is_remote_tensor_impl) {
+    if (is_remote_tensor_impl && !need_lockable_mem) {
         if (convert_needed) {
             m_plugin_inputs[input_idx] = { create_device_tensor(pshape,
                                                                 cldnn::element_type_to_data_type(element_type),
@@ -788,10 +790,10 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     bool update_device_tensor = (m_plugin_inputs.count(input_idx) == 0) ||
                                 (m_plugin_inputs[input_idx].owner == TensorOwner::USER && !is_remote_tensor_impl) ||
                                 (plugin_tensor_mem_type != cldnn::allocation_type::usm_host && usm_host_raw_ptr);
-
     if (update_device_tensor) {
         // If device input hasn't been created, then try to use user memory if it's usm_host, or allocate new device buffer
-        m_plugin_inputs[input_idx] = create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, convert_needed);
+        m_plugin_inputs[input_idx] =
+            create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, convert_needed || need_lockable_mem);
     } else if (!is_remote_tensor_impl) {
         // Device memory has been created on previous iterations. Try to reuse whenever it's possible
         auto device_tensor_wrapper = m_plugin_inputs.at(input_idx);
@@ -803,7 +805,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                                                                                cldnn::format::get_default_format(user_tensor->get_shape().size())),
                                                   *m_shape_predictor);
                 GPU_DEBUG_TRACE_DETAIL << "    actual memory shape: " << actual_shape.to_string() << std::endl;
-                auto new_tensor = create_device_tensor(actual_shape, device_tensor_et, false);
+                auto new_tensor = create_device_tensor(actual_shape, device_tensor_et, need_lockable_mem);
                 new_tensor->set_shape(user_tensor->get_shape());
                 m_plugin_inputs[input_idx] = { new_tensor, TensorOwner::PLUGIN };
             }
@@ -839,6 +841,16 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     }
 
     cldnn::event::ptr ret_event = nullptr;
+    if (!is_remote_tensor_impl && !is_generic_remote && !convert_needed) {
+        auto src_ptr = static_cast<uint8_t*>(user_tensor->data());
+        if (!same_host_mem(memory, src_ptr)) {
+            // WA: Set need_lockable_mem as a blocking argument
+            // The current input_layout (wait_for_events) does not provide proper synchronization for subsequent CPU implementations
+            // For IOQ, it creates an already set user event, leading to accessing memory that hasn't completed copying
+            // For OOOQ, it enqueues a barrier that is ignored by the memory_lock functions, also causing access to not ready memory
+            ret_event = memory->copy_from(stream, src_ptr, need_lockable_mem);
+        }
+    }
     if (convert_needed) {
         if (is_remote_tensor_impl) {
             convert_and_copy(remote_tensor_impl_ptr->get_memory(), device_tensor->get_memory(), stream);
@@ -904,14 +916,14 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     }
 
     if (!is_dynamic) {
-        auto is_cpu_impl = network->is_cpu_impl(internal_name);
+        bool need_lockable_mem = network->does_node_need_lockable_output(internal_name);
         bool has_device_buffer = m_plugin_outputs.count(output_idx) > 0;
         bool update_device_tensor = !has_device_buffer ||
                                     is_generic_remote ||
                                     (m_plugin_outputs[output_idx].owner == TensorOwner::USER && !is_remote_tensor_impl);
         if (update_device_tensor) {
             m_plugin_outputs[output_idx] =
-                create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, is_cpu_impl || convert_needed);
+                create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, need_lockable_mem || convert_needed);
         }
     }
 

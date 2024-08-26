@@ -357,6 +357,8 @@ public:
         return as<To>();
     }
 
+    virtual std::set<size_t> get_lockable_input_ids() const;
+
     void add_dependant_shape_of_node(const program_node* node);
 
     const std::set<const program_node*>& get_dependant_shape_of_nodes() const {
