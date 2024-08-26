@@ -308,7 +308,7 @@ public:
     const element::Type& get_element_type() const;
 
     /// Returns the shape for output i
-    const Shape& get_output_shape(size_t i) const;
+    Shape get_output_shape(size_t i) const;
 
     /// Returns the partial shape for output i
     const PartialShape& get_output_partial_shape(size_t i) const;

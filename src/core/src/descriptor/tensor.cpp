@@ -60,7 +60,7 @@ void ov::descriptor::Tensor::set_value_symbol(const TensorSymbol& value_symbol) 
     }
 }
 
-const ov::Shape& ov::descriptor::Tensor::get_shape() const {
+ov::Shape ov::descriptor::Tensor::get_shape() const {
     AtomicGuard lock(m_shape_changing);
     if (m_shape_changed) {
         m_shape = m_partial_shape.to_shape();
