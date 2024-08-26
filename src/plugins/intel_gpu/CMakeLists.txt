@@ -30,6 +30,9 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd4244)
     # '<': signed/unsigned mismatch
     ov_add_compiler_flags(/wd4018)
+
+    # see https://github.com/oneapi-src/oneDNN/issues/2028
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus")
 endif()
 
 if(ENABLE_GPU_DEBUG_CAPS)

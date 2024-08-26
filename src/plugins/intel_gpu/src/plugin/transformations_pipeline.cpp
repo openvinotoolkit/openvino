@@ -58,6 +58,7 @@
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
+#include "plugin/transformations/decompose_reduce_scalar_output.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
@@ -70,7 +71,9 @@
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/group_norm_composition.hpp"
+#include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -208,7 +211,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     bool enableInt8;
     bool unroll_loop = config.get_property(ov::intel_gpu::enable_loop_unrolling);
     {
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("Plugin:GPU");
         auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
 
@@ -406,6 +409,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
         manager.register_pass<ov::pass::TransposeMatMul>();
         manager.register_pass<ov::pass::ConvertPad12ToPad1, false>();
+        manager.register_pass<DecomposeReduceForScalarOutput>();
 
         precisions_map int_convert_precision_map {
                 {ov::element::i64, ov::element::i32},
@@ -545,7 +549,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     if (auto axes_node = dynamic_cast<ov::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
                         auto mvn_axes = axes_node->cast_vector<int64_t>();
                         auto out_rank = mvn->get_output_partial_shape(0).size();
-                        ov::util::normalize_axes(mvn.get(), out_rank, mvn_axes);
+                        ov::util::try_normalize_axes(mvn_axes, out_rank, *mvn);
 
                         std::sort(mvn_axes.begin(), mvn_axes.end());
 
@@ -667,7 +671,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             QuantizationGranularityRestriction::create<ov::op::v1::ConvolutionBackpropData>({0}),
         });
 
-        ov::pass::Manager lptManager;
+        ov::pass::Manager lptManager("GPU:LPT");
 
         auto lptPassConfig = lptManager.get_pass_config();
         // quantized LSTMSequence / GPUSequence are not supported yet. Avoid extra transformation
@@ -756,7 +760,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply::run_passes");
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("GPU:UnrollTensorIterator");
         // This ConstantFolding pass is added to fold reshapes added for constant inputs on NMS internal operation which prevents upper-bound calculation
         // TODO: check why we have these reshapes
         manager.register_pass<ov::pass::ConstantFolding>();
@@ -776,7 +780,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     }
 
     {
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("GPU:PostLPT");
+        manager.set_per_pass_validation(false);
 
         // Other ops support eltwise fusions
         const std::vector<DiscreteTypeInfo> allowed_data_movement_ops = {
@@ -845,6 +850,27 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
+
+        manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
+
+        auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
+        if (device_info.supports_immad) { // XXX: 1048576 is considered per-token
+            pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
+                if (root->get_input_node_shared_ptr(0)->get_element_type() == ov::element::Type_t::f32) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  Dynamic quantization is turned off because input type is not supported" << std::endl;
+                    return true;
+                }
+
+                auto weight_shape = root->get_input_partial_shape(1);
+                const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
+                if (innermost_size < 32) {
+                    GPU_DEBUG_TRACE << "Dynamic quantization: shape is too small " << innermost_size << " / " << dynamic_quantization_group_size << std::endl;
+                    return true;
+                }
+                return false;
+            });
+            manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size);
+        }
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation

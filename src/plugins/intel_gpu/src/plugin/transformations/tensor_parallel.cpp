@@ -329,7 +329,7 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
             }
         } else {
             // some accuracy lost, disable for now
-            /*auto splitted_context = split_fc(m_fc, op::TP_MODE::ALL_GATHERH);
+            auto splitted_context = split_fc(m_fc, op::TP_MODE::ALL_GATHERH);
             auto new_fc = splitted_context.first;
             new_fc->set_friendly_name(m_fc->get_friendly_name());
             copy_runtime_info(m_fc, new_fc);
@@ -375,7 +375,7 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
                     iter.second->input(iter.first).replace_source_output(concat_node->output(0));
                 }
                 new_fc->clear_control_dependencies();
-            }*/
+            }
         }
         return true;
     };

@@ -7,6 +7,7 @@
 #include "reshape_inst.h"
 #include "eltwise_inst.h"
 #include "select_inst.h"
+#include "strided_slice_inst.h"
 #include "gather_inst.h"
 #include "pass_manager.h"
 
@@ -76,6 +77,13 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
         auto gather_compressed_weight_mode = gather_node.get_primitive()->compressed_weights;
         if (gather_compressed_weight_mode)
             return false;
+    }
+
+    // Exclude stride_slice primitive if it's input is big const ternsor, else CPU reference implementation
+    // will lead to huge performance drop.
+    if (node.is_type<strided_slice>() && node.get_dependency(0).is_constant() &&
+        node.get_dependency(0).get_output_layout().count() > 128 * 1024) {
+        return false;
     }
 
     auto available_impls = node.type()->get_available_impls(node);

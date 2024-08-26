@@ -3,7 +3,7 @@
 //
 
 #include "sync_tensor_inst.h"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 #include "register.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "openvino/core/parallel.hpp"

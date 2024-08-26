@@ -274,9 +274,6 @@ macro(ov_cpack_settings)
     ov_rpm_generate_conflicts("${OV_CPACK_COMP_CORE_DEV}" ${conflicting_versions})
 
     ov_rpm_add_rpmlint_suppression("${OV_CPACK_COMP_CORE_DEV}"
-        # contains samples source codes
-        "devel-file-in-non-devel-package /usr/${OV_CPACK_INCLUDEDIR}/ngraph"
-        "devel-file-in-non-devel-package /usr/${OV_CPACK_INCLUDEDIR}/ie"
         "devel-file-in-non-devel-package /usr/${OV_CPACK_INCLUDEDIR}/openvino"
         "devel-file-in-non-devel-package /usr/${OV_CPACK_RUNTIMEDIR}/libopenvino*"
         "devel-file-in-non-devel-package /usr/${OV_CPACK_RUNTIMEDIR}/pkgconfig/openvino.pc")
@@ -302,8 +299,12 @@ macro(ov_cpack_settings)
         ov_rpm_generate_conflicts(${python_component} ${conflicting_versions})
 
         ov_rpm_add_rpmlint_suppression("${python_component}"
+            # entry points
+            "no-manual-page-for-binary benchmark_app"
+            "no-manual-page-for-binary opt_in_out"
+            "no-manual-page-for-binary ovc"
             # all directories
-            "non-standard-dir-perm /usr/lib64/${pyversion}/site-packages/openvino/*"
+            "non-standard-dir-perm /usr/lib/${pyversion}/site-packages/openvino/*"
             )
     endif()
 
@@ -383,7 +384,7 @@ macro(ov_cpack_settings)
     set(CPACK_COMPONENT_OPENVINO_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
     set(CPACK_RPM_OPENVINO_PACKAGE_REQUIRES "${libraries_dev_package}, ${samples_package}")
     if(ENABLE_PYTHON_PACKAGING)
-        set(CPACK_DEBIAN_OPENVINO_PACKAGE_DEPENDS "${CPACK_RPM_OPENVINO_PACKAGE_REQUIRES}, ${python_package}, ${python_samples_package}")
+        set(CPACK_RPM_OPENVINO_PACKAGE_REQUIRES "${CPACK_RPM_OPENVINO_PACKAGE_REQUIRES}, ${python_package}, ${python_samples_package}")
     endif()
     set(CPACK_RPM_OPENVINO_PACKAGE_NAME "openvino-${cpack_name_ver}")
     set(CPACK_RPM_OPENVINO_PACKAGE_ARCHITECTURE "noarch")

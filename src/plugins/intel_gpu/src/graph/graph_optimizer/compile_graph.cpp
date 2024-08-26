@@ -115,7 +115,9 @@ void compile_graph::run(program& p) {
 
         if (node->is_dynamic() && !is_planar) {
             if (!(node->is_type<convolution>() && node->get_output_layout().format == cldnn::format::b_fs_yx_fsv16) &&
-                !(node->is_type<group_normalization>() && node->get_output_layout().format == cldnn::format::b_fs_yx_fsv16)) {
+                !(node->is_type<group_normalization>() && node->get_output_layout().format == cldnn::format::b_fs_yx_fsv16) &&
+                !(node->is_type<reorder>() && node->get_output_layout().format == cldnn::format::b_fs_yx_fsv16) &&
+                !(node->is_type<quantize>() && node->get_output_layout().format == cldnn::format::b_fs_yx_fsv16)) {
                 can_select_impl = false;
             }
         }

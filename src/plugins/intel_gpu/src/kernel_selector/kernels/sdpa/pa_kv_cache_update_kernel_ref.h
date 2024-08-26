@@ -20,6 +20,7 @@ public:
     KVCacheUpdateKernelRef() : KernelBaseOpenCL{"pa_kv_cache_update_ref"} {}
     KernelsData GetKernelsData(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
+    virtual ~KVCacheUpdateKernelRef() {}
 
 protected:
     bool Validate(const Params& params) const override;

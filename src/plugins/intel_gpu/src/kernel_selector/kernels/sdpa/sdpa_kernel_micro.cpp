@@ -314,7 +314,7 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
 
     const sdpa_params& params = static_cast<const sdpa_params&>(p);
 
-    if (params.is_paged_attention)
+    if (params.conf.is_paged_attention)
         return false;
 
     if (params.engineInfo.arch < gpu_arch::xe_hpg || !params.engineInfo.supports_microkernels)

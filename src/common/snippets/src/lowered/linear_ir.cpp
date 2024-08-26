@@ -43,7 +43,8 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
             insertion_pos = std::next(last_param);
         }
 
-        register_expression(expr, true);
+        // exec_num = 0 since `insertion_pos` can be changed
+        register_expression(expr, true, 0);
         const auto& it = m_expressions.insert(insertion_pos, expr);
         if (ov::is_type<ov::op::v0::Parameter>(n))
             last_param = it;
@@ -52,6 +53,8 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
         m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(param_expr->get_output_port_descriptor(0)->get_shape());
     for (const auto& result_expr : m_result_expressions)
         m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(result_expr->get_input_port_descriptor(0)->get_shape());
+
+    enumerate_expressions();
 }
 
 ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n) {
@@ -169,7 +172,7 @@ const ExpressionPtr& LinearIR::get_expr_by_node(const std::shared_ptr<Node>& n) 
     return found->second;
 }
 
-void LinearIR::register_expression(const ExpressionPtr& expr, bool io_allowed) {
+void LinearIR::register_expression(const ExpressionPtr& expr, bool io_allowed, double exec_num) {
     const auto& node = expr->get_node();
     OPENVINO_ASSERT(io_allowed || (!is_type<ov::op::v0::Result>(node) && !is_type<ov::op::v0::Parameter>(node)),
                     "LinearIR::insert can't be used to add Parameters or Results to IR");
@@ -181,6 +184,7 @@ void LinearIR::register_expression(const ExpressionPtr& expr, bool io_allowed) {
         m_result_expressions.push_back(expr);
     if (ov::is_type<op::Buffer>(node))
         m_buffer_expressions.push_back(expr);
+    expr->m_exec_num = exec_num;
 }
 
 void LinearIR::unregister_expression(const ExpressionPtr& expr) {
@@ -201,12 +205,12 @@ void LinearIR::unregister_expression(const ExpressionPtr& expr) {
 }
 
 LinearIR::exprIt LinearIR::insert(constExprIt pos, container::value_type&& value) {
-    register_expression(value, m_config.m_manual_build_support);
+    register_expression(value, m_config.m_manual_build_support, get_inserted_expr_exec_num(pos));
     return m_expressions.insert(pos, value);
 }
 
 LinearIR::exprIt LinearIR::insert(constExprIt pos, const container::value_type& value) {
-    register_expression(value, m_config.m_manual_build_support);
+    register_expression(value, m_config.m_manual_build_support, get_inserted_expr_exec_num(pos));
     return m_expressions.insert(pos, value);
 }
 
@@ -217,25 +221,32 @@ LinearIR::exprIt LinearIR::insert(constExprIt pos, exprIt begin, exprIt end) {
 }
 
 LinearIR::exprIt LinearIR::insert(constExprIt pos, constExprIt begin, constExprIt end) {
-    for (auto b = begin; b != end; b++)
-        register_expression(*b, m_config.m_manual_build_support);
-    return m_expressions.insert(pos, begin, end);
+    // nothing to insert
+    if (begin == end)
+        return m_expressions.erase(pos, pos); // to convert constExprIt to exprIt
+    const auto count = std::distance(begin, end);
+    auto ret = m_expressions.end();
+    for (auto b = begin; b != end; b++) {
+        ret = insert(pos, *b);
+    }
+    // Need to return iterator to the first of the inserted values
+    return std::prev(ret, static_cast<int64_t>(count) - 1);
 }
 
 LinearIR::exprIt LinearIR::insert(LinearIR::constExprIt pos, const NodeVector& nodes) {
+    // nothing to insert
+    if (nodes.empty())
+        return m_expressions.erase(pos, pos); // to convert constExprIt to exprIt
     auto ret = m_expressions.end();
-    for (const auto& n : nodes) {
-        const auto& expr = create_expression(n);
-        register_expression(expr, m_config.m_manual_build_support);
-        ret = m_expressions.insert(pos, expr);
-    }
+    for (const auto& n : nodes)
+        ret = insert(pos, n);
     // Need to return iterator to the first of the inserted values
-    return std::prev(ret, static_cast<int64_t>(nodes.size()));
+    return std::prev(ret, static_cast<int64_t>(nodes.size()) - 1);
 }
 
 LinearIR::exprIt LinearIR::insert(LinearIR::constExprIt pos, const std::shared_ptr<Node>& n) {
     const auto& expr = create_expression(n);
-    register_expression(expr, m_config.m_manual_build_support);
+    register_expression(expr, m_config.m_manual_build_support, get_inserted_expr_exec_num(pos));
     return m_expressions.insert(pos, expr);
 }
 
@@ -250,7 +261,9 @@ LinearIR::exprIt LinearIR::erase(LinearIR::constExprIt pos) {
 }
 
 void LinearIR::move(LinearIR::constExprIt from, LinearIR::constExprIt to) {
+    if (from == std::prev(to)) return;
     // Instead of `insert()` + `erase()`, we use `splice()` for the same list
+    (*from)->m_exec_num = get_inserted_expr_exec_num(to);
     m_expressions.splice(to, m_expressions, from);
 }
 
@@ -309,7 +322,9 @@ LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node
                                        const std::vector<size_t>& loop_ids, bool update_loop_ports, const constExprIt& place,
                                        const std::vector<std::set<ExpressionPort>>& consumers) {
     const auto new_expr = create_expression(new_node, new_inputs, loop_ids, update_loop_ports, consumers);
-    return insert(place, new_expr);
+    const auto expr_it = insert(place, new_expr);
+    get_loop_manager()->sort_loop_ports(loop_ids);
+    return expr_it;
 }
 template<>
 LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<ExpressionPort>& args,
@@ -396,9 +411,9 @@ LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& o
     const auto output_ports = new_expr_it->get()->get_output_ports();
     for (const auto& old_expr : old_exprs) {
         for (size_t i = 0; i < old_expr->get_input_count(); ++i)
-            m_loop_manager->update_loops_port(loop_ids, old_expr->get_input_port(i), input_ports);
+            m_loop_manager->replace_loop_ports(loop_ids, old_expr->get_input_port(i), input_ports);
         for (size_t i = 0; i < old_expr->get_input_count(); ++i)
-            m_loop_manager->update_loops_port(loop_ids, old_expr->get_output_port(i), output_ports);
+            m_loop_manager->replace_loop_ports(loop_ids, old_expr->get_output_port(i), output_ports);
         erase(find(old_expr));
     }
     return new_expr_it;
@@ -411,6 +426,51 @@ LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& o
                     "Failed to replace node: cannot replace node to nodes with inconsistent loop ids");
     const auto insertion_place = std::next(find(old_exprs.back()));
     return replace_with_expr(old_exprs, new_expr, insertion_place);
+}
+
+void LinearIR::enumerate_expressions() const {
+    /* --------------- Scheme ----------------- */
+    //      Before      Inside      After
+    //  - |----------|-----0-----|----------| +
+    //             Start        End
+    /*------------------------------------------*/
+    const double region = std::numeric_limits<double>::max() / 3; // 3 roughly equivalent working zones: before, inside, after
+    const double step = region / static_cast<double>(m_expressions.size()); // distribute exprs evenly over the working zone
+    double num = -1 * (region / 2); // main working zone is inside: [Start, End] = [-region/2, region/2]
+    for (const auto& expr : m_expressions) {
+        expr->m_exec_num = num;
+        num += step;
+    }
+}
+
+double LinearIR::get_inserted_expr_exec_num(constExprIt insertion_pos) const {
+    if (empty()) return 0;
+    const auto& right_pos = insertion_pos;
+    const auto& left_pos = std::prev(insertion_pos);
+    double left_order = 0, right_order = 0;
+    if (right_pos == cbegin()) {      // On the list begin
+        if (right_pos->get()->get_exec_num() == -1 * std::numeric_limits<double>::max())
+            enumerate_expressions();
+        return right_pos->get()->get_exec_num() - 1;
+    } else if (right_pos == cend()) { // On the list end
+        if (left_pos->get()->get_exec_num() == std::numeric_limits<double>::max())
+            enumerate_expressions();
+        return left_pos->get()->get_exec_num() + 1;
+    } else {                          // In the list middle
+        left_order = left_pos->get()->get_exec_num();
+        right_order = right_pos->get()->get_exec_num();
+        OPENVINO_ASSERT(right_order > left_order, "Incorrect expression enumeration!");
+
+        // sync point to enumerate expressions
+        // 10 * eps - is to avoid meaningless result after (right_order + left_order) / 2 below
+        if (std::abs(1 - left_order/right_order) <= 10 * std::numeric_limits<double>::epsilon()) {
+            enumerate_expressions();
+            left_order = left_pos->get()->get_exec_num();
+            right_order = right_pos->get()->get_exec_num();
+        }
+    }
+    // to avoid possible oveflow in (right_order + left_order) / 2;
+    return left_order + (right_order - left_order) / 2;
 }
 
 LinearIR::LIRShapeInfer::LIRShapeInfer(const container& body_exprs, const container& param_exprs, const container& result_exprs)

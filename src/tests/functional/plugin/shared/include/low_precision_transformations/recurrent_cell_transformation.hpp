@@ -42,6 +42,7 @@ typedef std::tuple<
     std::vector<ov::Shape>,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
+    bool, // use precision transparent operations
     RecurrentCellTransformationParam
 >RecurrentCellTransformationParams;
 

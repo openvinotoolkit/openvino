@@ -5,6 +5,7 @@
 #include "graph.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <limits>
 #include <map>
 #include <memory>
@@ -346,6 +347,8 @@ void Graph::InitGraph(bool optimize) {
     optimizer.ShareReorders(*this);
     RemoveDroppedNodes();
 
+    SortTopologically();
+
     ResolveComplexInplaceConflicts();
 
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
@@ -393,7 +396,23 @@ void Graph::InitDescriptors() {
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.initSupportedPrimitiveDescriptors);
         DEBUG_LOG("Init supported primitive descriptors for node: ", node->getName());
         node->initSupportedPrimitiveDescriptors();
-
+#ifdef CPU_DEBUG_CAPS
+        {
+            const auto& SPDs = node->getSupportedPrimitiveDescriptors();
+            for (size_t i = 0; i < SPDs.size(); i++) {
+                DEBUG_LOG("#",
+                        node->getExecIndex(),
+                        " ",
+                        node->getName(),
+                        " Before filter, SupportedPrimitiveDescriptors [",
+                        i,
+                        "/",
+                        SPDs.size(),
+                        "]: \n",
+                        SPDs[i]);
+            }
+        }
+#endif
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.filterSupportedPrimitiveDescriptors);
         DEBUG_LOG("Filter supported primitive descriptors for node: ", node->getName());
         node->filterSupportedPrimitiveDescriptors();
@@ -405,7 +424,7 @@ void Graph::InitDescriptors() {
                       node->getExecIndex(),
                       " ",
                       node->getName(),
-                      "  SupportedPrimitiveDescriptors [",
+                      " After filter,  SupportedPrimitiveDescriptors [",
                       i,
                       "/",
                       SPDs.size(),
@@ -478,6 +497,8 @@ void Graph::CreatePrimitivesAndExecConstants() const {
             continue;
         }
 
+        VERBOSE(node, getConfig().debugCaps.verbose);
+
         if (context->getWeightsCache()) {
             auto sharedOutputs = acquireSharedOutputs(node);
 
@@ -538,59 +559,65 @@ void Graph::insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<st
     InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
 }
 
-void Graph::ResolveEdgeConflicts() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveEdgeConflicts");
+void Graph::insertConvert(EdgePtr& edge) {
+    const auto& inDesc = edge->getInputDesc();
+    const auto& outDesc = edge->getOutputDesc();
 
-    ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
+    std::string convertName = edge->getParent()->getName() + "_" +
+        inDesc.getPrecision().get_type_name() + "_" + outDesc.getPrecision().get_type_name();
 
+    auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
+                                                       convertName, context);
+    convertNode->setDescs(inDesc, outDesc);
+    InsertNode(edge, convertNode, true);
+}
+
+static std::unordered_set<std::string> getUniqueLayerNames(const std::vector<NodePtr>& graphNodes) {
     std::unordered_set<std::string> uniqueLayerNames;
+    uniqueLayerNames.reserve(graphNodes.size());
+
     for (auto node : graphNodes) {
         uniqueLayerNames.insert(node->getName());
     }
 
-    auto updateEdge = [&](ptrdiff_t& i) {
-        graphEdges.erase(graphEdges.begin() + i);
-        i--;
-        numberOfEdges--;
-    };
+    return uniqueLayerNames;
+}
 
-    for (ptrdiff_t i = 0; i < numberOfEdges; i++) {
-        auto edge = graphEdges[i];
-        auto reorderStatus = graphEdges[i]->needReorder();
-        DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", reorderStatus);
-        if (reorderStatus == Edge::ReorderStatus::Regular) {
-            Edge::ReorderStatus reorderStatusInternal = Edge::ReorderStatus::Regular;
-            // Check if there is a reorder that needs the precision conversion
-            if (edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
-                    !isReorderAvailable(edge->getInputPortDesc()->getMemDesc(),
-                                        edge->getOutputPortDesc()->getMemDesc(),
-                                        this->getEngine())) {
-                // If we are here, then we need to insert Convert, because there are no reorders that support such type conversion
-                const auto& inDesc = edge->getInputDesc();
-                const auto& outDesc = edge->getOutputDesc();
+void Graph::ResolveEdgeConflicts() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveEdgeConflicts");
 
-                std::string convertName = edge->getParent()->getName() + "_" +
-                                          inDesc.getPrecision().get_type_name() + "_" + outDesc.getPrecision().get_type_name();
+    std::unordered_set<std::string> uniqueLayerNames = getUniqueLayerNames(graphNodes);
 
-                auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
-                                                                   convertName, context);
-                convertNode->setDescs(inDesc, outDesc);
-                InsertNode(edge, convertNode, true);
+    /* When inserting convert / reorder, two new edges are added (pushed to the end) to the graphEdges.
+       So use a plain for loop, to handle newly inserted edges as well */
+    for (size_t i = 0; i < graphEdges.size(); i++) {
+        auto& edge = graphEdges[i];
+        auto reorderStatus = edge->needReorder();
+        DEBUG_LOG(*edge, " reorderStatus = ", reorderStatus);
 
-                //Check if reorder is still needed
-                reorderStatusInternal = convertNode->getChildEdgeAt(0)->needReorder();
-                if (reorderStatusInternal != Edge::ReorderStatus::No)
-                    edge = convertNode->getChildEdgeAt(0);
+        switch (reorderStatus) {
+        case Edge::ReorderStatus::Regular: {
+            if (reorderStatus == Edge::ReorderStatus::Regular &&
+                edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
+                !isReorderAvailable(edge->getInputPortDesc()->getMemDesc(),
+                                    edge->getOutputPortDesc()->getMemDesc(),
+                                    this->getEngine())) {
+                // just insert convert. If layout reorder is still needed, it will be inserted later in the traverse
+                insertConvert(edge);
+            } else {
+                insertReorder(edge, false, uniqueLayerNames);
             }
-            if (reorderStatusInternal != Edge::ReorderStatus::No) {
-                insertReorder(edge, reorderStatusInternal == Edge::ReorderStatus::Optimized, uniqueLayerNames);
-            }
-            updateEdge(i);
-        } else if (reorderStatus == Edge::ReorderStatus::Optimized) {
+            break;
+        }
+        case Edge::ReorderStatus::Optimized:
             insertReorder(edge, true, uniqueLayerNames);
-            updateEdge(i);
+            break;
+        case Edge::ReorderStatus::No:
+            break;
         }
     }
+
+    RemoveDroppedEdges();
 }
 
 void Graph::ResolveComplexInplaceConflicts() {
@@ -598,10 +625,7 @@ void Graph::ResolveComplexInplaceConflicts() {
 
     ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
 
-    std::unordered_set<std::string> uniqueLayerNames;
-    for (auto node : graphNodes) {
-        uniqueLayerNames.insert(node->getName());
-    }
+    std::unordered_set<std::string> uniqueLayerNames = getUniqueLayerNames(graphNodes);
 
     auto updateEdge = [&](ptrdiff_t& i) {
         graphEdges.erase(graphEdges.begin() + i);
@@ -1469,39 +1493,59 @@ void Graph::Infer(SyncInferRequest* request) {
 void Graph::SortTopologically() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::SortTopologically");
 
-    auto sort = [](const std::vector<NodePtr>& nodes) {
-        std::unordered_set<NodePtr> visited;
-        visited.reserve(nodes.size());
+    // Set execIndex of all nodes to default invaild value
+    for (auto &node : graphNodes) {
+        node->execIndex = -1;
+    }
+
+    auto sort = [this](const std::vector<NodePtr>& nodes) {
         std::vector<NodePtr> sorted;
         sorted.reserve(nodes.size());
 
+        int execIndexCnt = -1;
+
         std::function<void(const NodePtr)> visit;
-        visit = [&visited, &sorted, &visit](const NodePtr node) {
-            const bool inserted = visited.insert(node).second;
-            if (!inserted)
+        visit = [&execIndexCnt, &sorted, &visit](const NodePtr node) {
+            if (node->execIndex >= 0)
                 return; // already visited
 
             if (!node->parallelWith.empty()) {
                 for (auto& n : node->parallelWith) {
-                    for (size_t i = 0; i < n->getChildEdges().size(); i++) {
-                        visit(n->getChildEdgeAt(i)->getChild());
+                    for (size_t i = 0; i < n->getParentEdges().size(); i++) {
+                        visit(n->getParentEdgeAt(i)->getParent());
                     }
                 }
 
-                // make sure parallel nodes are always enqueue together
+                // parallel nodes has same execIndex
+                // so they can provide correct start/end time point for
+                // their input and output memory object
+                ++execIndexCnt;
                 for (auto& n : node->parallelWith) {
-                    if (std::find(sorted.begin(), sorted.end(), n) == sorted.end()) {
-                        sorted.push_back(n);
-                    }
+                    sorted.push_back(n);
+                    n->execIndex = execIndexCnt;
                 }
             } else {
-                for (size_t i = 0; i < node->getChildEdges().size(); i++) {
-                    visit(node->getChildEdgeAt(i)->getChild());
+                for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+                    visit(node->getParentEdgeAt(i)->getParent());
                 }
 
                 sorted.push_back(node);
+                node->execIndex = ++execIndexCnt;
             }
         };
+
+        // First execute MemoryInput because it will change the memory pointer of
+        // its sibling MemoryOutput. So execute first to avoid potential issue.
+        for (const auto& node : nodes) {
+            if (node->getType() == Type::MemoryInput) {
+                visit(node);
+            }
+        }
+
+        // Always start from output nodes
+        for (auto&& kvp : outputNodesMap) {
+            visit(kvp.second);
+        }
 
         for (const auto& node : nodes) {
             visit(node);
@@ -1510,25 +1554,7 @@ void Graph::SortTopologically() {
         return sorted;
     };
 
-    // as a first step sort in reversed topological order to avoid an insertion into the front of the vector
     graphNodes = sort(graphNodes);
-    // reverse to the actual topological order
-    std::reverse(graphNodes.begin(), graphNodes.end());
-    // number the nodes based on topological order
-    for (size_t i = 0; i < graphNodes.size(); i++) {
-        // parallel nodes has same execIndex
-        // so they can provide correct start/end time point for
-        // their input and output memory object
-        if (graphNodes[i]->parallelWith.size()) {
-            if (graphNodes[i]->parallelWith[0] == graphNodes[i]) {
-                for (auto& n : graphNodes[i]->parallelWith) {
-                    n->execIndex = static_cast<int>(i);
-                }
-            }
-            continue;
-        }
-        graphNodes[i]->execIndex = static_cast<int>(i);
-    }
 
     // Sort in / out child edges by port index
     // Make first N (N == port_num) edge indexes match with port index
@@ -1776,7 +1802,8 @@ void Graph::EnforceInferencePrecision() {
                         Type::RNNSeq,         // recurent nets
                         Type::MatMul,         // bert nets
                         Type::ROIPooling,     // object detection nets
-                        Type::Interpolate))   // super resolution nets
+                        Type::Interpolate,    // super resolution nets
+                        Type::PagedAttention))// page attention
                     continue;   // stop at significant nodes
             } else if (inferPrec == ov::element::f16) {
                 /* list of node types that must be forced to be executed in FP16 precision
@@ -1879,6 +1906,9 @@ void Graph::EnforceInferencePrecision() {
             // TODO: Incorrect subgraph is generated by ONNX FE + ticket 117861.
             const auto &child = node->getChildEdgeAt(i)->getChild();
             if (child->getType() == Type::Range && node->getType() == Type::Convert)
+                continue;
+            // skip second output of PagedAttention
+            if (node->getType() == Type::PagedAttention && (i != 0))
                 continue;
 
             DEBUG_LOG("#",

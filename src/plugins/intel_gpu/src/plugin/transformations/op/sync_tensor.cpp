@@ -52,7 +52,7 @@ void SyncTensor::validate_and_infer_types() {
             auto input_pshape = get_input_source_output(0).get_partial_shape();
             std::vector<ov::PartialShape> p_shapes(m_world_size, input_pshape);
             auto fc_out_dim_vec = split_parts(m_split_dimension, m_world_size);
-            const int64_t axis = ov::util::normalize_axis("get split axis", -1, input_pshape.rank());
+            const int64_t axis = ov::util::normalize_axis(-1, input_pshape.size());
             const auto& dimension_at_axis = input_pshape[axis];
 
             if (dimension_at_axis.is_static()) {
