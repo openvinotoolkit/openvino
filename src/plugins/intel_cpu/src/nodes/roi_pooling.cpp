@@ -213,7 +213,8 @@ private:
         for (int i = 0; i < c_blocks; i++) {
             Vmm vmm_dst = get_acc_reg(i);
 
-            store_emitter->emit_code({static_cast<size_t>(vmm_dst.getIdx()), static_cast<size_t>(i * dst_c_off)}, {static_cast<size_t>(reg_output.getIdx())},
+            store_emitter->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                     {static_cast<size_t>(reg_output.getIdx()), static_cast<size_t>(i * dst_c_off)},
                                      get_local_store_pool_vec_idxs(vmm_dst), store_pool_gpr_idxs);
         }
     }
@@ -260,7 +261,8 @@ private:
 
             const int dst_c_off = i * jpp_.oh * jpp_.ow * jpp_.c_block * jpp_.dst_prc.size();
 
-            store_emitter->emit_code({static_cast<size_t>(vmm_src11.getIdx()), static_cast<size_t>(dst_c_off)}, {static_cast<size_t>(reg_output.getIdx())},
+            store_emitter->emit_code({static_cast<size_t>(vmm_src11.getIdx())},
+                                     {static_cast<size_t>(reg_output.getIdx()), static_cast<size_t>(dst_c_off)},
                                      get_local_store_pool_vec_idxs(vmm_src11), store_pool_gpr_idxs);
         }
     }
@@ -270,8 +272,9 @@ private:
 
         const int dst_c_off = jpp_.oh * jpp_.ow * jpp_.c_block * jpp_.dst_prc.size();
         for (int i = 0; i < c_blocks; i++) {
-            store_empty_roi_emitter->emit_code({static_cast<size_t>(vmm_zero.getIdx()), static_cast<size_t>(i * dst_c_off)},
-                                               {static_cast<size_t>(reg_output.getIdx())}, store_pool_vec_idxs, store_pool_gpr_idxs);
+            store_empty_roi_emitter->emit_code({static_cast<size_t>(vmm_zero.getIdx())},
+                                               {static_cast<size_t>(reg_output.getIdx()), static_cast<size_t>(i * dst_c_off)},
+                                               store_pool_vec_idxs, store_pool_gpr_idxs);
         }
     }
 
