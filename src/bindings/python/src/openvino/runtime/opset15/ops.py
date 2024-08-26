@@ -223,6 +223,7 @@ def string_tensor_pack(
     return _get_node_factory_opset15().create(
         "StringTensorPack",
         as_nodes(begins, ends, symbols, name=name)
+    )
 
 
 @binary_op
