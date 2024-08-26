@@ -5,7 +5,7 @@
 
 
 .. meta::
-   :description: Learn how to convert a model from a 
+   :description: Learn how to convert a model from a
                  TensorFlow Lite format to the OpenVINO Intermediate Representation.
 
 .. danger::
@@ -29,7 +29,7 @@ TensorFlow Lite models are supported via FrontEnd API. You may skip conversion t
 Supported TensorFlow Lite Layers
 ###################################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <../../../../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <../../../../../about-openvino/compatibility-and-support/supported-operations>` page.
 
 Supported TensorFlow Lite Models
 ###################################
