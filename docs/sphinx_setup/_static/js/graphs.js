@@ -337,10 +337,12 @@ $(document).ready(function () {
             });
 
             modal.find('.platforms-selectall input').on('click', function () {
-                if ($(this).prop('checked')) renderClientPlatforms(graph, modal)
-                    // selectAllCheckboxes(models);
-                // else deSelectAllCheckboxes(models);
-                
+                if ($(this).prop('checked')) 
+                    renderClientPlatforms(graph, modal)
+                else {
+                    var enabledPlatforms = modal.find('.platforms-column .checkmark-container');
+                    deSelectCheckbox(enabledPlatforms);
+                };
                 
             });
 
