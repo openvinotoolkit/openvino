@@ -442,3 +442,32 @@ std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback) {
 }
 };  // namespace utils
 };  // namespace Common
+
+namespace pybind11 {
+namespace ov_extension{
+    void conditional_keep_alive_impl(size_t Nurse, size_t Patient, size_t Condition, detail::function_call &call, handle ret) {
+            auto get_arg = [&](size_t n) {
+                if (n == 0) {
+                    return ret;
+                }
+                if (n == 1 && call.init_self) {
+                    return call.init_self;
+                }
+                if (n <= call.args.size()) {
+                    return call.args[n - 1];
+                }
+                return handle();
+        };
+
+        const auto cd = get_arg(Condition);
+        if (!cd || !py::isinstance<py::bool_>(cd)) {
+            pybind11_fail("Could not activate conditional_keep_alive!");
+        }
+
+        if (cd.cast<bool>()) {
+            detail::keep_alive_impl(get_arg(Nurse), get_arg(Patient));
+        }
+    }
+
+}; // namespace ov_extension
+}; // namespace pybind11
