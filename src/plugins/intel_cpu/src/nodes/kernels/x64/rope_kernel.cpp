@@ -201,7 +201,7 @@ void jit_rotary_kernel<isa>::store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_s
     if (!emitters[seed]) {
         emitters[seed].reset(new jit_store_emitter(this, isa, ov::element::f32, dst_prc, elt_num));
     }
-    emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx()), offset}, {static_cast<size_t>(reg_dst.getIdx())},
+    emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(reg_dst.getIdx()), offset},
                                 pool_aux_vmm_idxs, pool_aux_gpr_idxs);
 }
 

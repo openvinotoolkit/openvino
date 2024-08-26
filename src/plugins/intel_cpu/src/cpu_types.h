@@ -203,6 +203,8 @@ enum class Algorithm {
     EltwiseBitwiseNot,
     EltwiseBitwiseOr,
     EltwiseBitwiseXor,
+    EltwiseBitwiseLeftShift,
+    EltwiseBitwiseRightShift,
 
     // FakeQuantize algorithms
     FQCommon,
