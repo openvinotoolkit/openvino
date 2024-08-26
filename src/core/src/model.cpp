@@ -396,7 +396,7 @@ const ov::element::Type& ov::Model::get_output_element_type(size_t i) const {
     return m_results.at(i)->get_element_type();
 }
 
-const ov::Shape& ov::Model::get_output_shape(size_t i) const {
+ov::Shape ov::Model::get_output_shape(size_t i) const {
     return m_results.at(i)->get_shape();
 }
 

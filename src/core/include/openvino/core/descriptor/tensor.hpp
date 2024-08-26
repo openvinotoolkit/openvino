@@ -61,7 +61,7 @@ public:
     const element::Type& get_element_type() const {
         return m_element_type;
     }
-    const Shape& get_shape() const;
+    Shape get_shape() const;
     const PartialShape& get_partial_shape() const {
         return m_partial_shape;
     }
