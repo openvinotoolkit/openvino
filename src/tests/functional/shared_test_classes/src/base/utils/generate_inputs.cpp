@@ -335,7 +335,7 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v1::GatherTree>& node,
                     const ov::element::Type& elemType,
                     const ov::Shape& targetShape,
                     std::shared_ptr<InputGenerateData> inGenRangeData = nullptr) {
-    auto &shape = node->get_input_shape(0);
+    auto shape = node->get_input_shape(0);
     auto maxBeamIndx = shape.at(2) - 1;
 
     switch (port) {
