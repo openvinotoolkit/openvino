@@ -30,6 +30,7 @@ ov_add_test_target(
         DEPENDENCIES
             openvino_intel_gpu_plugin
         LINK_LIBRARIES
+            openvino::reference
             funcSharedTests
             OpenCL::NewHeaders # should come before OpenCL::OpenCL
             OpenCL::OpenCL
