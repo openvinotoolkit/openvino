@@ -61,6 +61,8 @@ macro(ov_define_component_include_rules)
     # tbb
     unset(OV_CPACK_COMP_TBB_EXCLUDE_ALL)
     set(OV_CPACK_COMP_TBB_DEV_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    # openmp
+    unset(OV_CPACK_COMP_OPENMP_EXCLUDE_ALL)
     # licensing
     unset(OV_CPACK_COMP_LICENSING_EXCLUDE_ALL)
     # samples
