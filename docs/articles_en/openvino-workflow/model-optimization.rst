@@ -15,9 +15,9 @@ It is an optional step, typically used only at the development stage, so that th
 model is used in the final AI application.
 
 In OpenVINO, the default optimization tool is NNCF (Neural Network Compression Framework).
-Note that NNCF is **not part of the OpenVINO package**, so it needs to be installed separately.
 It is a set of compression algorithms, organized as a Python package, that make your models
-smaller and faster. NNCF supports models in **PyTorch**, **TensorFlow**, **ONNX**, and
+smaller and faster. Note that NNCF is **not part of the OpenVINO package**, so it needs to be
+installed separately. It supports models in **PyTorch**, **TensorFlow** , **ONNX**, and
 **OpenVINO IR** formats, offering the following optimizations:
 
 .. image:: ../assets/images/WHAT_TO_USE.svg
