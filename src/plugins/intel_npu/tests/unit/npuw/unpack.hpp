@@ -40,6 +40,14 @@ inline int8_t lo4(int8_t x) {
     return (x & (1 << 3)) | (x & (1 << 2)) | (x & (1 << 1)) | (x & (1 << 0));
 }
 
+inline uint8_t hi4(uint8_t x) {
+    return x >> 4;
+}
+
+inline uint8_t lo4(uint8_t x) {
+    return x & 0x0F;
+}
+
 inline int8_t upc(int8_t h) {
     return h | (-((h & (1 << 3)) >> 3) & (-8));
 }
@@ -141,7 +149,7 @@ template<typename T>
 
 }  // namespace details
 
-using ShapesInitializer = std::function<void (std::vector<int>&, std::vector<int>&)>;
+using ShapesInitializer = std::function<void (std::vector<int>&, std::vector<int>&, std::vector<int>&)>;
 
 
 using UnpackTestsParams = std::tuple<
@@ -150,7 +158,7 @@ using UnpackTestsParams = std::tuple<
         ov::element::Type_t,  // scalePrecision
         ov::element::Type_t,  // zeroPointPrecision
         unsigned long,        // nPartitions
-        ShapesInitializer,    // input_shape , scale_shape initializer
+        ShapesInitializer,    // input_shape , scale_shape, zerop initializer
         bool,                 // use parallel_for
         bool                  // strict partitioning
         >;
@@ -182,24 +190,45 @@ protected:
             return;
         }
 
-        zerop_shape = ov::Shape({1});
-        zeropValue = 12.0f;
+        const std::vector<float> zeropValues = {15.0f, 12.0f, 0.0f, 31.0f};
+        const size_t nElements = shape_size(zerop_shape);
 
-        if (zeropType == ov::element::u4) {
-            zeropStorage.push_back(static_cast<uint8_t>(zeropValue));
-        } else if (zeropType == ov::element::f32) {
-            uint8_t zerop_value[4];
-            memcpy(zerop_value, &zeropValue, 4);
+        // Set zeropValue if there's only one element
+        if (nElements == 1) {
+            zeropValue = zeropValues.front();
+        }
 
-            for (auto zp : zerop_value) {
-                zeropStorage.push_back(zp);
-            }
+        // Determine the size of the storage based on the type and resize the storage vector
+        if (zeropType == ov::element::Type_t::u4) {
+            zeropStorage.resize((nElements + 1) / 2, 0); // Each u4 zeropoint is 4 bits, so two zeropoints fit in one byte
+        } else if (zeropType == ov::element::Type_t::f32) {
+            zeropStorage.resize(nElements * sizeof(float), 0);
         } else {
             ASSERT_TRUE(zeropType == ov::element::u4 || zeropType == ov::element::f32);
         }
 
+        // Fill the storage with the appropriate values
+        if (zeropType == ov::element::Type_t::u4) {
+            for (size_t i = 0; i < nElements; ++i) {
+                uint8_t zeropValueU4 = static_cast<uint8_t>(zeropValues[i % zeropValues.size()]) & 0x0F;
+                size_t byteIndex = i / 2;
+                if (i % 2 == 0) {
+                    zeropStorage[byteIndex] = zeropValueU4;
+                } else {
+                    zeropStorage[byteIndex] = (zeropValueU4 << 4);
+                }
+            }
+        } else if (zeropType == ov::element::Type_t::f32) {
+            float* ptrWork = reinterpret_cast<float*>(zeropStorage.data());
+            for (size_t i = 0; i < nElements; ++i) {
+                ptrWork[i] = zeropValues[i % zeropValues.size()];
+            }
+        }
+
+        // Create the tensor
         zerop = ov::make_tensor(zeropType, zerop_shape, zeropStorage.data());
     }
+
     void make_scales() {
         if (scaleType == ov::element::undefined) {
             return;
@@ -274,11 +303,16 @@ public:
 
         std::tie(fromType, toType, scaleType, zeropType, nPartitions, shapeInit, useParallelFor, strictPartitions) = getParam;
 
-        std::vector<int> input, scale;
-        shapeInit(input, scale);
+        std::vector<int> input, scale, zerop;
+        shapeInit(input, scale, zerop);
 
         input_shape = ov::Shape{input.begin(), input.end()};
         scale_shape = ov::Shape{scale.begin(), scale.end()};
+        if (zerop.empty()) {
+            zerop_shape = ov::Shape({1});
+        } else {
+            zerop_shape = ov::Shape{zerop.begin(), zerop.end()};
+        }
 
         make_input();
         make_scales();
@@ -358,12 +392,9 @@ TEST_P(UnpackTests, i4) {
 class UnpackWithScaleTestsBase : public UnpackTestsBase {
 protected:
     bool isNegative() const override {
-        // currently only 2d tensors supported for unpack + scaling
-        if (input_shape.size() != 2) return true;
-        if (scale_shape[1] != 1) return true;
-        if (scale_shape[0] != input_shape[0]) return true;
+        if (scale_shape.size() != 3 && scale_shape.size() != 2) return true;
+        if (input_shape.back() % 64) return true;
         if ((from->get_size() / scale->get_size()) % 64) return true;
-        if (scale_shape[0] != input_shape[0]) return true;
         if (toType != ov::element::f16) return true;
 
         return false;
@@ -473,8 +504,8 @@ TEST_P(UnpackTestsWithScaleAndZeroPoint, u4) {
 class UnpackTestsWithScaleAndZeroPoint2 : public UnpackTestsWithScaleAndZeroPointBase {
 protected:
     bool isNegative() const override {
-        if (scale_shape.size() != 3) return true;
-        if (input_shape[2] % 64 || input_shape.size() != 3) return true;
+        if (input_shape.back() % 64 || input_shape.size() != 3) return true;
+        if (scale_shape.back() % 64 || scale_shape.size() != 3) return true;
 
         return false;
     }
@@ -517,7 +548,7 @@ protected:
 
 using UnpackTestsWithScaleAndZeroPointTest2 = UnpackTestsTmpl<UnpackTestsWithScaleAndZeroPoint2>;
 
-TEST_P(UnpackTestsWithScaleAndZeroPointTest2, i4) {
+TEST_P(UnpackTestsWithScaleAndZeroPointTest2, u4) {
     ASSERT_NO_THROW_IF(!isNegative(),
                        ov::npuw::util::unpack(from, zerop, scale, to, ov::npuw::util::UnpackOptions{useParallelFor, nPartitions, strictPartitions}));
     if (!isNegative()) {
@@ -525,7 +556,66 @@ TEST_P(UnpackTestsWithScaleAndZeroPointTest2, i4) {
     }
 }
 
-#define Tensors [](std::vector<int>& input, std::vector<int>&scale)
+class UnpackTestsWithScaleAndZeroPoint3 : public UnpackTestsWithScaleAndZeroPointBase {
+protected:
+    bool isNegative() const override {
+        if (scale_shape.size() != 3 || zerop_shape.size() != 3) return true;
+        if (input_shape[2] % 64 || input_shape.size() != 3) return true;
+
+        return false;
+    }
+
+    void make_ref_output() override {
+        if (isNegative()) return;
+
+        size_t nElements = from->get_size();
+
+        const size_t nOutputElementsPerScale = ref_output.size() / (toType.bitwidth() / 8) / scale->get_size();
+
+        std::vector<float> floatRef(nElements);
+        details::unpack_u4f32(input.data(), floatRef.data(), nElements);
+
+
+        // lets apply per channel scale
+        uint16_t * pRef = reinterpret_cast<uint16_t*>(ref_output.data());
+        const uint8_t* pZer = static_cast<uint8_t*>(zerop->data());
+        float * pFloatRef = reinterpret_cast<float*>(floatRef.data());
+        const uint16_t * pScale_f16 = reinterpret_cast<uint16_t*>(scale->data());
+        const float * pScale_f32 = reinterpret_cast<float*>(scale->data());
+
+        for (size_t i = 0; i < scale->get_size(); i++) {
+            float zeroPointValue = static_cast<float>((i % 2 == 0) ? details::lo4(pZer[i / 2]) : details::hi4(pZer[i / 2]));
+            for (size_t sc = 0; sc != nOutputElementsPerScale; sc++) {
+                // applying zeropoint
+                float ref_scaled = *pFloatRef - zeroPointValue;
+
+                if (scaleType == ov::element::f32) {
+                    ref_scaled *= pScale_f32[0];
+                } else if (scaleType == ov::element::f16) {
+                    ref_scaled *= details::half_to_float(pScale_f16[0]);
+                }
+                *pRef = details::float_to_half(ref_scaled);
+
+                pFloatRef++;
+                pRef++;
+            }
+            pScale_f32++;
+            pScale_f16++;
+        }
+    }
+};
+
+using UnpackTestsWithScaleAndZeroPointTest3 = UnpackTestsTmpl<UnpackTestsWithScaleAndZeroPoint3>;
+
+TEST_P(UnpackTestsWithScaleAndZeroPointTest3, u4) {
+    ASSERT_NO_THROW_IF(!isNegative(),
+                       ov::npuw::util::unpack(from, zerop, scale, to, ov::npuw::util::UnpackOptions{useParallelFor, nPartitions, strictPartitions}));
+    if (!isNegative()) {
+        ASSERT_TRUE(details::fp16ArraysMatch(output, ref_output, input, false));
+    }
+}
+
+#define Tensors [](std::vector<int>& input, std::vector<int>&scale, std::vector<int>&zerop)
 
 
 namespace details {
