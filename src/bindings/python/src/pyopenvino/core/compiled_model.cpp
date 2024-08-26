@@ -4,9 +4,6 @@
 
 #include "openvino/runtime/compiled_model.hpp"
 
-#include <random>
-#include <fstream>
-
 #include <pybind11/iostream.h>
 #include <pybind11/stl.h>
 
@@ -82,58 +79,13 @@ void regclass_CompiledModel(py::module m) {
                                      "`model_stream` must be an io.BytesIO object but " +
                                      (std::string)(py::repr(model_stream)) + "` provided");
             }
-            py::object model_stream_buffer = model_stream.attr("getbuffer")();
-            py::buffer buffer = py::buffer(model_stream_buffer);
-            py::buffer_info info = buffer.request();
-            constexpr auto one_gigabyte = static_cast<int64_t>(1024) * 1024 * 1024;
-            const double size_in_gb = (info.size * info.itemsize) / one_gigabyte;
-            model_stream.attr("seek")(0);  // Always rewind stream!
-            // std::stringstream cannot handle streams > 2GB, in that case we use std::fstream
-            if (size_in_gb > 2) {
-                std::random_device rd;
-                std::mt19937 gen(rd());
-                std::uniform_int_distribution<> distr(1000, 9999);
-                std::string filename = "model_stream_" + std::to_string(distr(gen)) + ".txt";
-                std::fstream _stream(filename, std::ios::out | std::ios::binary);
-                if (_stream.is_open()) {
-                    const py::bytes data = model_stream.attr("read")();
-                    // convert the Python bytes object to C++ string
-                    char* buffer;
-                    Py_ssize_t length;
-                    PYBIND11_BYTES_AS_STRING_AND_SIZE(data.ptr(), &buffer, &length);
-                    _stream.write(buffer, length);
-                    _stream.close();
-                } else {
-                    OPENVINO_THROW("Failed to open temporary file for model stream");
-                }
-                std::fstream _fstream(filename, std::ios::in | std::ios::binary);
-                if (_fstream.is_open()) {
-                    py::gil_scoped_release release;
-                    self.export_model(_fstream);
-                    _fstream.seekg(0, std::ios::beg);
-                    std::string str((std::istreambuf_iterator<char>(_fstream)), std::istreambuf_iterator<char>());
-                    _fstream.close();
-                    model_stream.attr("flush")();
-                    model_stream.attr("write")(py::bytes(str));
-                    _fstream.close();
-                    if (std::remove(filename.c_str()) != 0) {
-                        const std::string abs_path =
-                            py::module_::import("os").attr("getcwd")().cast<std::string>() + "/" + filename;
-                        const std::string warning_message = "Temporary file " + abs_path + " failed to delete!";
-                        PyErr_WarnEx(PyExc_RuntimeWarning, warning_message.c_str(), 1);
-                    }
-                } else {
-                    OPENVINO_THROW("Failed to open temporary file for model stream");
-                }
-            } else {
-                std::stringstream _stream;
+            std::stringstream _stream;
             {
                 py::gil_scoped_release release;
                 self.export_model(_stream);
             }
             model_stream.attr("flush")();
             model_stream.attr("write")(py::bytes(_stream.str()));
-            }
             model_stream.attr("seek")(0);  // Always rewind stream!
         },
         py::arg("model_stream"),
