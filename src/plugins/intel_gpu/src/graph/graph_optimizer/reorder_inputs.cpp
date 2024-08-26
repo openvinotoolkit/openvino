@@ -15,12 +15,12 @@
 #include "reshape_inst.h"
 #include "fully_connected_inst.h"
 
-// #ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef ENABLE_ONEDNN_FOR_GPU
 #include "gemm_inst.h"
 #include "broadcast_inst.h"
-#include "shape_of_inst.h"
+#include "fc_shape_of_inst.h"
 #include <impls/onednn/utils.hpp>
-// #endif
+#endif
 
 #include <vector>
 #include <memory>
@@ -997,7 +997,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
     // * Gemm fused op shape: (1,f,y,x) -> OneDNN shape: (1*f,y,x)
     // If batch dimension of gemm output is not equal to 1, then OneDNN will not be able to broadcast fused op data
     // correctly and we need to do it manually
-// #ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef ENABLE_ONEDNN_FOR_GPU
     for (auto& node : p.get_processing_order()) {
         if (node->is_type<gemm>() && node->get_preferred_impl_type() == impl_types::onednn) {
             for (const auto& fused_prim : node->get_fused_primitives()) {
@@ -1040,9 +1040,6 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     auto& data = node->get_dependency(fused_prim.outer_dep_start_idx);
                     auto data_layout = data.get_output_layout();
 
-                    // if (fc_layout.is_dynamic() || data_layout.is_dynamic())
-                    //     continue;
-
                     // fc_b     | fc_f      | data_b    | data_f    | broadcast condition
                     // ---------+-----------+-----------+-----------+--------------------
                     // 1        | 1         | 1         | 1         | no broadcast
@@ -1063,34 +1060,27 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     // N        | N         | N         | N         | no broadcast
                     static size_t idx = 0;
                     if (fc_layout.is_dynamic() || data_layout.is_dynamic()) {
-                        const auto dummy_fc_prim_id = "fullyconnected:" + node->id() + "_dummy" + std::to_string(idx++);
-                        auto dummy_fc_prim = std::make_shared<cldnn::fully_connected>(dummy_fc_prim_id,
-                                                                                      cldnn::input_info(node->get_dependency(0).id()),
-                                                                                      node->get_dependency(1).id());
-                        auto& dummy_fc_node = p.get_or_create(dummy_fc_prim);
-                        dummy_fc_node.can_be_optimized(true);
-
-                        const auto shape_of_prim_id = "shapeof:" + node->id() + "_shapeof" + std::to_string(idx++);
-                        auto shape_of_prim = std::make_shared<cldnn::shape_of>(shape_of_prim_id, cldnn::input_info(dummy_fc_prim_id), ov::element::Type_t::i64);
-                        auto& shape_of_node = p.get_or_create(shape_of_prim);
+                        const auto fc_shape_of_prim_id = "fcshapeof:" + node->id() + "_fcshape" + std::to_string(idx++);
+                        auto fc_shape_of_prim = std::make_shared<cldnn::fc_shape_of>(fc_shape_of_prim_id,
+                                                                                     cldnn::input_info(node->get_dependency(0).id()),
+                                                                                     cldnn::input_info(node->get_dependency(1).id()),
+                                                                                     ov::element::Type_t::i32);
+                        auto& fc_shape_of_node = p.get_or_create(fc_shape_of_prim);
 
                         const auto prim_id = "broadcast:" + data.id() + "_broadcasted" + std::to_string(idx++);
-                        auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), cldnn::input_info(shape_of_prim_id),
-                                                                                ov::AxisSet{}, ov::op::BroadcastType::NUMPY);
+                        auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), cldnn::input_info(fc_shape_of_prim_id),
+                                                                                 ov::AxisSet{}, ov::op::BroadcastType::NUMPY);
                         auto& broadcast_node = p.get_or_create(broadcast_prim);
                         p.add_intermediate(broadcast_node, *node, fused_prim.outer_dep_start_idx, true);
-                        p.add_connection(shape_of_node, broadcast_node);
-                        p.add_connection(dummy_fc_node, shape_of_node);
-                        p.add_connection(node->get_dependency(0), dummy_fc_node);
-                        p.add_connection(node->get_dependency(1), dummy_fc_node);
+                        p.add_connection(fc_shape_of_node, broadcast_node);
+                        p.add_connection(node->get_dependency(0), fc_shape_of_node);
+                        p.add_connection(node->get_dependency(1), fc_shape_of_node);
 
                         if (p.processing_order.size() != 0) {
-                            p.processing_order.insert_next(&node->get_dependency(0), &dummy_fc_node);
-                            p.processing_order.insert_next(&dummy_fc_node, &shape_of_node);
+                            p.processing_order.insert_next(&node->get_dependency(0), &fc_shape_of_node);
                         }
 
-                        dummy_fc_node.recalc_output_layouts(false);
-                        shape_of_node.recalc_output_layouts(false);
+                        fc_shape_of_node.recalc_output_layouts(false);
                         broadcast_node.recalc_output_layouts(false);
                     } else {
                         if ((fc_layout.batch() == 1 || fc_layout.feature() == 1) ||
@@ -1111,5 +1101,5 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             }
         }
     }
-// #endif
+#endif
 }

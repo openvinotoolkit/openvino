@@ -32,6 +32,7 @@
 #include "gather_inst.h"
 #include "broadcast_inst.h"
 #include "dynamic_quantize_inst.h"
+#include "fc_shape_of_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "impls/registry/implementation_map.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
@@ -1375,6 +1376,19 @@ void primitive_inst::do_runtime_skip_broadcast() {
 
     // Check runtime shape (need to reset can_be_optimized)
     if (input_layout != output_layout) {
+        if (get_node().get_dependencies().size() == 2 && get_node().get_dependency(1).is_type<fc_shape_of>()) {
+            if ((output_layout.batch() == 1 || output_layout.feature() == 1) ||
+                (input_layout.batch() == 1 && input_layout.feature() == 1) ||
+                (output_layout.count() == input_layout.count())) {
+                set_shape_change();
+                _impl_params->output_layouts[0].set_partial_shape(input_layout.get_partial_shape());
+                set_can_be_optimized(true);
+                GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_broadcast] " << id() << " for fc fusion : can_be_optimized" << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "    - Input/Output layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+                return;
+            }
+        }
+
         set_can_be_optimized(false);
         GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because input layout(" << input_layout.to_short_string()
                                << ") != output layout(" << output_layout.to_short_string() << ")" << std::endl;
@@ -2395,6 +2409,20 @@ bool primitive_inst::is_valid_fusion() const {
             if (gemm_dims[0] != data_dims[0])
                 return false;
         }
+
+        // if (_node->is_type<fully_connected>() && _node->get_preferred_impl_type() == impl_types::onednn) {
+        //     const auto& fc_layout = _impl_params->get_output_layout();
+        //     const auto& data_layout = outer_dep.first->_impl_params->get_output_layout();
+
+        //     if ((fc_layout.batch() == 1 || fc_layout.feature() == 1) ||
+        //         (data_layout.batch() == 1 && data_layout.feature() == 1) ||
+        //         (fc_layout.count() == data_layout.count())) {
+                
+        //     } else {
+        //         std::cout << "hohohoho unfusing!!" << std::endl;
+        //         return false;
+        //     }
+        // }
 #endif
 
         // We check that broadcasting of extra input is possible and it doesn't change output shape. If it output shape is changed, then

@@ -12,6 +12,7 @@
 #include "reshape_inst.h"
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
+#include "fc_shape_of_inst.h"
 #include "select_inst.h"
 #include "condition_inst.h"
 #include "strided_slice_inst.h"
@@ -1787,7 +1788,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         if (!node.is_dynamic() &&  has_reshape_user(node))
             return format::get_default_format(out_lay_rank);
 
-        if (node.is_type<shape_of>())
+        if (node.is_type<shape_of>() || node.is_type<fc_shape_of>())
             return format::get_default_format(node.get_input_layout(0).get_rank());
 
         auto dep_size = node.get_dependencies().size();

@@ -43,6 +43,7 @@ REGISTER_CPU(non_max_suppression);
 REGISTER_CPU(non_max_suppression_gather);
 REGISTER_CPU(detection_output);
 REGISTER_CPU(shape_of);
+REGISTER_CPU(fc_shape_of);
 REGISTER_CPU(concatenation);
 REGISTER_CPU(gather);
 REGISTER_CPU(strided_slice);
