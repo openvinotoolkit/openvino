@@ -21,10 +21,6 @@ public:
     bool created() const override;
     bool needPrepareParams() const override;
     void executeDynamicImpl(dnnl::stream strm) override;
-
-private:
-    void executeImpl();
-    struct StringTensorUnpackExecute;
 };
 
 }  // namespace node
