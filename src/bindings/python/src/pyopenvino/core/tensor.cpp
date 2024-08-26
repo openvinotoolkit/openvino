@@ -23,7 +23,7 @@ void regclass_Tensor(py::module m) {
             }),
             py::arg("array"),
             py::arg("shared_memory") = false,
-            py::ov_extension::conditional_keep_alive<1,2,3>(),
+            py::ov_extension::conditional_keep_alive<1, 2, 3>(),
             R"(
                 Tensor's special constructor.
 

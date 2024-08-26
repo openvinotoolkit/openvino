@@ -184,7 +184,7 @@ def test_init_with_node_output_port():
 
         del ones_arr
         return tensor2
-    
+
     shared_tensor = get_tensor()
     assert np.allclose(shared_tensor.data[0][0][0][0:3], [0, 0, 1])
 
