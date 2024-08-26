@@ -65,7 +65,7 @@ class Partitioner:
 
     def check_pattern(self, node: torch.fx.Node, pattern: PatternNode, enabled_ops: list) -> bool:
         if node.op == "call_function":
-            if ("call_function" + ":"+str(node.target)) in pattern.op_types:
+            if ("call_function" + ":" + str(node.target)) in pattern.op_types:
                 pt_input_nodes = node.all_input_nodes
                 pattern_input_ops = pattern.op_types["call_function" + ":" + str(node.target)]
                 if pattern_input_ops is None:
