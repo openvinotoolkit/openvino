@@ -69,5 +69,17 @@ protected:
 
         return true;
     }
+
+    static int vec_size_selector(int hidden_size) {
+        if (hidden_size%8 == 0) {
+            return 8;
+        } else if (hidden_size%4 == 0) {
+            return 4;
+        } else if (hidden_size%2 == 0) {
+            return 2;
+        } else {
+            return 1;
+        }
+    }
 };
 }  // namespace kernel_selector

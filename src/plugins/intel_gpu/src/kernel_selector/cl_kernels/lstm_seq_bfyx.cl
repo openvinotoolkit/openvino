@@ -27,7 +27,7 @@ KERNEL(lstm_seq)(
 #endif
 )
 {
-    #ifdef SEQUENCE && HBLOCK_NUM > 0
+    #ifdef SEQUENCE
         INPUT3_TYPE_VEC r_block[NUM_HIDDEN_TO_DO][GATE_NUM][HBLOCK_NUM];
     #endif    
     const uint b = get_global_id(1);
@@ -58,37 +58,28 @@ KERNEL(lstm_seq)(
             unroll_for(uint k=0;k<GATE_NUM;++k){
                 ACCUMULATOR_TYPE hidden_result = 0;
                 const uint weight_idx = hidden_idx+weight_offsets[k];
-                #if HBLOCK_NUM > 0
-                    unroll_for(uint j=0;j<HBLOCK_NUM;++j) {
-                        if(i==0){
-                            #ifdef SEQUENCE
-                                INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, 0, j*VEC_SIZE, 0)]);
-                                r_block[l][k][j] = READ_VEC(0, &R[INPUT3_GET_INDEX(weight_idx, j*VEC_SIZE, 0, 0)]);
-                                hidden_result += initial_block.s0*r_block[l][k][j].s0 + initial_block.s1*r_block[l][k][j].s1 + initial_block.s2*r_block[l][k][j].s2 + initial_block.s3*r_block[l][k][j].s3 + initial_block.s4*r_block[l][k][j].s4 + initial_block.s5*r_block[l][k][j].s5 + initial_block.s6*r_block[l][k][j].s6 + initial_block.s7*r_block[l][k][j].s7;
-                            #else
-                                INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, j*VEC_SIZE, 0, 0)]);
-                                INPUT3_TYPE_VEC r_block = READ_VEC(0, &R[INPUT3_GET_INDEX(weight_idx, j*VEC_SIZE, 0, 0)]);
-                                hidden_result += initial_block.s0*r_block.s0 + initial_block.s1*r_block.s1 + initial_block.s2*r_block.s2 + initial_block.s3*r_block.s3 + initial_block.s4*r_block.s4 + initial_block.s5*r_block.s5 + initial_block.s6*r_block.s6 + initial_block.s7*r_block.s7;
-
-                            #endif
-                        }else{
-                            #ifdef SEQUENCE
-                                OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, j*VEC_SIZE)]);
-                                hidden_result += h_block.s0*r_block[l][k][j].s0 + h_block.s1*r_block[l][k][j].s1 + h_block.s2*r_block[l][k][j].s2 + h_block.s3*r_block[l][k][j].s3 + h_block.s4*r_block[l][k][j].s4 + h_block.s5*r_block[l][k][j].s5 + h_block.s6*r_block[l][k][j].s6 + h_block.s7*r_block[l][k][j].s7;
-                            #endif
-                        }
-                    }
-                #endif //HBLOCK_NUM > 0
-                unroll_for(uint j=HBLOCK_NUM*VEC_SIZE;j<HIDDEN_SIZE;++j) {
+                unroll_for(uint j=0;j<HBLOCK_NUM;++j) {
                     if(i==0){
                         #ifdef SEQUENCE
-                            hidden_result += initial_hidden_state[INPUT1_GET_INDEX(b, 0, j, 0)]*R[INPUT3_GET_INDEX(0, weight_idx, j, 0)];
+                            INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, 0, j*VEC_SIZE, 0)]);
+                            r_block[l][k][j] = READ_VEC(0, &R[INPUT3_GET_INDEX(weight_idx, j*VEC_SIZE, 0, 0)]);
+                            unroll_for(int s=0;s<VEC_SIZE;s++){
+                                hidden_result += initial_block[s]*r_block[l][k][j][s];
+                            }
                         #else
-                            hidden_result += initial_hidden_state[INPUT1_GET_INDEX(b, j, 0, 0)]*R[INPUT3_GET_INDEX(weight_idx, j, 0, 0)];
+                            INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, j*VEC_SIZE, 0, 0)]);
+                            INPUT3_TYPE_VEC r_block = READ_VEC(0, &R[INPUT3_GET_INDEX(weight_idx, j*VEC_SIZE, 0, 0)]);
+                            unroll_for(int s=0;s<VEC_SIZE;s++){
+                                hidden_result += initial_block[s]*r_block[l][k][j][s];
+                            }
+
                         #endif
                     }else{
                         #ifdef SEQUENCE
-                            hidden_result += hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, j)]*R[INPUT3_GET_INDEX(0, weight_idx, j, 0)];
+                            OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, j*VEC_SIZE)]);
+                            unroll_for(int s=0;s<VEC_SIZE;s++){
+                                hidden_result += h_block[s]*r_block[l][k][l][s];
+                            }
                         #endif
                     }
                 }
