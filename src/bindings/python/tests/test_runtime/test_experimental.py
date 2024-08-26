@@ -54,8 +54,9 @@ def test_evaluate_as_partial_shape(graph_with_partial_value):
 
 
 def test_tensor_descriptor():
-    data1 = np.array([[1, 2, 3], [1, 2, 3]])
-    data2 = np.array([3, 2, 1])
+    data1 = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.int64)
+    data2 = np.array([3, 2, 1], dtype=np.int64)
+
 
     node = ops.add(data1, data2)
     input_tensor1 = node.get_input_tensor(0)
