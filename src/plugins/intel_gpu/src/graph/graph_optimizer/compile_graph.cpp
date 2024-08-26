@@ -14,7 +14,6 @@
 #include "quantize_inst.h"
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
-#include "shape_of_inst.h"
 #include "gemm_inst.h"
 #include "condition_inst.h"
 #include "loop_inst.h"
