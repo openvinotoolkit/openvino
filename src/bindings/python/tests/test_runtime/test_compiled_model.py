@@ -75,7 +75,7 @@ def test_export_import_advanced(device):
     res = new_compiled.infer_new_request({"data": img})
 
     assert np.argmax(res[new_compiled.outputs[0]]) == 531
-    
+
 
 def test_export_import_large_model(device):
     import io
