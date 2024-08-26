@@ -831,19 +831,16 @@ void Transformations::PostLpt() {
             },
             MLPFusion);
 
-        // Limitations: at least 3 workers are required for QKV fusion
         size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
         if (concurrency == 0)
             concurrency = parallel_get_max_threads();
-        if (concurrency >= 3) {
-            CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
-            CPU_SET_CALLBACK_X64(postLPTPassManager,
-                [](const_node_ptr &node) -> bool {
-                    std::string errorMsg;
-                    return node::QKVProjection::isSupportedOperation(node, errorMsg);
-                },
-                QKVProjFusion);
-        }
+        CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
+        CPU_SET_CALLBACK_X64(postLPTPassManager,
+            [concurrency](const_node_ptr &node) -> bool {
+                std::string errorMsg;
+                return node::QKVProjection::isSupportedOperation(node, errorMsg, concurrency);
+            },
+            QKVProjFusion);
     }
 
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);

@@ -261,11 +261,22 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
-bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage, int concurrency) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         const auto node_qkv = std::dynamic_pointer_cast<const QKVProjectionNode>(op);
         if (node_qkv) {
+            if (concurrency > 0) {
+                if (concurrency < 3) {
+                    errorMessage = "QKVProjection needs at least 3 cores to work";
+                    return false;
+                }
+                float unbalance_ratio = static_cast<float>(concurrency % 3)/static_cast<float>(concurrency / 3);
+                if (unbalance_ratio > 0.2f) {
+                    errorMessage = "QKVProjection needs number of cores to be nearly multiple of 3";
+                    return false;
+                }
+            }
             auto proj_pshape1 = op->input_value(1).get_shape();
             auto proj_pshape2 = op->input_value(2).get_shape();
             auto proj_pshape3 = op->input_value(3).get_shape();

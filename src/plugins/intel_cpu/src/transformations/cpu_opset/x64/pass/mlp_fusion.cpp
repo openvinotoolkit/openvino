@@ -123,6 +123,7 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
             return false;
         }
 
+        std::cout << "======= MLPFusion:" << old_node->get_friendly_name() << std::endl;
         ov::replace_node(old_node, new_node);
         return true;
     };
