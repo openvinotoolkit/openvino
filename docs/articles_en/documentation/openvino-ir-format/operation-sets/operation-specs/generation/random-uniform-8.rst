@@ -464,6 +464,7 @@ The special behavior (optimization) for int64 matches the expected output for Py
 In other words:
 
 .. math::
+
    if output is of int32 dtype:
       output = int32(x)
    else if output is of int64 dtype and (min <= max(uint32) and max <= max(uint32)):
