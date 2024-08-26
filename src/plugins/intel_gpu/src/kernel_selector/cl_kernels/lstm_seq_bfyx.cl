@@ -34,7 +34,7 @@ KERNEL(lstm_seq)(
     const uint local_idx = get_local_id(0);
     const uint weight_offsets[4] = {GEMM_OFFSET_F, GEMM_OFFSET_I, GEMM_OFFSET_Z, GEMM_OFFSET_O};
     #ifdef SEQUENCE
-        const uint real_seq_length = sequence_lengths[INPUT4_GET_INDEX_SAFE(b, 0, 0, 0)];
+        const uint real_seq_length = sequence_lengths[INPUT4_GET_INDEX(b, 0, 0, 0)];
     #else
         const uint real_seq_length = 1;
     #endif
@@ -62,18 +62,18 @@ KERNEL(lstm_seq)(
                     unroll_for(uint j=0;j<HBLOCK_NUM;++j) {
                         if(i==0){
                             #ifdef SEQUENCE
-                                INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, 0, j*VEC_SIZE, 0)]);
-                                r_block[l][k][j] = READ_VEC(0, &R[INPUT3_GET_INDEX_SAFE(weight_idx, j*VEC_SIZE, 0, 0)]);
+                                INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, 0, j*VEC_SIZE, 0)]);
+                                r_block[l][k][j] = READ_VEC(0, &R[INPUT3_GET_INDEX(weight_idx, j*VEC_SIZE, 0, 0)]);
                                 hidden_result += initial_block.s0*r_block[l][k][j].s0 + initial_block.s1*r_block[l][k][j].s1 + initial_block.s2*r_block[l][k][j].s2 + initial_block.s3*r_block[l][k][j].s3 + initial_block.s4*r_block[l][k][j].s4 + initial_block.s5*r_block[l][k][j].s5 + initial_block.s6*r_block[l][k][j].s6 + initial_block.s7*r_block[l][k][j].s7;
                             #else
-                                INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, j*VEC_SIZE, 0, 0)]);
-                                INPUT3_TYPE_VEC r_block = READ_VEC(0, &R[INPUT3_GET_INDEX_SAFE(weight_idx, j*VEC_SIZE, 0, 0)]);
+                                INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, j*VEC_SIZE, 0, 0)]);
+                                INPUT3_TYPE_VEC r_block = READ_VEC(0, &R[INPUT3_GET_INDEX(weight_idx, j*VEC_SIZE, 0, 0)]);
                                 hidden_result += initial_block.s0*r_block.s0 + initial_block.s1*r_block.s1 + initial_block.s2*r_block.s2 + initial_block.s3*r_block.s3 + initial_block.s4*r_block.s4 + initial_block.s5*r_block.s5 + initial_block.s6*r_block.s6 + initial_block.s7*r_block.s7;
 
                             #endif
                         }else{
                             #ifdef SEQUENCE
-                                OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX_SAFE(b, 0, prev_idx, j*VEC_SIZE)]);
+                                OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, j*VEC_SIZE)]);
                                 hidden_result += h_block.s0*r_block[l][k][j].s0 + h_block.s1*r_block[l][k][j].s1 + h_block.s2*r_block[l][k][j].s2 + h_block.s3*r_block[l][k][j].s3 + h_block.s4*r_block[l][k][j].s4 + h_block.s5*r_block[l][k][j].s5 + h_block.s6*r_block[l][k][j].s6 + h_block.s7*r_block[l][k][j].s7;
                             #endif
                         }
@@ -82,23 +82,23 @@ KERNEL(lstm_seq)(
                 unroll_for(uint j=HBLOCK_NUM*VEC_SIZE;j<HIDDEN_SIZE;++j) {
                     if(i==0){
                         #ifdef SEQUENCE
-                            hidden_result += initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, 0, j, 0)]*R[INPUT3_GET_INDEX_SAFE(0, weight_idx, j, 0)];
+                            hidden_result += initial_hidden_state[INPUT1_GET_INDEX(b, 0, j, 0)]*R[INPUT3_GET_INDEX(0, weight_idx, j, 0)];
                         #else
-                            hidden_result += initial_hidden_state[INPUT1_GET_INDEX_SAFE(b, j, 0, 0)]*R[INPUT3_GET_INDEX_SAFE(weight_idx, j, 0, 0)];
+                            hidden_result += initial_hidden_state[INPUT1_GET_INDEX(b, j, 0, 0)]*R[INPUT3_GET_INDEX(weight_idx, j, 0, 0)];
                         #endif
                     }else{
                         #ifdef SEQUENCE
-                            hidden_result += hidden_history[OUTPUT_GET_INDEX_SAFE(b, 0, prev_idx, j)]*R[INPUT3_GET_INDEX_SAFE(0, weight_idx, j, 0)];
+                            hidden_result += hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, j)]*R[INPUT3_GET_INDEX(0, weight_idx, j, 0)];
                         #endif
                     }
                 }
                 #if DIRECTION == 1 //reverse
-                    gate_output[k] = hidden_result + xWB[INPUT0_GET_INDEX_SAFE(b, real_seq_length-1-i, weight_idx, 0)];
+                    gate_output[k] = hidden_result + xWB[INPUT0_GET_INDEX(b, real_seq_length-1-i, weight_idx, 0)];
                 #else
                     #ifdef SEQUENCE
-                        gate_output[k] = hidden_result + xWB[INPUT0_GET_INDEX_SAFE(b, i, weight_idx, 0)];
+                        gate_output[k] = hidden_result + xWB[INPUT0_GET_INDEX(b, i, weight_idx, 0)];
                     #else
-                        gate_output[k] = hidden_result + xWB[INPUT0_GET_INDEX_SAFE(b, weight_idx, 0, 0)];
+                        gate_output[k] = hidden_result + xWB[INPUT0_GET_INDEX(b, weight_idx, 0, 0)];
                     #endif
                 #endif //DIRECTION
                 switch(k){
@@ -117,9 +117,9 @@ KERNEL(lstm_seq)(
             ACCUMULATOR_TYPE temp_cell_state;
             if (i==0){
                 #ifdef SEQUENCE
-                    temp_cell_state = gate_output[0]*initial_cell_state[INPUT2_GET_INDEX_SAFE(b, 0, hidden_idx, 0)] + gate_output[1]*gate_output[2];
+                    temp_cell_state = gate_output[0]*initial_cell_state[INPUT2_GET_INDEX(b, 0, hidden_idx, 0)] + gate_output[1]*gate_output[2];
                 #else
-                    temp_cell_state = gate_output[0]*initial_cell_state[INPUT2_GET_INDEX_SAFE(b, hidden_idx, 0, 0)] + gate_output[1]*gate_output[2];
+                    temp_cell_state = gate_output[0]*initial_cell_state[INPUT2_GET_INDEX(b, hidden_idx, 0, 0)] + gate_output[1]*gate_output[2];
                 #endif
             }else{
                 temp_cell_state *= gate_output[0];
@@ -132,18 +132,18 @@ KERNEL(lstm_seq)(
                 const uint cur_history_idx = i;
             #endif
             #ifdef SEQUENCE
-                hidden_state[OUTPUT1_GET_INDEX_SAFE(b, 0, hidden_idx, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state, ACTIVATION_PARAMS_H);
+                hidden_state[OUTPUT1_GET_INDEX(b, 0, hidden_idx, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state, ACTIVATION_PARAMS_H);
             #else
-                hidden_state[OUTPUT_GET_INDEX_SAFE(b, hidden_idx, 0, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state, ACTIVATION_PARAMS_H);
+                hidden_state[OUTPUT_GET_INDEX(b, hidden_idx, 0, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state, ACTIVATION_PARAMS_H);
             #endif
             #ifdef SEQUENCE
-                hidden_history[OUTPUT_GET_INDEX_SAFE(b, 0, cur_history_idx, hidden_idx)] = hidden_state[OUTPUT1_GET_INDEX_SAFE(b, 0, hidden_idx, 0)];
+                hidden_history[OUTPUT_GET_INDEX(b, 0, cur_history_idx, hidden_idx)] = hidden_state[OUTPUT1_GET_INDEX(b, 0, hidden_idx, 0)];
             #endif
             if(i==real_seq_length-1){
                 #ifdef SEQUENCE
-                    cell_state[OUTPUT2_GET_INDEX_SAFE(b, 0, hidden_idx, 0)] = temp_cell_state;
+                    cell_state[OUTPUT2_GET_INDEX(b, 0, hidden_idx, 0)] = temp_cell_state;
                 #else
-                    cell_state[OUTPUT1_GET_INDEX_SAFE(b, hidden_idx, 0, 0)] = temp_cell_state;
+                    cell_state[OUTPUT1_GET_INDEX(b, hidden_idx, 0, 0)] = temp_cell_state;
                 #endif
             }
         }
