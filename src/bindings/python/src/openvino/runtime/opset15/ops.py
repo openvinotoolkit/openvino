@@ -11,7 +11,7 @@ from openvino.runtime import Node, Type
 from openvino.runtime.opset1 import convert_like
 from openvino.runtime.opset14 import constant
 from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import nameable_op
+from openvino.runtime.utils.decorators import binary_op, nameable_op
 from openvino.runtime.utils.types import NodeInput, as_nodes
 
 _get_node_factory_opset15 = partial(_get_node_factory, "opset15")
@@ -223,4 +223,53 @@ def string_tensor_pack(
     return _get_node_factory_opset15().create(
         "StringTensorPack",
         as_nodes(begins, ends, symbols, name=name)
+
+
+@binary_op
+def bitwise_left_shift(
+    arg0: NodeInput,
+    arg1: NodeInput,
+    auto_broadcast: str = "NUMPY",
+    name: Optional[str] = None,
+) -> Node:
+    """Return node which performs BitwiseLeftShift operation on input nodes element-wise.
+
+    :param arg0: Node with data to be shifted.
+    :param arg1: Node with number of shifts.
+    :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors.
+                           Defaults to “NUMPY”.
+
+    :return: The new node performing BitwiseLeftShift operation.
+    """
+    return _get_node_factory_opset15().create(
+        "BitwiseLeftShift",
+        as_nodes(arg0, arg1, name=name),
+        {
+            "auto_broadcast": auto_broadcast.upper(),
+        },
+    )
+
+
+@binary_op
+def bitwise_right_shift(
+    arg0: NodeInput,
+    arg1: NodeInput,
+    auto_broadcast: str = "NUMPY",
+    name: Optional[str] = None,
+) -> Node:
+    """Return node which performs BitwiseRightShift operation on input nodes element-wise.
+
+    :param arg0: Tensor with data to be shifted.
+    :param arg1: Tensor with number of shifts.
+    :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors.
+                           Defaults to “NUMPY”.
+
+    :return: The new node performing BitwiseRightShift operation.
+    """
+    return _get_node_factory_opset15().create(
+        "BitwiseRightShift",
+        as_nodes(arg0, arg1, name=name),
+        {
+            "auto_broadcast": auto_broadcast.upper(),
+        },
     )
