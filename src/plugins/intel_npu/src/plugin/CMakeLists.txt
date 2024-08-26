@@ -66,7 +66,7 @@ target_include_directories(${TARGET_NAME}
         ${NPU_PLUGIN_SOURCE_DIR}/thirdparty/level-zero-ext
 )
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR OV_COMPILER_IS_INTEL_LLVM)
   target_compile_options(${TARGET_NAME} PRIVATE -mavx2 -mf16c)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
   target_compile_options(${TARGET_NAME} PRIVATE /arch:AVX2)

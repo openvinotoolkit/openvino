@@ -40,8 +40,8 @@ std::shared_ptr<ov::Node> translate_scaled_dot_product_attention_common(const No
 
 OutputVector translate_scaled_dot_product_attention(const NodeContext& context) {
     // aten::scaled_dot_product_attention(Tensor query, Tensor key, Tensor value, Tensor? attn_mask=None, float
-    // dropout_p=0., bool is_causal=False, float scale=None)
-    num_inputs_check(context, 6, 7);
+    // dropout_p=0., bool is_causal=False, float scale=None, bool enable_gqa=False)
+    num_inputs_check(context, 6, 8);
     return {translate_scaled_dot_product_attention_common(context)};
 };
 
