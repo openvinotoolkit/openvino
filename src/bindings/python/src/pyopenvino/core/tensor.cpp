@@ -22,6 +22,7 @@ void regclass_Tensor(py::module m) {
             }),
             py::arg("array"),
             py::arg("shared_memory") = false,
+            py::keep_alive<1, 2>(),
             R"(
                 Tensor's special constructor.
 
