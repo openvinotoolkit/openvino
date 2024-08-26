@@ -157,6 +157,7 @@ struct InternalPreprocessAction {
 class PreStepsList {
 public:
     void add_scale_impl(const std::vector<float>& values);
+    void add_clamp(float min_value, float max_value);
     void add_mean_impl(const std::vector<float>& values);
     void add_pad_impl(const std::vector<int>& pads_begin,
                       const std::vector<int>& pads_end,

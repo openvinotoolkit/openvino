@@ -10,6 +10,10 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/util/common_util.hpp"
 #include "preprocess/color_utils.hpp"
+#include <openvino/core/shape.hpp>
+#include <openvino/core/type.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace ov;
 using namespace ov::preprocess;
@@ -26,6 +30,22 @@ static std::shared_ptr<Model> create_simple_function(element::Type type, const P
     res->get_output_tensor(0).set_names({"tensor_output1"});
     return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
 }
+static std::shared_ptr<Model> create_clamp_function(element::Type type, const PartialShape& shape, float min_value, float max_value) {
+    auto data = std::make_shared<op::v0::Parameter>(type, shape);
+    data->set_friendly_name("input");
+    data->get_output_tensor(0).set_names({"tensor_input"});
+
+    auto clamp_op = std::make_shared<opset8::Clamp>(data, min_value, max_value);
+    clamp_op->set_friendly_name("Clamp");
+    clamp_op->get_output_tensor(0).set_names({"tensor_clamp"});
+
+    auto result = std::make_shared<op::v0::Result>(clamp_op);
+    result->set_friendly_name("Result");
+    result->get_output_tensor(0).set_names({"tensor_output"});
+
+    return std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+}
+
 
 static std::shared_ptr<Model> create_trivial(element::Type type, const PartialShape& shape) {
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
@@ -77,6 +97,22 @@ TEST(pre_post_process, simple_mean_scale_getters_f64) {
     auto f = create_simple_function(element::f64, Shape{1, 3, 2, 2});
     auto p = PrePostProcessor(f);
     p.input("tensor_input1").preprocess().mean(1).scale(2);
+    f = p.build();
+    EXPECT_EQ(f->get_output_element_type(0), element::f64);
+}
+
+TEST(pre_post_process, simple_clamp_f16) {
+    auto f = create_clamp_function(element::f16, Shape{1, 3, 2, 2}, 0.0f, 1.0f);
+    auto p = PrePostProcessor(f);
+    p.input("tensor_input").preprocess().clamp(0.0f, 1.0f);
+    f = p.build();
+    EXPECT_EQ(f->get_output_element_type(0), element::f16);
+}
+
+TEST(pre_post_process, simple_clamp_f64) {
+    auto f = create_clamp_function(element::f64, Shape{1, 3, 2, 2}, 0.0f, 1.0f);
+    auto p = PrePostProcessor(f);
+    p.input("tensor_input").preprocess().clamp(0.0f, 1.0f);
     f = p.build();
     EXPECT_EQ(f->get_output_element_type(0), element::f64);
 }
