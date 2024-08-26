@@ -29,6 +29,8 @@
 #include "openvino/op/xor.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/floor_mod.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
 
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
@@ -198,6 +200,14 @@ static void CreateIsNaNOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v10::
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::is_nan);
 }
 
+static void CreateBitwiseRightShiftOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15::BitwiseRightShift>& op) {
+    CreateElementwiseOp(p, op, cldnn::eltwise_mode::right_shift);
+}
+
+static void CreateBitwiseLeftShiftOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15::BitwiseLeftShift>& op) {
+    CreateElementwiseOp(p, op, cldnn::eltwise_mode::left_shift);
+}
+
 REGISTER_FACTORY_IMPL(v1, Add);
 REGISTER_FACTORY_IMPL(v1, Multiply);
 REGISTER_FACTORY_IMPL(v1, Maximum);
@@ -220,6 +230,8 @@ REGISTER_FACTORY_IMPL(v1, Mod);
 REGISTER_FACTORY_IMPL(v10, IsFinite);
 REGISTER_FACTORY_IMPL(v10, IsInf);
 REGISTER_FACTORY_IMPL(v10, IsNaN);
+REGISTER_FACTORY_IMPL(v15, BitwiseRightShift);
+REGISTER_FACTORY_IMPL(v15, BitwiseLeftShift);
 
 }  // namespace intel_gpu
 }  // namespace ov
