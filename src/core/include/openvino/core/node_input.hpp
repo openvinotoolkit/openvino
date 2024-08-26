@@ -40,7 +40,7 @@ public:
     /// \return The element type of the input referred to by this input handle.
     OV_NO_DANGLING const element::Type& get_element_type() const;
     /// \return The shape of the input referred to by this input handle.
-    OV_NO_DANGLING const Shape& get_shape() const;
+    OV_NO_DANGLING Shape get_shape() const;
     /// \return The partial shape of the input referred to by this input handle.
     OV_NO_DANGLING const PartialShape& get_partial_shape() const;
     /// \return A handle to the output that is connected to this input.
@@ -92,7 +92,7 @@ public:
     /// \return The element type of the input referred to by this input handle.
     OV_NO_DANGLING const element::Type& get_element_type() const;
     /// \return The shape of the input referred to by this input handle.
-    OV_NO_DANGLING const Shape& get_shape() const;
+    OV_NO_DANGLING Shape get_shape() const;
     /// \return The partial shape of the input referred to by this input handle.
     OV_NO_DANGLING const PartialShape& get_partial_shape() const;
     /// \return A handle to the output that is connected to this input.

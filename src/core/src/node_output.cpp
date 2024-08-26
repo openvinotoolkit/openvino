@@ -46,8 +46,8 @@ const element::Type& Output<Node>::get_element_type() const {
 void Output<Node>::set_tensor_ptr(std::shared_ptr<descriptor::Tensor> tensor_ptr) {
     return m_node->m_outputs.at(m_index).set_tensor_ptr(tensor_ptr);
 }
-const Shape& Output<Node>::get_shape() const {
-    return static_cast<const Shape&>(m_node->get_output_shape(m_index));
+Shape Output<Node>::get_shape() const {
+    return m_node->get_output_shape(m_index);
 }
 const PartialShape& Output<Node>::get_partial_shape() const {
     return m_node->get_output_partial_shape(m_index);
@@ -191,8 +191,8 @@ std::shared_ptr<descriptor::Tensor> Output<const Node>::get_tensor_ptr() const {
 const element::Type& Output<const Node>::get_element_type() const {
     return m_node->get_output_element_type(m_index);
 }
-const Shape& Output<const Node>::get_shape() const {
-    return static_cast<const Shape&>(m_node->get_output_shape(m_index));
+Shape Output<const Node>::get_shape() const {
+    return m_node->get_output_shape(m_index);
 }
 const PartialShape& Output<const Node>::get_partial_shape() const {
     return m_node->get_output_partial_shape(m_index);
