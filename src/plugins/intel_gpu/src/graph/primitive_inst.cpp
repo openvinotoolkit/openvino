@@ -2409,20 +2409,6 @@ bool primitive_inst::is_valid_fusion() const {
             if (gemm_dims[0] != data_dims[0])
                 return false;
         }
-
-        // if (_node->is_type<fully_connected>() && _node->get_preferred_impl_type() == impl_types::onednn) {
-        //     const auto& fc_layout = _impl_params->get_output_layout();
-        //     const auto& data_layout = outer_dep.first->_impl_params->get_output_layout();
-
-        //     if ((fc_layout.batch() == 1 || fc_layout.feature() == 1) ||
-        //         (data_layout.batch() == 1 && data_layout.feature() == 1) ||
-        //         (fc_layout.count() == data_layout.count())) {
-                
-        //     } else {
-        //         std::cout << "hohohoho unfusing!!" << std::endl;
-        //         return false;
-        //     }
-        // }
 #endif
 
         // We check that broadcasting of extra input is possible and it doesn't change output shape. If it output shape is changed, then

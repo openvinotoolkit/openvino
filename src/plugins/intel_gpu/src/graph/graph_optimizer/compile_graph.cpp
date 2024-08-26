@@ -109,10 +109,6 @@ void compile_graph::run(program& p) {
         if (node->is_type<fully_connected>() && node->is_dynamic() && node->get_output_pshape().size() > 3)
             can_select_impl = false;
 
-        if (node->is_type<fully_connected>() && node->is_dynamic() && node->can_be_optimized() &&
-            node->get_users().size() == 1 && node->get_users().front()->is_type<shape_of>())
-            can_select_impl = false;
-
         // onednn impls do not support shape agnostic kernel currently.
         if (node->get_preferred_impl_type() == impl_types::onednn && node->is_dynamic())
             can_select_impl = false;
