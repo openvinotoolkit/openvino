@@ -3,9 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import sys
 import pytest
 
 import tests
+import logging
 
 from pathlib import Path
 
@@ -48,6 +50,11 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "onnx_coverage: Collect ONNX operator coverage")
     config.addinivalue_line("markers", "template_plugin")
     config.addinivalue_line("markers", "dynamic_library: Runs tests only in dynamic libraries case")
+
+    # Issue 148922: trying to print what models
+    # were found to debug test cases generation issue
+    console_handler = logging.StreamHandler(sys.stderr)  # pytest only prints error logs
+    logging.basicConfig(level=logging.DEBUG, handlers=[console_handler])
 
 
 def pytest_collection_modifyitems(config, items):

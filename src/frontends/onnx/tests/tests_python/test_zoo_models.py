@@ -27,6 +27,8 @@ from tests import (
     xfail_issue_onnx_models_140,
     skip_issue_127649)
 
+logger = logging.getLogger()
+
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
 
 def yolov3_post_processing(outputs : Sequence[Any]) -> Sequence[Any]:
@@ -153,12 +155,7 @@ for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
 if len(zoo_models) > 0:
     zoo_models = sorted(zoo_models, key=itemgetter("model_name"))
 
-    # Issue 148922: trying to print what models
-    # were found to debug test cases generation issue
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger()
-
-    logger.info("Sorted zoo_models dictionary: %s", pprint.pformat(zoo_models))
+    logger.info("Sorted zoo_models list of dictionaries: %s", pprint.pformat(zoo_models))
 
     # Set backend device name to be used instead of hardcoded by ONNX BackendTest class ones.
     OpenVinoOnnxBackend.backend_name = tests.BACKEND_NAME
