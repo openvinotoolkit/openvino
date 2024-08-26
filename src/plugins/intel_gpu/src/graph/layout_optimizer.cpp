@@ -1707,8 +1707,9 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             }
         }
 
-        // oneDNN doesn't support asymmetric weights quantization
-        if (node.is_type<convolution>() && node.as<convolution>().weights_zero_points_term())
+        // oneDNN only supports asymmetric weights quantization by scalar zero-points
+        if (node.is_type<convolution>() && node.as<convolution>().weights_zero_points_term() &&
+            node.as<convolution>().weights_zero_points().get_output_layout().count() != 1)
             impl_candidate = impl_types::ocl;
 
         preferred_impl = impl_candidate;
