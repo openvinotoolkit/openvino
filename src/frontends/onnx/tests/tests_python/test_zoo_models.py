@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import tests
+import logging
+import pprint
 from operator import itemgetter
 from pathlib import Path
 from typing import Sequence, Any
@@ -150,6 +152,13 @@ for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
 
 if len(zoo_models) > 0:
     zoo_models = sorted(zoo_models, key=itemgetter("model_name"))
+
+    # Issue 148922: trying to print what models
+    # were found to debug test cases generation issue
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger()
+
+    logger.info("Sorted zoo_models dictionary: %s", pprint.pformat(zoo_models))
 
     # Set backend device name to be used instead of hardcoded by ONNX BackendTest class ones.
     OpenVinoOnnxBackend.backend_name = tests.BACKEND_NAME
