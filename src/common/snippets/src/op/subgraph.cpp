@@ -474,6 +474,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     pipeline.register_positioned_passes(lowered_backend_passes);
     pipeline.run(*m_linear_ir);
+    // std::cout << "control_flow_transformations finish..." << std::endl;
 
     lowered::pass::PassPipeline validation_pipeline;
     validation_pipeline.register_pass<lowered::pass::ValidateBuffers>();
