@@ -21,7 +21,7 @@ public:
     TestCase(const std::shared_ptr<ov::Model>& function, const std::string& dev = "TEMPLATE");
 
     /// \brief This method is used to eliminate issue caused by calling .data for vector<bool>
-    template <typename T>
+    template <typename T, typename std::enable_if<!std::is_same<T, bool>::value, bool>::type = true>
     void copy_values_to_tensor(ov::Tensor& tensor, const std::vector<T>& values) {
         if (!ov::element::is_nibble_type(tensor.get_element_type())) {
             std::copy(values.begin(), values.end(), tensor.data<T>());
@@ -32,8 +32,8 @@ public:
             std::memcpy(tensor.data(), values.data(), size);
         }
     }
-    template <>
-    void copy_values_to_tensor<bool>(ov::Tensor& tensor, const std::vector<bool>& values) {
+    template <typename T, typename std::enable_if<std::is_same<T, bool>::value, bool>::type = true>
+    void copy_values_to_tensor(ov::Tensor& tensor, const std::vector<bool>& values) {
         std::copy(values.begin(), values.end(), tensor.data<bool>());
     }
 
