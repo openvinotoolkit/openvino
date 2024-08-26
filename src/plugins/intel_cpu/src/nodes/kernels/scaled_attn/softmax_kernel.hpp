@@ -473,7 +473,7 @@ static inline void exp_ps_avx512(__m512& src) {
     __m512 half = _mm512_loadu_ps(reinterpret_cast<const float*>(c_half));               // 0.5f
     __m512 ln2f = _mm512_loadu_ps(reinterpret_cast<const float*>(c_ln2));                // ln(2)
     __m512 one = _mm512_loadu_ps(reinterpret_cast<const float*>(c_1));                   // 1.0f
-    __m512i exponent_bias = _mm512_loadu_epi32(c_bias);                                   // 127
+    __m512i exponent_bias = _mm512_loadu_si512(c_bias);                                  // 127
     __m512 exp_pol1 = _mm512_loadu_ps(reinterpret_cast<const float*>(c_p1));             // p1 = 0.999999701f
     __m512 exp_pol2 = _mm512_loadu_ps(reinterpret_cast<const float*>(c_p2));             // p2 = 0.499991506f
     __m512 exp_pol3 = _mm512_loadu_ps(reinterpret_cast<const float*>(c_p3));             // p3 = 0.166676521f

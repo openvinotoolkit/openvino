@@ -24,7 +24,6 @@
 #include <string>
 #include <vector>
 
-using namespace ov::intel_cpu::kernel;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
@@ -61,13 +60,13 @@ bool RMSNormKey::operator==(const RMSNormKey& rhs) const {
 }
 
 #if defined(OPENVINO_ARCH_X86_64)
-static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rms_compile_params& param) {
+static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const kernel::jit_rms_compile_params& param) {
     std::shared_ptr<kernel::JitKernelBase> res;
 
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-        res = std::make_shared<jit_rms_kernel<dnnl::impl::cpu::x64::avx512_core>>(param);
+        res = std::make_shared<kernel::jit_rms_kernel<dnnl::impl::cpu::x64::avx512_core>>(param);
     } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
-        res = std::make_shared<jit_rms_kernel<dnnl::impl::cpu::x64::avx2>>(param);
+        res = std::make_shared<kernel::jit_rms_kernel<dnnl::impl::cpu::x64::avx2>>(param);
     }
 
     if (res)
@@ -77,7 +76,7 @@ static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rms_comp
 }
 
 static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker, const uint8_t* src, uint8_t* dst, const float* scale) {
-    jit_rms_call_args call_args;
+    kernel::jit_rms_call_args call_args;
     call_args.src = src;
     call_args.dst = dst;
     call_args.scale = scale;
@@ -86,7 +85,7 @@ static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker, con
 
 struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
     RMSNormExecutor(ov::element::Type precision, size_t data_size, size_t scale_size, float eps) : m_precision(precision) {
-        jit_rms_compile_params jcp;
+        kernel::jit_rms_compile_params jcp;
         jcp.src_prc = precision;
         jcp.dst_prc = precision;
         jcp.data_size = data_size;
@@ -155,7 +154,7 @@ void RMSNorm::createPrimitive() {
 
     RMSNormKey key = {precision, data_size, scale_size, m_eps};
 
-    auto builder = [&](const RMSNormKey& key) -> std::shared_ptr<RMSNormExecutor> {
+    auto builder = [&](const RMSNormKey& key) -> std::shared_ptr<Executor> {
 #ifdef OPENVINO_ARCH_X86_64
         return std::make_shared<RMSNormExecutor>(precision, data_size, scale_size, m_eps);
 #else
