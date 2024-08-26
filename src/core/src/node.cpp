@@ -440,7 +440,7 @@ const ov::element::Type& ov::Node::get_element_type() const {
     return get_output_element_type(0);
 }
 
-const ov::Shape& ov::Node::get_output_shape(size_t i) const {
+ov::Shape ov::Node::get_output_shape(size_t i) const {
     OPENVINO_ASSERT(i < m_outputs.size(), idx_txt, i, out_of_range_txt);
     return m_outputs[i].get_shape();
 }
