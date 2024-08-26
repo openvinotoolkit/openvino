@@ -21,7 +21,7 @@ KERNEL(lstm_seq)(
 )
 {
     #ifdef SEQUENCE
-        INPUT3_TYPE R_copy[NUM_HIDDEN_TO_DO][4][HIDDEN_SIZE];
+        INPUT3_TYPE R_copy[NUM_HIDDEN_TO_DO][GATE_NUM][HIDDEN_SIZE];
     #endif
     const uint b = get_global_id(1);
     const uint local_idx = get_local_id(0);
@@ -50,9 +50,7 @@ KERNEL(lstm_seq)(
             }
             ACCUMULATOR_TYPE gate_output[GATE_NUM];
             unroll_for(uint k=0;k<GATE_NUM;++k){
-                
                 ACCUMULATOR_TYPE hidden_result = 0;
-                ACCUMULATOR_TYPE input_result = 0;
                 const uint weight_idx = hidden_idx+weight_offsets[k];
                 unroll_for(uint j=0;j<HIDDEN_SIZE;++j) {
                     if(i==0){

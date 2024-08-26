@@ -16,7 +16,8 @@ JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params, bool seq
     if (params.input_forget) {
         jit.AddConstants({MakeJitConstant("INPUT_FORGET", true)});
     }
-    jit.AddConstants({MakeJitConstant("VEC_SIZE", 8)});
+    const int vec_size = 8;
+    jit.AddConstants({MakeJitConstant("VEC_SIZE", vec_size)});
     jit.AddConstants({MakeJitConstant("DIRECTION", static_cast<int>(params.direction))});
     const unsigned int gate_num = 4;
     jit.AddConstants({MakeJitConstant("GATE_NUM", gate_num)});
@@ -51,6 +52,7 @@ JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params, bool seq
     });
     jit.AddConstants({MakeJitConstant("BATCH_SIZE", params.inputs[1].Batch().v)});
     jit.AddConstants({MakeJitConstant("HIDDEN_SIZE", hidden_size)});
+    jit.AddConstants({MakeJitConstant("HBLOCK_NUM", hidden_size/vec_size)});
     int num_hidden_to_do = hidden_size/num_hidden_kernels + (hidden_size % num_hidden_kernels  ? 1 : 0);
     jit.AddConstant({MakeJitConstant("NUM_HIDDEN_TO_DO", num_hidden_to_do)});
     auto ftype = params.inputs[0].GetDType();
