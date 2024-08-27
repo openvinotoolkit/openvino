@@ -61,7 +61,7 @@ def test_export_import(device):
     condition=sys.version_info >= (3, 12),
     reason="Fails on any Linux platform with Python 3.12. Ticket CVS-133903",
 )
-def test_export_import_with_crypto(device):
+def test_export_import_with_encryption(device):
     core = Core()
 
     if props.device.Capability.EXPORT_IMPORT not in core.get_property(device, props.device.capabilities):
