@@ -84,7 +84,6 @@ def test_export_import_large_model(device):
         pytest.skip(f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
 
     # model of size of roughly 2.01GB
-    print(device)
     model = generate_model_with_memory([6, 10000, 9000], Type.f32)
     core = Core()
     compiled_model = core.compile_model(model, device, {})
