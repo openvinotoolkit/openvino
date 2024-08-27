@@ -71,7 +71,9 @@ protected:
     }
 
     static int vec_size_selector(int hidden_size) {
-        if (hidden_size%8 == 0) {
+        if (hidden_size%16 == 0) {
+            return 16;
+        } else if (hidden_size%8 == 0) {
             return 8;
         } else if (hidden_size%4 == 0) {
             return 4;
