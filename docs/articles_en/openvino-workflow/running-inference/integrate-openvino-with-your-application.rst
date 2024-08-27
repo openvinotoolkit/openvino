@@ -439,5 +439,5 @@ Additional Resources
 * Models in the OpenVINO IR format on `Hugging Face <https://huggingface.co/models>`__.
 * :doc:`OpenVINO™ Runtime Preprocessing <optimize-inference/optimize-preprocessing>`
 * :doc:`String Tensors <string-tensors>`
-* :doc:`Using Encrypted Models with OpenVINO <../../documentation/openvino-security/openvino-encrypted-models>`
+* :ref:`Using Encrypted Models with OpenVINO <encrypted-models>`
 

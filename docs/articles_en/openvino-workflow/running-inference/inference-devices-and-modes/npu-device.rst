@@ -140,6 +140,8 @@ offer a limited set of supported OpenVINO features.
          ov::workload_type
          ov::intel_npu::compilation_mode_params
          ov::intel_npu::turbo
+         ov::intel_npu::tiles
+         ov::intel_nou::max_tiles
 
    .. tab-item:: Read-only properties
 
