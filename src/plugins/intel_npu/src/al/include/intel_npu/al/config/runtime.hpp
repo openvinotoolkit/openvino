@@ -223,15 +223,15 @@ struct TURBO final : OptionBase<TURBO, bool> {
 };
 
 //
-// UMD_CACHING
+// BYPASS_UMD_CACHING
 //
-struct UMD_CACHING final : OptionBase<UMD_CACHING, bool> {
+struct BYPASS_UMD_CACHING final : OptionBase<BYPASS_UMD_CACHING, bool> {
     static std::string_view key() {
-        return ov::intel_npu::umd_caching.name();
+        return ov::intel_npu::bypass_umd_caching.name();
     }
 
     static bool defaultValue() {
-        return true;
+        return false;
     }
 
     static OptionMode mode() {

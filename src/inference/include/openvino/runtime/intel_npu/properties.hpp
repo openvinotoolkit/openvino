@@ -90,11 +90,10 @@ static constexpr ov::Property<int64_t> max_tiles{"NPU_MAX_TILES"};
 /**
  * @brief [Only for NPU plugin]
  * Type: std::bool
- * Set caching of compiled models in UMD on or off.
- * UMD Caching is enabled by default, and disabled automatically if OV caching is enabled
+ * Bypass caching of the compiled model by UMD cache.
  * @ingroup ov_runtime_npu_prop_cpp_api
  */
-static constexpr ov::Property<bool> umd_caching{"NPU_UMD_CACHING"};
+static constexpr ov::Property<bool> bypass_umd_caching{"NPU_BYPASS_UMD_CACHING"};
 
 }  // namespace intel_npu
 }  // namespace ov

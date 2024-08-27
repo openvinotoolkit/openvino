@@ -468,11 +468,11 @@ Plugin::Plugin()
               }
               return config.get<MAX_TILES>();
           }}},
-        {ov::intel_npu::umd_caching.name(),
+        {ov::intel_npu::bypass_umd_caching.name(),
          {true,
           ov::PropertyMutability::RW,
           [](const Config& config) {
-              return config.get<UMD_CACHING>();
+              return config.get<BYPASS_UMD_CACHING>();
           }}},
         // NPU Private
         // =========

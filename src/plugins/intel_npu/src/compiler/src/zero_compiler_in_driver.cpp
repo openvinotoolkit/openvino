@@ -483,9 +483,9 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
     std::ostringstream turbostring;
     turbostring << ov::intel_npu::turbo.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
     content = std::regex_replace(content, std::regex(turbostring.str()), "");
-    // Remove UMD Caching propery
+    // Remove Bypass UMD Caching propery
     std::ostringstream umdcachestring;
-    umdcachestring << ov::intel_npu::umd_caching.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+    umdcachestring << ov::intel_npu::bypass_umd_caching.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                    << VALUE_DELIMITER;
     content = std::regex_replace(content, std::regex(umdcachestring.str()), "");
 
@@ -788,10 +788,10 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreat
 
     _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
 
-    // If UMD Caching is requested to be disabled or if OV cache is enabled, disable driver caching
+    // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
     uint32_t flags = ZE_GRAPH_FLAG_NONE;
     const auto set_cache_dir = config.get<CACHE_DIR>();
-    if (!set_cache_dir.empty() || !config.get<UMD_CACHING>()) {
+    if (!set_cache_dir.empty() || config.get<BYPASS_UMD_CACHING>()) {
         flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
     }
 

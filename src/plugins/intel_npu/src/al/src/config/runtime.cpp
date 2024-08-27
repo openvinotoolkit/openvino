@@ -25,7 +25,7 @@ void intel_npu::registerRunTimeOptions(OptionsDesc& desc) {
     desc.add<ENABLE_CPU_PINNING>();
     desc.add<WORKLOAD_TYPE>();
     desc.add<TURBO>();
-    desc.add<UMD_CACHING>();
+    desc.add<BYPASS_UMD_CACHING>();
 }
 
 // Heuristically obtained number. Varies depending on the values of PLATFORM and PERFORMANCE_HINT
