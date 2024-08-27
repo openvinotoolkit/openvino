@@ -578,6 +578,7 @@ void regclass_Core(py::module m) {
                 OPENVINO_ASSERT(_fstream.is_open(), "Failed to open temporary file for model stream");
                 result = self.import_model(_fstream, device_name, _properties);
                 _fstream.close();
+                py::gil_scoped_release release;
                 if (std::remove(filename.c_str()) != 0) {
                     const std::string abs_path =
                         py::module_::import("os").attr("getcwd")().cast<std::string>() + "/" + filename;
