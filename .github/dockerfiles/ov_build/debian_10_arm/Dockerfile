@@ -54,22 +54,22 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 ENV PATH="$SCCACHE_HOME:$PATH"
 
 # Setup Python
-RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
-
-RUN tar -xf Python-3.11.9.tar.xz && \
-    cd Python-3.11.9 && \
-    ./configure --enable-optimizations && \
-    make -j 8 && \
-    make altinstall
+#RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
+#
+#RUN tar -xf Python-3.11.9.tar.xz && \
+#    cd Python-3.11.9 && \
+#    ./configure --enable-optimizations && \
+#    make -j 8 && \
+#    make altinstall
 
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN python3 -m pip install --upgrade pip==24.0
-RUN python3.11 -m pip install --upgrade pip==24.0
+# RUN python3.11 -m pip install --upgrade pip==24.0
 
 # Use Python 3.11 as default
-# Using venv here 'cause other methods to switch the default Python on Ubuntu break both system and wheels build
-RUN python3.11 -m venv venv
-ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
+# Using venv here because other methods to switch the default Python break both system and wheels build
+# RUN python3.11 -m venv venv
+# ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
