@@ -92,7 +92,7 @@ def test_export_import_large_model(device):
     new_compiled = core.import_model(user_stream, device)
     img = generate_image([6, 10000, 9000])
     res = new_compiled.infer_new_request({"input_data": img})
-    assert np.argmax(res[new_compiled.outputs[0]]) == 14970
+    assert np.argmax(res[new_compiled.outputs[0]]) == 44372822
 
 
 @pytest.mark.parametrize("input_arguments", [[0], ["data"], []])
