@@ -788,8 +788,8 @@ def get_builtin_extensions_path():
         if "test_builtin_extensions" in lib_path.name:
             return str(lib_path)
     return ""
-   
-    
+
+
 @pytest.mark.skipif(
     len(get_builtin_extensions_path()) == 0,
     reason="The extension library path was not found",
@@ -835,11 +835,11 @@ def test_so_extension_via_frontend_decode_input_model():
 def test_add_extension_unicode_paths():
     skip_if_onnx_frontend_is_disabled()
 
-    test_directory = os.path.dirname(os.path.realpath(__file__))
+    test_directory = Path(__file__).resolve().parent
     unicode_characters = r"晚安_путь_к_файлу"
     with tempfile.TemporaryDirectory(dir=test_directory, prefix=unicode_characters) as temp_dir:
         extension_path = Path(get_builtin_extensions_path())
-        temp_extension_path = os.path.join(temp_dir, extension_path.name)
+        temp_extension_path = Path(temp_dir) / extension_path.name
         shutil.copyfile(extension_path, temp_extension_path)
 
         assert os.path.exists(temp_extension_path), "Could not create an extension library with unicode path."
