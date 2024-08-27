@@ -1,0 +1,3474 @@
+[
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "baichuan2-13b-chat",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 146.11935499999998,
+                        "INT4 - 2nd token latency": 74.58109999999999
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 2268.426145,
+                        "INT4 - 2nd token latency": 87.681905
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "baichuan2-13b-chat",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 256.95044,
+                        "INT4 - 2nd token latency": 66.966105
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 8424.669925,
+                        "INT4 - 2nd token latency": 79.876395
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "baichuan2-13b-chat",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 114.604805,
+                        "INT4 - 2nd token latency": 40.339035
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 838.700375,
+                        "INT4 - 2nd token latency": 70.03741
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "baichuan2-7b-chat",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 93.08329499999999,
+                        "INT4 - 2nd token latency": 47.563185000000004
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1376.55321,
+                        "INT4 - 2nd token latency": 50.875465
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "baichuan2-7b-chat",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 143.66357499999998,
+                        "INT4 - 2nd token latency": 45.018744999999996
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 4602.910145,
+                        "INT4 - 2nd token latency": 49.93064
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "baichuan2-7b-chat",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 124.335195,
+                        "INT4 - 2nd token latency": 33.517044999999996
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 518.101765,
+                        "INT4 - 2nd token latency": 55.765475
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "baichuan2-7b-chat",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 689.2470450000001,
+                        "INT4 - 2nd token latency": 145.498345
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 15958.348334999999,
+                        "INT4 - 2nd token latency": 176.469135
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "chatglm2-6b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 74.658605,
+                        "INT4 - 2nd token latency": 33.449740000000006
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 963.385495,
+                        "INT4 - 2nd token latency": 34.33287
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "chatglm2-6b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 120.39156,
+                        "INT4 - 2nd token latency": 34.59406
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 4021.49252,
+                        "INT4 - 2nd token latency": 36.021615
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "chatglm2-6b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 51.099175,
+                        "INT4 - 2nd token latency": 20.478365
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 373.27948000000004,
+                        "INT4 - 2nd token latency": 23.81661
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "chatglm2-6b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 558.37643,
+                        "INT4 - 2nd token latency": 126.29177999999999
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 14962.353835,
+                        "INT4 - 2nd token latency": 131.240765
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "chatglm3-6b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 70.178785,
+                        "INT4 - 2nd token latency": 32.393835
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 987.0759350000001,
+                        "INT4 - 2nd token latency": 32.713094999999996
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "chatglm3-6b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 115.48119,
+                        "INT4 - 2nd token latency": 29.152459999999998
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 3916.34492,
+                        "INT4 - 2nd token latency": 30.86622
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "chatglm3-6b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 51.75103,
+                        "INT4 - 2nd token latency": 17.97636
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 367.15743,
+                        "INT4 - 2nd token latency": 21.14183
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "chatglm3-6b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 598.457125,
+                        "INT4 - 2nd token latency": 110.59965
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 13844.96861,
+                        "INT4 - 2nd token latency": 116.019295
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "chatglm3-6b-gptq",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 77.01370499999999,
+                        "INT4 - 2nd token latency": 36.92794
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 999.107315,
+                        "INT4 - 2nd token latency": 38.356955
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "chatglm3-6b-gptq",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 121.66539,
+                        "INT4 - 2nd token latency": 39.145700000000005
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 3904.613835,
+                        "INT4 - 2nd token latency": 41.42424
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "chatglm3-6b-gptq",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 56.096720000000005,
+                        "INT4 - 2nd token latency": 20.323825
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 369.910955,
+                        "INT4 - 2nd token latency": 22.786430000000003
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "chatglm3-6b-gptq",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 593.34241,
+                        "INT4 - 2nd token latency": 125.285385
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 13833.883969999999,
+                        "INT4 - 2nd token latency": 130.22374000000002
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "dolly-v2-3b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 46.011105,
+                        "INT4 - 2nd token latency": 22.54929
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 537.440875,
+                        "INT4 - 2nd token latency": 24.07806
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "dolly-v2-3b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 59.970425,
+                        "INT4 - 2nd token latency": 17.95644
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1857.7168499999998,
+                        "INT4 - 2nd token latency": 21.073684999999998
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "dolly-v2-3b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 273.14763,
+                        "INT4 - 2nd token latency": 58.38109
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 6741.554700000001,
+                        "INT4 - 2nd token latency": 68.69083499999999
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "flan-t5-xxl",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 63.86190500000001,
+                        "INT4 - 2nd token latency": 49.65608
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 478.39806,
+                        "INT4 - 2nd token latency": 60.132615
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "flan-t5-xxl",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 56.935114999999996,
+                        "INT4 - 2nd token latency": 38.659015
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 539.31703,
+                        "INT4 - 2nd token latency": 46.52762
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "flan-t5-xxl",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 231.77609999999999,
+                        "INT4 - 2nd token latency": 139.65124
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 2117.85145,
+                        "INT4 - 2nd token latency": 200.866745
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "gemma-2b-it",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 39.456535,
+                        "INT4 - 2nd token latency": 20.472735
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 370.31005,
+                        "INT4 - 2nd token latency": 20.034875
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "gemma-2b-it",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 55.504495000000006,
+                        "INT4 - 2nd token latency": 16.866425
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1694.422955,
+                        "INT4 - 2nd token latency": 17.451715
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "gemma-2b-it",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 10486.142479999999,
+                        "INT4 - 2nd token latency": 96.999895
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 10973.722975,
+                        "INT4 - 2nd token latency": 98.56123500000001
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "gemma-2b-it",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 7859.725385,
+                        "INT4 - 2nd token latency": 132.32721500000002
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 9613.20745,
+                        "INT4 - 2nd token latency": 134.553675
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "gemma-7b-it",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 102.335485,
+                        "INT4 - 2nd token latency": 46.445575
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1367.5769599999999,
+                        "INT4 - 2nd token latency": 46.709305
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "gemma-7b-it",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 170.30617,
+                        "INT4 - 2nd token latency": 44.277105
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 5608.776795,
+                        "INT4 - 2nd token latency": 47.731125
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "gemma-7b-it",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 80.202695,
+                        "INT4 - 2nd token latency": 30.42337
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 626.173755,
+                        "INT4 - 2nd token latency": 33.373815
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "glm-4-9b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 123.67922999999999,
+                        "INT4 - 2nd token latency": 54.63735
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 2094.5654750000003,
+                        "INT4 - 2nd token latency": 56.45366
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "glm-4-9b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 185.7226,
+                        "INT4 - 2nd token latency": 49.83245
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 5899.311435,
+                        "INT4 - 2nd token latency": 51.63965
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "glm-4-9b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 135.506935,
+                        "INT4 - 2nd token latency": 34.652505
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 634.031705,
+                        "INT4 - 2nd token latency": 36.072135
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "glm-4-9b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1072.213745,
+                        "INT4 - 2nd token latency": 174.10986
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 23423.839555,
+                        "INT4 - 2nd token latency": 181.57456000000002
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "gpt-j-6b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 84.99405,
+                        "INT4 - 2nd token latency": 36.966525000000004
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 992.10547,
+                        "INT4 - 2nd token latency": 38.942575
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "gpt-j-6b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 124.27800500000001,
+                        "INT4 - 2nd token latency": 33.940685
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 4138.312235,
+                        "INT4 - 2nd token latency": 37.33479
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "gpt-j-6b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 147.395755,
+                        "INT4 - 2nd token latency": 28.800855
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 456.23016,
+                        "INT4 - 2nd token latency": 28.888745
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "gpt-j-6b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 617.21943,
+                        "INT4 - 2nd token latency": 115.38693
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 14164.978605,
+                        "INT4 - 2nd token latency": 129.31068499999998
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "llama-2-13b-chat-hf",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 149.795235,
+                        "INT4 - 2nd token latency": 68.1362
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 2137.24151,
+                        "INT4 - 2nd token latency": 70.13438
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "llama-2-13b-chat-hf",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 264.554765,
+                        "INT4 - 2nd token latency": 59.566575
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 8014.87861,
+                        "INT4 - 2nd token latency": 65.684515
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "llama-2-7b-chat-hf",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 82.22679,
+                        "INT4 - 2nd token latency": 38.733365
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1000.4917700000001,
+                        "INT4 - 2nd token latency": 39.510475
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "llama-2-7b-chat-hf",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 134.10715499999998,
+                        "INT4 - 2nd token latency": 34.17527
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 4227.10746,
+                        "INT4 - 2nd token latency": 38.248565
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "llama-2-7b-chat-hf",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 72.48601500000001,
+                        "INT4 - 2nd token latency": 23.004005
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 378.37859000000003,
+                        "INT4 - 2nd token latency": 25.65032
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "llama-2-7b-chat-hf",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 661.07887,
+                        "INT4 - 2nd token latency": 127.02600999999999
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 15171.365695,
+                        "INT4 - 2nd token latency": 142.912645
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "llama-2-7b-gptq",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 80.41076000000001,
+                        "INT4 - 2nd token latency": 34.31727
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 986.946395,
+                        "INT4 - 2nd token latency": 37.356615
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "llama-2-7b-gptq",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 140.858735,
+                        "INT4 - 2nd token latency": 36.289425
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 4449.29048,
+                        "INT4 - 2nd token latency": 40.40338
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "llama-2-7b-gptq",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 74.0333,
+                        "INT4 - 2nd token latency": 23.930484999999997
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 381.202055,
+                        "INT4 - 2nd token latency": 26.25501
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "llama-2-7b-gptq",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 661.42424,
+                        "INT4 - 2nd token latency": 128.106695
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 15415.537235,
+                        "INT4 - 2nd token latency": 143.82444
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "llama-3-8b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 89.725965,
+                        "INT4 - 2nd token latency": 39.022795
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1197.775515,
+                        "INT4 - 2nd token latency": 39.24889
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "llama-3-8b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 148.38563499999998,
+                        "INT4 - 2nd token latency": 37.825745
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 4585.183215,
+                        "INT4 - 2nd token latency": 39.822424999999996
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "llama-3-8b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 80.971735,
+                        "INT4 - 2nd token latency": 25.599665
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 489.69705999999996,
+                        "INT4 - 2nd token latency": 27.241835
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "llama-3-8b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 752.45902,
+                        "INT4 - 2nd token latency": 144.44088499999998
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 17640.610829999998,
+                        "INT4 - 2nd token latency": 151.435675
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "mistral-7b-v0.1",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 87.572115,
+                        "INT4 - 2nd token latency": 39.877215
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1875.036265,
+                        "INT4 - 2nd token latency": 40.39941
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "mistral-7b-v0.1",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 147.89247,
+                        "INT4 - 2nd token latency": 35.223405
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 4500.01652,
+                        "INT4 - 2nd token latency": 37.19555
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "mistral-7b-v0.1",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 75.62122,
+                        "INT4 - 2nd token latency": 24.153545
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 398.49321499999996,
+                        "INT4 - 2nd token latency": 25.867855
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "mistral-7b-v0.1",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 724.077785,
+                        "INT4 - 2nd token latency": 134.40805
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 16641.065385,
+                        "INT4 - 2nd token latency": 142.99234
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "mixtral-8x7b-v0.1",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 457.066665,
+                        "INT4 - 2nd token latency": 93.585335
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 3124.7607550000002,
+                        "INT4 - 2nd token latency": 94.914265
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "mixtral-8x7b-v0.1",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 406.307815,
+                        "INT4 - 2nd token latency": 92.081355
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 8142.462944999999,
+                        "INT4 - 2nd token latency": 94.214845
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "opt-125m-gptq",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 11.965895,
+                        "INT4 - 2nd token latency": 5.4335
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 56.70729,
+                        "INT4 - 2nd token latency": 5.877085
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "opt-125m-gptq",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 10.291374999999999,
+                        "INT4 - 2nd token latency": 4.4156200000000005
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 161.6943,
+                        "INT4 - 2nd token latency": 4.955525
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "opt-125m-gptq",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 35.931695000000005,
+                        "INT4 - 2nd token latency": 7.078565
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 127.931085,
+                        "INT4 - 2nd token latency": 7.1398
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "opt-125m-gptq",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 24.404895,
+                        "INT4 - 2nd token latency": 10.06485
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 416.70621500000004,
+                        "INT4 - 2nd token latency": 11.549700000000001
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "opt-2.7b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 54.06725,
+                        "INT4 - 2nd token latency": 23.49634
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 724.899755,
+                        "INT4 - 2nd token latency": 25.47569
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "opt-2.7b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 64.73900499999999,
+                        "INT4 - 2nd token latency": 20.900385
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1841.392775,
+                        "INT4 - 2nd token latency": 23.56375
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "opt-2.7b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 77.75264,
+                        "INT4 - 2nd token latency": 15.515460000000001
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 211.59686,
+                        "INT4 - 2nd token latency": 19.369825
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "opt-2.7b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 270.316985,
+                        "INT4 - 2nd token latency": 67.96004500000001
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 6622.368544999999,
+                        "INT4 - 2nd token latency": 77.2782
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "orca-mini-3b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 56.641005,
+                        "INT4 - 2nd token latency": 26.479485
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 607.7654,
+                        "INT4 - 2nd token latency": 29.114835
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "orca-mini-3b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 80.023895,
+                        "INT4 - 2nd token latency": 22.758065000000002
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 2443.036275,
+                        "INT4 - 2nd token latency": 27.19302
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "orca-mini-3b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 55.65238,
+                        "INT4 - 2nd token latency": 17.81738
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 342.16349,
+                        "INT4 - 2nd token latency": 22.40615
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "orca-mini-3b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 345.35402999999997,
+                        "INT4 - 2nd token latency": 75.256185
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 8800.85957,
+                        "INT4 - 2nd token latency": 98.76965999999999
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "phi-2",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 49.66994,
+                        "INT4 - 2nd token latency": 24.64201
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 548.929155,
+                        "INT4 - 2nd token latency": 26.43264
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "phi-2",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 67.005415,
+                        "INT4 - 2nd token latency": 19.986295
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1967.600275,
+                        "INT4 - 2nd token latency": 22.818405
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "phi-2",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 107.57311,
+                        "INT4 - 2nd token latency": 20.610205
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 291.293565,
+                        "INT4 - 2nd token latency": 21.82148
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "phi-2",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 294.37981,
+                        "INT4 - 2nd token latency": 61.7363
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 7224.835215,
+                        "INT4 - 2nd token latency": 71.97856999999999
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "phi-3-medium-4k-instruct",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 175.69992,
+                        "INT4 - 2nd token latency": 75.63552
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 2904.0251150000004,
+                        "INT4 - 2nd token latency": 79.01846499999999
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "phi-3-medium-4k-instruct",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 307.8424,
+                        "INT4 - 2nd token latency": 64.72987499999999
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 9130.830405,
+                        "INT4 - 2nd token latency": 67.68272999999999
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "phi-3-medium-4k-instruct",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 94.03256999999999,
+                        "INT4 - 2nd token latency": 41.326385
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 768.0984599999999,
+                        "INT4 - 2nd token latency": 43.989765
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "phi-3-mini-4k-instruct",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 63.076930000000004,
+                        "INT4 - 2nd token latency": 28.217345
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 923.7100350000001,
+                        "INT4 - 2nd token latency": 30.793570000000003
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "phi-3-mini-4k-instruct",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 95.73485,
+                        "INT4 - 2nd token latency": 23.290574999999997
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 2821.893075,
+                        "INT4 - 2nd token latency": 27.670605000000002
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "phi-3-mini-4k-instruct",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 79.25744499999999,
+                        "INT4 - 2nd token latency": 20.051115
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 296.73073999999997,
+                        "INT4 - 2nd token latency": 22.320135
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "phi-3-mini-4k-instruct",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 482.438795,
+                        "INT4 - 2nd token latency": 78.122185
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 10145.267085,
+                        "INT4 - 2nd token latency": 90.404405
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "qwen-14b-chat",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 154.37234999999998,
+                        "INT4 - 2nd token latency": 78.59929
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 2296.71146,
+                        "INT4 - 2nd token latency": 83.35988499999999
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "qwen-14b-chat",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 268.16585,
+                        "INT4 - 2nd token latency": 72.4726
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 9070.013515,
+                        "INT4 - 2nd token latency": 78.904805
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "qwen-14b-chat",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 123.84007,
+                        "INT4 - 2nd token latency": 45.348195
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 849.5128500000001,
+                        "INT4 - 2nd token latency": 48.274585
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "qwen-7b-chat",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 90.448865,
+                        "INT4 - 2nd token latency": 44.429024999999996
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1212.612565,
+                        "INT4 - 2nd token latency": 45.627765
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "qwen-7b-chat",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 146.966,
+                        "INT4 - 2nd token latency": 42.989104999999995
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 4979.823945,
+                        "INT4 - 2nd token latency": 47.21962499999999
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "qwen-7b-chat",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 104.35815,
+                        "INT4 - 2nd token latency": 29.49445
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 514.9759799999999,
+                        "INT4 - 2nd token latency": 30.88151
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "qwen-7b-chat",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 712.83352,
+                        "INT4 - 2nd token latency": 138.75222
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 16945.147105,
+                        "INT4 - 2nd token latency": 155.232045
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "qwen-7b-chat-gptq",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 87.21667500000001,
+                        "INT4 - 2nd token latency": 43.578705
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1187.5392,
+                        "INT4 - 2nd token latency": 46.521375000000006
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "qwen-7b-chat-gptq",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 145.0852,
+                        "INT4 - 2nd token latency": 43.73505
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 4952.4712500000005,
+                        "INT4 - 2nd token latency": 47.917845
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "qwen-7b-chat-gptq",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 104.345695,
+                        "INT4 - 2nd token latency": 29.685409999999997
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 512.4749899999999,
+                        "INT4 - 2nd token latency": 30.463875
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "qwen-7b-chat-gptq",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 708.053325,
+                        "INT4 - 2nd token latency": 138.509895
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 17239.65796,
+                        "INT4 - 2nd token latency": 154.722935
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "qwen2-0.5b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 21.71792,
+                        "INT4 - 2nd token latency": 11.324315
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 151.339465,
+                        "INT4 - 2nd token latency": 11.767145
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "qwen2-0.5b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 22.607565,
+                        "INT4 - 2nd token latency": 8.434114999999998
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 490.632375,
+                        "INT4 - 2nd token latency": 9.242805
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "qwen2-0.5b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 66.10557,
+                        "INT4 - 2nd token latency": 14.25538
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 332.352775,
+                        "INT4 - 2nd token latency": 14.25207
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "qwen2-0.5b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 62.025835,
+                        "INT4 - 2nd token latency": 31.083725
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1481.479475,
+                        "INT4 - 2nd token latency": 33.448065
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "qwen2-1.5b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 38.45714,
+                        "INT4 - 2nd token latency": 19.445515
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 305.549705,
+                        "INT4 - 2nd token latency": 19.792285
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "qwen2-1.5b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 45.49771,
+                        "INT4 - 2nd token latency": 14.591000000000001
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1209.3188,
+                        "INT4 - 2nd token latency": 15.597405
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "qwen2-1.5b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 71.84107,
+                        "INT4 - 2nd token latency": 16.13213
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 344.52818,
+                        "INT4 - 2nd token latency": 16.401235
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "qwen2-1.5b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 164.21506499999998,
+                        "INT4 - 2nd token latency": 47.67385
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 3850.20875,
+                        "INT4 - 2nd token latency": 50.34595
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "qwen2-7b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 87.448395,
+                        "INT4 - 2nd token latency": 42.687475
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1162.43854,
+                        "INT4 - 2nd token latency": 44.0022
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "qwen2-7b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 153.516405,
+                        "INT4 - 2nd token latency": 37.93539
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 4408.11294,
+                        "INT4 - 2nd token latency": 39.84185
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "qwen2-7b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 72.88218,
+                        "INT4 - 2nd token latency": 24.862695000000002
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 468.18867,
+                        "INT4 - 2nd token latency": 26.205424999999998
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "qwen2-7b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 687.13887,
+                        "INT4 - 2nd token latency": 139.86622
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 16079.14528,
+                        "INT4 - 2nd token latency": 145.93745
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "red-pajama-incite-chat-3b-v1",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 48.698785,
+                        "INT4 - 2nd token latency": 24.16509
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 636.7944299999999,
+                        "INT4 - 2nd token latency": 25.894365
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "red-pajama-incite-chat-3b-v1",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 61.254149999999996,
+                        "INT4 - 2nd token latency": 19.188319999999997
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1883.6537,
+                        "INT4 - 2nd token latency": 22.653669999999998
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "red-pajama-incite-chat-3b-v1",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 87.46066,
+                        "INT4 - 2nd token latency": 15.917480000000001
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 238.56851,
+                        "INT4 - 2nd token latency": 17.9279
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "red-pajama-incite-chat-3b-v1",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 274.781095,
+                        "INT4 - 2nd token latency": 60.02161
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 6809.609595,
+                        "INT4 - 2nd token latency": 70.191535
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "stable-zephyr-3b-dpo",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 52.21355,
+                        "INT4 - 2nd token latency": 24.14237
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 674.48433,
+                        "INT4 - 2nd token latency": 26.3183
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "stable-zephyr-3b-dpo",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 62.103135,
+                        "INT4 - 2nd token latency": 19.76597
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1796.69318,
+                        "INT4 - 2nd token latency": 22.66899
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "stable-zephyr-3b-dpo",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 78.37914,
+                        "INT4 - 2nd token latency": 20.00663
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 219.01563,
+                        "INT4 - 2nd token latency": 20.99006
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "stable-zephyr-3b-dpo",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 284.003605,
+                        "INT4 - 2nd token latency": 62.836855
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 6887.794725,
+                        "INT4 - 2nd token latency": 72.49733499999999
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "stablelm-3b-4e1t",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 52.13673,
+                        "INT4 - 2nd token latency": 25.062725
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 513.40232,
+                        "INT4 - 2nd token latency": 27.170095
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "stablelm-3b-4e1t",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 66.20372,
+                        "INT4 - 2nd token latency": 19.80247
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1937.755425,
+                        "INT4 - 2nd token latency": 22.79018
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "stablelm-3b-4e1t",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 78.26709,
+                        "INT4 - 2nd token latency": 20.161360000000002
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 228.72924999999998,
+                        "INT4 - 2nd token latency": 21.05967
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "stablelm-3b-4e1t",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 277.380015,
+                        "INT4 - 2nd token latency": 62.60302
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 6722.9208149999995,
+                        "INT4 - 2nd token latency": 72.93697
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "stablelm-7b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 74.11241,
+                        "INT4 - 2nd token latency": 36.965244999999996
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 1370.126475,
+                        "INT4 - 2nd token latency": 39.181650000000005
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "stablelm-7b",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 142.24356,
+                        "INT4 - 2nd token latency": 34.521159999999995
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 4544.000840000001,
+                        "INT4 - 2nd token latency": 37.549305000000004
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM /3.2GHz. Ubuntu22",
+        "Model": "stablelm-7b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 54.376525,
+                        "INT4 - 2nd token latency": 21.002945
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 391.85753,
+                        "INT4 - 2nd token latency": 22.081985
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "12thGenIntel(R)Core(TM)i9-12900K. 129GB RAM / 3.2GHz. Ubuntu20",
+        "Model": "stablelm-7b",
+        "Checked": true,
+        "PlatformType": "core-GPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 727.4408249999999,
+                        "INT4 - 2nd token latency": 142.14409
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 16908.882965,
+                        "INT4 - 2nd token latency": 153.91468
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6430L. 1.03TB RAM / 4.8GHz. Ubuntu20",
+        "Model": "starcoder",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 156.11373,
+                        "INT4 - 2nd token latency": 77.60880499999999
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 2415.76929,
+                        "INT4 - 2nd token latency": 99.64188
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel(R)Xeon(R)Gold6338CPU@2.00GHz. 967GB RAM / 3.2GHz. Ubuntu22",
+        "Model": "starcoder",
+        "Checked": true,
+        "PlatformType": "core-CPU",
+        "Parameters": {
+            "Input size - 32": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 290.835965,
+                        "INT4 - 2nd token latency": 73.34493
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            },
+            "Input size - 1024": {
+                "Precisions": [
+                    {
+                        "INT4 - 1st token latency": 9440.548665,
+                        "INT4 - 2nd token latency": 105.90457
+                    }
+                ],
+                "Unit": "FPS",
+                "UnitDesc": "higher is better"
+            }
+        }
+    }
+]
