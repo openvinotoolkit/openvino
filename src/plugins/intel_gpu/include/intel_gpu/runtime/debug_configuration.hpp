@@ -8,6 +8,7 @@
 #include <vector>
 #include <set>
 #include <string>
+#include <iostream>
 
 namespace ov {
 namespace intel_gpu {
@@ -62,8 +63,8 @@ enum class LogLevel : int8_t {
 #define GPU_DEBUG_LOG_RAW_INT(min_verbose_level) if (cldnn::debug_configuration::get_instance()->verbose >= min_verbose_level) \
     ((cldnn::debug_configuration::get_instance()->verbose_color == 0) ? GPU_DEBUG_LOG_PREFIX : GPU_DEBUG_LOG_COLOR_PREFIX)
 #define GPU_DEBUG_LOG_RAW(min_verbose_level) GPU_DEBUG_LOG_RAW_INT(static_cast<std::underlying_type<ov::intel_gpu::LogLevel>::type>(min_verbose_level))
-#define GPU_DEBUG_LOG_PREFIX    std::cout << cldnn::debug_configuration::prefix << GPU_FILENAME << ":" <<__LINE__ << ":" << __func__ << ": "
-#define GPU_DEBUG_LOG_COLOR_PREFIX  std::cout << DARK_GRAY << cldnn::debug_configuration::prefix << \
+#define GPU_DEBUG_LOG_PREFIX    *cldnn::debug_configuration::verbose_stream << cldnn::debug_configuration::prefix << GPU_FILENAME << ":" <<__LINE__ << ":" << __func__ << ": "
+#define GPU_DEBUG_LOG_COLOR_PREFIX  *cldnn::debug_configuration::verbose_stream << DARK_GRAY << cldnn::debug_configuration::prefix << \
     BLUE << GPU_FILENAME << ":" << PURPLE <<  __LINE__ << ":" << CYAN << __func__ << ": " << RESET
 #define DARK_GRAY   "\033[1;30m"
 #define BLUE        "\033[1;34m"
@@ -77,7 +78,7 @@ enum class LogLevel : int8_t {
 #define GPU_DEBUG_PROFILED_STAGE(stage)
 #define GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(val)
 #define GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(info)
-#define GPU_DEBUG_LOG_RAW(min_verbose_level) if (0) std::cout << cldnn::debug_configuration::prefix
+#define GPU_DEBUG_LOG_RAW(min_verbose_level) if (0) *cldnn::debug_configuration::verbose_stream << cldnn::debug_configuration::prefix
 #endif
 
 // Macro below is inserted to avoid unused variable warning when GPU_DEBUG_CONFIG is OFF
@@ -100,6 +101,7 @@ public:
     int help;                                                   // Print help messages
     int verbose;                                                // Verbose execution
     int verbose_color;                                          // Print verbose color
+    std::string verbose_file;                                   // Verbose log to file
     int list_layers;                                            // Print list layers
     int print_multi_kernel_perf;                                // Print execution time of each kernel in multi-kernel primitimive
     int print_input_data_shapes;                                // Print the input data_shape for benchmark_app.
@@ -171,6 +173,8 @@ public:
         int64_t start = 0;
         int64_t end = 0;
     } dump_prof_data_iter_params;
+
+    static std::ostream* verbose_stream;
 };
 
 }  // namespace cldnn
