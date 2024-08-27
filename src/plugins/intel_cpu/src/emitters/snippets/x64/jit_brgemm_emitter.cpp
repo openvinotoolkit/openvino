@@ -72,22 +72,23 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
     const auto brgemm = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
     OV_CPU_JIT_EMITTER_ASSERT(brgemm, "get_supported_precisions() expects BrgemmCPU node");
     using brgemm_utils::BRGEMM_TYPE;
-    switch (brgemm->get_type()) {
-        case BRGEMM_TYPE::STAND_ALONE:
-            return {{element::f32, element::f32}};
-        case BRGEMM_TYPE::REPACKING_ONLY:
-            return {{element::u8, element::i8},
-                    {element::bf16, element::bf16},
-                    {element::f32, element::f32}};
-        case BRGEMM_TYPE::WITH_COMPENSATIONS:
-            return {{element::i8, element::i8, element::f32}};
-        case BRGEMM_TYPE::WITH_AMX:
-            return {{element::i8, element::i8, element::u8},
-                    {element::u8, element::i8, element::u8},
-                    {element::bf16, element::bf16, element::u8}};
-        default:
-            OV_CPU_JIT_EMITTER_THROW("got BrgemmCPU node with unsupported type");
+    if (brgemm->get_type() == BRGEMM_TYPE::STAND_ALONE) {
+        return {{element::f32, element::f32}};
+    } else if (brgemm->get_type() == BRGEMM_TYPE::REPACKING_ONLY) {
+        std::set<std::vector<element::Type>> supported_types = {{element::u8, element::i8},
+                                                                {element::bf16, element::bf16},
+                                                                {element::f32, element::f32}};
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
+            supported_types.insert({element::i8, element::i8});
+        return supported_types;
+    } else if (brgemm->get_type() == BRGEMM_TYPE::WITH_COMPENSATIONS) {
+        return {{element::i8, element::i8, element::f32}};
+    } else if (brgemm->get_type() == BRGEMM_TYPE::WITH_AMX) {
+        return {{element::i8, element::i8, element::u8},
+                {element::u8, element::i8, element::u8},
+                {element::bf16, element::bf16, element::u8}};
     }
+    OV_CPU_JIT_EMITTER_THROW("got BrgemmCPU node with unsupported type");
 }
 
 void jit_brgemm_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
