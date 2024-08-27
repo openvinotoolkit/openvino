@@ -14,21 +14,21 @@ class TestReduceWindowMax(JaxLayerTest):
         inp = jnp.array(np.random.rand(*self.input_shape).astype(np.float32))
         return [inp]
 
-    def create_model(self,input_shape, window_dimensions, window_strides, padding):
+    def create_model(self, input_shape, window_dimensions, window_strides, padding):
         self.input_shape = input_shape
 
         def jax_reduce_window_max(inp):
             out = lax.reduce_window(
-                inp, 
-                -jnp.inf, 
-                lax.max, 
-                window_dimensions=window_dimensions, 
+                inp,
+                -jnp.inf,
+                lax.max,
+                window_dimensions=window_dimensions,
                 window_strides=window_strides,
                 padding=padding
             )
             return out
 
-        return jax_reduce_window_max, None
+        return jax_reduce_window_max, None, 'reduce_window_max'
 
     test_data_basic = [
         dict(input_shape=[1, 112, 112, 64], window_dimensions=[1, 3, 3, 1]),
