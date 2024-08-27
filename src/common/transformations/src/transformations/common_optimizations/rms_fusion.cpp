@@ -34,7 +34,7 @@ static std::function<bool(ov::Output<ov::Node>)> constant_value(const float targ
     };
 }
 
-RMSFusion::RMSFusion() {
+RMSFusion::RMSFusion(bool force_tail_convert) {
     using namespace ov::pass::pattern;
 
     // Detect RMS decomposition pattern
@@ -67,8 +67,11 @@ RMSFusion::RMSFusion() {
     auto gamma = wrap_type<ov::op::v0::Constant>(type_matches(element::f32));
     auto mul2 = wrap_type<ov::op::v1::Multiply>({gamma, mul1});
 
-    // compress RMS result
-    auto comp = wrap_type<ov::op::v0::Convert>({mul2});
+    std::shared_ptr<ov::Node> comp = mul2;
+    if (force_tail_convert) {
+        // compress RMS result
+        comp = wrap_type<ov::op::v0::Convert>({mul2});
+    }
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

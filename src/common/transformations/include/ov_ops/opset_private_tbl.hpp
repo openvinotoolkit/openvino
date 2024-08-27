@@ -9,3 +9,4 @@
 
 _OPENVINO_OP_REG(AUGRUCell, ov::op::internal)
 _OPENVINO_OP_REG(AUGRUSequence, ov::op::internal)
+_OPENVINO_OP_REG(RMS, ov::op::internal)

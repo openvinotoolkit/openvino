@@ -30,7 +30,7 @@ namespace pass {
 class RMSFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RMSFusion", "0");
-    RMSFusion();
+    RMSFusion(bool force_tail_convert = true);
 };
 
 }  // namespace pass
