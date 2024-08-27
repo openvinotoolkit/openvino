@@ -32,33 +32,33 @@ positives and false negatives.
 The model has been pretrained on the
 `NeuSpell <https://github.com/neuspell/neuspell>`__ dataset.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Imports <#imports>`__
--  `Methods <#methods>`__
+-  `Imports <#Imports>`__
+-  `Methods <#Methods>`__
 
    -  `1. Using the Hugging Face Optimum
-      library <#1--using-the-hugging-face-optimum-library>`__
+      library <#1.-Using-the-Hugging-Face-Optimum-library>`__
 
       -  `2. Converting the model to OpenVINO
-         IR <#2--converting-the-model-to-openvino-ir>`__
+         IR <#2.-Converting-the-model-to-OpenVINO-IR>`__
 
-   -  `Select inference device <#select-inference-device>`__
+   -  `Select inference device <#Select-inference-device>`__
    -  `1. Hugging Face Optimum Intel
-      library <#1--hugging-face-optimum-intel-library>`__
+      library <#1.-Hugging-Face-Optimum-Intel-library>`__
 
-      -  `Load the model <#load-the-model>`__
-      -  `Load the tokenizer <#load-the-tokenizer>`__
+      -  `Load the model <#Load-the-model>`__
+      -  `Load the tokenizer <#Load-the-tokenizer>`__
 
    -  `2. Converting the model to OpenVINO
-      IR <#2--converting-the-model-to-openvino-ir>`__
+      IR <#2.-Converting-the-model-to-OpenVINO-IR>`__
 
-      -  `Load the Pytorch model <#load-the-pytorch-model>`__
-      -  `Converting to OpenVINO IR <#converting-to-openvino-ir>`__
-      -  `Inference <#inference>`__
+      -  `Load the Pytorch model <#Load-the-Pytorch-model>`__
+      -  `Converting to OpenVINO IR <#Converting-to-OpenVINO-IR>`__
+      -  `Inference <#Inference>`__
 
-   -  `Helper Functions <#helper-functions>`__
+   -  `Helper Functions <#Helper-Functions>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -75,10 +75,17 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
     %pip install -q "diffusers>=0.17.1" "openvino>=2023.1.0" "nncf>=2.5.0" "gradio>=4.19" "onnx>=1.11.0" "transformers>=4.39.0" "torch>=2.1,<2.4" "torchvision<0.19.0" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
 
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+
+
 Imports
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -94,10 +101,19 @@ Imports
     from typing import List, Dict
     import time
 
+
+.. parsed-literal::
+
+    2024-08-28 06:10:11.592728: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-28 06:10:11.627750: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2024-08-28 06:10:12.147162: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
 Methods
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The notebook provides two methods to run the inference of typo detector
 with OpenVINO runtime, so that you can experience both calling the API
@@ -108,7 +124,7 @@ with OpenVINO Runtime.
 1. Using the `Hugging Face Optimum <https://huggingface.co/docs/optimum/index>`__ library
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The Hugging Face Optimum API is a high-level API that allows us to
 convert models from the Hugging Face Transformers library to the
@@ -119,7 +135,7 @@ hardware.
 2. Converting the model to OpenVINO IR
 ''''''''''''''''''''''''''''''''''''''
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The Pytorch model is converted to `OpenVINO IR
 format <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__.
@@ -151,7 +167,7 @@ methods
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -159,16 +175,16 @@ select device from dropdown list for running inference using OpenVINO
 
     import ipywidgets as widgets
     import openvino as ov
-
+    
     core = ov.Core()
-
+    
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -176,14 +192,14 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
 1. Hugging Face Optimum Intel library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For this method, we need to install the
 ``Hugging Face Optimum Intel library`` accelerated by OpenVINO
@@ -203,10 +219,16 @@ Import required model class
 
     from optimum.intel.openvino import OVModelForTokenClassification
 
+
+.. parsed-literal::
+
+    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+
+
 Load the model
 ''''''''''''''
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 From the ``OVModelForTokenCLassification`` class we will import the
 relevant pre-trained model. To load a Transformers model and convert it
@@ -217,9 +239,9 @@ your model.
 
     # The pretrained model we are using
     model_id = "m3hrdadfi/typo-detector-distilbert-en"
-
+    
     model_dir = Path("optimum_model")
-
+    
     # Save the model to the path if not existing
     if model_dir.exists():
         model = OVModelForTokenClassification.from_pretrained(model_dir, device=device.value)
@@ -230,14 +252,27 @@ your model.
 
 .. parsed-literal::
 
-    Compiling the model...
-    Set CACHE_DIR to optimum_model/model_cache
+    Framework not specified. Using pt to export the model.
+    Using framework PyTorch: 2.2.2+cpu
+
+
+.. parsed-literal::
+
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+
+
+.. parsed-literal::
+
+    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:86: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+      op1 = operator(*args, **kwargs)
+    Compiling the model to AUTO ...
 
 
 Load the tokenizer
 ''''''''''''''''''
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Text Preprocessing cleans the text-based input data so it can be fed
 into the model. Tokenization splits paragraphs and sentences into
@@ -275,17 +310,17 @@ Function to find typos in a sentence and write them to the terminal
         """
         Detect typos from the given sentence.
         Writes both the original input and typo-tagged version to the terminal.
-
+    
         Arguments:
         sentence -- Sentence to be evaluated (string)
         """
-
+    
         typos = [sentence[r["start"] : r["end"]] for r in nlp(sentence)]
-
+    
         detected = sentence
         for typo in typos:
             detected = detected.replace(typo, f"<i>{typo}</i>")
-
+    
         print("[Input]: ", sentence)
         print("[Detected]: ", detected)
         print("-" * 130)
@@ -306,12 +341,12 @@ Let’s run a demo using the Hugging Face Optimum API.
         "My freind and I went campign in the forest last weekend and saw a beutiful sunst that was so amzing it took our breth away.",
         "I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.",
     ]
-
+    
     start = time.time()
-
+    
     for sentence in sentences:
         show_typos(sentence)
-
+    
     print(f"Time elapsed: {time.time() - start}")
 
 
@@ -347,18 +382,18 @@ Let’s run a demo using the Hugging Face Optimum API.
     [Input]:  I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.
     [Detected]:  I  have been <i>stuying</i> for my math exam all week, but I'm <i>stil</i> not very <i>confidet</i> that I will pass it, because there are so many formuals to <i>remeber</i>.
     ----------------------------------------------------------------------------------------------------------------------------------
-    Time elapsed: 0.17897582054138184
+    Time elapsed: 0.1529676914215088
 
 
 2. Converting the model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Load the Pytorch model
 ''''''''''''''''''''''
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Use the ``AutoModelForTokenClassification`` class to load the pretrained
 pytorch model.
@@ -367,10 +402,10 @@ pytorch model.
 
     model_id = "m3hrdadfi/typo-detector-distilbert-en"
     model_dir = Path("pytorch_model")
-
+    
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     config = AutoConfig.from_pretrained(model_id)
-
+    
     # Save the model to the path if not existing
     if model_dir.exists():
         model = AutoModelForTokenClassification.from_pretrained(model_dir)
@@ -381,33 +416,20 @@ pytorch model.
 Converting to OpenVINO IR
 '''''''''''''''''''''''''
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     ov_model_path = Path(model_dir) / "typo_detect.xml"
-
+    
     dummy_model_input = tokenizer("This is a sample", return_tensors="pt")
     ov_model = ov.convert_model(model, example_input=dict(dummy_model_input))
     ov.save_model(ov_model, ov_model_path)
 
-
-.. parsed-literal::
-
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
-.. parsed-literal::
-
-    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:74: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      op1 = operator(\*args, \*\*kwargs)
-
-
 Inference
 '''''''''
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO™ Runtime Python API is used to compile the model in OpenVINO IR
 format. The Core class from the ``openvino`` module is imported first.
@@ -424,7 +446,7 @@ the compiled model as it is needed for inference.
 Helper Functions
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -432,14 +454,14 @@ Helper Functions
         """
         Maps the list of tokens to words in the original text.
         Built on the feature that tokens starting with '##' is attached to the previous token as tokens derived from the same word.
-
+    
         Arguments:
         tokens -- List of tokens
-
+    
         Returns:
         map_to_words -- Dictionary mapping tokens to words in original text
         """
-
+    
         word_count = -1
         map_to_words = {}
         for token in tokens:
@@ -455,14 +477,14 @@ Helper Functions
     def infer(input_text: str) -> Dict[np.ndarray, np.ndarray]:
         """
         Creating a generic inference function to read the input and infer the result
-
+    
         Arguments:
         input_text -- The text to be infered (String)
-
+    
         Returns:
         result -- Resulting list from inference
         """
-
+    
         tokens = tokenizer(
             input_text,
             return_tensors="np",
@@ -480,15 +502,15 @@ Helper Functions
     ) -> List[int]:
         """
         Given results from the inference and tokens-map-to-words, identifies the indexes of the words with typos.
-
+    
         Arguments:
         result -- Result from inference (tensor)
         map_to_words -- Dictionary mapping tokens to words (Dictionary)
-
+    
         Results:
         wrong_words -- List of indexes of words with typos
         """
-
+    
         wrong_words = []
         c = 0
         result_list = result[0][1:-1]
@@ -505,14 +527,14 @@ Helper Functions
     def sentence_split(sentence: str) -> List[str]:
         """
         Split the sentence into words and characters
-
+    
         Arguments:
         sentence - Sentence to be split (string)
-
+    
         Returns:
         splitted -- List of words and characters
         """
-
+    
         splitted = re.split("([',. ])", sentence)
         splitted = [x for x in splitted if x != " " and x != ""]
         return splitted
@@ -523,24 +545,24 @@ Helper Functions
         """
         Detect typos from the given sentence.
         Writes both the original input and typo-tagged version to the terminal.
-
+    
         Arguments:
         sentence -- Sentence to be evaluated (string)
         """
-
+    
         tokens = tokenizer.tokenize(sentence)
         map_to_words = token_to_words(tokens)
         result = infer(sentence)
         typo_indexes = get_typo_indexes(result, map_to_words, tokens)
-
+    
         sentence_words = sentence_split(sentence)
-
+    
         typos = [sentence_words[i] for i in typo_indexes]
-
+    
         detected = sentence
         for typo in typos:
             detected = detected.replace(typo, f"<i>{typo}</i>")
-
+    
         print("   [Input]: ", sentence)
         print("[Detected]: ", detected)
         print("-" * 130)
@@ -561,12 +583,12 @@ Let’s run a demo using the converted OpenVINO IR model.
         "My freind and I went campign in the forest last weekend and saw a beutiful sunst that was so amzing it took our breth away.",
         "I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.",
     ]
-
+    
     start = time.time()
-
+    
     for sentence in sentences:
         show_typos(sentence)
-
+    
     print(f"Time elapsed: {time.time() - start}")
 
 
@@ -602,5 +624,5 @@ Let’s run a demo using the converted OpenVINO IR model.
        [Input]:  I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.
     [Detected]:  I  have been <i>stuying</i> for my math exam all week, but I'm <i>stil</i> not very <i>confidet</i> that I will pass it, because there are so many formuals to <i>remeber</i>.
     ----------------------------------------------------------------------------------------------------------------------------------
-    Time elapsed: 0.08928751945495605
+    Time elapsed: 0.10121726989746094
 

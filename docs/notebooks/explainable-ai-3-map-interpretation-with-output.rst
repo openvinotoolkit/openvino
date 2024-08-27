@@ -1,7 +1,7 @@
 OpenVINO™ Explainable AI Toolkit (3/3): Saliency map interpretation
 ===================================================================
 
-.. warning::
+.. container:: alert alert-block alert-danger
 
    Important note: This notebook requires python >= 3.10. Please make
    sure that your environment fulfill to this requirement before running
@@ -11,9 +11,12 @@ This is the **third notebook** in series of exploring `OpenVINO™
 Explainable AI
 (XAI) <https://github.com/openvinotoolkit/openvino_xai/>`__:
 
-1. `OpenVINO™ Explainable AI Toolkit (1/3): Basic <explainable-ai-1-basic-with-output.html>`__
-2. `OpenVINO™ Explainable AI Toolkit (2/3): Deep Dive <explainable-ai-2-deep-dive-with-output.html>`__
-3. `OpenVINO™ Explainable AI Toolkit (3/3): Saliency map interpretation <explainable-ai-3-map-interpretation-with-output.html>`__
+1. `OpenVINO™ Explainable AI Toolkit (1/3):
+   Basic <../explainable-ai-1-basic/README.md>`__
+2. `OpenVINO™ Explainable AI Toolkit (2/3): Deep
+   Dive <../explainable-ai-2-deep-dive/README.md>`__
+3. `OpenVINO™ Explainable AI Toolkit (3/3): Saliency map
+   interpretation <../explainable-ai-3-map-interpretation/README.md>`__
 
 `OpenVINO™ Explainable AI
 (XAI) <https://github.com/openvinotoolkit/openvino_xai/>`__ provides a
@@ -39,44 +42,44 @@ Below, we present examples of saliency map analysis for the following
 cases: correct and highly-confident prediction, correct and
 low-confident prediction, and wrong prediction.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
+-  `Prerequisites <#Prerequisites>`__
 
--  `Prerequisites <#prerequisites>`__
+   -  `Install requirements <#Install-requirements>`__
+   -  `Imports <#Imports>`__
+   -  `Download dataset <#Download-dataset>`__
+   -  `Download IR model <#Download-IR-model>`__
 
-   -  `Install requirements <#install-requirements>`__
-   -  `Imports <#imports>`__
-   -  `Download dataset <#download-dataset>`__
-   -  `Download IR model <#download-ir-model>`__
+-  `Prepare model to run inference <#Prepare-model-to-run-inference>`__
 
--  `Prepare model to run inference <#prepare-model-to-run-inference>`__
-
-   -  `Select inference device <#select-inference-device>`__
-   -  `Load the Model <#load-the-model>`__
+   -  `Select inference device <#Select-inference-device>`__
+   -  `Load the Model <#Load-the-Model>`__
    -  `Define preprocess_fn and
-      postprocess_fn <#define-preprocess_fn-and-postprocess_fn>`__
+      postprocess_fn <#Define-preprocess_fn-and-postprocess_fn>`__
 
--  `Explain <#explain>`__
+-  `Explain <#Explain>`__
 
-   -  `Create explainer <#create-explainer>`__
-   -  `Import ImageNet label names <#import-imagenet-label-names>`__
-   -  `Explain using ImageNet labels <#explain-using-imagenet-labels>`__
+   -  `Create explainer <#Create-explainer>`__
+   -  `Import ImageNet label names <#Import-ImageNet-label-names>`__
+   -  `Explain using ImageNet labels <#Explain-using-ImageNet-labels>`__
 
 -  `Notable use cases in ImageWoof
-   dataset <#notable-use-cases-in-imagewoof-dataset>`__
+   dataset <#Notable-use-cases-in-ImageWoof-dataset>`__
 
-   -  `Explain for each use case <#explain-for-each-use-case>`__
+   -  `Explain for each use case <#Explain-for-each-use-case>`__
    -  `Visualize use case saliency
-      maps <#visualize-use-case-saliency-maps>`__
-   -  `Naming logic <#naming-logic>`__
+      maps <#Visualize-use-case-saliency-maps>`__
+   -  `Naming logic <#Naming-logic>`__
 
--  `Results <#results>`__
+-  `Results <#Results>`__
 
-   -  `True Positive High confidence <#true-positive-high-confidence>`__
-   -  `True Positive Low confidence <#true-positive-low-confidence>`__
+   -  `True Positive High confidence <#True-Positive-High-confidence>`__
+   -  `True Positive Low confidence <#True-Positive-Low-confidence>`__
    -  `False Positive High
-      confidence <#false-positive-high-confidence>`__
-   -  `Two mixed predictions <#two-mixed-predictions>`__
+      confidence <#False-Positive-High-confidence>`__
+   -  `Two mixed predictions <#Two-mixed-predictions>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -91,23 +94,23 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install requirements
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     %%capture
-
+    
     import platform
-
+    
     # Install openvino package
     %pip install -q "openvino>=2024.2.0" opencv-python tqdm
     %pip install -q --no-deps "openvino-xai>=1.0.0"
-
+    
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -116,7 +119,7 @@ Install requirements
 Imports
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -124,29 +127,29 @@ Imports
     import random
     import zipfile
     from pathlib import Path
-
+    
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
     import requests
-
+    
     import openvino.runtime as ov
     import openvino_xai as xai
     from openvino_xai.explainer import ExplainMode
-
+    
     # Fetch `notebook_utils` module
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    
     open("notebook_utils.py", "w").write(r.text)
-
-    from notebook_utils import download_file
+    
+    from notebook_utils import download_file, device_widget
 
 Download dataset
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To see examples of saliency maps for different use cases, please
 download the `ImageWoof
@@ -169,23 +172,23 @@ classify since they’re all dog breeds.
             "https://ultralytics.com/assets/imagewoof320.zip",
             directory=data_folder,
         )
-
+    
         # Define the path to the zip file and the destination directory
         zip_path = data_folder / "imagewoof320.zip"
         extract_dir = data_folder / "imagewoof320"
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
             zip_ref.extractall(extract_dir)
-
+    
     else:
         print(f"Dataset is already downloaded to {base_artifacts_dir} and extracted.")
-
+    
     image_folder_path = data_folder / "imagewoof320" / "imagewoof320"
 
 
 .. parsed-literal::
 
     Dataset is already downloaded to artifacts and extracted.
-
+    
 
 .. code:: ipython3
 
@@ -193,7 +196,7 @@ classify since they’re all dog breeds.
     img_files = []
     img_files.extend(image_folder_path.rglob("*.JPEG"))
     print(f"Number of images to get explanations: {len(img_files)}")
-
+    
     # Get a fewer subset for fast execution
     random.seed(42)
     img_files = random.sample(img_files, 1)
@@ -204,12 +207,12 @@ classify since they’re all dog breeds.
 
     Number of images to get explanations: 12954
     Run explanations on fewer number of images: 1
-
+    
 
 Download IR model
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In this notebook, for demonstration purposes, we’ll use an already
 converted to IR model ``mobilenetv3_large_100.ra_in1k``, from
@@ -222,11 +225,11 @@ scaling and normalization with certain values.
     model_name = "mobilenetv3_large_100.ra_in1k"
     model_xml_name = f"{model_name}.xml"
     model_bin_name = f"{model_name}.bin"
-
+    
     model_xml_path = base_artifacts_dir / model_xml_name
-
+    
     base_url = "https://storage.openvinotoolkit.org/repositories/openvino_training_extensions/models/custom_image_classification/"
-
+    
     if not model_xml_path.exists():
         download_file(base_url + model_xml_name, model_xml_name, base_artifacts_dir)
         download_file(base_url + model_bin_name, model_bin_name, base_artifacts_dir)
@@ -237,32 +240,24 @@ scaling and normalization with certain values.
 .. parsed-literal::
 
     mobilenetv3_large_100.ra_in1k already downloaded to artifacts
-
+    
 
 Prepare model to run inference
 ------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
-
+    device = device_widget()
+    
     device
 
 
@@ -277,17 +272,19 @@ select device from dropdown list for running inference using OpenVINO
 Load the Model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
+    core = ov.Core()
+    
     model = core.read_model(model=model_xml_path)
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
 Define preprocess_fn and postprocess_fn
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To run model inference, you need to define functions to preprocess data
 and postprocess the results based on the model’s implementation. Since
@@ -303,20 +300,20 @@ scaling with certain values.
         Implementing own pre-process function based on model's implementation
         """
         x = cv2.resize(src=x, dsize=(224, 224))
-
+    
         #  Specific normalization for timm model
         mean = np.array([123.675, 116.28, 103.53])
         std = np.array([58.395, 57.12, 57.375])
         x = (x - std) / mean
-
+    
         # Reshape to model input shape to [channels, height, width].
         x = x.transpose((2, 0, 1))
-
+    
         # Add batch dimension
         x = np.expand_dims(x, 0)
         return x
-
-
+    
+    
     def postprocess_fn(x: np.ndarray) -> np.ndarray:
         """
         Process model prediction
@@ -324,8 +321,8 @@ scaling with certain values.
         prediction_processed = softmax(x)
         # Remove batch dimention
         return prediction_processed[0]
-
-
+    
+    
     def softmax(x):
         """Compute softmax values of x."""
         e_x = np.exp(x - np.max(x))
@@ -334,12 +331,12 @@ scaling with certain values.
 Explain
 -------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Create explainer
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The ``explainer`` can internally apply pre-processing during model
 inference, allowing raw images as input.
@@ -354,7 +351,7 @@ If it’s not defined, it is assumed that the input is preprocessed.
 
     # Create ov.Model
     model = core.read_model(model=model_xml_path)
-
+    
     # Create explainer object
     explainer = xai.Explainer(
         model=model,
@@ -369,12 +366,12 @@ If it’s not defined, it is assumed that the input is preprocessed.
     INFO:openvino_xai:Target insertion layer is not provided - trying to find it in auto mode.
     INFO:openvino_xai:Using ReciproCAM method (for CNNs).
     INFO:openvino_xai:Explaining the model in white-box mode.
-
+    
 
 Import ImageNet label names
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 If ``label_names`` are not provided to the explainer call, the saved
 saliency map will have the predicted class index, not the name. For
@@ -391,7 +388,7 @@ label names information to the explanation call.
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_2012.txt",
         directory=".data",
     )
-
+    
     imagenet_classes = imagenet_filename.read_text().splitlines()
 
 .. code:: ipython3
@@ -402,7 +399,7 @@ label names information to the explanation call.
         class_label = " ".join(label.split(" ")[1:])
         first_class_label = class_label.split(",")[0].replace(" ", "_")
         imagenet_labels.append(first_class_label)
-
+    
     # Check, how dog breed labels will look in saved saliency map names
     dog_breeds_indices = [155, 159, 162, 167, 193, 207, 229, 258, 273]
     print(" ".join([imagenet_labels[ind] for ind in dog_breeds_indices]))
@@ -411,12 +408,12 @@ label names information to the explanation call.
 .. parsed-literal::
 
     Shih-Tzu Rhodesian_ridgeback beagle English_foxhound Australian_terrier golden_retriever Old_English_sheepdog Samoyed dingo
-
+    
 
 Explain using ImageNet labels
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To use ImageNet label names, pass them as the ``label_names`` argument
 to the explainer.
@@ -424,7 +421,7 @@ to the explainer.
 .. code:: ipython3
 
     output = base_artifacts_dir / "saliency_maps" / "multiple_images"
-
+    
     # Explain model and save results using ImageNet label names
     for image_path in img_files:
         image = cv2.imread(str(image_path))
@@ -452,12 +449,12 @@ you can see saved saliency maps:
 
     artifacts/saliency_maps/multiple_images/n02105641_2491_target_flat-coated_retriever.jpg
     artifacts/saliency_maps/multiple_images/n02105641_2491_target_Samoyed.jpg
-
+    
 
 Notable use cases in ImageWoof dataset
 --------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Below are a few examples chosen to show cases when: - The correct class
 was predicted with high confidence (``True Positive, high confidence``)
@@ -528,10 +525,10 @@ The cell below contains paths to images with those respective use cases:
     def get_model_predictions(conf_thr: float = 0.1) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Run model inference and get predictions above a confidence threshold.
-
+    
         Args:
             conf_thr (float): Confidence threshold for filtering predictions. Defaults to 0.1.
-
+    
         Returns:
             tuple: A tuple containing:
                 - result_infer (np.ndarray): The raw inference results from the model.
@@ -542,45 +539,45 @@ The cell below contains paths to images with those respective use cases:
         result_infer = postprocess_fn(logits)
         result_idxs = np.argwhere(result_infer > conf_thr).flatten()
         result_scores = result_infer[result_idxs]
-
+    
         for index, score in zip(result_idxs, result_scores):
             print(f"Predicted class {imagenet_labels[index]}, index {index}, probability: {score:.2f}")
-
+    
         return result_infer, result_idxs, result_scores
 
 Explain for each use case
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     output = base_artifacts_dir / "saliency_maps" / "imagewoof320"
-
+    
     # Run explanation for chosen paths
     for use_case in use_cases_image_paths:
         os.makedirs(output / use_case, exist_ok=True)
         image_paths = use_cases_image_paths[use_case]["paths"]
         use_case_conf_thr = use_cases_image_paths[use_case]["confidence"]
-
+    
         for image_path in image_paths:
             image = cv2.imread(str(image_folder_path / image_path))
             image_name = Path(image_path).stem
-
+    
             folder_name = image_name.split("_")[0]
             gt_class, gt_class_idx = label_mapping[folder_name]
-
+    
             scores, result_idxs, result_scores = get_model_predictions(use_case_conf_thr)
             gt_conf = scores[gt_class_idx]
             gt_info = f"gt_{gt_class}_{gt_conf:.2f}"
-
+    
             explanation = explainer(
                 image,
                 targets=result_idxs,  # Return saliency maps for predicted classes
                 label_names=imagenet_labels,
                 overlay=True,
             )
-
+    
             # Save saliency maps, use detailed implementation instead of `explanation.save`
             # to return predicted scores for saliency maps as well
             for idx, score in zip(result_idxs, result_scores):
@@ -616,7 +613,7 @@ Explain for each use case
     Predicted class Labrador_retriever, index 208, probability: 0.57
     Predicted class Samoyed, index 258, probability: 0.43
     Predicted class crib, index 520, probability: 0.39
-
+    
 
 .. code:: ipython3
 
@@ -629,19 +626,19 @@ Explain for each use case
 
 .. parsed-literal::
 
-
+    
      True_positive_high_confidence
     n02111889_17737_gt_Samoyed_0.94_pr_Samoyed_0.94
     n02099601_6505_gt_golden retriever_0.88_pr_golden_retriever_0.88
     n02088364_2019_gt_beagle_0.97_pr_beagle_0.97
     n02105641_817_gt_Old English sheepdog_0.96_pr_Old_English_sheepdog_0.96
-
+    
      True_positive_low_confidence
     n02086240_1422_gt_Shih-Tzu_0.18_pr_Shih-Tzu_0.18
     n02086240_3709_gt_Shih-Tzu_0.20_pr_Shih-Tzu_0.20
     n02099601_7942_gt_golden retriever_0.18_pr_golden_retriever_0.18
     n02086240_1765_gt_Shih-Tzu_0.18_pr_Shih-Tzu_0.18
-
+    
      False_positive_high_confidence
     n02088364_12304_gt_beagle_0.01_pr_car_mirror_0.82
     n02111889_14926_gt_Samoyed_0.03_pr_Arctic_fox_0.95
@@ -651,13 +648,13 @@ Explain for each use case
     n02096294_2323_gt_Australian terrier_0.00_pr_quilt_0.80
     n02088364_2430_gt_beagle_0.00_pr_bannister_0.78
     n02087394_6357_gt_Rhodesian ridgeback_0.00_pr_dalmatian_0.98
-
+    
      True_positive_two_predictions
     n02111889_374_gt_Samoyed_0.43_pr_Samoyed_0.43
     n02099601_634_gt_golden retriever_0.30_pr_golden_retriever_0.30
     n02099601_634_gt_golden retriever_0.30_pr_Labrador_retriever_0.57
     n02111889_374_gt_Samoyed_0.43_pr_crib_0.39
-
+    
 
 See the list of use case names:
 
@@ -669,12 +666,12 @@ See the list of use case names:
 .. parsed-literal::
 
     Names of use cases: ['True_positive_high_confidence', 'True_positive_low_confidence', 'False_positive_high_confidence', 'True_positive_two_predictions']
-
+    
 
 Visualize use case saliency maps
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The function below helps to visualize the results by creating a matrix
 of pictures, their names, and the confidence of predictions:
@@ -684,36 +681,36 @@ of pictures, their names, and the confidence of predictions:
     # Function to show result saliency maps for each use case
     def show_use_case_image(use_case):
         use_case_output_dir = output / use_case
-
+    
         image_paths = sorted(os.listdir(use_case_output_dir))
         number_images = len(image_paths)
-
+    
         fig, axs = plt.subplots((number_images + 1) // 2, 2, figsize=(10, 10))
         fig.tight_layout()
         fig.suptitle(use_case)
         fig.subplots_adjust(top=0.92)
         axs = axs.flatten()
-
+    
         for image_path, ax in zip(image_paths, axs):
             image_sal_map = cv2.imread(f"{use_case_output_dir}/{image_path}")
-
+    
             image_name = Path(image_path).stem
             image_name = image_name.replace("_target", "")
             image_name = "_".join(image_name.split("_")[1:])
-
+    
             ax.imshow(image_sal_map)
             ax.set_title(f"{image_name}", wrap=True)
             ax.axis("off")
-
+    
         if number_images % 2 == 1:
             axs[-1].set_visible(False)
-
+    
         plt.show()
 
 Naming logic
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The name of saved saliency maps in this notebook contains info about the
 ground-truth class, predicted class, and its confidence. For better
@@ -734,12 +731,12 @@ confidence.
 Results
 -------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 True Positive High confidence
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -747,7 +744,7 @@ True Positive High confidence
 
 
 
-.. image:: explainable-ai-3-map-interpretation-with-output_files/explainable-ai-3-map-interpretation-with-output_50_0.png
+.. image:: explainable-ai-3-map-interpretation-with-output_files%5Cexplainable-ai-3-map-interpretation-with-output_50_0.png
 
 
 In the case of ``True positive high confidence``, the model predicts the
@@ -770,7 +767,7 @@ behavior.
 True Positive Low confidence
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -778,7 +775,7 @@ True Positive Low confidence
 
 
 
-.. image:: explainable-ai-3-map-interpretation-with-output_files/explainable-ai-3-map-interpretation-with-output_53_0.png
+.. image:: explainable-ai-3-map-interpretation-with-output_files%5Cexplainable-ai-3-map-interpretation-with-output_53_0.png
 
 
 ``True positive low confidence`` basically means that key features are
@@ -789,7 +786,7 @@ decision mostly based on high-level features.
 False Positive High confidence
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -797,7 +794,7 @@ False Positive High confidence
 
 
 
-.. image:: explainable-ai-3-map-interpretation-with-output_files/explainable-ai-3-map-interpretation-with-output_56_0.png
+.. image:: explainable-ai-3-map-interpretation-with-output_files%5Cexplainable-ai-3-map-interpretation-with-output_56_0.png
 
 
 Here we see a few different reasons why the model can predict one class
@@ -836,7 +833,7 @@ than one class in the picture.
 Two mixed predictions
 ~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -844,7 +841,7 @@ Two mixed predictions
 
 
 
-.. image:: explainable-ai-3-map-interpretation-with-output_files/explainable-ai-3-map-interpretation-with-output_59_0.png
+.. image:: explainable-ai-3-map-interpretation-with-output_files%5Cexplainable-ai-3-map-interpretation-with-output_59_0.png
 
 
 Here are examples where two classes are predicted with relatively high

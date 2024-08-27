@@ -1,5 +1,5 @@
-Hugging Face Model Hub with OpenVINO™
-========================================
+🤗 Hugging Face Model Hub with OpenVINO™
+=======================================
 
 The Hugging Face (HF) `Model Hub <https://huggingface.co/models>`__ is a
 central repository for pre-trained deep learning models. It allows
@@ -11,38 +11,38 @@ models, namely
 `transformers <https://github.com/huggingface/transformers>`__ and
 `diffusers <https://github.com/huggingface/diffusers>`__ packages.
 
-.. image:: https://github.com/huggingface/optimum-intel/raw/main/readme_logo.png
+|image0|
 
 Throughout this notebook we will learn: 1. How to load a HF pipeline
 using the ``transformers`` package and then convert it to OpenVINO. 2.
 How to load the same pipeline using Optimum Intel package.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Converting a Model from the HF Transformers
-   Package <#converting-a-model-from-the-hf-transformers-package>`__
+   Package <#Converting-a-Model-from-the-HF-Transformers-Package>`__
 
-   -  `Installing Requirements <#installing-requirements>`__
-   -  `Imports <#imports>`__
+   -  `Installing Requirements <#Installing-Requirements>`__
+   -  `Imports <#Imports>`__
    -  `Initializing a Model Using the HF Transformers
-      Package <#initializing-a-model-using-the-hf-transformers-package>`__
-   -  `Original Model inference <#original-model-inference>`__
+      Package <#Initializing-a-Model-Using-the-HF-Transformers-Package>`__
+   -  `Original Model inference <#Original-Model-inference>`__
    -  `Converting the Model to OpenVINO IR
-      format <#converting-the-model-to-openvino-ir-format>`__
-   -  `Converted Model Inference <#converted-model-inference>`__
+      format <#Converting-the-Model-to-OpenVINO-IR-format>`__
+   -  `Converted Model Inference <#Converted-Model-Inference>`__
 
 -  `Converting a Model Using the Optimum Intel
-   Package <#converting-a-model-using-the-optimum-intel-package>`__
+   Package <#Converting-a-Model-Using-the-Optimum-Intel-Package>`__
 
    -  `Install Requirements for
-      Optimum <#install-requirements-for-optimum>`__
-   -  `Import Optimum <#import-optimum>`__
+      Optimum <#Install-Requirements-for-Optimum>`__
+   -  `Import Optimum <#Import-Optimum>`__
    -  `Initialize and Convert the Model Automatically using OVModel
-      class <#initialize-and-convert-the-model-automatically-using-ovmodel-class>`__
+      class <#Initialize-and-Convert-the-Model-Automatically-using-OVModel-class>`__
    -  `Convert model using Optimum CLI
-      interface <#convert-model-using-optimum-cli-interface>`__
-   -  `The Optimum Model Inference <#the-optimum-model-inference>`__
+      interface <#Convert-model-using-Optimum-CLI-interface>`__
+   -  `The Optimum Model Inference <#The-Optimum-Model-Inference>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -54,10 +54,12 @@ need a Jupyter server to start. For details, please refer to
 `Installation
 Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
+.. |image0| image:: https://github.com/huggingface/optimum-intel/raw/main/readme_logo.png
+
 Converting a Model from the HF Transformers Package
 ---------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Hugging Face transformers package provides API for initializing a model
 and loading a set of pre-trained weights using the model text handle.
@@ -69,7 +71,7 @@ by popularity and novelty.
 Installing Requirements
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -77,25 +79,33 @@ Installing Requirements
     %pip install -q ipywidgets
     %pip install -q "openvino>=2023.1.0"
 
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+
+
 Imports
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     import numpy as np
     import torch
-
+    
     from transformers import AutoModelForSequenceClassification
     from transformers import AutoTokenizer
 
 Initializing a Model Using the HF Transformers Package
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We will use `roberta text sentiment
 classification <https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment-latest>`__
@@ -111,37 +121,47 @@ tutorials <https://huggingface.co/learn/nlp-course/chapter2/2?fw=pt#behind-the-p
 .. code:: ipython3
 
     MODEL = "cardiffnlp/twitter-roberta-base-sentiment-latest"
-
+    
     tokenizer = AutoTokenizer.from_pretrained(MODEL, return_dict=True)
-
+    
     # The torchscript=True flag is used to ensure the model outputs are tuples
     # instead of ModelOutput (which causes JIT errors).
     model = AutoModelForSequenceClassification.from_pretrained(MODEL, torchscript=True)
 
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+      warnings.warn(
+    Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+    - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+    - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+
+
 Original Model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let’s do a classification of a simple prompt below.
 
 .. code:: ipython3
 
     text = "HF models run perfectly with OpenVINO!"
-
+    
     encoded_input = tokenizer(text, return_tensors="pt")
     output = model(**encoded_input)
     scores = output[0][0]
     scores = torch.softmax(scores, dim=0).numpy(force=True)
-
-
+    
+    
     def print_prediction(scores):
         for i, descending_index in enumerate(scores.argsort()[::-1]):
             label = model.config.id2label[descending_index]
             score = np.round(float(scores[descending_index]), 4)
             print(f"{i+1}) {label} {score}")
-
-
+    
+    
     print_prediction(scores)
 
 
@@ -155,7 +175,7 @@ Let’s do a classification of a simple prompt below.
 Converting the Model to OpenVINO IR format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We use the OpenVINO `Model
+`back to top ⬆️ <#Table-of-contents:>`__ We use the OpenVINO `Model
 conversion
 API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
 to convert the model (this one is implemented in PyTorch) to OpenVINO
@@ -167,33 +187,40 @@ Note how we reuse our real ``encoded_input``, passing it to the
 .. code:: ipython3
 
     import openvino as ov
-
+    
     save_model_path = Path("./models/model.xml")
-
+    
     if not save_model_path.exists():
         ov_model = ov.convert_model(model, example_input=dict(encoded_input))
         ov.save_model(ov_model, save_model_path)
 
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4713: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+      warnings.warn(
+
+
 Converted Model Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 First, we pick a device to do the model inference
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     core = ov.Core()
-
+    
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -201,7 +228,7 @@ First, we pick a device to do the model inference
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=3, options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
@@ -211,12 +238,12 @@ model inference.
 .. code:: ipython3
 
     compiled_model = core.compile_model(save_model_path, device.value)
-
+    
     # Compiled model call is performed using the same parameters as for the original model
     scores_ov = compiled_model(encoded_input.data)[0]
-
+    
     scores_ov = torch.softmax(torch.tensor(scores_ov[0]), dim=0).detach().numpy()
-
+    
     print_prediction(scores_ov)
 
 
@@ -232,11 +259,11 @@ original model.
 
 This is a rather simple example as the pipeline includes just one
 encoder model. Contemporary state of the art pipelines often consist of
-several model, feel free to explore other OpenVINO tutorials:
-
-1. `Stable Diffusion v2 <stable-diffusion-v2-with-output.html>`__
-2. `Zero-shot Image Classification with OpenAI CLIP <clip-zero-shot-image-classification-with-output.html>`__
-3. `Controllable Music Generation with MusicGen <music-generation-with-output.html>`__
+several model, feel free to explore other OpenVINO tutorials: 1. `Stable
+Diffusion v2 <../stable-diffusion-v2>`__ 2. `Zero-shot Image
+Classification with OpenAI
+CLIP <../clip-zero-shot-image-classification>`__ 3. `Controllable Music
+Generation with MusicGen <../music-generation>`__
 
 The workflow for the ``diffusers`` package is exactly the same. The
 first example in the list above relies on the ``diffusers``.
@@ -244,9 +271,9 @@ first example in the list above relies on the ``diffusers``.
 Converting a Model Using the Optimum Intel Package
 --------------------------------------------------
 
+`back to top ⬆️ <#Table-of-contents:>`__
 
-
-Optimum Intel is the interface between the Transformers and
+🤗 Optimum Intel is the interface between the 🤗 Transformers and
 Diffusers libraries and the different tools and libraries provided by
 Intel to accelerate end-to-end pipelines on Intel architectures.
 
@@ -258,16 +285,30 @@ OpenVINO Runtime.
 Install Requirements for Optimum
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git" onnx
 
+
+.. parsed-literal::
+
+    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+    To disable this warning, you can either:
+    	- Avoid using `tokenizers` before the fork if possible
+    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
 Import Optimum
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Documentation for Optimum Intel states: >You can now easily perform
 inference with OpenVINO Runtime on a variety of Intel processors (see
@@ -282,10 +323,23 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
     from optimum.intel.openvino import OVModelForSequenceClassification
 
+
+.. parsed-literal::
+
+    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+    To disable this warning, you can either:
+    	- Avoid using `tokenizers` before the fork if possible
+    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+    2024-08-28 02:37:36.385674: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-28 02:37:36.421369: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2024-08-28 02:37:37.005476: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
 Initialize and Convert the Model Automatically using OVModel class
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To load a Transformers model and convert it to the OpenVINO format on
 the fly, you can set ``export=True`` when loading your model. The model
@@ -308,14 +362,36 @@ inference run.
 .. code:: ipython3
 
     model = OVModelForSequenceClassification.from_pretrained(MODEL, export=True, device=device.value)
-
+    
     # The save_pretrained() method saves the model weights to avoid conversion on the next load.
     model.save_pretrained("./models/optimum_model")
+
+
+.. parsed-literal::
+
+    Framework not specified. Using pt to export the model.
+    Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+    - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+    - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+    Using framework PyTorch: 2.2.2+cpu
+    Overriding 1 configuration item(s)
+    	- use_cache -> False
+
+
+.. parsed-literal::
+
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+
+
+.. parsed-literal::
+
+    Compiling the model to AUTO ...
+
 
 Convert model using Optimum CLI interface
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Alternatively, you can use the Optimum CLI interface for converting
 models (supported starting optimum-intel 1.12 version). General command
@@ -364,7 +440,7 @@ Full list of supported arguments available via ``--help``
 
 .. parsed-literal::
 
-    2024-07-17 09:40:40.173915: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-08-28 02:37:50.314639: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     usage: optimum-cli export openvino [-h] -m MODEL [--task TASK]
                                        [--framework {pt,tf}] [--trust-remote-code]
                                        [--weight-format {fp32,fp16,int8,int4,int4_sym_g128,int4_asym_g128,int4_sym_g64,int4_asym_g64}]
@@ -380,35 +456,35 @@ Full list of supported arguments available via ``--help``
                                        [--disable-stateful]
                                        [--disable-convert-tokenizer]
                                        output
-
+    
     optional arguments:
       -h, --help            show this help message and exit
-
+    
     Required arguments:
       -m MODEL, --model MODEL
                             Model ID on huggingface.co or path on disk to load
                             model from.
       output                Path indicating the directory where to store the
                             generated OV model.
-
+    
     Optional arguments:
       --task TASK           The task to export the model for. If not specified,
                             the task will be auto-inferred based on the model.
                             Available tasks depend on the model, but are among:
-                            ['image-to-text', 'audio-frame-classification', 'text-
-                            generation', 'fill-mask', 'image-segmentation',
-                            'audio-xvector', 'semantic-segmentation', 'depth-
-                            estimation', 'token-classification', 'zero-shot-image-
-                            classification', 'zero-shot-object-detection',
-                            'text2text-generation', 'sentence-similarity',
-                            'feature-extraction', 'conversational', 'image-
-                            classification', 'text-to-audio', 'stable-diffusion',
-                            'image-to-image', 'text-classification', 'automatic-
-                            speech-recognition', 'multiple-choice', 'masked-im',
-                            'mask-generation', 'question-answering', 'object-
-                            detection', 'audio-classification', 'stable-diffusion-
-                            xl']. For decoder models, use `xxx-with-past` to
-                            export the model using past key values in the decoder.
+                            ['sentence-similarity', 'text-to-image', 'question-
+                            answering', 'image-to-text', 'feature-extraction',
+                            'text-generation', 'automatic-speech-recognition',
+                            'zero-shot-image-classification', 'zero-shot-object-
+                            detection', 'image-segmentation', 'object-detection',
+                            'audio-classification', 'token-classification', 'text-
+                            classification', 'fill-mask', 'audio-frame-
+                            classification', 'masked-im', 'depth-estimation',
+                            'text-to-audio', 'inpainting', 'image-classification',
+                            'image-to-image', 'audio-xvector', 'text2text-
+                            generation', 'semantic-segmentation', 'multiple-
+                            choice', 'mask-generation']. For decoder models, use
+                            `xxx-with-past` to export the model using past key
+                            values in the decoder.
       --framework {pt,tf}   The framework to use for the export. If not provided,
                             will attempt to use the local checkpoint's original
                             framework or what is available in the environment.
@@ -497,6 +573,30 @@ compression:
 
     !optimum-cli export openvino --model $MODEL --task text-classification --weight-format fp16 models/optimum_model/fp16
 
+
+.. parsed-literal::
+
+    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+    To disable this warning, you can either:
+    	- Avoid using `tokenizers` before the fork if possible
+    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+
+
+.. parsed-literal::
+
+    2024-08-28 02:37:55.534750: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    Framework not specified. Using pt to export the model.
+    Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+    - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+    - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+    Using framework PyTorch: 2.2.2+cpu
+    Overriding 1 configuration item(s)
+    	- use_cache -> False
+    OpenVINO Tokenizers is not available. To deploy models in production with C++ code, please follow installation instructions: https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#installation
+    
+    Tokenizer won't be converted.
+
+
 After export, model will be available in the specified directory and can
 be loaded using the same OVModelForXXX class.
 
@@ -518,7 +618,7 @@ link <https://huggingface.co/models?library=openvino&sort=trending>`__.
 The Optimum Model Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Model inference is exactly the same as for the original model!
 
@@ -527,7 +627,7 @@ Model inference is exactly the same as for the original model!
     output = model(**encoded_input)
     scores = output[0][0]
     scores = torch.softmax(scores, dim=0).numpy(force=True)
-
+    
     print_prediction(scores)
 
 
@@ -538,13 +638,17 @@ Model inference is exactly the same as for the original model!
     3) negative 0.0031
 
 
-You can find more examples of using Optimum Intel here:
-
-1. `Accelerate Inference of Sparse Transformer Models <sparsity-optimization-with-output.html>`__
-2. `Grammatical Error Correction with OpenVINO <grammar-correction-with-output.html>`__
-3. `Stable Diffusion v2.1 using Optimum-Intel OpenVINO <stable-diffusion-v2-optimum-demo-with-output.html>`__
-4. `Image generation with Stable Diffusion XL <stable-diffusion-xl-with-output.html>`__
-5. `Instruction following using Databricks Dolly 2.0 <dolly-2-instruction-following-with-output.html>`__
-6. `Create LLM-powered Chatbot using OpenVINO <llm-chatbot-with-output.html>`__
-7. `Document Visual Question Answering Using Pix2Struct and OpenVINO <pix2struct-docvqa-with-output.html>`__
-8. `Automatic speech recognition using Distil-Whisper and OpenVINO <distil-whisper-asr-with-output.html>`__
+You can find more examples of using Optimum Intel here: 1. `Accelerate
+Inference of Sparse Transformer
+Models <sparsity-optimization-with-output.html>`__ 2.
+`Grammatical Error Correction with
+OpenVINO <grammar-correction-with-output.html>`__ 3. `Stable
+Diffusion v2.1 using Optimum-Intel
+OpenVINO <stable-diffusion-v2-with-output.html>`__
+4. `Image generation with Stable Diffusion
+XL <../stable-diffusion-xl>`__ 5. `Instruction following using
+Databricks Dolly 2.0 <../dolly-2-instruction-following>`__ 6. `Create
+LLM-powered Chatbot using OpenVINO <../llm-chatbot>`__ 7. `Document
+Visual Question Answering Using Pix2Struct and
+OpenVINO <../pix2struct-docvqa>`__ 8. `Automatic speech recognition
+using Distil-Whisper and OpenVINO <../distil-whisper-asr>`__

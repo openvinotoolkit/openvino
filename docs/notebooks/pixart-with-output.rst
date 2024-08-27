@@ -18,23 +18,24 @@ concept density in text-image pairs and leverage a large Vision-Language
 model to auto-label dense pseudo-captions to assist text-image alignment
 learning.
 
-.. image:: https://huggingface.co/PixArt-alpha/PixArt-XL-2-1024-MS/resolve/main/asset/images/teaser.png
+|image0|
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Prerequisites <#prerequisites>`__
--  `Load the original model <#load-the-original-model>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Load the original model <#Load-the-original-model>`__
 -  `Convert the model to OpenVINO
-   IR <#convert-the-model-to-openvino-ir>`__
+   IR <#Convert-the-model-to-OpenVINO-IR>`__
 
-   -  `Convert text encoder <#convert-text-encoder>`__
-   -  `Convert transformer <#convert-transformer>`__
-   -  `Convert VAE decoder <#convert-vae-decoder>`__
+   -  `Convert text encoder <#Convert-text-encoder>`__
+   -  `Convert transformer <#Convert-transformer>`__
+   -  `Convert VAE decoder <#Convert-VAE-decoder>`__
 
--  `Compiling models <#compiling-models>`__
--  `Building the pipeline <#building-the-pipeline>`__
--  `Interactive inference <#interactive-inference>`__
+-  `Compiling models <#Compiling-models>`__
+-  `Building the pipeline <#Building-the-pipeline>`__
+-  `Interactive inference <#Interactive-inference>`__ ### Installation
+   Instructions
 
 This is a self-contained example that relies solely on its own code.
 
@@ -43,20 +44,29 @@ need a Jupyter server to start. For details, please refer to
 `Installation
 Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
+.. |image0| image:: https://huggingface.co/PixArt-alpha/PixArt-XL-2-1024-MS/resolve/main/asset/images/teaser.png
+
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     %pip install -q "diffusers>=0.14.0" sentencepiece "datasets>=2.14.6" "transformers>=4.25.1" "gradio>=4.19" "torch>=2.1" Pillow opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -Uq "openvino>=2024.3.0"
 
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+
+
 Load and run the original pipeline
 ----------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We use
 `PixArt-LCM-XL-2-1024-MS <https://huggingface.co/PixArt-alpha/PixArt-LCM-XL-2-1024-MS>`__
@@ -68,14 +78,53 @@ directly in latent space, achieving super fast inference with few steps.
 
     import torch
     from diffusers import PixArtAlphaPipeline
-
-
+    
+    
     pipe = PixArtAlphaPipeline.from_pretrained("PixArt-alpha/PixArt-LCM-XL-2-1024-MS", use_safetensors=True)
-
+    
     prompt = "A small cactus with a happy face in the Sahara desert."
     generator = torch.Generator().manual_seed(42)
-
+    
     image = pipe(prompt, guidance_scale=0.0, num_inference_steps=4, generator=generator).images[0]
+
+
+.. parsed-literal::
+
+    2024-08-28 03:37:44.853065: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-28 03:37:44.887589: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2024-08-28 03:37:45.562801: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+
+.. parsed-literal::
+
+    Loading pipeline components...:   0%|          | 0/5 [00:00<?, ?it/s]
+
+
+.. parsed-literal::
+
+    Some weights of the model checkpoint were not used when initializing PixArtTransformer2DModel: 
+     ['caption_projection.y_embedding']
+
+
+
+.. parsed-literal::
+
+    Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]
+
+
+.. parsed-literal::
+
+    You are using the default legacy behaviour of the <class 'transformers.models.t5.tokenization_t5.T5Tokenizer'>. This is expected, and simply means that the `legacy` (previous) behavior will be used so nothing changes for you. If you want to use the new behaviour, set `legacy=False`. This should only be set if you understand what it means, and thoroughly read the reason why this was added as explained in https://github.com/huggingface/transformers/pull/24565
+    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/4 [00:00<?, ?it/s]
+
 
 .. code:: ipython3
 
@@ -91,7 +140,7 @@ directly in latent space, achieving super fast inference with few steps.
 Convert the model to OpenVINO IR
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let’s define the conversion function for PyTorch modules. We use
 ``ov.convert_model`` function to obtain OpenVINO Intermediate
@@ -101,13 +150,13 @@ file.
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     import numpy as np
     import torch
-
+    
     import openvino as ov
-
-
+    
+    
     def convert(model: torch.nn.Module, xml_path: str, example_input):
         xml_path = Path(xml_path)
         if not xml_path.exists():
@@ -116,7 +165,7 @@ file.
             with torch.no_grad():
                 converted_model = ov.convert_model(model, example_input=example_input)
             ov.save_model(converted_model, xml_path)
-
+    
             # cleanup memory
             torch._C._jit_clear_class_registry()
             torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
@@ -126,18 +175,18 @@ PixArt-α consists of pure transformer blocks for latent diffusion: It
 can directly generate 1024px images from text prompts within a single
 sampling process.
 
-|image1|.
+|image0|.
 
 During inference it uses text encoder ``T5EncoderModel``, transformer
 ``Transformer2DModel`` and VAE decoder ``AutoencoderKL``. Let’s convert
 the models from the pipeline one by one.
 
-.. |image1| image:: https://huggingface.co/PixArt-alpha/PixArt-XL-2-1024-MS/resolve/main/asset/images/model.png
+.. |image0| image:: https://huggingface.co/PixArt-alpha/PixArt-XL-2-1024-MS/resolve/main/asset/images/model.png
 
 .. code:: ipython3
 
     MODEL_DIR = Path("model")
-
+    
     TEXT_ENCODER_PATH = MODEL_DIR / "text_encoder.xml"
     TRANSFORMER_OV_PATH = MODEL_DIR / "transformer_ir.xml"
     VAE_DECODER_PATH = MODEL_DIR / "vae_decoder.xml"
@@ -145,7 +194,7 @@ the models from the pipeline one by one.
 Convert text encoder
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -153,13 +202,26 @@ Convert text encoder
         "input_ids": torch.zeros(1, 120, dtype=torch.int64),
         "attention_mask": torch.zeros(1, 120, dtype=torch.int64),
     }
-
+    
     convert(pipe.text_encoder, TEXT_ENCODER_PATH, example_input)
+
+
+.. parsed-literal::
+
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+
+
+.. parsed-literal::
+
+    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4664: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+      warnings.warn(
+
 
 Convert transformer
 ~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -167,9 +229,9 @@ Convert transformer
         def __init__(self, transformer):
             super().__init__()
             self.transformer = transformer
-
+    
         def forward(self, hidden_states=None, timestep=None, encoder_hidden_states=None, encoder_attention_mask=None, resolution=None, aspect_ratio=None):
-
+    
             return self.transformer.forward(
                 hidden_states,
                 timestep=timestep,
@@ -177,8 +239,8 @@ Convert transformer
                 encoder_attention_mask=encoder_attention_mask,
                 added_cond_kwargs={"resolution": resolution, "aspect_ratio": aspect_ratio},
             )
-
-
+    
+    
     example_input = {
         "hidden_states": torch.rand([2, 4, 128, 128], dtype=torch.float32),
         "timestep": torch.tensor([999, 999]),
@@ -187,41 +249,61 @@ Convert transformer
         "resolution": torch.tensor([[1024.0, 1024.0], [1024.0, 1024.0]]),
         "aspect_ratio": torch.tensor([[1.0], [1.0]]),
     }
-
-
+    
+    
     w_transformer = TransformerWrapper(pipe.transformer)
     convert(w_transformer, TRANSFORMER_OV_PATH, example_input)
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/embeddings.py:219: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if self.height != height or self.width != width:
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/attention_processor.py:682: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if current_length != target_length:
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/attention_processor.py:697: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attention_mask.shape[0] < batch_size * head_size:
+
 
 Convert VAE decoder
 ~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     class VAEDecoderWrapper(torch.nn.Module):
-
+    
         def __init__(self, vae):
             super().__init__()
             self.vae = vae
-
+    
         def forward(self, latents):
             return self.vae.decode(latents, return_dict=False)
-
-
+    
+    
     convert(VAEDecoderWrapper(pipe.vae), VAE_DECODER_PATH, (torch.zeros((1, 4, 128, 128))))
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:146: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert hidden_states.shape[1] == self.channels
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if hidden_states.shape[0] >= 64:
+
 
 Compiling models
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -229,7 +311,7 @@ Select device from dropdown list for running inference using OpenVINO.
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -237,7 +319,7 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=4, options=('CPU', 'GPU.0', 'GPU.1', 'GPU.2', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
@@ -250,7 +332,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Building the pipeline
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let’s create callable wrapper classes for compiled models to allow
 interaction with original pipelines. Note that all of wrapper classes
@@ -259,16 +341,16 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
 .. code:: ipython3
 
     from collections import namedtuple
-
+    
     EncoderOutput = namedtuple("EncoderOutput", "last_hidden_state")
-
-
+    
+    
     class TextEncoderWrapper(torch.nn.Module):
         def __init__(self, text_encoder, dtype):
             super().__init__()
             self.text_encoder = text_encoder
             self.dtype = dtype
-
+    
         def forward(self, input_ids=None, attention_mask=None):
             inputs = {
                 "input_ids": input_ids,
@@ -284,7 +366,7 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
             super().__init__()
             self.transformer = transformer
             self.config = config
-
+    
         def forward(
             self,
             hidden_states=None,
@@ -308,7 +390,7 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
                 inputs["resolution"] = resolution
                 inputs["aspect_ratio"] = aspect_ratio
             outputs = self.transformer(inputs)[0]
-
+    
             return [torch.from_numpy(outputs)]
 
 .. code:: ipython3
@@ -318,15 +400,15 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
             super().__init__()
             self.vae = vae
             self.config = config
-
+    
         def decode(self, latents=None, **kwargs):
             inputs = {
                 "latents": latents,
             }
-
+    
             outs = self.vae(inputs)
             outs = namedtuple("VAE", "sample")(torch.from_numpy(outs[0]))
-
+    
             return outs
 
 And insert wrappers instances in the pipeline:
@@ -334,7 +416,7 @@ And insert wrappers instances in the pipeline:
 .. code:: ipython3
 
     pipe.__dict__["_internal_dict"]["_execution_device"] = pipe._execution_device  # this is to avoid some problem that can occur in the pipeline
-
+    
     pipe.register_modules(
         text_encoder=TextEncoderWrapper(compiled_text_encoder, pipe.text_encoder.dtype),
         transformer=TransformerWrapper(compiled_model, pipe.transformer.config),
@@ -344,8 +426,21 @@ And insert wrappers instances in the pipeline:
 .. code:: ipython3
 
     generator = torch.Generator().manual_seed(42)
-
+    
     image = pipe(prompt=prompt, guidance_scale=0.0, num_inference_steps=4, generator=generator).images[0]
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/configuration_utils.py:140: FutureWarning: Accessing config attribute `_execution_device` directly via 'PixArtAlphaPipeline' object attribute is deprecated. Please access '_execution_device' over 'PixArtAlphaPipeline's config object instead, e.g. 'scheduler.config._execution_device'.
+      deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/4 [00:00<?, ?it/s]
+
 
 .. code:: ipython3
 
@@ -361,19 +456,19 @@ And insert wrappers instances in the pipeline:
 Interactive inference
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     import gradio as gr
-
-
+    
+    
     def generate(prompt, seed, negative_prompt, num_inference_steps):
         generator = torch.Generator().manual_seed(seed)
         image = pipe(prompt=prompt, negative_prompt=negative_prompt, num_inference_steps=num_inference_steps, generator=generator, guidance_scale=0.0).images[0]
         return image
-
-
+    
+    
     demo = gr.Interface(
         generate,
         [
@@ -395,9 +490,23 @@ Interactive inference
         allow_flagging="never",
     )
     try:
-        demo.queue().launch(debug=True)
+        demo.queue().launch(debug=False)
     except Exception:
-        demo.queue().launch(debug=True, share=True)
+        demo.queue().launch(debug=False, share=True)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+
+.. parsed-literal::
+
+    Running on local URL:  http://127.0.0.1:7860
+    
+    To create a public link, set `share=True` in `launch()`.
+
+
+
+.. raw:: html
+
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+

@@ -30,26 +30,26 @@ Custom Assistant.
 This notebook explores how to create a Function calling Agent step by
 step using OpenVINO and Qwen-Agent.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Prerequisites <#prerequisites>`__
+-  `Prerequisites <#Prerequisites>`__
 -  `Create a Function calling
-   agent <#create-a-function-calling-agent>`__
+   agent <#Create-a-Function-calling-agent>`__
 
-   -  `Create functions <#create-functions>`__
-   -  `Download model <#download-model>`__
+   -  `Create functions <#Create-functions>`__
+   -  `Download model <#Download-model>`__
    -  `Select inference device for
-      LLM <#select-inference-device-for-llm>`__
-   -  `Create LLM for Qwen-Agent <#create-llm-for-qwen-agent>`__
+      LLM <#Select-inference-device-for-LLM>`__
+   -  `Create LLM for Qwen-Agent <#Create-LLM-for-Qwen-Agent>`__
    -  `Create Function-calling
-      pipeline <#create-function-calling-pipeline>`__
+      pipeline <#Create-Function-calling-pipeline>`__
 
--  `Interactive Demo <#interactive-demo>`__
+-  `Interactive Demo <#Interactive-Demo>`__
 
-   -  `Create tools <#create-tools>`__
+   -  `Create tools <#Create-tools>`__
    -  `Create AI agent demo with Qwen-Agent and Gradio
-      UI <#create-ai-agent-demo-with-qwen-agent-and-gradio-ui>`__
+      UI <#Create-AI-agent-demo-with-Qwen-Agent-and-Gradio-UI>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -64,14 +64,14 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     import os
-
+    
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
-
+    
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
     %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
@@ -88,17 +88,17 @@ Prerequisites
 
     import requests
     from PIL import Image
-
+    
     openvino_logo = "openvino_log.png"
     url = "https://cdn-avatars.huggingface.co/v1/production/uploads/1671615670447-6346651be2dcb5422bcd13dd.png"
-
+    
     image = Image.open(requests.get(url, stream=True).raw)
     image.save(openvino_logo)
 
 Create a Function calling agent
 -------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Function calling allows a model to detect when one or more tools should
 be called and respond with the inputs that should be passed to those
@@ -116,7 +116,7 @@ repeatedly calls tools and receives results until a query is resolved.
 Create a function
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 First, we need to create a example function/tool for getting the
 information of current weather.
@@ -124,8 +124,8 @@ information of current weather.
 .. code:: ipython3
 
     import json
-
-
+    
+    
     def get_current_weather(location, unit="fahrenheit"):
         """Get the current weather in a given location"""
         if "tokyo" in location.lower():
@@ -163,7 +163,7 @@ help LLM to find out which function should be called for current task.
 Download model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Large Language Models (LLMs) are a core component of Agent. In this
 example, we will demonstrate how to create a OpenVINO LLM model in
@@ -189,36 +189,36 @@ folder.
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     model_id = "Qwen/Qwen2-7B-Instruct"
     model_path = "Qwen2-7B-Instruct-ov"
-
+    
     if not Path(model_path).exists():
         !optimum-cli export openvino --model {model_id} --task text-generation-with-past --trust-remote-code --weight-format int4 --ratio 0.72 {model_path}
 
 Select inference device for LLM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     import openvino as ov
     import ipywidgets as widgets
-
+    
     core = ov.Core()
-
+    
     support_devices = core.available_devices
     if "NPU" in support_devices:
         support_devices.remove("NPU")
-
+    
     device = widgets.Dropdown(
         options=support_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -233,7 +233,7 @@ Select inference device for LLM
 Create LLM for Qwen-Agent
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO has been integrated into the ``Qwen-Agent`` framework. You can
 use following method to create a OpenVINO based LLM for a ``Qwen-Agent``
@@ -242,7 +242,7 @@ pipeline.
 .. code:: ipython3
 
     from qwen_agent.llm import get_chat_model
-
+    
     ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
     llm_cfg = {
         "ov_model_dir": model_path,
@@ -279,7 +279,7 @@ These options can be enabled with ``ov_config`` as follows:
 Create Function-calling pipeline
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 After defining the functions and LLM, we can build the agent pipeline
 with capability of function calling.
@@ -316,10 +316,10 @@ A typical multi-turn dialogue structure is as follows:
     print("# User question:")
     messages = [{"role": "user", "content": "What's the weather like in San Francisco?"}]
     print(messages)
-
+    
     print("# Assistant Response 1:")
     responses = []
-
+    
     # Step 1: Role `user` sending the request
     responses = llm.chat(
         messages=messages,
@@ -327,9 +327,9 @@ A typical multi-turn dialogue structure is as follows:
         stream=False,
     )
     print(responses)
-
+    
     messages.extend(responses)
-
+    
     # Step 2: check if the model wanted to call a function, and call the function if needed
     last_response = messages[-1]
     if last_response.get("function_call", None):
@@ -344,7 +344,7 @@ A typical multi-turn dialogue structure is as follows:
         )
         print("# Function Response:")
         print(function_response)
-
+    
         # Step 3: Get the observation from `function`'s results
         messages.append(
             {
@@ -353,7 +353,7 @@ A typical multi-turn dialogue structure is as follows:
                 "content": function_response,
             }
         )
-
+    
         print("# Assistant Response 2:")
         # Step 4: Consolidate the observation from function into final response
         responses = llm.chat(
@@ -379,7 +379,7 @@ A typical multi-turn dialogue structure is as follows:
 Interactive Demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let’s create a interactive agent using
 `Gradio <https://www.gradio.app/>`__.
@@ -387,7 +387,7 @@ Let’s create a interactive agent using
 Create tools
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Qwen-Agent provides a mechanism for `registering
 tools <https://github.com/QwenLM/Qwen-Agent/blob/main/docs/tool.md>`__.
@@ -399,14 +399,13 @@ For example, to register your own image generation tool:
    unique identifier for the tool.
 -  Implement the ``call(...)`` function.
 
-In this notebook, we will create 3 tools as examples:
-
-- **image_generation**: AI painting (image generation) service, input text
-  description, and return the image URL drawn based on text information.
-- **get_current_weather**: Get the current weather in a given city name.
-- **wikipedia**: A wrapper around Wikipedia. Useful for when you need to
-  answer general questions about people, places, companies, facts,
-  historical events, or other subjects.
+In this notebook, we will create 3 tools as examples: -
+**image_generation**: AI painting (image generation) service, input text
+description, and return the image URL drawn based on text information. -
+**get_current_weather**: Get the current weather in a given city name. -
+**wikipedia**: A wrapper around Wikipedia. Useful for when you need to
+answer general questions about people, places, companies, facts,
+historical events, or other subjects.
 
 .. code:: ipython3
 
@@ -414,24 +413,24 @@ In this notebook, we will create 3 tools as examples:
     import json5
     import requests
     from qwen_agent.tools.base import BaseTool, register_tool
-
-
+    
+    
     @register_tool("image_generation")
     class ImageGeneration(BaseTool):
         description = "AI painting (image generation) service, input text description, and return the image URL drawn based on text information."
         parameters = [{"name": "prompt", "type": "string", "description": "Detailed description of the desired image content, in English", "required": True}]
-
+    
         def call(self, params: str, **kwargs) -> str:
             prompt = json5.loads(params)["prompt"]
             prompt = urllib.parse.quote(prompt)
             return json5.dumps({"image_url": f"https://image.pollinations.ai/prompt/{prompt}"}, ensure_ascii=False)
-
-
+    
+    
     @register_tool("get_current_weather")
     class GetCurrentWeather(BaseTool):
         description = "Get the current weather in a given city name."
         parameters = [{"name": "city_name", "type": "string", "description": "The city and state, e.g. San Francisco, CA", "required": True}]
-
+    
         def call(self, params: str, **kwargs) -> str:
             # `params` are the arguments generated by the LLM agent.
             city_name = json5.loads(params)["city_name"]
@@ -449,18 +448,18 @@ In this notebook, we will create 3 tools as examples:
             resp = resp.json()
             ret = {k: {_v: resp[k][0][_v] for _v in v} for k, v in key_selection.items()}
             return str(ret)
-
-
+    
+    
     @register_tool("wikipedia")
     class Wikipedia(BaseTool):
         description = "A wrapper around Wikipedia. Useful for when you need to answer general questions about people, places, companies, facts, historical events, or other subjects."
         parameters = [{"name": "query", "type": "string", "description": "Query to look up on wikipedia", "required": True}]
-
+    
         def call(self, params: str, **kwargs) -> str:
             # `params` are the arguments generated by the LLM agent.
             from langchain.tools import WikipediaQueryRun
             from langchain_community.utilities import WikipediaAPIWrapper
-
+    
             query = json5.loads(params)["query"]
             wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper(top_k_results=2, doc_content_chars_max=1000))
             resutlt = wikipedia.run(query)
@@ -473,7 +472,7 @@ In this notebook, we will create 3 tools as examples:
 Create AI agent demo with Qwen-Agent and Gradio UI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The Agent class serves as a higher-level interface for Qwen-Agent, where
 an Agent object integrates the interfaces for tool calls and LLM (Large
@@ -494,7 +493,7 @@ tasks. Features:
 
     from qwen_agent.agents import Assistant
     from qwen_agent.gui import WebUI
-
+    
     bot = Assistant(llm=llm_cfg, function_list=tools, name="OpenVINO Agent")
 
 
@@ -510,15 +509,15 @@ tasks. Features:
     from qwen_agent.llm.schema import CONTENT, ROLE, USER, Message
     from qwen_agent.gui.utils import convert_history_to_chatbot
     from qwen_agent.gui.gradio import gr, mgr
-
-
+    
+    
     class OpenVINOUI(WebUI):
         def request_cancel(self):
             self.agent_list[0].llm.ov_model.request.cancel()
-
+    
         def clear_history(self):
             return []
-
+    
         def add_text(self, _input, _chatbot, _history):
             _history.append(
                 {
@@ -528,7 +527,7 @@ tasks. Features:
             )
             _chatbot.append([_input, None])
             yield gr.update(interactive=False, value=None), _chatbot, _history
-
+    
         def run(
             self,
             messages: List[Message] = None,
@@ -538,14 +537,14 @@ tasks. Features:
             **kwargs,
         ):
             self.run_kwargs = kwargs
-
+    
             with gr.Blocks(
                 theme=gr.themes.Soft(),
                 css=".disclaimer {font-variant-caps: all-small-caps;}",
             ) as self.demo:
                 gr.Markdown("""<h1><center>OpenVINO Qwen Agent </center></h1>""")
                 history = gr.State([])
-
+    
                 with gr.Row():
                     with gr.Column(scale=4):
                         chatbot = mgr.Chatbot(
@@ -582,7 +581,7 @@ tasks. Features:
                         )
                 with gr.Row():
                     gr.Examples(self.prompt_suggestions, inputs=[input], label="Click on any example and press the 'Submit' button")
-
+    
                 input_promise = submit.click(
                     fn=self.add_text,
                     inputs=[input, chatbot, history],
@@ -603,12 +602,12 @@ tasks. Features:
                     queue=False,
                 )
                 clear.click(lambda: None, None, chatbot, queue=False).then(self.clear_history, None, history)
-
+    
                 self.demo.load(None)
-
+    
             self.demo.launch(share=share, server_name=server_name, server_port=server_port)
-
-
+    
+    
     chatbot_config = {
         "prompt.suggestions": [
             "Based on current weather in London, show me a picture of Big Ben",
@@ -620,12 +619,12 @@ tasks. Features:
         "agent.avatar": openvino_logo,
         "input.placeholder": "Please input your request here",
     }
-
+    
     demo = OpenVINOUI(
         bot,
         chatbot_config=chatbot_config,
     )
-
+    
     # if you are launching remotely, specify server_name and server_port
     #  demo.run(server_name='your server name', server_port='server port in int')
     try:
