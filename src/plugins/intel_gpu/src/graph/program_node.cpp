@@ -7,6 +7,7 @@
 #include "primitive_inst.h"
 #include "loop_inst.h"
 #include "shape_of_inst.h"
+#include "fc_shape_of_inst.h"
 #include "activation_inst.h"
 #include "reorder_inst.h"
 #include "quantize_inst.h"
@@ -621,7 +622,9 @@ void program_node::set_selected_impl(std::unique_ptr<primitive_impl> impl) {
 bool program_node::need_lockable_memory() const {
     bool need_lockable_mem = get_users().empty() || std::any_of(get_users().begin(), get_users().end(), [](const program_node* n) {
         auto impl = n->get_selected_impl();
-        return impl ? impl->is_cpu() : n->get_preferred_impl_type() == impl_types::cpu;
+        bool is_cpu_impl_not_shape_of = impl ? impl->is_cpu() : n->get_preferred_impl_type() == impl_types::cpu;
+        is_cpu_impl_not_shape_of = is_cpu_impl_not_shape_of && !n->is_type<shape_of>() && !n->is_type<fc_shape_of>();
+        return is_cpu_impl_not_shape_of;
     });
 
     return need_lockable_mem;

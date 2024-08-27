@@ -18,12 +18,14 @@ struct fc_shape_of : public primitive_base<fc_shape_of> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param input Weight primitive id.
+    /// @param post_op_data Data for post-op primitive id.
     /// @param output_data_type type of output values. can be i32 and i64.
     fc_shape_of(const primitive_id& id,
                 const input_info& input,
                 const input_info& weight,
+                const input_info& post_op_data,
                 const data_types output_data_type)
-        : primitive_base(id, {input, weight}, 1, {optional_data_type{output_data_type}}) {}
+        : primitive_base(id, {input, weight, post_op_data}, 1, {optional_data_type{output_data_type}}) {}
 
     bool operator==(const primitive& rhs) const override {
         return compare_common_params(rhs);

@@ -56,6 +56,14 @@ struct fc_shape_of_impl : public typed_primitive_impl<fc_shape_of> {
         std::vector<ov::PartialShape> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
         ov::Shape output_shape = output_shapes[0].get_shape();
 
+        auto data_layout = instance.get_input_layout(2);
+
+        if ((output_shape[0] == 1 || output_shape[1] == 1) ||
+            (data_layout.batch() == 1 && data_layout.feature() == 1) ||
+            (ov::shape_size(output_shape) == data_layout.count())) {
+            output_shape = data_layout.get_shape();
+        }
+
         if (output_dt == data_types::i32) {
             cldnn::mem_lock<int32_t, mem_lock_type::write> output_lock(output_mem_ptr, stream);
             for (size_t i = 0; i < output_shape.size(); i++)

@@ -122,7 +122,7 @@ bool has_cpu_user_not_shape_of(const program_node* user) {
         return false;
     }
     if (auto impl = user->get_selected_impl())
-        return impl->is_cpu() && !user->is_type<shape_of>();
+        return impl->is_cpu() && !user->is_type<shape_of>() && !user->is_type<fc_shape_of>();
     return false;
 }
 
@@ -1374,21 +1374,11 @@ void primitive_inst::do_runtime_skip_broadcast() {
     auto input_layout = _impl_params->get_input_layout(0);
     auto output_layout = _impl_params->get_output_layout();
 
+    input_layout.data_padding = padding();
+    output_layout.data_padding = padding();
+
     // Check runtime shape (need to reset can_be_optimized)
     if (input_layout != output_layout) {
-        if (get_node().get_dependencies().size() == 2 && get_node().get_dependency(1).is_type<fc_shape_of>()) {
-            if ((output_layout.batch() == 1 || output_layout.feature() == 1) ||
-                (input_layout.batch() == 1 && input_layout.feature() == 1) ||
-                (output_layout.count() == input_layout.count())) {
-                set_shape_change();
-                _impl_params->output_layouts[0].set_partial_shape(input_layout.get_partial_shape());
-                set_can_be_optimized(true);
-                GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_broadcast] " << id() << " for fc fusion : can_be_optimized" << std::endl;
-                GPU_DEBUG_TRACE_DETAIL << "    - Input/Output layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
-                return;
-            }
-        }
-
         set_can_be_optimized(false);
         GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because input layout(" << input_layout.to_short_string()
                                << ") != output layout(" << output_layout.to_short_string() << ")" << std::endl;

@@ -1064,6 +1064,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                         auto fc_shape_of_prim = std::make_shared<cldnn::fc_shape_of>(fc_shape_of_prim_id,
                                                                                      cldnn::input_info(node->get_dependency(0).id()),
                                                                                      cldnn::input_info(node->get_dependency(1).id()),
+                                                                                     cldnn::input_info(data.id()),
                                                                                      ov::element::Type_t::i32);
                         auto& fc_shape_of_node = p.get_or_create(fc_shape_of_prim);
 
@@ -1075,6 +1076,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                         p.add_connection(fc_shape_of_node, broadcast_node);
                         p.add_connection(node->get_dependency(0), fc_shape_of_node);
                         p.add_connection(node->get_dependency(1), fc_shape_of_node);
+                        p.add_connection(data, fc_shape_of_node);
 
                         if (p.processing_order.size() != 0) {
                             p.processing_order.insert_next(&node->get_dependency(0), &fc_shape_of_node);
