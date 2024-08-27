@@ -79,6 +79,9 @@ jobs:
       event-name: ${{ github.event_name }}
       os: 'debian_10'
       arch: 'arm'
+      build-js: false
+      build-debian-packages: false
+      build-contrib: false
       cmake-options: |-
         -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/arm.toolchain.cmake \
         -DTHREADS_PTHREAD_ARG="-pthread" \
