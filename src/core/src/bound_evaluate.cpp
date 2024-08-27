@@ -424,7 +424,11 @@ bool ov::could_propagate(const Output<Node>& output, std::vector<Node*>& result)
                 }
             }
             if (can_add) {
-                result.push_back(node);
+                if (is_type<op::v0::Constant>(node)) {
+                    propagate_rt_info(node, output);
+                } else {
+                    result.push_back(node);
+                }
                 nodes_to_do.pop();
                 nodes_done.insert(node);
             }
