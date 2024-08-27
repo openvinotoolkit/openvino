@@ -210,9 +210,11 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
             }
             // for (auto fc : fc_nodes) {
             // }
+            int half_head_num = 0;
+            int head_size = 0;
             for (auto user : new_fc->get_users()) {
                 auto fc_user = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(user);
-                print_shape(fc_user);
+                // print_shape(fc_user);
                 // std::cout << "fc_user name: " << fc_user->get_friendly_name() << std::endl;
 
                 auto split_name = fc_user->get_friendly_name() + "_tp";
@@ -226,7 +228,7 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
                 new_split->set_friendly_name(split_name);
                 copy_runtime_info(fc_user, new_split);
                 replace_node(fc_user, new_split);
-                print_shape(new_split);
+                // print_shape(new_split);
 
                 // auto shape0 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2},
                 // std::vector<int32_t>{680, 240}); auto reshape0 = std::make_shared<ov::op::v1::Reshape>(data, shape0,
@@ -234,29 +236,36 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
                 int index = 0;
                 for (auto user_1 : new_split->get_users()) {
                     auto split_user = std::dynamic_pointer_cast<ov::op::v1::Add>(user_1);
-                    print_shape(split_user);
+                    // print_shape(split_user);
                     // std::cout << "split_user name: " << split_user->get_friendly_name() << std::endl;
                     auto rank_constant = std::make_shared<ov::intel_gpu::op::RankConstant>(
                         split_user->get_input_node_shared_ptr(1), world_size, world_rank, op::TP_MODE::ALL_REDUCE);
-                    print_shape(rank_constant);
+                    // print_shape(rank_constant);
                     auto new_add = std::make_shared<ov::op::v1::Add>(new_split->output(index), rank_constant);
                     new_add->set_friendly_name(split_user->get_friendly_name() + "_tp");
                     copy_runtime_info(split_user, new_add);
                     replace_node(split_user, new_add);
-                    print_shape(new_add);
+                    // print_shape(new_add);
                     for (auto user_1 : new_add->get_users()) {
                         auto reshape_user = std::dynamic_pointer_cast<ov::op::v1::Reshape>(user_1);
                         print_shape(reshape_user);
+                        std::cout << "*************************************\n";
                         // std::cout << "split_user name: " << split_user->get_friendly_name() << std::endl;
-                        auto shape0 = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                                            ov::Shape{4},
-                                                                            std::vector<int32_t>{-1, 1, 20, 128});
-                    // const auto input_node = new_split->get_input_source_output(index);
+                        half_head_num = reshape_user->get_output_partial_shape(0)[2].get_length() / 2;
+                        head_size = reshape_user->get_output_partial_shape(0)[3].get_length();
+                        auto shape0 = std::make_shared<ov::op::v0::Constant>(
+                            ov::element::i32,
+                            ov::Shape{4},
+                            std::vector<int32_t>{-1,
+                                                 1,
+                                                 half_head_num,
+                                                 head_size});
+                        // const auto input_node = new_split->get_input_source_output(index);
                         auto new_reshape = std::make_shared<ov::op::v1::Reshape>(new_add->output(0), shape0, true);
                         new_reshape->set_friendly_name(reshape_user->get_friendly_name() + "_tp");
                         copy_runtime_info(reshape_user, new_reshape);
                         replace_node(reshape_user, new_reshape);
-                        print_shape(new_reshape);
+                        // print_shape(new_reshape);
                         index++;
                         if (index == 3) {
                             // for (auto user_2 : new_reshape->get_users()) {
@@ -277,63 +286,51 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
                         }
                         for (auto user_2 : new_reshape->get_users()) {
                             auto reahpe_user = std::dynamic_pointer_cast<ov::op::v1::Reshape>(user_2);
-                            print_shape(reahpe_user);
+                            // print_shape(reahpe_user);
                             // std::cout << "reahpe_user name: " << reahpe_user->get_friendly_name() << std::endl;
                             auto shape0 = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
                                                                                 ov::Shape{4},
-                                                                                std::vector<int32_t>{-1, 20, 1, 128});
+                                                                                std::vector<int32_t>{-1, half_head_num, 1, head_size});
                             // const auto input_node = new_split->get_input_source_output(index);
                             auto new_transpose = std::make_shared<ov::op::v1::Reshape>(new_reshape, shape0, true);
                             new_transpose->set_friendly_name(reahpe_user->get_friendly_name() + "_tp");
                             copy_runtime_info(reahpe_user, new_transpose);
                             replace_node(reahpe_user, new_transpose);
-                            print_shape(new_transpose);
+                            // print_shape(new_transpose);
 
 
                             auto reshpe_after_add = std::dynamic_pointer_cast<ov::op::v1::Reshape>(new_transpose->get_users()[0]->get_users()[0]);
                             auto shape1 = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
                                                                                 ov::Shape{4},
-                                                                                std::vector<int32_t>{-1, 1, 20, 128});
+                                                                                std::vector<int32_t>{-1, 1, half_head_num, head_size});
                             auto new_reshape_1 =  std::make_shared<ov::op::v1::Reshape>(new_transpose->get_users()[0], shape1, true);
                             new_reshape_1->set_friendly_name(reshpe_after_add->get_friendly_name() + "_tp");
                             copy_runtime_info(reshpe_after_add, new_reshape_1);
                             replace_node(reshpe_after_add, new_reshape_1);
-                            print_shape(new_reshape_1);
+                            // print_shape(new_reshape_1);
                             for (auto user : new_reshape_1->get_users()) {
                                 auto reahpe_user_2 = std::dynamic_pointer_cast<ov::op::v1::Reshape>(user);
-                                print_shape(reahpe_user_2);
+                                // print_shape(reahpe_user_2);
                                 auto shape1 = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
                                                                                 ov::Shape{2},
-                                                                                std::vector<int32_t>{-1, 2560});
+                                                                                std::vector<int32_t>{-1, half_head_num * head_size});
                                 auto new_reshape_2 = std::make_shared<ov::op::v1::Reshape>(new_reshape_1, shape1, true);
                                 new_reshape_2->set_friendly_name(reahpe_user_2->get_friendly_name() + "_tp");
                                 copy_runtime_info(reahpe_user_2, new_reshape_2);
                                 replace_node(reahpe_user_2, new_reshape_2);
-                                print_shape(new_reshape_2);
+                                // print_shape(new_reshape_2);
                             }
                         }
                     }
                 }
             }
         } else if (m_fc->get_friendly_name().find("PagedAttentionExtension") != std::string::npos) {
-            auto print_shape = [&](const std::shared_ptr<ov::Node>& m_data) {
-                std::cout << m_data->get_friendly_name() << ": '";
-                for (size_t shape_id = 0; shape_id < m_data->get_output_partial_shape(0).size(); shape_id++) {
-                    if (!m_data->get_output_partial_shape(0)[shape_id].is_dynamic()) {
-                        int64_t len = m_data->get_output_partial_shape(0)[shape_id].get_length();
-                        std::cout << len << ", ";
-                    } else {
-                        std::cout << "?" << ", ";
-                    }
-                }
-                std::cout << "'\n";
-            };
-
+            int pa_split_index_length = m_fc->get_output_partial_shape(0)[-1].get_length();
             std::shared_ptr<ov::intel_gpu::op::SyncTensor> sync_node;
             sync_node =
-                std::make_shared<ov::intel_gpu::op::SyncTensor>(m_fc->output(0), world_size, 5120, ov::element::f16);
+                std::make_shared<ov::intel_gpu::op::SyncTensor>(m_fc->output(0), world_size, pa_split_index_length, ov::element::f16);
             sync_node->set_friendly_name(m_fc->get_friendly_name() + "_TP");
-            print_shape(sync_node);
+            // print_shape(sync_node);
 
             auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node->outputs(), -1);
             concat_node->set_friendly_name(m_fc->get_friendly_name() + "_ALLGATHER");
