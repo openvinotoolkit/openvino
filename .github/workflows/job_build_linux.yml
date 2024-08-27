@@ -69,7 +69,7 @@ jobs:
 
       # Ticket: 139627
       - name: Checkout the latest OneDNN for GPU in nightly
-        if: ${{ inputs.event-name == 'schedule' }}
+        if: ${{ inputs.event-name == 'schedule' && inputs.os == 'ubuntu_20_04' }} # GPU tests are enabled only on U20
         working-directory: ${{ env.OPENVINO_REPO }}/src/plugins/intel_gpu/thirdparty/onednn_gpu
         run: |
           git fetch origin
