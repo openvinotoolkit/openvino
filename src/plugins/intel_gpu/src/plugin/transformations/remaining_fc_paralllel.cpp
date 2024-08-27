@@ -146,7 +146,7 @@ RemainFCParallelFusion::RemainFCParallelFusion(size_t world_size, size_t world_r
             }
             // some accuracy lost, disable for now
             if (m_fc->get_friendly_name().find("mlp.down_proj") != std::string::npos)
-                return false;    
+                return false;
             auto splitted_context = split_fc(m_fc, op::TP_MODE::ALL_GATHERH);
             auto new_fc = splitted_context.first;
             new_fc->set_friendly_name(m_fc->get_friendly_name());
