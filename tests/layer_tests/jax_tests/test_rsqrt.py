@@ -21,7 +21,7 @@ class TestRsqrt(JaxLayerTest):
             out = lax.rsqrt(inp)
             return out
 
-        return jax_rsqrt, None
+        return jax_rsqrt, None, 'rsqrt'
 
     @pytest.mark.parametrize("input_shape", [
         [10],

@@ -21,7 +21,7 @@ class TestSqueeze(JaxLayerTest):
             out = lax.squeeze(inp, dimensions=dimensions)
             return out
 
-        return jax_squeeze, None
+        return jax_squeeze, None, 'squeeze'
 
     test_data_basic = [
         dict(input_shape=[1, 10, 1, 1], dimensions=[0]),

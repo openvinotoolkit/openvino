@@ -23,7 +23,7 @@ class TestCopy(JaxLayerTest):
             copy = jnp.array(add)
             return lax.rsqrt(copy)
 
-        return jax_copy, None
+        return jax_copy, None, 'copy'
 
     @pytest.mark.parametrize("input_shape", [
         [10],

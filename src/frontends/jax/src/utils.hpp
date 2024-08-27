@@ -46,6 +46,11 @@ element::Type convert_dtype(int64_t pt_type);
 OutputVector make_framework_node(const NodeContext& context, const std::string& exception);
 
 namespace op {
+template <typename T>
+OutputVector translate_1to1_match_1_input(const NodeContext& context) {
+    num_inputs_check(context, 1, 1);
+    return {std::make_shared<T>(context.get_input(0))};
+}
 
 template <typename T>
 OutputVector translate_1to1_match_2_inputs(const NodeContext& context) {
