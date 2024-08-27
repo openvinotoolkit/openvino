@@ -85,9 +85,11 @@ ov_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file ge
 #
 
 # "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
-if(RISCV64)
-    # oneDNN does not support non-SEQ for RISC-V architecture
+if(ANDROID)
+    # on Android we experience SEGFAULT during compilation
     set(THREADING_DEFAULT "SEQ")
+elseif(RISCV64)
+    set(THREADING_DEFAULT "OMP")
 else()
     set(THREADING_DEFAULT "TBB")
 endif()
@@ -100,6 +102,17 @@ list (APPEND OV_OPTIONS THREADING)
 if(NOT THREADING IN_LIST THREADING_OPTIONS)
     message(FATAL_ERROR "THREADING should be set to either ${THREADING_OPTIONS}")
 endif()
+
+if(X86_64 AND (WIN32 OR LINUX))
+    # we have a precompiled version of Intel OMP only for this platforms
+    set(ENABLE_INTEL_OPENMP_DEFAULT ON)
+    # temporart override to OFF for testing purposes
+    set(ENABLE_INTEL_OPENMP_DEFAULT OFF)
+else()
+    set(ENABLE_INTEL_OPENMP_DEFAULT OFF)
+endif()
+
+ov_dependent_option (ENABLE_INTEL_OPENMP "Enables usage of Intel OpenMP instead of default compiler one" ${ENABLE_INTEL_OPENMP_DEFAULT} "THREADING STREQUAL SEQ" OFF)
 
 if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND
     (BUILD_SHARED_LIBS OR (LINUX AND X86_64)))
