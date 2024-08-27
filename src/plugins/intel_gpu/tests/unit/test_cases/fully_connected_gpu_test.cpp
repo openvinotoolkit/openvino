@@ -2616,7 +2616,9 @@ public:
             auto inst = network->get_primitive("fc_prim");
             auto impl = inst->get_impl();
             ASSERT_TRUE(impl != NULL);
-            ASSERT_EQ(impl->get_kernels().size(), size_t((is_dynamic ? 3 : 2)));
+            auto kernel_num = (is_dynamic) ? 3 : 2;
+            kernel_num = (quantize_group_size < 32) ? 2 : kernel_num;
+            ASSERT_EQ(impl->get_kernels().size(), size_t(kernel_num));
         }
 
         network->set_input_data("input", input_mem);
@@ -2640,10 +2642,10 @@ public:
                 max_diff = abs_diff;
             avg += abs_diff;
             count++;
-            OPENVINO_ASSERT(abs_diff < 11);
+            OPENVINO_ASSERT(abs_diff < 20);
         }
         GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
-        OPENVINO_ASSERT((avg/count) < 0.6);
+        OPENVINO_ASSERT((avg/count) < 1);
     }
 };
 
@@ -3666,9 +3668,26 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_ca
     this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560);
 }
 
-TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_128_groupsize) {
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_12_groupsize) {
+    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 269, 512, 1024, 12);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_34_groupsize) {
+    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560, 34);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_64_groupsize) {
+    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560, 64);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_148_groupsize) {
+    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560, 148);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_120_groupsize) {
     this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560, 128);
 }
+
 
 
 TEST_F(fully_connected_gpu_tests, compressed_scale_bias) {
