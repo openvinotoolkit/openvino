@@ -93,7 +93,6 @@ jobs:
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 2G
-
       XUANTIE_BIN_PATH: /mount/testdata1/Xuantie-900-gcc-linux-5.15.0-glibc-x86_64-V2.8.1/
     if: "!needs.smart_ci.outputs.skip_workflow"
 
@@ -130,7 +129,7 @@ jobs:
         run: |
           mkdir ${XUANTIE_DIR}
           pushd ${XUANTIE_DIR}
-            ls -la XUANTIE_BIN_PATH
+            ls -la ${XUANTIE_BIN_PATH}
           popd
 
       - name: CMake configure - OpenVINO
