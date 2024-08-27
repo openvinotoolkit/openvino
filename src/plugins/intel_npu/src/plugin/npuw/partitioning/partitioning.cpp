@@ -1632,6 +1632,7 @@ void Partitioner::decompressionCutOff(const std::string& func_name) {
 
         // Asymmetric zeropoints
         rewr.add_matcher<ov::npuw::patterns::AsymmZP::DCOFFPassReshape>(dcoff_mode, dcoff_type, std::ref(params_to));
+        rewr.add_matcher<ov::npuw::patterns::AsymmZP::DCOFFPassReshape2>(dcoff_mode, dcoff_type, std::ref(params_to));
 
         rewr.run_on_model(f._model);
 
