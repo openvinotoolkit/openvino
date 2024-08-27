@@ -34,6 +34,11 @@ std::shared_ptr<ov::Node> translate_scaled_dot_product_attention_common(const No
     }
     if (!context.input_is_none(6))
         inputs.push_back(context.mark_node(std::make_shared<v1::ConvertLike>(context.get_input(6), query)));
+    if (!context.input_is_none(7)) {
+        auto enable_gqa = context.const_input<bool>(7);
+        PYTORCH_OP_CONVERSION_CHECK(enable_gqa == false,
+                                    "Grouped Query Attention is not supported for SDPA operation.");
+    }
 
     return context.mark_node(std::make_shared<v13::ScaledDotProductAttention>(inputs, is_causal));
 }
