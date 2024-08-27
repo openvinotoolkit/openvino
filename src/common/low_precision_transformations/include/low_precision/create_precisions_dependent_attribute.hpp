@@ -11,7 +11,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/lpt_visibility.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "rt_info/precision_preserved_attribute.hpp"
 #include "network_helper.hpp"
