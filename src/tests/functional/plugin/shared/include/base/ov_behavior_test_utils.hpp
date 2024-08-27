@@ -39,9 +39,9 @@
         return sw_plugin_in_target_device(ov::test::utils::target_device) ? "" : "mandatory_" + name; \
     }
 
-#define MARK_MANDATORY_API_FOR_HW_DEVICE()                                                     \
-    [](const testing::TestParamInfo<std::string>& info) {                                      \
-        return sw_plugin_in_target_device(ov::test::utils::target_device) ? "" : "mandatory_"; \
+#define MARK_MANDATORY_API_FOR_HW_DEVICE()                                                              \
+    [](const testing::TestParamInfo<std::string>& info) {                                               \
+        return sw_plugin_in_target_device(ov::test::utils::target_device) ? "optional_" : "mandatory_"; \
     }
 
 namespace ov {
