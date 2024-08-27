@@ -27,8 +27,22 @@ RUN apt-get update && \
         libhdf5-dev \
         # For building Python from source
         build-essential \
-        zlib1g-dev \
+        libffi-dev \
+        libgdbm-dev \
+        libc6-dev \
         libssl-dev \
+        zlib1g-dev \
+        libbz2-dev \
+        libreadline-dev \
+        libsqlite3-dev \
+        libncurses5-dev \
+        libncursesw5-dev \
+        xz-utils \
+        tk-dev \
+        libxml2-dev \
+        libxmlsec1-dev \
+        liblzma-dev \
+        wget \
         # Compilers
         gcc-arm-linux-gnueabihf \
         g++-arm-linux-gnueabihf \
@@ -54,22 +68,22 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 ENV PATH="$SCCACHE_HOME:$PATH"
 
 # Setup Python
-#RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
-#
-#RUN tar -xf Python-3.11.9.tar.xz && \
-#    cd Python-3.11.9 && \
-#    ./configure --enable-optimizations && \
-#    make -j 8 && \
-#    make altinstall
+RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
+
+RUN tar -xf Python-3.11.9.tar.xz && \
+    cd Python-3.11.9 && \
+    ./configure --enable-optimizations && \
+    make -j 8 && \
+    make altinstall
 
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN python3 -m pip install --upgrade pip==24.0
-# RUN python3.11 -m pip install --upgrade pip==24.0
+RUN python3.11 -m pip install --upgrade pip==24.0
 
 # Use Python 3.11 as default
 # Using venv here because other methods to switch the default Python break both system and wheels build
-# RUN python3.11 -m venv venv
-# ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
+RUN python3.11 -m venv venv
+ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
