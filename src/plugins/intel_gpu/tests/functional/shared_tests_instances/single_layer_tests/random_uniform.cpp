@@ -34,7 +34,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(random_uniform_type_specific_params),
                 ::testing::ValuesIn(global_seeds),
                 ::testing::ValuesIn(op_seeds),
-                ::testing::Values(ov::op::PhilloxAlignment::TENSORFLOW),
+                ::testing::Values(ov::op::PhiloxAlignment::TENSORFLOW),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
         RandomUniformLayerTest::getTestCaseName);
 
