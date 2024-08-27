@@ -85,6 +85,9 @@ may be summarized in three stages:
 3. All subsequent requests to compile the same IR model with the same arguments
    use the pre-compiled model, reading it from the cache instead of recompiling.
 
+UMD Dynamic Model Caching can be bypassed for given model by setting boolean property
+ov::intel_npu::bypass_umd_caching (NPU_BYPASS_UMD_CACHE) to true at compilation. (default value is false)
+
 
 OpenVINO Model Caching
 +++++++++++++++++++++++++++++
