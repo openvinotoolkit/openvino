@@ -329,148 +329,17 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
                 std::cout << "'\n";
             };
 
-            for (auto user_1 : m_fc->get_users()) {
-                auto reshape_user = std::dynamic_pointer_cast<ov::op::v1::Reshape>(user_1);
-                if (reshape_user) {
-                    print_shape(reshape_user);
-                    // std::cout << "split_user name: " << split_user->get_friendly_name() << std::endl;
-                    auto shape0 = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                                        ov::Shape{4},
-                                                                        std::vector<int32_t>{-1, 1, 20, 128});
-                // const auto input_node = new_split->get_input_source_output(index);
-                    auto new_reshape = std::make_shared<ov::op::v1::Reshape>(m_fc->output(0), shape0, true);
-                    new_reshape->set_friendly_name(reshape_user->get_friendly_name() + "_tp");
-                    // copy_runtime_info(reshape_user, new_reshape);
-                    // replace_node(reshape_user, new_reshape);
-                    print_shape(new_reshape);
-                    std::shared_ptr<ov::intel_gpu::op::SyncTensor> sync_node;
-                    sync_node =
-                        std::make_shared<ov::intel_gpu::op::SyncTensor>(new_reshape, world_size, 5120, ov::element::f16);
-                    sync_node->set_friendly_name(new_reshape->get_friendly_name() + "_TP");
-                    print_shape(sync_node);
+            std::shared_ptr<ov::intel_gpu::op::SyncTensor> sync_node;
+            sync_node =
+                std::make_shared<ov::intel_gpu::op::SyncTensor>(m_fc->output(0), world_size, 5120, ov::element::f16);
+            sync_node->set_friendly_name(m_fc->get_friendly_name() + "_TP");
+            print_shape(sync_node);
 
-                    auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node->outputs(), -1);
-                    concat_node->set_friendly_name(new_reshape->get_friendly_name() + "_ALLGATHER");
-                    std::cout << "concat_node->outputs(): " << concat_node->outputs().size() << std::endl;
-                    copy_runtime_info(reshape_user, concat_node);
-                    replace_node(reshape_user, concat_node);
-                }
-            }
-
-            // std::cout << "find pa\n";
-            // const auto& m_data_in0 = pattern_map.at(in0).get_node_shared_ptr();
-            // const auto& m_data_in1 = pattern_map.at(in1).get_node_shared_ptr();
-            // const auto& m_data_in2 = pattern_map.at(in2).get_node_shared_ptr();
-            // const auto& m_data_in3 = pattern_map.at(in3).get_node_shared_ptr();
-            // const auto& m_data_in4 = pattern_map.at(in4).get_node_shared_ptr();
-            // const auto& m_data_in5 = pattern_map.at(in5).get_node_shared_ptr();
-            // const auto& m_data_in6 = pattern_map.at(in6).get_node_shared_ptr();
-            // const auto& m_data_in7 = pattern_map.at(in7).get_node_shared_ptr();
-            // const auto& m_data_in8 = pattern_map.at(in8).get_node_shared_ptr();
-            // const auto& m_data_in9 = pattern_map.at(in9).get_node_shared_ptr();
-            // const auto& m_data_in10 = pattern_map.at(in10).get_node_shared_ptr();
-            // const auto& m_data_in11 = pattern_map.at(in11).get_node_shared_ptr();
-            // const auto& m_data_in12 = pattern_map.at(in12).get_node_shared_ptr();
-
-            // auto print_shape = [&](const std::shared_ptr<ov::Node>& m_data) {
-            //     std::cout << m_data->get_friendly_name() << ": '";
-            //     for (size_t shape_id = 0; shape_id < m_data->get_output_partial_shape(0).size(); shape_id++) {
-            //         if (!m_data->get_output_partial_shape(0)[shape_id].is_dynamic()) {
-            //             int64_t len = m_data->get_output_partial_shape(0)[shape_id].get_length();
-            //             std::cout << len << ", ";
-            //         } else {
-            //             std::cout << "?" << ", ";
-            //         }
-            //     }
-            //     std::cout << "'\n";
-            // };
-
-            // // std::shared_ptr<Node> m_pa = nullptr;
-            // // if (pattern_map.find(fully_connected) != pattern_map.end())
-            // //     m_pa = pattern_map.at(fully_connected).get_node_shared_ptr();
-            // print_shape(m_data_in0);
-            // print_shape(m_data_in1);
-            // print_shape(m_data_in2);
-            // print_shape(m_data_in3);
-            // print_shape(m_data_in4);
-            // print_shape(m_data_in5);
-            // print_shape(m_data_in6);
-            // print_shape(m_data_in7);
-            // print_shape(m_data_in8);
-            // print_shape(m_data_in9);
-            // print_shape(m_data_in10);
-            // print_shape(m_data_in11);
-            // print_shape(m_data_in12);
-            // int w_rank = world_rank;
-            // int w_size = world_size;
-            // std::cout << "w-size: " << w_size << std::endl;
-            // std::cout << m_data_in0->get_friendly_name() << std::endl;
-            // if (w_size != 1) {
-            //     int slice_axis_length = m_data_in0->get_output_partial_shape(0)[-1].get_length();
-            //     std::cout << "slice_axis_length: " << slice_axis_length << std::endl;
-            //     auto scop = std::div(slice_axis_length, w_size).quot;
-            //     auto start = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {w_rank * scop});
-            //     auto stop = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {(w_rank + 1) * scop});
-            //     auto step = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
-            //     int64_t input_axis_value = m_data_in0->get_output_partial_shape(0).size() - 1;
-            //     std::cout << "input_axis_value: " << input_axis_value << std::endl;
-            //     auto input_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {input_axis_value});
-            //     auto new_in0 = std::make_shared<ov::op::v8::Slice>(m_data_in0, start, stop, step, input_axis);
-            //     // print_shape(new_in0);
-
-            //     int slice_axis_length1 = m_data_in1->get_output_partial_shape(0)[-1].get_length();
-            //     auto scop1 = std::div(slice_axis_length1, w_size).quot;
-            //     auto start1 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {w_rank * scop1});
-            //     auto stop1 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {(w_rank + 1) * scop1});
-            //     auto step1 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
-            //     int64_t input_axis_value1 = m_data_in1->get_output_partial_shape(0).size() - 1;
-            //     auto input_axis1 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {input_axis_value1});
-            //     auto new_in1 = std::make_shared<ov::op::v8::Slice>(m_data_in1, start1, stop1, step1, input_axis1);
-
-            //     int slice_axis_length2 = m_data_in2->get_output_partial_shape(0)[-1].get_length();
-            //     auto scop2 = std::div(slice_axis_length2, w_size).quot;
-            //     auto start2 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {w_rank * scop2});
-            //     auto stop2 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {(w_rank + 1) * scop2});
-            //     auto step2 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
-            //     int64_t input_axis_value2 = m_data_in2->get_output_partial_shape(0).size() - 1;
-            //     auto input_axis2 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {input_axis_value2});
-            //     auto new_in2 = std::make_shared<ov::op::v8::Slice>(m_data_in2, start2, stop2, step2, input_axis2);
-            //     std::cout << "m_fc name: " << m_fc->get_friendly_name() << std::endl;
-            //     std::cout << "m_fc->outputs(): " << m_fc->outputs().size() << std::endl;
-
-
-            //     OutputVector params;
-            //         params = {m_data_in0,
-            //                             m_data_in1,
-            //                             m_data_in2,
-            //                             m_data_in3,
-            //                             m_data_in4,
-            //                             m_data_in5,
-            //                             m_data_in6,
-            //                             m_data_in7,
-            //                             m_data_in8,
-            //                             m_data_in9,
-            //                             m_data_in10,
-            //                             m_data_in11,
-            //                             m_data_in12};
-            //     // }
-            //     std::shared_ptr<Node> new_pa = nullptr;
-            //     new_pa = std::make_shared<ov::op::PagedAttentionExtension>(params);
-
-            //     std::shared_ptr<ov::intel_gpu::op::SyncTensor> sync_node;
-            //     sync_node =
-            //         std::make_shared<ov::intel_gpu::op::SyncTensor>(new_pa, w_size, 5120, ov::element::f16);
-            //     sync_node->set_friendly_name(new_pa->get_friendly_name() + "_TP");
-            //     print_shape(sync_node);
-
-            //     auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node->outputs(), -1);
-            //     concat_node->set_friendly_name(new_pa->get_friendly_name() + "_ALLGATHER");
-            //     std::cout << "concat_node->outputs(): " << concat_node->outputs().size() << std::endl;
-            //     copy_runtime_info(m_fc, concat_node);
-            //     replace_node(m_fc, concat_node);
-            //     print_shape(concat_node);
-            //     m_fc->clear_control_dependencies();
-            // }
+            auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node->outputs(), -1);
+            concat_node->set_friendly_name(m_fc->get_friendly_name() + "_ALLGATHER");
+            std::cout << "concat_node->outputs(): " << concat_node->outputs().size() << std::endl;
+            copy_runtime_info(m_fc, concat_node);
+            m_fc->get_users()[0]->input(0).replace_source_output(concat_node->output(0));
         }
         // else {
         //     std::cout << "*********************\n";
