@@ -588,7 +588,7 @@ static void codec_xor(const char* in, const size_t in_size, char* out, size_t* o
     *out_size = in_size;
 }
 
-TEST_P(ov_core_test, ov_core_import_model_with_crypto) {
+TEST_P(ov_core_test, ov_core_import_model_with_encryption) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
 
