@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import tests
+import logging
+import pprint
 from operator import itemgetter
 from pathlib import Path
 from typing import Sequence, Any
@@ -24,6 +26,8 @@ from tests import (
     xfail_issue_86911,
     xfail_issue_onnx_models_140,
     skip_issue_127649)
+
+logger = logging.getLogger()
 
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
 
@@ -133,23 +137,29 @@ for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
     file_name = path.name
     if path.is_file() and not file_name.startswith("."):
         model = {"model_name": path, "model_file": file_name, "dir": mdir}
+        logger.info("Found model: %s", pprint.pformat(model))
         basedir = mdir.stem
         if basedir in tolerance_map:
             # updated model looks now:
             # {"model_name": path, "model_file": file, "dir": mdir, "atol": ..., "rtol": ...}
             model.update(tolerance_map[basedir])
+            logger.info("Update model with a tolerance map: %s", pprint.pformat(model))
         else:
             # some models have the same stem, have to check if any of the keys from tolerance_map
             # is found in the full model path
             model_key = tolerance_map_key_in_model_path(str(path))
             if model_key is not None:
                 model.update(tolerance_map[model_key])
+                logger.info("Update model with tolerance map with model_key: %s", pprint.pformat(model))
         if basedir in post_processing:
             model.update(post_processing[basedir])
+            logger.info("Update model with post_processing: %s", pprint.pformat(model))
         zoo_models.append(model)
 
 if len(zoo_models) > 0:
     zoo_models = sorted(zoo_models, key=itemgetter("model_name"))
+
+    logger.info("Sorted zoo_models list of dictionaries: %s", pprint.pformat(zoo_models))
 
     # Set backend device name to be used instead of hardcoded by ONNX BackendTest class ones.
     OpenVinoOnnxBackend.backend_name = tests.BACKEND_NAME
@@ -169,6 +179,7 @@ if len(zoo_models) > 0:
             xfail, test_name = test_case
             xfail(getattr(test_cases, test_name))
 
+    logger.info("Test cases before first deletion: %s", pprint.pformat(test_cases))
     del test_cases
 
     test_cases = backend_test.test_cases["OnnxBackendModelExecutionTest"]
@@ -205,6 +216,11 @@ if len(zoo_models) > 0:
             xfail, test_name = test_case
             xfail(getattr(test_cases, test_name))
 
+    logger.info("Test cases before second deletion: %s", pprint.pformat(test_cases))
     del test_cases
 
+    logger.info("Test cases before adding to globals: %s",
+                pprint.pformat(backend_test.enable_report().test_cases))
     globals().update(backend_test.enable_report().test_cases)
+
+    logger.info("Globals: %s", pprint.pformat(globals()))
