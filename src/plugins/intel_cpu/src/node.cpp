@@ -315,7 +315,7 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
     selectPrimitiveDescriptorByIndex(0);
 }
 
-bool Node::isScalarShape(const ov::PartialShape& pshape) {
+bool Node::isOneDimShape(const ov::PartialShape& pshape) {
     int value_1_num = 0;
     int sz = static_cast<int>(pshape.size());
     for (auto s : pshape) {
@@ -324,6 +324,13 @@ bool Node::isScalarShape(const ov::PartialShape& pshape) {
         }
     }
     return value_1_num >= sz - 1;
+}
+
+bool Node::isReorderRequired(ov::intel_cpu::MemoryDescPtr desc1, ov::intel_cpu::MemoryDescPtr desc2) {
+    bool samePrec = desc1->getPrecision() == desc2->getPrecision();
+    bool isOneDimShape1 = isOneDimShape(desc1->getShape().toPartialShape());
+    bool isOneDimShape2 = isOneDimShape(desc2->getShape().toPartialShape());
+    return !(isOneDimShape1 && isOneDimShape2 && samePrec);
 }
 
 void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs) {
@@ -350,9 +357,8 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
                 auto parentDesc = parent_spd->getConfig().outConfs[inNum].getMemDesc();
 
                 const bool isCompatible = curDesc->isCompatible(*parentDesc);
-                bool scalarShape = isScalarShape(curDesc->getShape().toPartialShape());
                 if (!isCompatible) {
-                    if (scalarShape) {
+                    if (!isReorderRequired(parentDesc, curDesc)) {
                         estimate += 1;
                     } else {
                         estimate += ov::shape_size<ov::intel_cpu::VectorDims>(curDesc->getShape().getStaticDims());
@@ -361,7 +367,7 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
 
                 DEBUG_LOG(getName(), " pd[", i, "].inConfs[", j, "]"
                           " is ", (isCompatible ? "compatible" : "not compatible"),
-                          " shape is ", (scalarShape ? "scalar" : "not scalar"),
+                          " shape is ", (isOneDimShape(curDesc->getShape().toPartialShape()) ? "one dim shape" : "not one dim shape"),
                           " with parent ", parentPtr->getName(),
                           " outConfs[", inNum, "], estimate add to ", estimate);
             }

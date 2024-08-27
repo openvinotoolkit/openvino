@@ -708,7 +708,8 @@ protected:
 
     void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
     void selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
-    bool isScalarShape(const ov::PartialShape& pshape);
+    bool isOneDimShape(const ov::PartialShape& pshape);
+    bool isReorderRequired(ov::intel_cpu::MemoryDescPtr desc1, ov::intel_cpu::MemoryDescPtr desc2);
     bool isConfigDefined(const NodeConfig &config) const;
     virtual bool canBeInPlace() const;
 
