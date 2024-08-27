@@ -22,7 +22,7 @@ void regclass_Tensor(py::module m) {
                 return Common::object_from_data<ov::Tensor>(array, shared_memory);
             }),
             py::arg("array"),
-            py::arg("shared_memory") = false,
+            py::arg("shared_memory") = true,
             py::ov_extension::conditional_keep_alive<1, 2, 3>(),
             R"(
                 Tensor's special constructor.
@@ -31,6 +31,9 @@ void regclass_Tensor(py::module m) {
                 :type array: numpy.array
                 :param shared_memory: If `True`, this Tensor memory is being shared with a host.
                                       Any action performed on the host memory is reflected on this Tensor's memory!
+                                      If `False`, data is being copied to this Tensor.
+                                      Requires data to be C_CONTIGUOUS if `True`.
+                                      If the passed array contains strings, the flag must be set to `False'.
                 :type shared_memory: bool
             )");
 
