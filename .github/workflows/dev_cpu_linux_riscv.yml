@@ -127,10 +127,10 @@ jobs:
 
       - name: Init XUANTIE
         run: |
-          mkdir ${XUANTIE_DIR}
-          pushd ${XUANTIE_DIR}
-            ls -la ${XUANTIE_BIN_PATH}
-          popd
+          # mkdir ${XUANTIE_DIR}
+          # pushd ${XUANTIE_DIR}
+          ls -la ${XUANTIE_BIN_PATH}
+          # popd
 
       - name: CMake configure - OpenVINO
         run: |
