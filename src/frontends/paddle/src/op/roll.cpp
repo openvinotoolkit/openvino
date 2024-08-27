@@ -20,7 +20,6 @@ NamedOutputs roll(const NodeContext& node) {
     }
 
     std::vector<int64_t> axis = node.get_attribute<std::vector<int64_t>>("axis");
-    
     if (axis.empty()) {
         const auto const_minus_1 = default_opset::Constant::create(element::i64, Shape{1}, {-1});
         Output<Node> axis_node = default_opset::Constant::create(element::i64, Shape{1}, {0});
@@ -29,15 +28,13 @@ NamedOutputs roll(const NodeContext& node) {
         const auto shape_of_data = std::make_shared<default_opset::ShapeOf>(input_node, element::i64);
         const auto reshape = std::make_shared<default_opset::Reshape>(roll, shape_of_data, false);
         return node.default_single_output_mapping(reshape, {"Out"});
-    }
-    else{
+    } else {
         Output<Node> axis_node = default_opset::Constant::create(element::i64, {axis.size()}, axis);
-        return node.default_single_output_mapping(std::make_shared<default_opset::Roll>(input_node, shifts_node, axis_node),
-                                            {"Out"});
+        return node.default_single_output_mapping(
+            std::make_shared<default_opset::Roll>(input_node, shifts_node, axis_node),
+            {"Out"});
     }
-
 }
-
 }  // namespace op
 }  // namespace paddle
 }  // namespace frontend
