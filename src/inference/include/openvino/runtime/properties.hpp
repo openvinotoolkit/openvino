@@ -791,13 +791,14 @@ struct EncryptionCallbacks {
 
 /**
  * @brief Write-only property to set encryption/decryption function for saving/loading model cache.
- * If cache_crypto_callback is set, the model cache will be encrypted/decrypted when saving/loading cache.
- * cache_crypto_callback is enabled in core.compile_model only.
+ * If cache_encryption_callbacks is set, the model cache will be encrypted/decrypted when saving/loading cache.
+ * cache_encryption_callbacks is enabled in core.compile_model only.
  * - First value of the struct is encryption function.
  * - Second value of the struct is decryption function.
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<EncryptionCallbacks, PropertyMutability::WO> cache_crypto_callback{"CACHE_CRYPTO_CALLBACK"};
+static constexpr Property<EncryptionCallbacks, PropertyMutability::WO> cache_encryption_callbacks{
+    "CACHE_ENCRYPTION_CALLBACKS"};
 
 /**
  * @brief Read-only property to provide information about a range for streams on platforms where streams are supported.

@@ -68,7 +68,7 @@ def test_export_import_with_crypto(device):
         pytest.skip(f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
 
     config = {}
-    config["CACHE_CRYPTO_CALLBACK"] = [encrypt_base64, decrypt_base64]
+    config["CACHE_ENCRYPTION_CALLBACKS"] = [encrypt_base64, decrypt_base64]
 
     compiled_model = generate_relu_compiled_model_with_config(device, config)
 

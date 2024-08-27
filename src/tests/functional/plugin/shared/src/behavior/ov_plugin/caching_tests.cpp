@@ -903,7 +903,7 @@ void CompileModelWithCacheCryptoTest::SetUp() {
     EncryptionCallbacks encryption_callbacks;
     encryption_callbacks.encrypt = ov::util::codec_xor;
     encryption_callbacks.decrypt = ov::util::codec_xor;
-    configuration.insert(ov::cache_crypto_callback(encryption_callbacks));
+    configuration.insert(ov::cache_encryption_callbacks(encryption_callbacks));
     APIBaseTest::SetUp();
     std::stringstream ss;
     std::string filePrefix = ov::test::utils::generateTestFilePrefix();

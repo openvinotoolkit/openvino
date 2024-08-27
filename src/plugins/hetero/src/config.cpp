@@ -33,7 +33,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
                 }
             }
             modelDistributionPolicy = value.as<std::set<ov::hint::ModelDistributionPolicy>>();
-        } else if (ov::cache_crypto_callback == key) {
+        } else if (ov::cache_encryption_callbacks == key) {
             encryption_callbacks = value.as<EncryptionCallbacks>();
         } else {
             if (throwOnUnsupported)

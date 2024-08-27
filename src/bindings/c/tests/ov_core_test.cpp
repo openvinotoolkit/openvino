@@ -601,7 +601,7 @@ TEST_P(ov_core_test, ov_core_import_model_with_crypto) {
         GTEST_SKIP() << "Skip this test, cause no EXPORT_IMPORT supported";
     }
 
-    const char* key = ov_property_key_cache_crypto_callback;
+    const char* key = ov_property_key_cache_encryption_callbacks;
     ov_encryption_callbacks encryption_callbacks{codec_xor, codec_xor};
 
     ov_compiled_model_t* compiled_model = nullptr;

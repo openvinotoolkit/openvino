@@ -33,7 +33,7 @@
 
 #define GET_PROPERTY_FROM_ARGS_LIST                                                                            \
     std::string property_key = va_arg(args_ptr, char*);                                                        \
-    if (property_key == ov::cache_crypto_callback.name()) {                                                    \
+    if (property_key == ov::cache_encryption_callbacks.name()) {                                               \
         ov_encryption_callbacks* _value = va_arg(args_ptr, ov_encryption_callbacks*);                          \
         auto encrypt_func = _value->encrypt_func;                                                              \
         auto decrypt_func = _value->decrypt_func;                                                              \

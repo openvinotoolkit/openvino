@@ -596,8 +596,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& networkMo
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
     std::function<std::string(const std::string&)> decrypt;
-    if (config.count(ov::cache_crypto_callback.name())) {
-        auto encryption_callbacks = config.at(ov::cache_crypto_callback.name()).as<EncryptionCallbacks>();
+    if (config.count(ov::cache_encryption_callbacks.name())) {
+        auto encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
         decrypt = encryption_callbacks.decrypt;
     }
 

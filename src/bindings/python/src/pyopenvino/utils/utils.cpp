@@ -253,10 +253,10 @@ py::object from_ov_any(const ov::Any& any) {
 std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string, py::object>& properties) {
     std::map<std::string, ov::Any> properties_to_cpp;
     for (const auto& property : properties) {
-        if (property.first == ov::cache_crypto_callback.name()) {
+        if (property.first == ov::cache_encryption_callbacks.name()) {
             auto property_value = property.second;
             if (!py::isinstance<py::list>(property_value)) {
-                OPENVINO_THROW("The value type of ov::cache_crypto_callback property is expected list");
+                OPENVINO_THROW("The value type of ov::cache_encryption_callbacks property is expected list");
             }
             std::function<std::string(const std::string&)> encrypt_func =
                 [property_value](const std::string& in_str) -> std::string {
