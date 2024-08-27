@@ -576,7 +576,6 @@ void regclass_Core(py::module m) {
 
                 std::fstream _fstream(filename, std::ios::in | std::ios::binary);
                 OPENVINO_ASSERT(_fstream.is_open(), "Failed to open temporary file for model stream");
-                py::gil_scoped_release release;
                 result = self.import_model(_fstream, device_name, _properties);
                 _fstream.close();
                 if (std::remove(filename.c_str()) != 0) {
