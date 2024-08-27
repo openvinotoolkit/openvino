@@ -120,7 +120,8 @@ def fx_openvino(subgraph, example_inputs, options=None):
             res = execute(compiled_model, *args, executor="openvino",
                           executor_parameters=executor_parameters, options=options)
             return res
-        _call._boxed_call = True # type: ignore[attr-defined]
+        if(_get_aot_autograd(options)):
+            _call._boxed_call = True # type: ignore[attr-defined]
         return _call
     except Exception as e:
         logger.debug(f"Failed in OpenVINO execution: {e}")
