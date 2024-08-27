@@ -13,8 +13,13 @@ namespace intel_cpu {
 namespace kernel {
 namespace random_uniform {
 
-struct GeneratorCompileParams {
+struct PhiloxGeneratorCompileParams {
     element::Type out_data_type = element::f32;
+};
+
+struct MersenneTwisterGeneratorCompileParams {
+    element::Type out_data_type = element::f32;
+    bool optimized = false;
 };
 
 struct PhiloxGeneratorCallArgs {
@@ -43,11 +48,11 @@ struct MersenneTwisterGeneratorCallArgs {
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-class PhiloxGenerator : public JitKernel<GeneratorCompileParams, PhiloxGeneratorCallArgs> {
+class PhiloxGenerator : public JitKernel<PhiloxGeneratorCompileParams, PhiloxGeneratorCallArgs> {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(PhiloxGenerator)
 
-    explicit PhiloxGenerator(const GeneratorCompileParams& jcp);
+    explicit PhiloxGenerator(const PhiloxGeneratorCompileParams& jcp);
 
     void generate() override;
 
@@ -109,11 +114,11 @@ private:
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-class MersenneTwisterGenerator : public JitKernel<GeneratorCompileParams, MersenneTwisterGeneratorCallArgs> {
+class MersenneTwisterGenerator : public JitKernel<MersenneTwisterGeneratorCompileParams, MersenneTwisterGeneratorCallArgs> {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(MersenneTwisterGenerator)
 
-    explicit MersenneTwisterGenerator(const GeneratorCompileParams& jcp);
+    explicit MersenneTwisterGenerator(const MersenneTwisterGeneratorCompileParams& jcp);
 
     void generate() override;
 
@@ -132,10 +137,6 @@ private:
     RegistersPool::Reg<Xbyak::Reg64> r64_step;
     RegistersPool::Reg<Xbyak::Reg64> r64_work_amount;
     RegistersPool::Reg<Xbyak::Reg64> r64_elements_remaining;
-    RegistersPool::Reg<Xbyak::Reg64> r64_optimization_enabled;
-    RegistersPool::Reg<Xbyak::Reg64> r64_output_type;
-
-
 
     const Xbyak::Reg64 r64_params = Xbyak::Reg64(dnnl::impl::cpu::x64::abi_param_regs[0]);
 
@@ -147,13 +148,6 @@ private:
 
     // Vector registers for generation.
     RegistersPool::Reg<Vmm> v_result;
-    RegistersPool::Reg<Vmm> v_result_bitshift_11;
-    RegistersPool::Reg<Vmm> v_result_bitshift_7;
-    RegistersPool::Reg<Vmm> v_result_bitshift_7_const_1;
-    RegistersPool::Reg<Vmm> v_result_bitshift_15;
-    RegistersPool::Reg<Vmm> v_result_bitshift_15_const_2;
-    RegistersPool::Reg<Vmm> v_result_bitshift_18;
-
     RegistersPool::Reg<Vmm> v_const_1;
     RegistersPool::Reg<Vmm> v_const_2;
 
@@ -181,14 +175,6 @@ private:
     static constexpr uint32_t MT_L = 18;
     static constexpr uint32_t MT_4_ELEMENTS = 4;
     static constexpr uint32_t MT_2_ELEMENTS = 2;
-
-    static constexpr uint32_t FLOAT_AS_VALUE = 0;
-    static constexpr uint32_t FLOAT16_AS_VALUE = 1;
-    static constexpr uint32_t BFLOAT16_AS_VALUE = 2;
-    static constexpr uint32_t INT_AS_VALUE = 3;
-    static constexpr uint32_t INT64_AS_VALUE = 4;
-
-
 };
 
 }   // namespace random_uniform

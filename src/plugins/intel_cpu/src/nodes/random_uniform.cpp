@@ -371,15 +371,21 @@ void RandomUniform::prepareGeneratorKernel() {
     if (one_of(m_algo, PHILOX, MERSENNE_TWISTER)) {
 #if defined(OPENVINO_ARCH_X86_64)
 
-        kernel::random_uniform::GeneratorCompileParams jcp;
-        jcp.out_data_type = m_output_prc;
+        
 
         if (m_algo == PHILOX) {
-            m_jit_kernel = kernel::JitKernel<kernel::random_uniform::GeneratorCompileParams,
+            kernel::random_uniform::PhiloxGeneratorCompileParams jcp;
+            jcp.out_data_type = m_output_prc;
+
+            m_jit_kernel = kernel::JitKernel<kernel::random_uniform::PhiloxGeneratorCompileParams,
                                             kernel::random_uniform::PhiloxGeneratorCallArgs>
                                             ::createInstance<kernel::random_uniform::PhiloxGenerator>(jcp);
         } else {
-            m_jit_kernel = kernel::JitKernel<kernel::random_uniform::GeneratorCompileParams,
+            kernel::random_uniform::MersenneTwisterGeneratorCompileParams jcp;
+            jcp.out_data_type = m_output_prc;
+            jcp.optimized = m_mersenne_twister_optimization_enabled;
+
+            m_jit_kernel = kernel::JitKernel<kernel::random_uniform::MersenneTwisterGeneratorCompileParams,
                                             kernel::random_uniform::MersenneTwisterGeneratorCallArgs>
                                             ::createInstance<kernel::random_uniform::MersenneTwisterGenerator>(jcp);
         }
@@ -602,6 +608,9 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out
 
 namespace {
 
+static constexpr size_t SIZE_FOUR = 4;
+static constexpr size_t SIZE_TWO = 2;
+
 uint32_t twist(uint32_t u, uint32_t v) {
     return (((u & 0x80000000) | (v & 0x7fffffff)) >> 1) ^ (v & 1 ? 0x9908b0df : 0);
 }
@@ -670,7 +679,7 @@ inline void convertToOutputTypeMersenne(const uint32_t* in,
     const auto mask = static_cast<uint32_t>((uint64_t(1) << std::numeric_limits<float16>::digits) - 1);
     const auto divisor = static_cast<float>(1) / (uint64_t(1) << std::numeric_limits<float16>::digits);
 
-    for (size_t i = 0lu; i < std::min(4UL, elements_remaining); i++) {
+    for (size_t i = 0lu; i < std::min(SIZE_FOUR, elements_remaining); i++) {
         const float ret = (in[i] & mask) * divisor;
         out[i] = ret * range + min;
     }
@@ -685,7 +694,7 @@ inline void convertToOutputTypeMersenne(const uint32_t* in,
     const auto mask = static_cast<uint32_t>((1UL << 8) - 1);
     const auto divisor = static_cast<float>(1) / (1UL << 8);
 
-    for (size_t i = 0lu; i < std::min(4UL, elements_remaining); i++) {
+    for (size_t i = 0lu; i < std::min(SIZE_FOUR, elements_remaining); i++) {
         const float ret = (in[i] & mask) * divisor;
         out[i] = ret * range + min;
     }
@@ -697,7 +706,7 @@ inline void convertToOutputTypeMersenne(const uint32_t* in,
                                 int32_t* out,
                                 size_t elements_remaining,
                                 bool optimization_enabled) {
-    for (size_t i = 0lu; i < std::min(4UL, elements_remaining); i++) {
+    for (size_t i = 0lu; i < std::min(SIZE_FOUR, elements_remaining); i++) {
         out[i] = static_cast<int32_t>(in[i] % range + min);
     }
 }
@@ -709,11 +718,11 @@ inline void convertToOutputTypeMersenne(const uint32_t* in,
                                 size_t elements_remaining,
                                 bool optimization_enabled) {
     if (optimization_enabled) {
-        for (size_t i = 0lu; i < std::min(4UL, elements_remaining); i++) {
+        for (size_t i = 0lu; i < std::min(SIZE_FOUR, elements_remaining); i++) {
             out[i] = static_cast<int32_t>(in[i] % range + min);
         }
     } else {
-        for (size_t i = 0lu; i < std::min(2UL, elements_remaining); i++) {
+        for (size_t i = 0lu; i < std::min(SIZE_TWO, elements_remaining); i++) {
             out[i] = static_cast<int64_t>(((static_cast<uint64_t>(in[i * 2]) << 32) + in[i * 2 + 1]) % range + min);
         }       
     }
