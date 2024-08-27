@@ -664,7 +664,7 @@ inline void convertToOutputTypeMersenne(const uint32_t* in,
     const auto mask = static_cast<uint32_t>((uint64_t(1) << std::numeric_limits<float>::digits) - 1);
     const auto divisor = static_cast<float>(1) / (uint64_t(1) << std::numeric_limits<float>::digits);
 
-    for (size_t i = 0lu; i < std::min(4UL, elements_remaining); i++) {
+    for (size_t i = 0lu; i < std::min(SIZE_FOUR, elements_remaining); i++) {
         const float ret = (in[i] & mask) * divisor;
         out[i] = ret * range + min;
     }
