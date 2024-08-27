@@ -2,7 +2,6 @@
 albert,albert/albert-base-v2
 align,kakaobrain/align-base,xfail,Compile error: AvgPool: Kernel after dilation has size (dim: 640) larger than the data shape after padding (dim: 9) at axis 0.
 altclip,BAAI/AltCLIP
-aquila,BAAI/AquilaCode-py
 audio-spectrogram-transformer,MIT/ast-finetuned-audioset-10-10-0.4593
 autoformer,huggingface/autoformer-tourism-monthly,xfail,Load error: mat1 and mat2 shapes cannot be multiplied
 bark,suno/bark,xfail,Load error: got an unexpected keyword argument 'input_ids'

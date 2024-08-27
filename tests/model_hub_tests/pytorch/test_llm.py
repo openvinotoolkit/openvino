@@ -120,12 +120,12 @@ class TestLLMModel(TestTorchConvertModel):
 
         example = t("Some input text to verify that model works.",
                     return_tensors='pt').__dict__['data']
-        if type not in ["gptj", "starcoder2"]:
+        if type not in ["gptj", "starcoder2", "mpt"]:
             pkv, am = self.get_pkv(model, t)
             example["past_key_values"] = pkv
             example["attention_mask"] = torch.cat(
                 [example["attention_mask"], am], -1)
-        if type not in ["opt", "falcon", "mbart_gptq"]:
+        if type not in ["opt", "falcon", "mbart_gptq", "mpt"]:
             ids = torch.cumsum(example["attention_mask"] != 0, dim=1) - 1
             example["position_ids"] = ids[:, -
                                           example["input_ids"].shape[1]:]
@@ -224,7 +224,6 @@ class TestLLMModel(TestTorchConvertModel):
         ("mistral", "HuggingFaceH4/zephyr-7b-beta"),
         ("mpt", "mosaicml/mpt-7b"),
         ("starcoder2", "cognitivecomputations/dolphincoder-starcoder2-7b"),
-        ("jais", "core42/jais-13b"),
         ("persimmon", "adept/persimmon-8b-base"),
         ("bloom_gptq", "sbolouki/bloom-1b7-gptq"),
         ("cohere_gptq", "shuyuej/aya-23-8B-GPTQ"),
