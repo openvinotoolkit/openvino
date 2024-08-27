@@ -965,31 +965,51 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
         if (!rt_attrs)
             return;
         for (const auto& item : rt_attrs) {
-            std::string attribute_name, attribute_version;
-            // For view:
-            // <attribute name="old_api_map_order" version="0" value="0,3,1,2"/>
-            if (!getStrAttribute(item, "name", attribute_name) || !getStrAttribute(item, "version", attribute_version))
-                continue;
-
-            const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), attribute_version.c_str());
-            auto attr = attrs_factory.create_by_type_info(type_info);
-            if (!attr.empty()) {
-                if (attr.is<ov::RuntimeAttribute>()) {
-                    RTInfoDeserializer attribute_visitor(item);
-                    if (attr.as<ov::RuntimeAttribute>().visit_attributes(attribute_visitor)) {
-                        auto res = rt_info.emplace(type_info, attr);
-                        if (!res.second) {
-                            OPENVINO_THROW("multiple rt_info attributes are detected: ", attribute_name);
+            if (std::strcmp(item.name(), "attribute") == 0) {
+                std::string attribute_name, attribute_version;
+                // For view:
+                // <attribute name="old_api_map_order" version="0" value="0,3,1,2"/>
+                if (!getStrAttribute(item, "name", attribute_name)) {
+                    std::stringstream ss;
+                    item.print(ss);
+                    OPENVINO_THROW("rt_info attribute has no \"name\" field: ", ss.str());
+                }
+                if (!getStrAttribute(item, "version", attribute_version)) {
+                    std::stringstream ss;
+                    item.print(ss);
+                    OPENVINO_THROW("rt_info attribute: ", attribute_name, " has no \"version\" field: ", ss.str());
+                }
+                const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), attribute_version.c_str());
+                auto attr = attrs_factory.create_by_type_info(type_info);
+                if (!attr.empty()) {
+                    if (attr.is<ov::RuntimeAttribute>()) {
+                        RTInfoDeserializer attribute_visitor(item);
+                        if (attr.as<ov::RuntimeAttribute>().visit_attributes(attribute_visitor)) {
+                            auto res = rt_info.emplace(type_info, attr);
+                            if (!res.second) {
+                                OPENVINO_THROW("multiple rt_info attributes are detected: ", attribute_name);
+                            }
+                        } else {
+                            OPENVINO_THROW("VisitAttributes is not supported for: ", item.name(), " attribute");
                         }
                     } else {
-                        OPENVINO_THROW("VisitAttributes is not supported for: ", item.name(), " attribute");
+                        OPENVINO_THROW("Attribute: ", item.name(), " is not recognized as runtime attribute");
                     }
                 } else {
-                    OPENVINO_THROW("Attribute: ", item.name(), " is not recognized as runtime attribute");
+                    // As runtime attributes are optional, so we skip attribute if it is unknown to avoid exception
+                    // when loading new IR with new attribute in old OV version.
                 }
-            } else {
-                // As runtime attributes are optional, so we skip attribute if it is unknown to avoid exception
-                // when loading new IR with new attribute in old OV version.
+            }
+        }
+
+        // Predefined attributes take precedence over custom rt info
+        for (const auto& item : rt_attrs) {
+            if (std::strcmp(item.name(), "custom") == 0) {
+                std::string custom_name, custom_value;
+                if (getStrAttribute(item, "name", custom_name) && getStrAttribute(item, "value", custom_value)) {
+                    // Duplicates are not added and are ignored
+                    rt_info.emplace(custom_name, custom_value);
+                }
             }
         }
     };
