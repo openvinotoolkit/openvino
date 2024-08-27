@@ -85,9 +85,11 @@ jobs:
       cmake-options: |-
         -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/arm.toolchain.cmake \
         -DTHREADS_PTHREAD_ARG="-pthread" \
-        -DCMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT=OFF \
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
         -DCMAKE_BUILD_TYPE=Release \
         -DENABLE_STRICT_DEPENDENCIES=OFF \
+        -DENABLE_CPPLINT=OFF \
+        -DENABLE_NCC_STYLE=OFF \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DENABLE_CONFORMANCE_PGQL=ON \
         -DENABLE_LTO=ON \
