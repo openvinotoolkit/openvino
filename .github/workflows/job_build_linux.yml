@@ -142,7 +142,16 @@ jobs:
       - name: CMake configure - OpenVINO
         run: |
           cmake \
-            ${{ inputs.cmake-options }} \
+            -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/arm.toolchain.cmake \
+            -DTHREADS_PTHREAD_ARG="-pthread" \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT=OFF \
+            -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
+            -DENABLE_STRICT_DEPENDENCIES=OFF \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DENABLE_CONFORMANCE_PGQL=ON \
+            -DENABLE_LTO=ON \
+            -DENABLE_TESTS=ON \
+            -DENABLE_PYTHON=OFF \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
