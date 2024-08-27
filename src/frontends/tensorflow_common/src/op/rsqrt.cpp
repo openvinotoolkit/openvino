@@ -63,23 +63,23 @@ OutputVector translate_rsqrt_op(const NodeContext& node) {
         auto new_real =
                 make_shared<v1::Power>(make_shared<v1::Divide>(make_shared<v1::Add>(real_part, norm), const_two), const_half);
 
-        // new_img = b/|b| * sqrt( -a + sqrt(a^2 + b^2) / 2 )
-        auto is_img_neg = make_shared<v1::Less>(imag_part, const_zero);
-        auto sign = make_shared<v1::Select>(is_img_neg, const_minus_one, const_one);
+        // new_imag = b/|b| * sqrt( -a + sqrt(a^2 + b^2) / 2 )
+        auto is_imag_neg = make_shared<v1::Less>(imag_part, const_zero);
+        auto sign = make_shared<v1::Select>(is_imag_neg, const_minus_one, const_one);
 
-        auto new_img = make_shared<v1::Multiply>(sign,make_shared<v1::Power>(
+        auto new_imag = make_shared<v1::Multiply>(sign,make_shared<v1::Power>(
                 make_shared<v1::Divide>(make_shared<v1::Add>(make_shared<v0::Negative>(real_part), norm), const_two),
                 const_half));
         // rsqrt_real = sqrt_real/(sqrt_real^2 + sqrt_imag^2)
         // rsqrt_imag = - sqrt_imag/(sqrt_real^2 + sqrt_imag^2)
         auto new_sum_sq = make_shared<v1::Add>(
                 make_shared<v1::Power>(new_real, const_two),
-                make_shared<v1::Power>(new_img, const_two)
+                make_shared<v1::Power>(new_imag, const_two)
         );
 
         auto rsqrt_real = make_shared<v1::Divide>(new_real, new_sum_sq);
 
-        auto rsqrt_imag = make_shared<v0::Negative>(make_shared<v1::Divide>(new_img, new_sum_sq));
+        auto rsqrt_imag = make_shared<v0::Negative>(make_shared<v1::Divide>(new_imag, new_sum_sq));
 
         auto real_unsqueeze = make_shared<v0::Unsqueeze>(rsqrt_real, minus_one);
         auto imag_unsqueeze = make_shared<v0::Unsqueeze>(rsqrt_imag, minus_one);
