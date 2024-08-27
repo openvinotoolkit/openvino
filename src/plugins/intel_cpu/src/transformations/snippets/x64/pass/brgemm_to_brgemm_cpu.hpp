@@ -15,7 +15,7 @@ namespace pass {
  * @brief The pass decompose Snippets Brgemm to specific subgraph that depends on ISA and input precisions:
  *        - f32|f32 without transpose_b:
  *                   BrgemmCPU
- *        - u8|i8 or bf16|bf16 (non-AMX system) or i8|i8 (with avx2_vnni_2 support):
+ *        - u8|i8 or bf16|bf16 (non-AMX system) or i8|i8 (with avx2_vnni_2 support) or with `transpose_b=True`:
  *                 \       BrgemmCopyB (the operation for data repacking)
  *                  \        Buffer
  *                   BrgemmCPU

@@ -72,7 +72,6 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
     const auto brgemm = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
     OV_CPU_JIT_EMITTER_ASSERT(brgemm, "get_supported_precisions() expects BrgemmCPU node");
     using brgemm_utils::BRGEMM_TYPE;
-    std::set<std::vector<element::Type>> supported_types;
     if (brgemm->get_type() == BRGEMM_TYPE::STAND_ALONE) {
         return {{element::f32, element::f32}};
     } else if (brgemm->get_type() == BRGEMM_TYPE::REPACKING_ONLY) {
