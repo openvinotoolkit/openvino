@@ -93,6 +93,8 @@ jobs:
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 2G
+
+      XUANTIE_BIN_PATH: /mount/testdata1/Xuantie-900-gcc-linux-5.15.0-glibc-x86_64-V2.8.1/
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
@@ -128,14 +130,7 @@ jobs:
         run: |
           mkdir ${XUANTIE_DIR}
           pushd ${XUANTIE_DIR}
-            apt-get install gawk
-            apt-get install sudo -y
-            sudo apt-get install texinfo
-            sudo apt-get install dos2unix
-            sudo apt-get install wget
-            sudo apt-get install bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev
-            wget https://occ-oss-prod.oss-cn-hangzhou.aliyuncs.com/resource//1663142514282/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1-20220906.tar.gz
-            tar xf Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1-20220906.tar.gz
+            ls -la XUANTIE_BIN_PATH
           popd
 
       - name: CMake configure - OpenVINO
