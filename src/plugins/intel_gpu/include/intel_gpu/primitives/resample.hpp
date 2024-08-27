@@ -112,6 +112,36 @@ struct resample : public primitive_base<resample> {
           coord_trans_mode(ctm),
           round_mode(nm) {}
 
+    /// @brief resample with dynamic sizes/scales
+    resample(const primitive_id& id,
+             const input_info& input,
+             const input_info& sizes_or_scales_id,
+             const std::vector<int64_t>& axes,
+             const std::vector<size_t>& pads_begin = {},
+             const std::vector<size_t>& pads_end = {},
+             int32_t antialias = 0,
+             float cube_coeff = -0.75f,
+             InterpolateOp::InterpolateMode operation_type = InterpolateOp::InterpolateMode::LINEAR,
+             InterpolateOp::ShapeCalcMode shape_calc_mode = InterpolateOp::ShapeCalcMode::SIZES,
+             InterpolateOp::CoordinateTransformMode ctm = InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
+             InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR)
+        : primitive_base(id, {input, sizes_or_scales_id}),
+          output_size(tensor()),
+          num_filter(0),
+          sizes({}),
+          scales({}),
+          axes(axes),
+          pads_begin(pads_begin),
+          pads_end(pads_end),
+          operation_type(operation_type),
+          shape_calc_mode(shape_calc_mode),
+          antialias(antialias),
+          cube_coeff(cube_coeff),
+          coord_trans_mode(ctm),
+          round_mode(nm) {}
+
+
+
     InterpolateOp::InterpolateAttrs get_attrs() const {
         return InterpolateOp::InterpolateAttrs(this->operation_type,
                                                this->shape_calc_mode,

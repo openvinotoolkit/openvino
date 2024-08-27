@@ -191,7 +191,6 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
             resamplePrim = std::make_shared<cldnn::resample>(layerName,
                                                              inputs[0],
                                                              inputs[eScalesOrSizesIndex],
-                                                             inputs[eScalesOrSizesIndex],
                                                              axes,
                                                              attrs.pads_begin,
                                                              attrs.pads_end,
