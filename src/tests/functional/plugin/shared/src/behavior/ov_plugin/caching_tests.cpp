@@ -887,7 +887,7 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
 }
 #endif
 
-std::string CompileModelWithCacheCryptoTest::getTestCaseName(
+std::string CompileModelWithCacheEncryptionTest::getTestCaseName(
     testing::TestParamInfo<std::string> obj) {
     auto deviceName = obj.param;
     std::ostringstream result;
@@ -896,7 +896,7 @@ std::string CompileModelWithCacheCryptoTest::getTestCaseName(
     return result.str();
 }
 
-void CompileModelWithCacheCryptoTest::SetUp() {
+void CompileModelWithCacheEncryptionTest::SetUp() {
     ovModelWithName funcPair;
     targetDevice = GetParam();
     target_device = targetDevice;
@@ -917,7 +917,7 @@ void CompileModelWithCacheCryptoTest::SetUp() {
     manager.run_passes(ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32));
 }
 
-void CompileModelWithCacheCryptoTest::TearDown() {
+void CompileModelWithCacheEncryptionTest::TearDown() {
     ov::test::utils::removeFilesWithExt(m_cacheFolderName, "blob");
     ov::test::utils::removeFilesWithExt(m_cacheFolderName, "cl_cache");
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
@@ -927,7 +927,7 @@ void CompileModelWithCacheCryptoTest::TearDown() {
     APIBaseTest::TearDown();
 }
 
-void CompileModelWithCacheCryptoTest::run() {
+void CompileModelWithCacheEncryptionTest::run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     core->set_property(ov::cache_dir(m_cacheFolderName));
     try {
@@ -949,7 +949,7 @@ void CompileModelWithCacheCryptoTest::run() {
     }
 }
 
-TEST_P(CompileModelWithCacheCryptoTest, CanImportModelWithoutException) {
+TEST_P(CompileModelWithCacheEncryptionTest, CanImportModelWithoutException) {
     run();
 }
 } // namespace behavior

@@ -157,7 +157,7 @@ protected:
     void SetUp() override;
     void TearDown() override;
 };
-class CompileModelWithCacheCryptoTest : public testing::WithParamInterface<std::string>,
+class CompileModelWithCacheEncryptionTest : public testing::WithParamInterface<std::string>,
                                       virtual public SubgraphBaseTest,
                                       virtual public OVPluginTestBase {
     std::string m_cacheFolderName;
