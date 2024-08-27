@@ -337,6 +337,30 @@ def test_partial_shape_equals():
     ps2 = PartialShape.dynamic(rank=3)
     assert ps1 == ps2
 
+    ps = PartialShape([1, 2, 3])
+    tuple_ps = (1, 2, 3)
+    list_ps = [1, 2, 3]
+    assert ps == tuple_ps
+    assert ps == list_ps
+
+    ps = PartialShape.dynamic(rank=3)
+    tuple_ps = (0, 0, 0)
+    list_ps = [0, 0, 0]
+    assert ps.get_min_shape() == tuple_ps
+    assert ps.get_min_shape() == list_ps
+
+    ps = PartialShape.dynamic()
+    tuple_ps = ()
+    list_ps = []
+    assert ps.get_min_shape() == tuple_ps
+    assert ps.get_min_shape() == list_ps
+
+    ps = PartialShape([Dimension(1), Dimension(2), Dimension(3), Dimension.dynamic()])
+    tuple_ps = (1, 2, 3, 0)
+    list_ps = [1, 2, 3, 0]
+    assert ps.get_min_shape() == tuple_ps
+    assert ps.get_min_shape() == list_ps
+
 
 def test_input_shape_read_only():
     shape = Shape([1, 10])
