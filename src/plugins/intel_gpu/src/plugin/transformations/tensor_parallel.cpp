@@ -344,18 +344,109 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
                 }
             }
             std::cout << "fc fuesd split end\n";
-            int pa_split_index_length = m_fc->get_output_partial_shape(0)[-1].get_length();
-            std::shared_ptr<ov::intel_gpu::op::SyncTensor> sync_node;
-            sync_node =
-                std::make_shared<ov::intel_gpu::op::SyncTensor>(m_fc->output(0), world_size, pa_split_index_length, ov::element::f16);
-            sync_node->set_friendly_name(m_fc->get_friendly_name() + "_TP");
-            // print_shape(sync_node);
+            std::shared_ptr<ov::Node> first_fc_after_pa = nullptr;
+            {
+                auto root = m.get_match_root();
+                if (root) {
+                    first_fc_after_pa = find_first_fc_after_pa(root);
+                }
+            }
+            if (first_fc_after_pa) {
+                auto compressed_fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(first_fc_after_pa);
 
-            auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node->outputs(), -1);
-            concat_node->set_friendly_name(m_fc->get_friendly_name() + "_ALLGATHER");
-            std::cout << "concat_node->outputs(): " << concat_node->outputs().size() << std::endl;
-            copy_runtime_info(m_fc, concat_node);
-            m_fc->get_users()[0]->input(0).replace_source_output(concat_node->output(0));
+                if (compressed_fc && (compressed_fc->get_input_node_shared_ptr(3)->get_shape()[1] % 2 != 0)) {
+                    auto scale_node_dims = compressed_fc->get_input_node_shared_ptr(3)->get_shape()[1];
+                    if (scale_node_dims != 1 && scale_node_dims % 2 != 0) {
+                        int pa_split_index_length = m_fc->get_output_partial_shape(0)[-1].get_length();
+                        std::shared_ptr<ov::intel_gpu::op::SyncTensor> sync_node;
+                        sync_node = std::make_shared<ov::intel_gpu::op::SyncTensor>(m_fc->output(0),
+                                                                                    world_size,
+                                                                                    pa_split_index_length,
+                                                                                    ov::element::f16);
+                        sync_node->set_friendly_name(m_fc->get_friendly_name() + "_TP");
+
+                        auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node->outputs(), -1);
+                        concat_node->set_friendly_name(m_fc->get_friendly_name() + "_ALLGATHER");
+                        std::cout << "concat_node->outputs(): " << concat_node->outputs().size() << std::endl;
+                        copy_runtime_info(m_fc, concat_node);
+                        m_fc->get_users()[0]->input(0).replace_source_output(concat_node->output(0));
+                        return true;
+                    }
+                }
+                {
+                    for (auto user_1 : m_fc->get_users()) {
+                        auto reshape_user = std::dynamic_pointer_cast<ov::op::v1::Reshape>(user_1);
+                        if (reshape_user) {
+                            std::map<int, std::shared_ptr<ov::Node>> org_users;
+                            for (auto u : user_1->get_users()) {
+                                for (size_t idx = 0; idx < u->inputs().size(); ++idx) {
+                                    if (u->get_input_node_shared_ptr(idx) == user_1) {
+                                        org_users.insert({idx, u});
+                                    }
+                                }
+                            }
+                            auto shape0 = std::make_shared<ov::op::v0::Constant>(
+                                ov::element::i32,
+                                ov::Shape{4},
+                                std::vector<int32_t>{-1, 1, half_head_num, head_size});
+                            auto new_reshape = std::make_shared<ov::op::v1::Reshape>(m_fc->output(0), shape0, true);
+                            new_reshape->set_friendly_name(reshape_user->get_friendly_name() + "_tp");
+                            for (auto& iter : org_users) {
+                                iter.second->input(iter.first).replace_source_output(new_reshape->output(0));
+                            }
+                            reshape_user->clear_control_dependencies();
+                            for (auto user : new_reshape->get_users()) {
+                                auto reahpe_user_2 = std::dynamic_pointer_cast<ov::op::v1::Reshape>(user);
+                                auto shape1 = std::make_shared<ov::op::v0::Constant>(
+                                    ov::element::i32,
+                                    ov::Shape{3},
+                                    std::vector<int32_t>{-1, 1, half_head_num * head_size});
+                                auto new_reshape_2 = std::make_shared<ov::op::v1::Reshape>(new_reshape, shape1, true);
+                                new_reshape_2->set_friendly_name(reahpe_user_2->get_friendly_name() + "_tp");
+                                copy_runtime_info(reahpe_user_2, new_reshape_2);
+                                replace_node(reahpe_user_2, new_reshape_2);
+                            }
+                        }
+                    }
+                }
+
+                std::map<int, std::shared_ptr<ov::Node>> org_users;
+                for (auto u : first_fc_after_pa->get_users()) {
+                    for (size_t idx = 0; idx < u->inputs().size(); ++idx) {
+                        if (u->get_input_node_shared_ptr(idx) == first_fc_after_pa) {
+                            org_users.insert({idx, u});
+                        }
+                    }
+                }
+                auto new_fc = split_fc(first_fc_after_pa, op::TP_MODE::ALL_REDUCE).first;
+                std::shared_ptr<ov::intel_gpu::op::SyncTensor> sync_node;
+                sync_node = std::make_shared<ov::intel_gpu::op::SyncTensor>(
+                    new_fc,
+                    world_size,
+                    first_fc_after_pa->get_input_node_shared_ptr(1)->get_shape()[-1],
+                    first_fc_after_pa->get_element_type(),
+                    ov::intel_gpu::op::TP_MODE::ALL_REDUCE);
+                sync_node->set_friendly_name(first_fc_after_pa->get_friendly_name() + "_TP");
+                copy_runtime_info(first_fc_after_pa, new_fc);
+                for (auto& iter : org_users) {
+                    iter.second->input(iter.first).replace_source_output(sync_node->output(0));
+                }
+                first_fc_after_pa->clear_control_dependencies();
+            } else {
+                int pa_split_index_length = m_fc->get_output_partial_shape(0)[-1].get_length();
+                std::shared_ptr<ov::intel_gpu::op::SyncTensor> sync_node;
+                sync_node = std::make_shared<ov::intel_gpu::op::SyncTensor>(m_fc->output(0),
+                                                                            world_size,
+                                                                            pa_split_index_length,
+                                                                            ov::element::f16);
+                sync_node->set_friendly_name(m_fc->get_friendly_name() + "_TP");
+
+                auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node->outputs(), -1);
+                concat_node->set_friendly_name(m_fc->get_friendly_name() + "_ALLGATHER");
+                std::cout << "concat_node->outputs(): " << concat_node->outputs().size() << std::endl;
+                copy_runtime_info(m_fc, concat_node);
+                m_fc->get_users()[0]->input(0).replace_source_output(concat_node->output(0));
+            }
         }
         // else {
         //     std::cout << "*********************\n";
