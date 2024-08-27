@@ -483,6 +483,11 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
     std::ostringstream turbostring;
     turbostring << ov::intel_npu::turbo.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
     content = std::regex_replace(content, std::regex(turbostring.str()), "");
+    // Remove Bypass UMD Caching propery
+    std::ostringstream umdcachestring;
+    umdcachestring << ov::intel_npu::bypass_umd_caching.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+                   << VALUE_DELIMITER;
+    content = std::regex_replace(content, std::regex(umdcachestring.str()), "");
 
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
     // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix
@@ -783,10 +788,10 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreat
 
     _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
 
-    // If OV cache is enabled, disable driver caching
+    // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
     uint32_t flags = ZE_GRAPH_FLAG_NONE;
     const auto set_cache_dir = config.get<CACHE_DIR>();
-    if (!set_cache_dir.empty()) {
+    if (!set_cache_dir.empty() || config.get<BYPASS_UMD_CACHING>()) {
         flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
     }
 

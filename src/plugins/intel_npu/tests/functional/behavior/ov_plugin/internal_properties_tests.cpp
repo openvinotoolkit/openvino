@@ -146,7 +146,6 @@ const std::vector<ov::AnyMap> CorrectPluginMutableProperties = {
       removeDeviceNameOnlyID(
           ov::test::utils::getTestsDeviceNameFromEnvironmentOr(std::string(ov::intel_npu::Platform::AUTO_DETECT)))}},
     {{ov::intel_npu::stepping.name(), 0}},
-    {{ov::intel_npu::max_tiles.name(), 2}},
     {{ov::intel_npu::use_elf_compiler_backend.name(), ov::intel_npu::ElfCompilerBackend::NO}},
     {{ov::intel_npu::profiling_type.name(), ov::intel_npu::ProfilingType::INFER}}};
 
@@ -154,10 +153,8 @@ const std::vector<ov::AnyMap> IncorrectMutablePropertiesWrongValueTypes = {
     {{ov::intel_npu::compilation_mode.name(), -3.6}},
     {{ov::intel_npu::compiler_type.name(), ov::intel_npu::ElfCompilerBackend::NO}},
     {{ov::intel_npu::stepping.name(), "V1"}},
-    {{ov::intel_npu::max_tiles.name(), "two"}},
     {{ov::intel_npu::use_elf_compiler_backend.name(), "N"}},
     {{ov::intel_npu::profiling_type.name(), 10}},
-    {{ov::intel_npu::tiles.name(), "none"}},
     {{ov::intel_npu::dma_engines.name(), false}},
 };
 
