@@ -69,13 +69,17 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
-      - name: Fetch model_zoo_preprocess script
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-        with:
-          sparse-checkout: |
-            src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh
-          sparse-checkout-cone-mode: false
-          path: 'openvino'
+      # Issue 148922
+      # Can be a possible root cause for the bug
+      # Uncomment only when there's a need
+      # to update the models on the shared drive
+      # - name: Fetch model_zoo_preprocess script
+      #   uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      #   with:
+      #     sparse-checkout: |
+      #       src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh
+      #     sparse-checkout-cone-mode: false
+      #     path: 'openvino'
 
       - name: Update Models
         run: bash ${OPENVINO_REPO}/src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh -d ${MODELS_SHARE_PATH} -o -s "${{ env.ONNX_MODEL_ZOO_SHA }}"
