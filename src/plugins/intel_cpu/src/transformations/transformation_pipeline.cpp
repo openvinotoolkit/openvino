@@ -963,13 +963,9 @@ void Transformations::MainSnippets(void) {
         // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
         if (matmul->get_transpose_a() || matmul->get_transpose_b())
             return false;
-        if (in_type0 == ov::element::i8) {
-            // [150531] AVX2_VNNI_2 is not fully supported yet
-            if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
-                return false;
+        if (in_type0 == ov::element::i8)
             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) ||
                    dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni);
-        }
         if ((in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
             ((in_type0 == element::f32 && in_type1 == ov::element::f32 && inferencePrecision == ov::element::bf16))) {
             // Implementation calls AMX BF16 brgemm only for tensors with K and N aligned on 2, otherwise fallbacks on vector impl
