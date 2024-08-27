@@ -315,10 +315,8 @@ void RandomUniform::prepareMersenneTwisterParams() {
     if (m_out_el_num < MERSENNE_TWISTER_PARALLEL_EXECUTION_THRESHOLD) {
         m_threads_num = 1;
     } else {
-        auto max_threads = parallel_get_max_threads();
-        if (max_threads < MERSENNE_TWISTER_MAXIMUM_THREADS_THRESHOLD) {
-            m_threads_num = max_threads;
-        } else {
+        auto m_threads_num = parallel_get_max_threads();
+        if (m_threads_num > MERSENNE_TWISTER_MAXIMUM_THREADS_THRESHOLD) {
             m_threads_num = MERSENNE_TWISTER_MAXIMUM_THREADS_THRESHOLD;
         }
     }
