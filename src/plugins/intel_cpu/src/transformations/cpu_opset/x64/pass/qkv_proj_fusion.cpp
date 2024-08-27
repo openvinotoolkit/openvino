@@ -115,7 +115,6 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
             new_node->add_node_control_dependencies(target);
             target->clear_control_dependents();
         }
-        std::cout << "====== QKVProjFusion:" << old_node->get_friendly_name() << std::endl;
         return true;
     };
 
