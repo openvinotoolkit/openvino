@@ -11,7 +11,7 @@ from tests.utils.helpers import (
     generate_image,
     generate_model_and_image,
     generate_relu_compiled_model,
-    generate_model_with_memory,
+    generate_big_model_with_tile,
     create_filename_for_test)
 from openvino import Model, Shape, Core, Tensor, serialize, Type
 from openvino.runtime import ConstOutput
@@ -84,15 +84,15 @@ def test_export_import_large_model(device):
         pytest.skip(f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
 
     # model of size of roughly 2.01GB
-    model = generate_model_with_memory([6, 10000, 9000], Type.f32)
+    model = generate_big_model_with_tile([1, 10, 9], [6, 10000, 9000], [6, 1000, 1000], Type.f32)
     core = Core()
     compiled_model = core.compile_model(model, device, {})
     user_stream = io.BytesIO()
     compiled_model.export_model(user_stream)
     new_compiled = core.import_model(user_stream, device)
-    img = generate_image([6, 10000, 9000])
+    img = generate_image([1, 10, 9])
     res = new_compiled.infer_new_request({"input_data": img})
-    assert np.argmax(res[new_compiled.outputs[0]]) == 14970
+    assert np.argmax(res[new_compiled.outputs[0]]) == 63006
 
 
 @pytest.mark.parametrize("input_arguments", [[0], ["data"], []])

@@ -234,6 +234,14 @@ def generate_model_with_memory(input_shape, data_type) -> openvino._pyopenvino.M
     return model
 
 
+def generate_big_model_with_tile(input_shape, constant_shape, tile_shape, data_type) -> openvino._pyopenvino.Model:
+    input_data = ops.parameter(input_shape, name="input_data", dtype=data_type)
+    init_val = ops.constant(np.ones(constant_shape), data_type)
+    tile = ops.tile(input_data, tile_shape)
+    add = ops.add(init_val, tile, name="MemoryAdd")
+    return Model(add, [input_data], "TestModel")
+
+
 def create_filename_for_test(test_name, tmp_path, is_xml_path=False, is_bin_path=False):
     """Return a tuple with automatically generated paths for xml and bin files.
 
