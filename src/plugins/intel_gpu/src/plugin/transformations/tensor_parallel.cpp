@@ -31,6 +31,22 @@
 namespace ov {
 namespace intel_gpu {
 
+std::shared_ptr<ov::Node> TensorParallelFusion::fused_fc_before_pa(std::shared_ptr<ov::Node> root_node) {
+    auto get_output_node = [](const ov::Output<ov::Node>& output) -> std::shared_ptr<ov::Node> {
+        return output.get_node_shared_ptr();
+    };
+    auto get_input_node = [&get_output_node](const ov::Input<ov::Node>& input) -> std::shared_ptr<ov::Node> {
+        return get_output_node(input.get_source_output());
+    };
+    auto cur_node = get_input_node(root_node->inputs()[0]);
+    if (ov::is_type<ov::intel_gpu::op::FullyConnectedCompressed>(cur_node)) {
+        // std::cout << "FullyConnectedCompressed: " << cur_node->get_name() << ", "
+        //           << cur_node->get_input_partial_shape(0) << std::endl;
+        return cur_node;
+    }
+    return fused_fc_before_pa(cur_node);
+}
+
 std::shared_ptr<ov::Node> TensorParallelFusion::find_first_fc_after_pa(std::shared_ptr<ov::Node> root_node) {
     const auto& users = root_node->get_users();
     if (users.size() != 1)
@@ -179,13 +195,16 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
                 return {splitted_fc, split_dim_range};
             }
         };
+        if (m_fc->get_friendly_name().find("PagedAttentionExtension") != std::string::npos) {
+            const auto& m_data_in0 = pattern_map.at(in0).get_node_shared_ptr();
+            auto first_fc_before_pa = fused_fc_before_pa(m_data_in0);
 
-        if (m_fc->get_friendly_name().find("self_attn.q_proj/prim::PythonOp/MatMul_fused") != std::string::npos) {
+
             // need to find a common solution instead of name
-            auto new_fc = split_fc(m_fc, op::TP_MODE::ALL_GATHERQKV).first;
-            new_fc->set_friendly_name(m_fc->get_friendly_name());
-            copy_runtime_info(m_fc, new_fc);
-            replace_node(m_fc, new_fc);
+            auto new_fc = split_fc(first_fc_before_pa, op::TP_MODE::ALL_GATHERQKV).first;
+            new_fc->set_friendly_name(first_fc_before_pa->get_friendly_name());
+            copy_runtime_info(first_fc_before_pa, new_fc);
+            replace_node(first_fc_before_pa, new_fc);
 
             auto print_shape = [&](const std::shared_ptr<ov::Node>& m_data) {
                  std::cout << m_data->get_friendly_name() << ": '";
@@ -324,7 +343,7 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size, size_t world_rank)
                     }
                 }
             }
-        } else if (m_fc->get_friendly_name().find("PagedAttentionExtension") != std::string::npos) {
+            std::cout << "fc fuesd split end\n";
             int pa_split_index_length = m_fc->get_output_partial_shape(0)[-1].get_length();
             std::shared_ptr<ov::intel_gpu::op::SyncTensor> sync_node;
             sync_node =

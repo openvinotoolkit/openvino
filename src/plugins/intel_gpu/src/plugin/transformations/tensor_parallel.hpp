@@ -57,6 +57,7 @@ public:
 
 private:
     std::shared_ptr<ov::Node> find_first_fc_after_pa(std::shared_ptr<ov::Node> input);
+    std::shared_ptr<ov::Node> fused_fc_before_pa(std::shared_ptr<ov::Node> input);
 };
 
 }   // namespace intel_gpu
