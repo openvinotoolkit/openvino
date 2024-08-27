@@ -22,7 +22,7 @@ void regclass_Tensor(py::module m) {
                 return Common::object_from_data<ov::Tensor>(array, shared_memory);
             }),
             py::arg("array"),
-            py::arg("shared_memory") = true,
+            py::arg("shared_memory") = false,
             py::ov_extension::conditional_keep_alive<1, 2, 3>(),
             R"(
                 Tensor's special constructor.
