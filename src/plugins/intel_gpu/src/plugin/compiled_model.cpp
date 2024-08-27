@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -14,7 +15,8 @@
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
-#include "plugin/transformations/tensor_parallel.hpp"
+#include "plugin/transformations/pa_tensor_parallel.hpp"
+#include "plugin/transformations/remaining_fc_parallel.hpp"
 #include <sys/types.h>
 #include "openvino/pass/visualize_tree.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
@@ -101,36 +103,21 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                 configs_for_tp[i].subStreamExecConfig = std::move(streamExecutorConfig);
                 auto model_clone = model->clone();
                 // ov::serialize(model_clone, "./model_pa_original.xml");
-                ov::serialize(model_clone, "./model_pa_o.xml", "./model_pa_o.bin");
+                //ov::serialize(model_clone, "./model_pa_o.xml", "./model_pa_o.bin");
                 ov::pass::Manager manager;
-                //bool has_pa_op = false;
-                //for (const auto& op : model_clone->get_ops()) {
-                //    if (std::dynamic_pointer_cast<ov::op::PagedAttentionExtension>(op)) {
-                //        has_pa_op = true;
-                //        break;
-                //    }
-                //}
-                //manager.register_pass<MarkFCSplitStrategy>(has_pa_op);
-                // manager.register_pass<PagedAttentionSplitInput>(m_config.get_context_for_tp().size(), i);
-                // manager.run_passes(model_clone);
-                // ov::pass::VisualizeTree("pa_slice_821.svg").run_on_model(model_clone);
-                // ov::serialize(model_clone, "./model_pa_slice.xml");
-                // tp related
-                // if (config.get_context_for_tp().size() > 1)
-                manager.register_pass<ov::intel_gpu::TensorParallelFusion>(config.get_context_for_tp().size(), i);
+                bool has_pa_op = false;
+                for (const auto& op : model_clone->get_ops()) {
+                    if (std::dynamic_pointer_cast<ov::op::PagedAttentionExtension>(op)) {
+                        has_pa_op = true;
+                        break;
+                    }
+                }
+
+                if (has_pa_op)
+                    manager.register_pass<ov::intel_gpu::PATensorParallelFusion>(config.get_context_for_tp().size(), i);
+                manager.register_pass<ov::intel_gpu::RemainFCParallelFusion>(config.get_context_for_tp().size(), i);
                 manager.run_passes(model_clone);
-                ov::serialize(model_clone, "integrated_vllm_pa_" + std::to_string(i) + ".xml");
-                // std::cout << "fc tp finished***********************************************\n";
-                // ov::serialize(model_clone, "./model_pa_822-2.xml");
-                // ov::pass::VisualizeTree("pa_slice_8212.svg").run_on_model(model_clone);
-
-                // manager.register_pass<PagedAttentionSplitInput>(m_config.get_context_for_tp().size(), i);
-                // manager.run_passes(model_clone);
-
-                // // // manager.register_pass<ov::pass::ConstantFolding>();
-                // manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>();
-                // manager.run_passes(model_clone);
-                // ov::serialize(model_clone, "bell_saved_" + std::to_string(i) + ".xml");
+                //ov::serialize(model_clone, "integrated_vllm_pa_" + std::to_string(i) + ".xml");
                 m_sub_compiled_models.push_back(std::make_shared<CompiledModel>(
                     model_clone, plugin, m_config.get_context_for_tp()[i].as<RemoteContextImpl::Ptr>(), configs_for_tp[i], m_sub_memory_manager));
                 GPU_DEBUG_TRACE_DETAIL << "sub models for TP created, rank " << configs_for_tp[i].streamsRankTable[i][0] << std::endl;
