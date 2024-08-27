@@ -79,17 +79,18 @@ jobs:
       event-name: ${{ github.event_name }}
       os: 'debian_10'
       arch: 'arm'
-      cmake-options: >- 
-            -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/arm.toolchain.cmake \
-            -DENABLE_CPPLINT=OFF \
-            -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_TESTS=ON \
-            -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_OPENCL=ON \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
-            -DENABLE_PYTHON=OFF \
-            -DCPACK_GENERATOR=TGZ \
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
+      cmake-options: >-
+        -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/arm.toolchain.cmake \
+        -DTHREADS_PTHREAD_ARG="-pthread" \
+        -DCMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT=OFF \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DENABLE_STRICT_DEPENDENCIES=OFF \
+        -DCMAKE_VERBOSE_MAKEFILE=ON \
+        -DENABLE_CONFORMANCE_PGQL=ON \
+        -DENABLE_LTO=ON \
+        -DENABLE_TESTS=ON \
+        -DENABLE_PYTHON=OFF
+
 #  Build:
 #    needs: [ Smart_CI, Docker ]
 #    timeout-minutes: 150
