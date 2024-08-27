@@ -445,8 +445,10 @@ static void compute_scale_and_zero_point_internal(const std::shared_ptr<ov::op::
                                                   ov::Tensor& zero_point_tensor,
                                                   bool& zero_point_is_zero,
                                                   ov::element::Type& low_precision_type) {
-    // we consider that if all output low values are non negative then unsigned int (u8, u4) need to be used.
-    bool out_low_non_neg = is_non_negative(output_low->get_data_ptr<T>(), output_low->get_shape());
+    // we consider that if all output low and output high values are non negative then unsigned int (u8, u4) need to be
+    // used.
+    bool out_low_non_neg = is_non_negative(output_low->get_data_ptr<T>(), output_low->get_shape()) &&
+                           is_non_negative(output_high->get_data_ptr<T>(), output_high->get_shape());
     zero_point_is_zero = true;
     float new_output_low;
     if (out_low_non_neg) {
@@ -752,11 +754,11 @@ static std::shared_ptr<ov::op::v0::Constant> compress_quantized_weights_internal
     size_t levels,
     bool& can_fuse_zero_point) {
     ov::element::Type new_low_precision_type = low_precision_type;
-    bool out_low_not_neg = is_non_negative(output_low, output_low_shape);
+    bool out_not_neg = is_non_negative(output_low, output_low_shape) && is_non_negative(output_high, output_high_shape);
 
-    if (low_precision_type == ov::element::i8 && out_low_not_neg) {
+    if (low_precision_type == ov::element::i8 && out_not_neg) {
         new_low_precision_type = ov::element::u8;
-    } else if (low_precision_type == ov::element::i4 && out_low_not_neg) {
+    } else if (low_precision_type == ov::element::i4 && out_not_neg) {
         new_low_precision_type = ov::element::u4;
     }
 
