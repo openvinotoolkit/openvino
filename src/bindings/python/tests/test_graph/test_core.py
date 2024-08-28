@@ -319,12 +319,10 @@ def test_partial_shape_refinement():
     assert not ps2.relaxes(ps1)
 
 
-def test_shape_equals():
-    sh = Shape([1, 2, 3])
-    tuple_sh = (1, 2, 3)
-    list_sh = [1, 2, 3]
-    assert sh == tuple_sh
-    assert sh == list_sh
+@pytest.mark.parametrize("shape_to_compare", [[1, 2, 3], (1, 2, 3)])
+def test_shape_equals(shape_to_compare):
+    shape = Shape([1, 2, 3])
+    assert shape == shape_to_compare
 
 
 def test_partial_shape_equals():
