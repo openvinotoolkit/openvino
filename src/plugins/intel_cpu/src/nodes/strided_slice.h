@@ -129,7 +129,7 @@ private:
     bool isStrideSpecified = false;
     bool isAxesSpecified = false;
 
-    bool isConstantInput[5 + 1] = {false};
+    bool isConstantInput[6] = {false};
     bool shapeHasDataDependency = false;
     bool hasConstAttrInputs = true;
 
