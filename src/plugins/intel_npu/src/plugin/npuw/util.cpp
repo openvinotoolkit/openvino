@@ -461,7 +461,7 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
         unpackedToI8[unpackedIdx++] = upc(lo4(*(pSrc)));
         unpackedToI8[unpackedIdx++] = upc(hi4(*(pSrc)));
         if (unpackedIdx == VECSIZE) {
-            __m128i i8vec = _mm_loadu_si64(reinterpret_cast<__m128i*>(unpackedToI8));
+            __m128i i8vec = _mm_loadl_epi64(reinterpret_cast<__m128i*>(unpackedToI8));
             __m128i f16vec = avx2_i8tof16(i8vec);
             _mm_storeu_si128(reinterpret_cast<__m128i*>(pDst), f16vec);
             pDst += VECSIZE;
@@ -473,7 +473,7 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
     // handle tail that is < 8
     if (unpackedIdx != 0) {
         int16_t tmp[VECSIZE];
-        __m128i i8vec = _mm_loadu_si64(reinterpret_cast<__m128i*>(unpackedToI8));
+        __m128i i8vec = _mm_loadl_epi64(reinterpret_cast<__m128i*>(unpackedToI8));
         __m128i f16vec = avx2_i8tof16(i8vec);
         _mm_storeu_si128(reinterpret_cast<__m128i*>(tmp), f16vec);
         for (size_t i = 0; i != unpackedIdx; i++) {
