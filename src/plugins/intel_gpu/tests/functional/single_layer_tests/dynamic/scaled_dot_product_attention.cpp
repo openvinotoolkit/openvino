@@ -244,6 +244,21 @@ const std::vector<std::vector<InputShape>> shapes{
             {ov::Shape{1, 1, 7, 7}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}
         },
     },
+    // static shapes
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 100, 128},
+            {ov::Shape{1, 8, 100, 128}}}
+        },
+        // kv shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 100, 128},
+            {ov::Shape{1, 8, 100, 128}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{1, 1, 100, 100},
+            {ov::Shape{1, 1, 100, 100}}}
+        },
+    },
 };
 
 const auto params = testing::Combine(testing::Values(ov::element::f16 /*, ov::element::f32 */),
