@@ -71,7 +71,7 @@ jobs:
             final_dir="${{ github.ref_name }}" # Resolves into "master"
           fi
           
-          echo "CCACHE_REMOTE_DIR=C:\\\mount\\\caches\\\ccache\\\windows2022_x86_64_${{ inputs.build-type }}\\\$final_dir" >> $GITHUB_ENV
+          echo "CCACHE_REMOTE_DIR=C:\\\mount\\\caches\\\ccache\\\windows2022_x86_64_${{ inputs.build-type }}\\\\${final_dir}" >> $GITHUB_ENV
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
