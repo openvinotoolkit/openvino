@@ -2290,6 +2290,9 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         t.add_primitive(std::const_pointer_cast<primitive>(_node->get_primitive()));
         outer_dep_ids.push_back(_node->id());
 
+        primitive_id fused_bias_eltw = _node->is_type<fully_connected>() ?
+                                       _impl_params->typed_desc<fully_connected>()->fused_bias_eltw : "";
+
         // Add primitives for fused-ops
         for (auto& fd : _impl_params->fused_desc) {
             auto prim = std::const_pointer_cast<primitive>(fd.desc);
@@ -2310,8 +2313,12 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                     if (std::find_if(outer_dep_ids.begin(), outer_dep_ids.end(), [&](const primitive_id& pid) {
                             return pid == in.pid;
                         }) == outer_dep_ids.end()) {
-                        size_t dep_id = fd.outer_dep_start_idx;
-                        in = _node->get_dependency(dep_id).id();
+                        if (in.pid == fused_bias_eltw) {
+                            in = _node->id();
+                        } else {
+                            size_t dep_id = fd.outer_dep_start_idx;
+                            in = _node->get_dependency(dep_id).id();
+                        }
                     }
                 }
             }
@@ -2404,6 +2411,16 @@ bool primitive_inst::is_valid_fusion() const {
 
             if (gemm_dims[0] != data_dims[0])
                 return false;
+        } else if (_node->is_type<fully_connected>() && _node->get_preferred_impl_type() == impl_types::onednn) {
+            const auto& fc_layout = _impl_params->get_output_layout();
+            const auto& data_layout = outer_dep.first->_impl_params->get_output_layout();
+
+            if ((fc_layout.batch() == 1 || fc_layout.feature() == 1) ||
+                (data_layout.batch() == 1 && data_layout.feature() == 1) ||
+                (fc_layout.count() == data_layout.count())) {
+            } else {
+                return false;
+            }
         }
 #endif
 

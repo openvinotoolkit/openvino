@@ -403,6 +403,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                        fc.get_output_layout().data_type,
                                                                        desc->input_size);
 
+            fc_with_bias_prim->fused_bias_eltw = eltw_node.id();
             if (desc->compressed_weights) {
                 fc_with_bias_prim->compressed_weights = true;
                 fc_with_bias_prim->decompression_scale = desc->decompression_scale;

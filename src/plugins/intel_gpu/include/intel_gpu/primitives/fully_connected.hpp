@@ -140,6 +140,7 @@ struct fully_connected : public primitive_base<fully_connected> {
     /// @brief Primitive id containing bias data.
     primitive_id bias;
 
+    primitive_id fused_bias_eltw = "";
     bool compressed_weights = false;
     primitive_id decompression_scale = "";
     primitive_id decompression_zero_point = "";
