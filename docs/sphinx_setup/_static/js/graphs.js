@@ -726,7 +726,7 @@ $(document).ready(function () {
             columnHeaderContainer.append(columnIcon);
             var columnHeader = $('<div class="chart-header">');
             columnHeader.append($('<div class="title">' + graphConfig.chartTitle + '</div>'));
-            columnHeader.append($('<div class="subtitle">' + graphConfig.unit + ' (' + appConfig.UnitDescription[graphConfig.unit] + ')</div>'));
+            columnHeader.append($('<div class="subtitle">' + graphConfig.unit + ' ' + appConfig.UnitDescription[graphConfig.unit] + '</div>'));
             columnHeaderContainer.append(columnHeader);
             chartGraphsContainer.append(graphItem);
             var graphClass = $('<div>');
