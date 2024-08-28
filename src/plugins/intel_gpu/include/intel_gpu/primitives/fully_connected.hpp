@@ -187,6 +187,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         primitive_base<fully_connected>::save(ob);
         ob << weights;
         ob << bias;
+        ob << fused_bias_eltw;
         ob << compressed_weights;
         ob << decompression_scale;
         ob << decompression_zero_point;
@@ -208,6 +209,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         primitive_base<fully_connected>::load(ib);
         ib >> weights;
         ib >> bias;
+        ib >> fused_bias_eltw;
         ib >> compressed_weights;
         ib >> decompression_scale;
         ib >> decompression_zero_point;
