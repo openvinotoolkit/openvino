@@ -1010,7 +1010,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         auto append_runtime_info = [](pugi::xml_node& node, ov::RTMap& attributes) {
             pugi::xml_node rt_node = node.append_child("rt_info");
             bool has_attrs = false;
-            for (auto& item : attributes) {
+            for (const auto& item : attributes) {
                 if (item.second.is<ov::RuntimeAttribute>()) {
                     auto attribute_node = rt_node.append_child("attribute");
                     auto& rt_attribute = item.second.as<ov::RuntimeAttribute>();
@@ -1023,6 +1023,14 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                     } else {
                         has_attrs = true;
                     }
+                }
+            }
+            for (const auto& item : attributes) {
+                if (!item.second.is<ov::RuntimeAttribute>()) {
+                    auto custom_node = rt_node.append_child("custom");
+                    custom_node.append_attribute("name").set_value(item.first.c_str());
+                    custom_node.append_attribute("value").set_value(item.second.as<std::string>().c_str());
+                    has_attrs = true;
                 }
             }
             if (!has_attrs) {

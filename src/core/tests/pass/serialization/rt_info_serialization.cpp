@@ -299,3 +299,112 @@ TEST(OvSerializationTests, SerializeRawMeta) {
         EXPECT_EQ(0, serialized_model.compare(ir_with_rt_info));
     }
 }
+
+#include <iostream>
+#include <sstream>
+
+using namespace ov;
+using ov::op::v0::Parameter;
+using ov::op::v0::Result;
+using ov::op::v1::Add;
+
+TEST(SerializeCustomRTI, basic_RENAMEME) {
+    std::string ir = R"V0G0N(<?xml version="1.0"?>
+<net name="model_T" version="11">
+	<layers>
+		<layer id="0" name="node_A" type="Parameter" version="opset1">
+			<data shape="10,10" element_type="f32" />
+			<rt_info>
+				<custom name="node_info_A" value="v_A" />
+			</rt_info>
+			<output>
+				<port id="0" precision="FP32">
+					<dim>10</dim>
+					<dim>10</dim>
+					<rt_info>
+						<custom name="output_info_A" value="o_A" />
+					</rt_info>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="node_B" type="Const" version="opset1">
+			<data element_type="f32" shape="1" offset="0" size="4" />
+			<rt_info>
+				<custom name="node_info_B" value="v_B" />
+			</rt_info>
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<rt_info>
+						<custom name="output_info_B" value="o_B" />
+					</rt_info>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="node_C" type="Add" version="opset1">
+			<data auto_broadcast="numpy" />
+			<rt_info>
+				<custom name="node_info_C" value="v_C" />
+			</rt_info>
+			<input>
+				<port id="0" precision="FP32">
+					<dim>10</dim>
+					<dim>10</dim>
+				</port>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>10</dim>
+					<dim>10</dim>
+					<rt_info>
+						<custom name="output_info_C" value="o_C" />
+						<custom name="output_info_D" value="o_D" />
+					</rt_info>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="node_D" type="Result" version="opset1">
+			<rt_info>
+				<custom name="node_info_D" value="v_D" />
+			</rt_info>
+			<input>
+				<port id="0" precision="FP32">
+					<dim>10</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0" />
+		<edge from-layer="1" from-port="0" to-layer="2" to-port="1" />
+		<edge from-layer="2" from-port="2" to-layer="3" to-port="0" />
+	</edges>
+	<rt_info />
+</net>
+)V0G0N";
+
+    const auto add_info = [](const std::shared_ptr<Node>& node, const std::string& value) {
+        const_cast<std::string&>(node->get_name()) = "node_" + value;
+        node->get_rt_info()["node_info_" + value] = "v_" + value;
+        node->output(0).get_rt_info()["output_info_" + value] = "o_" + value;
+    };
+
+    const auto data = std::make_shared<Parameter>(element::Type_t::f32, Shape{10, 10});
+    add_info(data, "A");
+    const auto one = std::make_shared<op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{1.f});
+    add_info(one, "B");
+    const auto add = std::make_shared<Add>(data, one);
+    add_info(add, "C");
+    const auto result = std::make_shared<Result>(add);
+    add_info(result, "D");
+    const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    const_cast<std::string&>(model->get_name()) = "model_T";
+
+    std::stringstream model_ss, weights_ss;
+    EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
+    EXPECT_EQ(ir.compare(model_ss.str()), 0);
+}
