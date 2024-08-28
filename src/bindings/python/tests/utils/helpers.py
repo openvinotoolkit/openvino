@@ -258,7 +258,7 @@ def generate_model_with_memory(input_shape, data_type) -> openvino._pyopenvino.M
 
 def generate_big_model_with_tile(input_shape, constant_shape, tile_shape, data_type) -> openvino._pyopenvino.Model:
     input_data = ops.parameter(input_shape, name="input_data", dtype=data_type)
-    init_val = ops.constant(np.ones(constant_shape), data_type)
+    init_val = ops.constant(np.ones(constant_shape, np.float32), data_type)
     tile = ops.tile(input_data, tile_shape)
     add = ops.add(init_val, tile, name="MemoryAdd")
     return Model(add, [input_data], "TestModel")
