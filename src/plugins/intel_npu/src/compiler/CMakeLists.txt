@@ -21,14 +21,12 @@ target_include_directories(${TARGET_NAME}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
-include_directories(${CMAKE_SOURCE_DIR}/src/plugins/intel_npu/src/backend/include)
-include_directories(${CMAKE_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include)
-
 target_link_libraries(${TARGET_NAME}
     PUBLIC
         openvino::npu_al
     PRIVATE
         openvino_npu_zero_result_parser
+        openvino_npu_level_zero_backend
         openvino::runtime
         openvino::runtime::dev
         ze_loader

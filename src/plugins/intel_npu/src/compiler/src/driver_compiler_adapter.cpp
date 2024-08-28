@@ -4,7 +4,6 @@
 
 #include "driver_compiler_adapter.hpp"
 
-#include "backends.hpp"
 #include "graph_transformations.hpp"
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -17,12 +16,10 @@
 namespace intel_npu {
 namespace driverCompilerAdapter {
 
-LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> npuBackends)
+LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<IEngineBackend> iEngineBackend)
     : _logger("LevelZeroCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize LevelZeroCompilerAdapter start");
 
-    ov::SoPtr<intel_npu::IEngineBackend> soPtrBackend = npuBackends->getIEngineBackend();
-    std::shared_ptr<intel_npu::IEngineBackend> iEngineBackend = soPtrBackend._ptr;
     std::shared_ptr<ZeroEngineBackend> zeroBackend = nullptr;
     zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(iEngineBackend);
     if (!zeroBackend) {
@@ -31,14 +28,13 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> 
 
     uint32_t driverExtVersion = zeroBackend->getDriverExtVersion();
 
-    ze_context_handle_t zeContext = (ze_context_handle_t)zeroBackend->getContext();
-    ze_driver_handle_t driverHandle = (ze_driver_handle_t)zeroBackend->getDriverHandle();
-    ze_device_handle_t deviceHandle = (ze_device_handle_t)zeroBackend->getDeviceHandle();
+    ze_context_handle_t zeContext = static_cast<ze_context_handle_t>(zeroBackend->getContext());
+    ze_driver_handle_t driverHandle = static_cast<ze_driver_handle_t>(zeroBackend->getDriverHandle());
+    ze_device_handle_t deviceHandle = static_cast<ze_device_handle_t>(zeroBackend->getDeviceHandle());
     ze_graph_dditable_ext_last_t* graph_ddi_table_ext = zeroBackend->getGraphDDITableExt();
 
     if (driverHandle == nullptr) {
         OPENVINO_THROW("LevelZeroCompilerAdapter failed to get properties about zeDriver");
-        return;
     }
 
     _logger.info("LevelZeroCompilerAdapter creating adapter using driverExtVersion");
