@@ -891,10 +891,6 @@ div.highlight {
         gap: .5rem;
     }
 
-    .clear-all-btn {
-        padding: 0;
-    }
-
     .modal-content-grid-container {
         grid-template-columns: 1fr;
         grid-template-rows: auto;
@@ -965,10 +961,14 @@ div.highlight {
 
 .clear-all-btn {
     cursor: pointer;
+    padding: 0;
+    /* Disabled Clear All button. It is temporary solution */
+    display: none;
 }
 
 .clear-all-btn-content {
     border: 1.5px solid black;
+    display: none;
     padding: 6px 10px;
 }
 
