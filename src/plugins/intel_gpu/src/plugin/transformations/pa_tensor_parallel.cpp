@@ -41,7 +41,8 @@ std::shared_ptr<ov::Node> PATensorParallelFusion::fused_fc_before_pa(std::shared
         return get_output_node(input.get_source_output());
     };
     auto cur_node = get_input_node(root_node->inputs()[0]);
-    if (ov::is_type<ov::intel_gpu::op::FullyConnectedCompressed>(cur_node)) {
+    if (ov::is_type<ov::intel_gpu::op::FullyConnectedCompressed>(cur_node) ||
+        ov::is_type<ov::intel_gpu::op::FullyConnected>(cur_node)) {
         return cur_node;
     }
     return fused_fc_before_pa(cur_node);
@@ -396,7 +397,7 @@ PATensorParallelFusion::PATensorParallelFusion(size_t world_size, size_t world_r
 
                 if (compressed_fc && (compressed_fc->get_input_node_shared_ptr(3)->get_shape()[1] % 2 != 0)) {
                     auto scale_node_dims = compressed_fc->get_input_node_shared_ptr(3)->get_shape()[1];
-                    if (scale_node_dims != 1 && scale_node_dims % 2 != 0) {
+                    if ((scale_node_dims == 1) || (scale_node_dims != 1 && scale_node_dims % 2 != 0)) {
                         int pa_split_index_length = m_pa->get_output_partial_shape(0)[-1].get_length();
                         std::shared_ptr<ov::intel_gpu::op::SyncTensor> sync_node;
                         sync_node = std::make_shared<ov::intel_gpu::op::SyncTensor>(m_pa->output(0),
