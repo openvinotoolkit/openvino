@@ -82,7 +82,7 @@ jobs:
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '/__w/openvino/openvino/manifest.yml'
-      PRODUCT_TYPE: public_linux_${{ inputs.os }}_release
+      PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
     steps:
       - name: Show cmake options
         run: echo "${{ inputs.cmake-options }}"
