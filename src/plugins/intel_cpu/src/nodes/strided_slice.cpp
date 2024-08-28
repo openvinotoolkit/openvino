@@ -324,6 +324,11 @@ bool StridedSlice::needShapeInfer() const {
 }
 
 void StridedSlice::execute(dnnl::stream strm) {
+    if (attrs.isSliceScatterOp && shapeHasDataDependency) {
+        // Workaround for SliceScatter op.
+        // Since shape doesn't depend on input values, prepareParams might not be called resulting in empty executor.
+        prepareParams();
+    }
     if (!execPtr)
         OPENVINO_THROW(errorPrefix, "doesn't have compiled executor!");
 
