@@ -51,7 +51,7 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       LSAN_IGNORE: /__w/openvino/openvino/openvino/tests/lsan/suppressions.txt
       ASAN_IGNORE: /__w/openvino/openvino/openvino/tests/asan/suppressions.supp
-      TBB_ENABLE_SANITIZERS: 'ON'
+      TBB_ENABLE_SANITIZERS: 1
       CXX: clang++
       CC: clang
 
