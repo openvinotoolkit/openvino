@@ -22,8 +22,10 @@ JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params, bool seq
     if (sequential) {
         jit.AddConstants({MakeJitConstant("SEQUENCE", 1)});
     }
-    int num_hidden_kernels;
-    int hidden_size;
+    const unsigned int max_seq_len = params.inputs[0].Feature().v;
+    jit.AddConstants({MakeJitConstant("MAX_SEQ_LEN", max_seq_len)});
+    unsigned int num_hidden_kernels;
+    unsigned int hidden_size;
     if (sequential) {
         hidden_size = static_cast<int>(params.inputs[1].Y().v);
 
@@ -46,7 +48,7 @@ JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params, bool seq
     });
     jit.AddConstants({MakeJitConstant("BATCH_SIZE", params.inputs[1].Batch().v)});
     jit.AddConstants({MakeJitConstant("HIDDEN_SIZE", hidden_size)});
-    const int vec_size = vec_size_selector(hidden_size);
+    const unsigned int vec_size = vec_size_selector(hidden_size);
     jit.AddConstants({MakeJitConstant("VEC_SIZE", vec_size)});
     jit.AddConstants({MakeJitConstant("HBLOCK_NUM", hidden_size/vec_size)});
     int num_hidden_to_do = hidden_size/num_hidden_kernels + (hidden_size % num_hidden_kernels  ? 1 : 0);
