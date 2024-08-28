@@ -73,22 +73,16 @@ both `the NNCF repository <https://github.com/openvinotoolkit/nncf?tab=readme-ov
       For more installation details, see the page on
       `NNCF Installation <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Installation.md>`__.
 
-   .. tab-item:: System requirements
+   .. tab-item:: System Requirements
       :sync: sys-req
 
-      Note that to optimize a model, you will need to install this model's framework as well.
-      Install NNCF in the same Python environment as the framework. For a list of recommended
-      framework versions, see the
-      `framework compatibility table <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Installation.md#corresponding-versions>`__.
-
-      * Ubuntu* 18.04 or later (64-bit)
-      * Python* 3.8 or later
-      * Supported frameworks:
-
-        * PyTorch* >=2.3, <2.5
-        * TensorFlow* >=2.8.4, <=2.15.1
-        * ONNX* ==1.16.0
-        * OpenVINO* >=2022.3.0
+      | Full requirement listing is available in:
+      | `NNCF GitHub Repository <https://github.com/openvinotoolkit/nncf?tab=readme-ov-file#system-requirements>`__
+      |
+      | Note that to optimize a model, you will need to install this model's framework as well.
+      | Install NNCF in the same Python environment as the framework. For a list of recommended
+      | framework versions, see the
+      | `framework compatibility table <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Installation.md#corresponding-versions>`__.
 
 
 .. note::
