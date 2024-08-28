@@ -37,3 +37,6 @@ const char* ov_property_key_hint_execution_mode = "EXECUTION_MODE_HINT";
 const char* ov_property_key_force_tbb_terminate = "FORCE_TBB_TERMINATE";
 const char* ov_property_key_enable_mmap = "ENABLE_MMAP";
 const char* ov_property_key_auto_batch_timeout = "AUTO_BATCH_TIMEOUT";
+
+// Write-only property key
+const char* ov_property_key_cache_encryption_callbacks = "CACHE_ENCRYPTION_CALLBACKS";

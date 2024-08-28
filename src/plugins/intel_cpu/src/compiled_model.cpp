@@ -338,7 +338,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
 }
 
 void CompiledModel::export_model(std::ostream& modelStream) const {
-    ModelSerializer serializer(modelStream);
+    ModelSerializer serializer(modelStream, m_cfg.cacheEncrypt);
     serializer << m_model;
 }
 

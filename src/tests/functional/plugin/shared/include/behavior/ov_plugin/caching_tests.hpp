@@ -10,6 +10,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/codec_xor.hpp"
 #include "base/ov_behavior_test_utils.hpp"
 
 namespace ov {
@@ -155,6 +156,20 @@ protected:
 
     void SetUp() override;
     void TearDown() override;
+};
+class CompileModelWithCacheEncryptionTest : public testing::WithParamInterface<std::string>,
+                                      virtual public SubgraphBaseTest,
+                                      virtual public OVPluginTestBase {
+    std::string m_cacheFolderName;
+    std::string m_modelName;
+    std::string m_weightsName;
+
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
+
+    void SetUp() override;
+    void TearDown() override;
+    void run() override;
 };
 } // namespace behavior
 } // namespace test

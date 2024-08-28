@@ -78,4 +78,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::ValuesIn(GPULoadFromFileConfigs)),
                          CompileModelLoadFromCacheTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
+                         CompileModelWithCacheEncryptionTest,
+                         ::testing::Values(ov::test::utils::DEVICE_GPU),
+                         CompileModelWithCacheEncryptionTest::getTestCaseName);
 } // namespace
