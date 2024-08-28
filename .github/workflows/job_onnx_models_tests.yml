@@ -102,17 +102,21 @@ jobs:
           # To enable pytest parallel features
           python3 -m pip install pytest-xdist[psutil] pytest-forked
 
+      - name: Copy ONNX models
+        run: |
+          mkdir -p ${ONNX_MODELS_PATH} && find ${MODELS_SHARE_PATH} -depth -type f -name "*.onnx" -exec cp {} ${ONNX_MODELS_PATH} \;
+
       - name: Find ONNX models
         run: |
-          find ${MODELS_SHARE_PATH} -depth -type f -name "*.onnx" -print
+          find ${ONNX_MODELS_PATH} -depth -type f -name "*.onnx" -print
 
       - name: Collect ONNX Models tests
         run: |
-          python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 1 -k 'not _cuda' --model_zoo_xfail --collect-only
+          python3 -m pytest --backend="CPU" --model_zoo_dir="${ONNX_MODELS_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 1 -k 'not _cuda' --model_zoo_xfail --collect-only
 
       - name: ONNX Models Tests
         run: |
-          python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n auto --forked -k 'not _cuda' --model_zoo_xfail
+          python3 -m pytest --backend="CPU" --model_zoo_dir="${ONNX_MODELS_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n auto --forked -k 'not _cuda' --model_zoo_xfail
 
       - name: Upload logs from pytest
         uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
