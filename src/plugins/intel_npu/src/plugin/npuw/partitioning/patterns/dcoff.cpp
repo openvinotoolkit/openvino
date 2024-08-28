@@ -1035,9 +1035,7 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
     auto cvtB = opp::wrap_type<ov::op::v0::Convert>({paramB});
     auto subtr = opp::wrap_type<ov::op::v1::Subtract>({cvtA, cvtB});
     auto mulply = opp::wrap_type<ov::op::v1::Multiply>({subtr, paramC});
-
-    auto scalar = opp::wrap_type<ov::op::v0::Constant>();
-    auto cvt = opp::wrap_type<ov::op::v0::Convert>({mulply, scalar});
+    auto cvt = opp::wrap_type<ov::op::v0::Convert>({mulply});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
@@ -1054,8 +1052,9 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
         auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
 
         if (((ov::element::u4 == matched_paramA->get_element_type() &&
-            ov::element::u4 == matched_paramB->get_element_type()) || (ov::element::u8 == matched_paramA->get_element_type() &&
-            ov::element::u8 == matched_paramB->get_element_type())) &&
+              ov::element::u4 == matched_paramB->get_element_type()) ||
+             (ov::element::u8 == matched_paramA->get_element_type() &&
+              ov::element::u8 == matched_paramB->get_element_type())) &&
             ov::element::f16 == matched_paramC->get_element_type()) {
             LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << dcoff_type);
             matched_paramA->set_element_type(dcoff_type);

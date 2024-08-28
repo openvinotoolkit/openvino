@@ -886,23 +886,19 @@ void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
     const auto& from_shape = from->get_shape();
     NPUW_ASSERT(from_shape.back() % 64 == 0);
 
-    // 3-channel (group-wise) scale factors are
-    // supported.
-
+    // 2-channel (Symmetric) and 3-channel (group-wise)
+    // scale factors are supported. The scale/value loop
+    // iteration is based on stotal, so should work for
+    // both cases.
     const auto& scale_shape = scale->get_shape();
-    NPUW_ASSERT(scale_shape.size() == 3);
+    NPUW_ASSERT(scale_shape.size() == 3 || scale_shape.size() == 2);
     if (scale_shape.size() == 3) {
         NPUW_ASSERT(scale_shape[0] == from_shape[0]);
         NPUW_ASSERT(scale_shape[1] == from_shape[1]);
         NPUW_ASSERT(scale_shape[2] == 1);
-    }
-
-    const auto& zerop_shape = zerop->get_shape();
-    NPUW_ASSERT(zerop_shape.size() == 3);
-    if (zerop_shape.size() == 3) {
-        NPUW_ASSERT(zerop_shape[0] == from_shape[0]);
-        NPUW_ASSERT(zerop_shape[1] == from_shape[1]);
-        NPUW_ASSERT(zerop_shape[2] == 1);
+    } else {
+        NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+        NPUW_ASSERT(scale_shape[1] == 1);
     }
 
     const auto zerop_elem_type = zerop->get_element_type();
@@ -1066,23 +1062,19 @@ void unpack_u8f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
     const auto& from_shape = from->get_shape();
     NPUW_ASSERT(from_shape.back() % 64 == 0);
 
-    // 3-channel (group-wise) scale factors are
-    // supported.
-
+    // 2-channel (Symmetric) and 3-channel (group-wise)
+    // scale factors are supported. The scale/value loop
+    // iteration is based on stotal, so should work for
+    // both cases.
     const auto& scale_shape = scale->get_shape();
-    NPUW_ASSERT(scale_shape.size() == 3);
+    NPUW_ASSERT(scale_shape.size() == 3 || scale_shape.size() == 2);
     if (scale_shape.size() == 3) {
         NPUW_ASSERT(scale_shape[0] == from_shape[0]);
         NPUW_ASSERT(scale_shape[1] == from_shape[1]);
         NPUW_ASSERT(scale_shape[2] == 1);
-    }
-
-    const auto& zerop_shape = zerop->get_shape();
-    NPUW_ASSERT(zerop_shape.size() == 3);
-    if (zerop_shape.size() == 3) {
-        NPUW_ASSERT(zerop_shape[0] == from_shape[0]);
-        NPUW_ASSERT(zerop_shape[1] == from_shape[1]);
-        NPUW_ASSERT(zerop_shape[2] == 1);
+    } else {
+        NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+        NPUW_ASSERT(scale_shape[1] == 1);
     }
 
     const auto zerop_elem_type = zerop->get_element_type();
@@ -1485,14 +1477,18 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
             scale_shape[2] == from_shape[2]) {
             unpack_u4f16_z(from, zerop, scale, to, unpack_options);
         } else if (scale_shape.size() == 3 && scale_shape[0] == from_shape[0] && scale_shape[1] == from_shape[1] &&
-                scale_shape[2] == 1) {
+                   scale_shape[2] == 1) {
             if (zerop->get_size() == 1) {
                 unpack_u4f16(from, zerop, scale, to, unpack_options);
             } else {
                 unpack_u4f16_asymm_zp(from, zerop, scale, to, unpack_options);
             }
         } else if (scale_shape.size() == 2 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1) {
-            unpack_u4f16(from, zerop, scale, to, unpack_options);
+            if (zerop->get_size() == 1) {
+                unpack_u4f16(from, zerop, scale, to, unpack_options);
+            } else {
+                unpack_u4f16_asymm_zp(from, zerop, scale, to, unpack_options);
+            }
         } else {
             NPUW_ASSERT(false);
         }
@@ -1505,8 +1501,15 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         const auto& from_shape = from->get_shape();
         const auto& scale_shape = scale->get_shape();
 
-        NPUW_ASSERT(scale_shape.size() == 3 && scale_shape[0] == from_shape[0] && scale_shape[1] == from_shape[1] && scale_shape[2] == 1);
         NPUW_ASSERT(zerop->get_size() > 1);
+        if (scale_shape.size() == 3 && scale_shape[0] == from_shape[0] && scale_shape[1] == from_shape[1] &&
+            scale_shape[2] == 1) {
+            unpack_u8f16_asymm_zp(from, zerop, scale, to, unpack_options);
+        } else if (scale_shape.size() == 2 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1) {
+            unpack_u8f16_asymm_zp(from, zerop, scale, to, unpack_options);
+        } else {
+            NPUW_ASSERT(false);
+        }
 
         unpack_u8f16_asymm_zp(from, zerop, scale, to, unpack_options);
     } else {
