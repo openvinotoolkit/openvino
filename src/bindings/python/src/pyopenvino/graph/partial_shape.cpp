@@ -21,7 +21,7 @@ namespace py = pybind11;
 template <typename T>
 bool compare_shape(const ov::PartialShape& a, const T& b) {
     if (a.is_dynamic()) {
-        throw py::type_error("Cannot compare dynamic shape with " + std::string(typeid(b).name()));
+        throw py::type_error("Cannot compare dynamic shape with " + std::string(py::str(py::type::of(b))));
     }
     return a.size() == b.size() &&
            std::equal(a.begin(), a.end(), b.begin(), [](const ov::Dimension& elem_a, const py::handle& elem_b) {

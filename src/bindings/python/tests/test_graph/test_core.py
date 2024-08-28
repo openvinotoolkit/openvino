@@ -377,6 +377,22 @@ def test_partial_shape_equals():
     assert ps.get_min_shape() == list_ps_min
     assert ps.get_max_shape() == list_ps_max
 
+    with pytest.raises(TypeError) as e:
+        ps = PartialShape.dynamic()
+        tuple_ps = ()
+        ps == tuple_ps
+    assert (
+        "Cannot compare dynamic shape with <class 'tuple'>" in str(e.value)
+    )
+
+    with pytest.raises(TypeError) as e:
+        ps = PartialShape.dynamic()
+        list_ps = []
+        ps == list_ps
+    assert (
+        "Cannot compare dynamic shape with <class 'list'>" in str(e.value)
+    )
+
 
 def test_input_shape_read_only():
     shape = Shape([1, 10])
