@@ -369,6 +369,16 @@ def test_partial_shape_equals():
     assert ps.get_min_shape() == tuple_ps
     assert ps.get_min_shape() == list_ps
 
+    ps = PartialShape([Dimension(1, 10), Dimension(2), Dimension(3)])
+    tuple_ps_min = (1, 2, 3)
+    tuple_ps_max = (10, 2, 3)
+    list_ps_min = [1, 2, 3]
+    list_ps_max = [10, 2, 3]
+    assert ps.get_min_shape() == tuple_ps_min
+    assert ps.get_max_shape() == tuple_ps_max
+    assert ps.get_min_shape() == list_ps_min
+    assert ps.get_max_shape() == list_ps_max
+
 
 def test_input_shape_read_only():
     shape = Shape([1, 10])
