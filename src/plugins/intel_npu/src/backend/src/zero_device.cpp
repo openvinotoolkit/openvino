@@ -194,11 +194,15 @@ double ZeroDevice::getUtilization() const {
     int monitor_duration = 500;
     zes_engine_stats_t engine_start = {};
     zes_engine_stats_t engine_end = {};
-    zeroUtils::throwOnFail("zesEngineGetActivity", zesEngineGetActivity(engin_handle, &engine_start));
-    std::this_thread::sleep_for(std::chrono::milliseconds(monitor_duration));
-    zeroUtils::throwOnFail("zesEngineGetActivity", zesEngineGetActivity(engin_handle, &engine_end));
-    utilization = (static_cast<double>(engine_end.activeTime) - static_cast<double>(engine_start.activeTime)) /
-                  (static_cast<double>(engine_end.timestamp) - static_cast<double>(engine_start.timestamp)) * 100;
+    try {
+        zeroUtils::throwOnFail("zesEngineGetActivity", zesEngineGetActivity(engin_handle, &engine_start));
+        std::this_thread::sleep_for(std::chrono::milliseconds(monitor_duration));
+        zeroUtils::throwOnFail("zesEngineGetActivity", zesEngineGetActivity(engin_handle, &engine_end));
+        utilization = (static_cast<double>(engine_end.activeTime) - static_cast<double>(engine_start.activeTime)) /
+                      (static_cast<double>(engine_end.timestamp) - static_cast<double>(engine_start.timestamp)) * 100;
+    } catch (...) {
+        log.warning("Failed to retrieve utilization via levelZero, and will return 0.0 as default value");
+    }
     return utilization;
 }
 
