@@ -71,7 +71,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
     // _graph is a nullptr for CIP path, a new handle will be obtained from the driver based on the given
     // compiledNetwork _graph gets (reuses) graphHandle from the compiler for CID path
     if (_networkDesc->metadata.graphHandle == nullptr) {
-        _logger.info("create graph handle on executor");
+        _logger.debug("create graph handle on executor");
         ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                              nullptr,
                              ZE_GRAPH_FORMAT_NATIVE,
@@ -84,7 +84,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
             _graph_ddi_table_ext->pfnCreate(_initStructs->getContext(), _initStructs->getDevice(), &desc, &_graph));
 
     } else {
-        _logger.info("reuse graph handle created from compiler");
+        _logger.debug("reuse graph handle created from compiler");
         _graph = static_cast<ze_graph_handle_t>(_networkDesc->metadata.graphHandle);
     }
 

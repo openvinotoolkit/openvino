@@ -53,8 +53,11 @@ ov::SoPtr<ICompiler> loadCompiler(const std::string& libpath) {
 ov::SoPtr<ICompiler> createCompilerAdapter(std::shared_ptr<NPUBackends> npuBackends, const Logger& log) {
     log.info("Driver compiler will be used.");
 #ifdef ENABLE_DRIVER_COMPILER_ADAPTER
-    log.info("ENABLE_DRIVER_COMPILER_ADAPTER");
-    const auto compilerInterface = std::make_shared<driverCompilerAdapter::LevelZeroCompilerAdapter>(npuBackends);
+    if (npuBackends->getBackendName() != "LEVEL0") {
+        OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
+    }
+    const auto compilerInterface =
+        std::make_shared<driverCompilerAdapter::LevelZeroCompilerAdapter>(npuBackends->getIEngineBackend()._ptr);
     return ov::SoPtr<ICompiler>(compilerInterface);
 #else
     OPENVINO_THROW("NPU Compiler Adapter is not enabled");

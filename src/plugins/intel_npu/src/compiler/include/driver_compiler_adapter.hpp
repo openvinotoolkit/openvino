@@ -6,9 +6,9 @@
 
 #include <ze_graph_ext.h>
 
-#include "backends.hpp"
 #include "intel_npu/al/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "npu.hpp"
 
 namespace intel_npu {
 namespace driverCompilerAdapter {
@@ -19,7 +19,7 @@ namespace driverCompilerAdapter {
  */
 class LevelZeroCompilerAdapter final : public ICompiler {
 public:
-    LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> npuBackends);
+    LevelZeroCompilerAdapter(std::shared_ptr<IEngineBackend> iEngineBackend);
 
     uint32_t getSupportedOpsetVersion() const override final;
 
