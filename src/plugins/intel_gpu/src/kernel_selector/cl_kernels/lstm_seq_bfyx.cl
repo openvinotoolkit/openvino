@@ -5,6 +5,7 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/common.cl"
 
+#define INPUT0_TYPE_VEC  MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE)
 #define INPUT1_TYPE_VEC  MAKE_VECTOR_TYPE(INPUT1_TYPE, VEC_SIZE)
 #define INPUT3_TYPE_VEC  MAKE_VECTOR_TYPE(INPUT3_TYPE, VEC_SIZE)
 #define OUTPUT_TYPE_VEC  MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
@@ -57,38 +58,31 @@ KERNEL(lstm_seq)(
             unroll_for(uint k=0;k<GATE_NUM;++k){
                 INPUT3_TYPE hidden_result = 0;
                 const uint weight_idx = hidden_idx+weight_offsets[k];
-                #if MAX_SEQ_LEN > 1
-                if(i==0){
-                #endif // MAX_SEQ_LEN > 1
-                    INPUT1_TYPE_VEC initial_block;
-                    unroll_for(uint j=0;j<HBLOCK_NUM;++j) {
+                unroll_for(uint j=0;j<HBLOCK_NUM;++j) {
+                    if(i==0){
                         #ifdef SEQUENCE
-                            initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, 0, j*VEC_SIZE, 0)]);
+                            INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, 0, j*VEC_SIZE, 0)]);
                             r_block[l][k][j] = READ_VEC(0, &R[INPUT3_GET_INDEX(weight_idx, j*VEC_SIZE, 0, 0)]);
-                            unroll_for(uint s=0;s<VEC_SIZE;++s){
+                            unroll_for(int s=0;s<VEC_SIZE;s++){
                                 hidden_result = mad(initial_block[s], r_block[l][k][j][s], hidden_result);
                             }
                         #else
-                            const INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, j*VEC_SIZE, 0, 0)]);
+                            INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, j*VEC_SIZE, 0, 0)]);
                             INPUT3_TYPE_VEC r_block = READ_VEC(0, &R[INPUT3_GET_INDEX(weight_idx, j*VEC_SIZE, 0, 0)]);
-                            unroll_for(uint s=0;s<VEC_SIZE;++s){
+                            unroll_for(int s=0;s<VEC_SIZE;s++){
                                 hidden_result = mad(initial_block[s], r_block[l][k][j][s], hidden_result);
                             }
 
                         #endif
-                    }
-                #if MAX_SEQ_LEN > 1    
-                }else{
-                    unroll_for(uint j=0;j<HBLOCK_NUM;++j) {
+                    }else{
                         #ifdef SEQUENCE
-                            const OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, j*VEC_SIZE)]);
-                            unroll_for(int s=0;s<VEC_SIZE;++s){
+                            OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, j*VEC_SIZE)]);
+                            unroll_for(int s=0;s<VEC_SIZE;s++){
                                 hidden_result = mad(h_block[s], r_block[l][k][l][s], hidden_result);
                             }
                         #endif
                     }
                 }
-                #endif // MAX_SEQ_LEN > 1
                 #if DIRECTION == 1 //reverse
                     gate_output[k] = hidden_result + xWB[INPUT0_GET_INDEX(b, real_seq_length-1-i, weight_idx, 0)];
                 #else
