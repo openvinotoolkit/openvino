@@ -418,11 +418,11 @@ const std::vector<int64_t> cropsBeginZeroDimOutput = {0, 0, 0, 0, 0};
 const std::vector<int64_t> cropsEndZeroDimOutput = {0, 0, 2, 0, 0};
 
 const auto dynamicBatchToSpaceParamsSetZeroDimOutput = ::testing::Combine(::testing::Values(dynamicInputShapesZeroDimOutput),
-                                                                  ::testing::Values(blockShapeZeroDimOutput),
-                                                                  ::testing::Values(cropsBeginZeroDimOutput),
-                                                                  ::testing::Values(cropsEndZeroDimOutput),
-                                                                  ::testing::Values(ov::element::Type_t::f32),
-                                                                  ::testing::Values(CPUSpecificParams({ncdhw}, {ncdhw}, {}, {})));
+                                                                          ::testing::Values(blockShapeZeroDimOutput),
+                                                                          ::testing::Values(cropsBeginZeroDimOutput),
+                                                                          ::testing::Values(cropsEndZeroDimOutput),
+                                                                          ::testing::Values(ov::element::Type_t::f32),
+                                                                          ::testing::ValuesIn(cpuParams_5D));
 
 INSTANTIATE_TEST_SUITE_P(smoke_DynamicBatchToSpaceCPULayerTestCaseZeroDimOutput,
                          BatchToSpaceCPULayerTest,
@@ -441,11 +441,11 @@ const std::vector<int64_t> cropsBeginOutputDimOne = {0, 0, 0, 0, 0};
 const std::vector<int64_t> cropsEndOutputDimOne = {0, 0, 1, 0, 0};
 
 const auto dynamicBatchToSpaceParamsSetOutputDimOne = ::testing::Combine(::testing::Values(dynamicInputShapesOutputDimOne),
-                                                                  ::testing::Values(blockShapeOutputDimOne),
-                                                                  ::testing::Values(cropsBeginOutputDimOne),
-                                                                  ::testing::Values(cropsEndOutputDimOne),
-                                                                  ::testing::Values(ov::element::Type_t::f32),
-                                                                  ::testing::Values(CPUSpecificParams({ncdhw}, {ncdhw}, {}, {})));
+                                                                         ::testing::Values(blockShapeOutputDimOne),
+                                                                         ::testing::Values(cropsBeginOutputDimOne),
+                                                                         ::testing::Values(cropsEndOutputDimOne),
+                                                                         ::testing::Values(ov::element::Type_t::f32),
+                                                                         ::testing::ValuesIn(cpuParams_5D));
 
 INSTANTIATE_TEST_SUITE_P(smoke_DynamicBatchToSpaceCPULayerTestCaseOutputDimOne,
                          BatchToSpaceCPULayerTest,

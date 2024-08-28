@@ -828,33 +828,26 @@ void Transformations::PostLpt() {
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
     auto can_use_amx_bf16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) && (inferencePrecision == element::bf16);
     if (can_use_amx_bf16) {
-        auto has_paged_attention = op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model);
-        if (has_paged_attention) {
-            CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
-            CPU_SET_CALLBACK_X64(postLPTPassManager,
-                [](const_node_ptr &node) -> bool {
-                    std::string errorMsg;
-                    return node::LLMMLP::isSupportedOperation(node, errorMsg);
-                },
-                MLPFusion);
-        }
+        CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
+        CPU_SET_CALLBACK_X64(postLPTPassManager,
+            [](const_node_ptr &node) -> bool {
+                std::string errorMsg;
+                return node::LLMMLP::isSupportedOperation(node, errorMsg);
+            },
+            MLPFusion);
 
-        // Limitations: at least 3 workers are required for QKV fusion
         size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
         if (concurrency == 0)
             concurrency = parallel_get_max_threads();
-        if (concurrency >= 3) {
-            if (has_paged_attention) {
-                CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
-                CPU_SET_CALLBACK_X64(postLPTPassManager,
-                    [](const_node_ptr &node) -> bool {
-                        std::string errorMsg;
-                        return node::QKVProjection::isSupportedOperation(node, errorMsg);
-                    },
-                    QKVProjFusion);
-            }
-        }
+        CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
+        CPU_SET_CALLBACK_X64(postLPTPassManager,
+            [concurrency](const_node_ptr &node) -> bool {
+                std::string errorMsg;
+                return node::QKVProjection::isSupportedOperation(node, errorMsg, concurrency);
+            },
+            QKVProjFusion);
     }
+
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion, false);
@@ -975,13 +968,9 @@ void Transformations::MainSnippets(void) {
         // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
         if (matmul->get_transpose_a() || matmul->get_transpose_b())
             return false;
-        if (in_type0 == ov::element::i8) {
-            // [150531] AVX2_VNNI_2 is not fully supported yet
-            if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
-                return false;
+        if (in_type0 == ov::element::i8)
             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) ||
                    dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni);
-        }
         if ((in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
             ((in_type0 == element::f32 && in_type1 == ov::element::f32 && inferencePrecision == ov::element::bf16))) {
             // Implementation calls AMX BF16 brgemm only for tensors with K and N aligned on 2, otherwise fallbacks on vector impl

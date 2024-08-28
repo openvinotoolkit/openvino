@@ -7,6 +7,7 @@ from typing import Tuple, Union, List
 import os
 import sys
 import numpy as np
+import base64
 
 from sys import platform
 from pathlib import Path
@@ -194,6 +195,27 @@ def generate_relu_compiled_model(
     model = get_relu_model(input_shape, input_dtype)
     core = Core()
     return core.compile_model(model, device, {})
+
+
+def encrypt_base64(src):
+    return base64.b64encode(bytes(src, "utf-8"))
+
+
+def decrypt_base64(src):
+    return base64.b64decode(bytes(src, "utf-8"))
+
+
+def generate_relu_compiled_model_with_config(
+    device,
+    config,
+    input_shape: List[int] = None,
+    input_dtype=np.float32,
+) -> openvino.CompiledModel:
+    if input_shape is None:
+        input_shape = [1, 3, 32, 32]
+    model = get_relu_model(input_shape, input_dtype)
+    core = Core()
+    return core.compile_model(model, device, config)
 
 
 def generate_model_and_image(device, input_shape: List[int] = None):
