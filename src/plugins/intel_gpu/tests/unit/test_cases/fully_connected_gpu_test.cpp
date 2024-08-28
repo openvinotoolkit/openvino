@@ -2642,10 +2642,10 @@ public:
                 max_diff = abs_diff;
             avg += abs_diff;
             count++;
-            OPENVINO_ASSERT(abs_diff < 20);
+            OPENVINO_ASSERT(abs_diff < 5);
         }
         GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
-        OPENVINO_ASSERT((avg/count) < 1);
+        OPENVINO_ASSERT((avg/count) < 0.5);
     }
 };
 
@@ -3669,6 +3669,7 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_ca
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_12_groupsize) {
+    // Expect no dynamic-quantized FC
     this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 269, 512, 1024, 12);
 }
 
@@ -3684,11 +3685,9 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_ca
     this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560, 148);
 }
 
-TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_120_groupsize) {
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_128_groupsize) {
     this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560, 128);
 }
-
-
 
 TEST_F(fully_connected_gpu_tests, compressed_scale_bias) {
     this->test_compressed_scale_bias(false);

@@ -38,7 +38,7 @@ KERNEL(quantize_input)(
     }
 
     half max_value = 0.001;
-    for (uint i = 0 ; i < quantize_block / 8; i+=8) {
+    for (uint i = 0 ; i < quantize_block; i+=8) {
         half temp = fmax(fmax(fmax(max[i], max[i+1]), fmax(max[i+2], max[i+3])),
                                 fmax(fmax(max[i+4], max[i+5]), fmax(max[i+6], max[i+7])));
         max_value = fmax(max_value, temp);
