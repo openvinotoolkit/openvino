@@ -28,6 +28,8 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/gather.hpp"
 namespace ov {
 namespace intel_gpu {
 
@@ -189,24 +191,44 @@ PATensorParallelFusion::PATensorParallelFusion(size_t world_size, size_t world_r
             for (int i = 0; i < 3; i ++) {
                 orig_n_sizes.push_back(new_fc->get_output_partial_shape(0)[-1].get_length()/3);
             }
+            bool use_fc_split = true;
+            std::shared_ptr<ov::op::v1::VariadicSplit> new_split = nullptr;
+            std::shared_ptr<ov::op::v1::Reshape> new_squeeze = nullptr;
             for (auto user : new_fc->get_users()) {
                 auto fc_user = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(user);
-                // print_shape(fc_user);
-                // std::cout << "fc_user name: " << fc_user->get_friendly_name() << std::endl;
+                if (fc_user) {
+                    // print_shape(fc_user);
+                    // std::cout << "fc_user name: " << fc_user->get_friendly_name() << std::endl;
 
-                auto split_name = fc_user->get_friendly_name() + "_tp";
-                // std::cout << "new_fc->get_output_partial_shape(0).size() - 1: "
-                //           << new_fc->get_output_partial_shape(0).size() - 1 << std::endl;
-                auto axis_const = ov::op::v0::Constant::create(ov::element::i64,
-                                                               ov::Shape{1},
-                                                               {new_fc->get_output_partial_shape(0).size() - 1});
-                auto split_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, orig_n_sizes);
-                auto new_split = std::make_shared<ov::op::v1::VariadicSplit>(new_fc, axis_const, split_const);
-                new_split->set_friendly_name(split_name);
-                copy_runtime_info(fc_user, new_split);
-                replace_node(fc_user, new_split);
-                // print_shape(new_split);
-
+                    auto split_name = fc_user->get_friendly_name() + "_tp";
+                    // std::cout << "new_fc->get_output_partial_shape(0).size() - 1: "
+                    //           << new_fc->get_output_partial_shape(0).size() - 1 << std::endl;
+                    auto axis_const = ov::op::v0::Constant::create(ov::element::i64,
+                                                                ov::Shape{1},
+                                                                {new_fc->get_output_partial_shape(0).size() - 1});
+                    auto split_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, orig_n_sizes);
+                    new_split = std::make_shared<ov::op::v1::VariadicSplit>(new_fc, axis_const, split_const);
+                    new_split->set_friendly_name(split_name);
+                    copy_runtime_info(fc_user, new_split);
+                    replace_node(fc_user, new_split);
+                    // print_shape(new_split);
+                } else {
+                    use_fc_split = false;
+                    auto squeeze_user = std::dynamic_pointer_cast<ov::op::v1::Reshape>(user);
+                    auto shape0 = std::make_shared<ov::op::v0::Constant>(
+                        ov::element::i32,
+                        ov::Shape{4},
+                        std::vector<int32_t>{-1,
+                                                1,
+                                                3,
+                                                half_head_num * head_size});
+                    // const auto input_node = new_split->get_input_source_output(index);
+                    new_squeeze = std::make_shared<ov::op::v1::Reshape>(new_fc, shape0, true);
+                    new_squeeze->set_friendly_name(squeeze_user->get_friendly_name() + "_tp");
+                    copy_runtime_info(squeeze_user, new_squeeze);
+                    replace_node(squeeze_user, new_squeeze);
+                    // print_shape(new_squeeze);
+                }
                 // auto shape0 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2},
                 // std::vector<int32_t>{680, 240}); auto reshape0 = std::make_shared<ov::op::v1::Reshape>(data, shape0,
                 // false);
@@ -317,32 +339,49 @@ PATensorParallelFusion::PATensorParallelFusion(size_t world_size, size_t world_r
                 };
 
                 int index = 0;
-                for (auto user_1 : new_split->get_users()) {
-                    auto split_user = std::dynamic_pointer_cast<ov::op::v1::Add>(user_1);
-                    if (split_user) {
-                        // print_shape(split_user);
-                        // std::cout << "split_user name: " << split_user->get_friendly_name() << std::endl;
-                        auto rank_constant = std::make_shared<ov::intel_gpu::op::RankConstant>(
-                            split_user->get_input_node_shared_ptr(1), world_size, world_rank, op::TP_MODE::ALL_REDUCE);
-                        // print_shape(rank_constant);
-                        auto new_add = std::make_shared<ov::op::v1::Add>(new_split->output(index), rank_constant);
-                        new_add->set_friendly_name(split_user->get_friendly_name() + "_tp");
-                        copy_runtime_info(split_user, new_add);
-                        replace_node(split_user, new_add);
-                        split_qkv(new_add, index);
-                    } else {
-                        auto reahpe_user = std::dynamic_pointer_cast<ov::op::v1::Reshape>(user_1);
-                        auto shape0 = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                if (use_fc_split) {
+                    for (auto user_1 : new_split->get_users()) {
+                        auto split_user = std::dynamic_pointer_cast<ov::op::v1::Add>(user_1);
+                        if (split_user) {
+                            // print_shape(split_user);
+                            // std::cout << "split_user name: " << split_user->get_friendly_name() << std::endl;
+                            auto rank_constant = std::make_shared<ov::intel_gpu::op::RankConstant>(
+                                split_user->get_input_node_shared_ptr(1), world_size, world_rank, op::TP_MODE::ALL_REDUCE);
+                            // print_shape(rank_constant);
+                            auto new_add = std::make_shared<ov::op::v1::Add>(new_split->output(index), rank_constant);
+                            new_add->set_friendly_name(split_user->get_friendly_name() + "_tp");
+                            copy_runtime_info(split_user, new_add);
+                            replace_node(split_user, new_add);
+                            split_qkv(new_add, index);
+                        } else {
+                            auto reahpe_user = std::dynamic_pointer_cast<ov::op::v1::Reshape>(user_1);
+                            auto shape0 = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                                ov::Shape{4},
+                                                                                std::vector<int32_t>{-1, 1, half_head_num, head_size});
+                            // const auto input_node = new_split->get_input_source_output(index);
+                            auto new_reshape = std::make_shared<ov::op::v1::Reshape>(new_split->output(index), shape0, true);
+                            new_reshape->set_friendly_name(reahpe_user->get_friendly_name() + "_tp");
+                            copy_runtime_info(reahpe_user, new_reshape);
+                            replace_node(reahpe_user, new_reshape);
+                            split_qkv_llama(new_reshape, index);
+                        }
+                        index++;
+                    }
+                } else {
+                    auto squeeze_transpose = std::dynamic_pointer_cast<ov::op::v1::Transpose>(new_squeeze->get_users()[0]);
+                    for (auto user_1 : squeeze_transpose->get_users()) {
+                        auto gather = std::dynamic_pointer_cast<ov::op::v8::Gather>(user_1);
+                        auto gather_user = std::dynamic_pointer_cast<ov::op::v1::Reshape>(gather->get_users()[0]);
+                        auto gather_user_shape = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
                                                                             ov::Shape{4},
                                                                             std::vector<int32_t>{-1, 1, half_head_num, head_size});
                         // const auto input_node = new_split->get_input_source_output(index);
-                        auto new_reshape = std::make_shared<ov::op::v1::Reshape>(new_split->output(index), shape0, true);
-                        new_reshape->set_friendly_name(reahpe_user->get_friendly_name() + "_tp");
-                        copy_runtime_info(reahpe_user, new_reshape);
-                        replace_node(reahpe_user, new_reshape);
-                        split_qkv_llama(new_reshape, index);
+                        auto new_gather_user = std::make_shared<ov::op::v1::Reshape>(gather, gather_user_shape, true);
+                        new_gather_user->set_friendly_name(gather_user->get_friendly_name() + "_tp");
+                        copy_runtime_info(gather_user, new_gather_user);
+                        replace_node(gather_user, new_gather_user);
+                        index++;
                     }
-                    index++;
                 }
             }
             std::shared_ptr<ov::Node> first_fc_after_pa = nullptr;
