@@ -365,7 +365,7 @@ void LevelZeroCompilerInDriver<TableExtension>::release(std::shared_ptr<const Ne
 template <typename TableExtension>
 std::vector<uint8_t> LevelZeroCompilerInDriver<TableExtension>::getCompiledNetwork(
     std::shared_ptr<const NetworkDescription> networkDescription) {
-    if (networkDescription->metadata.graphHandle != nullptr) {
+    if (networkDescription->metadata.graphHandle != nullptr && networkDescription->compiledNetwork.size() == 0) {
         _logger.info("LevelZeroCompilerInDriver getCompiledNetwork get blob from graphHandle");
         ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription->metadata.graphHandle);
 
