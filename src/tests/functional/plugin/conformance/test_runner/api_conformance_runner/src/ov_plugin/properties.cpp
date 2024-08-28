@@ -93,7 +93,7 @@ INSTANTIATE_TEST_SUITE_P(
     ov_plugin,
     OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
     ::testing::Combine(::testing::Values(ov::test::utils::target_device), ::testing::Values(ov::AnyMap({}))),
-    MARK_MANDATORY_FOR_HW_DEVICE(OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName));
+    MARK_MANDATORY_PROPERTY_FOR_HW_DEVICE(OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckMetricsPropsTests_ModelDependceProps,
         ::testing::Combine(
