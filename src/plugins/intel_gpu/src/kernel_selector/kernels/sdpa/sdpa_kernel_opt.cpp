@@ -78,7 +78,8 @@ static std::vector<size_t> get_internal_buffer_sizes(const sdpa_params& sdpa_par
         return {blocks_indexes_buf_size};
     } else {
         if (sdpa_params.has_dynamic_tensors() || kernel_type == KernelsTypes::MULTI_TOKENS) {
-            return {1, 1};
+            const auto default_bytes_count = BytesPerElement(get_softmax_acc_type());
+            return {default_bytes_count, default_bytes_count};
         } else {
             TransposedDimensionAccessHelperBase dims_q(sdpa_params.inputs[0], sdpa_params.input0_order);
             const auto& output = sdpa_params.outputs[0];
