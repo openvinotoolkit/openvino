@@ -552,13 +552,11 @@ void regclass_Core(py::module m) {
                                      "`model_stream` must be an io.BytesIO object but " +
                                      (std::string)(py::repr(model_stream)) + "` provided");
             }
-            py::buffer_info info = py::buffer(model_stream.attr("getbuffer")()).request();
-            constexpr auto one_gigabyte = static_cast<double>(1024) * 1024 * 1024;
-            const double size_in_gb = (info.size * info.itemsize) / one_gigabyte;
+            const auto model_stream_size = Common::utils::get_stream_size(model_stream);
             model_stream.attr("seek")(0);  // Always rewind stream!
             ov::CompiledModel result;
             // std::stringstream cannot handle streams > 2GB, in that case use std::fstream
-            if (size_in_gb > 2) {
+            if (model_stream_size > 2) {
                 std::random_device rd;
                 std::mt19937 gen(rd());
                 std::uniform_int_distribution<> distr(1000, 9999);
