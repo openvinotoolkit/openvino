@@ -92,15 +92,20 @@ IDevice::Uuid Metrics::GetDeviceUuid(const std::string& specifiedDeviceName) con
 }
 
 std::map<std::string, double> Metrics::GetUtilization(const std::string& specifiedDeviceName) const {
-    const auto devName = getDeviceName(specifiedDeviceName);
-    const auto uuid = GetDeviceUuid(specifiedDeviceName);
-    std::stringstream ssuuid;
-    ssuuid << uuid;
-    std::string uuidStr = ssuuid.str();
-    auto device = _backends->getDevice(devName);
+    std::string uuidStr;
     double utilization = 0.0;
-    if (device) {
-        utilization = device->getUtilization();
+    try {
+        const auto devName = getDeviceName(specifiedDeviceName);
+        const auto uuid = GetDeviceUuid(specifiedDeviceName);
+        std::stringstream ssuuid;
+        ssuuid << uuid;
+        uuidStr = ssuuid.str();
+        auto device = _backends->getDevice(devName);
+        if (device) {
+            utilization = device->getUtilization();
+        }
+    } catch (...) {
+        return {};
     }
     return {{uuidStr, utilization}};
 }
