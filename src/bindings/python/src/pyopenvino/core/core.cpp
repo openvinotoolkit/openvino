@@ -564,12 +564,8 @@ void regclass_Core(py::module m) {
                 std::fstream _stream(filename, std::ios::out | std::ios::binary);
                 OPENVINO_ASSERT(_stream.is_open(), "Failed to open temporary file for model stream");
                 const py::bytes data = model_stream.attr("read")();
-
-                // convert the Python bytes object to C++ string
-                char* buffer;
-                Py_ssize_t length;
-                PYBIND11_BYTES_AS_STRING_AND_SIZE(data.ptr(), &buffer, &length);
-                _stream.write(buffer, length);
+                std::string buffer = data.cast<std::string>();
+                _stream.write(buffer.c_str(), buffer.size());
                 _stream.close();
 
                 std::fstream _fstream(filename, std::ios::in | std::ios::binary);
