@@ -9,6 +9,18 @@
 #include "../scaled_attn/executor_pa_common.hpp"
 #include "utils/plain_tensor.hpp"
 
+// register blocking size for K dimension (1x2 AMX B-tiles)
+#define REG_BLK_K_SIZE 32
+
+// register blocking size for N dimension (1x2 AMX B-tiles)
+#define REG_BLK_N_SIZE 32
+
+// cache blocking sie for K dimension
+#define CACHE_BLK_K_SIZE 256
+
+// cache blocking sie for M dimension
+#define CACHE_BLK_M_SIZE 256
+
 namespace ov {
 namespace intel_cpu {
 
@@ -65,7 +77,11 @@ public:
 
     // weight is supposed to be of shape[N, K], stride in unit of bytes
     template <typename T>
-    void prepareB(PlainTensor& ret, T* p_weight, int stride, int N, int K);
+    void prepareB(PlainTensor& ret, ov::bfloat16* dst, T* p_weight, int stride, int N, int K);
+
+    // interleaving two weights into one in unit of 16-column
+    template <typename T>
+    void prepareB(PlainTensor& ret, ov::bfloat16* dst, T* p_weight1, T* p_weight2, int stride, int N, int K);
 
     // to save push/pop: do not use `abi_save_gpr_regs`
     uint8_t* prefetch_next_A_addr;
@@ -111,7 +127,7 @@ struct Work {
     int BN = 0;
     int blk_K_size = 0;
     int output_id;
-    ov::bfloat16* p_raw_weights;
+    ov::float16* p_raw_weights;
     operator bool() {
         return BN > 0;
     }
@@ -124,14 +140,41 @@ struct Work {
 
     // input : weight [N, K], setup repacks range of N [n_start, n_end)
     template <typename T>
-    void setup(T* p_weight, int stride) {
+    void setup(ov::bfloat16* dst, T* p_weight, int stride) {
         auto& mkernel = get_MKernel();
-        auto num_blk_K = (k1 - k0) / blk_K_size;
-        auto* pw = p_weight + n0 * stride / sizeof(T) + k0;
+        auto num_blk_K = (k1 - k0 + blk_K_size - 1) / blk_K_size;
+        auto* pw = p_weight + n0 * stride / sizeof(T);
 
+        // weight is divided along K dimension into equal size blk_K_size, except last block.
         weights.resize(num_blk_K);
-        for (int k = 0; k < num_blk_K; k++) {
-            mkernel.prepareB(weights[k], pw + k * blk_K_size, stride, BN, blk_K_size);
+        for (int k = k0, ki = 0; k < k1;) {
+            auto subK = std::min(blk_K_size, k1 - k);
+            mkernel.prepareB(weights[ki], dst, pw + k, stride, BN, subK);
+            dst += BN*subK;
+            k += subK;
+            ki++;
+        }
+
+        for (int Mtails = 0; Mtails < 32; Mtails++) {
+            mkernel.tile_config_M(m_tcfg[Mtails], Mtails == 0 ? 32 : Mtails);
+        }
+    }
+
+    template <typename T>
+    void setup(ov::bfloat16* dst, T* p_weight1, T* p_weight2, int stride) {
+        auto& mkernel = get_MKernel();
+        auto num_blk_K = (k1 - k0 + blk_K_size - 1) / blk_K_size;
+        auto* pw1 = p_weight1 + (n0/2) * stride / sizeof(T);
+        auto* pw2 = p_weight2 + (n0/2) * stride / sizeof(T);
+
+        // weight is divided along K dimension into equal size blk_K_size, except last block.
+        weights.resize(num_blk_K);
+        for (int k = k0, ki = 0; k < k1;) {
+            auto subK = std::min(blk_K_size, k1 - k);
+            mkernel.prepareB(weights[ki], dst, pw1 + k, pw2 + k, stride, BN, subK);
+            dst += BN*subK;
+            k += subK;
+            ki++;
         }
 
         for (int Mtails = 0; Mtails < 32; Mtails++) {
@@ -142,24 +185,28 @@ struct Work {
     ov::Extensions::Cpu::TileConfig m_tcfg[32];
     AutoTileConfiger m_tile_configer;
 
-    size_t get_C_size(int M) {
+    PlainTensor m_C;
+
+    size_t set_C(int M, float * ext_buff) {
         auto Mtails = M % 32;
         auto Mbody = M - Mtails;
         auto C_M = Mbody + (Mtails ? 32 : 0);
-        return C_M * BN;
+        m_C.resize<float>({static_cast<size_t>(C_M), static_cast<size_t>(BN)}, ext_buff);
+        return C_M * BN * sizeof(float);
     }
 
-    void run(int M, uint8_t* pA, int strideA, PlainTensor& C) {
+    void run(int M, uint8_t* pA, int strideA) {
         auto& mkernel = get_MKernel();
 
-        int num_blk_K = (k1 - k0) / blk_K_size;
+        int num_blk_K = weights.size();
 
         auto Mtails = M % 32;
         auto Mbody = M - Mtails;
-
         auto C_M = Mbody + (Mtails ? 32 : 0);
-        C.resize<float>({static_cast<size_t>(C_M), static_cast<size_t>(BN)});
-        auto pC = reinterpret_cast<uint8_t*>(C.ptr_v());
+
+        auto C_stride_bytes = BN * sizeof(float);
+        OPENVINO_ASSERT(C_M * C_stride_bytes <= m_C.stride_bytes(0) * m_C.size(0));
+        auto pC = reinterpret_cast<uint8_t*>(m_C.ptr_v());
 
         pA += k0 * sizeof(ov::bfloat16);
         bool do_accumulation = false;
@@ -174,7 +221,7 @@ struct Work {
                             strideA,
                             blockB,
                             pC,
-                            C.stride_bytes(0),
+                            C_stride_bytes,
                             reinterpret_cast<uint8_t*>(blockB1.ptr_v()),
                             do_accumulation);
             }
@@ -185,14 +232,31 @@ struct Work {
                             pA + ki * blk_K_size * sizeof(ov::bfloat16) + Mbody * strideA,
                             strideA,
                             blockB,
-                            pC + Mbody * C.stride_bytes(0),
-                            C.stride_bytes(0),
+                            pC + Mbody * C_stride_bytes,
+                            C_stride_bytes,
                             reinterpret_cast<uint8_t*>(blockB1.ptr_v()),
                             do_accumulation);
             }
             do_accumulation = true;
         }
         m_tile_configer.do_config(nullptr);
+    }
+};
+
+// allocate weight memory in bigger trunck can benefit from HugePage (with much less page-fault effort)
+struct WeightBuffer {
+    PlainTensor buffer;
+    std::vector<size_t> offsets;
+    void alloc(std::vector<Work>& works) {
+        size_t weight_cnt = 0;
+        for (auto& work : works) {
+            offsets.push_back(weight_cnt);
+            weight_cnt += (work.n1 - work.n0) * (work.k1 - work.k0);
+        }
+        buffer.resize<ov::bfloat16>({weight_cnt});
+    }
+    ov::bfloat16* get(int work_id) {
+        return buffer.ptr<ov::bfloat16>() + offsets[work_id];
     }
 };
 

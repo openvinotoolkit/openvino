@@ -29,7 +29,7 @@ public:
     }
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
-    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage, int concurrency = 0) noexcept;
 
 private:
     struct Impl;
