@@ -320,11 +320,11 @@ def test_partial_shape_refinement():
 
 
 def test_shape_equals():
-    s = Shape([1, 2, 3])
-    tuple_s = (1, 2, 3)
-    list_s = [1, 2, 3]
-    assert s == tuple_s
-    assert s == list_s
+    sh = Shape([1, 2, 3])
+    tuple_sh = (1, 2, 3)
+    list_sh = [1, 2, 3]
+    assert sh == tuple_sh
+    assert sh == list_sh
 
 
 def test_partial_shape_equals():
