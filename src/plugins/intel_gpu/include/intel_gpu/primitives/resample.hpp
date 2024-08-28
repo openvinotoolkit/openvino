@@ -140,8 +140,6 @@ struct resample : public primitive_base<resample> {
           coord_trans_mode(ctm),
           round_mode(nm) {}
 
-
-
     InterpolateOp::InterpolateAttrs get_attrs() const {
         return InterpolateOp::InterpolateAttrs(this->operation_type,
                                                this->shape_calc_mode,
