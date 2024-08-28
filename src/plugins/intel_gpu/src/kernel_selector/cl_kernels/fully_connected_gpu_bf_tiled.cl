@@ -37,7 +37,7 @@ KERNEL(quantize_input)(
         max[i] = fmax(fmax(fabs(input_0[i][0]), fabs(input_0[i][1])), fmax(fabs(input_0[i][2]), fabs(input_0[i][3])));
     }
 
-    half max_value = 0;
+    half max_value = 0.001;
     for (uint i = 0 ; i < quantize_block / 8; i+=8) {
         half temp = fmax(fmax(fmax(max[i], max[i+1]), fmax(max[i+2], max[i+3])),
                                 fmax(fmax(max[i+4], max[i+5]), fmax(max[i+6], max[i+7])));
@@ -845,14 +845,14 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             // Next batch
             in_offset += (TILE_IN_B_PITCH * 2);
 
-             #if !NUM_LOOP_IN_DYN_QUAN_GROUP
+             #if NUM_LOOP_IN_DYN_QUAN_GROUP == 1
                 de_quantize_scale[bi * 2] = scale[scale_offset];
                 de_quantize_scale[bi * 2 + 1] = scale[scale_offset+ scale_pitch];
                 scale_offset += (scale_pitch * 2);
             #endif
         }
 
-        #if NUM_LOOP_IN_DYN_QUAN_GROUP
+        #if NUM_LOOP_IN_DYN_QUAN_GROUP > 1
             if (ni % NUM_LOOP_IN_DYN_QUAN_GROUP == 0) {
                 unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
                     de_quantize_scale[bi] = scale[scale_offset];
@@ -861,8 +861,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             }
         #endif
 
-        // // Packing
-        // MAKE_VECTOR_TYPE(int, TILE_B) acc_tmp[TILE_OFM] = { };
         input_offset += TILE_IFM_ELEMENTS_SIZE;
 
         #if TILE_OFM != 2
@@ -975,29 +973,10 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             #endif
         }  // Whole tile_k elements of each iteration : ki
 
-        #if NUM_LOOP_IN_DYN_QUAN_GROUP && (DECOMPRESSION_SCALE_GROUP_SIZE == QUANTIZE_GROUP_SIZE)
-            #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM_ELEMENTS_SIZE <= DECOMPRESSION_SCALE_GROUP_SIZE)
-                if (ni % NUM_LOOP_IN_DYN_QUAN_GROUP == (NUM_LOOP_IN_DYN_QUAN_GROUP - 1)) {
-                    const uint ni_offset = ((ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
-                    unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
-                        unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                            const uint offset_ofm = out_f + fi*SIMD + sglid;
-
-                            #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
-                                const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH + ni_offset;
-                                ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
-                            #else
-                                ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
-                            #endif
-
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * de_quantize_scale[bi];
-                            acc_tmp[fi][bi] = 0;
-                        }
-                    }
-                }
-            #endif
-        #else
-            #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM_ELEMENTS_SIZE <= DECOMPRESSION_SCALE_GROUP_SIZE)
+        int num_loop_in_scale_group = DECOMPRESSION_SCALE_GROUP_SIZE / TILE_IFM_ELEMENTS_SIZE;
+        #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM_ELEMENTS_SIZE <= DECOMPRESSION_SCALE_GROUP_SIZE)
+            if ((ni % NUM_LOOP_IN_DYN_QUAN_GROUP == (NUM_LOOP_IN_DYN_QUAN_GROUP - 1)) ||
+                (ni % num_loop_in_scale_group == (num_loop_in_scale_group - 1))) {
                 const uint ni_offset = ((ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
                 unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
@@ -1014,7 +993,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         acc_tmp[fi][bi] = 0;
                     }
                 }
-            #endif
+            }
         #endif
     }  // Main compute loop : ni
 

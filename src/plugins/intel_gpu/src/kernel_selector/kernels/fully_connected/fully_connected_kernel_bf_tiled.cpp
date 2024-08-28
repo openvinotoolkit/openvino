@@ -91,7 +91,7 @@ static bool should_dynamic_quantize(const fully_connected_params& params) {
         return false;
 
     if (dynamic_quantization_group_size < min_quantize_grp_size) {
-            GPU_DEBUG_COUT << "Set dynamic_quantize_group_size " << dynamic_quantization_group_size
+            GPU_DEBUG_TRACE_DETAIL << "Set dynamic_quantize_group_size " << dynamic_quantization_group_size
                             << " is smaller than minimum supported size 32" << std::endl;
             return false;
     }
@@ -576,6 +576,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
     } else {
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
+        jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", min_quantize_grp_size));
     }
 
     jit.AddConstant(MakeJitConstant("IFM_SIZE", get_input_bf_size(params).second));
@@ -593,6 +594,8 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
 
     if (quantize_grp_size / (dispatchData.tile_mk * simd) > 1 && quantize_grp_size % (dispatchData.tile_mk * simd) == 0) {
         jit.AddConstant(MakeJitConstant("NUM_LOOP_IN_DYN_QUAN_GROUP", quantize_grp_size / (dispatchData.tile_mk * simd)));
+    } else {
+        jit.AddConstant(MakeJitConstant("NUM_LOOP_IN_DYN_QUAN_GROUP", 1));
     }
 
     auto max_tile_b_size = dispatchData.tile_m;
