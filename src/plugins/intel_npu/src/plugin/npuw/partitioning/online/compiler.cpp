@@ -64,7 +64,7 @@ std::vector<Avoid> getAvoids(::intel_npu::Config& cfg) {
 
     std::string avoids_opt = cfg.getString<::intel_npu::NPUW_ONLINE_AVOID>();
     if (avoids_opt.empty()) {
-        LOG_WARN(::intel_npu::NPUW_ONLINE_AVOID().key()
+        LOG_INFO(::intel_npu::NPUW_ONLINE_AVOID().key()
                  << " property is not set! NPU device will be prioritized for every subgraph.");
         return {};
     }
