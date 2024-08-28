@@ -623,7 +623,7 @@ if(Threading IN_LIST ${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS AND NOT TARGET o
         unset(_ov_threading_lib)
 
         # TODO: remove once Tokenizers and GenAI are updated to explicitly use openvino::threading
-        set_property(TARGET openvino::runtime APPEND PROPERTY INTERFACE_LINK_LIBRARIES openvino::threading)
+        set_property(TARGET openvino::runtime APPEND PROPERTY INTERFACE_LINK_LIBRARIES ${_ov_threading_lib})
     endif()
 endif()
 
