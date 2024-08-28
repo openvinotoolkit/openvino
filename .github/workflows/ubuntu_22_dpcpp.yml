@@ -74,6 +74,9 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
       os: 'ubuntu_22_04_dpcpp'
+      build-js: false
+      build-debian-packages: false
+      build-contrib: false
       cmake-options: |- 
             -G "Ninja Multi-Config" \
             -DENABLE_CPPLINT=OFF \
