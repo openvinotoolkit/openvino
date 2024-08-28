@@ -347,5 +347,4 @@ class TestAminAmax(PytorchLayerTest):
         self._test(*self.create_model(op_type, axis, keep_dims, out),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=
                    {"input_dtype": input_dtype, "out": out, "axes": axis, "keep_dims": keep_dims},
-                   aot_autograd=True
                    )

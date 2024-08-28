@@ -123,7 +123,6 @@ class TestScatter(PytorchLayerTest):
             ir_version,
             kwargs_to_prepare_input={"dtype": dtype, "out": has_out},
             freeze_model=freeze,
-            aot_autograd=True
         )
 
 
