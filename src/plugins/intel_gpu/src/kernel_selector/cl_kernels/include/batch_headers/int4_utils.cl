@@ -38,14 +38,6 @@ inline uchar2 unpack_to_uchar(uint4x2_t v) __attribute__((overloadable)) {
     return cvt_uint4x2_to_uint8x2(v);
 }
 
-inline uchar8 unpack_to_uchar(uint4x8_t v) __attribute__((overloadable)) {
-    uchar2 v0 = unpack_to_uchar(v.s0);
-    uchar2 v1 = unpack_to_uchar(v.s1);
-    uchar2 v2 = unpack_to_uchar(v.s2);
-    uchar2 v3 = unpack_to_uchar(v.s3);
-    return (uchar8)(v0.s0, v0.s1, v1.s0, v1.s1, v2.s0, v2.s1, v3.s0, v3.s1);
-}
-
 inline char2 unpack_to_char(int4x2_t v) __attribute__((overloadable)) {
     return cvt_int4x2_to_int8x2(v);
 }
@@ -54,13 +46,56 @@ inline char2 unpack_to_char(uint4x2_t v) __attribute__((overloadable)) {
     return convert_char2(cvt_uint4x2_to_uint8x2(v));
 }
 
+// 4bit x 4
 inline char4 unpack_to_char(int4x4_t v) __attribute__((overloadable)) {
     char2 v0 = unpack_to_char(v.s0);
     char2 v1 = unpack_to_char(v.s1);
     return (char4)(v0.s0, v0.s1, v1.s0, v1.s1);
 }
 
+inline char4 unpack_to_char(uint4x4_t v) __attribute__((overloadable)) {
+    char2 v0 = unpack_to_char(v.s0);
+    char2 v1 = unpack_to_char(v.s1);
+    return (char4)(v0.s0, v0.s1, v1.s0, v1.s1);
+}
+
+inline char4 unpack_transposed_to_char(int4x4_t v) __attribute__((overloadable)) {
+    char2 v0 = unpack_to_char(v.s0);
+    char2 v1 = unpack_to_char(v.s1);
+    return (char4)(v0.s0, v1.s0, v0.s1, v1.s1);
+}
+
+inline char4 unpack_transposed_to_char(uint4x4_t v) __attribute__((overloadable)) {
+    char2 v0 = unpack_to_char(v.s0);
+    char2 v1 = unpack_to_char(v.s1);
+    return (char4)(v0.s0, v1.s0, v0.s1, v1.s1);
+}
+
+inline uchar4 unpack_transposed_to_uchar(uint4x4_t v) __attribute__((overloadable)) {
+    uchar2 v0 = unpack_to_uchar(v.s0);
+    uchar2 v1 = unpack_to_uchar(v.s1);
+    return (uchar4)(v0.s0, v1.s0, v0.s1, v1.s1);
+}
+
+
+// 4bit x 8
+inline uchar8 unpack_to_uchar(uint4x8_t v) __attribute__((overloadable)) {
+    uchar2 v0 = unpack_to_uchar(v.s0);
+    uchar2 v1 = unpack_to_uchar(v.s1);
+    uchar2 v2 = unpack_to_uchar(v.s2);
+    uchar2 v3 = unpack_to_uchar(v.s3);
+    return (uchar8)(v0.s0, v0.s1, v1.s0, v1.s1, v2.s0, v2.s1, v3.s0, v3.s1);
+}
+
 inline char8 unpack_to_char(int4x8_t v) __attribute__((overloadable)) {
+    char2 v0 = unpack_to_char(v.s0);
+    char2 v1 = unpack_to_char(v.s1);
+    char2 v2 = unpack_to_char(v.s2);
+    char2 v3 = unpack_to_char(v.s3);
+    return (char8)(v0.s0, v0.s1, v1.s0, v1.s1, v2.s0, v2.s1, v3.s0, v3.s1);
+}
+
+inline char8 unpack_to_char(uint4x8_t v) __attribute__((overloadable)) {
     char2 v0 = unpack_to_char(v.s0);
     char2 v1 = unpack_to_char(v.s1);
     char2 v2 = unpack_to_char(v.s2);
@@ -92,6 +127,7 @@ inline uchar8 unpack_transposed_to_uchar(uint4x8_t v) __attribute__((overloadabl
     return (uchar8)(v0.s0, v1.s0, v2.s0, v3.s0, v0.s1, v1.s1, v2.s1, v3.s1);
 }
 
+// For float
 inline float2 unpack_to_float(uint4x2_t v) __attribute__((overloadable)) {
     return convert_float2(cvt_uint4x2_to_uint8x2(v));
 }
