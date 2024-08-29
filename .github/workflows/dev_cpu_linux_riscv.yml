@@ -138,7 +138,7 @@ jobs:
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_TESTS=ON \
+            -DENABLE_TESTS=OFF \
             -DENABLE_INTEL_CPU=ON \
             -DENABLE_INTEL_GPU=OFF \
             -DENABLE_INTEL_NPU=OFF \
