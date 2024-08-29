@@ -7,7 +7,6 @@
 #include "primitive_inst.h"
 #include "intel_gpu/runtime/memory.hpp"
 #include "register.hpp"
-#include "utils.hpp"
 #include "runtime/ocl/ocl_event.hpp"
 
 #include <vector>
@@ -27,46 +26,17 @@ struct typed_primitive_sycl_impl : public typed_primitive_impl<PType> {
         : typed_primitive_impl<PType>(weights_reorder, "sycl_kernel"),
         _engine(&engine) { }
 
-    typed_primitive_sycl_impl()
-        : typed_primitive_impl<PType>({}, "undef"),
-          _engine(nullptr) {
+    typed_primitive_sycl_impl() : typed_primitive_impl<PType>({}, "undef"), _engine(nullptr) {
     }
 
     bool is_cpu() const override { return false; }
     bool is_onednn() const override { return false; }
 
-    void save(BinaryOutputBuffer& ob) const override {
-    }
-
-    void load(BinaryInputBuffer& ib) override {
-    }
-
 protected:
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
 
-    void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
-        if (instance.can_be_optimized())
-            return;
-    }
-
-    void update_dispatch_data(const kernel_impl_params& impl_params) override {}
-
-    void set_arguments_impl(typed_primitive_inst<PType>& instance, kernel_arguments_data& args) override {
-        if (instance.can_be_optimized()) {
-            return;
-        }
-    }
-
-    event::ptr execute_impl(const std::vector<event::ptr>& /* events */,
-                            typed_primitive_inst<PType>& instance) override {
-        auto& network = instance.get_network();
-        auto& stream = network.get_stream();
-        auto net_id = network.get_id();
-        event::ptr event;
-
-
-        return event;
-    }
+    void set_arguments_impl(typed_primitive_inst<PType>& instance) override { }
+    void set_arguments_impl(typed_primitive_inst<PType>& instance, kernel_arguments_data& args) override { }
 
     static event::ptr to_ocl_event(stream& stream, ::sycl::event e) {
         if (stream.get_queue_type() == QueueTypes::out_of_order) {
