@@ -55,6 +55,9 @@ public:
     std::shared_ptr<TupleRemoteContextImpl> get_context() const;
     ov::SoPtr<ov::IRemoteTensor> get_tensor(int index) const;
 
+    void copy_to(const std::shared_ptr<ov::ITensor>& dst, size_t src_offset, size_t dst_offset, const ov::Shape& roi_shape) const override;
+    void copy_from(const std::shared_ptr<const ov::ITensor>& src, size_t src_offset, size_t dst_offset, const ov::Shape& roi_shape) override;
+
 private:
     std::shared_ptr<TupleRemoteContextImpl> m_context;
     std::vector<ov::SoPtr<ov::IRemoteTensor>> m_tensors;
