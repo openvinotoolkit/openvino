@@ -857,6 +857,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEShareCosSin>();
 
         manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
+        // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
+        manager.register_pass<ov::pass::Validate>();
 
         auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
         if (device_info.supports_immad) { // XXX: 1048576 is considered per-token
