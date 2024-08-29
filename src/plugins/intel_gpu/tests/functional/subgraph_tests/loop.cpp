@@ -307,7 +307,8 @@ using DynamicShapeLoopDynamicInputParams = typename std::tuple<
         InputShape,
         InputShape,
         ov::element::Type,
-        std::string>;
+        std::string,
+        bool>;
 
 class DynamicShapeLoopDynamicInputTest : public testing::WithParamInterface<DynamicShapeLoopDynamicInputParams>,
                                          virtual public ov::test::SubgraphBaseTest {
@@ -315,6 +316,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<DynamicShapeLoopDynamicInputParams> &obj) {
         bool static_iter_num;
         bool static_continue_cond;
+        bool freeze_input;
         int64_t max_iter_num;
         int64_t dynamic_exit;
         int64_t axis;
@@ -331,11 +333,13 @@ public:
             data_shapes,
             constant_shapes,
             model_type,
-            targetDevice) = obj.param;
+            targetDevice,
+            freeze_input) = obj.param;
 
         std::ostringstream result;
         result << "static_iter_num=" << std::to_string(static_iter_num) << "_";
         result << "static_continue_cond=" << std::to_string(static_continue_cond) << "_";
+        result << "static_input_shape=" << std::to_string(freeze_input) << "_";
         result << "max_iter_num=" << std::to_string(max_iter_num) << "_";
         result << "dynamic_exit=" << std::to_string(dynamic_exit) << "_";
         result << "axis=" << std::to_string(axis) << "_";
@@ -360,6 +364,7 @@ public:
 private:
     bool static_iter_num;       // trip count provided by constant node
     bool static_continue_cond;  // initial_cond provided by constant node
+    bool freeze_input;          // set true to mark input data of broadcast as static shape
     int64_t max_iter_num;       // -1 means infinity loop (expected dynamic exit condition in body)
     int64_t dynamic_exit;       // -1 means always true
     int64_t axis;               // -1 means no auto concatenation
@@ -378,7 +383,8 @@ protected:
             data_shapes,
             constant_shapes,
             model_type,
-            targetDevice) = GetParam();
+            targetDevice,
+            freeze_input) = GetParam();
 
         const auto inputShape = data_shapes.first;
         const auto scalarShape = ov::Shape{};
@@ -407,7 +413,7 @@ protected:
         count->set_friendly_name("count");
         auto skip  = cond_input_create(ov::element::boolean, scalarShape, true, static_continue_cond);
         skip->set_friendly_name("skip");
-        auto init_const = cond_input_create(model_type, constant_shapes.first, 1);
+        auto init_const = cond_input_create(model_type, constant_shapes.first, 1, freeze_input);
         init_const->set_friendly_name("init_const");
 
         auto b_indx = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{});
@@ -507,6 +513,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_DynamicShapeLoop_dynamic, DynamicShapeLoopDynamic
                         /* data_shape */ testing::ValuesIn(inputs_dynamic_shape),
                         /* constant_shape */ testing::ValuesIn(constant_dynamic_shape),
                         /* model_type */ testing::ValuesIn(model_types),
-                        /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
+                        /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
+                        /* freeze_input */ testing::Values(false)),
+                        DynamicShapeLoopDynamicInputTest::getTestCaseName);
+
+std::vector<InputShape> constant_static_shape = {
+    InputShape({1, 1, 1}, {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}}),
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicShapeLoop_conflict_dynamic, DynamicShapeLoopDynamicInputTest,
+                        testing::Combine(
+                        /* static_continue_cond */ testing::Values(true),
+                        /* args_pack */ testing::ValuesIn(dynamic_loop_input),
+                        /* start_value */ testing::Values<int64_t>(0),
+                        /* data_shape */ testing::ValuesIn(inputs_dynamic_shape),
+                        /* constant_shape */ testing::ValuesIn(constant_static_shape),
+                        /* model_type */ testing::ValuesIn(model_types),
+                        /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
+                        /* freeze_input */ testing::Values(true)),
                         DynamicShapeLoopDynamicInputTest::getTestCaseName);
 } // namespace
