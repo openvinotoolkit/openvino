@@ -347,6 +347,8 @@ void run_eltwise_int_shift_generic_test(cldnn::eltwise_mode mode) {
 
     ELTWISE_INT_TEST_CASES(int8_t);
     ELTWISE_INT_TEST_CASES(uint8_t);
+    ELTWISE_INT_TEST_CASES(int16_t);
+    ELTWISE_INT_TEST_CASES(uint16_t);
     ELTWISE_INT_TEST_CASES(int32_t);
     ELTWISE_INT_TEST_CASES(uint32_t);
     ELTWISE_INT_TEST_CASES(int64_t);

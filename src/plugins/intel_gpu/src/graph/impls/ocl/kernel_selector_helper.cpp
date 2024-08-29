@@ -171,6 +171,10 @@ kernel_selector::data_type to_data_type(data_types dt) {
             return kernel_selector::data_type::INT8;
         case cldnn::data_types::u8:
             return kernel_selector::data_type::UINT8;
+        case cldnn::data_types::i16:
+            return kernel_selector::data_type::INT16;
+        case cldnn::data_types::u16:
+            return kernel_selector::data_type::UINT16;
         case cldnn::data_types::i32:
             return kernel_selector::data_type::INT32;
         case cldnn::data_types::u32:
@@ -198,6 +202,10 @@ data_types from_data_type(kernel_selector::data_type dt) {
             return cldnn::data_types::i8;
         case kernel_selector::data_type::UINT8:
             return cldnn::data_types::u8;
+        case kernel_selector::data_type::INT16:
+            return cldnn::data_types::i16;
+        case kernel_selector::data_type::UINT16:
+            return cldnn::data_types::u16;
         case kernel_selector::data_type::INT32:
             return cldnn::data_types::i32;
         case kernel_selector::data_type::UINT32:
