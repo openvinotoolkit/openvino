@@ -2416,10 +2416,12 @@ bool primitive_inst::is_valid_fusion() const {
             const auto& fc_layout = _impl_params->get_output_layout();
             const auto& data_layout = outer_dep.first->_impl_params->get_output_layout();
 
-            if ((fc_layout.batch() == 1 || fc_layout.feature() == 1) ||
-                (data_layout.batch() == 1 && data_layout.feature() == 1) ||
-                (fc_layout.count() == data_layout.count())) {
-            } else {
+            const auto fc_dims = fc_layout.get_dims();
+            const auto data_dims = data_layout.get_dims();
+
+            if (!(fc_dims[0] == 1 || fc_dims[1] == 1) &&
+                !(data_dims[0] == 1 && data_dims[1] == 1) &&
+                !(fc_layout.count() == data_layout.count())) {
                 return false;
             }
         }
