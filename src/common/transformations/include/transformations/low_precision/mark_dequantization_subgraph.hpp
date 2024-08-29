@@ -24,7 +24,7 @@ public:
     OPENVINO_RTTI("MarkDequantizationSubgraph", "0");
     MarkDequantizationSubgraph(const element::TypeVector& precisions,
                                const bool fold_subtract_const = false,
-                               const bool fold_multiply_const = true);
+                               const bool disable_fold_multiply_const = false);
 };
 }  // namespace pass
 }  // namespace ov
