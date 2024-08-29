@@ -88,7 +88,10 @@ const auto TestCasesScaleAndZeroPoints3 = ::testing::Combine(
         ::testing::ValuesIn({3lu, 0lu}),
         ::details::ShapesIn({Tensors{input={1, 32, 128};     scale = {1, 32, 1};   zerop = {1, 32, 1};},
                              Tensors{input={16, 64, 64};     scale = {16, 64, 1};  zerop = {16, 64, 1};},
-                             Tensors{input={1, 1024, 4};     scale = {1, 64, 1};   zerop = {1, 32, 1};}}),
+                             Tensors{input={1, 1024, 4};     scale = {1, 64, 1};   zerop = {1, 32, 1};},
+                             Tensors{input={32, 128};     scale = {32, 1};   zerop = {32, 1};},
+                             Tensors{input={64, 64};     scale = {64, 1};  zerop = {64, 1};},
+                             Tensors{input={1024, 4};     scale = {64, 1};   zerop = {32, 1};}}),
         ::testing::ValuesIn({true, false}),
         ::testing::ValuesIn({true, false})
 );
@@ -96,5 +99,25 @@ const auto TestCasesScaleAndZeroPoints3 = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(UnpackTestsWithScaleAndZeroPointTest3, UnpackTestsWithScaleAndZeroPointTest3,
                         TestCasesScaleAndZeroPoints3,
                         UnpackTestsWithScaleAndZeroPointTest3::getTestCaseName);
+
+const auto TestCasesScaleAndZeroPoints4 = ::testing::Combine(
+        ::testing::ValuesIn({ov::element::Type_t::u8}),
+        ::testing::ValuesIn({ov::element::Type_t::f16}),
+        ::testing::ValuesIn({ov::element::Type_t::f16}),
+        ::testing::ValuesIn({ov::element::Type_t::u8}),
+        ::testing::ValuesIn({3lu, 0lu}),
+        ::details::ShapesIn({Tensors{input={1, 32, 128};     scale = {1, 32, 1};   zerop = {1, 32, 1};},
+                             Tensors{input={16, 64, 64};     scale = {16, 64, 1};  zerop = {16, 64, 1};},
+                             Tensors{input={1, 1024, 4};     scale = {1, 64, 1};   zerop = {1, 32, 1};},
+                             Tensors{input={32, 128};     scale = {32, 1};   zerop = {32, 1};},
+                             Tensors{input={64, 64};     scale = {64, 1};  zerop = {64, 1};},
+                             Tensors{input={1024, 4};     scale = {64, 1};   zerop = {32, 1};}}),
+        ::testing::ValuesIn({true, false}),
+        ::testing::ValuesIn({true, false})
+);
+
+INSTANTIATE_TEST_CASE_P(UnpackTestsWithScaleAndZeroPointTest4, UnpackTestsWithScaleAndZeroPointTest4,
+                        TestCasesScaleAndZeroPoints4,
+                        UnpackTestsWithScaleAndZeroPointTest4::getTestCaseName);
 
 } // anonymous namespace

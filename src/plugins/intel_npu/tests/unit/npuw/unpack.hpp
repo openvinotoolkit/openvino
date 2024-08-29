@@ -113,6 +113,13 @@ void unpack_u4f32(const int8_t* in, float* out, int size) {
     }
 }
 
+void unpack_u8f32(const int8_t* in, float* out, int size) {
+    for (int i = 0; i < size; i++) {
+        *(out++) = static_cast<float>(*in);
+        in++;
+    }
+}
+
 template<typename T>
 ::testing::AssertionResult fp16ArraysMatch(const T &actual,
                                            const T &expected,
@@ -201,10 +208,12 @@ protected:
         // Determine the size of the storage based on the type and resize the storage vector
         if (zeropType == ov::element::Type_t::u4) {
             zeropStorage.resize((nElements + 1) / 2, 0); // Each u4 zeropoint is 4 bits, so two zeropoints fit in one byte
+        } else if (zeropType == ov::element::Type_t::u8) {
+            zeropStorage.resize(nElements * sizeof(float), 0);
         } else if (zeropType == ov::element::Type_t::f32) {
             zeropStorage.resize(nElements * sizeof(float), 0);
         } else {
-            ASSERT_TRUE(zeropType == ov::element::u4 || zeropType == ov::element::f32);
+            ASSERT_TRUE(zeropType == ov::element::u4 || zeropType == ov::element::u8 || zeropType == ov::element::f32);
         }
 
         // Fill the storage with the appropriate values
@@ -217,6 +226,11 @@ protected:
                 } else {
                     zeropStorage[byteIndex] = (zeropValueU4 << 4);
                 }
+            }
+        } else if (zeropType == ov::element::Type_t::u8) {
+            float* ptrWork = reinterpret_cast<float*>(zeropStorage.data());
+            for (size_t i = 0; i < nElements; ++i) {
+                ptrWork[i] = zeropValues[i % zeropValues.size()];
             }
         } else if (zeropType == ov::element::Type_t::f32) {
             float* ptrWork = reinterpret_cast<float*>(zeropStorage.data());
@@ -559,9 +573,9 @@ TEST_P(UnpackTestsWithScaleAndZeroPointTest2, u4) {
 class UnpackTestsWithScaleAndZeroPoint3 : public UnpackTestsWithScaleAndZeroPointBase {
 protected:
     bool isNegative() const override {
-        if (scale_shape.size() != 3 || zerop_shape.size() != 3) return true;
-        if (input_shape[2] % 64 || input_shape.size() != 3) return true;
-
+        if (scale_shape.size() != 3 && scale_shape.size() != 2) return true;
+        if (input_shape.back() % 64) return true;
+ 
         return false;
     }
 
@@ -608,6 +622,65 @@ protected:
 using UnpackTestsWithScaleAndZeroPointTest3 = UnpackTestsTmpl<UnpackTestsWithScaleAndZeroPoint3>;
 
 TEST_P(UnpackTestsWithScaleAndZeroPointTest3, u4) {
+    ASSERT_NO_THROW_IF(!isNegative(),
+                       ov::npuw::util::unpack(from, zerop, scale, to, ov::npuw::util::UnpackOptions{useParallelFor, nPartitions, strictPartitions}));
+    if (!isNegative()) {
+        ASSERT_TRUE(details::fp16ArraysMatch(output, ref_output, input, false));
+    }
+}
+
+class UnpackTestsWithScaleAndZeroPoint4 : public UnpackTestsWithScaleAndZeroPointBase {
+protected:
+    bool isNegative() const override {
+        if (scale_shape.size() != 3 && scale_shape.size() != 2) return true;
+        if (input_shape.back() % 64) return true;
+ 
+        return false;
+    }
+
+    void make_ref_output() override {
+        if (isNegative()) return;
+
+        size_t nElements = from->get_size();
+
+        const size_t nOutputElementsPerScale = ref_output.size() / (toType.bitwidth() / 8) / scale->get_size();
+
+        std::vector<float> floatRef(nElements);
+        details::unpack_u8f32(input.data(), floatRef.data(), nElements);
+
+
+        // lets apply per channel scale
+        uint16_t * pRef = reinterpret_cast<uint16_t*>(ref_output.data());
+        const uint8_t* pZer = static_cast<uint8_t*>(zerop->data());
+        float * pFloatRef = reinterpret_cast<float*>(floatRef.data());
+        const uint16_t * pScale_f16 = reinterpret_cast<uint16_t*>(scale->data());
+        const float * pScale_f32 = reinterpret_cast<float*>(scale->data());
+
+        for (size_t i = 0; i < scale->get_size(); i++) {
+            float zeroPointValue = static_cast<float>(pZer[i]);
+            for (size_t sc = 0; sc != nOutputElementsPerScale; sc++) {
+                // applying zeropoint
+                float ref_scaled = *pFloatRef - zeroPointValue;
+
+                if (scaleType == ov::element::f32) {
+                    ref_scaled *= pScale_f32[0];
+                } else if (scaleType == ov::element::f16) {
+                    ref_scaled *= details::half_to_float(pScale_f16[0]);
+                }
+                *pRef = details::float_to_half(ref_scaled);
+
+                pFloatRef++;
+                pRef++;
+            }
+            pScale_f32++;
+            pScale_f16++;
+        }
+    }
+};
+
+using UnpackTestsWithScaleAndZeroPointTest4 = UnpackTestsTmpl<UnpackTestsWithScaleAndZeroPoint4>;
+
+TEST_P(UnpackTestsWithScaleAndZeroPointTest4, u8) {
     ASSERT_NO_THROW_IF(!isNegative(),
                        ov::npuw::util::unpack(from, zerop, scale, to, ov::npuw::util::UnpackOptions{useParallelFor, nPartitions, strictPartitions}));
     if (!isNegative()) {
