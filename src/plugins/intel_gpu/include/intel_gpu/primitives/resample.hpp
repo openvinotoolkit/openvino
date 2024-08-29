@@ -128,7 +128,7 @@ struct resample : public primitive_base<resample> {
     tensor output_size;
     /// @param num_filter Input filter. Only used by bilinear sample_type.
     uint32_t num_filter = 0;
-    /// @param num_filter Input filter. Only used by bilinear sample_type.
+    /// @param num_filter Port number of scales.
     uint32_t scales_port;
     /// @param sizes Describing output shape for spatial axes.
     std::vector<int64_t> sizes;
