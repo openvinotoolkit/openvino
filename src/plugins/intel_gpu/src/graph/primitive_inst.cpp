@@ -2290,9 +2290,6 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         t.add_primitive(std::const_pointer_cast<primitive>(_node->get_primitive()));
         outer_dep_ids.push_back(_node->id());
 
-        primitive_id fused_bias_eltw = _node->is_type<fully_connected>() ?
-                                       _impl_params->typed_desc<fully_connected>()->fused_bias_eltw : "";
-
         // Add primitives for fused-ops
         for (auto& fd : _impl_params->fused_desc) {
             auto prim = std::const_pointer_cast<primitive>(fd.desc);
@@ -2313,11 +2310,15 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                     if (std::find_if(outer_dep_ids.begin(), outer_dep_ids.end(), [&](const primitive_id& pid) {
                             return pid == in.pid;
                         }) == outer_dep_ids.end()) {
-                        if (in.pid == fused_bias_eltw) {
+                        size_t dep_id = fd.outer_dep_start_idx;
+                        auto outer_dep_id = _node->get_dependency(dep_id).id();
+
+                        if (std::find_if(fd.deps.begin(), fd.deps.end(), [&](const std::pair<cldnn::primitive_id, size_t>& dep_info) {
+                                return (dep_info.first == outer_dep_id && dep_info.second == i);
+                            }) == fd.deps.end()) {
                             in = _node->id();
                         } else {
-                            size_t dep_id = fd.outer_dep_start_idx;
-                            in = _node->get_dependency(dep_id).id();
+                            in = outer_dep_id;
                         }
                     }
                 }
