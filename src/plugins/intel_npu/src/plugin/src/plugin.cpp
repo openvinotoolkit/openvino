@@ -685,10 +685,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
-
     try {
         bool profiling = localConfig.get<PERF_COUNT>();
-
         compiledModel = std::make_shared<CompiledModel>(model,
                                                         shared_from_this(),
                                                         device,
@@ -766,15 +764,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
         const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(meta.inputs, meta.outputs);
 
-        bool profiling = localConfig.get<PERF_COUNT>();
-
         auto networkDescription = std::make_shared<const NetworkDescription>(std::move(blob), std::move(meta));
 
         compiledModel = std::make_shared<CompiledModel>(modelDummy,
                                                         shared_from_this(),
                                                         networkDescription,
                                                         device,
-                                                        profiling ? std::optional(compiler) : std::nullopt,
+                                                        compiler,
                                                         localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
@@ -822,7 +818,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
 ov::SoPtr<ICompiler> Plugin::getCompiler(const Config& config) const {
     auto compilerType = config.get<COMPILER_TYPE>();
-    return createCompiler(compilerType);
+    _logger.debug("performing createCompiler");
+    return createCompiler(_backends, compilerType);
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};

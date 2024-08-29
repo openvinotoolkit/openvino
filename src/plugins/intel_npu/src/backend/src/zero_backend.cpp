@@ -68,6 +68,22 @@ void* ZeroEngineBackend::getContext() const {
     return _instance->getContext();
 }
 
+void* ZeroEngineBackend::getDriverHandle() const {
+    return _instance->getDriver();
+}
+
+void* ZeroEngineBackend::getDeviceHandle() const {
+    return _instance->getDevice();
+}
+
+char* ZeroEngineBackend::getGraphExtName() {
+    return _instance->getGraphExtName();
+}
+
+ze_graph_dditable_ext_last_t* ZeroEngineBackend::getGraphDDITableExt() {
+    return _instance->getGraphDDITableExt();
+}
+
 void ZeroEngineBackend::updateInfo(const Config& config) {
     _logger.setLevel(config.get<LOG_LEVEL>());
     if (_devices.size() > 0) {

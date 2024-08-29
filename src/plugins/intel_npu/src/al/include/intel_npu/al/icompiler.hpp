@@ -112,6 +112,9 @@ struct NetworkMetadata final {
 
     size_t numStreams = 1;
 
+    // Used primarily in the CID path to pass the level zero graph handle from compiler to the backend executor
+    void* graphHandle = nullptr;
+
     /**
      * @brief Binds the (state input, state output) and (dynamic tensor, shape tensor) pairs using the
      * "relatedDescriptorIndex" attribute.
@@ -135,6 +138,7 @@ struct NetworkDescription final {
     NetworkDescription(std::vector<uint8_t>&& compiledNetwork, NetworkMetadata&& metadata)
         : compiledNetwork(std::move(compiledNetwork)),
           metadata(std::move(metadata)) {}
+    NetworkDescription(NetworkMetadata&& metadata) : metadata(std::move(metadata)) {}
     // Force move semantics to prevent blob copies
     NetworkDescription(const NetworkDescription&) = delete;
     NetworkDescription(NetworkDescription&&) = default;
@@ -195,6 +199,13 @@ public:
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                                     const std::vector<uint8_t>& network,
                                                                     const Config& config) const = 0;
+
+    // Driver compiler can use this to release graphHandle, if we do not have executor
+    virtual void release([[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription){};
+
+    virtual std::vector<uint8_t> getCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) {
+        return networkDescription->compiledNetwork;
+    }
 
 protected:
     virtual ~ICompiler() = default;
