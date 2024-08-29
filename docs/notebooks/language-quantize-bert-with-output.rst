@@ -22,23 +22,23 @@ and datasets. It consists of the following steps:
 -  Compare the performance of the original, converted and quantized
    models.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Imports <#Imports>`__
--  `Settings <#Settings>`__
--  `Prepare the Model <#Prepare-the-Model>`__
--  `Prepare the Dataset <#Prepare-the-Dataset>`__
+
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
+-  `Prepare the Model <#prepare-the-model>`__
+-  `Prepare the Dataset <#prepare-the-dataset>`__
 -  `Optimize model using NNCF Post-training Quantization
-   API <#Optimize-model-using-NNCF-Post-training-Quantization-API>`__
--  `Load and Test OpenVINO Model <#Load-and-Test-OpenVINO-Model>`__
+   API <#optimize-model-using-nncf-post-training-quantization-api>`__
+-  `Load and Test OpenVINO Model <#load-and-test-openvino-model>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
 -  `Compare F1-score of FP32 and INT8
-   models <#Compare-F1-score-of-FP32-and-INT8-models>`__
+   models <#compare-f1-score-of-fp32-and-int8-models>`__
 -  `Compare Performance of the Original, Converted and Quantized
-   Models <#Compare-Performance-of-the-Original,-Converted-and-Quantized-Models>`__
+   Models <#compare-performance-of-the-original-converted-and-quantized-models>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -67,7 +67,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -114,7 +114,7 @@ Imports
 Settings
 --------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -131,7 +131,7 @@ Settings
 Prepare the Model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Perform the following:
 
@@ -217,7 +217,7 @@ PyTorch model formats are supported:
 Prepare the Dataset
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We download the `General Language Understanding Evaluation
 (GLUE) <https://gluebenchmark.com/>`__ dataset for the MRPC task from
@@ -246,7 +246,7 @@ tokenizer from HuggingFace.
 Optimize model using NNCF Post-training Quantization API
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -286,9 +286,9 @@ The optimization process contains the following steps:
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -299,9 +299,9 @@ The optimization process contains the following steps:
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -317,9 +317,9 @@ The optimization process contains the following steps:
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -330,9 +330,9 @@ The optimization process contains the following steps:
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -344,7 +344,7 @@ The optimization process contains the following steps:
 Load and Test OpenVINO Model
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To load and test converted model, perform the following:
 
@@ -356,7 +356,7 @@ To load and test converted model, perform the following:
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -410,7 +410,7 @@ changing ``sample_idx`` to another value (from 0 to 407).
 Compare F1-score of FP32 and INT8 models
 ----------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -454,7 +454,7 @@ Compare F1-score of FP32 and INT8 models
 Compare Performance of the Original, Converted and Quantized Models
 -------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Compare the original PyTorch model with OpenVINO converted and quantized
 models (``FP32``, ``INT8``) to see the difference in performance. It is

@@ -21,42 +21,42 @@ In this notebook we will load the model with Hugging Face Transformers,
 convert it to OpenVINO IR format, optimize it with NNCF and show the
 life demo.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Instantiate model <#Instantiate-model>`__
 
-   -  `Prepare input data <#Prepare-input-data>`__
-   -  `Run PyTorch model inference <#Run-PyTorch-model-inference>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Instantiate model <#instantiate-model>`__
 
--  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
+   -  `Prepare input data <#prepare-input-data>`__
+   -  `Run PyTorch model inference <#run-pytorch-model-inference>`__
 
-   -  `Prepare input data <#Prepare-input-data>`__
+-  `Run OpenVINO model inference <#run-openvino-model-inference>`__
+
+   -  `Prepare input data <#prepare-input-data>`__
    -  `Convert Model to OpenVINO IR
-      format <#Convert-Model-to-OpenVINO-IR-format>`__
-   -  `Select inference device <#Select-inference-device>`__
+      format <#convert-model-to-openvino-ir-format>`__
+   -  `Select inference device <#select-inference-device>`__
    -  `Compile model and run
-      inference <#Compile-model-and-run-inference>`__
+      inference <#compile-model-and-run-inference>`__
 
 -  `Quantize model to INT8 using
-   NNCF <#Quantize-model-to-INT8-using-NNCF>`__
+   NNCF <#quantize-model-to-int8-using-nncf>`__
 
-   -  `Prepare datasets <#Prepare-datasets>`__
+   -  `Prepare datasets <#prepare-datasets>`__
 
-      -  `Dataset with text data <#Dataset-with-text-data>`__
-      -  `Dataset with image data <#Dataset-with-image-data>`__
+      -  `Dataset with text data <#dataset-with-text-data>`__
+      -  `Dataset with image data <#dataset-with-image-data>`__
 
-   -  `Perform quantization <#Perform-quantization>`__
+   -  `Perform quantization <#perform-quantization>`__
 
-      -  `Quantization of text model <#Quantization-of-text-model>`__
-      -  `Quantization of image model <#Quantization-of-image-model>`__
+      -  `Quantization of text model <#quantization-of-text-model>`__
+      -  `Quantization of image model <#quantization-of-image-model>`__
 
-   -  `Compare File Size <#Compare-File-Size>`__
+   -  `Compare File Size <#compare-file-size>`__
    -  `Compare inference time of the FP16 IR and quantized
-      models <#Compare-inference-time-of-the-FP16-IR-and-quantized-models>`__
+      models <#compare-inference-time-of-the-fp16-ir-and-quantized-models>`__
 
--  `Gradio demo <#Gradio-demo>`__
+-  `Gradio demo <#gradio-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -71,7 +71,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -88,7 +88,7 @@ Prerequisites
 Instantiate model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s load the
 `jinaai/jina-clip-v1 <https://huggingface.co/jinaai/jina-clip-v1>`__
@@ -114,7 +114,7 @@ weights, using ``from_pretrained`` method.
 Prepare input data
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The model can encode meaningful sentences in English as text input.
 Image could be provided to model as local file path, URLs or directly
@@ -241,7 +241,7 @@ and take ``preprocess`` for image data using ``model.get_preprocess()``.
 Run PyTorch model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -259,12 +259,12 @@ Run PyTorch model inference
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Convert Model to OpenVINO IR format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). OpenVINO model conversion API should be used for
@@ -324,7 +324,7 @@ loading on device using ``core.complie_model``.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For starting work, please select inference device from dropdown list.
 
@@ -345,7 +345,7 @@ For starting work, please select inference device from dropdown list.
 Compile model and run inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -368,7 +368,7 @@ Compile model and run inference
 Quantize model to INT8 using NNCF
 ---------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Lets speed up the model by applying 8-bit post-training quantization
 from `NNCF <https://github.com/openvinotoolkit/nncf/>`__ (Neural Network
@@ -420,7 +420,7 @@ inference faster. The optimization process contains the following steps:
 Prepare datasets
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The `Conceptual
 Captions <https://ai.google.com/research/ConceptualCaptions/>`__ dataset
@@ -430,7 +430,7 @@ model.
 Dataset with text data
 ^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -525,7 +525,7 @@ Dataset with text data
 Dataset with image data
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -606,7 +606,7 @@ Dataset with image data
 Perform quantization
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Create a quantized model from the pre-trained ``FP16`` model.
 
@@ -616,7 +616,7 @@ Create a quantized model from the pre-trained ``FP16`` model.
 Quantization of text model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -648,9 +648,9 @@ Quantization of text model
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -661,16 +661,16 @@ Quantization of text model
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
 Quantization of image model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -702,9 +702,9 @@ Quantization of image model
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -715,9 +715,9 @@ Quantization of image model
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -742,7 +742,7 @@ Quantization of image model
 Compare File Size
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -773,7 +773,7 @@ Compare File Size
 Compare inference time of the FP16 IR and quantized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 models, we use median inference time on calibration dataset. So we can
@@ -824,7 +824,7 @@ approximately estimate the speed up of the dynamic quantized models.
 Gradio demo
 -----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 You can provide your own image and comma-separated list of labels for
 zero-shot classification.
@@ -919,7 +919,7 @@ example, ``cat,dog,bird``)
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

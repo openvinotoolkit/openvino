@@ -52,28 +52,28 @@ need a Jupyter server to start. For details, please refer to
 `Installation
 Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Select model for inference <#Select-model-for-inference>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Select model for inference <#select-model-for-inference>`__
 -  `Convert model using Optimum-CLI
-   tool <#Convert-model-using-Optimum-CLI-tool>`__
+   tool <#convert-model-using-optimum-cli-tool>`__
 
    -  `Weights Compression using
-      Optimum-CLI <#Weights-Compression-using-Optimum-CLI>`__
+      Optimum-CLI <#weights-compression-using-optimum-cli>`__
 
--  `Select device for inference <#Select-device-for-inference>`__
+-  `Select device for inference <#select-device-for-inference>`__
 -  `Instantiate pipeline with OpenVINO Generate
-   API <#Instantiate-pipeline-with-OpenVINO-Generate-API>`__
--  `Run Chatbot <#Run-Chatbot>`__
+   API <#instantiate-pipeline-with-openvino-generate-api>`__
+-  `Run Chatbot <#run-chatbot>`__
 
-   -  `Advanced generation options <#Advanced-generation-options>`__
+   -  `Advanced generation options <#advanced-generation-options>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install required dependencies
 
@@ -146,7 +146,7 @@ Install required dependencies
 Select model for inference
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
@@ -231,7 +231,7 @@ Click here to see available models options
    model can be found in `model
    card <https://huggingface.co/google/gemma-2b-it>`__. >\ **Note**: run
    model with demo, you will need to accept license agreement. >You must
-   be a registered user in 🤗 Hugging Face Hub. Please visit `HuggingFace
+   be a registered user in Hugging Face Hub. Please visit `HuggingFace
    model card <https://huggingface.co/google/gemma-2b-it>`__, carefully
    read terms of usage and click accept button. You will need to use an
    access token for the code below to run. For more information on
@@ -278,7 +278,7 @@ Click here to see available models options
    model can be found in `model
    card <https://huggingface.co/google/gemma-7b-it>`__. >\ **Note**: run
    model with demo, you will need to accept license agreement. >You must
-   be a registered user in 🤗 Hugging Face Hub. Please visit `HuggingFace
+   be a registered user in Hugging Face Hub. Please visit `HuggingFace
    model card <https://huggingface.co/google/gemma-7b-it>`__, carefully
    read terms of usage and click accept button. You will need to use an
    access token for the code below to run. For more information on
@@ -310,7 +310,7 @@ Click here to see available models options
    `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+   agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__,
    carefully read terms of usage and click accept button. You will need
@@ -344,7 +344,7 @@ Click here to see available models options
    website <https://llama.meta.com/llama3>`__ and `model
    card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+   agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__,
    carefully read terms of usage and click accept button. You will need
@@ -375,7 +375,7 @@ Click here to see available models options
    website <https://llama.meta.com>`__ and `model
    card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+   agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__,
    carefully read terms of usage and click accept button. You will need
@@ -538,10 +538,10 @@ Click here to see available models options
 Convert model using Optimum-CLI tool
 ------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
 
-🤗 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the 🤗
+
+`Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
+the interface between the 
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -578,7 +578,7 @@ remote code, ``--trust-remote-code`` flag additionally should be passed.
 Weights Compression using Optimum-CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 You can also apply fp16, 8-bit or 4-bit weight compression on the
 Linear, Convolutional and Embedding layers when exporting your model
@@ -701,7 +701,7 @@ Let’s compare model size for different compression types
 Select device for inference
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -726,7 +726,7 @@ variant of model weights and inference device
 Instantiate pipeline with OpenVINO Generate API
 -----------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `OpenVINO Generate
 API <https://github.com/openvinotoolkit/openvino.genai/blob/master/src/README.md>`__
@@ -775,7 +775,7 @@ of the available generation parameters more deeply later.
 Run Chatbot
 -----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, when model created, we can setup Chatbot interface using
 `Gradio <https://www.gradio.app/>`__.
@@ -832,7 +832,7 @@ Guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
 Advanced generation options
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. raw:: html
 
@@ -923,7 +923,7 @@ Click here to see detailed description of advanced options
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

@@ -26,39 +26,40 @@ optimization with `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to
 speed up pipeline. If you want to run previous Stable Diffusion
 versions, please check our other notebooks:
 
--  `Stable Diffusion <../stable-diffusion-text-to-image>`__
--  `Stable Diffusion v2 <../stable-diffusion-v2>`__
--  `Stable Diffusion XL <../stable-diffusion-xl>`__
+-  `Stable Diffusion <stable-diffusion-v2-text-to-image-with-output.html>`__
+-  `Stable Diffusion v2 <stable-diffusion-v2-infinite-zoom-with-output.html>`__
+-  `Stable Diffusion XL <stable-diffusion-xl-with-output>`__
 -  `LCM Stable
-   Diffusion <../latent-consistency-models-image-generation>`__
--  `Turbo SDXL <../sdxl-turbo>`__
--  `Turbo SD <../sketch-to-image-pix2pix-turbo>`__
+   Diffusion <latent-consistency-models-image-generation-with-output.html>`__
+-  `Turbo SDXL <sdxl-turbo-with-output.html>`__
+-  `Turbo SD <sketch-to-image-pix2pix-turbo-with-output.html>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Build PyTorch pipeline <#Build-PyTorch-pipeline>`__
--  `Convert models with OpenVINO <#Convert-models-with-OpenVINO>`__
+**Table of contents:**
 
-   -  `Transformer <#Transformer>`__
-   -  `T5 Text Encoder <#T5-Text-Encoder>`__
-   -  `Clip text encoders <#Clip-text-encoders>`__
-   -  `VAE <#VAE>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Build PyTorch pipeline <#build-pytorch-pipeline>`__
+-  `Convert models with OpenVINO <#convert-models-with-openvino>`__
+
+   -  `Transformer <#transformer>`__
+   -  `T5 Text Encoder <#t5-text-encoder>`__
+   -  `Clip text encoders <#clip-text-encoders>`__
+   -  `VAE <#vae>`__
 
 -  `Prepare OpenVINO inference
-   pipeline <#Prepare-OpenVINO-inference-pipeline>`__
--  `Run OpenVINO model <#Run-OpenVINO-model>`__
--  `Quantization <#Quantization>`__
+   pipeline <#prepare-openvino-inference-pipeline>`__
+-  `Run OpenVINO model <#run-openvino-model>`__
+-  `Quantization <#quantization>`__
 
-   -  `Prepare calibration dataset <#Prepare-calibration-dataset>`__
-   -  `Run Quantization <#Run-Quantization>`__
-   -  `Run Weights Compression <#Run-Weights-Compression>`__
-   -  `Compare model file sizes <#Compare-model-file-sizes>`__
+   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
+   -  `Run Quantization <#run-quantization>`__
+   -  `Run Weights Compression <#run-weights-compression>`__
+   -  `Compare model file sizes <#compare-model-file-sizes>`__
    -  `Compare inference time of the FP16 and optimized
-      pipelines <#Compare-inference-time-of-the-FP16-and-optimized-pipelines>`__
+      pipelines <#compare-inference-time-of-the-fp16-and-optimized-pipelines>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -73,7 +74,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -84,19 +85,19 @@ Prerequisites
 
     import requests
     from pathlib import Path
-    
+
     if not Path("sd3_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-v3/sd3_helper.py")
         open("sd3_helper.py", "w").write(r.text)
-    
+
     if not Path("sd3_quantization_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-v3/sd3_quantization_helper.py")
         open("sd3_quantization_helper.py", "w").write(r.text)
-    
+
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-v3/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-    
+
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
@@ -104,10 +105,10 @@ Prerequisites
 Build PyTorch pipeline
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
    **Note**: run model with notebook, you will need to accept license
-   agreement. You must be a registered user in 🤗 Hugging Face Hub.
+   agreement. You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/stabilityai/stable-diffusion-3-medium-diffusers>`__,
    carefully read terms of usage and click accept button. You will need
@@ -120,9 +121,9 @@ Build PyTorch pipeline
 .. code:: ipython3
 
     # uncomment these lines to login to huggingfacehub to get access to pretrained model
-    
+
     # from huggingface_hub import notebook_login, whoami
-    
+
     # try:
     #     whoami()
     #     print('Authorization token already provided')
@@ -153,9 +154,9 @@ memory consumption:
 .. code:: ipython3
 
     from sd3_helper import get_pipeline_options
-    
+
     pt_pipeline_options, use_flash_lora, load_t5 = get_pipeline_options()
-    
+
     display(pt_pipeline_options)
 
 
@@ -179,7 +180,7 @@ memory consumption:
 Convert models with OpenVINO
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models directly
 via Model Conversion API. ``ov.convert_model`` function accepts instance
@@ -201,7 +202,7 @@ and convert each part of pipeline using ``ov.convert_model``.
 .. code:: ipython3
 
     from sd3_helper import convert_sd3
-    
+
     # Uncomment the line beolow to see model conversion code
     # ??convert_sd3
 
@@ -218,26 +219,26 @@ and convert each part of pipeline using ``ov.convert_model``.
 Prepare OpenVINO inference pipeline
 -----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from sd3_helper import OVStableDiffusion3Pipeline, init_pipeline  # noqa: F401
-    
+
     # Uncomment line below to see pipeline code
     # ??OVStableDiffusion3Pipeline
 
 Run OpenVINO model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
+
     device = device_widget()
-    
+
     device
 
 
@@ -252,12 +253,12 @@ Run OpenVINO model
 .. code:: ipython3
 
     from sd3_helper import TEXT_ENCODER_PATH, TEXT_ENCODER_2_PATH, TEXT_ENCODER_3_PATH, TRANSFORMER_PATH, VAE_DECODER_PATH
-    
+
     models_dict = {"transformer": TRANSFORMER_PATH, "vae": VAE_DECODER_PATH, "text_encoder": TEXT_ENCODER_PATH, "text_encoder_2": TEXT_ENCODER_2_PATH}
-    
+
     if load_t5.value:
         models_dict["text_encoder_3"] = TEXT_ENCODER_3_PATH
-    
+
     ov_pipe = init_pipeline(models_dict, device.value, use_flash_lora.value)
 
 
@@ -273,7 +274,7 @@ Run OpenVINO model
 .. code:: ipython3
 
     import torch
-    
+
     image = ov_pipe(
         "A raccoon trapped inside a glass jar full of colorful candies, the background is steamy with vivid colors",
         negative_prompt="",
@@ -301,7 +302,7 @@ Run OpenVINO model
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -330,9 +331,9 @@ improve model inference speed.
 
     from notebook_utils import quantization_widget
     from sd3_quantization_helper import TRANSFORMER_INT8_PATH, TEXT_ENCODER_INT4_PATH, TEXT_ENCODER_2_INT4_PATH, TEXT_ENCODER_3_INT4_PATH, VAE_DECODER_INT4_PATH
-    
+
     to_quantize = quantization_widget()
-    
+
     to_quantize
 
 
@@ -364,33 +365,33 @@ Let’s load ``skip magic`` extension to skip quantization if
 
     # Fetch `skip_kernel_extension` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-    
+
     optimized_pipe = None
-    
+
     opt_models_dict = {
         "transformer": TRANSFORMER_INT8_PATH,
         "text_encoder": TEXT_ENCODER_INT4_PATH,
         "text_encoder_2": TEXT_ENCODER_2_INT4_PATH,
         "vae": VAE_DECODER_INT4_PATH,
     }
-    
+
     if TEXT_ENCODER_3_PATH.exists():
         opt_models_dict["text_encoder_3"] = TEXT_ENCODER_3_INT4_PATH
-    
+
     %load_ext skip_kernel_extension
 
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use a portion of
-```google-research-datasets/conceptual_captions`` <https://huggingface.co/datasets/google-research-datasets/conceptual_captions>`__
+`google-research-datasets/conceptual_captions <https://huggingface.co/datasets/google-research-datasets/conceptual_captions>`__
 dataset from Hugging Face as calibration data. We use prompts below to
 guide image generation and to determine what not to include in the
 resulting image.
@@ -402,9 +403,9 @@ To collect intermediate model inputs for calibration we should customize
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from sd3_quantization_helper import collect_calibration_data, TRANSFORMER_INT8_PATH
-    
+
     # Uncomment the line to see calibration data collection code
     # ??collect_calibration_data
 
@@ -412,7 +413,7 @@ To collect intermediate model inputs for calibration we should customize
 Run Quantization
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Quantization of the first ``Convolution`` layer impacts the generation
 results. We recommend using ``IgnoredScope`` to keep accuracy sensitive
@@ -421,14 +422,14 @@ layers in FP16 precision.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import nncf
     import gc
     import openvino as ov
-    
+
     core = ov.Core()
-    
-    
+
+
     if not TRANSFORMER_INT8_PATH.exists():
         calibration_dataset_size = 200
         print("Calibration data collection started")
@@ -438,11 +439,11 @@ layers in FP16 precision.
                                                          guidance_scale=5 if not use_flash_lora.value else 0
                                                          )
         print("Calibration data collection finished")
-        
+
         del ov_pipe
         gc.collect()
         ov_pipe = None
-    
+
         transformer = core.read_model(TRANSFORMER_PATH)
         quantized_model = nncf.quantize(
             model=transformer,
@@ -451,13 +452,13 @@ layers in FP16 precision.
             model_type=nncf.ModelType.TRANSFORMER,
             ignored_scope=nncf.IgnoredScope(names=["__module.model.base_model.model.pos_embed.proj.base_layer/aten::_convolution/Convolution"]),
         )
-    
+
         ov.save_model(quantized_model, TRANSFORMER_INT8_PATH)
 
 Run Weights Compression
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Quantizing of the ``Text Encoders`` and ``Autoencoder`` does not
 significantly improve inference performance but can lead to a
@@ -476,9 +477,9 @@ introduces a minor drop in prediction quality.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from sd3_quantization_helper import compress_models
-    
+
     compress_models()
 
 
@@ -510,9 +511,9 @@ pipelines.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from sd3_quantization_helper import visualize_results
-    
+
     opt_image = optimized_pipe(
         "A raccoon trapped inside a glass jar full of colorful candies, the background is steamy with vivid colors",
         negative_prompt="",
@@ -522,7 +523,7 @@ pipelines.
         width=512,
         generator=torch.Generator().manual_seed(141),
     ).images[0]
-    
+
     visualize_results(image, opt_image)
 
 
@@ -539,16 +540,16 @@ pipelines.
 Compare model file sizes
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
     from sd3_quantization_helper import compare_models_size
-    
+
     del optimized_pipe
     gc.collect()
-    
+
     compare_models_size()
 
 
@@ -563,7 +564,7 @@ Compare model file sizes
 Compare inference time of the FP16 and optimized pipelines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP16`` and optimized
 pipelines, we use mean inference time on 5 samples.
@@ -575,9 +576,9 @@ pipelines, we use mean inference time on 5 samples.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from sd3_quantization_helper import compare_perf
-    
+
     compare_perf(models_dict, opt_models_dict, device.value, use_flash_lora.value, validation_size=5)
 
 
@@ -601,7 +602,7 @@ pipelines, we use mean inference time on 5 samples.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Please select below whether you would like to use the quantized models
 to launch the interactive demo.
@@ -609,9 +610,9 @@ to launch the interactive demo.
 .. code:: ipython3
 
     from sd3_helper import get_pipeline_selection_option
-    
+
     use_quantized_models = get_pipeline_selection_option(opt_models_dict)
-    
+
     use_quantized_models
 
 
@@ -626,10 +627,10 @@ to launch the interactive demo.
 .. code:: ipython3
 
     from gradio_helper import make_demo
-    
+
     ov_pipe = init_pipeline(models_dict if not use_quantized_models.value else opt_models_dict, device.value, use_flash_lora.value)
     demo = make_demo(ov_pipe, use_flash_lora.value)
-    
+
     # if you are launching remotely, specify server_name and server_port
     #  demo.launch(server_name='your server name', server_port='server port in int')
     # if you have any issue to launch on your platform, you can pass share=True to launch method:

@@ -19,15 +19,15 @@ using OpenVINO.
    **Note**: Some demonstrated models can require at least 32GB RAM for
    conversion and running.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Select model <#Select-model>`__
--  `Convert model with OpenVINO <#Convert-model-with-OpenVINO>`__
--  `Compress model weights <#Compress-model-weights>`__
--  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
--  `Interactive demo <#Interactive-demo>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Select model <#select-model>`__
+-  `Convert model with OpenVINO <#convert-model-with-openvino>`__
+-  `Compress model weights <#compress-model-weights>`__
+-  `Run OpenVINO model inference <#run-openvino-model-inference>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -42,7 +42,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -80,7 +80,7 @@ Prerequisites
 Select model
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To strike a balance between accessibility and model capabilities, FLUX.1
 comes in three variants: FLUX.1-pro, FLUX.1-dev and FLUX.1-schnell: \*
@@ -132,7 +132,7 @@ FLUX.1-dev version using widget bellow.
 
 
    **Note**: run Flux.1-dev model with notebook, you will need to accept
-   license agreement. You must be a registered user in 🤗 Hugging Face
+   license agreement. You must be a registered user in Hugging Face
    Hub. Please visit `HuggingFace model
    card <https://huggingface.co/black-forest-labs/FLUX.1-dev>`__,
    carefully read terms of usage and click accept button. You will need
@@ -157,7 +157,7 @@ FLUX.1-dev version using widget bellow.
 Convert model with OpenVINO
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models directly
 via Model Conversion API. ``ov.convert_model`` function accepts instance
@@ -268,7 +268,7 @@ and convert each part of pipeline using ``ov.convert_model``.
 Compress model weights
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For reducing model memory consumption we will use weights compression.
 The `Weights
@@ -355,9 +355,9 @@ compression.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -387,9 +387,9 @@ compression.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -419,9 +419,9 @@ compression.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -451,9 +451,9 @@ compression.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -466,7 +466,7 @@ compression.
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``OVFluxPipeline`` class defined in ``flux_helper.py`` provides
 convenient way for running model. It accepts directory with converted
@@ -552,7 +552,7 @@ model and inference device as arguments.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -579,7 +579,7 @@ Interactive demo
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

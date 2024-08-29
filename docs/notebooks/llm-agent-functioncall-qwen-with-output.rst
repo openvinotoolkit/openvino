@@ -30,26 +30,26 @@ Custom Assistant.
 This notebook explores how to create a Function calling Agent step by
 step using OpenVINO and Qwen-Agent.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
+
+-  `Prerequisites <#prerequisites>`__
 -  `Create a Function calling
-   agent <#Create-a-Function-calling-agent>`__
+   agent <#create-a-function-calling-agent>`__
 
-   -  `Create functions <#Create-functions>`__
-   -  `Download model <#Download-model>`__
+   -  `Create functions <#create-functions>`__
+   -  `Download model <#download-model>`__
    -  `Select inference device for
-      LLM <#Select-inference-device-for-LLM>`__
-   -  `Create LLM for Qwen-Agent <#Create-LLM-for-Qwen-Agent>`__
+      LLM <#select-inference-device-for-llm>`__
+   -  `Create LLM for Qwen-Agent <#create-llm-for-qwen-agent>`__
    -  `Create Function-calling
-      pipeline <#Create-Function-calling-pipeline>`__
+      pipeline <#create-function-calling-pipeline>`__
 
--  `Interactive Demo <#Interactive-Demo>`__
+-  `Interactive Demo <#interactive-demo>`__
 
-   -  `Create tools <#Create-tools>`__
+   -  `Create tools <#create-tools>`__
    -  `Create AI agent demo with Qwen-Agent and Gradio
-      UI <#Create-AI-agent-demo-with-Qwen-Agent-and-Gradio-UI>`__
+      UI <#create-ai-agent-demo-with-qwen-agent-and-gradio-ui>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -64,7 +64,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -98,7 +98,7 @@ Prerequisites
 Create a Function calling agent
 -------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Function calling allows a model to detect when one or more tools should
 be called and respond with the inputs that should be passed to those
@@ -116,7 +116,7 @@ repeatedly calls tools and receives results until a query is resolved.
 Create a function
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 First, we need to create a example function/tool for getting the
 information of current weather.
@@ -163,7 +163,7 @@ help LLM to find out which function should be called for current task.
 Download model
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Large Language Models (LLMs) are a core component of Agent. In this
 example, we will demonstrate how to create a OpenVINO LLM model in
@@ -199,7 +199,7 @@ folder.
 Select inference device for LLM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -233,7 +233,7 @@ Select inference device for LLM
 Create LLM for Qwen-Agent
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO has been integrated into the ``Qwen-Agent`` framework. You can
 use following method to create a OpenVINO based LLM for a ``Qwen-Agent``
@@ -279,7 +279,7 @@ These options can be enabled with ``ov_config`` as follows:
 Create Function-calling pipeline
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 After defining the functions and LLM, we can build the agent pipeline
 with capability of function calling.
@@ -379,7 +379,7 @@ A typical multi-turn dialogue structure is as follows:
 Interactive Demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s create a interactive agent using
 `Gradio <https://www.gradio.app/>`__.
@@ -387,7 +387,7 @@ Let’s create a interactive agent using
 Create tools
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Qwen-Agent provides a mechanism for `registering
 tools <https://github.com/QwenLM/Qwen-Agent/blob/main/docs/tool.md>`__.
@@ -472,7 +472,7 @@ historical events, or other subjects.
 Create AI agent demo with Qwen-Agent and Gradio UI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The Agent class serves as a higher-level interface for Qwen-Agent, where
 an Agent object integrates the interfaces for tool calls and LLM (Large

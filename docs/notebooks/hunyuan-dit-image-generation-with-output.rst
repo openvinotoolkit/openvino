@@ -34,24 +34,28 @@ page <https://dit.hunyuan.tencent.com/>`__ and
 In this tutorial we consider how to convert and run Hunyuan-DIT model
 using OpenVINO. Additionally, we will use
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ for optimizing model
-in low precision. #### Table of contents:
+in low precision. 
 
--  `Prerequisites <#Prerequisites>`__
--  `Download PyTorch model <#Download-PyTorch-model>`__
--  `Build PyTorch pipeline <#Build-PyTorch-pipeline>`__
+**Table of contents:**
+
+
+
+-  `Prerequisites <#prerequisites>`__
+-  `Download PyTorch model <#download-pytorch-model>`__
+-  `Build PyTorch pipeline <#build-pytorch-pipeline>`__
 -  `Convert and Optimize models with OpenVINO and
-   NNCF <#Convert-and-Optimize-models-with-OpenVINO-and-NNCF>`__
+   NNCF <#convert-and-optimize-models-with-openvino-and-nncf>`__
 
-   -  `DiT <#DiT>`__
-   -  `Text Encoder <#Text-Encoder>`__
-   -  `Text Embedder <#Text-Embedder>`__
-   -  `VAE Decoder <#VAE-Decoder>`__
+   -  `DiT <#dit>`__
+   -  `Text Encoder <#text-encoder>`__
+   -  `Text Embedder <#text-embedder>`__
+   -  `VAE Decoder <#vae-decoder>`__
 
--  `Create Inference pipeline <#Create-Inference-pipeline>`__
+-  `Create Inference pipeline <#create-inference-pipeline>`__
 
-   -  `Run model <#Run-model>`__
+   -  `Run model <#run-model>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -68,7 +72,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -94,7 +98,7 @@ Prerequisites
 Download PyTorch model
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For starting work with model, we should download it from HuggingFace
 Hub. We will use
@@ -128,7 +132,7 @@ the first time, model downloading may take some time.
 Build PyTorch pipeline
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The code bellow, initialize PyTorch inference pipeline for hunyuan-DIT
 model.
@@ -163,7 +167,7 @@ model.
 Convert and Optimize models with OpenVINO and NNCF
 --------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models directly
 via Model Conversion API. ``ov.convert_model`` function accepts instance
@@ -193,7 +197,7 @@ Let us convert and optimize each part:
 DiT
 ~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -258,7 +262,7 @@ DiT
 Text Encoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -278,7 +282,7 @@ Text Encoder
 Text Embedder
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -297,7 +301,7 @@ Text Embedder
 VAE Decoder
 ~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -324,7 +328,7 @@ VAE Decoder
 Create Inference pipeline
 -------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -745,7 +749,7 @@ Create Inference pipeline
 Run model
 ~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Please select inference device using dropdown widget:
 
@@ -886,7 +890,7 @@ Please select inference device using dropdown widget:
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

@@ -11,33 +11,33 @@ apply `AnimateLCM <https://arxiv.org/abs/2402.00769>`__ LoRA weights and
 run optimization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Download PyTorch Model <#Download-PyTorch-Model>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Download PyTorch Model <#download-pytorch-model>`__
 -  `Convert Model to OpenVINO Intermediate
-   Representation <#Convert-Model-to-OpenVINO-Intermediate-Representation>`__
+   Representation <#convert-model-to-openvino-intermediate-representation>`__
 
-   -  `Image Encoder <#Image-Encoder>`__
-   -  `U-net <#U-net>`__
-   -  `VAE Encoder and Decoder <#VAE-Encoder-and-Decoder>`__
+   -  `Image Encoder <#image-encoder>`__
+   -  `U-net <#u-net>`__
+   -  `VAE Encoder and Decoder <#vae-encoder-and-decoder>`__
 
--  `Prepare Inference Pipeline <#Prepare-Inference-Pipeline>`__
--  `Run Video Generation <#Run-Video-Generation>`__
+-  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+-  `Run Video Generation <#run-video-generation>`__
 
-   -  `Select Inference Device <#Select-Inference-Device>`__
+   -  `Select Inference Device <#select-inference-device>`__
 
--  `Quantization <#Quantization>`__
+-  `Quantization <#quantization>`__
 
-   -  `Prepare calibration dataset <#Prepare-calibration-dataset>`__
-   -  `Run Hybrid Model Quantization <#Run-Hybrid-Model-Quantization>`__
-   -  `Run Weight Compression <#Run-Weight-Compression>`__
-   -  `Compare model file sizes <#Compare-model-file-sizes>`__
+   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
+   -  `Run Hybrid Model Quantization <#run-hybrid-model-quantization>`__
+   -  `Run Weight Compression <#run-weight-compression>`__
+   -  `Compare model file sizes <#compare-model-file-sizes>`__
    -  `Compare inference time of the FP16 and INT8
-      pipelines <#Compare-inference-time-of-the-FP16-and-INT8-pipelines>`__
+      pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
 
--  `Interactive Demo <#Interactive-Demo>`__
+-  `Interactive Demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -52,7 +52,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -62,7 +62,7 @@ Prerequisites
 Download PyTorch Model
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The code below load Stable Video Diffusion XT model using
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ library and
@@ -148,7 +148,7 @@ apply Consistency Distilled AnimateLCM weights.
 Convert Model to OpenVINO Intermediate Representation
 -----------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch models via conversion into Intermediate
 Representation (IR) format. We need to provide a model object, input
@@ -168,7 +168,7 @@ Let’s convert each part.
 Image Encoder
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -201,7 +201,7 @@ Image Encoder
 U-net
 ~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -225,7 +225,7 @@ U-net
 VAE Encoder and Decoder
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 As discussed above VAE model used for encoding initial image and
 decoding generated video. Encoding and Decoding happen on different
@@ -278,7 +278,7 @@ Encoder and Decoder.
 Prepare Inference Pipeline
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The code bellow implements ``OVStableVideoDiffusionPipeline`` class for
 running video generation using OpenVINO. The pipeline accepts input
@@ -874,12 +874,12 @@ frames.
 Run Video Generation
 --------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select Inference Device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -991,7 +991,7 @@ parameters into pipeline.
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -1066,10 +1066,10 @@ improve model inference speed.
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use a portion of
-```fusing/instructpix2pix-1000-samples`` <https://huggingface.co/datasets/fusing/instructpix2pix-1000-samples>`__
+`fusing/instructpix2pix-1000-samples <https://huggingface.co/datasets/fusing/instructpix2pix-1000-samples>`__
 dataset from Hugging Face as calibration data. To collect intermediate
 model inputs for UNet optimization we should customize
 ``CompiledModel``.
@@ -1137,7 +1137,7 @@ model inputs for UNet optimization we should customize
 Run Hybrid Model Quantization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1217,7 +1217,7 @@ Run Hybrid Model Quantization
 Run Weight Compression
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Quantizing of the ``vae encoder`` and ``vae decoder`` does not
 significantly improve inference performance but can lead to a
@@ -1260,17 +1260,17 @@ applied for footprint reduction.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1293,17 +1293,17 @@ applied for footprint reduction.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1384,7 +1384,7 @@ pipelines.
 Compare model file sizes
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1409,7 +1409,7 @@ Compare model file sizes
 Compare inference time of the FP16 and INT8 pipelines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 pipelines, we use median inference time on calibration subset.
@@ -1464,7 +1464,7 @@ pipelines, we use median inference time on calibration subset.
 Interactive Demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Please select below whether you would like to use the quantized model to
 launch the interactive demo.

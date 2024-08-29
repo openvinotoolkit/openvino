@@ -102,35 +102,34 @@ additional part demonstrates how to run optimization with
 
    </table >
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Load the original model <#Load-the-original-model>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Load the original model <#load-the-original-model>`__
 -  `Convert the model to OpenVINO
-   IR <#Convert-the-model-to-OpenVINO-IR>`__
+   IR <#convert-the-model-to-openvino-ir>`__
 
-   -  `Convert CLIP text encoder <#Convert-CLIP-text-encoder>`__
-   -  `Convert CLIP image encoder <#Convert-CLIP-image-encoder>`__
-   -  `Convert AE encoder <#Convert-AE-encoder>`__
-   -  `Convert Diffusion U-Net model <#Convert-Diffusion-U-Net-model>`__
-   -  `Convert AE decoder <#Convert-AE-decoder>`__
+   -  `Convert CLIP text encoder <#convert-clip-text-encoder>`__
+   -  `Convert CLIP image encoder <#convert-clip-image-encoder>`__
+   -  `Convert AE encoder <#convert-ae-encoder>`__
+   -  `Convert Diffusion U-Net model <#convert-diffusion-u-net-model>`__
+   -  `Convert AE decoder <#convert-ae-decoder>`__
 
--  `Compiling models <#Compiling-models>`__
--  `Building the pipeline <#Building-the-pipeline>`__
+-  `Compiling models <#compiling-models>`__
+-  `Building the pipeline <#building-the-pipeline>`__
 -  `Run OpenVINO pipeline
-   inference <#Run-OpenVINO-pipeline-inference>`__
--  `Quantization <#Quantization>`__
+   inference <#run-openvino-pipeline-inference>`__
+-  `Quantization <#quantization>`__
 
-   -  `Prepare calibration dataset <#Prepare-calibration-dataset>`__
-   -  `Run Quantization <#Run-Quantization>`__
-   -  `Run Weights Compression <#Run-Weights-Compression>`__
-   -  `Compare model file sizes <#Compare-model-file-sizes>`__
+   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
+   -  `Run Quantization <#run-quantization>`__
+   -  `Run Weights Compression <#run-weights-compression>`__
+   -  `Compare model file sizes <#compare-model-file-sizes>`__
    -  `Compare inference time of the FP32 and INT8
-      pipelines <#Compare-inference-time-of-the-FP32-and-INT8-pipelines>`__
+      pipelines <#compare-inference-time-of-the-fp32-and-int8-pipelines>`__
 
--  `Interactive inference <#Interactive-inference>`__ ### Installation
-   Instructions
+-  `Interactive inference <#interactive-inference>`__
 
 This is a self-contained example that relies solely on its own code.
 
@@ -142,7 +141,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -160,17 +159,17 @@ Prerequisites
 
     import sys
     from pathlib import Path
-    
-    
+
+
     dynamicrafter_path = Path("dynamicrafter")
-    
+
     if not dynamicrafter_path.exists():
         dynamicrafter_path.mkdir(parents=True, exist_ok=True)
         !git clone https://github.com/Doubiiu/DynamiCrafter.git dynamicrafter
         %cd dynamicrafter
         !git checkout 26e665cd6c174234238d2ded661e2e56f875d360 -q  # to avoid breaking changes
         %cd ..
-    
+
     sys.path.append(str(dynamicrafter_path))
 
 
@@ -190,7 +189,7 @@ Prerequisites
 Load and run the original pipeline
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We will use model for 256x256 resolution as example. Also, models for
 320x512 and 576x1024 are
@@ -200,14 +199,14 @@ We will use model for 256x256 resolution as example. Also, models for
 
     import os
     from collections import OrderedDict
-    
+
     import torch
     from huggingface_hub import hf_hub_download
     from omegaconf import OmegaConf
-    
+
     from dynamicrafter.utils.utils import instantiate_from_config
-    
-    
+
+
     def load_model_checkpoint(model, ckpt):
         def load_checkpoint(model, ckpt, full_strict):
             state_dict = torch.load(ckpt, map_location="cpu")
@@ -220,7 +219,7 @@ We will use model for 256x256 resolution as example. Also, models for
                     new_pl_sd = OrderedDict()
                     for k, v in state_dict.items():
                         new_pl_sd[k] = v
-    
+
                     for k in list(new_pl_sd.keys()):
                         if "framestride_embed" in k:
                             new_key = k.replace("framestride_embed", "fps_embedding")
@@ -233,14 +232,14 @@ We will use model for 256x256 resolution as example. Also, models for
                 for key in state_dict["module"].keys():
                     new_pl_sd[key[16:]] = state_dict["module"][key]
                 model.load_state_dict(new_pl_sd, strict=full_strict)
-    
+
             return model
-    
+
         load_checkpoint(model, ckpt, full_strict=True)
         print(">>> model checkpoint loaded.")
         return model
-    
-    
+
+
     def download_model():
         REPO_ID = "Doubiiu/DynamiCrafter"
         if not os.path.exists("./checkpoints/dynamicrafter_256_v1/"):
@@ -248,7 +247,7 @@ We will use model for 256x256 resolution as example. Also, models for
         local_file = os.path.join("./checkpoints/dynamicrafter_256_v1/model.ckpt")
         if not os.path.exists(local_file):
             hf_hub_download(repo_id=REPO_ID, filename="model.ckpt", local_dir="./checkpoints/dynamicrafter_256_v1/", local_dir_use_symlinks=False)
-    
+
         ckpt_path = "checkpoints/dynamicrafter_256_v1/model.ckpt"
         config_file = "dynamicrafter/configs/inference_256_v1.0.yaml"
         config = OmegaConf.load(config_file)
@@ -257,10 +256,10 @@ We will use model for 256x256 resolution as example. Also, models for
         model = instantiate_from_config(model_config)
         model = load_model_checkpoint(model, ckpt_path)
         model.eval()
-    
+
         return model
-    
-    
+
+
     model = download_model()
 
 
@@ -286,7 +285,7 @@ We will use model for 256x256 resolution as example. Also, models for
 Convert the model to OpenVINO IR
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s define the conversion function for PyTorch modules. We use
 ``ov.convert_model`` function to obtain OpenVINO Intermediate
@@ -296,10 +295,10 @@ file.
 .. code:: ipython3
 
     import gc
-    
+
     import openvino as ov
-    
-    
+
+
     def convert(model: torch.nn.Module, xml_path: str, example_input, input_shape=None):
         xml_path = Path(xml_path)
         if not xml_path.exists():
@@ -310,7 +309,7 @@ file.
                 else:
                     converted_model = ov.convert_model(model, example_input=example_input, input=input_shape)
             ov.save_model(converted_model, xml_path, compress_to_fp16=False)
-    
+
             # cleanup memory
             torch._C._jit_clear_class_registry()
             torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
@@ -329,53 +328,53 @@ Let’s convert models from the pipeline one by one.
 Convert CLIP text encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from dynamicrafter.lvdm.modules.encoders.condition import FrozenOpenCLIPEmbedder
-    
-    
+
+
     COND_STAGE_MODEL_OV_PATH = Path("models/cond_stage_model.xml")
-    
-    
+
+
     class FrozenOpenCLIPEmbedderWrapper(FrozenOpenCLIPEmbedder):
         def forward(self, tokens):
             z = self.encode_with_transformer(tokens.to(self.device))
             return z
-    
-    
+
+
     cond_stage_model = FrozenOpenCLIPEmbedderWrapper(device="cpu")
-    
+
     if not COND_STAGE_MODEL_OV_PATH.exists():
         convert(
             cond_stage_model,
             COND_STAGE_MODEL_OV_PATH,
             example_input=torch.ones([1, 77], dtype=torch.long),
         )
-    
+
     del cond_stage_model
     gc.collect();
 
 Convert CLIP image encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 ``FrozenOpenCLIPImageEmbedderV2`` model accepts images of various
 resolutions.
 
 .. code:: ipython3
 
     EMBEDDER_OV_PATH = Path("models/embedder_ir.xml")
-    
-    
+
+
     dummy_input = torch.rand([1, 3, 767, 767], dtype=torch.float32)
-    
+
     model.embedder.model.visual.input_patchnorm = None  # fix error: visual model has not  attribute 'input_patchnorm'
     if not EMBEDDER_OV_PATH.exists():
         convert(model.embedder, EMBEDDER_OV_PATH, example_input=dummy_input, input_shape=[1, 3, -1, -1])
-    
-    
+
+
     del model.embedder
     gc.collect();
 
@@ -425,22 +424,22 @@ resolutions.
 Convert AE encoder
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     ENCODER_FIRST_STAGE_OV_PATH = Path("models/encoder_first_stage_ir.xml")
-    
-    
+
+
     dummy_input = torch.rand([1, 3, 256, 256], dtype=torch.float32)
-    
+
     if not ENCODER_FIRST_STAGE_OV_PATH.exists():
         convert(
             model.first_stage_model.encoder,
             ENCODER_FIRST_STAGE_OV_PATH,
             example_input=dummy_input,
         )
-    
+
     del model.first_stage_model.encoder
     gc.collect();
 
@@ -454,23 +453,23 @@ Convert AE encoder
 Convert Diffusion U-Net model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     MODEL_OV_PATH = Path("models/model_ir.xml")
-    
-    
+
+
     class ModelWrapper(torch.nn.Module):
         def __init__(self, diffusion_model):
             super().__init__()
             self.diffusion_model = diffusion_model
-    
+
         def forward(self, xc, t, context=None, fs=None, temporal_length=None):
             outputs = self.diffusion_model(xc, t, context=context, fs=fs, temporal_length=temporal_length)
             return outputs
-    
-    
+
+
     if not MODEL_OV_PATH.exists():
         convert(
             ModelWrapper(model.model.diffusion_model),
@@ -483,7 +482,7 @@ Convert Diffusion U-Net model
                 "temporal_length": torch.tensor([16]),
             },
         )
-    
+
     out_channels = model.model.diffusion_model.out_channels
     del model.model.diffusion_model
     gc.collect();
@@ -506,7 +505,7 @@ Convert Diffusion U-Net model
 Convert AE decoder
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__ ``Decoder`` receives a
+``Decoder`` receives a
 ``bfloat16`` tensor. numpy doesn’t support this type. To avoid problems
 with the conversion lets replace ``decode`` method to convert bfloat16
 to float32.
@@ -514,45 +513,45 @@ to float32.
 .. code:: ipython3
 
     import types
-    
-    
+
+
     def decode(self, z, **kwargs):
         z = self.post_quant_conv(z)
         z = z.float()
         dec = self.decoder(z)
         return dec
-    
-    
+
+
     model.first_stage_model.decode = types.MethodType(decode, model.first_stage_model)
 
 .. code:: ipython3
 
     DECODER_FIRST_STAGE_OV_PATH = Path("models/decoder_first_stage_ir.xml")
-    
-    
+
+
     dummy_input = torch.rand([16, 4, 32, 32], dtype=torch.float32)
-    
+
     if not DECODER_FIRST_STAGE_OV_PATH.exists():
         convert(
             model.first_stage_model.decoder,
             DECODER_FIRST_STAGE_OV_PATH,
             example_input=dummy_input,
         )
-    
+
     del model.first_stage_model.decoder
     gc.collect();
 
 Compiling models
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -560,7 +559,7 @@ Select device from dropdown list for running inference using OpenVINO.
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -583,7 +582,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Building the pipeline
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s create callable wrapper classes for compiled models to allow
 interaction with original pipelines. Note that all of wrapper classes
@@ -592,49 +591,49 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
 .. code:: ipython3
 
     import open_clip
-    
-    
+
+
     class CondStageModelWrapper(torch.nn.Module):
         def __init__(self, cond_stage_model):
             super().__init__()
             self.cond_stage_model = cond_stage_model
-    
+
         def encode(self, tokens):
             if isinstance(tokens, list):
                 tokens = open_clip.tokenize(tokens[0])
             outs = self.cond_stage_model(tokens)[0]
-    
+
             return torch.from_numpy(outs)
-    
-    
+
+
     class EncoderFirstStageModelWrapper(torch.nn.Module):
         def __init__(self, encode_first_stage):
             super().__init__()
             self.encode_first_stage = encode_first_stage
-    
+
         def forward(self, x):
             outs = self.encode_first_stage(x)[0]
-    
+
             return torch.from_numpy(outs)
-    
-    
+
+
     class EmbedderWrapper(torch.nn.Module):
         def __init__(self, embedder):
             super().__init__()
             self.embedder = embedder
-    
+
         def forward(self, x):
             outs = self.embedder(x)[0]
-    
+
             return torch.from_numpy(outs)
-    
-    
+
+
     class CModelWrapper(torch.nn.Module):
         def __init__(self, diffusion_model, out_channels):
             super().__init__()
             self.diffusion_model = diffusion_model
             self.out_channels = out_channels
-    
+
         def forward(self, xc, t, context, fs, temporal_length):
             inputs = {
                 "xc": xc,
@@ -643,19 +642,19 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
                 "fs": fs,
             }
             outs = self.diffusion_model(inputs)[0]
-    
+
             return torch.from_numpy(outs)
-    
-    
+
+
     class DecoderFirstStageModelWrapper(torch.nn.Module):
         def __init__(self, decoder_first_stage):
             super().__init__()
             self.decoder_first_stage = decoder_first_stage
-    
+
         def forward(self, x):
             x.float()
             outs = self.decoder_first_stage(x)[0]
-    
+
             return torch.from_numpy(outs)
 
 And insert wrappers instances in the pipeline:
@@ -671,48 +670,48 @@ And insert wrappers instances in the pipeline:
 Run OpenVINO pipeline inference
 -------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from einops import repeat, rearrange
     import torchvision.transforms as transforms
-    
-    
+
+
     transform = transforms.Compose(
         [
             transforms.Resize(min((256, 256))),
             transforms.CenterCrop((256, 256)),
         ]
     )
-    
-    
+
+
     def get_latent_z(model, videos):
         b, c, t, h, w = videos.shape
         x = rearrange(videos, "b c t h w -> (b t) c h w")
         z = model.encode_first_stage(x)
         z = rearrange(z, "(b t) c h w -> b c t h w", b=b, t=t)
         return z
-    
-    
+
+
     def process_input(model, prompt, image, transform=transform, fs=3):
         text_emb = model.get_learned_conditioning([prompt])
-    
+
         # img cond
         img_tensor = torch.from_numpy(image).permute(2, 0, 1).float().to(model.device)
         img_tensor = (img_tensor / 255.0 - 0.5) * 2
-    
+
         image_tensor_resized = transform(img_tensor)  # 3,h,w
         videos = image_tensor_resized.unsqueeze(0)  # bchw
-    
+
         z = get_latent_z(model, videos.unsqueeze(2))  # bc,1,hw
         frames = model.temporal_length
         img_tensor_repeat = repeat(z, "b c t h w -> b c (repeat t) h w", repeat=frames)
-    
+
         cond_images = model.embedder(img_tensor.unsqueeze(0))  # blc
         img_emb = model.image_proj_model(cond_images)
         imtext_cond = torch.cat([text_emb, img_emb], dim=1)
-    
+
         fs = torch.tensor([fs], dtype=torch.long, device=model.device)
         cond = {"c_crossattn": [imtext_cond], "fs": fs, "c_concat": [img_tensor_repeat]}
         return cond
@@ -725,15 +724,15 @@ Run OpenVINO pipeline inference
     from lvdm.models.samplers.ddim import DDIMSampler
     from pytorch_lightning import seed_everything
     import torchvision
-    
-    
+
+
     def register_buffer(self, name, attr):
         if isinstance(attr, torch.Tensor):
             if attr.device != torch.device("cpu"):
                 attr = attr.to(torch.device("cpu"))
         setattr(self, name, attr)
-    
-    
+
+
     def batch_ddim_sampling(model, cond, noise_shape, n_samples=1, ddim_steps=50, ddim_eta=1.0, cfg_scale=1.0, temporal_cfg_scale=None, **kwargs):
         ddim_sampler = DDIMSampler(model)
         uncond_type = model.uncond_type
@@ -755,7 +754,7 @@ Run OpenVINO pipeline inference
             elif uncond_type == "zero_embed":
                 c_emb = cond["c_crossattn"][0] if isinstance(cond, dict) else cond
                 uc_emb = torch.zeros_like(c_emb)
-    
+
             # process image embedding token
             if hasattr(model, "embedder"):
                 uc_img = torch.zeros(noise_shape[0], 3, 224, 224).to(model.device)
@@ -763,7 +762,7 @@ Run OpenVINO pipeline inference
                 uc_img = model.embedder(uc_img)
                 uc_img = model.image_proj_model(uc_img)
                 uc_emb = torch.cat([uc_emb, uc_img], dim=1)
-    
+
             if isinstance(cond, dict):
                 uc = {key: cond[key] for key in cond.keys()}
                 uc.update({"c_crossattn": [uc_emb]})
@@ -771,10 +770,10 @@ Run OpenVINO pipeline inference
                 uc = uc_emb
         else:
             uc = None
-    
+
         x_T = None
         batch_variants = []
-    
+
         for _ in range(n_samples):
             if ddim_sampler is not None:
                 kwargs.update({"clean_cond": True})
@@ -801,12 +800,12 @@ Run OpenVINO pipeline inference
         # batch, <samples>, c, t, h, w
         batch_variants = torch.stack(batch_variants, dim=1)
         return batch_variants
-    
-    
+
+
     # monkey patching to replace the original method 'register_buffer' that uses CUDA
     DDIMSampler.register_buffer = types.MethodType(register_buffer, DDIMSampler)
-    
-    
+
+
     def save_videos(batch_tensors, savedir, filenames, fps=10):
         # b,samples,c,t,h,w
         n_samples = batch_tensors.shape[1]
@@ -820,14 +819,14 @@ Run OpenVINO pipeline inference
             grid = (grid * 255).to(torch.uint8).permute(0, 2, 3, 1)
             savepath = os.path.join(savedir, f"{filenames[idx]}.mp4")
             torchvision.io.write_video(savepath, grid, fps=fps, video_codec="h264", options={"crf": "10"})
-    
-    
+
+
     def get_image(image, prompt, steps=5, cfg_scale=7.5, eta=1.0, fs=3, seed=123, model=model, result_dir="results"):
         if not os.path.exists(result_dir):
             os.mkdir(result_dir)
-    
+
         seed_everything(seed)
-    
+
         # torch.cuda.empty_cache()
         print("start:", prompt, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
         start = time.time()
@@ -839,11 +838,11 @@ Run OpenVINO pipeline inference
         frames = model.temporal_length
         h, w = 256 // 8, 256 // 8
         noise_shape = [batch_size, channels, frames, h, w]
-    
+
         # text cond
         with torch.no_grad(), torch.cpu.amp.autocast():
             cond = process_input(model, prompt, image, transform, fs=3)
-    
+
             ## inference
             batch_samples = batch_ddim_sampling(model, cond, noise_shape, n_samples=1, ddim_steps=steps, ddim_eta=eta, cfg_scale=cfg_scale)
             ## b,samples,c,t,h,w
@@ -852,10 +851,10 @@ Run OpenVINO pipeline inference
             prompt_str = prompt_str[:40]
             if len(prompt_str) == 0:
                 prompt_str = "empty_prompt"
-    
+
         save_videos(batch_samples, result_dir, filenames=[prompt_str], fps=8)
         print(f"Saved in {prompt_str}.mp4. Time used: {(time.time() - start):.2f} seconds")
-    
+
         return os.path.join(result_dir, f"{prompt_str}.mp4")
 
 .. code:: ipython3
@@ -885,7 +884,7 @@ Run OpenVINO pipeline inference
 .. code:: ipython3
 
     from IPython.display import HTML
-    
+
     HTML(
         f"""
         <video alt="video" controls>
@@ -899,7 +898,7 @@ Run OpenVINO pipeline inference
 
 .. raw:: html
 
-    
+
     <video alt="video" controls>
         <source src="results/man_fishing_in_a_boat_at_sunset.mp4" type="video/mp4">
     </video>
@@ -910,7 +909,7 @@ Run OpenVINO pipeline inference
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -939,7 +938,7 @@ improve model inference speed.
         description="Quantization",
         disabled=False,
     )
-    
+
     to_quantize
 
 
@@ -958,30 +957,30 @@ Let’s load ``skip magic`` extension to skip quantization if
 
     # Fetch `skip_kernel_extension` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-    
+
     int8_model = None
-    
+
     %load_ext skip_kernel_extension
 
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use a portion of
-```jovianzm/Pexels-400k`` <https://huggingface.co/datasets/jovianzm/Pexels-400k>`__
+`jovianzm/Pexels-400k <https://huggingface.co/datasets/jovianzm/Pexels-400k>`__
 dataset from Hugging Face as calibration data.
 
 .. code:: ipython3
 
     from io import BytesIO
-    
-    
+
+
     def download_image(url):
         try:
             response = requests.get(url)
@@ -1000,23 +999,23 @@ To collect intermediate model inputs for calibration we should customize
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import datasets
     from tqdm.notebook import tqdm
     import pickle
-    
-    
+
+
     class CompiledModelDecorator(ov.CompiledModel):
         def __init__(self, compiled_model, keep_prob, data_cache = None):
             super().__init__(compiled_model)
             self.data_cache = data_cache if data_cache else []
             self.keep_prob = np.clip(keep_prob, 0, 1)
-    
+
         def __call__(self, *args, **kwargs):
             if np.random.rand() <= self.keep_prob:
                 self.data_cache.append(*args)
             return super().__call__(*args, **kwargs)
-    
+
     def collect_calibration_data(model, subset_size):
         calibration_dataset_filepath = Path("calibration_data")/f"{subset_size}.pkl"
         calibration_dataset_filepath.parent.mkdir(exist_ok=True, parents=True)
@@ -1024,9 +1023,9 @@ To collect intermediate model inputs for calibration we should customize
             original_diffusion_model = model.model.diffusion_model.diffusion_model
             modified_model = CompiledModelDecorator(original_diffusion_model, keep_prob=1)
             model.model.diffusion_model = CModelWrapper(modified_model, model.model.diffusion_model.out_channels)
-        
+
             dataset = datasets.load_dataset("jovianzm/Pexels-400k", split="train", streaming=True).shuffle(seed=42).take(subset_size)
-        
+
             pbar = tqdm(total=subset_size)
             channels = model.model.diffusion_model.out_channels
             frames = model.temporal_length
@@ -1038,16 +1037,16 @@ To collect intermediate model inputs for calibration we should customize
                 image = download_image(image_path)
                 if image is None:
                     continue
-        
+
                 cond = process_input(model, prompt, image)
                 batch_ddim_sampling(model, cond, noise_shape, n_samples=1, ddim_steps=20, ddim_eta=1.0, cfg_scale=7.5)
-        
+
                 collected_subset_size = len(model.model.diffusion_model.diffusion_model.data_cache)
                 if collected_subset_size >= subset_size:
                     pbar.update(subset_size - pbar.n)
                     break
                 pbar.update(collected_subset_size - pbar.n)
-        
+
             calibration_dataset = model.model.diffusion_model.diffusion_model.data_cache[:subset_size]
             model.model.diffusion_model.diffusion_model = original_diffusion_model
             with open(calibration_dataset_filepath, 'wb') as f:
@@ -1059,7 +1058,7 @@ To collect intermediate model inputs for calibration we should customize
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     MODEL_INT8_OV_PATH = Path("models/model_ir_int8.xml")
     if not MODEL_INT8_OV_PATH.exists():
         subset_size = 300
@@ -1075,7 +1074,7 @@ To collect intermediate model inputs for calibration we should customize
 Run Quantization
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Quantization of the first and last ``Convolution`` layers impacts the
 generation results. We recommend using ``IgnoredScope`` to keep accuracy
@@ -1086,10 +1085,10 @@ quantization time.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import nncf
-    
-    
+
+
     if MODEL_INT8_OV_PATH.exists():
         print("Loading quantized model")
         quantized_model = core.read_model(MODEL_INT8_OV_PATH)
@@ -1131,7 +1130,7 @@ quantization time.
 Run Weights Compression
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Quantizing of the remaining components of the pipeline does not
 significantly improve inference performance but can lead to a
@@ -1141,19 +1140,19 @@ applied to footprint reduction.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     COND_STAGE_MODEL_INT8_OV_PATH = Path("models/cond_stage_model_int8.xml")
     DECODER_FIRST_STAGE_INT8_OV_PATH = Path("models/decoder_first_stage_ir_int8.xml")
     ENCODER_FIRST_STAGE_INT8_OV_PATH = Path("models/encoder_first_stage_ir_int8.xml")
     EMBEDDER_INT8_OV_PATH = Path("models/embedder_ir_int8.xml")
-    
+
     def compress_model_weights(fp_model_path, int8_model_path):
         if not int8_model_path.exists():
             model = core.read_model(fp_model_path)
             compressed_model = nncf.compress_weights(model)
             ov.save_model(compressed_model, int8_model_path)
-    
-    
+
+
     compress_model_weights(COND_STAGE_MODEL_OV_PATH, COND_STAGE_MODEL_INT8_OV_PATH)
     compress_model_weights(DECODER_FIRST_STAGE_OV_PATH, DECODER_FIRST_STAGE_INT8_OV_PATH)
     compress_model_weights(ENCODER_FIRST_STAGE_OV_PATH, ENCODER_FIRST_STAGE_INT8_OV_PATH)
@@ -1177,9 +1176,9 @@ applied to footprint reduction.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -1200,9 +1199,9 @@ applied to footprint reduction.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -1223,9 +1222,9 @@ applied to footprint reduction.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -1246,9 +1245,9 @@ applied to footprint reduction.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -1257,7 +1256,7 @@ Let’s run the optimized pipeline
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     compiled_cond_stage_model = core.compile_model(core.read_model(COND_STAGE_MODEL_INT8_OV_PATH), device.value)
     compiled_encode_first_stage = core.compile_model(core.read_model(ENCODER_FIRST_STAGE_INT8_OV_PATH), device.value)
     compiled_embedder = core.compile_model(core.read_model(EMBEDDER_INT8_OV_PATH), device.value)
@@ -1267,11 +1266,11 @@ Let’s run the optimized pipeline
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     int8_model = download_model()
     int8_model.first_stage_model.decode = types.MethodType(decode, int8_model.first_stage_model)
     int8_model.embedder.model.visual.input_patchnorm = None  # fix error: visual model has not  attribute 'input_patchnorm'
-    
+
     int8_model.cond_stage_model = CondStageModelWrapper(compiled_cond_stage_model)
     int8_model.first_stage_model.encoder = EncoderFirstStageModelWrapper(compiled_encode_first_stage)
     int8_model.embedder = EmbedderWrapper(compiled_embedder)
@@ -1288,13 +1287,13 @@ Let’s run the optimized pipeline
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     image_path = "dynamicrafter/prompts/256/art.png"
     prompt = "man fishing in a boat at sunset"
     seed = 234
     image = Image.open(image_path)
     image = np.asarray(image)
-    
+
     result_dir = "results_int8"
     video_path = get_image(image, prompt, steps=20, seed=seed, model=int8_model, result_dir=result_dir)
 
@@ -1313,9 +1312,9 @@ Let’s run the optimized pipeline
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from IPython.display import display, HTML
-    
+
     display(HTML(f"""
         <video alt="video" controls>
             <source src={video_path} type="video/mp4">
@@ -1326,7 +1325,7 @@ Let’s run the optimized pipeline
 
 .. raw:: html
 
-    
+
     <video alt="video" controls>
         <source src=results_int8/man_fishing_in_a_boat_at_sunset.mp4 type="video/mp4">
     </video>
@@ -1336,15 +1335,15 @@ Let’s run the optimized pipeline
 Compare model file sizes
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     fp32_model_paths = [COND_STAGE_MODEL_OV_PATH, DECODER_FIRST_STAGE_OV_PATH, ENCODER_FIRST_STAGE_OV_PATH, EMBEDDER_OV_PATH, MODEL_OV_PATH]
     int8_model_paths = [COND_STAGE_MODEL_INT8_OV_PATH, DECODER_FIRST_STAGE_INT8_OV_PATH, ENCODER_FIRST_STAGE_INT8_OV_PATH, EMBEDDER_INT8_OV_PATH, MODEL_INT8_OV_PATH]
-    
+
     for fp16_path, int8_path in zip(fp32_model_paths, int8_model_paths):
         fp32_ir_model_size = fp16_path.with_suffix(".bin").stat().st_size
         int8_model_size = int8_path.with_suffix(".bin").stat().st_size
@@ -1363,7 +1362,7 @@ Compare model file sizes
 Compare inference time of the FP32 and INT8 models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP32`` and ``INT8``
 models, we use median inference time on calibration subset.
@@ -1375,10 +1374,10 @@ models, we use median inference time on calibration subset.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import time
-    
-    
+
+
     def calculate_inference_time(model, validation_size=3):
         calibration_dataset = datasets.load_dataset("jovianzm/Pexels-400k", split="train", streaming=True).take(validation_size)
         inference_time = []
@@ -1391,7 +1390,7 @@ models, we use median inference time on calibration subset.
             image_path = batch["thumbnail"]
             image = download_image(image_path)
             cond = process_input(model, prompt, image, transform, fs=3)
-    
+
             start = time.perf_counter()
             _ = batch_ddim_sampling(model, cond, noise_shape, n_samples=1, ddim_steps=20, ddim_eta=1.0, cfg_scale=7.5)
             end = time.perf_counter()
@@ -1402,7 +1401,7 @@ models, we use median inference time on calibration subset.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     fp_latency = calculate_inference_time(model)
     print(f"FP32 latency: {fp_latency:.3f}")
     int8_latency = calculate_inference_time(int8_model)
@@ -1420,7 +1419,7 @@ models, we use median inference time on calibration subset.
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Please select below whether you would like to use the quantized models
 to launch the interactive demo.
@@ -1428,13 +1427,13 @@ to launch the interactive demo.
 .. code:: ipython3
 
     quantized_models_present = int8_model is not None
-    
+
     use_quantized_models = widgets.Checkbox(
         value=quantized_models_present,
         description="Use quantized models",
         disabled=not quantized_models_present,
     )
-    
+
     use_quantized_models
 
 
@@ -1449,20 +1448,20 @@ to launch the interactive demo.
 .. code:: ipython3
 
     from functools import partial
-    
+
     demo_model = int8_model if use_quantized_models.value else model
     get_image_fn = partial(get_image, model=demo_model)
-    
+
     if not Path("gradio_helper.py").exists():
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/dynamicrafter-animating-images/gradio_helper.py"
         )
         open("gradio_helper.py", "w").write(r.text)
-    
+
     from gradio_helper import make_demo
-    
+
     demo = make_demo(fn=get_image_fn)
-    
+
     try:
         demo.queue().launch(debug=False)
     except Exception:
@@ -1475,12 +1474,12 @@ to launch the interactive demo.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

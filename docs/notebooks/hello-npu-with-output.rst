@@ -4,49 +4,49 @@ Hello NPU
 Working with NPU in OpenVINO™
 -----------------------------
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Introduction <#Introduction>`__
 
-   -  `Install required packages <#Install-required-packages>`__
+-  `Introduction <#introduction>`__
 
--  `Checking NPU with Query Device <#Checking-NPU-with-Query-Device>`__
+   -  `Install required packages <#install-required-packages>`__
+
+-  `Checking NPU with Query Device <#checking-npu-with-query-device>`__
 
    -  `List the NPU with
-      core.available_devices <#List-the-NPU-with-core.available_devices>`__
+      core.available_devices <#list-the-npu-with-core-available_devices>`__
    -  `Check Properties with
-      core.get_property <#Check-Properties-with-core.get_property>`__
+      core.get_property <#check-properties-with-core-get_property>`__
    -  `Brief Descriptions of Key
-      Properties <#Brief-Descriptions-of-Key-Properties>`__
+      Properties <#brief-descriptions-of-key-properties>`__
 
--  `Compiling a Model on NPU <#Compiling-a-Model-on-NPU>`__
+-  `Compiling a Model on NPU <#compiling-a-model-on-npu>`__
 
-   -  `Download a Model <#Download-and-Convert-a-Model>`__
+   -  `Download a Model <#download-and-convert-a-model>`__
    -  `Compile with Default
-      Configuration <#Compile-with-Default-Configuration>`__
+      Configuration <#compile-with-default-configuration>`__
    -  `Reduce Compile Time through Model
-      Caching <#Reduce-Compile-Time-through-Model-Caching>`__
+      Caching <#reduce-compile-time-through-model-caching>`__
 
-      -  `UMD Model Caching <#UMD-Model-Caching>`__
-      -  `OpenVINO Model Caching <#OpenVINO-Model-Caching>`__
+      -  `UMD Model Caching <#umd-model-caching>`__
+      -  `OpenVINO Model Caching <#openvino-model-caching>`__
 
    -  `Throughput and Latency Performance
-      Hints <#Throughput-and-Latency-Performance-Hints>`__
+      Hints <#throughput-and-latency-performance-hints>`__
 
 -  `Performance Comparison with
-   benchmark_app <#Performance-Comparison-with-benchmark_app>`__
+   benchmark_app <#performance-comparison-with-benchmark_app>`__
 
-   -  `NPU vs CPU with Latency Hint <#NPU-vs-CPU-with-Latency-Hint>`__
+   -  `NPU vs CPU with Latency Hint <#npu-vs-cpu-with-latency-hint>`__
 
       -  `Effects of UMD Model
-         Caching <#Effects-of-UMD-Model-Caching>`__
+         Caching <#effects-of-umd-model-caching>`__
 
    -  `NPU vs CPU with Throughput
-      Hint <#NPU-vs-CPU-with-Throughput-Hint>`__
+      Hint <#npu-vs-cpu-with-throughput-hint>`__
 
--  `Limitations <#Limitations>`__
--  `Conclusion <#Conclusion>`__ ### Installation Instructions
+-  `Limitations <#limitations>`__
+-  `Conclusion <#conclusion>`__
 
 This is a self-contained example that relies solely on its own code.
 
@@ -67,7 +67,7 @@ run to compare NPU performance with CPU in different configurations.
 Introduction
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The Neural Processing Unit (NPU) is a low power hardware solution which
 enables you to offload certain neural network computation tasks from
@@ -89,7 +89,7 @@ To learn more about the NPU Device, see the
 Install required packages
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -98,7 +98,7 @@ Install required packages
 Checking NPU with Query Device
 ------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In this section, we will see how to list the available NPU and check its
 properties. Some of the key properties will be defined.
@@ -106,7 +106,7 @@ properties. Some of the key properties will be defined.
 List the NPU with core.available_devices
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO Runtime provides the ``available_devices`` method for checking
 which devices are available for inference. The following code will
@@ -116,7 +116,7 @@ appear (ensure that the driver is installed successfully).
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
     core.available_devices
 
@@ -132,7 +132,7 @@ appear (ensure that the driver is installed successfully).
 Check Properties with core.get_property
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To get information about the NPU, we can use device properties. In
 OpenVINO, devices have properties that describe their characteristics
@@ -145,7 +145,7 @@ To get the value of a property, such as the device name, we can use the
 .. code:: ipython3
 
     device = "NPU"
-    
+
     core.get_property(device, "FULL_DEVICE_NAME")
 
 
@@ -169,7 +169,7 @@ for that property.
     print(f"{device} SUPPORTED_PROPERTIES:\n")
     supported_properties = core.get_property(device, "SUPPORTED_PROPERTIES")
     indent = len(max(supported_properties, key=len))
-    
+
     for property_key in supported_properties:
         if property_key not in ("SUPPORTED_METRICS", "SUPPORTED_CONFIG_KEYS", "SUPPORTED_PROPERTIES"):
             try:
@@ -181,7 +181,7 @@ for that property.
 Brief Descriptions of Key Properties
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Each device has several properties as seen in the last command. Some of
 the key properties are: - ``FULL_DEVICE_NAME`` - The product name of the
@@ -199,7 +199,7 @@ page.
 Compiling a Model on NPU
 ------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, we know the NPU present in the system and we have checked its
 properties. We can easily use it for compiling and running models with
@@ -208,7 +208,7 @@ OpenVINO NPU plugin.
 Download a Model
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 This tutorial uses the ``resnet50`` model. The ``resnet50`` model is
 used for image classification tasks. The model was trained on
@@ -226,11 +226,11 @@ for details how to convert pytorch model.
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     # create a directory for resnet model file
     MODEL_DIRECTORY_PATH = Path("model")
     MODEL_DIRECTORY_PATH.mkdir(exist_ok=True)
-    
+
     model_name = "resnet50"
 
 .. code:: ipython3
@@ -240,9 +240,9 @@ for details how to convert pytorch model.
 .. code:: ipython3
 
     precision = "FP16"
-    
+
     model_path = MODEL_DIRECTORY_PATH / "ir_model" / f"{model_name}_{precision.lower()}.xml"
-    
+
     model = None
     if not model_path.exists():
         hf_hub.snapshot_download("katuni4ka/resnet50_fp16", local_dir=model_path.parent)
@@ -262,7 +262,7 @@ for details how to convert pytorch model.
 Compile with Default Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 When the model is ready, first we need to read it, using the
 ``read_model`` method. Then, we can use the ``compile_model`` method and
@@ -276,7 +276,7 @@ case, “NPU”.
 Reduce Compile Time through Model Caching
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Depending on the model used, device-specific optimizations and network
 compilations can cause the compile step to be time-consuming, especially
@@ -316,7 +316,7 @@ compilation.
 UMD Model Caching
 ^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To see how UMD caching see the following example:
 
@@ -324,10 +324,10 @@ To see how UMD caching see the following example:
 
     import time
     from pathlib import Path
-    
+
     start = time.time()
     core = ov.Core()
-    
+
     # Compile the model as before
     model = core.read_model(model=model_path)
     compiled_model = core.compile_model(model, device)
@@ -343,7 +343,7 @@ To see how UMD caching see the following example:
 
     start = time.time()
     core = ov.Core()
-    
+
     # Compile the model once again to see UMD Caching
     model = core.read_model(model=model_path)
     compiled_model = core.compile_model(model, device)
@@ -358,7 +358,7 @@ To see how UMD caching see the following example:
 OpenVINO Model Caching
 ^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To get an idea of OpenVINO model caching, we can use the OpenVINO cache
 as follow
@@ -368,24 +368,24 @@ as follow
     # Create cache folder
     cache_folder = Path("cache")
     cache_folder.mkdir(exist_ok=True)
-    
+
     start = time.time()
     core = ov.Core()
-    
+
     # Set cache folder
     core.set_property({"CACHE_DIR": cache_folder})
-    
+
     # Compile the model
     model = core.read_model(model=model_path)
     compiled_model = core.compile_model(model, device)
     print(f"Cache enabled (first time) - compile time: {time.time() - start}s")
-    
+
     start = time.time()
     core = ov.Core()
-    
+
     # Set cache folder
     core.set_property({"CACHE_DIR": cache_folder})
-    
+
     # Compile the model as before
     model = core.read_model(model=model_path)
     compiled_model = core.compile_model(model, device)
@@ -423,7 +423,7 @@ docs <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize
 Throughput and Latency Performance Hints
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To simplify device and pipeline configuration, OpenVINO provides
 high-level performance hints that automatically set the batch size and
@@ -454,7 +454,7 @@ available memory.
 Performance Comparison with benchmark_app
 -----------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Given all the different options available when compiling a model, it may
 be difficult to know which settings work best for a certain application.
@@ -490,7 +490,7 @@ with latency focus:
 NPU vs CPU with Latency Hint
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -504,12 +504,12 @@ NPU vs CPU with Latency Hint
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.1.0-14992-621b025bef4
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] CPU
     [ INFO ] Build ................................. 2024.1.0-14992-621b025bef4
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
@@ -552,7 +552,7 @@ NPU vs CPU with Latency Hint
     [ INFO ]   KV_CACHE_PRECISION: <Type: 'float16'>
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 28.95 ms
@@ -580,12 +580,12 @@ NPU vs CPU with Latency Hint
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.1.0-14992-621b025bef4
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] NPU
     [ INFO ] Build ................................. 2024.1.0-14992-621b025bef4
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
@@ -606,20 +606,20 @@ NPU vs CPU with Latency Hint
     [ INFO ] Compile model took 2302.40 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
-    [ INFO ]   DEVICE_ID: 
+    [ INFO ]   DEVICE_ID:
     [ INFO ]   ENABLE_CPU_PINNING: False
     [ INFO ]   EXECUTION_DEVICES: NPU.3720
     [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float16'>
     [ INFO ]   INTERNAL_SUPPORTED_PROPERTIES: {'CACHING_PROPERTIES': 'RO'}
     [ INFO ]   LOADED_FROM_CACHE: False
-    [ INFO ]   NETWORK_NAME: 
+    [ INFO ]   NETWORK_NAME:
     [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
     [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 1
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 7.94 ms
@@ -638,7 +638,7 @@ NPU vs CPU with Latency Hint
 Effects of UMD Model Caching
 ''''''''''''''''''''''''''''
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To see the effects of UMD Model caching, we are going to run the
 benchmark_app and see the difference in model read time and compilation
@@ -656,12 +656,12 @@ time:
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.1.0-14992-621b025bef4
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] NPU
     [ INFO ] Build ................................. 2024.1.0-14992-621b025bef4
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
@@ -682,20 +682,20 @@ time:
     [ INFO ] Compile model took 2157.58 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
-    [ INFO ]   DEVICE_ID: 
+    [ INFO ]   DEVICE_ID:
     [ INFO ]   ENABLE_CPU_PINNING: False
     [ INFO ]   EXECUTION_DEVICES: NPU.3720
     [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float16'>
     [ INFO ]   INTERNAL_SUPPORTED_PROPERTIES: {'CACHING_PROPERTIES': 'RO'}
     [ INFO ]   LOADED_FROM_CACHE: False
-    [ INFO ]   NETWORK_NAME: 
+    [ INFO ]   NETWORK_NAME:
     [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
     [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 1
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 7.94 ms
@@ -718,7 +718,7 @@ to read and compile the model after the initial load.
 NPU vs CPU with Throughput Hint
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -732,12 +732,12 @@ NPU vs CPU with Throughput Hint
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.1.0-14992-621b025bef4
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] CPU
     [ INFO ] Build ................................. 2024.1.0-14992-621b025bef4
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
@@ -780,7 +780,7 @@ NPU vs CPU with Throughput Hint
     [ INFO ]   KV_CACHE_PRECISION: <Type: 'float16'>
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 31.62 ms
@@ -808,12 +808,12 @@ NPU vs CPU with Throughput Hint
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.1.0-14992-621b025bef4
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] NPU
     [ INFO ] Build ................................. 2024.1.0-14992-621b025bef4
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
@@ -834,20 +834,20 @@ NPU vs CPU with Throughput Hint
     [ INFO ] Compile model took 2265.07 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
-    [ INFO ]   DEVICE_ID: 
+    [ INFO ]   DEVICE_ID:
     [ INFO ]   ENABLE_CPU_PINNING: False
     [ INFO ]   EXECUTION_DEVICES: NPU.3720
     [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float16'>
     [ INFO ]   INTERNAL_SUPPORTED_PROPERTIES: {'CACHING_PROPERTIES': 'RO'}
     [ INFO ]   LOADED_FROM_CACHE: False
-    [ INFO ]   NETWORK_NAME: 
+    [ INFO ]   NETWORK_NAME:
     [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
     [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 1
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 7.95 ms
@@ -866,7 +866,7 @@ NPU vs CPU with Throughput Hint
 Limitations
 -----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 1. Currently, only the models with static shapes are supported on NPU.
 2. If the path to the model file includes non-Unicode symbols, such as
@@ -876,20 +876,20 @@ Limitations
 Conclusion
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 This tutorial demonstrates how easy it is to use NPU in OpenVINO, check
 its properties, and even tailor the model performance through the
 different performance hints.
 
 Discover the power of Neural Processing Unit (NPU) with OpenVINO through
-these interactive Jupyter notebooks: ##### Introduction -
-`hello-world <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-world>`__:
-Start your OpenVINO journey by performing inference on an OpenVINO IR
-model. -
-`hello-segmentation <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-segmentation>`__:
-Dive into inference with a segmentation model and explore image
-segmentation capabilities.
+these interactive Jupyter notebooks:
+- `hello-world <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-world>`__:
+  Start your OpenVINO journey by performing inference on an OpenVINO IR
+  model.
+- `hello-segmentation <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-segmentation>`__:
+  Dive into inference with a segmentation model and explore image
+  segmentation capabilities.
 
 Model Optimization and Conversion
 '''''''''''''''''''''''''''''''''

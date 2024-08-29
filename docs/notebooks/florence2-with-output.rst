@@ -23,15 +23,15 @@ and original `paper <https://arxiv.org/abs/2311.06242>`__
 In this tutorial we consider how to convert and run Florence2 using
 OpenVINO.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Select model <#Select-model>`__
--  `Convert model <#Convert-model>`__
--  `Select inference device <#Select-inference-device>`__
--  `Run model inference <#Run-model-inference>`__
--  `Interactive Demo <#Interactive-Demo>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Select model <#select-model>`__
+-  `Convert model <#convert-model>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Run model inference <#run-model-inference>`__
+-  `Interactive Demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -46,7 +46,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -87,7 +87,7 @@ Prerequisites
 Select model
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The Florence-2 series consists of two models: Florence-2-base and
 Florence-2-large, with 0.23 billion and 0.77 billion parameters,
@@ -124,7 +124,7 @@ available model. By default, we will use
 Convert model
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Florence2 is PyTorch model. OpenVINO supports PyTorch models via
 conversion to OpenVINO Intermediate Representation (IR). `OpenVINO model
@@ -360,7 +360,7 @@ pipeline.
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -382,7 +382,7 @@ Select inference device
 Run model inference
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``OvFlorence@Model`` class defined in ``ov_florence2_helper.py``
 provides convenient way for running model. It accepts directory with
@@ -455,7 +455,7 @@ More model capabilities will be demonstrated in interactive demo.
 Interactive Demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In this section, you can see model in action on various of supported
 vision tasks. Please provide input image or select one from examples and
@@ -632,7 +632,7 @@ image, providing both text and region information.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="600" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

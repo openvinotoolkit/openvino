@@ -49,29 +49,29 @@ used to convert the models to OpenVINO™ IR format. Additionally, we
 demonstrate how to improve pipeline latency with the quantization UNet
 model using `NNCF <https://github.com/openvinotoolkit/nncf>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Prepare PyTorch model <#Prepare-PyTorch-model>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Prepare PyTorch model <#prepare-pytorch-model>`__
 -  `Convert model to OpenVINO
-   format <#Convert-model-to-OpenVINO-format>`__
--  `Text-to-image generation <#Text-to-image-generation>`__
+   format <#convert-model-to-openvino-format>`__
+-  `Text-to-image generation <#text-to-image-generation>`__
 
    -  `Select inference device for text-to-image
-      generation <#Select-inference-device-for-text-to-image-generation>`__
+      generation <#select-inference-device-for-text-to-image-generation>`__
 
--  `Quantization <#Quantization>`__
+-  `Quantization <#quantization>`__
 
-   -  `Prepare calibration dataset <#Prepare-calibration-dataset>`__
-   -  `Run quantization <#Run-quantization>`__
+   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
+   -  `Run quantization <#run-quantization>`__
 
-      -  `Compare UNet file size <#Compare-UNet-file-size>`__
+      -  `Compare UNet file size <#compare-unet-file-size>`__
 
    -  `Compare the inference time of the FP16 and INT8
-      models <#Compare-the-inference-time-of-the-FP16-and-INT8-models>`__
+      models <#compare-the-inference-time-of-the-fp16-and-int8-models>`__
 
--  `Interactive Demo <#Interactive-Demo>`__
+-  `Interactive Demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -86,7 +86,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -96,7 +96,7 @@ Prerequisites
 Prepare PyTorch model
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For preparing Segmind-VegaRT model for inference, we should create
 Segmind-Vega pipeline first. After that, for enabling Latent Consistency
@@ -129,7 +129,7 @@ pipeline on disk.
 Convert model to OpenVINO format
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We will use optimum-cli interface for exporting it into OpenVINO
 Intermediate Representation (IR) format.
@@ -223,7 +223,7 @@ back to image format.
 Text-to-image generation
 ------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Text-to-image generation lets you create images using text description.
 To start generating images, we need to load models first. To load an
@@ -242,7 +242,7 @@ XL inference for image-to-image task were discussed in this
 Select inference device for text-to-image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -322,7 +322,7 @@ Select inference device for text-to-image generation
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -387,7 +387,7 @@ improve model inference speed.
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use a portion of
 `conceptual_captions <https://huggingface.co/datasets/conceptual_captions>`__
@@ -471,7 +471,7 @@ model inputs for calibration we should customize ``CompiledModel``.
 Run quantization
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Create a quantized model from the pre-trained converted OpenVINO model.
 Quantization of the first and last ``Convolution`` layers impacts the
@@ -550,7 +550,7 @@ sensitive ``Convolution`` layers in FP16 precision.
 Compare UNet file size
 ^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -574,7 +574,7 @@ Compare UNet file size
 Compare the inference time of the FP16 and INT8 models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 pipelines, we use median inference time on the calibration subset.
@@ -662,7 +662,7 @@ pipelines, we use median inference time on the calibration subset.
 Interactive Demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, you can check model work using own text descriptions. Provide text
 prompt in the text box and launch generation using Run button.

@@ -30,46 +30,45 @@ The tutorial consists of the following parts:
 5. Compare original and optimized models
 6. Launch interactive demo
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Background <#Background>`__
 
-   -  `Image Captioning <#Image-Captioning>`__
-   -  `Visual Question Answering <#Visual-Question-Answering>`__
+-  `Background <#background>`__
 
--  `Instantiate Model <#Instantiate-Model>`__
--  `Convert Models to OpenVINO IR <#Convert-Models-to-OpenVINO-IR>`__
+   -  `Image Captioning <#image-captioning>`__
+   -  `Visual Question Answering <#visual-question-answering>`__
 
-   -  `Vision Model <#Vision-Model>`__
-   -  `Text Encoder <#Text-Encoder>`__
-   -  `Text Decoder <#Text-Decoder>`__
+-  `Instantiate Model <#instantiate-model>`__
+-  `Convert Models to OpenVINO IR <#convert-models-to-openvino-ir>`__
 
--  `Run OpenVINO Model <#Run-OpenVINO-Model>`__
+   -  `Vision Model <#vision-model>`__
+   -  `Text Encoder <#text-encoder>`__
+   -  `Text Decoder <#text-decoder>`__
 
-   -  `Prepare Inference Pipeline <#Prepare-Inference-Pipeline>`__
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Image Captioning <#Image-Captioning>`__
-   -  `Question Answering <#Question-Answering>`__
+-  `Run OpenVINO Model <#run-openvino-model>`__
 
--  `Optimize model using NNCF <#Optimize-model-using-NNCF>`__
+   -  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Image Captioning <#image-captioning>`__
+   -  `Question Answering <#question-answering>`__
 
-   -  `Prepare dataset <#Prepare-dataset>`__
-   -  `Quantize vision model <#Quantize-vision-model>`__
-   -  `Quantize text encoder <#Quantize-text-encoder>`__
+-  `Optimize model using NNCF <#optimize-model-using-nncf>`__
+
+   -  `Prepare dataset <#prepare-dataset>`__
+   -  `Quantize vision model <#quantize-vision-model>`__
+   -  `Quantize text encoder <#quantize-text-encoder>`__
    -  `Compress weights of text
-      decoder <#Compress-weights-of-text-decoder>`__
-   -  `Run optimized OpenVINO model <#Run-optimized-OpenVINO-model>`__
+      decoder <#compress-weights-of-text-decoder>`__
+   -  `Run optimized OpenVINO model <#run-optimized-openvino-model>`__
 
-      -  `Image captioning <#Image-captioning>`__
-      -  `Question answering <#Question-answering>`__
+      -  `Image captioning <#image-captioning>`__
+      -  `Question answering <#question-answering>`__
 
-   -  `Compare file sizes <#Compare-file-sizes>`__
+   -  `Compare file sizes <#compare-file-sizes>`__
    -  `Compare inference time of the FP16 and optimized
-      models <#Compare-inference-time-of-the-FP16-and-optimized-models>`__
+      models <#compare-inference-time-of-the-fp16-and-optimized-models>`__
 
--  `Interactive demo <#Interactive-demo>`__ ### Installation
-   Instructions
+-  `Interactive demo <#interactive-demo>`__
 
 This is a self-contained example that relies solely on its own code.
 
@@ -81,7 +80,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Background
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Visual language processing is a branch of artificial intelligence that
 focuses on creating algorithms designed to enable computers to more
@@ -113,7 +112,7 @@ considers Image Captioning and Visual Question Answering.
 Image Captioning
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Image Captioning is the task of describing the content of an image in
 words. This task lies at the intersection of computer vision and natural
@@ -127,7 +126,7 @@ decoded into a descriptive text sequence.
 Visual Question Answering
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Visual Question Answering (VQA) is the task of answering text-based
 questions about image content.
@@ -227,7 +226,7 @@ There are a lot of applications for visual question answering:
 Instantiate Model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The BLIP model was proposed in the `BLIP: Bootstrapping Language-Image
 Pre-training for Unified Vision-Language Understanding and
@@ -262,7 +261,7 @@ model
 documentation <https://huggingface.co/docs/transformers/model_doc/blip>`__.
 
 In this tutorial, you will use the
-```blip-vqa-base`` <https://huggingface.co/Salesforce/blip-vqa-base>`__
+`blip-vqa-base <https://huggingface.co/Salesforce/blip-vqa-base>`__
 model available for download from `Hugging
 Face <https://huggingface.co/>`__. The same actions are also applicable
 to other similar models from the BLIP family. Although this model class
@@ -277,7 +276,7 @@ text and vision modalities and postprocessing of generation results.
 .. code:: ipython3
 
     import platform
-    
+
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1.0" torchvision "transformers>=4.26.0" "gradio>=4.19" "openvino>=2023.3.0" "datasets>=2.14.6" "nncf>=2.8.1" "tqdm"
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
@@ -289,20 +288,20 @@ text and vision modalities and postprocessing of generation results.
     import time
     from PIL import Image
     from transformers import BlipProcessor, BlipForQuestionAnswering
-    
+
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file, device_widget, quantization_widget
-    
+
     # get model and processor
     processor = BlipProcessor.from_pretrained("Salesforce/blip-vqa-base")
     model = BlipForQuestionAnswering.from_pretrained("Salesforce/blip-vqa-base")
-    
+
     # setup test input: download and read image, prepare question
     img_url = "https://storage.googleapis.com/sfr-vision-language-research/BLIP/demo.jpg"
     download_file(img_url, "demo.jpg")
@@ -310,12 +309,12 @@ text and vision modalities and postprocessing of generation results.
     question = "how many dogs are in the picture?"
     # preprocess input data
     inputs = processor(raw_image, question, return_tensors="pt")
-    
+
     start = time.perf_counter()
     # perform generation
     out = model.generate(**inputs)
     end = time.perf_counter() - start
-    
+
     # postprocess result
     answer = processor.decode(out[0], skip_special_tokens=True)
 
@@ -332,11 +331,11 @@ text and vision modalities and postprocessing of generation results.
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     if not Path("./utils.py").exists():
         download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/blip-visual-language-processing/utils.py")
     from utils import visualize_results
-    
+
     fig = visualize_results(raw_image, answer, question)
 
 
@@ -347,7 +346,7 @@ text and vision modalities and postprocessing of generation results.
 Convert Models to OpenVINO IR
 -----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Starting from OpenVINO 2023.0 release, OpenVINO supports direct PyTorch
 models conversion to OpenVINO Intermediate Representation (IR) format to
@@ -371,7 +370,7 @@ you should convert each part independently.
 Vision Model
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The vision model accepts float input tensors with the [1,3,384,384]
 shape, containing RGB image pixel values normalized in the [0,1] range.
@@ -381,15 +380,15 @@ shape, containing RGB image pixel values normalized in the [0,1] range.
     import torch
     from pathlib import Path
     import openvino as ov
-    
+
     VISION_MODEL_OV = Path("blip_vision_model.xml")
     vision_model = model.vision_model
     vision_model.eval()
-    
+
     # check that model works and save it outputs for reusage as text encoder input
     with torch.no_grad():
         vision_outputs = vision_model(inputs["pixel_values"])
-    
+
     # if openvino model does not exist, convert it to IR
     if not VISION_MODEL_OV.exists():
         # export pytorch model to ov.Model
@@ -416,7 +415,7 @@ shape, containing RGB image pixel values normalized in the [0,1] range.
 Text Encoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The text encoder is used by visual question answering tasks to build a
 question embedding representation. It takes ``input_ids`` with a
@@ -426,11 +425,11 @@ model and attention masks for them.
 .. code:: ipython3
 
     TEXT_ENCODER_OV = Path("blip_text_encoder.xml")
-    
-    
+
+
     text_encoder = model.text_encoder
     text_encoder.eval()
-    
+
     # if openvino model does not exist, convert it to IR
     if not TEXT_ENCODER_OV.exists():
         # prepare example inputs
@@ -460,7 +459,7 @@ model and attention masks for them.
 Text Decoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The text decoder is responsible for generating the sequence of tokens to
 represent model output (answer to question or caption), using an image
@@ -509,15 +508,15 @@ shapes.
 
     text_decoder = model.text_decoder
     text_decoder.eval()
-    
+
     TEXT_DECODER_OV = Path("blip_text_decoder_with_past.xml")
-    
+
     # prepare example inputs
     input_ids = torch.tensor([[30522]])  # begin of sequence token id
     attention_mask = torch.tensor([[1]])  # attention mask for input_ids
     encoder_hidden_states = torch.rand((1, 10, 768))  # encoder last hidden state from text_encoder
     encoder_attention_mask = torch.ones((1, 10), dtype=torch.long)  # attention mask for encoder hidden states
-    
+
     input_dict = {
         "input_ids": input_ids,
         "attention_mask": attention_mask,
@@ -527,7 +526,7 @@ shapes.
     text_decoder_outs = text_decoder(**input_dict)
     # extend input dictionary with hidden states from previous step
     input_dict["past_key_values"] = text_decoder_outs["past_key_values"]
-    
+
     text_decoder.config.torchscript = True
     if not TEXT_DECODER_OV.exists():
         # export PyTorch model
@@ -556,18 +555,18 @@ shapes.
 Run OpenVINO Model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Prepare Inference Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 As discussed before, the model consists of several blocks which can be
 reused for building pipelines for different tasks. In the diagram below,
 you can see how image captioning works:
 
-|image0|
+|image01|
 
 The visual model accepts the image preprocessed by ``BlipProcessor`` as
 input and produces image embeddings, which are directly passed to the
@@ -581,12 +580,12 @@ tokenized by ``BlipProcessor`` are provided to the text encoder and then
 multimodal question embedding is passed to the text decoder for
 performing generation of answers.
 
-|image1|
+|image11|
 
 The next step is implementing both pipelines using OpenVINO models.
 
-.. |image0| image:: https://user-images.githubusercontent.com/29454499/221865836-a56da06e-196d-449c-a5dc-4136da6ab5d5.png
-.. |image1| image:: https://user-images.githubusercontent.com/29454499/221868167-d0081add-d9f3-4591-80e7-4753c88c1d0a.png
+.. |image01| image:: https://user-images.githubusercontent.com/29454499/221865836-a56da06e-196d-449c-a5dc-4136da6ab5d5.png
+.. |image11| image:: https://user-images.githubusercontent.com/29454499/221868167-d0081add-d9f3-4591-80e7-4753c88c1d0a.png
 
 .. code:: ipython3
 
@@ -596,14 +595,14 @@ The next step is implementing both pipelines using OpenVINO models.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     device = device_widget()
-    
+
     device
 
 
@@ -634,7 +633,7 @@ select device from dropdown list for running inference using OpenVINO
 
     from functools import partial
     from blip_model import text_decoder_forward
-    
+
     text_decoder.forward = partial(text_decoder_forward, ov_text_decoder_with_past=ov_text_decoder_with_past)
 
 The model helper class has two methods for generation:
@@ -649,7 +648,7 @@ initial token for decoder work.
     if not Path("./blip_model.py").exists():
         download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/blip-visual-language-processing/blip_model.py")
     from blip_model import OVBlipModel
-    
+
     ov_model = OVBlipModel(model.config, model.decoder_start_token_id, ov_vision_model, ov_text_encoder, text_decoder)
     out = ov_model.generate_answer(**inputs, max_length=20)
 
@@ -658,7 +657,7 @@ Now, the model is ready for generation.
 Image Captioning
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -674,7 +673,7 @@ Image Captioning
 Question Answering
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -702,7 +701,7 @@ Question Answering
 Optimize model using NNCF
 -------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -727,7 +726,7 @@ The optimization process contains the following steps:
 .. code:: ipython3
 
     to_quantize = quantization_widget()
-    
+
     to_quantize
 
 
@@ -745,32 +744,32 @@ The optimization process contains the following steps:
     TEXT_ENCODER_OV_INT8 = Path(str(TEXT_ENCODER_OV).replace(".xml", "_int8.xml"))
     TEXT_DECODER_OV_INT8 = Path(str(TEXT_DECODER_OV).replace(".xml", "_int8.xml"))
     int8_model = None
-    
+
     # Fetch skip_kernel_extension module
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-    
+
     %load_ext skip_kernel_extension
 
 Prepare dataset
 ~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
 
-The ```VQAv2`` <https://visualqa.org/>`__ is a dataset containing
+
+The `VQAv2 <https://visualqa.org/>`__ is a dataset containing
 open-ended questions about images. These questions require an
 understanding of vision, language and commonsense knowledge to answer.
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import numpy as np
     from datasets import load_dataset
     from tqdm.notebook import tqdm
-    
+
     def preprocess_batch(batch, vision_model, inputs_info):
         """
         Preprocesses a dataset batch by loading and transforming image and text data.
@@ -791,14 +790,14 @@ understanding of vision, language and commonsense knowledge to answer.
                 "encoder_hidden_states": encoder_hidden_states,
                 "text_encoder_inputs": []
             }
-    
+
         text_encoder_inputs = {
             "input_ids": inputs["input_ids"],
             "attention_mask": inputs["attention_mask"]
         }
         inputs_info[image_id]["text_encoder_inputs"].append(text_encoder_inputs)
-    
-    
+
+
     def prepare_input_data(dataloader, vision_model, opt_init_steps):
         """
         Store calibration subset in List to reduce quantization time.
@@ -806,7 +805,7 @@ understanding of vision, language and commonsense knowledge to answer.
         inputs_info = {}
         for idx, batch in enumerate(tqdm(dataloader, total=opt_init_steps, desc="Prepare calibration data")):
             preprocess_batch(batch, vision_model, inputs_info)
-    
+
         calibration_subset = []
         for image_id in inputs_info:
             pixel_values = inputs_info[image_id]["pixel_values"]
@@ -821,8 +820,8 @@ understanding of vision, language and commonsense knowledge to answer.
                 }
                 calibration_subset.append(blip_inputs)
         return calibration_subset
-    
-    
+
+
     def prepare_dataset(vision_model, opt_init_steps=300, streaming=False):
         """
         Prepares a vision-text dataset for quantization.
@@ -841,30 +840,30 @@ time and depends on your internet connection.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import nncf
-    
+
     comp_vision_model = core.compile_model(VISION_MODEL_OV, device.value)
     calibration_data = prepare_dataset(comp_vision_model)
 
 Quantize vision model
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     vision_dataset = nncf.Dataset(calibration_data, lambda x: x["vision_model_inputs"])
     vision_model = core.read_model(VISION_MODEL_OV)
-    
+
     quantized_model = nncf.quantize(
         model=vision_model,
         calibration_dataset=vision_dataset,
         model_type=nncf.ModelType.TRANSFORMER
     )
-    
+
     ov.save_model(quantized_model, VISION_MODEL_OV_INT8)
 
 
@@ -875,17 +874,17 @@ Quantize vision model
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -896,17 +895,17 @@ Quantize vision model
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -923,17 +922,17 @@ Quantize vision model
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -944,32 +943,32 @@ Quantize vision model
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 Quantize text encoder
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     text_encoder_dataset = nncf.Dataset(calibration_data, lambda x: x["text_encoder_inputs"])
     text_encoder_model = core.read_model(TEXT_ENCODER_OV)
-    
+
     quantized_model = nncf.quantize(
         model=text_encoder_model,
         calibration_dataset=text_encoder_dataset,
@@ -985,17 +984,17 @@ Quantize text encoder
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1006,17 +1005,17 @@ Quantize text encoder
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1033,17 +1032,17 @@ Quantize text encoder
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1054,24 +1053,24 @@ Quantize text encoder
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 Compress weights of text decoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The quantization of the text decoder leads to significant accuracy loss.
 Instead of post-training quantization, we can use data free weights
@@ -1086,7 +1085,7 @@ The optimization process contains the following steps:
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     text_decoder_model = core.read_model(TEXT_DECODER_OV)
     compressed_text_decoder = nncf.compress_weights(text_decoder_model)
     ov.save_model(compressed_text_decoder, str(TEXT_DECODER_OV_INT8))
@@ -1110,24 +1109,24 @@ The optimization process contains the following steps:
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 Run optimized OpenVINO model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The steps for making predictions with the optimized OpenVINO BLIP model
 are similar to the PyTorch model. Let us check the model result using
@@ -1136,7 +1135,7 @@ the same input data like for model before quantization
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     q_ov_vision_model = core.compile_model(VISION_MODEL_OV_INT8, device.value)
     q_ov_text_encoder = core.compile_model(TEXT_ENCODER_OV_INT8, device.value)
     q_ov_text_decoder_with_past = core.compile_model(TEXT_DECODER_OV_INT8, device.value)
@@ -1144,22 +1143,22 @@ the same input data like for model before quantization
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from functools import partial
     from transformers import BlipForQuestionAnswering
     from blip_model import OVBlipModel, text_decoder_forward
-    
+
     model = BlipForQuestionAnswering.from_pretrained("Salesforce/blip-vqa-base")
     text_decoder = model.text_decoder
     text_decoder.eval()
-    
+
     text_decoder.forward = partial(text_decoder_forward, ov_text_decoder_with_past=q_ov_text_decoder_with_past)
     int8_model = OVBlipModel(model.config, model.decoder_start_token_id, q_ov_vision_model, q_ov_text_encoder, text_decoder)
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     raw_image = Image.open("demo.jpg").convert('RGB')
     question = "how many dogs are in the picture?"
     # preprocess input data
@@ -1171,7 +1170,7 @@ Image captioning
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     out = int8_model.generate_caption(inputs["pixel_values"], max_length=20)
     caption = processor.decode(out[0], skip_special_tokens=True)
     fig = visualize_results(raw_image, caption)
@@ -1187,7 +1186,7 @@ Question answering
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     out = int8_model.generate_answer(**inputs, max_length=20)
     answer = processor.decode(out[0], skip_special_tokens=True)
     fig = visualize_results(raw_image, answer, question)
@@ -1203,7 +1202,7 @@ Compare file sizes
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     def calculate_compression_rate(ov_model_path):
         fp16_ir_model_size = Path(ov_model_path).with_suffix(".bin").stat().st_size / 1024
         int8_model_path = str(ov_model_path).replace(".xml", "_int8.xml")
@@ -1216,7 +1215,7 @@ Compare file sizes
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     for fp16_path in [VISION_MODEL_OV, TEXT_ENCODER_OV, TEXT_DECODER_OV]:
         calculate_compression_rate(fp16_path)
 
@@ -1240,7 +1239,7 @@ Compare file sizes
 Compare inference time of the FP16 and optimized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 models, we use median inference time on 100 samples of the calibration
@@ -1254,17 +1253,17 @@ quantized models.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import time
     import torch
-    
+
     def calculate_inference_time(blip_model, calibration_data, generate_caption):
         inference_time = []
         for inputs in calibration_data:
             pixel_values = torch.from_numpy(inputs["vision_model_inputs"]["pixel_values"])
             input_ids = torch.from_numpy(inputs["text_encoder_inputs"]["input_ids"])
             attention_mask = torch.from_numpy(inputs["text_encoder_inputs"]["attention_mask"])
-    
+
             start = time.perf_counter()
             if generate_caption:
                 _ = blip_model.generate_caption(pixel_values, max_length=20)
@@ -1278,11 +1277,11 @@ quantized models.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     fp_original_model = BlipForQuestionAnswering.from_pretrained("Salesforce/blip-vqa-base")
     fp_text_decoder = fp_original_model.text_decoder
     fp_text_decoder.eval()
-    
+
     comp_text_encoder = core.compile_model(TEXT_ENCODER_OV, device.value)
     comp_text_decoder_with_past = core.compile_model(TEXT_DECODER_OV, device.value)
     fp_text_decoder.forward = partial(text_decoder_forward, ov_text_decoder_with_past=comp_text_decoder_with_past)
@@ -1291,12 +1290,12 @@ quantized models.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     validation_data = calibration_data[:100]
-    
+
     int8_caption_latency = calculate_inference_time(int8_model, validation_data, generate_caption=True)
     fp16_caption_latency = calculate_inference_time(fp16_model, validation_data, generate_caption=True)
-    
+
     print(f"Image Captioning speed up: {fp16_caption_latency / int8_caption_latency:.3f}")
 
 
@@ -1308,7 +1307,7 @@ quantized models.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     int8_generate_answer_latency = calculate_inference_time(int8_model, validation_data, generate_caption=False)
     fp16_generate_answer_latency = calculate_inference_time(fp16_model, validation_data, generate_caption=False)
     print(f"Question Answering speed up: {fp16_generate_answer_latency / int8_generate_answer_latency:.3f}")
@@ -1322,7 +1321,7 @@ quantized models.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Please select below whether you would like to use the quantized model to
 launch the interactive demo.
@@ -1330,13 +1329,13 @@ launch the interactive demo.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     use_quantized_model = widgets.Checkbox(
         description="Use quantized model",
         value=int8_model is not None,
         disabled=int8_model is None,
     )
-    
+
     use_quantized_model
 
 
@@ -1351,10 +1350,10 @@ launch the interactive demo.
 .. code:: ipython3
 
     import gradio as gr
-    
+
     ov_model = int8_model if use_quantized_model.value else ov_model
-    
-    
+
+
     def generate_answer(img, question):
         if img is None:
             raise gr.Error("Please upload an image or choose one from the examples list")
@@ -1373,11 +1372,11 @@ launch the interactive demo.
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/blip-visual-language-processing/gradio_helper.py"
         )
         open("gradio_helper.py", "w").write(r.text)
-    
+
     from gradio_helper import make_demo
-    
+
     demo = make_demo(fn=generate_answer)
-    
+
     try:
         demo.launch(debug=False)
     except Exception:

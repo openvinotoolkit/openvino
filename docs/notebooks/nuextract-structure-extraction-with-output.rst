@@ -45,24 +45,24 @@ The tutorial consists of the following steps:
    API <https://github.com/openvinotoolkit/openvino.genai>`__
 -  Launch interactive Gradio demo with structure extraction pipeline
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Select model for inference <#Select-model-for-inference>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Select model for inference <#select-model-for-inference>`__
 -  `Download and convert model to OpenVINO IR via Optimum Intel
-   CLI <#Download-and-convert-model-to-OpenVINO-IR-via-Optimum-Intel-CLI>`__
--  `Compress model weights <#Compress-model-weights>`__
+   CLI <#download-and-convert-model-to-openvino-ir-via-optimum-intel-cli>`__
+-  `Compress model weights <#compress-model-weights>`__
 
    -  `Weights Compression using Optimum Intel
       CLI <#weights-compression-using-optimum-intel-cli>`__
 
 -  `Select device for inference and model
-   variant <#Select-device-for-inference-and-model-variant>`__
+   variant <#select-device-for-inference-and-model-variant>`__
 -  `Create a structure extraction inference
-   pipeline <#Create-a-structure-extraction-inference-pipeline>`__
+   pipeline <#create-a-structure-extraction-inference-pipeline>`__
 -  `Run interactive structure extraction demo with
-   Gradio <#Run-interactive-structure-extraction-demo-with-Gradio>`__
+   Gradio <#run-interactive-structure-extraction-demo-with-gradio>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -77,7 +77,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -102,17 +102,17 @@ Prerequisites
     from pathlib import Path
     import requests
     import shutil
-    
+
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
-    
+
     from notebook_utils import download_file
-    
+
     # Fetch llm_config.py
     llm_config_shared_path = Path("../../utils/llm_config.py")
     llm_config_dst_path = Path("llm_config.py")
-    
+
     if not llm_config_dst_path.exists():
         if llm_config_shared_path.exists():
             try:
@@ -131,7 +131,7 @@ Prerequisites
 Select model for inference
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source solutions.
@@ -160,15 +160,15 @@ dataset for information extraction.
 .. code:: ipython3
 
     from llm_config import get_llm_selection_widget
-    
+
     models = {
         "NuExtract_tiny": {"model_id": "numind/NuExtract-tiny"},
         "NuExtract": {"model_id": "numind/NuExtract"},
         "NuExtract_large": {"model_id": "numind/NuExtract-large"},
     }
-    
+
     form, _, model_dropdown, compression_dropdown, _ = get_llm_selection_widget(languages=None, models=models, show_preconverted_checkbox=False)
-    
+
     form
 
 
@@ -195,7 +195,7 @@ dataset for information extraction.
 Download and convert model to OpenVINO IR via Optimum Intel CLI
 ---------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Listed model are available for downloading via the `HuggingFace
 hub <https://huggingface.co/models>`__. We will use optimum-cli
@@ -223,7 +223,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference#export>`__.
 Compress model weights
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The Weights Compression algorithm is aimed at compressing the weights of
 the models and can be used to optimize the model footprint and
@@ -235,14 +235,14 @@ performance even more but introduces a minor drop in prediction quality.
 Weights Compression using Optimum Intel CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Optimum Intel supports weight compression via NNCF out of the box. For
 8-bit compression we pass ``--weight-format int8`` to ``optimum-cli``
 command line. For 4 bit compression we provide ``--weight-format int4``
 and some other options containing number of bits and other compression
 parameters. An example of this approach usage you can find in
-`llm-chatbot notebook <../llm-chatbot>`__
+`llm-chatbot notebook <llm-chatbot-with-output.html>`__
 
    **Note**: This tutorial involves conversion model for FP16 and
    INT4/INT8 weights compression scenarios. It may be memory and
@@ -253,7 +253,7 @@ parameters. An example of this approach usage you can find in
 .. code:: ipython3
 
     from llm_config import convert_and_compress_model
-    
+
     model_dir = convert_and_compress_model(model_name, model_config, compression_dropdown.value, use_preconverted=False)
 
 
@@ -295,7 +295,7 @@ parameters. An example of this approach usage you can find in
     │              4 │ 53% (122 / 169)             │ 80% (122 / 168)                        │
     ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
     [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% • 0:00:07 • 0:00:00
-    
+
 
 .. parsed-literal::
 
@@ -317,7 +317,7 @@ Let’s compare model size for different compression types
 .. code:: ipython3
 
     from llm_config import compare_model_size
-    
+
     compare_model_size(model_dir)
 
 
@@ -329,7 +329,7 @@ Let’s compare model size for different compression types
 Select device for inference and model variant
 ---------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
    **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
@@ -337,9 +337,9 @@ Select device for inference and model variant
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
+
     device = device_widget(default="CPU", exclude=["NPU"])
-    
+
     device
 
 
@@ -354,7 +354,7 @@ Select device for inference and model variant
 Create a structure extraction inference pipeline
 ------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Firstly we will prepare input prompt for NuExtract model by introducing
 ``prepare_input()`` function. This function combines the main text, a
@@ -374,15 +374,15 @@ potentially improving accuracy for complex or ambiguous cases.
 
     import json
     from typing import List
-    
-    
+
+
     def prepare_input(text: str, schema: str, examples: List[str] = ["", "", ""]) -> str:
         schema = json.dumps(json.loads(schema), indent=4)
         input_llm = "<|input|>\n### Template:\n" + schema + "\n"
         for example in examples:
             if example != "":
                 input_llm += "### Example:\n" + json.dumps(json.loads(example), indent=4) + "\n"
-    
+
         input_llm += "### Text:\n" + text + "\n<|output|>\n"
         return input_llm
 
@@ -406,10 +406,10 @@ LLMPipeline.
 .. code:: ipython3
 
     from openvino_genai import LLMPipeline
-    
+
     pipe = LLMPipeline(model_dir.as_posix(), device.value)
-    
-    
+
+
     def run_structure_extraction(text: str, schema: str) -> str:
         input = prepare_input(text, schema)
         return pipe.generate(input, max_new_tokens=200)
@@ -431,7 +431,7 @@ schema format:
     automated benchmarks. Our models are released under the Apache 2.0 license.
     Code: https://github.com/mistralai/mistral-src
     Webpage: https://mistral.ai/news/announcing-mistral-7b/"""
-    
+
     schema = """{
         "Model": {
             "Name": "",
@@ -444,7 +444,7 @@ schema format:
             "Licence": ""
         }
     }"""
-    
+
     output = run_structure_extraction(text, schema)
     print(output)
 
@@ -472,13 +472,13 @@ schema format:
             "Licence": "Apache 2.0"
         }
     }
-    
+
 
 
 Run interactive structure extraction demo with Gradio
 -----------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -487,11 +487,11 @@ Run interactive structure extraction demo with Gradio
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/nuextract-structure-extraction/gradio_helper.py"
         )
         open("gradio_helper.py", "w").write(r.text)
-    
+
     from gradio_helper import make_demo
-    
+
     demo = make_demo(fn=run_structure_extraction)
-    
+
     try:
         demo.launch(height=800)
     except Exception:
@@ -504,14 +504,14 @@ Run interactive structure extraction demo with Gradio
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="800" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 
 
 .. code:: ipython3

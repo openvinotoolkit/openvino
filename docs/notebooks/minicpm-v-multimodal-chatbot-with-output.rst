@@ -18,24 +18,24 @@ to apply stateful transformation on LLM part and model optimization
 techniques like weights compression using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
+
+-  `Prerequisites <#prerequisites>`__
 -  `Convert model to OpenVINO Intermediate
-   Representation <#Convert-model-to-OpenVINO-Intermediate-Representation>`__
+   Representation <#convert-model-to-openvino-intermediate-representation>`__
 
    -  `Compress Language Model Weights to 4
-      bits <#Compress-Language-Model-Weights-to-4-bits>`__
+      bits <#compress-language-model-weights-to-4-bits>`__
 
 -  `Prepare model inference
-   pipeline <#Prepare-model-inference-pipeline>`__
--  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
+   pipeline <#prepare-model-inference-pipeline>`__
+-  `Run OpenVINO model inference <#run-openvino-model-inference>`__
 
-   -  `Select device <#Select-device>`__
-   -  `Select language model variant <#Select-language-model-variant>`__
+   -  `Select device <#select-device>`__
+   -  `Select language model variant <#select-language-model-variant>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -50,7 +50,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -61,18 +61,18 @@ Prerequisites
 
     import requests
     from pathlib import Path
-    
+
     if not Path("minicpm_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/minicpm-v-multimodal-chatbot/minicpm_helper.py")
         open("ov_phi3_vision.py", "w").write(r.text)
-    
-    
+
+
     if not Path("gradio_helper.py").exists():
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks//minicpm-v-multimodal-chatbot//gradio_helper.py"
         )
         open("gradio_helper.py", "w").write(r.text)
-    
+
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
@@ -80,7 +80,7 @@ Prerequisites
 Convert model to OpenVINO Intermediate Representation
 -----------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). `OpenVINO model conversion
@@ -199,7 +199,7 @@ Let’s convert each model part.
 .. code:: ipython3
 
     from minicpm_helper import convert_minicpmv26
-    
+
     # uncomment the line to see model conversion code
     # ??convert_minicpmv26
 
@@ -211,24 +211,24 @@ Let’s convert each model part.
     2024-08-19 11:46:03.014920: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
     2024-08-19 11:46:03.787842: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    
+
 
 .. code:: ipython3
 
     model_id = "openbmb/MiniCPM-V-2_6"
-    
+
     model_dir = convert_minicpmv26(model_id)
 
 
 .. parsed-literal::
 
     ✅ openbmb/MiniCPM-V-2_6 model already converted. You can find results in MiniCPM-V-2_6
-    
+
 
 Compress Language Model Weights to 4 bits
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For reducing memory consumption, weights compression optimization can be
 applied using `NNCF <https://github.com/openvinotoolkit/nncf>`__.
@@ -293,9 +293,9 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 .. code:: ipython3
 
     from minicpm_helper import compression_widget
-    
+
     to_compress_weights = compression_widget()
-    
+
     to_compress_weights
 
 
@@ -312,17 +312,17 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
     import nncf
     import gc
     import openvino as ov
-    
+
     from minicpm_helper import llm_path, copy_llm_files
-    
-    
+
+
     compression_configuration = {
         "mode": nncf.CompressWeightsMode.INT4_SYM,
         "group_size": 64,
         "ratio": 0.6,
     }
-    
-    
+
+
     core = ov.Core()
     llm_int4_path = Path("language_model_int4") / llm_path.name
     if to_compress_weights.value and not (model_dir / llm_int4_path).exists():
@@ -338,12 +338,12 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 .. parsed-literal::
 
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-    
+
 
 Prepare model inference pipeline
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/2727402e-3697-442e-beca-26b149967c84
 
@@ -351,7 +351,7 @@ As discussed, the model comprises Image Encoder and LLM (with separated
 text embedding part) that generates answer. In ``minicpm_helper.py`` we
 defined LLM inference class ``OvModelForCausalLMWithEmb`` that will
 represent generation cycle, It is based on `HuggingFace Transformers
-``GenerationMixin`` <https://huggingface.co/docs/transformers/main_classes/text_generation>`__
+GenerationMixin <https://huggingface.co/docs/transformers/main_classes/text_generation>`__
 and looks similar to `Optimum
 Intel <https://huggingface.co/docs/optimum/intel/index>`__
 ``OVModelForCausalLM``\ that is used for LLM inference with only
@@ -362,29 +362,29 @@ including image processing and answer generation using LLM.
 .. code:: ipython3
 
     from minicpm_helper import OvModelForCausalLMWithEmb, OvMiniCPMV, init_model  # noqa: F401
-    
+
     # uncomment the line to see model inference class
     # ??OVMiniCPMV
-    
+
     # uncomment the line to see language model inference class
     # ??OvModelForCausalLMWithEmb
 
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
+
     device = device_widget(default="AUTO", exclude=["NPU"])
-    
+
     device
 
 
@@ -399,15 +399,15 @@ Select device
 Select language model variant
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from minicpm_helper import lm_variant_selector
-    
-    
+
+
     use_int4_lang_model = lm_variant_selector(model_dir / llm_int4_path)
-    
+
     use_int4_lang_model
 
 
@@ -428,17 +428,17 @@ Select language model variant
 
     /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/auto/image_processing_auto.py:513: FutureWarning: The image_processor_class argument is deprecated and will be removed in v4.42. Please use `slow_image_processor_class`, or `fast_image_processor_class` instead
       warnings.warn(
-    
+
 
 .. code:: ipython3
 
     import requests
     from PIL import Image
-    
+
     url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
     image = Image.open(requests.get(url, stream=True).raw)
     question = "What is unusual on this image?"
-    
+
     print(f"Question:\n{question}")
     image
 
@@ -447,23 +447,23 @@ Select language model variant
 
     Question:
     What is unusual on this image?
-    
 
 
 
-.. image:: minicpm-v-multimodal-chatbot-with-output_files%5Cminicpm-v-multimodal-chatbot-with-output_17_1.png
+
+.. image:: minicpm-v-multimodal-chatbot-with-output_files/minicpm-v-multimodal-chatbot-with-output_17_1.png
 
 
 
 .. code:: ipython3
 
     tokenizer = ov_model.processor.tokenizer
-    
+
     msgs = [{"role": "user", "content": question}]
-    
+
     print("Answer:")
     res = ov_model.chat(image=image, msgs=msgs, context=None, tokenizer=tokenizer, sampling=True, temperature=0.7, stream=True, max_new_tokens=50)
-    
+
     generated_text = ""
     for new_text in res:
         generated_text += new_text
@@ -478,14 +478,14 @@ Select language model variant
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from gradio_helper import make_demo
-    
+
     demo = make_demo(ov_model)
-    
+
     try:
         demo.launch(debug=True, height=600)
     except Exception:

@@ -1,4 +1,4 @@
-Colorize grayscale images using 🎨 DDColor and OpenVINO
+Colorize grayscale images using DDColor and OpenVINO
 ======================================================
 
 Image colorization is the process of adding color to grayscale images.
@@ -25,27 +25,30 @@ In this tutorial we consider how to convert and run DDColor using
 OpenVINO. Additionally, we will demonstrate how to optimize this model
 using `NNCF <https://github.com/openvinotoolkit/nncf/>`__.
 
-🪄 Let’s start to explore magic of image colorization! #### Table of
-contents:
+🪄 Let’s start to explore magic of image colorization! 
 
--  `Prerequisites <#Prerequisites>`__
--  `Load PyTorch model <#Load-PyTorch-model>`__
--  `Run PyTorch model inference <#Run-PyTorch-model-inference>`__
+**Table of contents:**
+
+
+
+-  `Prerequisites <#prerequisites>`__
+-  `Load PyTorch model <#load-pytorch-model>`__
+-  `Run PyTorch model inference <#run-pytorch-model-inference>`__
 -  `Convert PyTorch model to OpenVINO Intermediate
-   Representation <#Convert-PyTorch-model-to-OpenVINO-Intermediate-Representation>`__
--  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
+   Representation <#convert-pytorch-model-to-openvino-intermediate-representation>`__
+-  `Run OpenVINO model inference <#run-openvino-model-inference>`__
 -  `Optimize OpenVINO model using
-   NNCF <#Optimize-OpenVINO-model-using-NNCF>`__
+   NNCF <#optimize-openvino-model-using-nncf>`__
 
-   -  `Collect quantization dataset <#Collect-quantization-dataset>`__
-   -  `Perform model quantization <#Perform-model-quantization>`__
+   -  `Collect quantization dataset <#collect-quantization-dataset>`__
+   -  `Perform model quantization <#perform-model-quantization>`__
 
--  `Run INT8 model inference <#Run-INT8-model-inference>`__
+-  `Run INT8 model inference <#run-int8-model-inference>`__
 -  `Compare FP16 and INT8 model
-   size <#Compare-FP16-and-INT8-model-size>`__
+   size <#compare-fp16-and-int8-model-size>`__
 -  `Compare inference time of the FP16 and INT8
-   models <#Compare-inference-time-of-the-FP16-and-INT8-models>`__
--  `Interactive inference <#Interactive-inference>`__
+   models <#compare-inference-time-of-the-fp16-and-int8-models>`__
+-  `Interactive inference <#interactive-inference>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -62,7 +65,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -117,7 +120,7 @@ Prerequisites
 Load PyTorch model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 There are several models from DDColor’s family provided in `model
 repository <https://github.com/piddnad/DDColor/blob/master/MODEL_ZOO.md>`__.
@@ -142,7 +145,7 @@ models from DDColor family.
 Run PyTorch model inference
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -178,7 +181,7 @@ Run PyTorch model inference
 Convert PyTorch model to OpenVINO Intermediate Representation
 -------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). OpenVINO model conversion API should be used for
@@ -202,7 +205,7 @@ loading on device using ``core.complie_model``.
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select one of supported devices for inference using dropdown list.
 
@@ -287,7 +290,7 @@ Select one of supported devices for inference using dropdown list.
 Optimize OpenVINO model using NNCF
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -341,10 +344,10 @@ improve model inference speed.
 Collect quantization dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use a portion of
-```ummagumm-a/colorization_dataset`` <https://huggingface.co/datasets/ummagumm-a/colorization_dataset>`__
+`ummagumm-a/colorization_dataset <https://huggingface.co/datasets/ummagumm-a/colorization_dataset>`__
 dataset from Hugging Face as calibration data.
 
 .. code:: ipython3
@@ -374,7 +377,7 @@ dataset from Hugging Face as calibration data.
 Perform model quantization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -412,9 +415,9 @@ Perform model quantization
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -425,16 +428,16 @@ Perform model quantization
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
 Run INT8 model inference
 ------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -454,7 +457,7 @@ Run INT8 model inference
 Compare FP16 and INT8 model size
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -478,7 +481,7 @@ Compare FP16 and INT8 model size
 Compare inference time of the FP16 and INT8 models
 --------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of OpenVINO FP16 and INT8 models,
 use `Benchmark
@@ -668,7 +671,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -705,7 +708,7 @@ Interactive inference
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 
