@@ -99,8 +99,12 @@ def generate_manifest(repos: list, product_type: str, event_type: str, build_typ
     custom_branch_name = f'-{trigger_repo.branch}' if trigger_repo.branch != 'master' else ''
     run_number_postfix = f'-{os.environ.get("GITHUB_RUN_NUMBER")}' if os.environ.get("GITHUB_RUN_NUMBER") else ''
     product_version = f"{ov_version}{run_number_postfix}-{trigger_repo.revision[:11]}{custom_branch_name}"
-    ci_build_dev_tag = f'dev{trigger_repo.commit_time.strftime("%Y%m%d")}'
-    wheel_product_version = f'{ov_version}.{ci_build_dev_tag}'
+
+    merge_queue_target_branch = next(iter(re.findall(f'^gh-readonly-queue/(.*)/', trigger_repo.branch)), None)
+    target_branch = merge_queue_target_branch or trigger_repo.target_branch or trigger_repo.branch
+    is_release_branch = re.match('^releases/.+$', target_branch)
+    ci_build_dev_tag = f'dev{trigger_repo.commit_time.strftime("%Y%m%d")}' if not is_release_branch else ''
+    wheel_product_version = f'{ov_version}.{ci_build_dev_tag}' if not is_release_branch else ov_version
 
     set_github_output('CI_BUILD_NUMBER', product_version, 'GITHUB_ENV')
     set_github_output('CI_BUILD_DEV_TAG', ci_build_dev_tag, 'GITHUB_ENV')
