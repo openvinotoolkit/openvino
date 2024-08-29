@@ -119,6 +119,10 @@ void set_batch_config(bool isBatchingSupported, Config& config) {
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     std::map<std::string, std::string> result;
     for (auto&& value : params) {
+        // The value of cache_encryption_callbacks cannot be converted to std::string
+        if (value.first == ov::cache_encryption_callbacks.name()) {
+            continue;
+        }
         result.emplace(value.first, value.second.as<std::string>());
     }
     return result;
@@ -138,8 +142,11 @@ size_t getFileSize(std::istream& stream) {
     log.debug("Read blob size: streamStart=%zu, streamEnd=%zu", streamStart, streamEnd);
 
     if (streamEnd < streamStart) {
-        OPENVINO_THROW("Invalid stream size: streamEnd (", streamEnd,
-                       ") is not larger than streamStart (", streamStart, ")!");
+        OPENVINO_THROW("Invalid stream size: streamEnd (",
+                       streamEnd,
+                       ") is not larger than streamStart (",
+                       streamStart,
+                       ")!");
     }
 
     return streamEnd - streamStart;
@@ -449,6 +456,28 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<TURBO>();
           }}},
+        {ov::intel_npu::tiles.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<TILES>();
+          }}},
+        {ov::intel_npu::max_tiles.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [&](const Config& config) {
+              if (!config.has<MAX_TILES>()) {
+                  const auto specifiedDeviceName = get_specified_device_name(config);
+                  return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
+              }
+              return config.get<MAX_TILES>();
+          }}},
+        {ov::intel_npu::bypass_umd_caching.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<BYPASS_UMD_CACHING>();
+          }}},
         // NPU Private
         // =========
         {ov::intel_npu::dma_engines.name(),
@@ -456,12 +485,6 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<DMA_ENGINES>();
-          }}},
-        {ov::intel_npu::tiles.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<TILES>();
           }}},
         {ov::intel_npu::dpu_groups.name(),
          {false,
@@ -478,17 +501,6 @@ Plugin::Plugin()
                   return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
               } else {
                   return config.get<STEPPING>();
-              }
-          }}},
-        {ov::intel_npu::max_tiles.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [&](const Config& config) {
-              if (!config.has<MAX_TILES>()) {
-                  const auto specifiedDeviceName = get_specified_device_name(config);
-                  return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
-              } else {
-                  return config.get<MAX_TILES>();
               }
           }}},
         {ov::intel_npu::compilation_mode.name(),
