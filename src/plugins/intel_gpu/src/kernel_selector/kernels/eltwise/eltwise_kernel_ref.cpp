@@ -13,6 +13,8 @@ ParamsKey EltwiseKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+    k.EnableInputDataType(Datatype::INT16);
+    k.EnableInputDataType(Datatype::UINT16);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::UINT32);
     k.EnableInputDataType(Datatype::INT64);
@@ -20,6 +22,8 @@ ParamsKey EltwiseKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT16);
+    k.EnableOutputDataType(Datatype::UINT16);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::UINT32);
     k.EnableOutputDataType(Datatype::INT64);
