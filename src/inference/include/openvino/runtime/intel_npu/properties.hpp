@@ -87,5 +87,13 @@ static constexpr ov::Property<int64_t> tiles{"NPU_TILES"};
  */
 static constexpr ov::Property<int64_t> max_tiles{"NPU_MAX_TILES"};
 
+/**
+ * @brief [Only for NPU plugin]
+ * Type: std::bool
+ * Bypass caching of the compiled model by UMD cache.
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<bool> bypass_umd_caching{"NPU_BYPASS_UMD_CACHING"};
+
 }  // namespace intel_npu
 }  // namespace ov
