@@ -18,6 +18,11 @@ void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_
     FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= min_inputs, "Got less inputs than expected");
 }
 
+void num_inputs_check(const NodeContext& context, size_t min_inputs) {
+    auto inputs = context.inputs();
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= min_inputs, "Got less inputs than expected");
+}
+
 const std::string& get_jax_prefix() {
     return jax_prefix;
 }
@@ -48,6 +53,9 @@ const std::unordered_map<int64_t, element::Type> JAX_TO_OV_TYPE{
     {5, element::f16},
     {6, element::f32},
     {7, element::f64},
+    {8, element::u16},
+    {9, element::u32},
+    {10, element::u64},
     {11, element::boolean},
     {12, element::i8},   // quantized i8
     {13, element::u8},   // quantized u8

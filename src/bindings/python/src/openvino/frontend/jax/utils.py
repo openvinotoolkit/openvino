@@ -13,7 +13,7 @@ from openvino.runtime import op, Type as OVType, Shape, OVAny
 numpy_to_ov_type_map = {
     np.float32: OVType.f32,
     bool: OVType.boolean,
-    jax.dtypes.bfloat16: OVType.bf16, # TODO: check this
+    jax.dtypes.bfloat16: OVType.bf16,  # TODO: check this
     np.float16: OVType.f16,
     np.float32: OVType.f32,
     np.float64: OVType.f64,
@@ -29,7 +29,7 @@ numpy_to_ov_type_map = {
 
 jax_to_ov_type_map = {
     jnp.float32: OVType.f32,
-    jnp.bfloat16: OVType.bf16, # TODO: check this
+    jnp.bfloat16: OVType.bf16,  # TODO: check this
     jnp.float16: OVType.f16,
     jnp.float64: OVType.f64,
     jnp.uint8: OVType.u8,
@@ -62,6 +62,9 @@ ov_type_to_int_map = {
     OVType.f16: 5,
     OVType.f32: 6,
     OVType.f64: 7,
+    OVType.u16: 8,
+    OVType.u32: 9,
+    OVType.u64: 10,
     OVType.boolean: 11,
     OVType.bf16: 15,
 }
