@@ -292,6 +292,8 @@ private:
     std::map<std::string, std::vector<int64_t>> tp_host_times;
 #ifdef GPU_DEBUG_CONFIG
     int64_t iteration = 0;
+    int all_reduce_num_per_iter = 0;
+    int all_gather_num_per_iter = 0;
 #endif
 };
 }  // namespace cldnn

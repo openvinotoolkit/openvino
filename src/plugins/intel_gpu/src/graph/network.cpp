@@ -443,19 +443,35 @@ network::network(program::ptr program, stream::ptr stream, uint16_t stream_id, o
 
 network::~network() {
     GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
-        if (tp_host_times["sync_tensor"].size() >= 2) {
-            double first = static_cast<double>(tp_host_times["sync_tensor"][0]);
+        if (tp_host_times["sync_tensor_all_reduce"].size() >= 2) {
+            double first = static_cast<double>(tp_host_times["sync_tensor_all_reduce"][0]);
             double avg = static_cast<double>(
-                std::accumulate(tp_host_times["sync_tensor"].begin() + 1, tp_host_times["sync_tensor"].end(), (size_t)0, std::plus<size_t>()));
-            avg /= (tp_host_times["sync_tensor"].size() - 1);
+                std::accumulate(
+                    tp_host_times["sync_tensor_all_reduce"].begin() + 1, tp_host_times["sync_tensor_all_reduce"].end(), (size_t)0, std::plus<size_t>()));
+            avg /= (tp_host_times["sync_tensor_all_reduce"].size() - 1);
             std::string resolution = " us";
             if (avg > 1000.0) {
                 resolution = " ms";
                 avg /= 1000.0;
                 first /= 1000.0;
             }
-            GPU_DEBUG_COUT << "Network[" << net_id << "] First infer total sync tensor host time: " << first << resolution << std::endl;
-            GPU_DEBUG_COUT << "Network[" << net_id << "] total sync tensor avg host time: " << avg << resolution << std::endl;
+            GPU_DEBUG_COUT << "Network[" << net_id << "] First infer total sync tensor all reduce host time: " << first << resolution << std::endl;
+            GPU_DEBUG_COUT << "Network[" << net_id << "] total sync tensor all reduce avg host time: " << avg << resolution << std::endl;
+        }
+        if (tp_host_times["sync_tensor_all_gather"].size() >= 2) {
+            double first = static_cast<double>(tp_host_times["sync_tensor_all_gather"][0]);
+            double avg = static_cast<double>(
+                std::accumulate(
+                    tp_host_times["sync_tensor_all_gather"].begin() + 1, tp_host_times["sync_tensor_all_gather"].end(), (size_t)0, std::plus<size_t>()));
+            avg /= (tp_host_times["sync_tensor_all_gather"].size() - 1);
+            std::string resolution = " us";
+            if (avg > 1000.0) {
+                resolution = " ms";
+                avg /= 1000.0;
+                first /= 1000.0;
+            }
+            GPU_DEBUG_COUT << "Network[" << net_id << "] First infer total sync tensor all gather host time: " << first << resolution << std::endl;
+            GPU_DEBUG_COUT << "Network[" << net_id << "] total sync tensor all gather avg host time: " << avg << resolution << std::endl;
         }
         if (tp_host_times["concat"].size() >= 2) {
             double first = static_cast<double>(tp_host_times["concat"][0]);
@@ -472,6 +488,10 @@ network::~network() {
             GPU_DEBUG_COUT << "Network[" << net_id << "] total concat avg host time: " << avg << resolution << std::endl;
         }
     }
+    #ifdef GPU_DEBUG_CONFIG
+        GPU_DEBUG_COUT << "all reduce operations per infer: " << all_reduce_num_per_iter << std::endl;
+        GPU_DEBUG_COUT << "all gather operations per infer: " << all_gather_num_per_iter << std::endl;
+    #endif
     if (_program != nullptr)
         _program->cancel_compilation_context();
     _memory_pool->clear_pool_for_network(net_id);
@@ -967,7 +987,6 @@ void network::add_to_exec_order(const primitive_id& id) {
 
 std::map<primitive_id, network_output> network::execute(const std::vector<event::ptr>& dependencies) {
     execute_impl(dependencies);
-
     auto output_ids = get_output_ids();
     std::map<primitive_id, network_output> result;
     for (auto& id : output_ids) {
@@ -1066,9 +1085,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     const size_t flush_frequency = needs_flushing ? 16 : 0;
     size_t executed_prims = 0;
     std::map<std::string, std::vector<int64_t>> tp_host_times_each_iter;
-    tp_host_times["sync_tensor"];
-    tp_host_times["concat"];
-    tp_host_times_each_iter["sync_tensor"];
+    tp_host_times_each_iter["sync_tensor_all_reduce"];
+    tp_host_times_each_iter["sync_tensor_all_gather"];
     tp_host_times_each_iter["concat"];
     for (auto& inst : _exec_order) {
         auto start = std::chrono::high_resolution_clock::now();
@@ -1244,7 +1262,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             auto end = std::chrono::high_resolution_clock::now();
             GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
                 if (inst->get_node().is_type<sync_tensor>()) {
-                    tp_host_times_each_iter["sync_tensor"].push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+                    if (inst->get_impl_params()->need_add)
+                        tp_host_times_each_iter["sync_tensor_all_reduce"].push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+                    else
+                        tp_host_times_each_iter["sync_tensor_all_gather"].push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
                 } else {
                     tp_host_times_each_iter["concat"].push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
                 }
@@ -1253,10 +1274,15 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     }
     // statistic for each iter
     GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
-        if (tp_host_times_each_iter["sync_tensor"].size() >= 1) {
-            const auto begin = std::begin(tp_host_times_each_iter["sync_tensor"]);
-            const auto end = std::end(tp_host_times_each_iter["sync_tensor"]);
-            tp_host_times["sync_tensor"].push_back(std::accumulate(begin, end, (size_t)0, std::plus<size_t>()));
+        if (tp_host_times_each_iter["sync_tensor_all_reduce"].size() >= 1) {
+            const auto begin = std::begin(tp_host_times_each_iter["sync_tensor_all_reduce"]);
+            const auto end = std::end(tp_host_times_each_iter["sync_tensor_all_reduce"]);
+            tp_host_times["sync_tensor_all_reduce"].push_back(std::accumulate(begin, end, (size_t)0, std::plus<size_t>()));
+        }
+        if (tp_host_times_each_iter["sync_tensor_all_gather"].size() >= 1) {
+            const auto begin = std::begin(tp_host_times_each_iter["sync_tensor_all_gather"]);
+            const auto end = std::end(tp_host_times_each_iter["sync_tensor_all_gather"]);
+            tp_host_times["sync_tensor_all_gather"].push_back(std::accumulate(begin, end, (size_t)0, std::plus<size_t>()));
         }
         if (tp_host_times_each_iter["concat"].size() >= 1) {
             const auto begin = std::begin(tp_host_times_each_iter["concat"]);
@@ -1264,6 +1290,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             tp_host_times["concat"].push_back(std::accumulate(begin, end, (size_t)0, std::plus<size_t>()));
         }
     }
+    #ifdef GPU_DEBUG_CONFIG
+        all_reduce_num_per_iter = tp_host_times_each_iter["sync_tensor_all_reduce"].size();
+        all_gather_num_per_iter = tp_host_times_each_iter["sync_tensor_all_gather"].size();
+    #endif
     // print '-data_shape' option for benchmark_app
     GPU_DEBUG_IF(debug_config->print_input_data_shapes == 1) {
         std::stringstream data_shape_str;
