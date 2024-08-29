@@ -199,14 +199,18 @@ class TestTfExtensions(CommonMOConvertTest):
         tf.compat.v1.reset_default_graph()
 
         input_name = "Input1"
-        input_shape = [1, 2, 3]
+        input_shape = [None, 1, 2, 3]
 
-        x = tf.keras.Input(shape=input_shape, name=input_name)
-        y = tf.cos(x)
-        keras_net = tf.keras.Model(inputs=[x], outputs=[y])
-        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
 
-        return keras_net
+        with tf.compat.v1.Session() as sess:
+            x = tf.compat.v1.placeholder(tf.float32, input_shape, input_name)
+            y = tf.cos(x)
+
+            tf.compat.v1.global_variables_initializer()
+            tf_net = sess.graph_def
+
+        return tf_net
 
     def create_custom_extension_cos_to_sin():
         from openvino.frontend import ConversionExtension
