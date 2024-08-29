@@ -82,10 +82,6 @@ bool SoftmaxKernelBaseBF::Validate(const Params& p) const {
     const softmax_params& params = static_cast<const softmax_params&>(p);
     const auto& input = params.inputs[0];
 
-    if (!params.activations.empty()) {
-        return false;
-    }
-
     if (input.GetLayout() == DataLayout::bf || input.GetLayout() == DataLayout::fb) {
         return true;
     }
