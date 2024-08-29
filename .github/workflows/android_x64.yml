@@ -148,7 +148,7 @@ jobs:
           if-no-files-found: 'ignore'
 
   Overall_Status:
-    name: ci/gha_overall_status_android_x64
+    name: ci/gha_overall_status_android
     needs: [Smart_CI, Build]
     if: ${{ always() }}
     runs-on: ubuntu-latest
