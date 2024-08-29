@@ -9,7 +9,14 @@
 
 namespace cldnn {
 
-bool is_prefill_stage(const kernel_impl_params& impl_param);
+enum PagedAttentionStage {
+    GENERATE = 0,
+    PREFILL = 1,
+    MIXED = 2,
+    UNKNOWN = 3
+};
+
+PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_param);
 
 template <>
 struct typed_program_node<paged_attention> : public typed_program_node_base<paged_attention> {
@@ -20,11 +27,11 @@ public:
     using parent::parent;
 
     std::set<size_t> get_lockable_input_ids() const override {
-        return { 6 /* subsequence_begins */, 12 /* max_context_len */ };
+        return { 5 /* past_lens */, 6 /* subsequence_begins */, 12 /* max_context_len */ };
     }
 
     std::vector<size_t> get_shape_infer_dependencies() const override {
-        return { 6 /* subsequence_begins */, 12 /* max_context_len */ };
+        return { 5 /* past_lens */, 6 /* subsequence_begins */, 12 /* max_context_len */ };
     }
 };
 

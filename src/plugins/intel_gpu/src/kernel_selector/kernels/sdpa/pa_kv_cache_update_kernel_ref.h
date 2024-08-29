@@ -12,6 +12,7 @@ namespace kernel_selector {
 struct kv_cache_update_params : base_params {
     kv_cache_update_params() : base_params(KernelType::PA_KV_CACHE_UPDATE) {}
 
+    bool is_prefill = false;
     sdpa_configuration conf;
 };
 

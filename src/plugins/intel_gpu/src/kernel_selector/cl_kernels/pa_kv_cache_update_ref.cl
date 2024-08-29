@@ -11,15 +11,17 @@ KERNEL(pa_kv_cache_update)(
     __global const INPUT2_TYPE* past_lens,
     __global const INPUT3_TYPE* block_indices,
     __global const INPUT4_TYPE* block_indices_begins,
+    __global const INPUT5_TYPE* subsequence_begins,
     __global OUTPUT_TYPE* key_cache_data,
     __global OUTPUT1_TYPE* value_cache_data,
     const __global int* blocked_indexes_start,
     const __global int* blocked_indexes_end,
-    const __global int* gws_seq_indexes_correspondence
+    const __global int* gws_seq_indexes_correspondence,
+    const int is_prefill_stage
 ) {
     // If the the number of new tokens equals to the number of past_lens elements,
     // then it's the 2nd+ iteration
-    if (INPUT0_BATCH_NUM == INPUT2_BATCH_NUM) {
+    if (!is_prefill_stage) {
         // 2nd+ token
         const uint seq_idx = (uint)get_global_id(0);
         const uint head_idx = (uint)get_global_id(1);
@@ -27,8 +29,8 @@ KERNEL(pa_kv_cache_update)(
 
         const uint seq_len = past_lens[seq_idx];
         const uint current_token_pos_in_block = seq_len % PAGED_ATTENTION_BLOCK_SIZE;
-        const uint seq_last_block_idx = block_indices_begins[seq_idx + 1] - 1;
-        const uint block_idx = block_indices[seq_last_block_idx];
+        const uint seq_block_idx = block_indices_begins[seq_idx] + seq_len / PAGED_ATTENTION_BLOCK_SIZE;
+        const uint block_idx = block_indices[seq_block_idx];
 
         uint key_value_in_offset = seq_idx * KV_HEADS_NUM * HEAD_SIZE + head_idx * HEAD_SIZE;
 
@@ -69,6 +71,9 @@ KERNEL(pa_kv_cache_update)(
         const uint head_idx = get_global_id(1);
         const uint sglid = get_global_id(2);
 
+        const uint subsequence_idx = gws_seq_indexes_correspondence[block_idx];
+        const uint subsequence_begin_idx = subsequence_begins[subsequence_idx];
+
         const uint block_start_pos = blocked_indexes_start[block_idx];
         const uint block_end_pos = blocked_indexes_end[block_idx];
         const uint tokens_num = block_end_pos - block_start_pos;
@@ -76,7 +81,12 @@ KERNEL(pa_kv_cache_update)(
         uint key_value_in_offset = block_start_pos * KV_HEADS_NUM * HEAD_SIZE +
                                    head_idx * HEAD_SIZE;
 
-        uint key_out_offset = block_indices[block_idx] * KV_HEADS_NUM * HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE +
+        const uint cached_blocks_num = past_lens[subsequence_idx] / PAGED_ATTENTION_BLOCK_SIZE;
+        const uint current_block_idx = (block_start_pos - subsequence_begin_idx) / PAGED_ATTENTION_BLOCK_SIZE;
+
+        const uint block_offset = block_indices_begins[subsequence_idx] + cached_blocks_num + current_block_idx;
+
+        uint key_out_offset = block_indices[block_offset] * KV_HEADS_NUM * HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE +
                               head_idx * HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
 
         uint value_out_offset = key_out_offset;
