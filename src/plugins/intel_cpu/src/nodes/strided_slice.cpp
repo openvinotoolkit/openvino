@@ -236,7 +236,7 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
     }
     if (attrs.isSliceScatterOp) {
         config.inConfs[attrs.UPDATES_ID].inPlace(-1);
-        config.inConfs[attrs.UPDATES_ID].constant(isConstantInput[attrs.DATA_ID]);
+        config.inConfs[attrs.UPDATES_ID].constant(isConstantInput[attrs.UPDATES_ID]);
     }
     config.outConfs.resize(1);
 
