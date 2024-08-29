@@ -54,43 +54,6 @@ static std::tuple<uint32_t, std::string> queryExpVersion(const char* extName,
     }
 }
 
-static std::tuple<uint32_t, std::string> queryGraphProfilingVersion(
-    std::vector<ze_driver_extension_properties_t>& extProps,
-    uint32_t count) {
-    const char* commandQueueExtName = nullptr;
-    uint32_t targetVersion = 0;
-
-    for (uint32_t i = 0; i < count; ++i) {
-        auto& property = extProps[i];
-
-        if (strncmp(property.name, ZE_PROFILING_DATA_EXT_NAME, strlen(ZE_PROFILING_DATA_EXT_NAME)) != 0) {
-            continue;
-        }
-
-        if (property.version == ZE_COMMAND_QUEUE_NPU_EXT_VERSION_CURRENT) {
-            commandQueueExtName = property.name;
-            targetVersion = property.version;
-            break;
-        }
-
-        // Use the latest version supported by the driver.
-        if (property.version > targetVersion) {
-            commandQueueExtName = property.name;
-            targetVersion = property.version;
-        }
-    }
-
-    if (commandQueueExtName == nullptr) {
-        std::cout << "targetVersion:" << targetVersion << std::endl;
-        std::cout << "commandQueueExtName: Couldn't find command queue extension" << std::endl;
-        return std::make_tuple(targetVersion, "");
-    } else {
-        std::cout << "targetVersion:" << targetVersion << std::endl;
-        std::cout << "commandQueueExtName:" << commandQueueExtName << std::endl;
-        return std::make_tuple(targetVersion, commandQueueExtName);
-    }
-}
-
 ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "ZeroInitStructsHolder::ZeroInitStructsHolder");
     log.debug("ZeroInitStructsHolder - performing zeInit on VPU only");
