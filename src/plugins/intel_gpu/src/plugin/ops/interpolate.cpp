@@ -201,7 +201,7 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
                                                              attrs.shape_calculation_mode,
                                                              attrs.coordinate_transformation_mode,
                                                              attrs.nearest_mode,
-							     1);
+                                                             1);
         }
     } else {
         auto outShape = op->get_output_shape(0);
