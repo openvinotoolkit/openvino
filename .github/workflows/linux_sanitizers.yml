@@ -223,6 +223,7 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      TBB_ENABLE_SANITIZERS: 1
       CC: clang
       CXX: clang++
     steps:
