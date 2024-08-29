@@ -26,7 +26,10 @@ public:
                               const Config& config);
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
+    std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override;
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
+    void set_tensors(const ov::Output<const ov::Node>& port,
+                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
     void infer() override;
     void infer_async() override;
@@ -72,6 +75,8 @@ private:
      */
     void set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTensor> tensor, const size_t index, const bool isInput);
 
+    void check_batched_tensors(const ov::Output<const ov::Node>& input,
+                               const std::vector<ov::SoPtr<ov::ITensor>>& tensors);
     void check_network_precision(const ov::element::Type_t precision) const override;
     void create_pipeline();
 
@@ -115,6 +120,10 @@ private:
     std::optional<std::size_t> _batchSize = std::nullopt;
 
     bool _pipelineIsCreated = false;
+
+    std::unordered_map<size_t, std::vector<ov::SoPtr<ov::ITensor>>> _levelZeroBatchedTensors;
+
+    std::unordered_map<size_t, std::vector<std::optional<TensorData>>> _batchedTensorsData;
 };
 
 }  //  namespace intel_npu

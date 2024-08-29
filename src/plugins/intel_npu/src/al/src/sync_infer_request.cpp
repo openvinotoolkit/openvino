@@ -195,6 +195,9 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
 void SyncInferRequest::check_tensors() const {
     const auto& inputs = _compiledModel->inputs();
     for (size_t i = 0; i < inputs.size(); i++) {
+        if (is_batched_input(i)) {
+            continue;
+        }
         if (_userInputTensors.at(i)) {
             check_tensor(inputs[i], _userInputTensors.at(i));
         }
@@ -250,4 +253,9 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
 
     return tensor;
 }
+
+bool SyncInferRequest::is_batched_input(size_t idx) const {
+    return _userBatchedTensors.count(idx) > 0;
+}
+
 }  // namespace intel_npu

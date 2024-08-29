@@ -27,6 +27,7 @@ public:
              std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
              const std::vector<std::optional<TensorData>>& inputTensorsData,
              const std::vector<std::optional<TensorData>>& outputTensorsData,
+             const std::unordered_map<size_t, std::vector<std::optional<TensorData>>>& batchedTensorsData,
              const size_t numberOfCommandLists);
 
     Pipeline(const Pipeline&) = delete;
@@ -37,7 +38,10 @@ public:
     void pull();
     void reset() const;
 
-    void updateCommandList(const TensorData& tensorsData, const uint32_t index);
+    void updateCommandList(const TensorData& tensorsData,
+                           uint32_t index,
+                           bool batchedInput = false,
+                           size_t commandListIndex = 0);
 
 protected:
     const Config _config;

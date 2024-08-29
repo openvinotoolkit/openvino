@@ -44,14 +44,14 @@ public:
      * @brief Currently there is no support implemented for batches of tensors, thus this call is a simple redirection
      * to the "get_tensor" one.
      */
-    std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override;
+    virtual std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override;
 
     /**
      * @brief Currently there is no support implemented for batches of tensors, thus this call is a simple redirection
      * to the "set_tensor" one.
      */
-    void set_tensors(const ov::Output<const ov::Node>& port,
-                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
+    virtual void set_tensors(const ov::Output<const ov::Node>& port,
+                             const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
     /**
      * @brief Gets inputs for infer request
@@ -153,6 +153,8 @@ protected:
                                                  const ov::Allocator& allocator = {},
                                                  const std::optional<std::size_t> batchSize = std::nullopt) const;
 
+    bool is_batched_input(size_t idx) const;
+
     // This is intel_npu::ICompiledModel pointer, but need to use OV base class because
     // ov::IInferRequest::get_compiled_model returns a refernce to shared_ptr!
     std::shared_ptr<const ov::ICompiledModel> _compiledModel;
@@ -161,6 +163,8 @@ protected:
 
     mutable std::vector<std::shared_ptr<ov::ITensor>> _userInputTensors;
     mutable std::vector<std::shared_ptr<ov::ITensor>> _userOutputTensors;
+
+    mutable std::unordered_map<size_t, std::vector<ov::SoPtr<ov::ITensor>>> _userBatchedTensors;
 
     mutable std::vector<ov::SoPtr<ov::IVariableState>> _variableStates;
 
