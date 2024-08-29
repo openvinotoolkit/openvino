@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
 #include <functional>
 #include <utility>
+
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace op {

@@ -131,7 +131,7 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
     }
 
     const auto& deduced_output_shape = op->get_deduced_output_shape();
-    if(deduced_output_shape.first && output_shape.rank().is_dynamic()){
+    if (deduced_output_shape.first && output_shape.rank().is_dynamic()) {
         output_shape = deduced_output_shape.second.get();
     }
 

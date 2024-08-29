@@ -214,8 +214,8 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
             }
             is_changed |= inherit_output_type(op, {0});
 
-            if(op->get_output_partial_shape(0).rank().is_static()){
-                squeeze_op ->set_deduced_output_shape(op->get_output_partial_shape(0));
+            if (op->get_output_partial_shape(0).rank().is_static()) {
+                squeeze_op->set_deduced_output_shape(op->get_output_partial_shape(0));
             }
         } else if (std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(op)) {
             auto in0_rank = op->get_input_partial_shape(0).rank();
@@ -303,10 +303,11 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
             const auto batch = gather_op->get_batch_dims();
 
             if (op->get_input_size() > 1 && batch >= 0 && op->get_input_partial_shape(1).rank().is_dynamic()) {
-                op->get_input_tensor(1).m_partial_shape = ov::PartialShape::dynamic(output_shape.rank() - data_shape.rank() + batch + 1 );
+                op->get_input_tensor(1).m_partial_shape =
+                    ov::PartialShape::dynamic(output_shape.rank() - data_shape.rank() + batch + 1);
                 is_changed = true;
             }
-        }else if (std::dynamic_pointer_cast<ov::op::v1::Transpose>(op)) {
+        } else if (std::dynamic_pointer_cast<ov::op::v1::Transpose>(op)) {
             auto transpose_order = ov::util::get_constant_from_source(op->input_value(1));
             if (output_shape.rank().is_static()) {
                 if (transpose_order) {
