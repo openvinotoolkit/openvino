@@ -5,13 +5,14 @@
 #pragma once
 
 #include "openvino/op/op.hpp"
+#include <functional>
+#include <utility>
 
 namespace ov {
 namespace op {
 namespace v0 {
 /// \brief Squeeze operation.
 ///
-/// \param torch_mode Shape inference result with dynamic rank if selected axis has 1 is in range of its dynamic
 /// dimension. The solution mimics the PyTorch approach.
 ///
 /// \ingroup ov_ops_cpp_api
@@ -19,7 +20,13 @@ class OPENVINO_API Squeeze : public Op {
 public:
     OPENVINO_OP("Squeeze", "opset1");
 
+    /// \brief Constructs a squeeze operation.
     Squeeze();
+    /// \brief Constructs a squeeze operation.
+    ///
+    /// \param data Input tensor with data
+    /// \param axis The axis along which to squeeze the input tensor.
+    /// \param torch_mode Shape inference result dynamic rank if selected axis has 1 in range of its dynamic
     Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool torch_mode = false);
     Squeeze(const Output<Node>& data, const bool torch_mode = false);
 
@@ -37,9 +44,14 @@ public:
     bool is_dynamic() const override;
     bool get_pytorch_dynamic_rank() const;
 
+    std::pair<bool, std::reference_wrapper<const ov::PartialShape>> get_deduced_output_shape() const;
+    void set_deduced_output_shape(const ov::PartialShape& output_shapes);
+
 private:
     Output<Node> get_default_axes_input() const;
     bool m_pytorch_dynamic_rank{};
+    ov::PartialShape deduced_output_shape{};
+    bool is_deduced_output_shape{};
 };
 }  // namespace v0
 }  // namespace op

@@ -134,6 +134,16 @@ bool Squeeze::get_pytorch_dynamic_rank() const {
     return m_pytorch_dynamic_rank;
 }
 
+std::pair<bool, std::reference_wrapper<const ov::PartialShape>> Squeeze::get_deduced_output_shape() const {
+    return {is_deduced_output_shape, std::cref(deduced_output_shape)};
+}
+
+void Squeeze::set_deduced_output_shape(const ov::PartialShape& output_shapes){
+    deduced_output_shape = output_shapes;
+    is_deduced_output_shape = true;
+}
+
+
 }  // namespace v0
 }  // namespace op
 }  // namespace ov
