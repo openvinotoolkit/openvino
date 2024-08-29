@@ -62,21 +62,24 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
     const auto& bitwise_and = wrap_type<ov::op::v13::BitwiseAnd>({add_or_convert, convert_2});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
-	std::cout << "DEBUG - GPTQ_Pass - 1 - A" << std::endl;
         auto bitwise_and = m.get_match_root();
         if (!bitwise_and) {
             return false;
         }
         const auto& pattern_map = m.get_pattern_value_map();
         auto unsqueeze_1_node = pattern_map.at(unsqueeze_1).get_node_shared_ptr();
-        auto unsqueeze_1_in0_const = std::dynamic_pointer_cast<v0::Constant>(unsqueeze_1_node->get_input_node_shared_ptr(0));
-        auto unsqueeze_1_in1_const = std::dynamic_pointer_cast<v0::Constant>(unsqueeze_1_node->get_input_node_shared_ptr(1));
+        auto unsqueeze_1_in0_const =
+            std::dynamic_pointer_cast<v0::Constant>(unsqueeze_1_node->get_input_node_shared_ptr(0));
+        auto unsqueeze_1_in1_const =
+            std::dynamic_pointer_cast<v0::Constant>(unsqueeze_1_node->get_input_node_shared_ptr(1));
         auto abs_node = pattern_map.at(abs).get_node_shared_ptr();
         auto abs_in_const = std::dynamic_pointer_cast<v0::Constant>(abs_node->get_input_node_shared_ptr(0));
         auto broadcast_node = pattern_map.at(broadcast).get_node_shared_ptr();
         auto unsqueeze_2_node = pattern_map.at(unsqueeze_2).get_node_shared_ptr();
-        auto unsqueeze_2_in0_const = std::dynamic_pointer_cast<v0::Constant>(unsqueeze_2_node->get_input_node_shared_ptr(0));
-        auto unsqueeze_2_in1_const = std::dynamic_pointer_cast<v0::Constant>(unsqueeze_2_node->get_input_node_shared_ptr(1));
+        auto unsqueeze_2_in0_const =
+            std::dynamic_pointer_cast<v0::Constant>(unsqueeze_2_node->get_input_node_shared_ptr(0));
+        auto unsqueeze_2_in1_const =
+            std::dynamic_pointer_cast<v0::Constant>(unsqueeze_2_node->get_input_node_shared_ptr(1));
 
         OutputVector outputs_1(unsqueeze_1_node->get_output_size());
         OutputVector unsqueeze_1_inputs(2);
@@ -106,21 +109,23 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
         if (!unsqueeze_2_node->constant_fold(outputs_4, unsqueeze_2_inputs)) {
             return false;
         }
-        const int32_t *rs_in0 = std::dynamic_pointer_cast<v0::Constant>(outputs_3[0].get_node_shared_ptr())->get_data_ptr<int32_t>();
-        const int32_t *rs_in1 = std::dynamic_pointer_cast<v0::Constant>(outputs_4[0].get_node_shared_ptr())->get_data_ptr<int32_t>();
+        const int32_t* rs_in0 =
+            std::dynamic_pointer_cast<v0::Constant>(outputs_3[0].get_node_shared_ptr())->get_data_ptr<int32_t>();
+        const int32_t* rs_in1 =
+            std::dynamic_pointer_cast<v0::Constant>(outputs_4[0].get_node_shared_ptr())->get_data_ptr<int32_t>();
         auto shifted_const = std::make_shared<v0::Constant>(element::i32, outputs_3[0].get_shape());
         auto dst = const_cast<int32_t*>(reinterpret_cast<const int32_t*>(shifted_const->get_data_ptr()));
         if (!dst)
             return false;
 
-	// TODO: Bitwise right shift operation below might need to be
-	// optimized to reduce FIL.
+        // TODO: Bitwise right shift operation below might need to be
+        // optimized to reduce FIL.
         size_t rs_in0_shape_size = shape_size(outputs_3[0].get_shape());
         const auto& rs_in0_shape = outputs_3[0].get_shape();
         const auto& rs_in1_shape = outputs_4[0].get_shape();
         int shift_dim = -1;
         size_t shift_offset = 1;
-        for (size_t i=0; i < rs_in1_shape.size(); ++i) {
+        for (size_t i = 0; i < rs_in1_shape.size(); ++i) {
             size_t dim = rs_in1_shape[i];
             if (dim != 1 && dim != rs_in0_shape[i]) {
                 return false;
@@ -133,9 +138,9 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
             }
         }
         if (shift_dim == -1)
-	    return false;
-        for (size_t k=0; k < rs_in0_shape_size; ++k) {
-            size_t shift_idx = (k/shift_offset)%rs_in1_shape[shift_dim];
+            return false;
+        for (size_t k = 0; k < rs_in0_shape_size; ++k) {
+            size_t shift_idx = (k / shift_offset) % rs_in1_shape[shift_dim];
             int32_t shift_val = rs_in1[shift_idx];
             dst[k] = (rs_in0[k] >> shift_val);
         }
@@ -151,7 +156,8 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
         } else {
             auto convert_3_node = pattern_map.at(convert_3).get_node_shared_ptr();
             auto convert_4_node = pattern_map.at(convert_4).get_node_shared_ptr();
-            auto convert_4_in_const = std::dynamic_pointer_cast<v0::Constant>(convert_4_node->get_input_node_shared_ptr(0));
+            auto convert_4_in_const =
+                std::dynamic_pointer_cast<v0::Constant>(convert_4_node->get_input_node_shared_ptr(0));
             auto add_node = pattern_map.at(add).get_node_shared_ptr();
             OutputVector outputs_5(convert_3_node->get_output_size());
             if (!convert_3_node->constant_fold(outputs_5, shifted_const->outputs())) {
@@ -168,7 +174,6 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
             if (!add_node->constant_fold(outputs_7, add_inputs)) {
                 return false;
             }
-
         }
 
         auto convert_2_node = pattern_map.at(convert_2).get_node_shared_ptr();
@@ -181,8 +186,10 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
 
         OutputVector outputs_9(bitwise_and->get_output_size());
 
-        const int8_t *and_in0 = std::dynamic_pointer_cast<v0::Constant>(outputs_7[0].get_node_shared_ptr())->get_data_ptr<int8_t>();
-        const int8_t *and_in1 = std::dynamic_pointer_cast<v0::Constant>(outputs_8[0].get_node_shared_ptr())->get_data_ptr<int8_t>();
+        const int8_t* and_in0 =
+            std::dynamic_pointer_cast<v0::Constant>(outputs_7[0].get_node_shared_ptr())->get_data_ptr<int8_t>();
+        const int8_t* and_in1 =
+            std::dynamic_pointer_cast<v0::Constant>(outputs_8[0].get_node_shared_ptr())->get_data_ptr<int8_t>();
         auto masked_const = std::make_shared<v0::Constant>(element::i8, outputs_7[0].get_shape());
         auto masked_dst = const_cast<int8_t*>(reinterpret_cast<const int8_t*>(masked_const->get_data_ptr()));
         if (!masked_dst)
@@ -190,12 +197,12 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
 
         size_t and_in0_shape_size = shape_size(outputs_7[0].get_shape());
 
-	// TODO: Bitwise and operation below might need to be
-	// optimized to reduce FIL.
+        // TODO: Bitwise and operation below might need to be
+        // optimized to reduce FIL.
         const auto& and_in0_shape = outputs_7[0].get_shape();
         const auto& and_in1_shape = outputs_8[0].get_shape();
         int8_t mask = and_in1[0];
-        for (size_t k=0; k < and_in0_shape_size; ++k) {
+        for (size_t k = 0; k < and_in0_shape_size; ++k) {
             masked_dst[k] = (and_in0[k] & mask);
         }
 
@@ -205,10 +212,10 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
             return false;
         }
 
-        auto new_convert = std::make_shared<v0::Convert>(outputs_10[0].get_node_shared_ptr(), bitwise_and->get_output_element_type(0));
+        auto new_convert =
+            std::make_shared<v0::Convert>(outputs_10[0].get_node_shared_ptr(), bitwise_and->get_output_element_type(0));
         copy_runtime_info_and_name(bitwise_and, {new_convert}, {unsqueeze_1_node});
         replace_node(bitwise_and, new_convert);
-	    std::cout << "DEBUG - GPTQ_Pass - 1 - H" << std::endl;
         return true;
     };
 
