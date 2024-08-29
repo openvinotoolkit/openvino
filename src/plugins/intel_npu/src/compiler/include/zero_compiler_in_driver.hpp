@@ -8,9 +8,11 @@
 #include <type_traits>
 #include <utility>
 
+#include "iexternal_compiler.hpp"
 #include "intel_npu/al/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "zero_executor.hpp"
 
 namespace intel_npu {
 namespace driverCompilerAdapter {
@@ -46,9 +48,12 @@ using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
  * Adapter to use CiD through ZeroAPI
  */
 template <typename TableExtension>
-class LevelZeroCompilerInDriver final : public ICompiler {
+class LevelZeroCompilerInDriver final : public IExternalCompiler {
 public:
-    LevelZeroCompilerInDriver(const char* extName, ze_driver_handle_t driverHandle);
+    LevelZeroCompilerInDriver(ze_driver_handle_t driverHandle,
+                              ze_device_handle_t deviceHandle,
+                              ze_context_handle_t zeContext,
+                              ze_graph_dditable_ext_last_t* graph_ddi_table_ext);
     LevelZeroCompilerInDriver(const LevelZeroCompilerInDriver&) = delete;
     LevelZeroCompilerInDriver& operator=(const LevelZeroCompilerInDriver&) = delete;
     ~LevelZeroCompilerInDriver() override;
@@ -57,15 +62,16 @@ public:
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
-    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,
-                               const Config& config) const override final;
+    std::pair<NetworkDescription, void*> compile(const std::shared_ptr<const ov::Model>& model,
+                                                 const Config& config) const override final;
 
     ze_result_t seriazlideIRModelAndCreateGraph(const std::shared_ptr<const ov::Model>& model,
                                                 const Config& config,
                                                 ze_device_graph_properties_t deviceGraphProperties,
                                                 ze_graph_handle_t& graphHandle) const;
 
-    NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const override final;
+    std::pair<NetworkMetadata, void*> parse(const std::vector<uint8_t>& network,
+                                            const Config& config) const override final;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                             const std::vector<uint8_t>& network,
@@ -93,6 +99,10 @@ public:
      * with the driver.
      */
     static std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
+
+    void releaseGraphHandle(void* graphHandle) override;
+
+    void getCompiledNetwork(void* graphHandle, std::vector<uint8_t>& compiledNetwork) override;
 
 private:
     NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;
@@ -177,30 +187,15 @@ private:
 };
 
 template <typename TableExtension>
-LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(const char* extName,
-                                                                     ze_driver_handle_t driverHandle)
+LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(ze_driver_handle_t driverHandle,
+                                                                     ze_device_handle_t deviceHandle,
+                                                                     ze_context_handle_t zeContext,
+                                                                     ze_graph_dditable_ext_last_t* graph_ddi_table_ext)
     : _driverHandle(driverHandle),
+      _graphDdiTableExt(reinterpret_cast<TableExtension*>(graph_ddi_table_ext)),
       _logger("LevelZeroCompilerInDriver", Logger::global().level()) {
-    // Load our graph extension
-    auto result =
-        zeDriverGetExtensionFunctionAddress(_driverHandle, extName, reinterpret_cast<void**>(&_graphDdiTableExt));
-
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("Failed to initialize zeDriver. Error code: ", std::hex, result);
-    }
-
-    uint32_t deviceCount = 1;
-    // Get our target device
-    result = zeDeviceGet(_driverHandle, &deviceCount, &_deviceHandle);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("Failed to get device. Error code: ", std::hex, result);
-    }
-
-    ze_context_desc_t contextDesc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0};
-    result = zeContextCreate(_driverHandle, &contextDesc, &_context);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("Failed to initialize context for device. Error code: ", std::hex, result);
-    }
+    _context = zeContext;
+    _deviceHandle = deviceHandle;
 }
 
 }  // namespace driverCompilerAdapter

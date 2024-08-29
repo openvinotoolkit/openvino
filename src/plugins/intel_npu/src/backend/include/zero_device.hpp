@@ -20,8 +20,7 @@ class ZeroDevice : public IDevice {
 public:
     ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs);
 
-    std::shared_ptr<IExecutor> createExecutor(const std::shared_ptr<const NetworkDescription>& networkDescription,
-                                              const Config& config) override;
+    std::shared_ptr<IExecutor> createExecutor(const std::shared_ptr<IGraph>& graph, const Config& config) override;
 
     std::string getName() const override;
     std::string getFullDeviceName() const override;

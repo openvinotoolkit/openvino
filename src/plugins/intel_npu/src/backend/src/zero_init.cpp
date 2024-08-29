@@ -167,7 +167,6 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     }
 
     // Load our graph extension
-    ze_graph_dditable_ext_last_t* graph_ddi_table_ext = nullptr;
     zeroUtils::throwOnFail("zeDriverGetExtensionFunctionAddress",
                            zeDriverGetExtensionFunctionAddress(driver_handle,
                                                                graph_ext_name.c_str(),
@@ -201,8 +200,29 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     // Get our target device
     zeroUtils::throwOnFail("zeDeviceGet", zeDeviceGet(driver_handle, &device_count, &device_handle));
 
+    // Create context from backend to be shared with compiler
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
     zeroUtils::throwOnFail("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
+
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
+    auto adapterManualConfig = std::getenv("ADAPTER_MANUAL_CONFIG");
+    if (adapterManualConfig != nullptr) {
+        if (strcmp(adapterManualConfig, "ZE_extension_graph_1_6") == 0) {
+            driver_ext_version = ZE_GRAPH_EXT_VERSION_1_6;
+        } else if (strcmp(adapterManualConfig, "ZE_extension_graph_1_5") == 0) {
+            driver_ext_version = ZE_GRAPH_EXT_VERSION_1_5;
+        } else if (strcmp(adapterManualConfig, "ZE_extension_graph_1_4") == 0) {
+            driver_ext_version = ZE_GRAPH_EXT_VERSION_1_4;
+        } else if (strcmp(adapterManualConfig, "ZE_extension_graph_1_3") == 0) {
+            driver_ext_version = ZE_GRAPH_EXT_VERSION_1_3;
+        } else if (strcmp(adapterManualConfig, "ZE_extension_graph_1_2") == 0) {
+            driver_ext_version = ZE_GRAPH_EXT_VERSION_1_2;
+        } else {
+            OPENVINO_THROW("Using unsupported ADAPTER_MANUAL_CONFIG!");
+        }
+    }
+#endif
+
     log.debug("ZeroInitStructsHolder initialize complete");
 }
 

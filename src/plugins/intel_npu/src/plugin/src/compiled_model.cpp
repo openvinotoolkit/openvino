@@ -8,6 +8,7 @@
 #include <string_view>
 
 #include "async_infer_request.hpp"
+#include "driver_compiler_adapter.hpp"
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/config/config.hpp"
@@ -20,6 +21,10 @@
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
+
+#ifdef ENABLE_DRIVER_COMPILER_ADAPTER
+#    include "driver_compiler_adapter.hpp"
+#endif
 
 namespace {
 
@@ -43,7 +48,7 @@ using intel_npu::envVarStrToBool;
 CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<IDevice>& device,
-                             const ov::SoPtr<ICompiler>& compiler,
+                             const std::shared_ptr<CompilerAdapter>& compiler,
                              const bool profiling,
                              const Config& config)
     : ICompiledModel(model, plugin),
@@ -51,12 +56,12 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
-      _compiler(profiling ? std::optional(compiler) : std::nullopt) {
+      _compiler(compiler) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
     OPENVINO_ASSERT(compiler != nullptr, "NPU CompiledModel: the pointer towards the compiler object is null");
 
     try {
-        _networkPtr = std::make_shared<const NetworkDescription>(compiler->compile(model, config));
+        _graph = _compiler->compile(model, config);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -76,20 +81,19 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
 
 CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
-                             const std::shared_ptr<const NetworkDescription>& networkDescription,
+                             const std::shared_ptr<IGraph>& graph,
                              const std::shared_ptr<IDevice>& device,
-                             const std::optional<ov::SoPtr<ICompiler>>& compiler,
+                             const std::shared_ptr<CompilerAdapter>& compiler,
                              const Config& config)
     : ICompiledModel(model, plugin),
-      _networkPtr(networkDescription),
+      _graph(graph),
       _model(model),
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
       _compiler(compiler) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
-    OPENVINO_ASSERT(_networkPtr != nullptr,
-                    "NPU CompiledModel: the pointer towards the NetworkDescription object is null");
+    OPENVINO_ASSERT(_graph != nullptr, "NPU CompiledModel: the pointer towards the NetworkDescription object is null");
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
     initialize_properties();
@@ -101,11 +105,21 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
 
+CompiledModel::~CompiledModel() {
+    // Call compiler to destroy graphHandle only if no executor created
+    if (_executorPtr == nullptr) {
+        auto cidGraph = std::dynamic_pointer_cast<CiDGraph>(_graph);
+        auto cidCompiler =
+            std::dynamic_pointer_cast<driverCompilerAdapter::LevelZeroCompilerAdapter>(_compiler->get_compiler()._ptr);
+        cidCompiler->releaseGraphHandle(cidGraph->getGraphHandle());
+    }
+}
+
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
 
     if (_executorPtr == nullptr && _device != nullptr) {
-        _executorPtr = _device->createExecutor(_networkPtr, _config);
+        _executorPtr = _device->createExecutor(_graph, _config);
     }
     if (_executorPtr == nullptr) {
         OPENVINO_THROW(NO_EXECUTOR_FOR_INFERENCE);
@@ -128,7 +142,7 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 }
 
 void CompiledModel::export_model(std::ostream& stream) const {
-    const auto& blob = _networkPtr->compiledNetwork;
+    const auto& blob = _graph->getCompiledNetwork();
     stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
@@ -139,6 +153,13 @@ void CompiledModel::export_model(std::ostream& stream) const {
     std::stringstream str;
     str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
     _logger.info(str.str().c_str());
+
+    // If graphHandle is not a nullptr it means there is still an instance of the blob maintained inside the driver and
+    // we can release the copy of the blob here to reduce memory consumption.
+    auto cidGraph = std::dynamic_pointer_cast<CiDGraph>(_graph);
+    if (cidGraph) {
+        cidGraph->releaseCompiledNetwork();
+    }
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
@@ -176,8 +197,12 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     OPENVINO_THROW("Unsupported property ", name);
 }
 
-const std::shared_ptr<const NetworkDescription>& CompiledModel::get_network_description() const {
-    return _networkPtr;
+const std::vector<uint8_t>& CompiledModel::get_compiled_network() const {
+    return _graph->getCompiledNetwork();
+}
+
+const NetworkMetadata& CompiledModel::get_network_metadata() const {
+    return _graph->getMetadata();
 }
 
 const Config& CompiledModel::get_config() const {
@@ -185,10 +210,7 @@ const Config& CompiledModel::get_config() const {
 }
 
 const ov::SoPtr<ICompiler>& CompiledModel::get_compiler() const {
-    if (_compiler.has_value()) {
-        return _compiler.value();
-    }
-    OPENVINO_THROW("PERF_COUNT property is not set");
+    return _compiler->get_compiler();
 }
 
 void CompiledModel::configure_stream_executors() {
@@ -209,7 +231,7 @@ void CompiledModel::configure_stream_executors() {
     }
 
     set_task_executor(std::move(task_executor));
-    const auto executorId = _networkPtr->metadata.name + "_NPUResultExecutor";
+    const auto executorId = _graph->getMetadata().name + "_NPUResultExecutor";
     _resultExecutor = ov::threading::executor_manager()->get_executor(executorId);
 }
 
@@ -248,8 +270,8 @@ void CompiledModel::initialize_properties() {
          {true,
           ov::PropertyMutability::RO,
           [&](const Config&) {
-              OPENVINO_ASSERT(_networkPtr != nullptr, "Missing network descriptor");
-              return _networkPtr->metadata.name;
+              OPENVINO_ASSERT(_graph != nullptr, "Missing network descriptor");
+              return _graph->getMetadata().name;
           }}},
         {ov::optimal_number_of_infer_requests.name(),
          {true,
@@ -399,7 +421,7 @@ void CompiledModel::create_executor() {
         // If no device has been defined, the executor shall keep the default value of "nullptr". In this scenario,
         // only export operations will be allowed
         if (_device != nullptr) {
-            _executorPtr = _device->createExecutor(_networkPtr, _config);
+            _executorPtr = _device->createExecutor(_graph, _config);
         }
     } else {
         _logger.info("Executor will not be created inside the \"CompiledModel\" constructor");

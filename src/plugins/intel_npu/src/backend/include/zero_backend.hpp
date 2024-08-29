@@ -29,6 +29,11 @@ public:
     bool isCommandQueueExtSupported() const override;
 
     void* getContext() const override;
+    void* getDriverHandle() const;
+    void* getDeviceHandle() const;
+    char* getGraphExtName();
+    ze_graph_dditable_ext_last_t* getGraphDDITableExt();
+
     void updateInfo(const Config& config) override;
 
 private:

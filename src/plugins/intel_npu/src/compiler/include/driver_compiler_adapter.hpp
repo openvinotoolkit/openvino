@@ -6,9 +6,11 @@
 
 #include <ze_graph_ext.h>
 
+#include "backends.hpp"
+#include "iexternal_compiler.hpp"
 #include "intel_npu/al/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-
+#include "zero_types.hpp"
 namespace intel_npu {
 namespace driverCompilerAdapter {
 
@@ -18,7 +20,7 @@ namespace driverCompilerAdapter {
  */
 class LevelZeroCompilerAdapter final : public ICompiler {
 public:
-    LevelZeroCompilerAdapter();
+    LevelZeroCompilerAdapter(std::shared_ptr<NPUBackends> npuBackends);
 
     uint32_t getSupportedOpsetVersion() const override final;
 
@@ -33,12 +35,20 @@ public:
                                                             const std::vector<uint8_t>& network,
                                                             const Config& config) const override final;
 
+    void releaseGraphHandle(void* graphHandle);
+
+    void getCompiledNetwork(void* graphHandle, std::vector<uint8_t>& compiledNetwork);
+
+    std::pair<NetworkDescription, void*> compileAndReturnGraph(const std::shared_ptr<const ov::Model>& model,
+                                                               const Config& config);
+
+    std::pair<NetworkMetadata, void*> parseAndReturnGraph(const std::vector<uint8_t>& network, const Config& config);
+
 private:
     /**
      * @brief Separate externals calls to separate class
      */
-    std::shared_ptr<ICompiler> apiAdapter;
-    ze_driver_handle_t _driverHandle = nullptr;
+    std::shared_ptr<IExternalCompiler> apiAdapter;
     Logger _logger;
 };
 

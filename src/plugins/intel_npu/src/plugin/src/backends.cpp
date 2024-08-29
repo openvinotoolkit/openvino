@@ -131,6 +131,10 @@ NPUBackends::NPUBackends(const std::vector<AvailableBackends>& backendRegistry, 
     }
 }
 
+ov::SoPtr<IEngineBackend> NPUBackends::getIEngineBackend() {
+    return _backend;
+}
+
 std::string NPUBackends::getBackendName() const {
     if (_backend != nullptr) {
         return _backend->getName();

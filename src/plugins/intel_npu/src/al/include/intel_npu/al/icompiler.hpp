@@ -147,6 +147,12 @@ struct NetworkDescription final {
     NetworkMetadata metadata;
 };
 
+class IGraph {
+public:
+    virtual NetworkMetadata& getMetadata() = 0;
+    virtual std::vector<uint8_t>& getCompiledNetwork() = 0;
+};
+
 /**
  * @interface ICompiler
  * @brief An interface to be implemented by a concrete compiler to provide

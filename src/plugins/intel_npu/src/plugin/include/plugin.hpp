@@ -9,6 +9,7 @@
 #include <string>
 
 #include "backends.hpp"
+#include "compiler_adapter.hpp"
 #include "intel_npu/al/config/config.hpp"
 #include "intel_npu/al/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -54,7 +55,7 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    ov::SoPtr<ICompiler> getCompiler(const Config& config) const;
+    std::shared_ptr<CompilerAdapter> getCompiler(const Config& config) const;
 
     std::shared_ptr<NPUBackends> _backends;
 
