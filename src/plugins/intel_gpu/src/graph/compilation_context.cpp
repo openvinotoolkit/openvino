@@ -49,7 +49,6 @@ public:
     }
 
     ~CompilationContext() noexcept {
-        std::cout << "====== Destroy CompilationContext" << std::endl;
         cancel();
     }
 
