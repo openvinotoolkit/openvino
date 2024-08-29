@@ -11,7 +11,7 @@
 static constexpr size_t simd = 16;
 static constexpr size_t min_quantize_grp_size = 32;
 static constexpr size_t min_slm_size = 256;
-static std::vector<size_t> quantize_grp_size = {128, 64, 32};
+static std::vector<size_t> available_quantize_grp_size = {128, 64, 32};
 
 namespace kernel_selector {
 
@@ -74,9 +74,16 @@ static size_t get_dynamic_quantize_group_size(const fully_connected_params& para
         }
     }
 
-    for (auto group_size : quantize_grp_size) {
+    const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
+    for (auto group_size : available_quantize_grp_size) {
         if (dynamic_quantization_group_size >= group_size) {
             dynamic_quantization_group_size = group_size;
+
+            if (dynamic_quantization_group_size > scale_group_size) {
+                GPU_DEBUG_TRACE_DETAIL << " Scale group size " << scale_group_size << " is smaller than FC dyn-quan group size "
+                                        << dynamic_quantization_group_size << ". Reduce FC dyn-quan group size to scale size." << std::endl;
+                dynamic_quantization_group_size = scale_group_size;
+            }
             return (size_t)dynamic_quantization_group_size;
         }
     }
@@ -576,7 +583,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
     } else {
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
-        jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", min_quantize_grp_size));
+        jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", -1));
     }
 
     jit.AddConstant(MakeJitConstant("IFM_SIZE", get_input_bf_size(params).second));

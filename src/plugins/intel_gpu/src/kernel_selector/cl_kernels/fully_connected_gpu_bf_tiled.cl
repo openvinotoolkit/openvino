@@ -845,7 +845,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             // Next batch
             in_offset += (TILE_IN_B_PITCH * 2);
 
-             #if NUM_LOOP_IN_DYN_QUAN_GROUP == 1
+            #if NUM_LOOP_IN_DYN_QUAN_GROUP == 1
                 de_quantize_scale[bi * 2] = scale[scale_offset];
                 de_quantize_scale[bi * 2 + 1] = scale[scale_offset+ scale_pitch];
                 scale_offset += (scale_pitch * 2);
@@ -988,10 +988,9 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             #endif
         }  // Whole tile_k elements of each iteration : ki
 
-        int num_loop_in_scale_group = DECOMPRESSION_SCALE_GROUP_SIZE / TILE_IFM_ELEMENTS_SIZE;
         #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM_ELEMENTS_SIZE <= DECOMPRESSION_SCALE_GROUP_SIZE)
-            if ((ni % NUM_LOOP_IN_DYN_QUAN_GROUP == (NUM_LOOP_IN_DYN_QUAN_GROUP - 1)) ||
-                (ni % num_loop_in_scale_group == (num_loop_in_scale_group - 1))) {
+            // Dynamic-quantizing group size set to same or smaller than scale group size
+            if ((ni % NUM_LOOP_IN_DYN_QUAN_GROUP) == (NUM_LOOP_IN_DYN_QUAN_GROUP - 1)) {
                 const uint ni_offset = ((ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
                 unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
