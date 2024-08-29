@@ -19,8 +19,8 @@
 
 using namespace intel_npu;
 
-ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& initStructs,
-                           const std::shared_ptr<const NetworkDescription>& networkDescription,
+ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder> initStructs,
+                           const std::shared_ptr<const NetworkDescription> networkDescription,
                            const Config& config,
                            const uint32_t& group_ordinal)
     : _config(config),

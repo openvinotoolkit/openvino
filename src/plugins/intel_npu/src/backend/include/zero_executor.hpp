@@ -19,8 +19,8 @@ namespace intel_npu {
 
 class ZeroExecutor final : public IExecutor {
 public:
-    ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& initStructs,
-                 const std::shared_ptr<const NetworkDescription>& networkDescription,
+    ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder> initStructs,
+                 const std::shared_ptr<const NetworkDescription> networkDescription,
                  const Config& config,
                  const uint32_t& group_ordinal);
 
@@ -44,7 +44,7 @@ public:
     inline std::shared_ptr<const ZeroInitStructsHolder> getInitStructs() const {
         return _initStructs;
     }
-    inline const std::shared_ptr<const NetworkDescription>& getNetworkDesc() const {
+    inline const std::shared_ptr<const NetworkDescription> getNetworkDesc() const {
         return _networkDesc;
     }
     inline const std::shared_ptr<CommandQueue>& getCommandQueue() const {

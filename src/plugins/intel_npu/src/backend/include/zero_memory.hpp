@@ -25,7 +25,7 @@ namespace zeroMemory {
 // Create an allocator that uses the ov::Allocator signature that will be used to create the tensor.
 class HostMemAllocator final {
 public:
-    explicit HostMemAllocator(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
+    explicit HostMemAllocator(const std::shared_ptr<ZeroInitStructsHolder> initStructs,
                               ze_host_mem_alloc_flag_t flag = {})
         : _initStructs(initStructs),
           _flag(flag) {}
