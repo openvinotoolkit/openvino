@@ -24,6 +24,7 @@ std::string bucketize_inst::to_string(const bucketize_node& node) {
     json_composite bucketize_info;
     bucketize_info.add("output_type", dt_to_str(*primitive->output_data_types[0]));
     bucketize_info.add("with_right_bound", primitive->with_right_bound);
+    bucketize_info.add("is_boundary_empty", primitive->is_boundary_empty);
 
     auto node_info = node.desc_to_json();
     node_info->add("bucketize info", bucketize_info);

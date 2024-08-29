@@ -48,7 +48,12 @@ KERNEL(bucketize_ref)(const __global INPUT0_TYPE* input, const __global INPUT1_T
     const uint bound_index = FUNC_CALL(search)(buckets, 0, INPUT1_LENGTH, input[index]);
 
     const uint out_index = GET_INDEX(OUTPUT, ORDER);
+
+#if IS_BOUNDARY_EMPTY
+    output[out_index] = 0;
+#else
     output[out_index] = bound_index;
+#endif
 }
 
 #undef GET_INDEX

@@ -28,6 +28,7 @@ struct bucketize_impl : typed_primitive_impl_ocl<bucketize> {
         auto params = get_default_params<kernel_selector::bucketize_params>(impl_param);
 
         params.with_right_bound = primitive->with_right_bound;
+        params.is_boundary_empty = primitive->is_boundary_empty;
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
 
         return params;

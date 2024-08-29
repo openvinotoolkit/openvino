@@ -7,6 +7,7 @@
 #include "data_inst.h"
 #include "mutable_data_inst.h"
 #include "reorder_inst.h"
+#include "bucketize_inst.hpp"
 #include "input_layout_inst.h"
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
@@ -2165,6 +2166,15 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     auto alloc_type = use_lockable_memory ? lockable_mem_type
                     : !usm_device_allocatable ? lockable_mem_type : allocation_type::usm_device;
 
+    auto is_user_bucketize_and_boundary_empty = [] (const cldnn::program_node& node) -> bool {
+        for (auto& user : node.get_users()) {
+            if (user->is_type<bucketize>()) {
+                return user->as<bucketize>().get_primitive()->is_boundary_empty;
+            }
+        }
+        return false;
+    };
+
     if (is_internal) {
         bool is_reorder_weights = _node.is_type<reorder>() && _node.as<reorder>().get_primitive()->weights_reorder_params;
         if (_node.can_be_optimized() || is_reorder_weights) {
@@ -2189,7 +2199,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
             GPU_DEBUG_LOG << "[" << _node.id() << ": constant]" << std::endl;
             return ov::intel_gpu::allocate_memory_evenif_zero_bytes(_engine, layout, alloc_type, reset);
         }
-    } else if (!_node.can_share_buffer() || _node.can_be_optimized() || _node.is_output()) {
+    } else if (!_node.can_share_buffer() || _node.can_be_optimized() || _node.is_output() || is_user_bucketize_and_boundary_empty(_node)) {
         GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
         return ov::intel_gpu::allocate_memory_evenif_zero_bytes(_engine, layout, alloc_type, reset);
     } else {

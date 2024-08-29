@@ -17,6 +17,7 @@ const std::vector<std::vector<ov::Shape>> input_shapes_static  = {
     {{40, 22, 13, 9}, {100}},
     {{6, 7, 3, 2, 8}, {100}},
     {{6, 7, 3, 2, 8, 5}, {100}},
+    {{6, 7, 3, 2, 8, 5}, {0}},
 };
 
 const std::vector<bool> with_right_bound = {true, false};
