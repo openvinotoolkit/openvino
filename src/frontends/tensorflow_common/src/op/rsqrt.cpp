@@ -7,12 +7,17 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/less.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/negative.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/logical_and.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/select.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
@@ -50,39 +55,64 @@ OutputVector translate_rsqrt_op(const NodeContext& node) {
         auto const_zero = create_same_type_const_scalar<float>(real_part, 0.0f);
         auto const_one = create_same_type_const_scalar<float>(real_part, 1.0f);
         auto const_minus_one = create_same_type_const_scalar<float>(real_part, -1.0f);
+
         // a^2 + b^2
-        auto sum_sq = make_shared<v1::Add>(
-                make_shared<v1::Power>(real_part, const_two),
-                make_shared<v1::Power>(imag_part, const_two)
-        );
-        // |z| = sqrt(a^2 + b^2)
-        auto norm = make_shared<v1::Power>(sum_sq,
-                                                            const_half);
+        auto sum_sq = std::make_shared<v1::Add>(std::make_shared<v1::Power>(real_part, const_two),
+                                                std::make_shared<v1::Power>(imag_part, const_two));
 
-        // new_real = sqrt( a + sqrt( a^2 + b^2) / 2 )
+        // |z| = sqrt(sum_sq)
+        auto norm = std::make_shared<v0::Sqrt>(sum_sq);
+
+        auto real_gte_zero = std::make_shared<v1::GreaterEqual>(real_part, const_zero);
+
+        auto new_real_when_real_gte_zero = std::make_shared<v0::Sqrt>(
+            std::make_shared<v1::Divide>(std::make_shared<v1::Add>(real_part, norm), const_two));
+
+        auto new_imag_when_real_gte_zero =
+            std::make_shared<v1::Divide>(imag_part,
+                                         std::make_shared<v1::Multiply>(new_real_when_real_gte_zero, const_two));
+
+        auto imag_lt_zero = std::make_shared<v1::Less>(imag_part, const_zero);
+
+        auto new_imag_when_real_lt_zero_no_sign = std::make_shared<v0::Sqrt>(
+            std::make_shared<v1::Divide>(std::make_shared<v1::Subtract>(norm, real_part), const_two));
+
+        auto new_imag_when_real_lt_zero =
+            std::make_shared<v1::Select>(imag_lt_zero,
+                                         std::make_shared<v0::Negative>(new_imag_when_real_lt_zero_no_sign),
+                                         new_imag_when_real_lt_zero_no_sign);
+
+        auto new_real_when_real_lt_zero =
+            std::make_shared<v1::Divide>(imag_part,
+                                         std::make_shared<v1::Multiply>(new_imag_when_real_lt_zero, const_two));
         auto new_real =
-                make_shared<v1::Power>(make_shared<v1::Divide>(make_shared<v1::Add>(real_part, norm), const_two), const_half);
+            std::make_shared<v1::Select>(real_gte_zero, new_real_when_real_gte_zero, new_real_when_real_lt_zero);
 
-        // new_imag = b/|b| * sqrt( -a + sqrt(a^2 + b^2) / 2 )
-        auto is_imag_neg = make_shared<v1::Less>(imag_part, const_zero);
-        auto sign = make_shared<v1::Select>(is_imag_neg, const_minus_one, const_one);
+        auto new_imag =
+            std::make_shared<v1::Select>(real_gte_zero, new_imag_when_real_gte_zero, new_imag_when_real_lt_zero);
 
-        auto new_imag = make_shared<v1::Multiply>(sign,make_shared<v1::Power>(
-                make_shared<v1::Divide>(make_shared<v1::Add>(make_shared<v0::Negative>(real_part), norm), const_two),
-                const_half));
+        auto new_real_eq_zero = std::make_shared<v1::Equal>(real_part, const_zero);
+
+        auto new_imag_eq_zero = std::make_shared<v1::Equal>(imag_part, const_zero);
+
+        auto real_imag_zero = std::make_shared<v1::LogicalAnd>(new_real_eq_zero, new_imag_eq_zero);
+
         // rsqrt_real = sqrt_real/(sqrt_real^2 + sqrt_imag^2)
         // rsqrt_imag = - sqrt_imag/(sqrt_real^2 + sqrt_imag^2)
-        auto new_sum_sq = make_shared<v1::Add>(
-                make_shared<v1::Power>(new_real, const_two),
-                make_shared<v1::Power>(new_imag, const_two)
-        );
+        auto new_sum_sq = make_shared<v1::Add>(make_shared<v1::Power>(new_real, const_two),
+                                               make_shared<v1::Power>(new_imag, const_two));
 
         auto rsqrt_real = make_shared<v1::Divide>(new_real, new_sum_sq);
 
         auto rsqrt_imag = make_shared<v0::Negative>(make_shared<v1::Divide>(new_imag, new_sum_sq));
 
-        auto real_unsqueeze = make_shared<v0::Unsqueeze>(rsqrt_real, minus_one);
-        auto imag_unsqueeze = make_shared<v0::Unsqueeze>(rsqrt_imag, minus_one);
+        auto const_inf = create_same_type_const_scalar<float>(real_part, std::numeric_limits<float>::infinity());
+        auto const_nan = create_same_type_const_scalar<float>(real_part, std::numeric_limits<float>::quiet_NaN());
+        auto rsqrt_real_final = std::make_shared<v1::Select>(real_imag_zero, const_inf, rsqrt_real);
+        auto rsqrt_imag_final = std::make_shared<v1::Select>(real_imag_zero, const_nan, rsqrt_imag);
+
+        auto real_unsqueeze = make_shared<v0::Unsqueeze>(rsqrt_real_final, minus_one);
+        auto imag_unsqueeze = make_shared<v0::Unsqueeze>(rsqrt_imag_final, minus_one);
 
         auto concat_result = make_shared<v0::Concat>(OutputVector{real_unsqueeze, imag_unsqueeze}, -1);
         set_node_name(node.get_name(), concat_result);
