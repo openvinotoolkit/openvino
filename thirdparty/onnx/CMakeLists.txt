@@ -50,7 +50,7 @@ if(MINGW)
 endif()
 
 # from onnx==1.13.1 it requires C++17 when compiling on Windows, and since onnx==1.16.0 on Linux
-target_compile_features(onnx PRIVATE cxx_std_17)
+target_compile_features(onnx_proto PUBLIC cxx_std_17)
 
 ov_disable_all_warnings(onnx onnx_proto)
 
