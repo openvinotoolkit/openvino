@@ -275,12 +275,15 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInf
 
     OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device));
 
+    // After memory consumption updates, need to run first inference before measurements
+    auto inferRequest = compiledModel.create_infer_request();
+    inferRequest.infer();
+    inferRequest = {};
+
     OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
                                core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
     uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
     uint64_t deviceAllocMemSizeFinal;
-
-    ov::InferRequest inferRequest;
 
     for (size_t i = 0; i < 1000; ++i) {
         inferRequest = compiledModel.create_infer_request();
@@ -304,6 +307,11 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInf
     auto model = createModelWithLargeSize();
 
     OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device));
+
+    // After memory consumption updates, need to run first inference before measurements
+    auto inferRequest = compiledModel.create_infer_request();
+    inferRequest.infer();
+    inferRequest = {};
 
     OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
                                core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));

@@ -31,9 +31,9 @@ INSTANTIATE_TEST_SUITE_P(compatibility_nightly_BehaviorTests_OVClassSeveralDevic
                          OVClassSeveralDevicesTestQueryModel,
                          ::testing::Values(std::vector<std::string>(
                              {std::string(ov::test::utils::DEVICE_NPU) + "." +
-                                  removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3700")),
+                                  removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3720")),
                               std::string(ov::test::utils::DEVICE_NPU) + "." +
-                                  removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3700"))})),
+                                  removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3720"))})),
                          (ov::test::utils::appendPlatformTypeTestName<OVClassSeveralDevicesTestQueryModel>));
 
 }  // namespace
