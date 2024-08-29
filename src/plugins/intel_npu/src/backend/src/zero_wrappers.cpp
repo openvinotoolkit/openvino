@@ -61,7 +61,7 @@ Event::~Event() {
 
 CommandList::CommandList(const ze_device_handle_t& device_handle,
                          const ze_context_handle_t& context,
-                         ze_graph_dditable_ext_curr_t* graph_ddi_table_ext,
+                         const std::unique_ptr<ze_graph_dditable_ext_decorator>& graph_ddi_table_ext,
                          const Config& config,
                          const uint32_t& group_ordinal,
                          bool mtci_is_supported)
@@ -129,19 +129,20 @@ void CommandList::updateMutableCommandList(uint32_t arg_index, const void* arg_v
                            zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t));
 }
 
-CommandQueue::CommandQueue(const ze_device_handle_t& device_handle,
-                           const ze_context_handle_t& context,
-                           const ze_command_queue_priority_t& priority,
-                           ze_command_queue_npu_dditable_ext_curr_t* command_queue_npu_dditable_ext,
-                           const Config& config,
-                           const uint32_t& group_ordinal)
+CommandQueue::CommandQueue(
+    const ze_device_handle_t& device_handle,
+    const ze_context_handle_t& context,
+    const ze_command_queue_priority_t& priority,
+    const std::unique_ptr<ze_command_queue_npu_dditable_ext_decorator>& command_queue_npu_dditable_ext,
+    const Config& config,
+    const uint32_t& group_ordinal)
     : _context(context),
       _command_queue_npu_dditable_ext(command_queue_npu_dditable_ext),
       _log("CommandQueue", config.get<LOG_LEVEL>()) {
     ze_command_queue_desc_t queue_desc =
         {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, group_ordinal, 0, 0, ZE_COMMAND_QUEUE_MODE_DEFAULT, priority};
     if (config.has<TURBO>()) {
-        if (_command_queue_npu_dditable_ext != nullptr) {
+        if (_command_queue_npu_dditable_ext->version() >= ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_0) {
             bool turbo = config.get<TURBO>();
             ze_command_queue_desc_npu_ext_t turbo_cfg = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT, nullptr, turbo};
             queue_desc.pNext = &turbo_cfg;
@@ -162,7 +163,7 @@ void CommandQueue::executeCommandList(CommandList& command_list, Fence& fence) c
 }
 
 void CommandQueue::setWorkloadType(ze_command_queue_workload_type_t workloadType) const {
-    if (_command_queue_npu_dditable_ext != nullptr) {
+    if (_command_queue_npu_dditable_ext->version() >= ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_0) {
         zeroUtils::throwOnFail("zeSetWorkloadType",
                                _command_queue_npu_dditable_ext->pfnSetWorkloadType(_handle, workloadType));
     } else {

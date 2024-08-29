@@ -67,7 +67,7 @@ private:
     const std::shared_ptr<const ZeroInitStructsHolder> _initStructs;
     std::shared_ptr<const NetworkDescription> _networkDesc;
 
-    ze_graph_dditable_ext_curr_t* _graph_ddi_table_ext = nullptr;
+    const std::unique_ptr<ze_graph_dditable_ext_decorator>& _graph_ddi_table_ext;
 
     const uint32_t _group_ordinal;
 

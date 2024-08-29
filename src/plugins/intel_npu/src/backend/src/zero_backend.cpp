@@ -25,16 +25,16 @@ uint32_t ZeroEngineBackend::getDriverVersion() const {
     return _instance->getDriverVersion();
 }
 
-uint32_t ZeroEngineBackend::getDriverExtVersion() const {
-    return _instance->getDriverExtVersion();
+uint32_t ZeroEngineBackend::getGraphExtVersion() const {
+    return _instance->getGraphDdiTable()->version();
 }
 
 bool ZeroEngineBackend::isBatchingSupported() const {
-    return _instance->getDriverExtVersion() >= ZE_GRAPH_EXT_VERSION_1_6;
+    return _instance->getGraphDdiTable()->version() >= ZE_GRAPH_EXT_VERSION_1_6;
 }
 
 bool ZeroEngineBackend::isCommandQueueExtSupported() const {
-    return _instance->getCommandQueueDdiTable() != nullptr;
+    return _instance->getCommandQueueDdiTable()->version() >= ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_0;
 }
 
 ZeroEngineBackend::~ZeroEngineBackend() = default;
@@ -76,12 +76,8 @@ void* ZeroEngineBackend::getDeviceHandle() const {
     return _instance->getDevice();
 }
 
-char* ZeroEngineBackend::getGraphExtName() {
-    return _instance->getGraphExtName();
-}
-
-ze_graph_dditable_ext_last_t* ZeroEngineBackend::getGraphDDITableExt() {
-    return _instance->getGraphDDITableExt();
+const std::unique_ptr<ze_graph_dditable_ext_decorator>& ZeroEngineBackend::getGraphDdiTable() {
+    return _instance->getGraphDdiTable();
 }
 
 void ZeroEngineBackend::updateInfo(const Config& config) {

@@ -180,14 +180,15 @@ namespace intel_npu {
 namespace driverCompilerAdapter {
 
 template <typename TableExtension>
-LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(ze_driver_handle_t driverHandle,
-                                                                     ze_device_handle_t deviceHandle,
-                                                                     ze_context_handle_t zeContext,
-                                                                     ze_graph_dditable_ext_last_t* graph_ddi_table_ext)
+LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(
+    ze_driver_handle_t driverHandle,
+    ze_device_handle_t deviceHandle,
+    ze_context_handle_t zeContext,
+    const std::unique_ptr<ze_graph_dditable_ext_decorator>& graph_ddi_table_ext)
     : _driverHandle(driverHandle),
       _deviceHandle(deviceHandle),
       _context(zeContext),
-      _graphDdiTableExt(reinterpret_cast<TableExtension*>(graph_ddi_table_ext)),
+      _graphDdiTableExt(graph_ddi_table_ext),
       _logger("LevelZeroCompilerInDriver", Logger::global().level()) {}
 
 template <typename TableExtension>
@@ -1054,11 +1055,12 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
 
 template <typename TableExtension>
 template <typename T, std::enable_if_t<NotSupportArgumentMetadata(T), bool>>
-void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* graphDdiTableExt,
-                                                            ze_graph_handle_t graphHandle,
-                                                            uint32_t index,
-                                                            std::vector<IODescriptor>& inputs,
-                                                            std::vector<IODescriptor>& outputs) const {
+void LevelZeroCompilerInDriver<TableExtension>::getMetadata(
+    const std::unique_ptr<ze_graph_dditable_ext_decorator>& graphDdiTableExt,
+    ze_graph_handle_t graphHandle,
+    uint32_t index,
+    std::vector<IODescriptor>& inputs,
+    std::vector<IODescriptor>& outputs) const {
     ze_graph_argument_properties_3_t arg;
     auto result = graphDdiTableExt->pfnGetArgumentProperties3(graphHandle, index, &arg);
     if (ZE_RESULT_SUCCESS != result) {
@@ -1085,11 +1087,12 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* grap
 
 template <typename TableExtension>
 template <typename T, std::enable_if_t<!NotSupportArgumentMetadata(T), bool>>
-void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* graphDdiTableExt,
-                                                            ze_graph_handle_t graphHandle,
-                                                            uint32_t index,
-                                                            std::vector<IODescriptor>& inputs,
-                                                            std::vector<IODescriptor>& outputs) const {
+void LevelZeroCompilerInDriver<TableExtension>::getMetadata(
+    const std::unique_ptr<ze_graph_dditable_ext_decorator>& graphDdiTableExt,
+    ze_graph_handle_t graphHandle,
+    uint32_t index,
+    std::vector<IODescriptor>& inputs,
+    std::vector<IODescriptor>& outputs) const {
     ze_graph_argument_properties_3_t arg;
     auto result = graphDdiTableExt->pfnGetArgumentProperties3(graphHandle, index, &arg);
     if (ZE_RESULT_SUCCESS != result) {

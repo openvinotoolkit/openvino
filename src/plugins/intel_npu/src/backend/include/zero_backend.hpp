@@ -23,7 +23,7 @@ public:
     }
     const std::vector<std::string> getDeviceNames() const override;
     uint32_t getDriverVersion() const override;
-    uint32_t getDriverExtVersion() const override;
+    uint32_t getGraphExtVersion() const override;
 
     bool isBatchingSupported() const override;
     bool isCommandQueueExtSupported() const override;
@@ -31,8 +31,7 @@ public:
     void* getContext() const override;
     void* getDriverHandle() const;
     void* getDeviceHandle() const;
-    char* getGraphExtName();
-    ze_graph_dditable_ext_last_t* getGraphDDITableExt();
+    const std::unique_ptr<ze_graph_dditable_ext_decorator>& getGraphDdiTable();
 
     void updateInfo(const Config& config) override;
 

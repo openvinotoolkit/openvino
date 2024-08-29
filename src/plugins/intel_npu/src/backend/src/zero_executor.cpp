@@ -4,8 +4,6 @@
 
 #include "zero_executor.hpp"
 
-#include <ze_api.h>
-
 #include <functional>
 #include <iostream>
 #include <sstream>
@@ -41,7 +39,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::ZeroExecutor");
     CommandList graph_command_list(_initStructs->getDevice(),
                                    _initStructs->getContext(),
-                                   _initStructs->getGraphDdiTable(),
+                                   _graph_ddi_table_ext,
                                    _config,
                                    _group_ordinal);
     _logger.debug("ZeroExecutor::ZeroExecutor - create graph_command_queue");
@@ -80,8 +78,8 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetProperties");
     _logger.debug("performing pfnGetProperties");
     zeroUtils::throwOnFail("pfnGetProperties", _graph_ddi_table_ext->pfnGetProperties(_graph, &_props));
-    auto targetDriverExtVersion = _initStructs->getDriverExtVersion();
-    if (targetDriverExtVersion <= ZE_GRAPH_EXT_VERSION_1_1) {
+    auto targetGraphExtVersion = _graph_ddi_table_ext->version();
+    if (targetGraphExtVersion <= ZE_GRAPH_EXT_VERSION_1_1) {
         OPENVINO_THROW("Incompatibility between the NPU plugin and driver! The driver version is too old, please "
                        "update the driver version");
     }

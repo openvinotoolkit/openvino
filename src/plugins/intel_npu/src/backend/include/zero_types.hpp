@@ -5,15 +5,24 @@
 #pragma once
 
 #include <ze_api.h>
+#include <ze_command_queue_npu_ext.h>
 #include <ze_graph_ext.h>
+#include <ze_graph_profiling_ext.h>
 
 #include "intel_npu/al/config/runtime.hpp"
-#include "ze_command_queue_npu_ext.h"
 
 /**
  * @brief Last version of Table of Graph Extension functions used within plugin
  */
 using ze_graph_dditable_ext_last_t = ze_graph_dditable_ext_1_6_t;
+/**
+ * @brief Last version of the Command Queue functions used within plugin
+ */
+using ze_command_queue_npu_dditable_ext_last_t = ze_command_queue_npu_dditable_ext_1_0_t;
+/**
+ * @brief Last version of the Graph Profiling functions used within plugin
+ */
+using ze_graph_profiling_dditable_ext_last_t = ze_graph_profiling_dditable_ext_t;
 
 /**
  * @brief Table of Graph Extension functions pointers and function wrappers
@@ -33,7 +42,7 @@ private:
         if (_driverExtVersion < since) {
             OPENVINO_THROW("L0 extension function ",
                            func,
-                           " is only available with driver version ",
+                           " is only available with graph version ",
                            ZE_MAJOR_VERSION(since),
                            ".",
                            ZE_MINOR_VERSION(since),
@@ -75,6 +84,10 @@ public:
         // wrappers replace pointers
     }
     ~ze_graph_dditable_ext_decorator() = default;
+
+    uint32_t version() {
+        return _driverExtVersion;
+    }
 
     // version 1.0
     ze_pfnGraphCreate_ext_t pfnCreate;
@@ -134,5 +147,83 @@ public:
     }
 };
 
-using ze_graph_dditable_ext_curr_t = ze_graph_dditable_ext_decorator;
-using ze_command_queue_npu_dditable_ext_curr_t = ze_command_queue_npu_dditable_ext_1_0_t;
+/**
+ * @brief Command Queue function wrappers
+ * @details Use original Command Queue functions pointers from driver for function from within lower driver versions.
+ * Use function wrappers for function from within higher driver versions in order to throw when loaded driver is older
+ * than required
+ */
+struct ze_command_queue_npu_dditable_ext_decorator final {
+private:
+    ze_command_queue_npu_dditable_ext_last_t* const _impl;
+    const uint32_t _commandQueueExtVersion;
+
+    ze_command_queue_npu_dditable_ext_decorator(const ze_command_queue_npu_dditable_ext_decorator&) = delete;
+    ze_command_queue_npu_dditable_ext_decorator(ze_command_queue_npu_dditable_ext_decorator&&) = delete;
+
+    void throwWhenUnsupported(const std::string func, uint32_t since) {
+        if (_commandQueueExtVersion < since) {
+            OPENVINO_THROW("Command Queue extension function ",
+                           func,
+                           " is only available with command queue version ",
+                           ZE_MAJOR_VERSION(since),
+                           ".",
+                           ZE_MINOR_VERSION(since),
+                           " or later");
+        }
+    }
+
+public:
+    ze_command_queue_npu_dditable_ext_decorator(ze_command_queue_npu_dditable_ext_last_t* impl,
+                                                uint32_t commandQueueExtVersion)
+        : _impl(impl),
+          _commandQueueExtVersion(commandQueueExtVersion) {}
+    ~ze_command_queue_npu_dditable_ext_decorator() = default;
+
+    uint32_t version() {
+        return _commandQueueExtVersion;
+    }
+
+    // version 1.0
+    ze_result_t ZE_APICALL pfnSetWorkloadType(ze_command_queue_handle_t hCommandQueue,
+                                              ze_command_queue_workload_type_t workloadType) {
+        throwWhenUnsupported("pfnSetWorkloadType", ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_0);
+        return _impl->pfnSetWorkloadType(hCommandQueue, workloadType);
+    }
+};
+
+/**
+ * @brief Graph profiling function wrappers
+ * @details Use original Graph profiling functions pointers from driver for function from within lower driver versions.
+ * Use function wrappers for function from within higher driver versions in order to throw when loaded driver is older
+ * than required
+ */
+struct ze_graph_profiling_ddi_table_ext_decorator final {
+private:
+    ze_graph_profiling_dditable_ext_last_t* const _impl;
+
+    ze_graph_profiling_ddi_table_ext_decorator(const ze_graph_profiling_ddi_table_ext_decorator&) = delete;
+    ze_graph_profiling_ddi_table_ext_decorator(ze_graph_profiling_ddi_table_ext_decorator&&) = delete;
+
+public:
+    ze_graph_profiling_ddi_table_ext_decorator(ze_graph_profiling_dditable_ext_last_t* impl) : _impl(impl) {
+        // version 1.0
+        pfnProfilingPoolCreate = _impl->pfnProfilingPoolCreate;
+        pfnProfilingPoolDestroy = _impl->pfnProfilingPoolDestroy;
+        pfnProfilingQueryCreate = _impl->pfnProfilingQueryCreate;
+        pfnProfilingQueryDestroy = _impl->pfnProfilingQueryDestroy;
+        pfnProfilingQueryGetData = _impl->pfnProfilingQueryGetData;
+        pfnDeviceGetProfilingDataProperties = _impl->pfnDeviceGetProfilingDataProperties;
+        pfnProfilingLogGetString = _impl->pfnProfilingLogGetString;
+    }
+    ~ze_graph_profiling_ddi_table_ext_decorator() = default;
+
+    // version 1.0
+    ze_pfnGraphProfilingPoolCreate_ext_t pfnProfilingPoolCreate;
+    ze_pfnGraphProfilingPoolDestroy_ext_t pfnProfilingPoolDestroy;
+    ze_pfnGraphProfilingQueryCreate_ext_t pfnProfilingQueryCreate;
+    ze_pfnGraphProfilingQueryDestroy_ext_t pfnProfilingQueryDestroy;
+    ze_pfnGraphProfilingQueryGetData_ext_t pfnProfilingQueryGetData;
+    ze_pfnDeviceGetProfilingDataProperties_ext_t pfnDeviceGetProfilingDataProperties;
+    ze_pfnGraphProfilingLogGetString_ext_t pfnProfilingLogGetString;
+};

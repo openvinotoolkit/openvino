@@ -115,12 +115,12 @@ uint32_t Metrics::GetDriverVersion() const {
     return _backends->getDriverVersion();
 }
 
-uint32_t Metrics::GetDriverExtVersion() const {
+uint32_t Metrics::getGraphExtVersion() const {
     if (_backends == nullptr) {
         OPENVINO_THROW("No available backends");
     }
 
-    return _backends->getDriverExtVersion();
+    return _backends->getGraphExtVersion();
 }
 
 uint32_t Metrics::GetSteppingNumber(const std::string& specifiedDeviceName) const {
