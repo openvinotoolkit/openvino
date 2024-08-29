@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import platform
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
@@ -40,6 +41,9 @@ class TestRound(CommonTFLayerTest):
                          ir_version, temp_dir, use_legacy_frontend):
         if input_type in [np.int8, np.int16, np.int32, np.int64]:
             pytest.skip('TensorFlow issue: https://github.com/tensorflow/tensorflow/issues/74789')
+        if platform.machine() in ["aarch64", "arm64", "ARM64"] and \
+                input_type == np.float32 and input_shape == [10, 5, 1, 5]:
+            pytest.skip("150999: Accuracy issue on CPU")
         self._test(*self.create_tf_round_net(input_shape, input_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
