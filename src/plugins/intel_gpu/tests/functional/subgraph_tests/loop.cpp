@@ -407,8 +407,8 @@ protected:
         // It should be updated during iteration
         auto start_add = cond_input_create(model_type, inputShape, start_value);
         start_add->set_friendly_name("start_add");
-        auto start_mul = cond_input_create(model_type, inputShape, 1);
-        start_mul->set_friendly_name("start_mul");
+        auto start_add2 = cond_input_create(model_type, inputShape, 1);
+        start_add2->set_friendly_name("start_add2");
         auto count = cond_input_create(ov::element::i64, scalarShape, max_iter_num, static_iter_num);
         count->set_friendly_name("count");
         auto skip  = cond_input_create(ov::element::boolean, scalarShape, true, static_continue_cond);
@@ -420,17 +420,17 @@ protected:
         b_indx->set_friendly_name("body_index");
         auto b_data_add = std::make_shared<ov::op::v0::Parameter>(model_type, inputShape);
         b_data_add->set_friendly_name("b_data_add");
-        auto b_data_mul = std::make_shared<ov::op::v0::Parameter>(model_type, inputShape);
-        b_data_mul->set_friendly_name("b_data_mul");
+        auto b_data_add2 = std::make_shared<ov::op::v0::Parameter>(model_type, inputShape);
+        b_data_add2->set_friendly_name("b_data_add2");
         auto b_data_broadcast = std::make_shared<ov::op::v0::Parameter>(model_type, constant_shapes.first);
         b_data_broadcast->set_friendly_name("b_data_broadcast");
         auto b_indx_cast = std::make_shared<ov::op::v0::Convert>(b_indx, model_type);
         b_indx_cast->set_friendly_name("body_index_cast");
         auto b_add  = std::make_shared<ov::op::v1::Add>(b_data_add, b_indx_cast);
         b_add->set_friendly_name("body_add");
-        auto b_mul  = std::make_shared<ov::op::v1::Multiply>(b_data_mul, b_indx_cast);
-        b_mul->set_friendly_name("body_mul");
-        auto b_shapeof1 = std::make_shared<ov::op::v3::ShapeOf>(b_data_mul);
+        auto b_add2  = std::make_shared<ov::op::v1::Add>(b_data_add2, b_indx_cast);
+        b_add2->set_friendly_name("body_mul");
+        auto b_shapeof1 = std::make_shared<ov::op::v3::ShapeOf>(b_data_add2);
         b_shapeof1->set_friendly_name("b_shapeof1");
         auto b_shapeof2 = std::make_shared<ov::op::v3::ShapeOf>(b_data_broadcast);
         b_shapeof2->set_friendly_name("b_shapeof2");
@@ -438,7 +438,7 @@ protected:
         b_max->set_friendly_name("b_max");
         auto b_broadcast = std::make_shared<ov::op::v3::Broadcast>(b_data_broadcast, b_max);
         b_broadcast->set_friendly_name("b_broadcast");
-        auto b_mul2  = std::make_shared<ov::op::v1::Multiply>(b_broadcast, b_mul);
+        auto b_mul2  = std::make_shared<ov::op::v1::Multiply>(b_broadcast, b_add2);
         b_mul2->set_friendly_name("b_mul2");
 
         std::shared_ptr<ov::Node> b_cond;
@@ -453,8 +453,8 @@ protected:
         }
 
         auto body = std::make_shared<ov::Model>(
-                ov::OutputVector    {b_cond, b_add, b_mul, b_mul2},    // TODO: check with reverse
-                ov::ParameterVector {b_indx, b_data_add, b_data_mul, b_data_broadcast});  // TODO: check with reverse
+                ov::OutputVector    {b_cond, b_add, b_add2, b_mul2},    // TODO: check with reverse
+                ov::ParameterVector {b_indx, b_data_add, b_data_add2, b_data_broadcast});  // TODO: check with reverse
         body->set_friendly_name("body_network");
 
         auto loop = std::make_shared<ov::op::v5::Loop>(count, skip);
@@ -462,15 +462,15 @@ protected:
         loop->set_function(body);
         loop->set_special_body_ports({0, 0});
         loop->set_merged_input(b_data_add, start_add, b_add);
-        loop->set_merged_input(b_data_mul, start_mul, b_mul);
+        loop->set_merged_input(b_data_add2, start_add2, b_add2);
         loop->set_merged_input(b_data_broadcast, init_const, b_mul2);
         if (axis == -1) {
             loop->get_iter_value(b_add, -1);
-            loop->get_iter_value(b_mul, -1);
+            loop->get_iter_value(b_add2, -1);
             loop->get_iter_value(b_mul2, -1);
         } else {
             loop->get_concatenated_slices(b_add, 0, 1, 1, -1, axis);
-            loop->get_concatenated_slices(b_mul, 0, 1, 1, -1, axis);
+            loop->get_concatenated_slices(b_add2, 0, 1, 1, -1, axis);
         }
 
         ov::ResultVector results;
