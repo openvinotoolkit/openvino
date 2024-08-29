@@ -252,6 +252,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     bool is_fx = false;
     if (model->has_rt_info("decoder_type_name")) {
         is_fx = model->get_rt_info()["decoder_type_name"].as<std::string>() == "fx";
+        model->get_rt_info().erase("decoder_type_name");
     }
     // These transformations are only applicable to fx
     if (is_fx) {
@@ -306,6 +307,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     bool sym = false;
     if (model->has_rt_info("symmetric_quantization")) {
         sym = model->get_rt_info()["symmetric_quantization"].as<bool>();
+        model->get_rt_info().erase("symmetric_quantization");
     }
     manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>(sym);
 
