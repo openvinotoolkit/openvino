@@ -286,7 +286,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto transformed_model = clone_and_transform_model(model, config, context);
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
-        return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config);
+        auto tmp = std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config);
+        return tmp;
     }
 }
 
