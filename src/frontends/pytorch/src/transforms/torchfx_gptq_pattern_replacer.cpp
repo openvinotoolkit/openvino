@@ -196,11 +196,8 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
             return false;
 
         size_t and_in0_shape_size = shape_size(outputs_7[0].get_shape());
-
         // TODO: Bitwise and operation below might need to be
         // optimized to reduce FIL.
-        const auto& and_in0_shape = outputs_7[0].get_shape();
-        const auto& and_in1_shape = outputs_8[0].get_shape();
         int8_t mask = and_in1[0];
         for (size_t k = 0; k < and_in0_shape_size; ++k) {
             masked_dst[k] = (and_in0[k] & mask);
