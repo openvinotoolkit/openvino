@@ -97,7 +97,7 @@ struct resample : public primitive_base<resample> {
              InterpolateOp::ShapeCalcMode shape_calc_mode = InterpolateOp::ShapeCalcMode::SIZES,
              InterpolateOp::CoordinateTransformMode ctm = InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
              InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR,
-	     const int scales_port = 2)
+             const int scales_port = 2)
         : primitive_base(id, {input, sizes_id, scales_id}),
           output_size(tensor()),
           num_filter(0),
