@@ -37,6 +37,24 @@ std::tuple<CpuSet, int> get_process_mask() {
     return std::make_tuple(nullptr, 0);
 }
 
+cpu_set_t* get_affinity() {
+    for (int ncpus = sizeof(cpu_set_t) / CHAR_BIT; ncpus < 32768 /* reasonable limit of #cores*/; ncpus <<= 1) {
+        cpu_set_t* mask{CPU_ALLOC(ncpus)};
+        if (nullptr == mask)
+            break;
+        const size_t size = CPU_ALLOC_SIZE(ncpus);
+        CPU_ZERO_S(size, mask);
+        // the result fits the mask
+        if (0 == sched_getaffinity(0, size, mask)) {
+            return mask;
+        }
+        // other error
+        if (errno != EINVAL)
+            break;
+    }
+    return nullptr;
+}
+
 /* Release the cores affinity mask for the current process */
 void release_process_mask(cpu_set_t* mask) {
     if (nullptr != mask)
@@ -87,8 +105,9 @@ bool pin_thread_to_vacant_core(int thrIdx,
 }
 
 bool pin_current_thread_to_socket(int socket) {
-    const int sockets = ov::get_available_numa_nodes().size();
-    const int cores = ov::get_number_of_cpu_cores();
+    auto proc_type_table = get_org_proc_type_table();
+    const int sockets = proc_type_table.size() > 1 ? proc_type_table.size() - 1 : 1;
+    const int cores = proc_type_table[0][MAIN_CORE_PROC];
     const int cores_per_socket = cores / sockets;
 
     int ncpus = 0;
