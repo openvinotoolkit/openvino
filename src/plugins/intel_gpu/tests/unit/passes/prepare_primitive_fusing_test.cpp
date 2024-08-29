@@ -722,7 +722,7 @@ TEST(prepare_primitive_fusing, fuse_by_priotizing_to_parent_in_fusing_history) {
     auto eltwise_memory = engine.allocate_memory(eltwise_layout);
 
     auto weights_data   = rg.generate_random_4d<ov::float16>(32, 96, 1, 1, 1, 1);
-    auto eltwise_data   = rg.generate_random_4d<ov::float16>(1, 1, 1, 1, 1, 1);
+    auto eltwise_data   = rg.generate_random_1d<ov::float16>(1, 1, 1, 1);
 
     topology topology(
         input_layout("input1", in_layout),
