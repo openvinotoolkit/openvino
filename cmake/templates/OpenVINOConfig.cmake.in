@@ -619,7 +619,7 @@ if(Threading IN_LIST ${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS AND NOT TARGET o
     endif()
 
     if(_ov_threading_lib)
-        set_target_properties(openvino::threading PROPERTIES INTERFACE_LINK_LIBRARIES ${_ov_threading_lib})        
+        set_target_properties(openvino::threading PROPERTIES INTERFACE_LINK_LIBRARIES ${_ov_threading_lib})
         unset(_ov_threading_lib)
     endif()
 endif()
