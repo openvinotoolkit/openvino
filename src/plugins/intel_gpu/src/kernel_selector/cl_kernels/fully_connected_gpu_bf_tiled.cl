@@ -720,7 +720,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #define PACKED_DQ_TYPE                      int
 #define DQ_VEC_TYPE                         MAKE_VECTOR_TYPE(DQ_TYPE, TILE_IFM)
 #define DQ_SLM_FILTER_VEC                   MAKE_VECTOR_TYPE(DQ_TYPE, 4)
-#define DQ_SLM_FILTER_PACKED_VEC            MAKE_VECTOR_TYPE(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE)
+#define DQ_SLM_FILTER_PACKED_VEC            MAKE_VECTOR_TYPE(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE)
 #define DQ_SLM_FILTER_UNPACKED_VEC          MAKE_VECTOR_TYPE(DQ_TYPE, FILTER_ELEMENTS_PER_LOAD)
 #define DQ_FILTER_VEC_TYPE                  MAKE_VECTOR_TYPE(DQ_TYPE, TILE_K_OFM)
 
@@ -866,6 +866,9 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
         #if TILE_OFM != 2
         #error "FC bf_tiled kernel: can't use SLM optimization with TILE_OFM != 2"
         #endif
+        #if FILTER_LAYOUT_OS_IYX_OSV16 && TILE_K != 4
+        #error "FC bf_tiled kernel: can't use SLM optimization with TILE_K != 2 && OS_IYX_OSV16 layout"
+        #endif
 
         // Skip first barrier synchronization if there is only single outer loop iteration.
         #if MAIN_LOOP_ELEMENTS_COUNT / TILE_IFM_ELEMENTS_SIZE > 1
@@ -874,13 +877,21 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
         __local int* char_slm_weight = (__local int*)wei_local_mem;
 
-        uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE;
+        uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * FILTER_ACTUAL_LOAD_BLOCK_SIZE;
         uint wei_local_idx = local_id * SIMD * FILTER_LOAD_ITERS * (FILTER_LOAD_BLOCK_SIZE/2) + sglid * 2;
 
         // DECOMPRESSION_SCALE_POST_OP SHOULD be enabled for dynamic quantize FC : scale is ACCUMULATOR_VAL_ONE
         unroll_for(uint load_iter = 0; load_iter < FILTER_LOAD_ITERS; ++load_iter) {
-            SLM_FILTER_PACKED_VEC wei_packed = BLOCK_READN(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE, weights, weights_idx);
-            DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked = UNPACK_TRANSPOSED_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD *)&wei_packed));
+            #if FILTER_LAYOUT_OS_IYX_OSV16
+                SLM_FILTER_PACKED_VEC wei_packed0 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, weights_idx);
+                SLM_FILTER_PACKED_VEC wei_packed1 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, (weights_idx + ((IFM_SIZE / 2) * 16)));
+                DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked;
+                dq_wei_unpacked.s0123 = UNPACK_TRANSPOSED_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed0));
+                dq_wei_unpacked.s4567 = UNPACK_TRANSPOSED_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed1));
+            #else
+                SLM_FILTER_PACKED_VEC wei_packed = BLOCK_READN(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE, weights, weights_idx);
+                DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked = UNPACK_TRANSPOSED_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD *)&wei_packed));
+            #endif
 
             // Calculate zero-point and scale only for DECOMPRESSION_SCALE_POST_OP enabled
             #if DECOMPRESSION_ZP_TERM
@@ -929,7 +940,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             #endif
 
             wei_local_idx += SIMD * (FILTER_LOAD_BLOCK_SIZE/2);
-            weights_idx += SIMD * FILTER_LOAD_BLOCK_SIZE;
+            weights_idx += SIMD * FILTER_ACTUAL_LOAD_BLOCK_SIZE;
         }
 
         wei_local_idx = sglid * 2;
@@ -951,7 +962,11 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 acc_tmp[1][bi] = imad_SW(acc_tmp[1][bi], input_val, second_weight);
             }
 
-            weights_offset += TILE_K_OFM_PACKED * SIMD;
+            #if FILTER_LAYOUT_OS_IYX_OSV16 && TILE_OFM == 2
+                weights_offset += (TILE_K_OFM_PACKED/2) * SIMD;
+            #else
+                weights_offset += TILE_K_OFM_PACKED * SIMD;
+            #endif
 
             #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM_ELEMENTS_SIZE > DECOMPRESSION_SCALE_GROUP_SIZE)
                 unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
