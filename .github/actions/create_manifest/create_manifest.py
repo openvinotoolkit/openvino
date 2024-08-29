@@ -101,7 +101,7 @@ def generate_manifest(repos: list, product_type: str, event_type: str, build_typ
     product_version = f"{ov_version}{run_number_postfix}-{trigger_repo.revision[:11]}{custom_branch_name}"
 
     merge_queue_target_branch = next(iter(re.findall(f'^gh-readonly-queue/(.*)/', trigger_repo.branch)), None)
-    target_branch = merge_queue_target_branch or trigger_repo.target_branch
+    target_branch = merge_queue_target_branch or trigger_repo.target_branch or trigger_repo.branch
     is_release_branch = re.match('^releases/.+$', target_branch)
     ci_build_dev_tag = f'dev{trigger_repo.commit_time.strftime("%Y%m%d")}' if not is_release_branch else ''
     wheel_product_version = f'{ov_version}.{ci_build_dev_tag}'
