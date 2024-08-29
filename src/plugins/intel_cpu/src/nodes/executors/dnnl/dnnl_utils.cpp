@@ -18,14 +18,6 @@ namespace ov {
 namespace intel_cpu {
 namespace utils {
 
-DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc, const DnnlMemoryDescPtr dstDesc) {
-    const auto& weiDesc = srcDesc->getDnnlDesc();
-    const auto reorderedWeiDesc = dnnl::memory::desc{weiDesc.get_dims(), weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
-    const auto transposedWeiDesc = reorderedWeiDesc.reshape(dstDesc->getDnnlDesc().get_dims());
-
-    return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
-}
-
 MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
                                const DnnlMemoryDescPtr dstWeightDesc,
                                const MemoryCPtr weightsMem,
@@ -89,8 +81,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
     MemoryPtr ptr;
     if (globalWeightCache &&
         dnnl::memory::format_kind::blocked == dstWeightDesc->getDnnlDesc().get_format_kind()) {
-        const auto string_hash = DnnlExtensionUtils::computeWeightsStringHash(weightsMem, dstWeightDesc);
-        ptr = *globalWeightCache->findOrCreate(string_hash, create);
+        ptr = *globalWeightCache->findOrCreate(DnnlExtensionUtils::computeWeightsStringHash(weightsMem, dstWeightDesc), create);
     } else {
         ptr = create();
     }

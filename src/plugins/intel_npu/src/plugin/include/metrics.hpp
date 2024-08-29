@@ -26,7 +26,7 @@ public:
     std::string GetFullDeviceName(const std::string& specifiedDeviceName) const;
     IDevice::Uuid GetDeviceUuid(const std::string& specifiedDeviceName) const;
     const std::vector<std::string>& GetSupportedConfigKeys() const;
-    const std::vector<std::string>& GetOptimizationCapabilities() const;
+    const std::vector<std::string> GetOptimizationCapabilities() const;
     const std::tuple<uint32_t, uint32_t, uint32_t>& GetRangeForAsyncInferRequest() const;
     const std::tuple<uint32_t, uint32_t>& GetRangeForStreams() const;
     std::string GetDeviceArchitecture(const std::string& specifiedDeviceName) const;

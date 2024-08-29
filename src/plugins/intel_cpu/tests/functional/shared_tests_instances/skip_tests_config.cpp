@@ -176,7 +176,7 @@ std::vector<std::string> disabledTestPatterns() {
         // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
         R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
         // Issue: 123815 (Tests are sensintive to available thread count on testing machines)
-        R"(.*smoke_Snippets_MHA_.?D_SplitDimensionM.*)",
+        R"(.*smoke_Snippets_MHA_.?D_SplitDimensionM_static.*)",
         // Issue: 122356
         R"(.*NmsRotatedOpTest.*(SortDesc=True|Clockwise=False).*)",
         // Issue: 126095
@@ -308,6 +308,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_TestsROIAlign.*)",
         // Issue: 148527
         R"(.*Snippets.*MatMulTransposeB.*i8.*i8.*)",
+        // Issue: 136881
+        R"(.*smoke_CompareWithRefs_4D_BitwiseShift_overflow_i32_cast.*_eltwise_op_type=BitwiseLeft.*_model_type=.*(i16|u16).*)",
     };
 
     // fp32 floor for bf16 models: conversion issue
@@ -380,6 +382,11 @@ std::vector<std::string> disabledTestPatterns() {
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)
+    // object is not initialized
+    retVector.emplace_back(R"(.*StaticLoopDynamicSubgraphCPUTest.smoke_StaticLoopWithDynSubgraph.*)");
+    // crash with 'double free or corruption (!prev)'
+    retVector.emplace_back(R"(.*smoke_InterpolateBilinearPillow_Layout_Test.*)");
+    retVector.emplace_back(R"(.*smoke_InterpolateBicubicPillow_Layout_Test.*)");
     // unsupported node type 'CausalMaskPreprocess'
     retVector.emplace_back(R"(CausalMaskPreprocessCausalMaskPreprocess.smoke_CompareWithRefs)");
     // fused op FakeQuantize has not been found
@@ -394,9 +401,12 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_TopK(_int32|_bubble_BLK_on_channel_horiz)?(_dynamic)?/TopKLayerCPUTest.CompareWithRefs.*inFmts=(nhwc|nChw8c|nChw16c).x.*)");
     retVector.emplace_back(R"(.*smoke_(Group)?Convolution(2|3)D/ConvConcatSubgraphTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(.*smoke_FakeQuantizeCache_(4|5)D/FakeQuantizeCacheTest.CompareWithRefs.*inFmts=(nhwc|nChw8c|ndhwc|nCdhw8c).*)");
+    retVector.emplace_back(R"(.*ReduceCPULayerTest.CompareWithRefs.*inFmts=nhwc.*)");
     // only infer_precision=f32 is supported on riscv64 platforms
     retVector.emplace_back(R"(.*smoke_CompareWithRefs_(4|5)D.*EltwiseLayerCPUTest.CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
     retVector.emplace_back(R"(.*smoke_CompareWithRefs_Mvn[12345]D.*/MvnLayerCPUTest.CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
+    retVector.emplace_back(R"(.*ReduceCPULayerTest.CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
+    retVector.emplace_back(R"(.*RemoveUselessFP16ConvertCPUTest.*INFERENCE_PRECISION_HINT=f16.*)");
     // fused op Add has not been found
     retVector.emplace_back(R"(.*smoke_CompareWithRefs_fma_(4|5)D/EltwiseLayerCPUTest.CompareWithRefs.*)");
     // primType is unexpected

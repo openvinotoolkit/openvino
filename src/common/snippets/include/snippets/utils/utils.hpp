@@ -124,6 +124,11 @@ std::string vector2str(const std::vector<T>& values) {
 
 bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2);
 
+// If one of the dims is dynamic, return the other dim (might also be dynamic)
+// If both dims are static, they must be equal - this is the difference from the utility above
+// Can be used in SpecificLoopIterationHandlers
+bool merge_dynamic_dim(size_t& dst, const size_t& d1, const size_t& d2);
+
 VectorDims pshape_to_vdims(const PartialShape&);
 ov::PartialShape vdims_to_pshape(const VectorDims&);
 
@@ -274,6 +279,19 @@ std::shared_ptr<ov::Node> get_leaf_node_of_first_parent_shape_infer_seq(const st
  */
 
 int64_t get_dim_stride(const lowered::ExpressionPort& expr_port, size_t idx = 1);
+
+/**
+ * @brief Traverses path starting from "expr", and calls "func" for each expression.
+ * Traversal direction is defined by "visit_parent_path"
+ * @param expr The expr from which path is started.
+ * @param visited Set of expressions which were visited.
+ * @param func The function which is called for each visited node.
+ * @param visit_parent_path if true, parent nodes are visited. Otherwise, consumers are visited.
+ */
+void visit_path(const lowered::ExpressionPtr& expr,
+                std::unordered_set<lowered::ExpressionPtr>& visited,
+                std::function<void(lowered::ExpressionPtr)> func,
+                bool visit_parent_path);
 
 } // namespace utils
 } // namespace snippets

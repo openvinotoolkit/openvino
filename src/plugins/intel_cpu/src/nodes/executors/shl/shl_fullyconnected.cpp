@@ -112,7 +112,7 @@ ShlFCExecutor::ShlFCExecutor(const FCAttrs& attrs,
     // Init FC params
     params = ShlFCParams(sess, CSINN_RVV);
 
-    OPENVINO_ASSERT(csinn_fullyconnected_init(src.get(), dst.get(), wei.get(), bias.get(), params.get()) == CSINN_TRUE,
+    OPENVINO_ASSERT(csinn_fullyconnected_init(src.get(), dst.get(), wei.get(), bias.get(), static_cast<csinn_fc_params*>(params.get())) == CSINN_TRUE,
                     "ShlFCExecutor: failed to init FC");
 }
 
@@ -121,19 +121,37 @@ bool ShlFCExecutor::update(const MemoryArgs& memory) {
     src = src.cloneWithNewShape(memory.at(ARG_SRC)->getDescPtr()->getShape().getStaticDims());
     dst = dst.cloneWithNewShape(memory.at(ARG_DST)->getDescPtr()->getShape().getStaticDims());
 
+    const auto src_shape = src.getShape();
+    const auto dst_shape = dst.getShape();
+    dim_M = std::accumulate(dst_shape.rbegin() + 1, dst_shape.rend(), size_t(1), std::multiplies<size_t>());
+    dim_In = src_shape.back();
+    dim_Out = dst_shape.back();
+    LDA = dim_In * memory.at(ARG_SRC)->getPrecision().size();
+    LDC = dim_Out * memory.at(ARG_DST)->getPrecision().size();
+
     return true;
 }
 
 void ShlFCExecutor::execute(const MemoryArgs& memory) {
-    src.setData(memory.at(ARG_SRC)->getData());
     wei.setData(packedWeights->getData());
-    dst.setData(memory.at(ARG_DST)->getData());
     if (with_bias) {
         bias.setData(memory.at(ARG_BIAS)->getData());
     }
 
-    OPENVINO_ASSERT(csinn_fullyconnected(src.get(), dst.get(), wei.get(), bias.get(), params.get()) == CSINN_TRUE,
-                    "ShlFCExecutor: failed to execute");
+    const auto nthreads = std::min(static_cast<int>(dim_M), parallel_get_max_threads());
+    parallel_nt(nthreads, [&](const int ithr, const int nthr) {
+        size_t dim_M0 = 0, dim_M1 = 0;
+        splitter(dim_M, nthr, ithr, dim_M0, dim_M1);
+
+        const auto M = dim_M1 - dim_M0;
+        auto src_tensor = src.cloneWithNewShape(ov::Shape{ M, dim_In });
+        auto dst_tensor = dst.cloneWithNewShape(ov::Shape{ M, dim_Out });
+        src_tensor.setData(reinterpret_cast<uint8_t*>(memory.at(ARG_SRC)->getData()) + dim_M0 * LDA);
+        dst_tensor.setData(reinterpret_cast<uint8_t*>(memory.at(ARG_DST)->getData()) + dim_M0 * LDC);
+
+        OPENVINO_ASSERT(csinn_fullyconnected(src_tensor.get(), dst_tensor.get(), wei.get(), bias.get(), static_cast<csinn_fc_params*>(params.get())) == CSINN_TRUE,
+                        "ShlFCExecutor: failed to execute");
+    });
 }
 
 }  // namespace intel_cpu

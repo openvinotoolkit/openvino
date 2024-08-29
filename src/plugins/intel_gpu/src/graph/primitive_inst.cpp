@@ -28,6 +28,7 @@
 #include "read_value_inst.h"
 #include "kv_cache_inst.h"
 #include "condition_inst.h"
+#include "paged_attention_inst.h"
 #include "gather_inst.h"
 #include "broadcast_inst.h"
 #include "dynamic_quantize_inst.h"
@@ -395,6 +396,12 @@ void primitive_inst::update_shape() {
 
         auto dep_mem = dep->output_memory_ptr(dep_port);
         memory_deps.insert({i, dep_mem});
+
+        // Ignore shape infer dependency for input_layout when processing paged_attention nodes
+        if (get_node().is_type<paged_attention>() && dep->get_node().is_type<input_layout>()) {
+            continue;
+        }
+
         if (!get_node().is_type<shape_of>() && !dep->get_node().is_in_shape_of_subgraph()) {
             has_runtime_deps = true;
 
@@ -418,13 +425,23 @@ void primitive_inst::update_shape() {
 
     _impl_params->memory_deps = memory_deps;
 
+
     auto new_layouts = _node->type()->calc_output_layouts(*_node, *_impl_params);
-    for (size_t i = 0; i != _impl_params->output_layouts.size(); ++i) {
-        set_shape_change();
-        _impl_params->output_layouts[i].set_partial_shape(new_layouts[i].get_partial_shape());
+    for (size_t idx = 0; idx != new_layouts.size(); ++idx) {
+        auto& new_layout = new_layouts[idx];
         if (!_node->is_type<reshape>() || (!_node->get_input_layout(0).has_dynamic_pad() && !_node->can_be_optimized())) {
-            _impl_params->output_layouts[i].data_padding = padding::max(_impl_params->output_layouts[i].data_padding, new_layouts[i].data_padding);
+            auto data_padding = padding::max(_impl_params->get_output_layout(idx).data_padding, new_layout.data_padding);
+            new_layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(idx), data_padding);
         }
+
+        if (_impl_params->get_output_layout(idx) != new_layout) {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << _impl_params->get_output_layout(idx).to_short_string()
+                                    << " now: " << new_layout.to_short_string() << std::endl;
+            set_shape_change();
+        }
+
+        _impl_params->output_layouts[idx].data_padding = new_layout.data_padding;
+        _impl_params->output_layouts[idx].set_partial_shape(new_layouts[idx].get_partial_shape());
     }
 
     // Update descriptors of fused operations and set output_layout's shape to all fused ops
@@ -1494,12 +1511,19 @@ void primitive_inst::do_runtime_in_place_crop() {
                 if (!crop_in_place_optimization::match(u->get_node(), *u->_impl_params, pred_layout, true)) {
                     u->set_can_be_optimized(false);
                     GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
-                    return;
+                    continue;
                 }
 
                 auto crop_axis = u->_impl_params->typed_desc<crop>()->axis;
                 auto offsets = u->_impl_params->input_offsets[0];
                 if (crop_in_place_optimization::can_crop_be_optimized_along_feature(crop_layout, pred_layout)) {
+                    // TODO: If crop is optimized out w/ data padding along feature and crop's user is reshape
+                    // manual dynamic padding update to reshape output layout is not currently supported
+                    if (user_info.first) {
+                        u->set_can_be_optimized(false);
+                        GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
+                        continue;
+                    }
                     crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, pred_layout, offsets, crop_axis, true);
                 } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
                     crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout, pred_layout, user_info, offsets, crop_axis, true);
@@ -1511,7 +1535,7 @@ void primitive_inst::do_runtime_in_place_crop() {
                 } else {
                     u->set_can_be_optimized(false);
                     GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
-                    return;
+                    continue;
                 }
                 u->_impl_params->output_layouts[0] = crop_layout;
                 u->set_can_be_optimized(true);
@@ -1650,8 +1674,10 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         return false;
     };
 
+    bool use_shared_kernels = _node->get_program().get_config().get_property(ov::intel_gpu::hint::enable_kernels_reuse);
+
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
-    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts(this)) {
+    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts(this) || use_shared_kernels) {
         set_arguments();
     }
     on_execute();
@@ -1883,11 +1909,12 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     }
 
     int64_t available_device_mem_size = engine.get_device_info().max_global_mem_size - total_device_mem_size;
+    // TODO: check if this logic is needed
     // check if there is any device mem input
     if (engine.supports_allocation(allocation_type::usm_device)) {
         for (const auto& dep : inst_deps) {
-            if (!dep.first->mem_allocated()) continue;
-            if (dep.first->output_memory().get_allocation_type() == allocation_type::usm_device) {
+            if (dep.first->output_memory_ptr() &&
+                dep.first->output_memory_ptr()->get_allocation_type() == allocation_type::usm_device) {
                 input_device_mem = true;
                 break;
             }
@@ -1895,10 +1922,13 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     }
     // allocate intermediate memory for the updated layout of buffer
     auto layout = ibuf_layouts[idx];
-    GPU_DEBUG_LOG << "[" << _node->id() << ": internal buf " << idx << "]" << std::endl;
     auto alloc_type = allocation_type::unknown;
+    const auto& lockable_buffers_indexes = _impl->get_lockable_internal_buffers();
+    auto need_lockable_allocation = lockable_buffers_indexes.find(idx) != lockable_buffers_indexes.end();
+    GPU_DEBUG_LOG << "[" << _node->id() << ": internal buf " << idx << "] "
+                  << layout.to_short_string() << " need_lockable_allocation=" << need_lockable_allocation << std::endl;
     if ((int64_t)available_device_mem_size - (int64_t)layout.bytes_count() >= 0 &&
-        (input_device_mem || _node->get_preferred_impl_type() == impl_types::onednn)) {
+        (input_device_mem || _node->get_preferred_impl_type() == impl_types::onednn) && !need_lockable_allocation) {
         // scratchpad memory type enforces to device mem.
         GPU_DEBUG_LOG << " input is device mem and available device mem size (" << available_device_mem_size
                       << ") > requested memory (" << layout.bytes_count() << " )" << std::endl;
@@ -2010,6 +2040,7 @@ event::ptr primitive_inst::update_weights() {
                     auto kernels = kernels_cache.compile(*reorder_kernel_params, reorder_impl->get_kernels_source());
                     OPENVINO_ASSERT(kernels.size() == 1, "[GPU] Expected number of compiled kernels is 1, but got ", kernels.size());
                     reorder_impl->set_kernels(kernels);
+                    reorder_impl->can_share_kernels = _node->get_program().get_config().get_property(ov::intel_gpu::hint::enable_kernels_reuse);
                 }
 
                 reorder_inst->set_impl(reorder_impl->clone());

@@ -53,6 +53,7 @@ struct primitive_impl {
     virtual ~primitive_impl() = default;
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
+    virtual std::set<size_t> get_lockable_internal_buffers() const { return {}; }
     virtual void set_node_params(const program_node&) {}
     virtual const std::string& get_type_info() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
@@ -99,6 +100,7 @@ struct primitive_impl {
 
     // If this flag is set as false, the memory allocated for this primitive is not allowed to be reused
     bool can_reuse_memory = true;
+    bool can_share_kernels = false;
 
     void set_dynamic(bool val) { _is_dynamic = val; }
     bool is_dynamic() const { return _is_dynamic; }
