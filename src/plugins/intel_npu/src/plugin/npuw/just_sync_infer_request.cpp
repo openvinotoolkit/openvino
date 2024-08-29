@@ -437,7 +437,9 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
             if (!m_npuw_model->m_compiled_submodels[prod_idx].replaced_by) {
                 // Producer is a normal model -> take its tensor directly
                 const auto& oport = m_npuw_model->m_compiled_submodels[prod_idx].compiled_model->outputs()[prod_port];
-                m_subrequests[real_idx]->set_tensor(iport, m_subrequests[prod_idx]->get_tensor(oport));
+                auto out_tensor = m_subrequests[prod_idx]->get_tensor(oport);
+                auto in_tensor = m_subrequests.at(real_idx)->get_tensor(iport);
+                out_tensor->copy_to(in_tensor._ptr);
             } else {
                 // Producer is a function - maybe the same as we're calling now.
                 // Take its tensor from the storage
