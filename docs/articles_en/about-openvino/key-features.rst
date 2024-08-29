@@ -10,8 +10,6 @@ Key Features
   :doc:`torch.compile <../openvino-workflow/torch-compile>` to improve model inference. Apply
   OpenVINO optimizations to your PyTorch models directly with a single line of code.
 
-Optimize your deep learning models with NNCF, by reducing model size and accelerating inference. NNCF provides different optimization techniques, including post-training quantization without retraining, and training-time optimizations like Quantization-aware Training, Pruning and Sparsity. For large language models, NNCF offers weight compression method to decrease model footprint.
-
 | **Model Optimization**
 | Optimize your deep learning models with :doc:`NNCF <../openvino-workflow/model-optimization>`,
   using various training-time and post-training compression methods. Make Your models take
