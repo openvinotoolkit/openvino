@@ -5,6 +5,7 @@ About OpenVINO
    :maxdepth: 1
    :hidden:
 
+   about-openvino/key-features
    about-openvino/performance-benchmarks
    about-openvino/compatibility-and-support
    about-openvino/contributing
