@@ -36,7 +36,7 @@ struct data : public primitive_base<data> {
     size_t original_size = SIZE_MAX;
     size_t bin_offset = SIZE_MAX;
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring weights_path = "";
+    std::wstring weights_path = L"";
 #else
     std::string weights_path = "";
 #endif
@@ -60,7 +60,7 @@ struct data : public primitive_base<data> {
 
         bool is_cache_without_weights = bin_offset != SIZE_MAX && data_size == original_size;
         if (is_cache_without_weights) {
-            if (weights_path == "") {
+            if (weights_path.empty()) {
                 OPENVINO_THROW("weights_path is expected to be set during weightless cache load!");
             }
 

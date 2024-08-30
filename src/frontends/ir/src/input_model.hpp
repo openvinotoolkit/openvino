@@ -24,7 +24,7 @@ public:
                const std::shared_ptr<ov::AlignedBuffer>& weights,
                const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-               std::wstring weights_path = "");
+               std::wstring weights_path = L"");
 #else
                std::string weights_path = "");
 #endif
