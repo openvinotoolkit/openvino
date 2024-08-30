@@ -53,7 +53,7 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q "gradio>=4.19" "torch==2.2.2" "torchvision<0.18.0" rembg trimesh einops "omegaconf>=2.3.0" "transformers>=4.35.0" "openvino>=2024.0.0" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "git+https://github.com/tatsy/torchmcubes.git" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install "git+https://github.com/tatsy/torchmcubes.git@cbb3c3795b1e168bf81e8dee28623eaf5c33cd1c" --extra-index-url https://download.pytorch.org/whl/cpu
 
 .. code:: ipython3
 

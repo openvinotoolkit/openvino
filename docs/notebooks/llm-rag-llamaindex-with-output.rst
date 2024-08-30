@@ -101,7 +101,7 @@ Install required dependencies
 
     %pip uninstall -q -y optimum optimum-intel
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
-    "llama-index" "faiss-cpu" "pymupdf" "langchain" "llama-index-readers-file" "llama-index-vector-stores-faiss" "llama-index-llms-langchain" "llama-index-llms-openvino>=0.2.0" "llama-index-embeddings-openvino>=0.2.0" "llama-index-postprocessor-openvino-rerank>=0.2.0"
+    "llama-index" "faiss-cpu" "pymupdf" "langchain" "llama-index-readers-file" "llama-index-vector-stores-faiss" "llama-index-llms-langchain" "llama-index-llms-openvino>=0.2.0" "llama-index-embeddings-openvino>=0.2.1" "llama-index-postprocessor-openvino-rerank>=0.2.0"
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git" \
     "git+https://github.com/openvinotoolkit/nncf.git" \
     "datasets" \
@@ -153,6 +153,14 @@ Install required dependencies
             r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
             with open("llm_config.py", "w", encoding="utf-8") as f:
                 f.write(r.text)
+
+
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    with open("notebook_utils.py", "w") as f:
+        f.write(r.text)
+    import notebook_utils as utils
 
 
     if not text_example_en_path.exists():
@@ -213,7 +221,6 @@ You can also find available LLM model options in
 .. code:: ipython3
 
     from pathlib import Path
-    import openvino as ov
     import ipywidgets as widgets
 
 Convert model and compress model weights
@@ -694,16 +701,7 @@ Select device for embedding model inference
 
 .. code:: ipython3
 
-    core = ov.Core()
-
-    support_devices = core.available_devices
-
-    embedding_device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
+    embedding_device = utils.device_widget()
 
     embedding_device
 
@@ -726,6 +724,20 @@ Select device for embedding model inference
     Embedding model will be loaded to CPU device for text embedding
 
 
+Optimize the BGE embedding model’s parameter precision when loading
+model to NPU device.
+
+.. code:: ipython3
+
+    USING_NPU = embedding_device.value == "NPU"
+
+    npu_embedding_dir = embedding_model_id.value + "-npu"
+    npu_embedding_path = Path(npu_embedding_dir) / "openvino_model.xml"
+
+    if USING_NPU and not Path(npu_embedding_dir).exists():
+        shutil.copytree(embedding_model_id.value, npu_embedding_dir)
+        utils.optimize_bge_embedding(Path(embedding_model_id.value) / "openvino_model.xml", npu_embedding_path)
+
 Select device for rerank model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -733,12 +745,7 @@ Select device for rerank model inference
 
 .. code:: ipython3
 
-    rerank_device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
+    rerank_device = utils.device_widget()
 
     rerank_device
 
@@ -768,13 +775,7 @@ Select device for LLM model inference
 
 .. code:: ipython3
 
-    llm_device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
-
+    llm_device = utils.device_widget("CPU", exclude=["NPU"])
     llm_device
 
 
@@ -814,8 +815,15 @@ class of LlamaIndex.
 
     from llama_index.embeddings.huggingface_openvino import OpenVINOEmbedding
 
+    embedding_model_name = npu_embedding_dir if USING_NPU else embedding_model_id.value
+    batch_size = 1 if USING_NPU else 4
 
-    embedding = OpenVINOEmbedding(model_id_or_path=embedding_model_id.value, device=embedding_device.value)
+    embedding = OpenVINOEmbedding(
+        model_id_or_path=embedding_model_name, embed_batch_size=batch_size, device=embedding_device.value, model_kwargs={"compile": False}
+    )
+    if USING_NPU:
+        embedding._model.reshape(1, 512)
+    embedding._model.compile()
 
     embeddings = embedding.get_text_embedding("Hello World!")
     print(len(embeddings))
@@ -913,6 +921,9 @@ inference on it.
 
     ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
 
+    stop_tokens = llm_model_configuration.get("stop_tokens")
+    completion_to_prompt = llm_model_configuration.get("completion_to_prompt")
+
     if "GPU" in llm_device.value and "qwen2-7b-instruct" in llm_model_id.value:
         ov_config["GPU_ENABLE_SDPA_OPTIMIZATION"] = "NO"
 
@@ -927,6 +938,7 @@ inference on it.
         max_new_tokens=2,
         model_kwargs={"ov_config": ov_config, "trust_remote_code": True},
         generate_kwargs={"temperature": 0.7, "top_k": 50, "top_p": 0.95},
+        completion_to_prompt=completion_to_prompt,
         device_map=llm_device.value,
     )
 
@@ -1019,8 +1031,6 @@ The most common full sequence from raw data to answer looks like:
         text_example_path = "text_example_en.pdf"
     else:
         text_example_path = "text_example_cn.pdf"
-
-    stop_tokens = llm_model_configuration.get("stop_tokens")
 
 
     class StopOnTokens(StoppingCriteria):

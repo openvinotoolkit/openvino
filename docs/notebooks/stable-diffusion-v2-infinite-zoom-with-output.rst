@@ -22,7 +22,7 @@ In previous notebooks, we already discussed how to run `Text-to-Image
 generation and Image-to-Image generation using Stable Diffusion
 v1 <stable-diffusion-text-to-image-with-output.html>`__
 and `controlling its generation process using
-ControlNet <./controlnet-stable-diffusion/controlnet-stable-diffusion.ipynb>`__.
+ControlNet <controlnet-stable-diffusion-with-output.html>`__.
 Now is turn of Stable Diffusion v2.
 
 Stable Diffusion v2: What’s new?
@@ -457,51 +457,15 @@ Run Infinite Zoom video generation
 
 .. code:: ipython3
 
-    import gradio as gr
+    import requests
 
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-v2/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
 
-    def generate(
-        prompt,
-        negative_prompt,
-        seed,
-        steps,
-        frames,
-        edge_size,
-        zoom_in,
-        progress=gr.Progress(track_tqdm=True),
-    ):
-        np.random.seed(seed)
-        video_path = generate_video(
-            ov_pipe,
-            prompt,
-            negative_prompt,
-            num_inference_steps=steps,
-            num_frames=frames,
-            mask_width=edge_size,
-            zoom_in=zoom_in,
-        )
-        np.random.seed(None)
+    from gradio_helper import make_demo_zoom_video
 
-        return video_path.replace(".mp4", ".gif")
-
-
-    gr.close_all()
-    demo = gr.Interface(
-        generate,
-        [
-            gr.Textbox(
-                "valley in the Alps at sunset, epic vista, beautiful landscape, 4k, 8k",
-                label="Prompt",
-            ),
-            gr.Textbox("lurry, bad art, blurred, text, watermark", label="Negative prompt"),
-            gr.Slider(value=9999, label="Seed", step=1, maximum=10000000),
-            gr.Slider(value=20, label="Steps", minimum=1, maximum=50),
-            gr.Slider(value=3, label="Frames", minimum=1, maximum=50),
-            gr.Slider(value=128, label="Edge size", minimum=32, maximum=256),
-            gr.Checkbox(label="Zoom in"),
-        ],
-        "image",
-    )
+    demo = make_demo_zoom_video(ov_pipe, generate_video)
 
     try:
         demo.queue().launch()

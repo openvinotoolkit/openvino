@@ -78,7 +78,7 @@ Install requirements
 
 .. parsed-literal::
 
-    23941
+    24165
 
 
 
@@ -94,7 +94,7 @@ Imports
     from PIL import Image
     import openvino as ov
 
-    from notebook_utils import download_file, load_image
+    from notebook_utils import download_file, load_image, device_widget
 
 Download TFLite model
 ---------------------
@@ -182,14 +182,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -263,18 +256,18 @@ GPU.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.4.0-16249-d604f1d8b2a
+    [ INFO ] Build ................................. 2024.4.0-16508-1d6e97cabaa
     [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.4.0-16249-d604f1d8b2a
+    [ INFO ] Build ................................. 2024.4.0-16508-1d6e97cabaa
     [ INFO ]
     [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 8.96 ms
+    [ INFO ] Read model took 9.42 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,224,224,3]
@@ -288,7 +281,7 @@ GPU.
     [ INFO ] Model outputs:
     [ INFO ]     Softmax (node: 61) : f32 / [...] / [1,1000]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 183.85 ms
+    [ INFO ] Compile model took 129.74 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: TensorFlow_Lite_Frontend_IR
@@ -325,15 +318,15 @@ GPU.
     [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 7.56 ms
+    [ INFO ] First inference took 7.24 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            17376 iterations
-    [ INFO ] Duration:         15005.09 ms
+    [ INFO ] Count:            17064 iterations
+    [ INFO ] Duration:         15007.68 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        5.05 ms
-    [ INFO ]    Average:       5.04 ms
-    [ INFO ]    Min:           3.68 ms
-    [ INFO ]    Max:           13.80 ms
-    [ INFO ] Throughput:   1158.01 FPS
+    [ INFO ]    Median:        5.13 ms
+    [ INFO ]    Average:       5.14 ms
+    [ INFO ]    Min:           3.04 ms
+    [ INFO ]    Max:           21.92 ms
+    [ INFO ] Throughput:   1137.02 FPS
 

@@ -343,14 +343,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = utils.device_widget()
 
     device
 
@@ -374,11 +367,12 @@ Data Processing
 
 
 
-Data Processing includes data preprocess and postprocess functions. -
-Data preprocess function is used to change the layout and shape of input
-data, according to requirement of the network input format. - Data
-postprocess function is used to extract the useful information from
-network’s original output and visualize it.
+Data Processing includes data preprocess and postprocess functions.
+
+- Data preprocess function is used to change the layout and shape of input
+  data, according to requirement of the network input format.
+- Data postprocess function is used to extract the useful information from
+  network’s original output and visualize it.
 
 .. code:: ipython3
 

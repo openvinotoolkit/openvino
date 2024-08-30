@@ -65,11 +65,10 @@ Both versions of the ZeroScope model are available on Hugging Face:
 
 We will use the first one.
 
-.. container:: alert alert-block alert-warning
+.. warning::
 
-   ::
 
-      This tutorial requires at least 24GB of free memory to generate a video with a frame size of 432x240 and 16 frames. Increasing either of these values will require more memory and take more time.
+   This tutorial requires at least 24GB of free memory to generate a video with a frame size of 432x240 and 16 frames. Increasing either of these values will require more memory and take more time.
 
 Install and import required packages
 ------------------------------------

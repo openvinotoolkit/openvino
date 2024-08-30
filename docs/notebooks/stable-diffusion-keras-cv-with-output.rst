@@ -108,9 +108,10 @@ Import required modules and set constants
     import requests
 
     # Fetch `notebook_utils` module
-    r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
-    open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
+        open("notebook_utils.py", "w").write(r.text)
+    from notebook_utils import download_file, device_widget
 
     IMAGE_WIDTH = 512
     IMAGE_HEIGHT = 512
@@ -437,15 +438,7 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
-
-    device = widgets.Dropdown(
-        options=ov.Core().available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -461,6 +454,8 @@ Select device from dropdown list for running inference using OpenVINO.
 Read and compile pipeline models using selected device.
 
 .. code:: ipython3
+
+    import openvino as ov
 
     core = ov.Core()
     ov_text_encoder = core.compile_model(OV_TEXT_ENCODER_MODEL_PATH, device.value)
@@ -1330,30 +1325,14 @@ launch the interactive demo.
 
 .. code:: ipython3
 
-    import gradio as gr
+    if not Path("gradio_helper.py").exists():
+        download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-keras-cv/gradio_helper.py")
 
+    from gradio_helper import make_demo
 
     pipeline = ov_int8_pipeline if use_quantized_model.value else ov_pipeline
 
-
-    def generate(text, seed, steps):
-        return pipeline.text_to_image(text, num_steps=steps, seed=seed)[0]
-
-
-    demo = gr.Interface(
-        generate,
-        [
-            gr.Textbox(lines=3, label="Text"),
-            gr.Slider(0, 10000000, value=45, label="Seed"),
-            gr.Slider(1, 50, value=25, step=1, label="Steps"),
-        ],
-        gr.Image(label="Result"),
-        examples=[
-            ["photograph of an astronaut riding a horse", 80, 25],
-            ["photograph of a cat", 45, 25],
-        ],
-        allow_flagging="never",
-    )
+    demo = make_demo(pipeline)
 
     try:
         demo.launch(debug=True, height=1000)

@@ -114,11 +114,23 @@ Prerequisites
     remote: Enumerating objects: 424, done.[K
     remote: Counting objects: 100% (85/85), done.[K
     remote: Compressing objects: 100% (33/33), done.[K
-    remote: Total 424 (delta 76), reused 52 (delta 52), pack-reused 339[K
-    Receiving objects: 100% (424/424), 262.14 MiB | 25.43 MiB/s, done.
+    remote: Total 424 (delta 76), reused 52 (delta 52), pack-reused 339 (from 1)[K
+    Receiving objects: 100% (424/424), 262.14 MiB | 27.55 MiB/s, done.
     Resolving deltas: 100% (246/246), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM
 
+
+.. code:: ipython3
+
+    import requests
+
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+
+    open("notebook_utils.py", "w").write(r.text)
+
+    from notebook_utils import download_file, device_widget, quantization_widget  # noqa: F401
 
 Load PyTorch model
 ------------------
@@ -202,11 +214,14 @@ Prepare input data
 
 
 First of all, we should prepare input data for model. Model has 3
-inputs: \* image tensor - tensor with normalized input image. \* input
-points - tensor with user provided points. It maybe just some specific
+inputs:
+
+* image tensor - tensor with normalized input image.
+* input points - tensor with user provided points. It maybe just some specific
 points on the image (e.g. provided by user clicks on the screen) or
 bounding box coordinates in format left-top angle point and right-bottom
-angle pint. \* input labels - tensor with definition of point type for
+angle pint.
+* input labels - tensor with definition of point type for
 each provided point, 1 - for regular point, 2 - left-top point of
 bounding box, 3 - right-bottom point of bounding box.
 
@@ -222,7 +237,7 @@ bounding box, 3 - right-bottom point of bounding box.
 
 
 
-.. image:: efficient-sam-with-output_files/efficient-sam-with-output_11_0.png
+.. image:: efficient-sam-with-output_files/efficient-sam-with-output_12_0.png
 
 
 
@@ -333,11 +348,11 @@ The complete model inference example demonstrated below
 
 
 
-.. image:: efficient-sam-with-output_files/efficient-sam-with-output_16_0.png
+.. image:: efficient-sam-with-output_files/efficient-sam-with-output_17_0.png
 
 
 
-.. image:: efficient-sam-with-output_files/efficient-sam-with-output_16_1.png
+.. image:: efficient-sam-with-output_files/efficient-sam-with-output_17_1.png
 
 
 Convert model to OpenVINO IR format
@@ -372,23 +387,23 @@ disk using ``openvino.save_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:220: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:220: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if (
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:241: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:241: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert (
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:163: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:163: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       size = int(math.sqrt(xy_num))
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert size * size == xy_num
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:166: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:166: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if size != h or size != w:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:251: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:251: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert x.shape[2] == num_patches
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if num_pts > self.decoder_max_num_input_points:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:92: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:92: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       elif num_pts < self.decoder_max_num_input_points:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:126: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:126: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if output_w > 0 and output_h > 0:
 
 
@@ -404,12 +419,7 @@ Select inference device from dropdown list
 
 .. code:: ipython3
 
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -460,11 +470,11 @@ Now, we can take a look on OpenVINO model prediction
 
 
 
-.. image:: efficient-sam-with-output_files/efficient-sam-with-output_24_0.png
+.. image:: efficient-sam-with-output_files/efficient-sam-with-output_25_0.png
 
 
 
-.. image:: efficient-sam-with-output_files/efficient-sam-with-output_24_1.png
+.. image:: efficient-sam-with-output_files/efficient-sam-with-output_25_1.png
 
 
 Quantization
@@ -495,11 +505,7 @@ quantization.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    to_quantize = quantization_widget()
 
     to_quantize
 
@@ -541,14 +547,6 @@ creates DataLoader for preparing inputs for EfficientSAM model.
     %%skip not $to_quantize.value
 
     from zipfile import ZipFile
-
-    r = requests.get(
-        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py',
-    )
-
-    open('notebook_utils.py', 'w').write(r.text)
-
-    from notebook_utils import download_file
 
     DATA_URL = "https://ultralytics.com/assets/coco128.zip"
     OUT_DIR = Path('.')
@@ -652,10 +650,10 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 
 .. parsed-literal::
 
-    2024-08-07 01:15:38.019520: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-08-07 01:15:38.050853: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-08-28 02:07:16.423535: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-28 02:07:16.455510: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-08-07 01:15:38.678186: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-08-28 02:07:17.106490: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -672,25 +670,9 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 
 
 
-
-
-
-
-
-
-
-
 .. parsed-literal::
 
     Output()
-
-
-
-
-
-
-
-
 
 
 
@@ -720,25 +702,9 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 
 
 
-
-
-
-
-
-
-
-
 .. parsed-literal::
 
     Output()
-
-
-
-
-
-
-
-
 
 
 
@@ -783,11 +749,11 @@ Verify quantized model inference
 
 
 
-.. image:: efficient-sam-with-output_files/efficient-sam-with-output_35_0.png
+.. image:: efficient-sam-with-output_files/efficient-sam-with-output_36_0.png
 
 
 
-.. image:: efficient-sam-with-output_files/efficient-sam-with-output_35_1.png
+.. image:: efficient-sam-with-output_files/efficient-sam-with-output_36_1.png
 
 
 Save quantize model on disk
@@ -860,7 +826,7 @@ models, we use ``bencmark_app``.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 29.30 ms
+    [ INFO ] Read model took 29.42 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     batched_images (node: batched_images) : f32 / [...] / [?,?,?,?]
@@ -880,7 +846,7 @@ models, we use ``bencmark_app``.
     [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,3,?,?]
     [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,3]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1303.10 ms
+    [ INFO ] Compile model took 1345.51 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -921,17 +887,17 @@ models, we use ``bencmark_app``.
     [ INFO ] Fill input 'batched_point_labels' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
-    [ INFO ] First inference took 669.39 ms
+    [ INFO ] First inference took 663.79 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            49 iterations
-    [ INFO ] Duration:         15704.34 ms
+    [ INFO ] Count:            55 iterations
+    [ INFO ] Duration:         17357.04 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1885.95 ms
-    [ INFO ]    Average:       1868.12 ms
-    [ INFO ]    Min:           631.81 ms
-    [ INFO ]    Max:           1958.65 ms
-    [ INFO ] Throughput:   3.12 FPS
+    [ INFO ]    Median:        1859.64 ms
+    [ INFO ]    Average:       1845.33 ms
+    [ INFO ]    Min:           626.88 ms
+    [ INFO ]    Max:           1939.59 ms
+    [ INFO ] Throughput:   3.17 FPS
 
 
 .. code:: ipython3
@@ -957,7 +923,7 @@ models, we use ``bencmark_app``.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 50.05 ms
+    [ INFO ] Read model took 43.37 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     batched_images (node: batched_images) : f32 / [...] / [?,?,?,?]
@@ -977,7 +943,7 @@ models, we use ``bencmark_app``.
     [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,3,?,?]
     [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,3]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1635.82 ms
+    [ INFO ] Compile model took 1729.55 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -1018,17 +984,17 @@ models, we use ``bencmark_app``.
     [ INFO ] Fill input 'batched_point_labels' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
-    [ INFO ] First inference took 622.74 ms
+    [ INFO ] First inference took 631.14 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            55 iterations
-    [ INFO ] Duration:         16318.33 ms
+    [ INFO ] Duration:         16013.22 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1757.71 ms
-    [ INFO ]    Average:       1739.10 ms
-    [ INFO ]    Min:           536.34 ms
-    [ INFO ]    Max:           1815.35 ms
-    [ INFO ] Throughput:   3.37 FPS
+    [ INFO ]    Median:        1725.46 ms
+    [ INFO ]    Average:       1706.20 ms
+    [ INFO ]    Min:           527.65 ms
+    [ INFO ]    Max:           1779.12 ms
+    [ INFO ] Throughput:   3.43 FPS
 
 
 Interactive segmentation demo
@@ -1038,35 +1004,14 @@ Interactive segmentation demo
 
 .. code:: ipython3
 
-    import copy
-    import gradio as gr
     import numpy as np
-    from PIL import ImageDraw, Image
+    from PIL import Image
     import cv2
     import matplotlib.pyplot as plt
-
-    example_images = [
-        "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/b8083dd5-1ce7-43bf-8b09-a2ebc280c86e",
-        "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/9a90595d-70e7-469b-bdaf-469ef4f56fa2",
-        "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/b626c123-9fa2-4aa6-9929-30565991bf0c",
-    ]
-
-    examples_dir = Path("examples")
-    examples_dir.mkdir(exist_ok=True)
-
-    for img_id, image_url in enumerate(example_images):
-        r = requests.get(image_url)
-        img_path = examples_dir / f"example_{img_id}.jpg"
-        with img_path.open("wb") as f:
-            f.write(r.content)
 
 
     def sigmoid(x):
         return 1 / (1 + np.exp(-x))
-
-
-    def clear():
-        return None, None, [], []
 
 
     def format_results(masks, scores, logits, filter=0):
@@ -1223,32 +1168,6 @@ Interactive segmentation demo
         return image
 
 
-    # Description
-    title = "<center><strong><font size='8'>Efficient Segment Anything with OpenVINO and EfficientSAM <font></strong></center>"
-
-
-    description_p = """# Interactive Instance Segmentation
-                    - Point-prompt instruction
-                    <ol>
-                    <li> Click on the left image (point input), visualizing the point on the right image </li>
-                    <li> Click the button of Segment with Point Prompt </li>
-                    </ol>
-                    - Box-prompt instruction
-                    <ol>
-                    <li> Click on the left image (one point input), visualizing the point on the right image </li>
-                    <li> Click on the left image (another point input), visualizing the point and the box on the right image</li>
-                    <li> Click the button of Segment with Box Prompt </li>
-                    </ol>
-                  """
-
-    # examples
-    examples = [[img] for img in examples_dir.glob("*.jpg")]
-
-    default_example = examples[0]
-
-    css = "h1 { text-align: center } .about { text-align: justify; padding-left: 10%; padding-right: 10%; }"
-
-
     def segment_with_boxs(
         image,
         seg_image,
@@ -1381,197 +1300,23 @@ Interactive segmentation demo
         # return fig, None
         return fig, global_points, global_point_label
 
+.. code:: ipython3
 
-    def get_points_with_draw(image, cond_image, global_points, global_point_label, evt: gr.SelectData):
-        print(global_points)
-        if len(global_points) == 0:
-            image = copy.deepcopy(cond_image)
-        x, y = evt.index[0], evt.index[1]
-        label = "Add Mask"
-        point_radius, point_color = 15, (
-            (255, 255, 0)
-            if label == "Add Mask"
-            else (
-                255,
-                0,
-                255,
-            )
-        )
-        global_points.append([x, y])
-        global_point_label.append(1 if label == "Add Mask" else 0)
+    # Go back to the efficient-sam notebook directory
+    %cd ..
 
-        if image is not None:
-            draw = ImageDraw.Draw(image)
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/efficient-sam/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
 
-            draw.ellipse(
-                [
-                    (x - point_radius, y - point_radius),
-                    (x + point_radius, y + point_radius),
-                ],
-                fill=point_color,
-            )
+    from gradio_helper import make_demo
 
-        return image, global_points, global_point_label
+    demo = make_demo(segment_with_point_fn=segment_with_points, segment_with_box_fn=segment_with_boxs)
 
-
-    def get_points_with_draw_(image, cond_image, global_points, global_point_label, evt: gr.SelectData):
-        if len(global_points) == 0:
-            image = copy.deepcopy(cond_image)
-        if len(global_points) > 2:
-            return image, global_points, global_point_label
-        x, y = evt.index[0], evt.index[1]
-        label = "Add Mask"
-        point_radius, point_color = 15, (
-            (255, 255, 0)
-            if label == "Add Mask"
-            else (
-                255,
-                0,
-                255,
-            )
-        )
-        global_points.append([x, y])
-        global_point_label.append(1 if label == "Add Mask" else 0)
-
-        if image is not None:
-            draw = ImageDraw.Draw(image)
-            draw.ellipse(
-                [
-                    (x - point_radius, y - point_radius),
-                    (x + point_radius, y + point_radius),
-                ],
-                fill=point_color,
-            )
-
-        if len(global_points) == 2:
-            x1, y1 = global_points[0]
-            x2, y2 = global_points[1]
-            if x1 < x2 and y1 < y2:
-                draw.rectangle([x1, y1, x2, y2], outline="red", width=5)
-            elif x1 < x2 and y1 >= y2:
-                draw.rectangle([x1, y2, x2, y1], outline="red", width=5)
-                global_points[0][0] = x1
-                global_points[0][1] = y2
-                global_points[1][0] = x2
-                global_points[1][1] = y1
-            elif x1 >= x2 and y1 < y2:
-                draw.rectangle([x2, y1, x1, y2], outline="red", width=5)
-                global_points[0][0] = x2
-                global_points[0][1] = y1
-                global_points[1][0] = x1
-                global_points[1][1] = y2
-            elif x1 >= x2 and y1 >= y2:
-                draw.rectangle([x2, y2, x1, y1], outline="red", width=5)
-                global_points[0][0] = x2
-                global_points[0][1] = y2
-                global_points[1][0] = x1
-                global_points[1][1] = y1
-
-        return image, global_points, global_point_label
-
-
-    cond_img_p = gr.Image(label="Input with Point", value=default_example[0], type="pil")
-    cond_img_b = gr.Image(label="Input with Box", value=default_example[0], type="pil")
-
-    segm_img_p = gr.Image(label="Segmented Image with Point-Prompt", interactive=False, type="pil")
-    segm_img_b = gr.Image(label="Segmented Image with Box-Prompt", interactive=False, type="pil")
-
-
-    with gr.Blocks(css=css, title="Efficient SAM") as demo:
-        global_points = gr.State([])
-        global_point_label = gr.State([])
-        with gr.Row():
-            with gr.Column(scale=1):
-                # Title
-                gr.Markdown(title)
-
-        with gr.Tab("Point mode"):
-            # Images
-            with gr.Row(variant="panel"):
-                with gr.Column(scale=1):
-                    cond_img_p.render()
-
-                with gr.Column(scale=1):
-                    segm_img_p.render()
-
-            # Submit & Clear
-            # ###
-            with gr.Row():
-                with gr.Column():
-                    with gr.Column():
-                        segment_btn_p = gr.Button("Segment with Point Prompt", variant="primary")
-                        clear_btn_p = gr.Button("Clear", variant="secondary")
-
-                    gr.Markdown("Try some of the examples below ⬇️")
-                    gr.Examples(
-                        examples=examples,
-                        inputs=[cond_img_p],
-                        examples_per_page=4,
-                    )
-
-                with gr.Column():
-                    # Description
-                    gr.Markdown(description_p)
-
-        with gr.Tab("Box mode"):
-            # Images
-            with gr.Row(variant="panel"):
-                with gr.Column(scale=1):
-                    cond_img_b.render()
-
-                with gr.Column(scale=1):
-                    segm_img_b.render()
-
-            # Submit & Clear
-            with gr.Row():
-                with gr.Column():
-                    with gr.Column():
-                        segment_btn_b = gr.Button("Segment with Box Prompt", variant="primary")
-                        clear_btn_b = gr.Button("Clear", variant="secondary")
-
-                    gr.Markdown("Try some of the examples below ⬇️")
-                    gr.Examples(
-                        examples=examples,
-                        inputs=[cond_img_b],
-                        examples_per_page=4,
-                    )
-
-                with gr.Column():
-                    # Description
-                    gr.Markdown(description_p)
-
-        cond_img_p.select(
-            get_points_with_draw,
-            inputs=[segm_img_p, cond_img_p, global_points, global_point_label],
-            outputs=[segm_img_p, global_points, global_point_label],
-        )
-
-        cond_img_b.select(
-            get_points_with_draw_,
-            [segm_img_b, cond_img_b, global_points, global_point_label],
-            [segm_img_b, global_points, global_point_label],
-        )
-
-        segment_btn_p.click(
-            segment_with_points,
-            inputs=[cond_img_p, global_points, global_point_label],
-            outputs=[segm_img_p, global_points, global_point_label],
-        )
-
-        segment_btn_b.click(
-            segment_with_boxs,
-            inputs=[cond_img_b, segm_img_b, global_points, global_point_label],
-            outputs=[segm_img_b, global_points, global_point_label],
-        )
-
-        clear_btn_p.click(clear, outputs=[cond_img_p, segm_img_p, global_points, global_point_label])
-        clear_btn_b.click(clear, outputs=[cond_img_b, segm_img_b, global_points, global_point_label])
-
-    demo.queue()
     try:
-        demo.launch(debug=False)
+        demo.queue().launch(debug=False)
     except Exception:
-        demo.launch(share=True, debug=False)
+        demo.queue().launch(share=True, debug=False)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
@@ -1579,6 +1324,7 @@ Interactive segmentation demo
 
 .. parsed-literal::
 
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam
     Running on local URL:  http://127.0.0.1:7860
 
     To create a public link, set `share=True` in `launch()`.

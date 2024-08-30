@@ -50,25 +50,12 @@ represents time, and the y-axis represents frequency. The color of each
 pixel gives the amplitude of the audio at the frequency and time given
 by its row and column.
 
-.. figure:: https://www.riffusion.com/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Fspectrogram_label.8c8aea56.png&w=1920&q=75
-   :alt: spectrogram
-
-   spectrogram
-
-`\*image source <https://www.riffusion.com/about>`__
 
 The spectrogram can be computed from audio using the `Short-time Fourier
 transform
 (STFT) <https://en.wikipedia.org/wiki/Short-time_Fourier_transform>`__,
 which approximates the audio as a combination of sine waves of varying
 amplitudes and phases.
-
-.. figure:: https://www.riffusion.com/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ffourier_transform.9d53f3d7.png&w=640&q=75
-   :alt: stft.png
-
-   stft.png
-
-`\*image source <https://www.riffusion.com/about>`__
 
 The STFT is invertible, so the original audio can be reconstructed from
 a spectrogram. This idea is a behind approach to using Riffusion for

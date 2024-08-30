@@ -25,9 +25,11 @@ In this tutorial we consider how to convert and run DDColor using
 OpenVINO. Additionally, we will demonstrate how to optimize this model
 using `NNCF <https://github.com/openvinotoolkit/nncf/>`__.
 
-🪄 Let’s start to explore magic of image colorization!
+🪄 Let’s start to explore magic of image colorization! 
 
 **Table of contents:**
+
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Load PyTorch model <#load-pytorch-model>`__
@@ -68,7 +70,7 @@ Prerequisites
 .. code:: ipython3
 
     import platform
-
+    
     %pip install -q "nncf>=2.11.0" "torch>=2.1" "torchvision" "timm" "opencv_python" "pillow" "PyYAML" "scipy" "scikit-image" "datasets" "gradio>=4.19"  --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -Uq "openvino>=2024.3.0"
     if platform.python_version_tuple()[1] in ["8", "9"]:
@@ -88,24 +90,24 @@ Prerequisites
 
     import sys
     from pathlib import Path
-
+    
     repo_dir = Path("DDColor")
-
+    
     if not repo_dir.exists():
         !git clone https://github.com/piddnad/DDColor.git
-
+    
     sys.path.append(str(repo_dir))
 
 
 .. parsed-literal::
 
     Cloning into 'DDColor'...
-    remote: Enumerating objects: 230, done.[K
+    remote: Enumerating objects: 233, done.[K
     remote: Counting objects: 100% (76/76), done.[K
-    remote: Compressing objects: 100% (39/39), done.[K
-    remote: Total 230 (delta 54), reused 40 (delta 36), pack-reused 154[K
-    Receiving objects: 100% (230/230), 13.34 MiB | 24.84 MiB/s, done.
-    Resolving deltas: 100% (75/75), done.
+    remote: Compressing objects: 100% (42/42), done.[K
+    remote: Total 233 (delta 54), reused 34 (delta 34), pack-reused 157 (from 1)[K
+    Receiving objects: 100% (233/233), 13.34 MiB | 21.08 MiB/s, done.
+    Resolving deltas: 100% (80/80), done.
 
 
 .. code:: ipython3
@@ -129,14 +131,14 @@ models from DDColor family.
 .. code:: ipython3
 
     import torch
-
+    
     model_name = "ddcolor_paper_tiny"
-
+    
     ddcolor_model = DDColorHF.from_pretrained(f"piddnad/{model_name}")
-
-
+    
+    
     colorizer = ImageColorizationPipelineHF(model=ddcolor_model, input_size=512)
-
+    
     ddcolor_model.to("cpu")
     colorizer.device = torch.device("cpu")
 
@@ -149,12 +151,12 @@ Run PyTorch model inference
 
     import cv2
     import PIL
-
+    
     IMG_PATH = "DDColor/assets/test_images/Ansel Adams _ Moore Photography.jpeg"
-
-
+    
+    
     img = cv2.imread(IMG_PATH)
-
+    
     PIL.Image.fromarray(img[:, :, ::-1])
 
 
@@ -193,9 +195,9 @@ loading on device using ``core.complie_model``.
 
     import openvino as ov
     import torch
-
+    
     OV_COLORIZER_PATH = Path("ddcolor.xml")
-
+    
     if not OV_COLORIZER_PATH.exists():
         ov_model = ov.convert_model(ddcolor_model, example_input=torch.ones((1, 3, 512, 512)), input=[1, 3, 512, 512])
         ov.save_model(ov_model, OV_COLORIZER_PATH)
@@ -210,16 +212,16 @@ Select one of supported devices for inference using dropdown list.
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     core = ov.Core()
-
+    
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -241,36 +243,36 @@ Select one of supported devices for inference using dropdown list.
     import numpy as np
     import torch
     import torch.nn.functional as F
-
-
+    
+    
     def process(img, compiled_model):
         # Preprocess input image
         height, width = img.shape[:2]
-
+    
         # Normalize to [0, 1] range
         img = (img / 255.0).astype(np.float32)
         orig_l = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)[:, :, :1]  # (h, w, 1)
-
+    
         # Resize rgb image -> lab -> get grey -> rgb
         img = cv2.resize(img, (512, 512))
         img_l = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)[:, :, :1]
         img_gray_lab = np.concatenate((img_l, np.zeros_like(img_l), np.zeros_like(img_l)), axis=-1)
         img_gray_rgb = cv2.cvtColor(img_gray_lab, cv2.COLOR_LAB2RGB)
-
+    
         # Transpose HWC -> CHW and add batch dimension
         tensor_gray_rgb = torch.from_numpy(img_gray_rgb.transpose((2, 0, 1))).float().unsqueeze(0)
-
+    
         # Run model inference
         output_ab = compiled_model(tensor_gray_rgb)[0]
-
+    
         # Postprocess result
         # resize ab -> concat original l -> rgb
         output_ab_resize = F.interpolate(torch.from_numpy(output_ab), size=(height, width))[0].float().numpy().transpose(1, 2, 0)
         output_lab = np.concatenate((orig_l, output_ab_resize), axis=-1)
         output_bgr = cv2.cvtColor(output_lab, cv2.COLOR_LAB2BGR)
-
+    
         output_img = (output_bgr * 255.0).round().astype(np.uint8)
-
+    
         return output_img
 
 .. code:: ipython3
@@ -313,7 +315,7 @@ improve model inference speed.
         description="Quantization",
         disabled=False,
     )
-
+    
     to_quantize
 
 
@@ -328,15 +330,15 @@ improve model inference speed.
 .. code:: ipython3
 
     import requests
-
+    
     OV_INT8_COLORIZER_PATH = Path("ddcolor_int8.xml")
     compiled_int8_model = None
-
+    
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-
+    
     %load_ext skip_kernel_extension
 
 Collect quantization dataset
@@ -351,12 +353,12 @@ dataset from Hugging Face as calibration data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     from datasets import load_dataset
-
+    
     subset_size = 300
     calibration_data = []
-
+    
     if not OV_INT8_COLORIZER_PATH.exists():
         dataset = load_dataset("ummagumm-a/colorization_dataset", split="train", streaming=True).shuffle(seed=42).take(subset_size)
         for idx, batch in enumerate(dataset):
@@ -368,7 +370,7 @@ dataset from Hugging Face as calibration data.
             img_l = cv2.cvtColor(np.stack([img, img, img], axis=2), cv2.COLOR_BGR2Lab)[:, :, :1]
             img_gray_lab = np.concatenate((img_l, np.zeros_like(img_l), np.zeros_like(img_l)), axis=-1)
             img_gray_rgb = cv2.cvtColor(img_gray_lab, cv2.COLOR_LAB2RGB)
-
+    
             image = np.expand_dims(img_gray_rgb.transpose((2, 0, 1)).astype(np.float32), axis=0)
             calibration_data.append(image)
 
@@ -380,9 +382,9 @@ Perform model quantization
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import nncf
-
+    
     if not OV_INT8_COLORIZER_PATH.exists():
         ov_model = core.read_model(OV_COLORIZER_PATH)
         quantized_model = nncf.quantize(
@@ -400,10 +402,10 @@ Perform model quantization
 
 .. parsed-literal::
 
-    2024-08-06 23:53:14.450297: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-08-06 23:53:14.489417: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-08-27 23:53:59.503040: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-27 23:53:59.542136: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-08-06 23:53:14.884792: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-08-27 23:53:59.945639: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -420,25 +422,9 @@ Perform model quantization
 
 
 
-
-
-
-
-
-
-
-
 .. parsed-literal::
 
     Output()
-
-
-
-
-
-
-
-
 
 
 
@@ -456,7 +442,7 @@ Run INT8 model inference
 .. code:: ipython3
 
     from IPython.display import display
-
+    
     if OV_INT8_COLORIZER_PATH.exists():
         compiled_int8_model = core.compile_model(OV_INT8_COLORIZER_PATH, device.value)
         img = cv2.imread("DDColor/assets/test_images/Ansel Adams _ Moore Photography.jpeg")
@@ -476,9 +462,9 @@ Compare FP16 and INT8 model size
 .. code:: ipython3
 
     fp16_ir_model_size = OV_COLORIZER_PATH.with_suffix(".bin").stat().st_size / 2**20
-
+    
     print(f"FP16 model size: {fp16_ir_model_size:.2f} MB")
-
+    
     if OV_INT8_COLORIZER_PATH.exists():
         quantized_model_size = OV_INT8_COLORIZER_PATH.with_suffix(".bin").stat().st_size / 2**20
         print(f"INT8 model size: {quantized_model_size:.2f} MB")
@@ -517,17 +503,17 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
-    [ INFO ]
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 42.11 ms
+    [ INFO ] Read model took 41.55 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,512,512]
@@ -543,7 +529,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.refine_net.0.0/aten::_convolution/Add) : f32 / [...] / [1,2,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1392.47 ms
+    [ INFO ] Compile model took 1367.86 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -577,20 +563,20 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values
+    [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 538.91 ms
+    [ INFO ] First inference took 536.72 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            72 iterations
-    [ INFO ] Duration:         16270.33 ms
+    [ INFO ] Count:            78 iterations
+    [ INFO ] Duration:         17247.39 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1351.48 ms
-    [ INFO ]    Average:       1349.10 ms
-    [ INFO ]    Min:           1249.10 ms
-    [ INFO ]    Max:           1431.97 ms
-    [ INFO ] Throughput:   4.43 FPS
+    [ INFO ]    Median:        1313.74 ms
+    [ INFO ]    Average:       1306.39 ms
+    [ INFO ]    Min:           1133.39 ms
+    [ INFO ]    Max:           1440.80 ms
+    [ INFO ] Throughput:   4.52 FPS
 
 
 .. code:: ipython3
@@ -606,17 +592,17 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
-    [ INFO ]
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 67.21 ms
+    [ INFO ] Read model took 70.09 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,512,512]
@@ -632,7 +618,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.refine_net.0.0/aten::_convolution/Add) : f32 / [...] / [1,2,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 2226.44 ms
+    [ INFO ] Compile model took 2282.60 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -666,20 +652,20 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values
+    [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 278.16 ms
+    [ INFO ] First inference took 274.43 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            162 iterations
-    [ INFO ] Duration:         16002.90 ms
+    [ INFO ] Duration:         16048.73 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        583.82 ms
-    [ INFO ]    Average:       588.16 ms
-    [ INFO ]    Min:           517.27 ms
-    [ INFO ]    Max:           693.28 ms
-    [ INFO ] Throughput:   10.12 FPS
+    [ INFO ]    Median:        582.21 ms
+    [ INFO ]    Average:       588.10 ms
+    [ INFO ]    Min:           484.43 ms
+    [ INFO ]    Max:           712.11 ms
+    [ INFO ] Throughput:   10.09 FPS
 
 
 Interactive inference
@@ -689,45 +675,26 @@ Interactive inference
 
 .. code:: ipython3
 
-    import gradio as gr
-    from gradio_imageslider import ImageSlider
-    from functools import partial
-
-
     def generate(image, use_int8=True):
         image_in = cv2.imread(image)
         image_out = process(image_in, compiled_model if not use_int8 else compiled_int8_model)
         image_in_pil = PIL.Image.fromarray(cv2.cvtColor(image_in, cv2.COLOR_BGR2RGB))
         image_out_pil = PIL.Image.fromarray(cv2.cvtColor(image_out, cv2.COLOR_BGR2RGB))
         return (image_in_pil, image_out_pil)
-
-
-    with gr.Blocks() as demo:
-        with gr.Row(equal_height=False):
-            image = gr.Image(type="filepath")
-            with gr.Column():
-                output_image = ImageSlider(show_label=True, type="filepath", interactive=False, label="FP16 model output")
-                button = gr.Button(value="Run{}".format(" FP16 model" if compiled_int8_model is not None else ""))
-            with gr.Column(visible=compiled_int8_model is not None):
-                output_image_int8 = ImageSlider(show_label=True, type="filepath", interactive=False, label="INT8 model output")
-                button_i8 = gr.Button(value="Run INT8 model")
-        button.click(fn=partial(generate, use_int8=False), inputs=[image], outputs=[output_image])
-        button_i8.click(fn=partial(generate, use_int8=True), inputs=[image], outputs=[output_image_int8])
-        examples = gr.Examples(
-            [
-                "DDColor/assets/test_images/New York Riverfront December 15, 1931.jpg",
-                "DDColor/assets/test_images/Audrey Hepburn.jpg",
-                "DDColor/assets/test_images/Acrobats Balance On Top Of The Empire State Building, 1934.jpg",
-            ],
-            inputs=[image],
-        )
-
-
-    if __name__ == "__main__":
-        try:
-            demo.queue().launch(debug=False)
-        except Exception:
-            demo.queue().launch(share=True, debug=False)
+    
+    
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/ddcolor-image-colorization/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+    
+    from gradio_helper import make_demo
+    
+    demo = make_demo(fn=generate, quantized=compiled_int8_model is not None)
+    
+    try:
+        demo.queue().launch(debug=False)
+    except Exception:
+        demo.queue().launch(share=True, debug=False)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
@@ -736,7 +703,7 @@ Interactive inference
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-
+    
     To create a public link, set `share=True` in `launch()`.
 
 

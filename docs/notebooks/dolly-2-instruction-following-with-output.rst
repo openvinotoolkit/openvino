@@ -203,13 +203,13 @@ to make it
 `symmetric <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md#symmetric-quantization>`__
 you can add ``--sym``.
 
-For INT4 quantization you can also specify the following arguments :
+For INT4 quantization you can also specify the following arguments:
 
 - The ``--group-size`` parameter will define the group size to use for
-quantization, -1 it will results in per-column quantization.
+  quantization, -1 it will results in per-column quantization.
 - The ``--ratio`` parameter controls the ratio between 4-bit and 8-bit
-quantization. If set to 0.9, it means that 90% of the layers will be
-quantized to int4 while 10% will be quantized to int8.
+  quantization. If set to 0.9, it means that 90% of the layers will be
+  quantized to int4 while 10% will be quantized to int8.
 
 Smaller group_size and ratio values usually improve accuracy at the
 sacrifice of the model size and inference latency.
@@ -861,21 +861,6 @@ elements.
         return current_perf_text, num_tokens
 
 
-    def reset_textbox(instruction: str, response: str, perf: str):
-        """
-        Helper function for resetting content of all text fields
-
-        Parameters:
-          instruction (str): Content of user instruction field.
-          response (str): Content of model response field.
-          perf (str): Content of performance info filed
-
-        Returns:
-          empty string for each placeholder
-        """
-        return "", "", ""
-
-
     def select_device(device_str: str, current_text: str = "", progress: gr.Progress = gr.Progress()):
         """
         Helper function for uploading model on the device.
@@ -920,98 +905,20 @@ generation parameters:
 
 .. code:: ipython3
 
-    available_devices = ov.Core().available_devices + ["AUTO"]
+    import requests
 
-    examples = [
-        "Give me recipe for pizza with pineapple",
-        "Write me a tweet about new OpenVINO release",
-        "Explain difference between CPU and GPU",
-        "Give five ideas for great weekend with family",
-        "Do Androids dream of Electric sheep?",
-        "Who is Dolly?",
-        "Please give me advice how to write resume?",
-        "Name 3 advantages to be a cat",
-        "Write instructions on how to become a good AI engineer",
-        "Write a love letter to my best friend",
-    ]
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/dolly-2-instruction-following/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
 
-    with gr.Blocks() as demo:
-        gr.Markdown(
-            "# Instruction following using Databricks Dolly 2.0 and OpenVINO.\n"
-            "Provide insturction which describes a task below or select among predefined examples and model writes response that performs requested task."
-        )
+    from gradio_helper import make_demo
 
-        with gr.Row():
-            with gr.Column(scale=4):
-                user_text = gr.Textbox(
-                    placeholder="Write an email about an alpaca that likes flan",
-                    label="User instruction",
-                )
-                model_output = gr.Textbox(label="Model response", interactive=False)
-                performance = gr.Textbox(label="Performance", lines=1, interactive=False)
-                with gr.Column(scale=1):
-                    button_clear = gr.Button(value="Clear")
-                    button_submit = gr.Button(value="Submit")
-                gr.Examples(examples, user_text)
-            with gr.Column(scale=1):
-                device = gr.Dropdown(choices=available_devices, value=current_device, label="Device")
-                max_new_tokens = gr.Slider(
-                    minimum=1,
-                    maximum=1000,
-                    value=256,
-                    step=1,
-                    interactive=True,
-                    label="Max New Tokens",
-                )
-                top_p = gr.Slider(
-                    minimum=0.05,
-                    maximum=1.0,
-                    value=0.92,
-                    step=0.05,
-                    interactive=True,
-                    label="Top-p (nucleus sampling)",
-                )
-                top_k = gr.Slider(
-                    minimum=0,
-                    maximum=50,
-                    value=0,
-                    step=1,
-                    interactive=True,
-                    label="Top-k",
-                )
-                temperature = gr.Slider(
-                    minimum=0.1,
-                    maximum=5.0,
-                    value=0.8,
-                    step=0.1,
-                    interactive=True,
-                    label="Temperature",
-                )
+    demo = make_demo(run_fn=run_generation, select_device_fn=select_device)
 
-        user_text.submit(
-            run_generation,
-            [user_text, top_p, temperature, top_k, max_new_tokens, performance],
-            [model_output, performance],
-        )
-        button_submit.click(select_device, [device, user_text], [user_text])
-        button_submit.click(
-            run_generation,
-            [user_text, top_p, temperature, top_k, max_new_tokens, performance],
-            [model_output, performance],
-        )
-        button_clear.click(
-            reset_textbox,
-            [user_text, model_output, performance],
-            [user_text, model_output, performance],
-        )
-        device.change(select_device, [device, user_text], [user_text])
-
-    if __name__ == "__main__":
-        try:
-            demo.queue().launch(debug=False, height=800)
-        except Exception:
-            demo.queue().launch(debug=False, share=True, height=800)
-
+    try:
+        demo.queue().launch(debug=False, height=800)
+    except Exception:
+        demo.queue().launch(debug=False, share=True, height=800)
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/

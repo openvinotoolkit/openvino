@@ -116,7 +116,7 @@ The notebook uses utility functions. The cell below will download the
 
 .. parsed-literal::
 
-    23941
+    24165
 
 
 
@@ -139,7 +139,7 @@ Imports
     import openvino as ov
 
     # Notebook utils module
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 Settings
 --------
@@ -194,7 +194,7 @@ from TensorFlow Hub:
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/model/tf/faster_rcnn_resnet50_v1_640x640.tar.gz')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/model/tf/faster_rcnn_resnet50_v1_640x640.tar.gz')
 
 
 
@@ -251,15 +251,8 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
     core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -380,7 +373,7 @@ Load and save an image:
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_bike.jpg')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_bike.jpg')
 
 
 
@@ -408,7 +401,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f20d4fffac0>
+    <matplotlib.image.AxesImage at 0x7fc5f4f94070>
 
 
 
@@ -710,7 +703,7 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__:
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_91cl.txt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_91cl.txt')
 
 
 

@@ -863,26 +863,14 @@ Interactive demo with Gradio
 
 .. code:: ipython3
 
-    import gradio as gr
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/clip-language-saliency-map/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
 
+    from gradio_helper import make_demo
 
-    def _process(image, query, n_iters, min_crop_size, _=gr.Progress(track_tqdm=True)):
-        saliency_map = build_saliency_map(image, query, n_iters, min_crop_size, _tqdm=tqdm.tqdm, include_query=False)
+    demo = make_demo(build_saliency_map)
 
-        return saliency_map
-
-
-    demo = gr.Interface(
-        _process,
-        [
-            gr.Image(label="Image", type="pil"),
-            gr.Textbox(label="Query"),
-            gr.Slider(1, 10000, n_iters, label="Number of iterations"),
-            gr.Slider(1, 200, min_crop_size, label="Minimum crop size"),
-        ],
-        gr.Plot(label="Result"),
-        examples=[[image_path, query]],
-    )
     try:
         demo.queue().launch(debug=False)
     except Exception:
@@ -927,4 +915,5 @@ can explore the CLIP capabilities further. For example:
 -  Optimize models with
    `NNCF <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training/basic-quantization-flow.html>`__
    to get further acceleration. You can find example how to quantize
-   CLIP model in `this notebook <clip-zero-shot-image-classification-with-output.html>`__
+   CLIP model in `this
+   notebook <clip-zero-shot-image-classification-with-output.html>`__

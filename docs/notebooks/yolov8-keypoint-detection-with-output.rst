@@ -120,7 +120,7 @@ Import required utility functions. The lower cell will download the
     )
 
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file, VideoPlayer
+    from notebook_utils import download_file, VideoPlayer, device_widget
 
 .. code:: ipython3
 
@@ -257,17 +257,7 @@ Select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
-
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -291,6 +281,7 @@ ready to check model prediction.
 .. code:: ipython3
 
     import torch
+    import openvino as ov
 
     core = ov.Core()
     pose_ov_model = core.read_model(pose_model_path)
@@ -1079,7 +1070,7 @@ utilization. For more information, refer to the overview of
 tutorial <optimize-preprocessing-with-output.html>`__. To
 see, how it could be used with YOLOV8 object detection model , please,
 see `Convert and Optimize YOLOv8 real-time object detection with
-OpenVINO tutorial <./yolov8-object-detection.ipynb>`__
+OpenVINO tutorial <yolov8-object-detection-with-output.html>`__
 
 Live demo
 ---------
