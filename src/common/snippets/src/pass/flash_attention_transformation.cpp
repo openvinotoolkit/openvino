@@ -52,16 +52,24 @@ FlashAttentionTransformation::FlashAttentionTransformation() {
         } else {
             OPENVINO_THROW("Unexpected node matched");
         }
+        if (axis != static_cast<size_t>(-1) && axis != rank - 1) {
+            return false;
+        }
 
         // reused in each loop as value in previous loop
-        const auto scratch_old_max = std::make_shared<snippets::op::NewMemoryBuffer>(ov::Shape{shape[rank - 2]});
-        const auto scratch_old_sum = std::make_shared<snippets::op::NewMemoryBuffer>(ov::Shape{shape[rank - 2]});
-        const auto scratch_old_result = std::make_shared<snippets::op::NewMemoryBuffer>(ov::Shape{100});
-        // initialize it
+        // scratch_old_max and scratch_new_max to remove cycle dependecy, and the memory is shared.
+        // MM0(512*64 64*4096) -> softmax(512*4096) buffer512 -> MM1(512*4096 4096*64)
+        // M_blk:32, N_blk in MM0 and K_blk in MM1 is 128. 32*64, 64*128 buffer512 is split to 32.
+        // require special handling on the first (e.g. initialize with zeros) and on the last (omit Store ops) iterations.
+        // Specific iteration handlers can be used to handle that.
+        const auto scratch_old_max = std::make_shared<snippets::op::NewMemoryBuffer>(ov::Shape{shape[rank - 2], 1});  // initialized with min
+        const auto scratch_old_sum = std::make_shared<snippets::op::NewMemoryBuffer>(ov::Shape{shape[rank - 2], 1});  // initialized with zero.
+        // make sure this buffer is inpace with and output memory
+        const auto scratch_old_result = std::make_shared<snippets::op::InplaceMemoryBuffer>(OutputVector{brgemm1->output(0)}, brgemm1);
 
         const auto& softmax_input = softmax->input_value(0);
-        const auto reduce_max = std::make_shared<ov::snippets::op::ReduceMax>(softmax_input, axis);
-        const auto new_max = std::make_shared<ov::op::v1::Maximum>(scratch_old_max, reduce_max);
+        const auto reduce_max = std::make_shared<ov::snippets::op::ReduceMax>(softmax_input, axis);  // 512*1
+        const auto new_max = std::make_shared<ov::op::v1::Maximum>(scratch_old_max, reduce_max);  // 512*1
         ov::snippets::op::ReduceBase::compute_and_set_reduce_subtensors(reduce_max);
         const auto subtract = std::make_shared<ov::op::v1::Subtract>(softmax_input, new_max);
         const auto exp = std::make_shared<ov::op::v0::Exp>(subtract);
@@ -72,27 +80,29 @@ FlashAttentionTransformation::FlashAttentionTransformation() {
         const auto multiply = std::make_shared<ov::op::v1::Multiply>(exp, power);  // softmax result
 
         // compensation_scale = (sum_old/sum_new) * exp(max_old-max_new)
+        // in first iteration, set sum_old to zero.
         const auto max_diff = std::make_shared<ov::op::v1::Subtract>(scratch_old_max, reduce_max);
         const auto exp_diff = std::make_shared<ov::op::v0::Exp>(max_diff);
         const auto sum_diff = std::make_shared<ov::op::v1::Multiply>(scratch_old_sum, power);
         const auto compensation_scale = std::make_shared<ov::op::v1::Multiply>(exp_diff, sum_diff);
 
+        // save new to old after old usage(compensation calculation) finished.
+        const auto scratch_new_max = std::make_shared<snippets::op::InplaceMemoryBuffer>(OutputVector{new_max->output(0)}, scratch_old_max);
+        const auto scratch_new_sum = std::make_shared<snippets::op::InplaceMemoryBuffer>(OutputVector{reduce_sum->output(0)}, scratch_old_sum);
+
         // out = multiply(softmax of K blocked) * matmul->input_value(1)(V)
-        const auto brgemm_new = std::make_shared<op::Brgemm>(multiply, brgemm1->input_value(1));
+        const auto brgemm_new = std::make_shared<op::Brgemm>(multiply, brgemm1->input_value(1)); // result saved on a buffer
         // compensation_scale * out_old
         const auto scaled_output = std::make_shared<ov::op::v1::Multiply>(scratch_old_result, compensation_scale);
         // out = softmax result(multiply) * V(brgemm1->input_value(1)) + compensation_scale * out_old
         const auto add = std::make_shared<ov::op::v1::Add>(brgemm_new, scaled_output);
-        // save add to scratch_old_result
-        // save new_max to scratch_old_max
-        // save reduce_sum to scratch_old_sum
 
         // remove softmax
         copy_runtime_info(softmax, {reduce_max, subtract, exp, reduce_sum, power, multiply});
         softmax->output(0).replace(softmax->input_value(0));
         // replace brgemm1
-        copy_runtime_info(brgemm1, brgemm_new);
-        return ov::replace_node_update_name(brgemm1, brgemm_new);
+        copy_runtime_info(brgemm1, add);
+        return ov::replace_node_update_name(brgemm1, add);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(softmax_m, matcher_name);
