@@ -342,7 +342,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                 bool all_values_nagative =
                     std::all_of(alibi_constant_values.begin(), alibi_constant_values.end(), [&](float value) {
                         return value < 0.0;
-                        });
+                    });
 
                 if (all_values_nagative && pattern_map.find(mirroring_abs) != pattern_map.end()) {
                     alibi_slopes = std::make_shared<v1::Multiply>(
