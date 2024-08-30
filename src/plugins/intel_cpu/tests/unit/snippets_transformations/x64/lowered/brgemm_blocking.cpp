@@ -14,6 +14,7 @@
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/tpp/x64/op/brgemm.hpp"
+#include "cpu/x64/cpu_isa_traits.hpp"
 
 namespace ov {
 namespace test {
@@ -119,11 +120,6 @@ void create_brgemm_with_copy_b_loop_infos(const LinearIRPtr& linear_ir,
 }
 } // namespace
 
-static const size_t m_blk = 32;
-static const size_t k_blk = 512;
-static const size_t n_blk = 64;
-static const size_t full_dim = ov::snippets::utils::get_full_dim_value();
-
 class BrgemmBlockingTest : public LoweredPassTestsF {
 public:
     BrgemmBlockingTest() : LoweredPassTestsF() {
@@ -132,10 +128,19 @@ public:
         comparator.enable(LIRComparator::LIRCmpValues::PORT_CONNECTORS);
         comparator.enable(LIRComparator::LIRCmpValues::LOOP_MANAGER);
     }
+
+protected:
+    size_t m_blk = 32;
+    size_t k_blk = 512;
+    size_t n_blk = 64;
+
+    static const size_t full_dim = ov::snippets::utils::get_full_dim_value();
 };
 class BrgemmCPUBlockingTest : public BrgemmBlockingTest {
 public:
-    BrgemmCPUBlockingTest() : BrgemmBlockingTest() {}
+    BrgemmCPUBlockingTest() : BrgemmBlockingTest() {
+        n_blk = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
+    }
 
     void SetUp() override {
         pipeline.register_pass<ov::intel_cpu::pass::BrgemmCPUBlocking>();
@@ -172,9 +177,9 @@ TEST_F(BrgemmCPUBlockingTest, Floating) {
 }
 
 TEST_F(BrgemmCPUBlockingTest, BlockingIsNotNeeded) {
-    const size_t m = 32;
-    const size_t k = 16;
-    const size_t n = 64;
+    const ov::Dimension::value_type m = 32;
+    const ov::Dimension::value_type k = 16;
+    const ov::Dimension::value_type n = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
     const ov::PartialShape input_shape_a{1, 16, m, k};
     const ov::PartialShape input_shape_b{1, 16, k, n};
     const auto precision = ov::element::f32;
@@ -197,9 +202,9 @@ TEST_F(BrgemmCPUBlockingTest, BlockingIsNotNeeded) {
 }
 
 TEST_F(BrgemmCPUBlockingTest, WithDataRepacking) {
-    const size_t m = 384;
-    const size_t k = 1024;
-    const size_t n = 384;
+    const ov::Dimension::value_type m = 384;
+    const ov::Dimension::value_type k = 1024;
+    const ov::Dimension::value_type n = 384;
     const ov::PartialShape input_shape_a{1, 16, m, k};
     const ov::PartialShape input_shape_b{1, 16, k, n};
     const auto precision_a = ov::element::u8;
@@ -232,9 +237,9 @@ TEST_F(BrgemmCPUBlockingTest, WithDataRepacking) {
 }
 
 TEST_F(BrgemmCPUBlockingTest, WithCompensations) {
-    const size_t m = 384;
-    const size_t k = 1024;
-    const size_t n = 384;
+    const ov::Dimension::value_type m = 384;
+    const ov::Dimension::value_type k = 1024;
+    const ov::Dimension::value_type n = 384;
     const ov::PartialShape input_shape_a{1, 16, m, k};
     const ov::PartialShape input_shape_b{1, 16, k, n};
     const auto precision = ov::element::i8;
@@ -267,9 +272,9 @@ TEST_F(BrgemmCPUBlockingTest, WithCompensations) {
 }
 
 TEST_F(BrgemmCPUBlockingTest, AMX) {
-    const size_t m = 384;
-    const size_t k = 1024;
-    const size_t n = 384;
+    const ov::Dimension::value_type m = 384;
+    const ov::Dimension::value_type k = 1024;
+    const ov::Dimension::value_type n = 384;
     const ov::PartialShape input_shape_a{1, 16, m, k};
     const ov::PartialShape input_shape_b{1, 16, k, n};
     const auto precision = ov::element::bf16;

@@ -32,24 +32,12 @@ std::shared_ptr<snippets::lowered::pass::PassBase> BrgemmTPPBlocking::SetBrgemmB
     return !other || ov::is_type<SetBrgemmBeta>(other) ? std::make_shared<SetBrgemmBeta>() : nullptr;
 }
 
-std::tuple<size_t, size_t, size_t> BrgemmTPPBlocking::get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
-    const auto& in_0_desc = brgemm_expr->get_input_port_descriptor(0);
-    const auto& in_1_desc = brgemm_expr->get_input_port_descriptor(1);
-    const auto& out_desc = brgemm_expr->get_output_port_descriptor(0);
+std::tuple<size_t, size_t, size_t> BrgemmTPPBlocking::get_blocking_params(size_t M, size_t N, size_t K) const {
+    OPENVINO_ASSERT(!is_dynamic_value(M) && !is_dynamic_value(N) && !is_dynamic_value(K), "BrgemmTPP doesn't support dynamic shapes");
 
-    const auto& in_0_planar_dims = get_planar_vdims(in_0_desc->get_shape(), in_0_desc->get_layout());
-    const auto& in_1_planar_dims = get_planar_vdims(in_1_desc->get_shape(), in_1_desc->get_layout());
-    const auto& out_preordered_dims = get_preordered_vdims(out_desc->get_shape(), out_desc->get_layout());
-
-    const auto& m = *++out_preordered_dims.rbegin();
-    const auto& n = *out_preordered_dims.rbegin();
-    const auto& k = *in_0_planar_dims.rbegin();
-    OPENVINO_ASSERT(k == *++in_1_planar_dims.rbegin(), "Brgemm input descriptors have different K dimension value.");
-    OPENVINO_ASSERT(!is_dynamic_value(m) && !is_dynamic_value(n) && !is_dynamic_value(n), "BrgemmTPP doesn't support dynamic shapes");
-
-    const auto block_size_m = std::min<size_t>(32, m);
-    const auto block_size_n = std::min<size_t>(64, n);
-    const auto block_size_k = k > 1024 ? 1024 : k > 512 ? 512 : k;
+    const auto block_size_m = std::min<size_t>(32, M);
+    const auto block_size_n = std::min<size_t>(64, N);
+    const auto block_size_k = K > 1024 ? 1024 : K > 512 ? 512 : K;
     return std::make_tuple(block_size_m, block_size_n, block_size_k);
 }
 

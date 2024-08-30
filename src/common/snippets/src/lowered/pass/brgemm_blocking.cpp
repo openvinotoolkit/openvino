@@ -91,7 +91,7 @@ SpecificIterationHandlers BrgemmBlockingBase::get_k_loop_handlers(size_t work_am
     return get_default_blocking_loop_handlers(work_amount, block_size);
 }
 
-std::tuple<size_t, size_t, size_t> BrgemmBlockingBase::get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
+std::tuple<size_t, size_t, size_t> BrgemmBlockingBase::get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
     const auto& in_0_desc = brgemm_expr->get_input_port_descriptor(0);
     const auto& in_1_desc = brgemm_expr->get_input_port_descriptor(1);
     const auto& out_desc = brgemm_expr->get_output_port_descriptor(0);
@@ -106,25 +106,7 @@ std::tuple<size_t, size_t, size_t> BrgemmBlockingBase::get_blocking_params(const
     const auto& k1 = *++in_1_planar_dims.rbegin();
     size_t k = 0;
     OPENVINO_ASSERT(utils::merge_dynamic_dim(k, k0, k1), "Brgemm input descriptors have incompatible K dimension value.");
-
-    // Ticket: 113745
-    // TODO: extend block size selection heuristics
-    auto get_block_size_m = [](const size_t M) -> size_t {
-        if (!snippets::utils::is_dynamic_value(M) && M <= 32)
-            return get_full_dim_value();
-        return 32;
-    };
-    auto get_block_size_n = [](const size_t N) -> size_t {
-        if (!snippets::utils::is_dynamic_value(N) && N <= 64)
-            return get_full_dim_value();
-        return 64;
-    };
-    auto get_block_size_k = [](const size_t K) -> size_t {
-        if (ov::snippets::utils::is_dynamic_value(K))
-            return 512;
-        return K > 1024 ? 1024 : K > 512 ? 512 : get_full_dim_value();
-    };
-    return std::make_tuple(get_block_size_m(m), get_block_size_n(n), get_block_size_k(k));
+    return get_blocking_params(m, n, k);
 }
 
 bool BrgemmBlockingBase::mark_blocking_loops(snippets::lowered::LinearIR& linear_ir,
