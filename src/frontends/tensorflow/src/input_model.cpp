@@ -271,6 +271,16 @@ void InputModel::InputModelTFImpl::load_places() {
     m_graph_iterator->reset();
     m_outputs.clear();
 
+    if (m_saved_model_input_names) {
+        // leave only real inputs for the main graph
+        // if input signature in the input model is defined
+        m_inputs.clear();
+        for (const auto& map_name : *m_saved_model_input_names) {
+            const auto& input_internal_tensor_name = map_name.first;
+            m_inputs.push_back(m_default_places[input_internal_tensor_name]);
+        }
+    }
+
     // SavedModel, MetaGraph formats have model signature that provides a concrete list of outputs
     // some output can place among intermediate layers (i.e. it can have its output consumers)
     // so just terminal nodes may not cover the whole list of outputs
