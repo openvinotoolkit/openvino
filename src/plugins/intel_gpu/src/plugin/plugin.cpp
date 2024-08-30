@@ -561,13 +561,13 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         if (contexts_for_tp.size() > 1) {
             uint64_t max_global_mem_size_tp = 0;
             for (auto& item : contexts_for_tp) {
-                auto iter = m_device_map.find(std::to_string(cldnn::device_query::device_id));
-                if (iter == m_device_map.end())
-                    iter = m_device_map.find(item.first);
-                if (iter == m_device_map.end())
-                    iter = m_device_map.begin();
-                auto device = iter->second;
-                max_global_mem_size_tp += device->get_info().max_global_mem_size;
+                auto iter_tp = m_device_map.find(std::to_string(cldnn::device_query::device_id));
+                if (iter_tp == m_device_map.end())
+                    iter_tp = m_device_map.find(item.first);
+                if (iter_tp == m_device_map.end())
+                    iter_tp = m_device_map.begin();
+                auto device_tp = iter_tp->second;
+                max_global_mem_size_tp += device_tp->get_info().max_global_mem_size;
             }
             return decltype(ov::intel_gpu::device_total_mem_size)::value_type {max_global_mem_size_tp};;
         }
