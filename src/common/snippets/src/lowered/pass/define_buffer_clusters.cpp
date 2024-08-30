@@ -357,6 +357,17 @@ bool DefineBufferClusters::run(lowered::LinearIR& linear_ir, lowered::LinearIR::
         });
     }
 
+    for (auto expr_it = begin; expr_it != end; ++expr_it) {
+        const auto& expr = *expr_it;
+        const auto& inplace_buffer = ov::as_type_ptr<op::InplaceMemoryBuffer>(expr->get_node());
+        if (inplace_buffer) {
+            const auto& inplace_from_buffer = ov::as_type_ptr<op::Buffer>(inplace_buffer->get_inplace_from());
+            if (inplace_from_buffer) {
+                inplace_buffer->set_cluster_id(inplace_from_buffer->get_cluster_id());
+            }
+        }
+    }
+
     return true;
 }
 
