@@ -53,8 +53,9 @@ struct condition_impl : typed_primitive_impl<condition> {
         GPU_DEBUG_LOG << "predicate: " << (pred ? "True" : "False") << std::endl;
         GPU_DEBUG_LOG << "can_skip_subgraph: " << (can_skip_subgraph ? "True" : "False") << std::endl;
 
-        std::vector<event::ptr> output_events;
         if (can_skip_subgraph) {
+            std::vector<event::ptr> output_events;
+
             for (size_t out_idx = 0; out_idx < branch.inner_program->get_outputs().size(); ++out_idx) {
                 const auto& output_internal_node = *branch.inner_program->get_outputs()[out_idx];
                 layout output_layout = output_internal_node.get_output_layout();
@@ -139,11 +140,12 @@ struct condition_impl : typed_primitive_impl<condition> {
         // Set output memory of condition_inst to inner network output memory after inner network execution
         instance.postprocess_output_memory(executed_net, branch);
 
-        for (auto& output : sub_net_results)
-            if (output.second.get_event() != nullptr)
-                output_events.push_back(output.second.get_event());
+        std::vector<event::ptr> executed_events;
+        for (const auto& ev : executed_net->get_executed_primitives()) {
+            executed_events.push_back(ev.second);
+        }
 
-        return stream.group_events(output_events);
+        return stream.group_events(executed_events);
     }
 
     static std::unique_ptr<primitive_impl> create(const condition_node& arg, const kernel_impl_params&) {
