@@ -97,7 +97,7 @@ KERNEL(lstm_seq)(
                             initial_hidden_idx += VEC_SIZE;
                             r_index += VEC_SIZE;
                             unroll_for(int s=0;s<VEC_SIZE;s++){
-                                hidden_result = mad(initial_block[s], r_block[l][k][j][s], hidden_result);
+                                hidden_result = mad(initial_block[s], r_block[s], hidden_result);
                             }
 
                         #endif
