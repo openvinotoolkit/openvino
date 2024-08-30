@@ -315,9 +315,7 @@ jobs:
           # layer test requirements
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
-      # Ticket - 115085
       - name: PyTorch Layer Tests
-        if: ${{ 'false' }}
         shell: cmd
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -n logical -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
