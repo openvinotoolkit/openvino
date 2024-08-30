@@ -11,6 +11,8 @@
 #include "intel_gpu/primitives/reshape.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/bitwise_left_shift.hpp"
 #include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/divide.hpp"
@@ -212,6 +214,14 @@ static void CreateBitwiseAndOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::bitwise_and);
 }
 
+static void CreateBitwiseOrOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v13::BitwiseOr>& op) {
+    CreateElementwiseOp(p, op, cldnn::eltwise_mode::bitwise_or);
+}
+
+static void CreateBitwiseXorOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v13::BitwiseXor>& op) {
+    CreateElementwiseOp(p, op, cldnn::eltwise_mode::bitwise_xor);
+}
+
 REGISTER_FACTORY_IMPL(v1, Add);
 REGISTER_FACTORY_IMPL(v1, Multiply);
 REGISTER_FACTORY_IMPL(v1, Maximum);
@@ -235,6 +245,8 @@ REGISTER_FACTORY_IMPL(v10, IsFinite);
 REGISTER_FACTORY_IMPL(v10, IsInf);
 REGISTER_FACTORY_IMPL(v10, IsNaN);
 REGISTER_FACTORY_IMPL(v13, BitwiseAnd);
+REGISTER_FACTORY_IMPL(v13, BitwiseOr);
+REGISTER_FACTORY_IMPL(v13, BitwiseXor);
 REGISTER_FACTORY_IMPL(v15, BitwiseRightShift);
 REGISTER_FACTORY_IMPL(v15, BitwiseLeftShift);
 

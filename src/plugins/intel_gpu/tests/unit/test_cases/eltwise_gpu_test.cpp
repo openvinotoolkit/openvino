@@ -195,6 +195,10 @@ TOut eltwise_int_execute(cldnn::eltwise_mode mode, T x, T y) {
         return x << y;
     case eltwise_mode::bitwise_and:
         return x & y;
+    case eltwise_mode::bitwise_or:
+        return x | y;
+    case eltwise_mode::bitwise_xor:
+        return x ^ y;
     default:
         return (TOut)0;
     }
@@ -3990,6 +3994,14 @@ TEST(eltwise_gpu, eltwise_left_shift) {
 
 TEST(eltwise_gpu, eltwise_bitwise_and) {
     run_eltwise_int_bitwise_generic_test(cldnn::eltwise_mode::bitwise_and);
+}
+
+TEST(eltwise_gpu, eltwise_bitwise_or) {
+    run_eltwise_int_bitwise_generic_test(cldnn::eltwise_mode::bitwise_or);
+}
+
+TEST(eltwise_gpu, eltwise_bitwise_xor) {
+    run_eltwise_int_bitwise_generic_test(cldnn::eltwise_mode::bitwise_xor);
 }
 
 TEST(eltwise_gpu, eltwise_div) {

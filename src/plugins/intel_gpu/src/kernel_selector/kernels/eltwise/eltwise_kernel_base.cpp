@@ -52,6 +52,8 @@ uint32_t GetNumberOfInputs(EltwiseMode m) {
         case EltwiseMode::RIGHT_SHIFT:
         case EltwiseMode::LEFT_SHIFT:
         case EltwiseMode::BITWISE_AND:
+        case EltwiseMode::BITWISE_OR:
+        case EltwiseMode::BITWISE_XOR:
             return 2;
         case EltwiseMode::SQRT:
         case EltwiseMode::RSQRT:
@@ -81,7 +83,8 @@ ParamsKey eltwise_params::GetParamsKey() const {
 }
 
 static bool IsBitwiseMode(EltwiseMode mode) {
-    return mode == EltwiseMode::BITWISE_AND || mode == EltwiseMode::LEFT_SHIFT || mode == EltwiseMode::RIGHT_SHIFT;
+    return mode == EltwiseMode::BITWISE_AND || mode == EltwiseMode::LEFT_SHIFT || mode == EltwiseMode::RIGHT_SHIFT ||
+           mode == EltwiseMode::BITWISE_OR || mode == EltwiseMode::BITWISE_XOR;
 }
 
 Datatype EltwiseKernelBase::GetAccumulatorType(const eltwise_params &params) const {
@@ -336,6 +339,12 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 break;
             case EltwiseMode::BITWISE_AND:
                 op += "(" + input0_str + " & " + input1_str + ")";
+                break;
+            case EltwiseMode::BITWISE_OR:
+                op += "(" + input0_str + " | " + input1_str + ")";
+                break;
+            case EltwiseMode::BITWISE_XOR:
+                op += "(" + input0_str + " ^ " + input1_str + ")";
                 break;
             default:
                 break;

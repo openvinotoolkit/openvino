@@ -7,7 +7,9 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/bitwise_left_shift.hpp"
+#include "openvino/op/bitwise_or.hpp"
 #include "openvino/op/bitwise_right_shift.hpp"
+#include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/floor_mod.hpp"
@@ -176,6 +178,12 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
                 break;
             case eltwise_mode::bitwise_and:
                 op = std::make_shared<ov::op::v13::BitwiseAnd>();
+                break;
+            case eltwise_mode::bitwise_or:
+                op = std::make_shared<ov::op::v13::BitwiseOr>();
+                break;
+            case eltwise_mode::bitwise_xor:
+                op = std::make_shared<ov::op::v13::BitwiseXor>();
                 break;
             default:
                 OPENVINO_THROW("[GPU] Couldn't create eltwise operation: unsupported eltwise operation (", static_cast<size_t>(mode), ")");
