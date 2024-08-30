@@ -58,17 +58,34 @@ KERNEL(lstm_seq)(
             unroll_for(uint k=0;k<GATE_NUM;++k){
                 INPUT3_TYPE hidden_result = 0;
                 const uint weight_idx = hidden_idx+weight_offsets[k];
+                #ifdef SEQUENCE
+                    uint rindex, initial_hidden_idx;
+                    uint initial_history_idx;
+                    if(i==0){
+                        initial_hidden_idx = INPUT1_GET_INDEX(b, 0, 0, 0);
+                        rindex = INPUT3_GET_INDEX(0, weight_idx, 0, 0);
+                    } else {
+                        initial_history_idx = OUTPUT_GET_INDEX(b, 0, prev_idx, 0);
+                    }
+                #else
+                    uint initial_hidden_idx = INPUT1_GET_INDEX(b, 0, 0, 0);
+                    uint rindex = INPUT3_GET_INDEX(weight_idx, 0, 0, 0);
+                #endif
                 unroll_for(uint j=0;j<HBLOCK_NUM;++j) {
                     if(i==0){
                         #ifdef SEQUENCE
-                            INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, 0, j*VEC_SIZE, 0)]);
-                            r_block[l][k][j] = READ_VEC(0, &R[INPUT3_GET_INDEX(0, weight_idx, j*VEC_SIZE, 0)]);
+                            INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[initial_hidden_idx]);
+                            r_block[l][k][j] = READ_VEC(0, &R[rindex]);
+                            initial_hidden_idx += VEC_SIZE;
+                            rindex += VEC_SIZE;
                             unroll_for(int s=0;s<VEC_SIZE;s++){
                                 hidden_result = mad(initial_block[s], r_block[l][k][j][s], hidden_result);
                             }
                         #else
-                            INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, j*VEC_SIZE, 0, 0)]);
-                            INPUT3_TYPE_VEC r_block = READ_VEC(0, &R[INPUT3_GET_INDEX(weight_idx, j*VEC_SIZE, 0, 0)]);
+                            INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[initial_hidden_idx]);
+                            INPUT3_TYPE_VEC r_block = READ_VEC(0, &R[r_index]);
+                            initial_hidden_idx += VEC_SIZE;
+                            r_index += VEC_SIZE;
                             unroll_for(int s=0;s<VEC_SIZE;s++){
                                 hidden_result = mad(initial_block[s], r_block[l][k][j][s], hidden_result);
                             }
@@ -76,7 +93,8 @@ KERNEL(lstm_seq)(
                         #endif
                     }else{
                         #ifdef SEQUENCE
-                            OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, j*VEC_SIZE)]);
+                            OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[initial_history_idx]);
+                            initial_history_idx += VEC_SIZE;
                             unroll_for(int s=0;s<VEC_SIZE;s++){
                                 hidden_result = mad(h_block[s], r_block[l][k][j][s], hidden_result);
                             }
