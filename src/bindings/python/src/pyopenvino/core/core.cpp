@@ -556,7 +556,7 @@ void regclass_Core(py::module m) {
             model_stream.attr("seek")(0);  // Always rewind stream!
             ov::CompiledModel result;
             // std::stringstream cannot handle streams > 2GB, in that case use std::fstream
-            if (model_stream_size > 2) {
+            if (model_stream_size > 2.0) {
                 std::random_device rd;
                 std::mt19937 gen(rd());
                 std::uniform_int_distribution<> distr(1000, 9999);

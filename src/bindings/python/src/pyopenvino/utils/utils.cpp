@@ -465,12 +465,12 @@ std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback) {
     return callback_sp;
 }
 
-int64_t get_stream_size(const py::object& model_stream) {
+double get_stream_size(const py::object& model_stream) {
     // Returns io.BytesIO stream size in GB
     py::object model_stream_buffer = model_stream.attr("getbuffer")();
     py::buffer_info info = py::buffer(model_stream_buffer).request();
     constexpr auto one_gigabyte = static_cast<int64_t>(1024) * 1024 * 1024;
-    return (info.size * info.itemsize) / one_gigabyte;
+    return static_cast<double>(info.size * info.itemsize) / one_gigabyte;
 }
 };  // namespace utils
 };  // namespace Common

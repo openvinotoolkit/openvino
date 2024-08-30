@@ -85,7 +85,7 @@ void regclass_CompiledModel(py::module m) {
             const auto model_stream_size = Common::utils::get_stream_size(model_stream);
             model_stream.attr("seek")(0);  // Always rewind stream!
             // std::stringstream cannot handle streams > 2GB, in that case we use std::fstream
-            if (model_stream_size > 2) {
+            if (model_stream_size > 2.0) {
                 std::random_device rd;
                 std::mt19937 gen(rd());
                 std::uniform_int_distribution<> distr(1000, 9999);
