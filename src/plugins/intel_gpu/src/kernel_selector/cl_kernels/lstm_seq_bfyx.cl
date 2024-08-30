@@ -62,7 +62,7 @@ KERNEL(lstm_seq)(
                     if(i==0){
                         #ifdef SEQUENCE
                             INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, 0, j*VEC_SIZE, 0)]);
-                            r_block[l][k][j] = READ_VEC(0, &R[INPUT3_GET_INDEX(weight_idx, j*VEC_SIZE, 0, 0)]);
+                            r_block[l][k][j] = READ_VEC(0, &R[INPUT3_GET_INDEX(0, weight_idx, j*VEC_SIZE, 0)]);
                             unroll_for(int s=0;s<VEC_SIZE;s++){
                                 hidden_result = mad(initial_block[s], r_block[l][k][j][s], hidden_result);
                             }
