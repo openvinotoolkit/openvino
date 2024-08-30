@@ -27,7 +27,7 @@ class HostMemAllocator final {
 public:
     explicit HostMemAllocator(const std::shared_ptr<ZeroInitStructsHolder> initStructs,
                               ze_host_mem_alloc_flag_t flag = {})
-        : _initStructs(initStructs),
+        : _initStructs(std::move(initStructs)),
           _flag(flag) {}
 
     /**

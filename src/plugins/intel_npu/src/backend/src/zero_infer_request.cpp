@@ -143,9 +143,9 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder> 
                                    const std::shared_ptr<const ICompiledModel> compiledModel,
                                    const std::shared_ptr<const IExecutor> executor,
                                    const Config& config)
-    : SyncInferRequest(compiledModel),
-      _initStructs(initStructs),
-      _executorPtr(executor),
+    : SyncInferRequest(std::move(compiledModel)),
+      _initStructs(std::move(initStructs)),
+      _executorPtr(std::move(executor)),
       _executor(static_cast<const ZeroExecutor*>(_executorPtr.get())),
       _config(config),
       _logger("ZeroInferRequest", config.get<LOG_LEVEL>()),

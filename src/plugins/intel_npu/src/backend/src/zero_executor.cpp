@@ -25,8 +25,8 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder> in
                            const uint32_t& group_ordinal)
     : _config(config),
       _logger("Graph", _config.get<LOG_LEVEL>()),
-      _initStructs(initStructs),
-      _networkDesc(networkDescription),
+      _initStructs(std::move(initStructs)),
+      _networkDesc(std::move(networkDescription)),
       _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
       _group_ordinal(group_ordinal),
       _command_queues{std::make_shared<CommandQueue>(_initStructs->getDevice(),
