@@ -187,7 +187,7 @@ The available options are:
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
     if not Path("./config.py").exists():
         download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-question-answering/config.py")
@@ -463,16 +463,7 @@ Select device for inference and model variant
 
     core = ov.Core()
 
-    support_devices = core.available_devices
-    if "NPU" in support_devices:
-        support_devices.remove("NPU")
-
-    device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget("CPU", exclude=["NPU"])
 
     device
 

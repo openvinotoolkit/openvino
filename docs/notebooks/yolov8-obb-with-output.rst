@@ -65,7 +65,7 @@ notebook_utils Python module from GitHub.
 
     open("notebook_utils.py", "w").write(r.text)
 
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 Get PyTorch model
 ~~~~~~~~~~~~~~~~~
@@ -170,6 +170,8 @@ instance.
 
 
 
+
+
 Run inference
 ~~~~~~~~~~~~~
 
@@ -247,17 +249,7 @@ Select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
-
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -276,6 +268,10 @@ Compile model
 
 
 .. code:: ipython3
+
+    import openvino as ov
+
+    core = ov.Core()
 
     ov_model = core.read_model(OV_MODEL_PATH)
 
