@@ -155,7 +155,7 @@ Step 2: Install OpenVINO Runtime Using the APT Package Manager
          .. code-block:: sh
 
 
-            sudo apt install openvino-4.0
+            sudo apt install openvino-2024.4.0
 
 .. note::
 
