@@ -474,19 +474,17 @@ void Graph::CreatePrimitivesAndExecConstants() const {
             continue;
         }
 
-        VERBOSE(node, getConfig().debugCaps.verbose);
-
         if (context->getWeightsCache()) {
             auto sharedOutputs = acquireSharedOutputs(node);
 
             if (std::get<0>(sharedOutputs) || std::get<1>(sharedOutputs)) {
-                ExecuteNode(node, m_stream);
+                ExecuteNodeWithCatch(node);
 
                 for (auto & output : std::get<2>(sharedOutputs))
                     output->valid(true);
             }
         } else {
-            ExecuteNode(node, m_stream);
+            ExecuteNodeWithCatch(node);
         }
     }
 }
@@ -1125,14 +1123,9 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
     }
 }
 
-void Graph::InferStatic(SyncInferRequest* request) {
+void Graph::InferStatic(SyncInferRequest* request, int numaId) {
     for (const auto& node : m_executableGraphNodes) {
-        VERBOSE(node, getConfig().debugCaps.verbose);
-        PERF(node, getConfig().collectPerfCounters);
-
-        if (request)
-            request->throw_if_canceled();
-        ExecuteNode(node, m_stream);
+        ExecuteNodeWithCatch(node, request, numaId);
     }
 }
 
@@ -1337,47 +1330,52 @@ public:
 #endif
 } // namespace
 
+/* group all the profiling macros into a single one
+ * to avoid cluttering a core logic */
+#define VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(ittScope, node, config) \
+    VERBOSE(node, config.debugCaps.verbose); \
+    PERF(node, config.collectPerfCounters); \
+    DUMP(node, config.debugCaps, infer_count); \
+    OV_ITT_SCOPED_TASK(ittScope, node->profiling.execute); \
+    DEBUG_LOG(*node);
+
+inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, int numaId) const {
+    if (request)
+        request->throw_if_canceled();
+
+    node->execute(m_stream, numaId);
+}
+
+inline void Graph::ExecuteNodeWithCatch(const NodePtr& node, SyncInferRequest* request, int numaId) const {
+    VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(itt::domains::intel_cpu, node, getConfig());
+
+    try {
+        ExecuteNode(node, request, numaId);
+    } catch (const std::exception& exp) {
+        OPENVINO_THROW(*node, exp.what());
+    }
+}
+
 template<typename UpdateStrategy>
-void Graph::InferDynamic(SyncInferRequest* request, UpdateStrategy&& update) {
+void Graph::InferDynamic(SyncInferRequest* request, int numaId, UpdateStrategy&& update) {
     size_t inferCounter = 0;
     for (auto stopIndx : m_executableSyncNodesInds) {
         update(stopIndx);
 
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = m_executableGraphNodes[inferCounter];
-            VERBOSE(node, getConfig().debugCaps.verbose);
-            PERF(node, getConfig().collectPerfCounters);
 
-            if (request)
-                request->throw_if_canceled();
-            try {
-                ExecuteNode(node, m_stream);
-            } catch (const std::exception& exp) {
-                OPENVINO_THROW(node, exp.what());
-            }
+            ExecuteNodeWithCatch(node, request, numaId);
         }
     }
 }
 
-inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const {
-    DUMP(node, getConfig().debugCaps, infer_count);
-    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
-    DEBUG_LOG(*node);
-    // TODO: 132954 workaround for latency
-    int numaID = GetNumaNodeId();
-    if (node->isDynamicNode()) {
-        node->executeDynamic(stream, numaID);
-    } else {
-        node->executeStatic(stream, numaID);
-    }
-}
-
-int Graph::GetNumaNodeId() const {
+static int GetNumaNodeId(const GraphContext::CPtr& context) {
     int numaNodeId = -1;
 #if defined(__x86_64__) && defined(__linux__)
-    if ((getGraphContext()->getCPUStreamExecutor()) &&
-        (getConfig().hintPerfMode == ov::hint::PerformanceMode::LATENCY)) {
-        numaNodeId = getGraphContext()->getCPUStreamExecutor()->get_numa_node_id();
+    if ((context->getCPUStreamExecutor()) &&
+        (context->getConfig().hintPerfMode == ov::hint::PerformanceMode::LATENCY)) {
+        numaNodeId = context->getCPUStreamExecutor()->get_numa_node_id();
     }
 #endif
     return numaNodeId;
@@ -1385,16 +1383,17 @@ int Graph::GetNumaNodeId() const {
 
 void Graph::Infer(SyncInferRequest* request) {
     DEBUG_LOG("Infer graph: ", GetName(), ". Status: ", static_cast<int>(status));
+    const int numaId = GetNumaNodeId(context);
 
     switch (status) {
     case Status::ReadyDynamic:
-        InferDynamic(request, UpdateNodes(m_executableGraphNodes));
+        InferDynamic(request, numaId, UpdateNodes(m_executableGraphNodes));
         break;
     case Status::ReadyDynamicSeq:
-        InferDynamic(request, UpdateNodesSeq(m_executableGraphNodes));
+        InferDynamic(request, numaId, UpdateNodesSeq(m_executableGraphNodes));
         break;
     case Status::ReadyStatic:
-        InferStatic(request);
+        InferStatic(request, numaId);
         break;
     default:
         OPENVINO_ASSERT(IsReady(), "Wrong state of the ov::intel_cpu::Graph. Topology is not ready: ", static_cast<int>(status));
