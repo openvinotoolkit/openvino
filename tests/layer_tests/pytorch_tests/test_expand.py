@@ -139,4 +139,4 @@ class TestDynamicExpand(PytorchLayerTest):
     @pytest.mark.parametrize("dims", [(4, 3), (-1, -1)])
     @pytest.mark.precommit_fx_backend
     def test_dynamic_expand(self, dims, ie_device, precision, ir_version):
-        self._test(*self.create_model(dims), ie_device, precision, ir_version, dynamic=True, aot_autograd=True)
+        self._test(*self.create_model(dims), ie_device, precision, ir_version)

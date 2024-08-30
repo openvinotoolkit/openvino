@@ -12,8 +12,9 @@ namespace kernel_selector {
 struct pa_sdpa_params : base_params {
     pa_sdpa_params() : base_params(KernelType::PA_SDPA) {}
 
-    sdpa_configuration conf;
+    bool multi_tokens_mode = false;
     size_t max_context_len = 0;
+    sdpa_configuration conf;
 };
 
 class PagedAttentionSDPAKernelOpt : public KernelBaseOpenCL {
