@@ -601,6 +601,33 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_add_dynamic, ::testing::Va
     fully_connected_test_params{ CASE_FC_FP16_4, 2, 3 }
 }));
 
+class fc_fp16_eltwise_prod_unfused_dynamic : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_fp16_eltwise_prod_unfused_dynamic, basic) {
+    auto p = GetParam();
+    auto test_input_layout = get_input_layout(p);
+    auto dynamic_input_layout = layout{ov::PartialShape::dynamic(test_input_layout.get_partial_shape().size()), test_input_layout.data_type, test_input_layout.format};
+    auto data_layout = layout{ ov::PartialShape{p.out_shape[0], 1}, p.default_type, p.default_format };
+    create_topologies(
+        input_layout("input", dynamic_input_layout),
+        data("weights", get_mem(get_weights_layout(p), -10, 10)),
+        data("bias", get_mem(get_bias_layout(p), -10, 10)),
+        data("eltwise_data", get_mem(data_layout, -10, 10)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p)),
+        eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::prod),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
+    );
+
+    bool is_dynamic = true;
+    cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
+    tolerance = 1e-2f;
+    execute(p, false, is_dynamic);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod_unfused_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_3, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_4, 2, 3 }
+}));
+
 class fc_compressed_int8_bias_dynamic_onednn : public FullyConnectedFusingTestOneDNN {};
 TEST_P(fc_compressed_int8_bias_dynamic_onednn, basic) {
     auto p = GetParam();
