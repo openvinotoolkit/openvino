@@ -22,6 +22,7 @@ JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params, bool seq
     if (sequential) {
         jit.AddConstants({MakeJitConstant("SEQUENCE", 1)});
     }
+    jit.AddConstants({MakeJitConstant("MAX_SEQ_LEN", static_cast<int>(params.inputs[0].Feature().v))});
     int num_hidden_kernels;
     int hidden_size;
     if (sequential) {
