@@ -286,14 +286,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             config.streamsRankTable = get_rank_table();
         }
     }
-    // auto model_clone = model->clone();
-    // if (config.get_context_for_tp().size() > 1) {
-    //     ov::pass::Manager manager;
-    //     manager.register_pass<ov::intel_gpu::TensorParallelFusion>(config.get_context_for_tp().size(), i);
-    // // // manager.register_pass<ov::pass::ConstantFolding>();
-    //     manager.run_passes(model_clone);
-
-    // }
 
     auto transformed_model = clone_and_transform_model(model, config, context);
     {
@@ -566,6 +558,19 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
     auto device_info = device->get_info();
 
     if (name == ov::intel_gpu::device_total_mem_size) {
+        if (contexts_for_tp.size() > 1) {
+            uint64_t max_global_mem_size_tp = 0;
+            for (auto& item : contexts_for_tp) {
+                auto iter = m_device_map.find(std::to_string(cldnn::device_query::device_id));
+                if (iter == m_device_map.end())
+                    iter = m_device_map.find(item.first);
+                if (iter == m_device_map.end())
+                    iter = m_device_map.begin();
+                auto device = iter->second;
+                max_global_mem_size_tp += device->get_info().max_global_mem_size;
+            }
+            return decltype(ov::intel_gpu::device_total_mem_size)::value_type {max_global_mem_size_tp};;
+        }
         return decltype(ov::intel_gpu::device_total_mem_size)::value_type {device_info.max_global_mem_size};
     } else if (name == ov::device::type) {
         auto dev_type = device_info.dev_type == cldnn::device_type::discrete_gpu ? ov::device::Type::DISCRETE : ov::device::Type::INTEGRATED;
@@ -608,6 +613,19 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, device_info.num_ccs == 1 ? 2 : device_info.num_ccs);
         return decltype(ov::range_for_streams)::value_type {range};
     } else if (name == ov::intel_gpu::memory_statistics) {
+        if (contexts_for_tp.size() > 1) {
+            std::map<std::string, uint64_t> memory_statistics_tp;
+            for (auto& item : contexts_for_tp) {
+                for (auto& memory_statistics_item : item.second->get_engine().get_memory_statistics()) {
+                    if (memory_statistics_tp.find(memory_statistics_item.first) != memory_statistics_tp.end()) {
+                        memory_statistics_tp[memory_statistics_item.first] += memory_statistics_item.second;
+                    } else {
+                        memory_statistics_tp.insert({memory_statistics_item.first, memory_statistics_item.second});
+                    }
+                }
+            }
+            return decltype(ov::intel_gpu::memory_statistics)::value_type {memory_statistics_tp};;
+        }
         const auto& ctx = get_default_context(device_id);
         return decltype(ov::intel_gpu::memory_statistics)::value_type {ctx->get_engine().get_memory_statistics()};
     } else if (name == ov::max_batch_size) {
