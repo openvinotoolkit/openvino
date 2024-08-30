@@ -13,6 +13,11 @@ on:
         description: 'OpenVINO build type, e.g., "Release"'
         type: string
         required: true
+      compiler-type:
+        description: 'String identifier of the requested compiler. Can be either "MSVC" or "DPCPP"'
+        type: string
+        required: false
+        default: "MSVC"
 
 permissions: read-all
 
@@ -44,6 +49,8 @@ jobs:
       ARTIFACTS_SHARE: "C:\\mount\\build-artifacts"
       MANIFEST_PATH: "${{ github.workspace }}\\manifest.yml"
       PRODUCT_TYPE: 'public_windows_vs2019_${{ inputs.build-type }}'
+      ONEAPI_TOOLKIT_LINK: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/d91caaa0-7306-46ea-a519-79a0423e1903/w_BaseKit_p_2024.2.1.101.exe"
+      ONEAPI_INSTALL_DIR: "${{ github.workspace }}\\oneapi"
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -70,7 +77,7 @@ jobs:
           else
             final_dir="${{ github.ref_name }}" # Resolves into "master"
           fi
-          
+
           echo "CCACHE_REMOTE_DIR=C:\\\mount\\\caches\\\ccache\\\windows2022_x86_64_${{ inputs.build-type }}\\\\${final_dir}" >> $GITHUB_ENV
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
@@ -81,6 +88,17 @@ jobs:
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
           show-cache-info: 'true'
+
+      - name: Prepare Intel OneAPI Toolkit
+        if: ${{ inputs.compiler-type == 'DPCPP' }}
+        id: oneapi_install
+        run: |
+            Invoke-WebRequest -Uri '${{ env.ONEAPI_TOOLKIT_LINK }}' -OutFile 'oneapi_installer.exe'
+            .\oneapi_installer.exe -s -a --eula accept --install-dir ${{ env.ONEAPI_INSTALL_DIR }} `
+                -p=NEED_VS2017_INTEGRATION=0 `
+                -p=NEED_VS2019_INTEGRATION=0 `
+                -p=NEED_VS2022_INTEGRATION=0 `
+                --components intel.oneapi.win.cpp-dpcpp-common | Out-Default
 
       - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
         id: create_manifest
@@ -164,19 +182,25 @@ jobs:
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: CMake configure
+        shell: cmd
         run: |
-          cmake -G "${{ env.CMAKE_GENERATOR }}" `
-            -DENABLE_CPPLINT=OFF `
-            -DBUILD_SHARED_LIBS=ON `
-            -DENABLE_TESTS=ON `
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
-            -DENABLE_STRICT_DEPENDENCIES=OFF `
-            -DENABLE_PYTHON=ON `
-            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
-            -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} `
-            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
-            -DOPENVINO_EXTRA_MODULES="${{ env.OPENVINO_CONTRIB_REPO }}/modules/custom_operations;${{ env.OPENVINO_CONTRIB_REPO }}/modules/java_api" `
-            -S ${{ env.OPENVINO_REPO }} `
+          if '${{ inputs.compiler-type }}' == 'DPCPP' (
+            @call ${{ env.VS170COMNTOOLS }}\VsDevCmd.bat
+            set "VS2022INSTALLDIR=C:\BuildTools\"
+            @call ${{ env.ONEAPI_INSTALL_DIR }}\setvars.bat
+          )
+          cmake -G "${{ env.CMAKE_GENERATOR }}" ^
+            -DENABLE_CPPLINT=OFF ^
+            -DBUILD_SHARED_LIBS=ON ^
+            -DENABLE_TESTS=ON ^
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
+            -DENABLE_STRICT_DEPENDENCIES=OFF ^
+            -DENABLE_PYTHON=ON ^
+            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON ^
+            -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} ^
+            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" ^
+            -DOPENVINO_EXTRA_MODULES="${{ env.OPENVINO_CONTRIB_REPO }}/modules/custom_operations;${{ env.OPENVINO_CONTRIB_REPO }}/modules/java_api" ^
+            -S ${{ env.OPENVINO_REPO }} ^
             -B ${{ env.BUILD_DIR }}
 
       - name: Clean ccache stats
