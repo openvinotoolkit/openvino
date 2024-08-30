@@ -940,6 +940,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         if (iters.empty() || iters.find(curr_iter) != iters.end()) {
             GPU_DEBUG_COUT << "============================================================================" << std::endl;
             GPU_DEBUG_COUT << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
+            if (curr_iter == 0 && get_id() > 0) {
+                dump_memory_pool(debug_config->dump_memory_pool_path, curr_iter);
+                GPU_DEBUG_COUT << "============================================================================" << std::endl;
+            }
         }
     } else {
         GPU_DEBUG_TRACE << "============================================================================" << std::endl;
@@ -1284,7 +1288,7 @@ void network::dump_memory_pool(std::string dump_path, int64_t curr_iter) {
         for (auto& prim : _primitives) {
             if (prim.second->get_node().is_constant()) {
                 for (size_t i = 0; i < prim.second->outputs_memory_count(); i++) {
-                    if (prim.second->output_memory_ptr(i)->get_allocation_type() == type)
+                    if (var.second->get_memory() && prim.second->output_memory_ptr(i)->get_allocation_type() == type)
                         mem_size += prim.second->output_memory_ptr(i)->size();
                 }
             }
