@@ -80,6 +80,8 @@ public:
     const std::set<std::string>& avoidedTargets() const;
     const std::string& isolatedTag() const;
     std::string specialTags() const;
+    void setWeightsPrecision(const size_t& id, const std::vector<std::string>& prec);
+    std::vector<std::string> getWeightsPrecision() const;
 
 private:
     void includeExtraLayers(detail::OVNodeSet& input_layers,
@@ -103,6 +105,10 @@ private:
     bool m_nofold = false;
     std::set<std::string> m_avoided_devices;
     std::string m_isol_tag = "";
+
+    // Map to keep track of mixed precision within initial model
+    // Node idx -> Weights precisions
+    std::map<std::size_t, std::vector<std::string>> m_weights_precision;
 
     // Unique repeated tag
     std::shared_ptr<Repeated> m_repeated = nullptr;

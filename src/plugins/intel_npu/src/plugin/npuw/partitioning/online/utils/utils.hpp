@@ -58,7 +58,7 @@ using GPtrSet = std::unordered_set<std::shared_ptr<Group>>;
 using OVPortsMap = std::unordered_map<std::pair<OVNodePtr, OVNodePtr>, std::pair<size_t, size_t>>;
 using Reptrack = std::vector<std::shared_ptr<Repeated>>;
 using ReptrackMap = std::unordered_map<OVNodePtr, Reptrack>;
-using Uniques = std::unordered_map<std::tuple<std::string, std::set<std::string>, std::string>, GPtrSet>;
+using Uniques = std::unordered_map<std::tuple<std::string, std::set<std::string>, std::string, std::vector<std::string>>, GPtrSet>;
 using Pass = std::function<void(void)>;
 }  // namespace detail
 

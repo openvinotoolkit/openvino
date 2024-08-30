@@ -44,12 +44,44 @@ bool isOp(const std::shared_ptr<ov::Node>& node) {
     }
     return true;
 }
+
+std::vector<std::string> getWeightsPrecision(const std::shared_ptr<ov::Node>& node) {
+    NPUW_ASSERT(!ov::op::util::is_constant(node) && !ov::op::util::is_parameter(node) && !ov::op::util::is_output(node));
+
+    std::vector<std::string> precisions;
+
+    for (size_t i = 0; i < node->inputs().size(); ++i) {
+        auto target_input = node->get_input_source_output(i);
+        auto ov_node_parent = target_input.get_node()->shared_from_this();
+
+        if (ov::is_type<ov::opset1::Convert>(ov_node_parent) && ov_node_parent->inputs().size() == 1) {
+            auto target_input2 = ov_node_parent->get_input_source_output(0);
+            auto parent_node2 = target_input2.get_node()->shared_from_this();
+
+            if (ov::op::util::is_constant(parent_node2)) {
+                precisions.push_back(parent_node2->get_element_type().to_string());
+            }
+        }
+    }
+
+    // if (precisions.size() > 0) {
+    //     std::cout << "alex added precisions " << node->get_friendly_name() << std::endl;
+    //     for (const auto& a : precisions) {
+    //         std::cout << a << ' ';
+    //     }
+    //     std::cout << std::endl;
+    // }
+
+    //return {};
+    return precisions;
+}
 }  // namespace detail
 }  // namespace online
 }  // namespace npuw
 }  // namespace ov
 
 using ov::npuw::online::detail::isOp;
+using ov::npuw::online::detail::getWeightsPrecision;
 
 void Snapshot::buildGraph() {
     LOG_INFO("Online partitioning: parsing OV Model to initial groups...");
@@ -67,6 +99,7 @@ void Snapshot::buildGraph() {
 
         auto nh = m_graph->create();
         auto group = std::make_shared<Group>(ov_node, gid, nh, m_graph, shared_from_this());
+        group->setWeightsPrecision(gid, getWeightsPrecision(ov_node));
         m_graph->meta(nh).set(group);
         m_node_to_gr->emplace(std::make_pair(ov_node, group));
         ++gid;
@@ -120,6 +153,45 @@ void Snapshot::buildGraph() {
 
     LOG_DEBUG("Initial number of groups: " << graphSize());
     LOG_INFO("DONE.");
+}
+
+void Snapshot::splitMixedPrecision() {
+    LOG_INFO("Online partitioning: executing splitMixedPrecision pass...");
+    LOG_BLOCK();
+
+    auto reptag_to_gset = repeating();
+    for (const auto& elem : reptag_to_gset) {
+        std::cout << "new reptag" << std::endl;
+        auto reptag = elem.first;
+        auto gset = elem.second;
+
+        std::unordered_map<std::vector<std::string>, GPtrSet> prec_to_new_gset;
+        for (const auto& gptr : gset) {
+            prec_to_new_gset[gptr->getWeightsPrecision()].insert(gptr);
+            std::cout << "alex trying split " << gptr->getId() << ' ' << gptr->getWeightsPrecision().size() << std::endl;
+            for (const auto& a : gptr->getWeightsPrecision()) {
+                std::cout << a << ' ';
+            }
+            std::cout << std::endl;
+        }
+
+        if (prec_to_new_gset.size() == 1) {
+            std::cout << "split NOT happened!" << std::endl;
+            continue;
+        }
+
+        std::cout << "split happened!" << std::endl;
+        // Need to assign new reptags
+        for (const auto& elem : prec_to_new_gset) {
+            std::shared_ptr<Repeated> rep = std::make_shared<Repeated>();
+
+            for (const auto& gptr : elem.second) {
+                gptr->setRepeated(rep);
+            }
+        }
+    }
+
+    LOG_INFO("DONE");
 }
 
 void Snapshot::singleGroup() {
@@ -435,6 +507,7 @@ void Snapshot::repeatedBlocks() {
         markInternalCompute();
         resetExcludedRep();
     });
+    splitMixedPrecision();
     cleanUpUniques();
 
     LOG_INFO("Number of groups after compiler pass: " << graphSize());
@@ -456,7 +529,8 @@ void Snapshot::identifyUniques() {
         auto metadesc = ov::npuw::online::util::getMetaDesc(ov_node);
         const auto& avoids = group->avoidedTargets();
         const auto& special_tags = group->specialTags();
-        uniques[{metadesc, avoids, special_tags}].insert(group);
+        const auto& weights_precision = group->getWeightsPrecision();
+        uniques[{metadesc, avoids, special_tags, {}}].insert(group);
     }
 
     for (const auto& elem : uniques) {
