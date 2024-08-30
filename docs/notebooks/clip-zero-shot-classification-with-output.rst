@@ -89,7 +89,7 @@ text features is then used as a similarity score.
 
    clip
 
-`\*image_source <https://github.com/openai/CLIP/blob/main/README.md>`__
+`\**image_source\* <https://github.com/openai/CLIP/blob/main/README.md>`__
 
 You can find more information about this model in the `research
 paper <https://arxiv.org/abs/2103.00020>`__, `OpenAI
@@ -736,7 +736,6 @@ Interactive demo
 ----------------
 
 
-
 Now, it is your turn! You can provide your own image and comma-separated
 list of labels for zero-shot classification.
 
@@ -745,8 +744,6 @@ label names into the text field, using comma as the separator (for
 example, ``cat,dog,bird``)
 
 .. code:: ipython3
-
-    import gradio as gr
 
     model_path = Path("clip-vit-base-patch16-int8.xml")
     if not model_path.exists():
@@ -770,16 +767,18 @@ example, ``cat,dog,bird``)
 
         return {label: float(prob) for label, prob in zip(labels, probs)}
 
+.. code:: ipython3
 
-    demo = gr.Interface(
-        classify,
-        [
-            gr.Image(label="Image", type="pil"),
-            gr.Textbox(label="Labels", info="Comma-separated list of class labels"),
-        ],
-        gr.Label(label="Result"),
-        examples=[[sample_path, "cat,dog,bird"]],
-    )
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/clip-zero-shot-image-classification/gradio_helper.py"
+        )
+        open("gradio_helper.py", "w").write(r.text)
+
+    from gradio_helper import make_demo
+
+    demo = make_demo(classify)
+
     try:
         demo.launch(debug=False)
     except Exception:
