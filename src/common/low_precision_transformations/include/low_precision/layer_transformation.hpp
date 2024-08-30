@@ -11,7 +11,7 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
@@ -273,6 +273,9 @@ public:
         }
 
         bool updatePrecisions;
+        // Use deqPrecision only for FakeQuantize operation decomposition,
+        // use existing precisions in other cases.
+        // In this case if FakeQuantize operations were decomposed then original precision will be used.
         element::Type deqPrecision;
         std::vector<ov::element::Type> defaultPrecisions;
         // to support GPU workarround to keep Reshape and MatMul in FP32

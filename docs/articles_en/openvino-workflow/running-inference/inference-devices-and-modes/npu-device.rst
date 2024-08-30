@@ -6,6 +6,13 @@ NPU Device
                  a low-power processing device dedicated to running AI inference.
 
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   npu-device/remote-tensor-api-npu-plugin
+
+
 The Neural Processing Unit is a low-power hardware solution, introduced with the
 Intel® Core™ Ultra generation of CPUs (formerly known as Meteor Lake). It enables
 you to offload certain neural network computation tasks from other devices,
@@ -78,6 +85,9 @@ may be summarized in three stages:
 3. All subsequent requests to compile the same IR model with the same arguments
    use the pre-compiled model, reading it from the cache instead of recompiling.
 
+UMD Dynamic Model Caching can be bypassed for given model by setting boolean property
+ov::intel_npu::bypass_umd_caching (NPU_BYPASS_UMD_CACHE) to true at compilation. (default value is false)
+
 
 OpenVINO Model Caching
 +++++++++++++++++++++++++++++
@@ -132,6 +142,9 @@ offer a limited set of supported OpenVINO features.
          ov::enable_profiling
          ov::workload_type
          ov::intel_npu::compilation_mode_params
+         ov::intel_npu::turbo
+         ov::intel_npu::tiles
+         ov::intel_npu::max_tiles
 
    .. tab-item:: Read-only properties
 
@@ -154,6 +167,7 @@ offer a limited set of supported OpenVINO features.
          ov::intel_npu::device_alloc_mem_size
          ov::intel_npu::device_total_mem_size
          ov::intel_npu::driver_version
+         ov::intel_npu::bypass_umd_caching
 
 
 .. note::

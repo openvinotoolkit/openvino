@@ -38,11 +38,13 @@ public:
     /** @brief Backend has support for concurrency batching */
     virtual bool isBatchingSupported() const = 0;
     /** @brief Backend has support for workload type */
-    virtual bool isWorkloadTypeSupported() const = 0;
+    virtual bool isCommandQueueExtSupported() const = 0;
     /** @brief Register backend-specific options */
     virtual void registerOptions(OptionsDesc& options) const;
     /** @brief Get Level Zero context*/
     virtual void* getContext() const;
+    /** @brief Update backend and device info */
+    virtual void updateInfo(const Config& config) = 0;
 
 protected:
     virtual ~IEngineBackend() = default;
@@ -82,6 +84,8 @@ public:
         const std::shared_ptr<const ICompiledModel>& compiledModel,
         const std::shared_ptr<IExecutor>& executor,
         const Config& config) = 0;
+
+    virtual void updateInfo(const Config& config) = 0;
 
     virtual ov::SoPtr<ov::IRemoteTensor> createRemoteTensor(
         std::shared_ptr<ov::IRemoteContext> context,

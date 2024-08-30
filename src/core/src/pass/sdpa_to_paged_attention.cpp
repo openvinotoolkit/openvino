@@ -101,7 +101,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     auto batch_dim =
         std::make_shared<v3::ShapeOf>(position_ids);  // it is not always required, so will be disposed if not needed
 
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("SDPA to PA");
     manager.set_per_pass_validation(false);
     manager.register_pass<StateManagementPattern>(kv_parameters,
                                                   model_remaining_params,

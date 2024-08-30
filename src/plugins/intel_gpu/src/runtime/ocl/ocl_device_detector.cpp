@@ -3,13 +3,12 @@
 //
 
 #include "ocl_device_detector.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "ocl_device.hpp"
 #include "ocl_common.hpp"
 
 #include <string>
 #include <vector>
-#include <list>
-#include <utility>
 
 // NOTE: Due to buggy scope transition of warnings we need to disable warning in place of use/instantation
 //       of some types (even though we already disabled them in scope of definition of these types).

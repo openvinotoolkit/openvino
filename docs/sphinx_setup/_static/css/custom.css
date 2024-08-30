@@ -116,6 +116,10 @@ a#wap_dns {display: none;}
     font-weight: 600;
 }
 
+.bold {
+    font-weight: 700;
+}
+
 /* Underline width */
 a:hover,
 .toc-entry a.nav-link:hover,
@@ -126,7 +130,6 @@ nav.bd-links li > a:hover {
 
 #bd-docs-nav div ul a:hover {
     color: white;
-    text-decoration: underline
 }
 
 ul#navbar-main-elements > li:hover {
@@ -138,6 +141,14 @@ nav.bd-links .current>a {
     box-shadow: none;
     font-weight: bold;
     color: black;
+}
+
+a.current {
+    background-color: #daf2ff!important;
+}
+
+.bd-sidebar-primary label.toctree-toggle:hover {
+    background: #daf2ff!important;
 }
 
 .bd-header .navbar-nav li a.nav-link {

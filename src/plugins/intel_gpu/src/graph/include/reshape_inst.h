@@ -8,6 +8,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "crop_inst.h"
 #include "rope_inst.h"
+#include "mvn_inst.h"
 #include "primitive_inst.h"
 
 #include <string>
@@ -32,15 +33,33 @@ public:
 
     bool is_runtime_propagatable_padding() const {
         auto prim = typed_desc();
-        if (prim->mode == reshape::reshape_mode::squeeze || prim->mode == reshape::reshape_mode::unsqueeze)
+        if (prim->mode == reshape::reshape_mode::squeeze || prim->mode == reshape::reshape_mode::unsqueeze) {
+            // For proper padding propagation we need to know output pattern at model loading stage
+            // in case of squeeze/unsqueeze mode
+            if (prim->output_pattern.empty())
+                return false;
+
+            if (input().is_type<crop>() && prim->mode == reshape::reshape_mode::squeeze) {
+                const auto crop_axis = input().as<crop>().get_primitive()->axis;
+                const auto& output_pattern = prim->output_pattern;
+
+                // Do not propagate output padding in squeeze mode if the squeezed dimension corresponds to the crop axis
+                return std::find(output_pattern.begin(), output_pattern.end(), crop_axis) == output_pattern.end();
+            }
+
             return true;
+        }
 
         // TODO: This function is to limit condition to a specific case (crop + reshape) among cases for the base mode
         if (!input().is_type<crop>())
             return false;
 
-        // TODO: If user is RoPE and dynamic padding exists, ouput padding propagation is not supported in the base mode
-        if (get_users().size() == 1 && get_users().front()->is_type<rope>())
+        // oneDNN supports padded input of outer axis only for buffer fusing on static shape
+        if (!has_outer_padding_offset() && get_users().size() == 1 && get_users().front()->get_preferred_impl_type() == impl_types::onednn)
+            return false;
+
+        // TODO: If user is RoPE or MVN and dynamic padding exists, ouput padding propagation is not supported in the base mode
+        if (get_users().size() == 1 && (get_users().front()->is_type<rope>() || get_users().front()->is_type<mvn>()))
             return false;
 
         auto axis = input().as<crop>().get_primitive()->axis;

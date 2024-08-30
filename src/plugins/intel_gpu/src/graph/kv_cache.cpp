@@ -40,12 +40,12 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
 
     std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
 
-    const std::map<size_t, size_t> ports_map = {{0, 0}, {1, 2}};
+    static const std::map<size_t, size_t> ports_map = {{0, 0}, {1, 2}};
 
     std::vector<layout> out_layouts;
     for (size_t i = 0; i < desc->num_outputs; i++) {
         auto out_type = desc->output_data_types[i].value_or(impl_param.get_input_layout(ports_map.at(i)).data_type);
-        out_layouts.push_back(layout(output_shapes[i], out_type, impl_param.get_output_layout(i).format));
+        out_layouts.emplace_back(output_shapes[i], out_type, impl_param.get_output_layout(i).format);
     }
 
     return out_layouts;
