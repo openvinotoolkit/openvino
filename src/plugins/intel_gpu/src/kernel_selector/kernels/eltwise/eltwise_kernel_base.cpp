@@ -80,6 +80,14 @@ ParamsKey eltwise_params::GetParamsKey() const {
 }
 
 Datatype EltwiseKernelBase::GetAccumulatorType(const eltwise_params &params) const {
+    // NOTE: Workaround for not promoting shift operations. Not sure what should happen
+    // if shift op is just one operation of other elementwise operations. My guess is that is should be promoted as
+    // well, but in reality more robust solution will be needed or (better) - assumption that types are not promoted. So
+    // probably this is a temporary solution.
+    if (params.operations[0].mode == EltwiseMode::RIGHT_SHIFT || params.operations[0].mode == EltwiseMode::LEFT_SHIFT) {
+        return params.inputs[0].GetDType();
+    }
+
     if (params.int8_quantization)
         return Datatype::INT32;
 
