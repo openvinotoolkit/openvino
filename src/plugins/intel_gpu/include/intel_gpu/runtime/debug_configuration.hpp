@@ -63,7 +63,8 @@ enum class LogLevel : int8_t {
 #define GPU_DEBUG_LOG_RAW_INT(min_verbose_level) if (cldnn::debug_configuration::get_instance()->verbose >= min_verbose_level) \
     ((cldnn::debug_configuration::get_instance()->verbose_color == 0) ? GPU_DEBUG_LOG_PREFIX : GPU_DEBUG_LOG_COLOR_PREFIX)
 #define GPU_DEBUG_LOG_RAW(min_verbose_level) GPU_DEBUG_LOG_RAW_INT(static_cast<std::underlying_type<ov::intel_gpu::LogLevel>::type>(min_verbose_level))
-#define GPU_DEBUG_LOG_PREFIX    *cldnn::debug_configuration::verbose_stream << cldnn::debug_configuration::prefix << GPU_FILENAME << ":" <<__LINE__ << ":" << __func__ << ": "
+#define GPU_DEBUG_LOG_PREFIX  \
+    *cldnn::debug_configuration::verbose_stream << cldnn::debug_configuration::prefix << GPU_FILENAME << ":" <<__LINE__ << ":" << __func__ << ": "
 #define GPU_DEBUG_LOG_COLOR_PREFIX  *cldnn::debug_configuration::verbose_stream << DARK_GRAY << cldnn::debug_configuration::prefix << \
     BLUE << GPU_FILENAME << ":" << PURPLE <<  __LINE__ << ":" << CYAN << __func__ << ": " << RESET
 #define DARK_GRAY   "\033[1;30m"
