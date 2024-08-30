@@ -85,6 +85,7 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
       os: 'ubuntu_20_04'
+      build-rpm-packages: false
       cmake-options: |- 
             -G "Ninja Multi-Config" \
             -DENABLE_CPPLINT=OFF \
