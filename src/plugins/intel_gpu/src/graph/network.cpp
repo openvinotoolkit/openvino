@@ -1288,7 +1288,7 @@ void network::dump_memory_pool(std::string dump_path, int64_t curr_iter) {
         for (auto& prim : _primitives) {
             if (prim.second->get_node().is_constant()) {
                 for (size_t i = 0; i < prim.second->outputs_memory_count(); i++) {
-                    if (var.second->get_memory() && prim.second->output_memory_ptr(i)->get_allocation_type() == type)
+                    if (prim.second->output_memory_ptr(i)->get_allocation_type() == type)
                         mem_size += prim.second->output_memory_ptr(i)->size();
                 }
             }
@@ -1298,7 +1298,7 @@ void network::dump_memory_pool(std::string dump_path, int64_t curr_iter) {
     auto get_variables_mem_size = [&](allocation_type type) -> size_t {
         size_t mem_size = 0;
         for (auto& var : get_variables()) {
-            if (var.second->get_memory()->get_allocation_type() == type)
+            if (var.second->get_memory() && var.second->get_memory()->get_allocation_type() == type)
                 mem_size += var.second->get_actual_mem_size();
         }
         return mem_size;
