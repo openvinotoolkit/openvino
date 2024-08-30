@@ -11,7 +11,7 @@ else()
     set (CPACK_GENERATOR "TGZ" CACHE STRING "Cpack generator for OpenVINO")
 endif()
 
-ov_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX;NOT ARM;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
+ov_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX;NOT ARM;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9.0" OFF)
 
 ov_option (OS_FOLDER "create OS dedicated folder in output" OFF)
 
