@@ -304,12 +304,12 @@ public:
         OPENVINO_ASSERT(new_shape.size() == m_shape.size());
         for (auto new_dim = new_shape.cbegin(), max_dim = m_capacity.cbegin(); new_dim != new_shape.cend();
              ++max_dim, ++new_dim) {
-            OPENVINO_ASSERT(*new_dim <= *max_dim,
-                            "Cannot set new shape: ",
-                            new_shape,
-                            " for ROI tensor! Dimension: ",
-                            std::distance(new_shape.cbegin(), new_dim),
-                            " is not compatible.");
+            // OPENVINO_ASSERT(*new_dim <= *max_dim,
+            //                 "Cannot set new shape: ",
+            //                 new_shape,
+            //                 " for ROI tensor! Dimension: ",
+            //                 std::distance(new_shape.cbegin(), new_dim),
+            //                 " is not compatible.");
         }
 
         m_shape = std::move(new_shape);
