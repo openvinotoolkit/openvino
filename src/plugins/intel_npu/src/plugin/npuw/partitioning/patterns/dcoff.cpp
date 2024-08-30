@@ -21,6 +21,97 @@
 namespace ov {
 namespace npuw {
 
+namespace pattern_utils {
+
+std::shared_ptr<ov::op::v0::MatMul> find_matmul_downwards(const std::shared_ptr<ov::Node>& start_node) {
+    std::shared_ptr<ov::Node> current_node = start_node;
+    while (current_node) {
+        // Check if the current node is a MatMul
+        if (auto matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(current_node)) {
+            return matmul;
+        }
+        // Move to the next node in the path if there is one
+        if (!current_node->outputs().empty()) {
+            auto output = current_node->outputs().at(0);
+            if (!output.get_target_inputs().empty()) {
+                current_node = output.get_target_inputs().begin()->get_node()->shared_from_this();
+            } else {
+                // No further outputs, end the search
+                break;
+            }
+        } else {
+            // No outputs, end the search
+            break;
+        }
+    }
+    return nullptr; // MatMul not found
+}
+
+
+std::shared_ptr<ov::op::v0::MatMul> get_root_matmul(ov::pass::pattern::Matcher& m) {
+    auto& node_to_output = m.get_pattern_value_map();
+
+    // If the map is not empty, start the search from the first matched node
+    if (!node_to_output.empty()) {
+        auto start_node = node_to_output.begin()->second.get_node_shared_ptr();
+        return find_matmul_downwards(start_node);
+    }
+
+    // If the map is empty or no MatMul node is found, return nullptr
+    LOG_DEBUG("NO MATMUL FOUND!");
+    return nullptr;
+}
+
+bool transpose_required(const std::shared_ptr<ov::op::v0::MatMul>& matmul_node) {
+    if (!matmul_node) {
+        LOG_DEBUG("NOT a MATMUL NODE!");
+    }
+
+    // Get the shape of the second input to the MatMul node
+    const auto& input_shape = matmul_node->input_value(1).get_shape();
+
+    // Check if the highest dimension is not at the first index
+    if (input_shape.size() >= 2) {
+        size_t max_dim = *std::max_element(input_shape.begin(), input_shape.end());
+        if (input_shape[0] != max_dim) {
+            return true; // Transpose is required
+        }
+    }
+
+    return false; // Transpose is not required
+}
+
+void transpose_param_shape(std::shared_ptr<ov::op::v0::Parameter>& param) {
+    auto partial_shape = param->get_partial_shape();
+
+    // Ensure the shape is static before proceeding
+    if (partial_shape.is_static()) {
+        auto shape = partial_shape.to_shape();
+
+        // Check if the shape is 2D or 3D and needs transposing
+        if (shape.size() == 2 && shape[0] < shape[1]) {
+            // For 2D shapes, swap the dimensions if the second dimension is larger
+            std::swap(shape[0], shape[1]);
+        } else if (shape.size() == 3) {
+            // For 3D shapes, bring the largest dimension to the front
+            auto max_dim_it = std::max_element(shape.begin(), shape.end());
+            if (max_dim_it != shape.begin()) {
+                std::rotate(shape.begin(), max_dim_it, shape.end());
+            }
+        }
+
+        // Set the new shape to the parameter
+        param->set_partial_shape(ov::PartialShape(shape));
+        LOG_DEBUG("Modifying the shape of: " << param << " to " << param->get_partial_shape());
+    }
+}
+
+ov::Tensor transpose_tensor(const ov::Tensor&) {
+
+}
+
+}  // namespace matmul_utils
+
 namespace patterns {
 
 namespace opp = ov::pass::pattern;
@@ -73,6 +164,10 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
         LOG_DEBUG("Checking the function parameter " << param);
         LOG_BLOCK();
 
+        if(params_to.transpose_required.find(param) != params_to.transpose_required.end()) {
+            m.transpose_indices.push_back(i - fbody._param_offset);
+        }
+
         // First find among scale factors...
         auto pscale_iter = params_to.scales.find(param);
         auto pzerop_iter = params_to.zerops_asymm.find(param);
@@ -122,15 +217,48 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
     // reserve a new_scales vector to have the same size, filled with
     // empty tensors by default.
     for (auto&& i : m.closure_remap) {
-        new_closure.push_back(fcall._closure[i]);
+        // Check if the index is marked for transposition
+        if (std::find(m.transpose_indices.begin(), m.transpose_indices.end(), i) != m.transpose_indices.end()) {
+            // Transpose the tensor before adding it to new_closure
+            new_closure.push_back(pattern_utils::transpose_tensor(fcall._closure[i]));
+        } else {
+            // Add the original tensor to new_closure
+            new_closure.push_back(fcall._closure[i]);
+        }
 
+        // Handle scale remap
         auto scale_iter = m.scale_remap.find(i);
-        new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._closure[scale_iter->second] : ov::Tensor());
-        // Check for asymmetric zero points and add them to new_zerops
+        if (scale_iter != m.scale_remap.end()) {
+            // Check if the scale index is marked for transposition
+            if (std::find(m.transpose_indices.begin(), m.transpose_indices.end(), scale_iter->second) != m.transpose_indices.end()) {
+                // Transpose the tensor before adding it to new_scales
+                new_scales.push_back(pattern_utils::transpose_tensor(fcall._closure[scale_iter->second]));
+            } else {
+                // Add the original tensor to new_scales
+                new_scales.push_back(fcall._closure[scale_iter->second]);
+            }
+        } else {
+            new_scales.push_back(ov::Tensor());
+        }
+
+        // Handle zero point remap
         auto zerop_iter = m.zerop_remap.find(i);
-        const auto& zerop = zerop_iter != m.zerop_remap.end() ? fcall._closure[zerop_iter->second] : m.zero_points[i];
-        new_zerops.push_back(zerop);
+        if (zerop_iter != m.zerop_remap.end()) {
+            // Check if the zero point index is marked for transposition
+            if (std::find(m.transpose_indices.begin(), m.transpose_indices.end(), zerop_iter->second) != m.transpose_indices.end()) {
+                // Transpose the tensor before adding it to new_zerops
+                new_zerops.push_back(pattern_utils::transpose_tensor(fcall._closure[zerop_iter->second]));
+            } else {
+                // Add the original tensor to new_zerops
+                new_zerops.push_back(fcall._closure[zerop_iter->second]);
+            }
+        } else {
+            // Add the zero point tensor from the closure remap
+            const auto& zerop = m.zero_points[i];
+            new_zerops.push_back(zerop);
+        }
     }
+
     fcall._closure = std::move(new_closure);
     fcall._scales = std::move(new_scales);
     fcall._zerops = std::move(new_zerops);
@@ -192,10 +320,14 @@ void finalize_remap(Function& fbody, const ClosureRemap& m) {
 // its Parameter B).
 namespace SymmNoZP {
 
-DCOFFPassBase::DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref)
+DCOFFPassBase::DCOFFPassBase(DCOffMode dcoff_mode,
+                             ov::element::Type dcoff_type,
+                             DCOFFParamRef pref,
+                             bool enable_transpose)
     : m_dcoff_mode(dcoff_mode),
       m_dcoff_type(dcoff_type),
-      m_params_to(pref) {}
+      m_params_to(pref),
+      m_enable_transpose(enable_transpose) {}
 
 void DCOFFPassBase::build() {
     paramA = opp::wrap_type<ov::op::v0::Parameter>();
@@ -330,11 +462,11 @@ namespace SymmZP {
 DCOFFPassBase::DCOFFPassBase(DCOffMode dcoff_mode,
                              ov::element::Type dcoff_type,
                              DCOFFParamRef pref,
-                             bool reshape_weights)
+                             bool enable_transpose)
     : m_dcoff_mode(dcoff_mode),
       m_dcoff_type(dcoff_type),
       m_params_to(pref),
-      m_reshape_weights(reshape_weights) {}
+      m_enable_transpose(enable_transpose) {}
 
 void DCOFFPassBase::build() {
     paramA = opp::wrap_type<ov::op::v0::Parameter>();
@@ -346,19 +478,6 @@ void DCOFFPassBase::build() {
     mulply = opp::wrap_type<ov::op::v1::Multiply>({subtr, paramC});
 }
 
-bool DCOFFPassBase::reshape_parameter_if_needed(const std::shared_ptr<ov::op::v0::Parameter>& param) {
-    ov::PartialShape current_shape = param->get_partial_shape();
-    if (current_shape.rank().is_static() && current_shape.rank().get_length() == 3) {
-        auto dimensions = current_shape.to_shape();
-        size_t max_dim_index =
-            std::distance(dimensions.begin(), std::max_element(dimensions.begin(), dimensions.end()));
-        std::rotate(dimensions.begin(), dimensions.begin() + max_dim_index, dimensions.end());
-        param->set_partial_shape(ov::PartialShape(dimensions));
-        return true;
-    }
-
-    return false;
-}
 
 bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
     auto& node_to_output = m.get_pattern_value_map();
@@ -373,20 +492,23 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
     auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
     auto matched_valueB = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeB);
     auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
-    if (m_reshape_weights) {
-        if (!reshape_parameter_if_needed(matched_paramA)) {
-            LOG_DEBUG("Can not Reshape the weight parameter.");
-        }
-        if (!reshape_parameter_if_needed(matched_paramC)) {
-            LOG_DEBUG("Can not Reshape the scale parameter.");
-        }
-    }
 
     if (ov::element::u4 == matched_paramA->get_element_type() &&
         ov::element::u4 == matched_valueB->get_element_type() &&
         ov::element::f16 == matched_paramC->get_element_type()) {
         LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << m_dcoff_type);
         matched_paramA->set_element_type(m_dcoff_type);
+
+        auto matched_MM = pattern_utils::get_root_matmul(m);
+        const bool need_transpose = pattern_utils::transpose_required(matched_MM);
+        if (m_enable_transpose && need_transpose) {
+            m_params_to.get().transpose_required.insert(matched_paramA);
+            m_params_to.get().transpose_required.insert(matched_paramC);
+            pattern_utils::transpose_param_shape(matched_paramA);
+            pattern_utils::transpose_param_shape(matched_paramC);
+            matched_MM->set_transpose_b(true);
+        }
+
 
         if (m_dcoff_mode == DCOffMode::CAST_SCALE) {
             NPUW_ASSERT(m_dcoff_type == ov::element::f16);
@@ -490,7 +612,7 @@ void DCOFFPassConvert1::reconnect_root(ov::pass::pattern::Matcher& m) {
 //                      V                   >
 //
 
-DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref) {
+DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool enable_transpose) {
     auto paramA = opp::wrap_type<ov::op::v0::Parameter>();
     auto constB = opp::wrap_type<ov::op::v0::Constant>();
     auto paramC = opp::wrap_type<ov::op::v0::Parameter>();
@@ -581,7 +703,7 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
 //            V                       >
 //         Convert
 
-DCOFFPassCWAI3::DCOFFPassCWAI3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref) {
+DCOFFPassReshape3::DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool enable_transpose) {
     auto paramA = opp::wrap_type<ov::op::v0::Parameter>();
     auto paramC = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtA = opp::wrap_type<ov::op::v0::Convert>({paramA});
@@ -873,7 +995,7 @@ namespace AsymmZP {
 //                    :                     >
 //                    V                     >
 //
-DCOFFPassReshape::DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref) {
+DCOFFPassReshape::DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool enable_transpose) {
     auto paramA = opp::wrap_type<ov::op::v0::Parameter>();
     auto paramB = opp::wrap_type<ov::op::v0::Parameter>();
     auto paramC = opp::wrap_type<ov::op::v0::Parameter>();

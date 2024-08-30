@@ -9,6 +9,7 @@
 
 #include "openvino/openvino.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/op/matmul.hpp"
 
 namespace ov {
 namespace npuw {
@@ -21,6 +22,15 @@ enum class DCOffMode : int {
     CAST_SCALE,
 };
 
+namespace pattern_utils {
+
+std::shared_ptr<ov::op::v0::MatMul> find_matmul_downwards(const std::shared_ptr<ov::Node>& start_node);
+std::shared_ptr<ov::op::v0::MatMul> get_root_matmul(ov::pass::pattern::Matcher& m);
+bool transpose_required(const std::shared_ptr<ov::op::v0::MatMul>& matmul_node);
+ov::Tensor transpose_tensor(const ov::Tensor& tensor);
+
+}  // namespace matmul_utils
+
 namespace patterns {
 
 // Common structures here
@@ -31,12 +41,14 @@ struct DCOFFParams {
     std::unordered_map<PPtr, PPtr> scales;        // Closures: a scaling factor -> orig tensor
     std::unordered_map<PPtr, CPtr> zerops;        // Closures: orig tensor -> a zero point (yes, a reverse...)
     std::unordered_map<PPtr, PPtr> zerops_asymm;  // Closures: orig tensor -> an asymmetric zerop parameter
+    std::unordered_set<PPtr> transpose_required;  // Parameters that need to be transposed
 };
 
 using DCOFFParamRef = std::reference_wrapper<DCOFFParams>;
 
 struct ClosureRemap {
     std::vector<std::size_t> closure_remap;          // [new closure index] -> orig closure idx
+    std::vector<std::size_t> transpose_indices;      // Indices of tensors that require transposition
     std::map<std::size_t, std::size_t> scale_remap;  // orig closure idx -> orig scale idx
     std::map<std::size_t, std::size_t> zerop_remap;  // orig closure idx -> orig asymm zero point idx
     ov::ParameterVector params_to_remove;
@@ -57,12 +69,13 @@ protected:
     DCOffMode m_dcoff_mode = DCOffMode::CAST_ONLY;
     ov::element::Type m_dcoff_type;
     DCOFFParamRef m_params_to;
+    bool m_enable_transpose;
 
     std::shared_ptr<ov::Node> paramA, paramB, toFP32, mulply;
     bool matcher_callback(ov::pass::pattern::Matcher& m);
 
 public:
-    DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
+    DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool enable_transpose);
 
     virtual void build();
     virtual void reconnect_root_to_convert(ov::pass::pattern::Matcher& m) = 0;
@@ -97,15 +110,13 @@ protected:
     DCOffMode m_dcoff_mode = DCOffMode::CAST_ONLY;
     ov::element::Type m_dcoff_type;
     DCOFFParamRef m_params_to;
-    bool m_reshape_weights = false;
+    bool m_enable_transpose;
 
     std::shared_ptr<ov::Node> paramA, constB, paramC, cvtA, cvtB, subtr, mulply;
     bool matcher_callback(ov::pass::pattern::Matcher& m);
 
 public:
-    DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool reshape_weights);
-
-    bool reshape_parameter_if_needed(const std::shared_ptr<ov::op::v0::Parameter>& param);
+    DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool enable_transpose);
 
     virtual void build();
     virtual void reconnect_root(ov::pass::pattern::Matcher& m) = 0;
@@ -131,12 +142,12 @@ public:
 
 class DCOFFPassReshape2 : public ov::pass::MatcherPass {
 public:
-    DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
+    DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool enable_transpose);
 };
 
-class DCOFFPassCWAI3 : public ov::pass::MatcherPass {
+class DCOFFPassReshape3 : public ov::pass::MatcherPass {
 public:
-    DCOFFPassCWAI3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
+    DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool enable_transpose);
 };
 
 class CWAI1 : public ov::pass::MatcherPass {
@@ -168,7 +179,7 @@ public:
 namespace AsymmZP {
 class DCOFFPassReshape : public ov::pass::MatcherPass {
 public:
-    DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
+    DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool transpose_weights);
 };
 
 }  // namespace AsymmZP

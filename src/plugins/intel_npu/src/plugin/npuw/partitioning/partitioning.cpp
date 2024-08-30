@@ -1606,37 +1606,32 @@ void Partitioner::decompressionCutOff(const std::string& func_name) {
     {
         LOG_BLOCK();
 
-        bool reshape_weights = cfg.get<::intel_npu::NPUW_RESHAPE_WEIGHTS>();
+        bool enable_transpose = cfg.get<::intel_npu::NPUW_TRANSPOSE_WEIGHTS>();
 
         ov::npuw::patterns::DCOFFParams params_to;
 
         ov::pass::GraphRewrite rewr;
+
         // Old LLaMa-v2 patterns (Symmetric)
-        rewr.add_matcher<ov::npuw::patterns::SymmNoZP::DCOFFPassMatMul>(dcoff_mode, dcoff_type, std::ref(params_to))
+        rewr.add_matcher<ov::npuw::patterns::SymmNoZP::DCOFFPassMatMul>(dcoff_mode, dcoff_type, std::ref(params_to), enable_transpose)
             ->build();
-        rewr.add_matcher<ov::npuw::patterns::SymmNoZP::DCOFFPassGather>(dcoff_mode, dcoff_type, std::ref(params_to))
+        rewr.add_matcher<ov::npuw::patterns::SymmNoZP::DCOFFPassGather>(dcoff_mode, dcoff_type, std::ref(params_to), enable_transpose)
             ->build();
 
         // ChatGLM (GPTQ) and New LLaMa-v2 patterns (Symmetric)
-        rewr.add_matcher<ov::npuw::patterns::SymmZP::DCOFFPassReshape1>(dcoff_mode,
-                                                                        dcoff_type,
-                                                                        std::ref(params_to),
-                                                                        reshape_weights)
+        rewr.add_matcher<ov::npuw::patterns::SymmZP::DCOFFPassReshape1>(dcoff_mode, dcoff_type, std::ref(params_to), enable_transpose)
             ->build();
-        rewr.add_matcher<ov::npuw::patterns::SymmZP::DCOFFPassConvert1>(dcoff_mode,
-                                                                        dcoff_type,
-                                                                        std::ref(params_to),
-                                                                        reshape_weights)
+        rewr.add_matcher<ov::npuw::patterns::SymmZP::DCOFFPassConvert1>(dcoff_mode, dcoff_type, std::ref(params_to), enable_transpose)
             ->build();
 
         // LLaMaGPTQ
-        rewr.add_matcher<ov::npuw::patterns::SymmZP::DCOFFPassReshape2>(dcoff_mode, dcoff_type, std::ref(params_to));
+        rewr.add_matcher<ov::npuw::patterns::SymmZP::DCOFFPassReshape2>(dcoff_mode, dcoff_type, std::ref(params_to), enable_transpose);
 
         // Phi-3 4SymW16A
-        rewr.add_matcher<ov::npuw::patterns::SymmZP::DCOFFPassCWAI3>(dcoff_mode, dcoff_type, std::ref(params_to));
+        rewr.add_matcher<ov::npuw::patterns::SymmZP::DCOFFPassReshape3>(dcoff_mode, dcoff_type, std::ref(params_to), enable_transpose);
 
         // Asymmetric zeropoints
-        rewr.add_matcher<ov::npuw::patterns::AsymmZP::DCOFFPassReshape>(dcoff_mode, dcoff_type, std::ref(params_to));
+        rewr.add_matcher<ov::npuw::patterns::AsymmZP::DCOFFPassReshape>(dcoff_mode, dcoff_type, std::ref(params_to), enable_transpose);
 
         rewr.run_on_model(f._model);
 

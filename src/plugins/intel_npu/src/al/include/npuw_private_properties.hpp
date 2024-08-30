@@ -180,11 +180,11 @@ static constexpr ov::Property<bool> dcoff_with_scale{"NPUW_DCOFF_SCALE"};
 /**
  * @brief
  * Type: bool.
- * Tranpose input weight tensors before passing as inputs.
- * Works with function "NPUW_FOLD"ing or "NPUW_CWAI".
+ * Tranpose input weight and the corresponding scale and zero tensors (if any) before passing as inputs.
+ * Works with function "NPUW_FOLD"ing.
  * Default value: false.
  */
-static constexpr ov::Property<bool> reshape_weights{"NPUW_RESHAPE_WEIGHTS"};
+static constexpr ov::Property<bool> transpose_weights{"NPUW_TRANSPOSE_WEIGHTS"};
 
 /**
  * @brief
