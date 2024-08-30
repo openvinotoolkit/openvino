@@ -81,7 +81,8 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_pa
                                                        eltwise_mode::logic_or,
                                                        eltwise_mode::logic_xor,
                                                        eltwise_mode::right_shift,
-                                                       eltwise_mode::left_shift};
+                                                       eltwise_mode::left_shift,
+                                                       eltwise_mode::bitwise_and};
         if (std::find(eltwise_int_modes.begin(), eltwise_int_modes.end(), mode) == eltwise_int_modes.end())
             CLDNN_ERROR_MESSAGE(desc->id, "Requested eltwise mode is not supported for integer types.");
     }
@@ -181,7 +182,8 @@ std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node
                                                        eltwise_mode::logic_or,
                                                        eltwise_mode::logic_xor,
                                                        eltwise_mode::right_shift,
-                                                       eltwise_mode::left_shift};
+                                                       eltwise_mode::left_shift,
+                                                       eltwise_mode::bitwise_and};
 
         OPENVINO_ASSERT((std::find(eltwise_int_modes.begin(), eltwise_int_modes.end(), mode) != eltwise_int_modes.end()),
                             desc->id + "Requested eltwise mode is not supported for integer types.");
@@ -315,6 +317,9 @@ std::string eltwise_inst::to_string(eltwise_node const& node) {
         case eltwise_mode::left_shift:
             str_mode = "left_shift";
             break;
+        case eltwise_mode::bitwise_and:
+            str_mode = "bitwise_and";
+            break;
         default:
             str_mode = "not supported mode";
             break;
@@ -440,6 +445,7 @@ void eltwise_inst::check_inputs_count(eltwise_node const& node) {
         case eltwise_mode::floor_mod:
         case eltwise_mode::right_shift:
         case eltwise_mode::left_shift:
+        case eltwise_mode::bitwise_and:
             OPENVINO_ASSERT(inputs_number == 2,
                             "Node id: ", node.id(), ". Invalid eltwise inputs number (should be equal to 2). Actual: ", inputs_number);
             break;

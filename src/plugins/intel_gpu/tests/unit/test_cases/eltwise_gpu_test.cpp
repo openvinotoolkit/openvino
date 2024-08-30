@@ -193,6 +193,8 @@ TOut eltwise_int_execute(cldnn::eltwise_mode mode, T x, T y) {
         return x >> y;
     case eltwise_mode::left_shift:
         return x << y;
+    case eltwise_mode::bitwise_and:
+        return x & y;
     default:
         return (TOut)0;
     }
@@ -344,6 +346,37 @@ void run_eltwise_int_shift_generic_test(cldnn::eltwise_mode mode) {
                                          static_cast<int>(std::numeric_limits<type>::max()) / 2, \
                                          0,                                                      \
                                          ((sizeof(type) * 8) - 1) / 2);
+
+    ELTWISE_INT_TEST_CASES(int8_t);
+    ELTWISE_INT_TEST_CASES(uint8_t);
+    ELTWISE_INT_TEST_CASES(int16_t);
+    ELTWISE_INT_TEST_CASES(uint16_t);
+    ELTWISE_INT_TEST_CASES(int32_t);
+    ELTWISE_INT_TEST_CASES(uint32_t);
+    ELTWISE_INT_TEST_CASES(int64_t);
+
+#undef ELTWISE_INT_TEST_CASES
+}
+
+void run_eltwise_int_bitwise_generic_test(cldnn::eltwise_mode mode) {
+    cldnn::format test_inputs_fmt = cldnn::format::bfyx;
+    const int dim_size = 227;
+
+#define ELTWISE_INT_TEST_CASES(type)                                                         \
+    generic_eltwise_int_test<type, type>(test_inputs_fmt,                                    \
+                                         1,                                                  \
+                                         1,                                                  \
+                                         dim_size,                                           \
+                                         dim_size,                                           \
+                                         mode,                                               \
+                                         0,                                                  \
+                                         0,                                                  \
+                                         0,                                                  \
+                                         0,                                                  \
+                                         0,                                                  \
+                                         static_cast<int>(std::numeric_limits<type>::max()), \
+                                         0,                                                  \
+                                         static_cast<int>(std::numeric_limits<type>::max()));
 
     ELTWISE_INT_TEST_CASES(int8_t);
     ELTWISE_INT_TEST_CASES(uint8_t);
@@ -3953,6 +3986,10 @@ TEST(eltwise_gpu, eltwise_right_shift) {
 
 TEST(eltwise_gpu, eltwise_left_shift) {
     run_eltwise_int_shift_generic_test(cldnn::eltwise_mode::left_shift);
+}
+
+TEST(eltwise_gpu, eltwise_bitwise_and) {
+    run_eltwise_int_bitwise_generic_test(cldnn::eltwise_mode::bitwise_and);
 }
 
 TEST(eltwise_gpu, eltwise_div) {

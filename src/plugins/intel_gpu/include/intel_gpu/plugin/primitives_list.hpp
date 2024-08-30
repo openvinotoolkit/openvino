@@ -264,6 +264,7 @@ REGISTER_FACTORY(v12, ScatterElementsUpdate);
 // ------------------------------ Supported v13 ops ----------------------------- //
 REGISTER_FACTORY(v13, Multinomial);
 REGISTER_FACTORY(v13, ScaledDotProductAttention);
+REGISTER_FACTORY(v13, BitwiseAnd);
 
 // ------------------------------ Supported v15 ops ----------------------------- //
 REGISTER_FACTORY(v15, ROIAlignRotated);

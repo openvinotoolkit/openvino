@@ -204,6 +204,8 @@ inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) 
             return kernel_selector::eltwise_mode::RIGHT_SHIFT;
         case eltwise_mode::left_shift:
             return kernel_selector::eltwise_mode::LEFT_SHIFT;
+        case eltwise_mode::bitwise_and:
+            return kernel_selector::eltwise_mode::BITWISE_AND;
         default:
             OPENVINO_ASSERT(false, "Unsupported eltwise mode!");
             return kernel_selector::eltwise_mode::ADD;

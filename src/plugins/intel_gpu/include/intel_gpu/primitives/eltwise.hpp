@@ -58,6 +58,8 @@ enum class eltwise_mode : int32_t {
     right_shift,
     /// @brief Eltwise bitwise left shift.
     left_shift,
+    /// @brief Eltwise bitwise and.
+    bitwise_and,
 };
 
 /// @brief Performs elementwise operations (sum, subtract, max or product) on two input primitives

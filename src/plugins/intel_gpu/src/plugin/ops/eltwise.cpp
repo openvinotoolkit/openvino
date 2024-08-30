@@ -2,40 +2,40 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "transformations/utils/utils.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/minimum.hpp"
-#include "openvino/op/subtract.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/squared_difference.hpp"
 #include "openvino/op/equal.hpp"
-#include "openvino/op/not_equal.hpp"
+#include "openvino/op/floor_mod.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/is_nan.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
-#include "openvino/op/mod.hpp"
-#include "openvino/op/greater.hpp"
-#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/logical_or.hpp"
 #include "openvino/op/logical_xor.hpp"
-#include "openvino/op/xor.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/not_equal.hpp"
 #include "openvino/op/power.hpp"
-#include "openvino/op/floor_mod.hpp"
-#include "openvino/op/bitwise_right_shift.hpp"
-#include "openvino/op/bitwise_left_shift.hpp"
-
-#include "intel_gpu/primitives/activation.hpp"
-#include "intel_gpu/primitives/eltwise.hpp"
-#include "intel_gpu/primitives/reorder.hpp"
-#include "intel_gpu/primitives/reshape.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/xor.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -208,6 +208,10 @@ static void CreateBitwiseLeftShiftOp(ProgramBuilder& p, const std::shared_ptr<ov
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::left_shift);
 }
 
+static void CreateBitwiseAndOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v13::BitwiseAnd>& op) {
+    CreateElementwiseOp(p, op, cldnn::eltwise_mode::bitwise_and);
+}
+
 REGISTER_FACTORY_IMPL(v1, Add);
 REGISTER_FACTORY_IMPL(v1, Multiply);
 REGISTER_FACTORY_IMPL(v1, Maximum);
@@ -230,6 +234,7 @@ REGISTER_FACTORY_IMPL(v1, Mod);
 REGISTER_FACTORY_IMPL(v10, IsFinite);
 REGISTER_FACTORY_IMPL(v10, IsInf);
 REGISTER_FACTORY_IMPL(v10, IsNaN);
+REGISTER_FACTORY_IMPL(v13, BitwiseAnd);
 REGISTER_FACTORY_IMPL(v15, BitwiseRightShift);
 REGISTER_FACTORY_IMPL(v15, BitwiseLeftShift);
 
