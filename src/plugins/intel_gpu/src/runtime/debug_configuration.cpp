@@ -324,9 +324,9 @@ debug_configuration::debug_configuration()
     }
 
     if (verbose_file.length() > 0) {
-            static std::ofstream fout;
-            fout.open(verbose_file);
-            verbose_stream = &fout;
+        static std::ofstream fout;
+        fout.open(verbose_file);
+        verbose_stream = &fout;
     } else {
         verbose_stream = &std::cout;
     }
