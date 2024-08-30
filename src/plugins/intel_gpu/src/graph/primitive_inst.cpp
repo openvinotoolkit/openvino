@@ -425,13 +425,23 @@ void primitive_inst::update_shape() {
 
     _impl_params->memory_deps = memory_deps;
 
+
     auto new_layouts = _node->type()->calc_output_layouts(*_node, *_impl_params);
-    for (size_t i = 0; i != _impl_params->output_layouts.size(); ++i) {
-        set_shape_change();
-        _impl_params->output_layouts[i].set_partial_shape(new_layouts[i].get_partial_shape());
+    for (size_t idx = 0; idx != new_layouts.size(); ++idx) {
+        auto& new_layout = new_layouts[idx];
         if (!_node->is_type<reshape>() || (!_node->get_input_layout(0).has_dynamic_pad() && !_node->can_be_optimized())) {
-            _impl_params->output_layouts[i].data_padding = padding::max(_impl_params->output_layouts[i].data_padding, new_layouts[i].data_padding);
+            auto data_padding = padding::max(_impl_params->get_output_layout(idx).data_padding, new_layout.data_padding);
+            new_layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(idx), data_padding);
         }
+
+        if (_impl_params->get_output_layout(idx) != new_layout) {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << _impl_params->get_output_layout(idx).to_short_string()
+                                    << " now: " << new_layout.to_short_string() << std::endl;
+            set_shape_change();
+        }
+
+        _impl_params->output_layouts[idx].data_padding = new_layout.data_padding;
+        _impl_params->output_layouts[idx].set_partial_shape(new_layouts[idx].get_partial_shape());
     }
 
     // Update descriptors of fused operations and set output_layout's shape to all fused ops
@@ -2301,7 +2311,15 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                             return pid == in.pid;
                         }) == outer_dep_ids.end()) {
                         size_t dep_id = fd.outer_dep_start_idx;
-                        in = _node->get_dependency(dep_id).id();
+                        auto outer_dep_id = _node->get_dependency(dep_id).id();
+
+                        if (std::find_if(fd.deps.begin(), fd.deps.end(), [&](const std::pair<cldnn::primitive_id, size_t>& dep_info) {
+                                return (dep_info.first == outer_dep_id && dep_info.second == i);
+                            }) == fd.deps.end()) {
+                            in = _node->id();
+                        } else {
+                            in = outer_dep_id;
+                        }
                     }
                 }
             }
@@ -2394,6 +2412,18 @@ bool primitive_inst::is_valid_fusion() const {
 
             if (gemm_dims[0] != data_dims[0])
                 return false;
+        } else if (_node->is_type<fully_connected>() && _node->get_preferred_impl_type() == impl_types::onednn) {
+            const auto& fc_layout = _impl_params->get_output_layout();
+            const auto& data_layout = outer_dep.first->_impl_params->get_output_layout();
+
+            const auto fc_dims = fc_layout.get_dims();
+            const auto data_dims = data_layout.get_dims();
+
+            if (!(fc_dims[0] == 1 || fc_dims[1] == 1) &&
+                !(data_dims[0] == 1 && data_dims[1] == 1) &&
+                !(fc_layout.count() == data_layout.count())) {
+                return false;
+            }
         }
 #endif
 
