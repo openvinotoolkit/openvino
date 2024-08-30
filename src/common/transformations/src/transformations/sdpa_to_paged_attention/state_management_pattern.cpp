@@ -336,19 +336,18 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             }
 
             // Jais-13b case
-            if (auto alibi_constant = std::dynamic_pointer_cast<v0::Constant>(pattern_map.at(alibi).get_node_shared_ptr())) {
+            if (auto alibi_constant =
+                    std::dynamic_pointer_cast<v0::Constant>(pattern_map.at(alibi).get_node_shared_ptr())) {
                 auto alibi_constant_values = alibi_constant->cast_vector<float>();
-                bool all_values_nagative = std::all_of(alibi_constant_values.begin(),
-                                                       alibi_constant_values.end(),
-                                                       [&](float value) {
-                                                            return value < 0.0;
-                                                                        });
+                bool all_values_nagative =
+                    std::all_of(alibi_constant_values.begin(), alibi_constant_values.end(), [&](float value) {
+                                                                                                return value < 0.0;
+                                                                                                             });
 
                 if (all_values_nagative && pattern_map.find(mirroring_abs) != pattern_map.end()) {
-                    alibi_slopes = std::make_shared<v1::Multiply>(alibi_slopes,
-                                                                  v0::Constant::create(alibi_slopes->get_element_type(),
-                                                                  {},
-                                                                  {-1}));
+                    alibi_slopes = std::make_shared<v1::Multiply>(
+                        alibi_slopes,
+                        v0::Constant::create(alibi_slopes->get_element_type(), {}, {-1}));
                 }
             }
 
