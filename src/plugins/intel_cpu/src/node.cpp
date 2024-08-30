@@ -584,18 +584,25 @@ void Node::updateDynamicParams() {
     }
 }
 
+void Node::execute(const dnnl::stream strm, int numaId) {
+    if (isDynamicNode()) {
+        return executeDynamic(strm, numaId);
+    } else {
+        return executeStatic(strm, numaId);
+    }
+}
+
 void Node::executeStatic(const dnnl::stream strm, int numaId) {
-    if (numaId >= 0)
-        toNumaNode(numaId);
+    toNumaNode(numaId);
     execute(strm);
 }
 
 void Node::executeDynamic(dnnl::stream strm, int numaId) {
     if (isExecutable()) {
-        if (numaId >= 0)
-            toNumaNode(numaId);
+        toNumaNode(numaId);
         executeDynamicImpl(strm);
     }
+
     updateLastInputDims();
 }
 
@@ -922,6 +929,9 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
 }
 
 void Node::toNumaNode(int numaNodeID) {
+    if (numaNodeID < 0)
+        return;
+
     return toNumaNodeImpl(numaNodeID);
 }
 
