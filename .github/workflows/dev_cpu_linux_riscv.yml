@@ -133,8 +133,11 @@ jobs:
           cp -r ${XUANTIE_BIN_PATH} ${XUANTIE_DIR}
           ls -la ${XUANTIE_DIR}
           chmod -R 777 ${XUANTIE_DIR}
-          echo 'show link'
+          echo 'show old link'
           ls -la ${XUANTIE_DIR}/libexec/gcc/riscv64-unknown-linux-gnu/10.4.0/
+          echo 'show new link'
+          cd ${XUANTIE_DIR}/libexec/gcc/riscv64-unknown-linux-gnu/10.4.0/
+          ln -s liblto_plugin.so.0.0.0 liblto_plugin.so
           # popd
 
       - name: CMake configure - OpenVINO - 2
