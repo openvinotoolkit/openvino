@@ -113,8 +113,10 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
         for(uint in_block_pos = 0; in_block_pos < IN_BLOCK_ARRAY_SIZE * SUB_GROUP_SIZE; in_block_pos += SUB_GROUP_SIZE) {
             // Horizontal position in input block after read.
             const uint in_block_next_x_pos = in_block_pos % IN_BLOCK_WIDTH + SUB_GROUP_SIZE;
-
-            in[in_block_pos / SUB_GROUP_SIZE] = input[tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH];
+            if (oc + lid + (in_block_pos % IN_BLOCK_WIDTH) < INPUT0_SIZE_X)
+                in[in_block_pos / SUB_GROUP_SIZE] = input[tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH];
+            else
+                in[in_block_pos / SUB_GROUP_SIZE] = UNIT_VAL_ZERO; // to avoid out-of-bound access
 
             // If we have row break, move to the next row.
             if (in_block_next_x_pos == IN_BLOCK_WIDTH)
@@ -126,8 +128,11 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
             // Horizontal position in input block after read.
             const uint in_block_next_x_pos = in_block_pos % IN_BLOCK_WIDTH + SUB_GROUP_SIZE;
 
-            if (in_block_next_x_pos <= IN_BLOCK_WIDTH) { //
-                in[in_block_pos / SUB_GROUP_SIZE] = input[tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH];
+            if (in_block_next_x_pos <= IN_BLOCK_WIDTH) {
+                if (oc + lid + (in_block_pos % IN_BLOCK_WIDTH) < INPUT0_SIZE_X)
+                    in[in_block_pos / SUB_GROUP_SIZE] = input[tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH];
+                else
+                    in[in_block_pos / SUB_GROUP_SIZE] = UNIT_VAL_ZERO; // to avoid out-of-bound access
 
                 // If we have row break, move to the next row.
                 if (in_block_next_x_pos == IN_BLOCK_WIDTH)
@@ -157,7 +162,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
         //move to next filter
         in_addr += INPUT0_FEATURE_PITCH;
 
-        for(int pf=0; pf<PREFETCH; pf++) {
+        for(int pf=0; pf<PREFETCH && weight_addr<FILTER_LENGTH; pf++) {
             w[pf] = weights[weight_addr]; weight_addr += OSV_SIZE;
         }
 

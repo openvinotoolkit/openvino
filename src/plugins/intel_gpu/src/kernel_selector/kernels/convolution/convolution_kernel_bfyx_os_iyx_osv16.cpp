@@ -197,7 +197,6 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv16::SetDefa
 }
 
 KernelsPriority ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsPriority(const Params& params) const {
-    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
     const auto& p = static_cast<const convolution_params&>(params);
     auto input_dt = GetUnitType(p);
 
