@@ -41,6 +41,9 @@ float FUNC(fast_erf)(float x) {
     }
 }
 
+#if !IS_DYNAMIC
+__attribute__((reqd_work_group_size(LWS0, LWS1, LWS2)))
+#endif
 KERNEL(swiglu_gpu_opt)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,

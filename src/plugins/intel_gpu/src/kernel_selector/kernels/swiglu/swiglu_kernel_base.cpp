@@ -21,6 +21,9 @@ JitConstants SwiGLUKernelBase::GetJitConstants(const swiglu_params& params, cons
     jit.AddConstants({MakeJitConstant("AXIS", params.axis)});
     jit.AddConstants({MakeJitConstant("SPLIT_LENGTH", params.split_length)});
     jit.AddConstants({MakeJitConstant("GLU_TYPE", params.glu_type)});
+    jit.AddConstants({MakeJitConstant("LWS0", dispatchData.lws[0])});
+    jit.AddConstants({MakeJitConstant("LWS1", dispatchData.lws[1])});
+    jit.AddConstants({MakeJitConstant("LWS2", dispatchData.lws[2])});
     const std::string type_suffix = (GetAccumulatorType(params) == Datatype::F32) ? "f" : "h";
     if (params.glu_type == ov::intel_gpu::op::SwiGLU::GluType::Gelu) {
         jit.AddConstants({MakeJitConstant("GEGLU_HALF", "0.5" + type_suffix)});
