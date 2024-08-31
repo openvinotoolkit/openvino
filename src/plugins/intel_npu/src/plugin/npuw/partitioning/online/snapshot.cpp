@@ -92,8 +92,16 @@ void Snapshot::buildGraph() {
                     continue;
                 }
 
-                if (!m_graph->linked(nh, m_node_to_gr->at(ov_node_child)->getHandle())) {
-                    m_graph->link(nh, m_node_to_gr->at(ov_node_child)->getHandle());
+                Group::GPtr gr_child;
+                try {
+                    gr_child = m_node_to_gr->at(ov_node_child);
+                } catch (...) {
+                    std::cout << ov_node_child << "was not found while processing " << ov_node << std::endl;
+                    throw;
+                }
+
+                if (!m_graph->linked(nh, gr_child->getHandle())) {
+                    m_graph->link(nh, gr_child->getHandle());
                 }
             }
         }  // for(outputs)

@@ -20,6 +20,7 @@
 #include "openvino/util/common_util.hpp"
 #include "plugin.hpp"
 #include "util.hpp"
+#include "openvino/pass/validate.hpp"
 
 // required for get_properties_per_device()
 #include <intel_npu/al/config/config.hpp>
@@ -30,6 +31,8 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "transformations/convert_precision.hpp"
+
+#include "partitioning/patterns/opt.hpp"
 
 namespace {
 void split_properties(const ov::AnyMap& properties,
@@ -134,6 +137,12 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     // FIXME: Find a better place to call this transformation
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(model);
+
+    // FIXME: Will break offline partitioning, if any
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi>();
+    rewr.run_on_model(model);
+    ov::pass::Validate().run_on_model(model);
 
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
