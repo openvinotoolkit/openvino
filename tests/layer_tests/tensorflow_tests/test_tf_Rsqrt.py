@@ -86,7 +86,7 @@ class TestComplexRsqrt(CommonTFLayerTest):
 
             complex = tf.raw_ops.Complex(real=param_real, imag=param_imag)
             
-            result = tf.math.rsqrt(complex, name='Operation')
+            result = tf.raw_ops.Rsqrt(x=complex, name='Rsqrt')
             
             tf.raw_ops.Real(input=result)
             tf.raw_ops.Imag(input=result)
@@ -98,26 +98,15 @@ class TestComplexRsqrt(CommonTFLayerTest):
 
         return tf_net, ref_net
 
-    test_data_precommit = [dict(shape=[1, 3])]
-
-    @pytest.mark.parametrize("params", test_data_precommit)
-    @pytest.mark.precommit
-    @pytest.mark.nightly
-    def test_rsqrt_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                             use_legacy_frontend):
-        self._test(*self.create_complex_rsqrt_net(**params, ir_version=ir_version,
-                                          use_legacy_frontend=use_legacy_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
-
     test_data = [dict(shape=[1]),
-                 pytest.param(dict(shape=[1, 128]), marks=pytest.mark.precommit),
+                 dict(shape=[1, 3]),
+                 dict(shape=[1, 128]),
                  dict(shape=[1, 3, 224]),
                  dict(shape=[1, 3, 100, 224]),
-                 dict(shape=[1, 3, 50, 100, 224])
-                ]
+                 dict(shape=[1, 3, 50, 100, 224])]
 
     @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_rsqrt(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_complex_rsqrt_net(**params, ir_version=ir_version,
