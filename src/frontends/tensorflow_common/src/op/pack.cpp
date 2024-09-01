@@ -22,7 +22,8 @@ OutputVector translate_pack_op(const NodeContext& node) {
     auto num_size = static_cast<int>(node.get_input_size());
 
     auto axis = node.get_attribute<int64_t>("axis", 0);
-    if (axis < 0 && is_type_ptr<ComplexTypeMark>(node.get_input(0).get_node_shared_ptr())) {
+    if (axis < 0 && as_type_ptr<ComplexTypeMark>(node.get_input(0).get_node_shared_ptr())) {
+        // need to account auxiliary dimension for real and imaginary parts
         axis -= 1;
     }
 
