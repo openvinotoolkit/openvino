@@ -162,6 +162,7 @@ OP_CONVERTER(translate_split_v_op);
 OP_CONVERTER(translate_square_op);
 OP_CONVERTER(translate_squeeze_op);
 OP_CONVERTER(translate_strided_slice_op);
+OP_CONVERTER(translate_sub_op);
 OP_CONVERTER(translate_sqrt_op);
 OP_CONVERTER(translate_empty_tensor_list_op);
 OP_CONVERTER(translate_tensor_list_from_tensor_op);

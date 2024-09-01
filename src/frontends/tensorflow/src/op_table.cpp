@@ -64,7 +64,6 @@
 #include "openvino/op/softplus.hpp"
 #include "openvino/op/softsign.hpp"
 #include "openvino/op/squared_difference.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tan.hpp"
 #include "openvino/op/tanh.hpp"
@@ -195,7 +194,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Pow", CreatorFunction(translate_binary_op<v1::Power>)},
         {"RealDiv", CreatorFunction(translate_binary_op<v1::Divide>)},
         {"SquaredDifference", CreatorFunction(translate_binary_op<v0::SquaredDifference>)},
-        {"Sub", CreatorFunction(translate_binary_op<v1::Subtract>)},
 
         // note: ReduceOp translator declaration for each op must to be added in reduce.cpp file
         {"Any", CreatorFunction(translate_direct_reduce_op<v1::ReduceLogicalOr>)},
@@ -396,6 +394,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"StatelessIf", CreatorFunction(translate_if_op)},
         {"StatelessWhile", CreatorFunction(translate_while_op)},
         {"StridedSlice", CreatorFunction(translate_strided_slice_op)},
+        {"Sub", CreatorFunction(translate_sub_op)},
         {"Switch", CreatorFunction(translate_switch_op)},
         {"TensorArrayCloseV3", CreatorFunction(translate_tensor_array_close_v3_op)},
         {"TensorArrayConcatV3", CreatorFunction(translate_tensor_array_concat_v3_op)},
