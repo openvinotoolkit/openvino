@@ -64,7 +64,6 @@
 #include "openvino/op/softplus.hpp"
 #include "openvino/op/softsign.hpp"
 #include "openvino/op/squared_difference.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tan.hpp"
 #include "openvino/op/tanh.hpp"

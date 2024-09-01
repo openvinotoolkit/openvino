@@ -257,7 +257,7 @@ class TestComplexSub(CommonTFLayerTest):
             x = tf.raw_ops.Complex(real=param_real_x, imag=param_imag_x)
             y = tf.raw_ops.Complex(real=param_real_y, imag=param_imag_y)
 
-            result = tf.subtract(x, y, name="Operation")
+            result = tf.raw_ops.Sub(x=x, y=y, name='Sub')
 
             tf.raw_ops.Real(input=result)
             tf.raw_ops.Imag(input=result)
