@@ -1,13 +1,11 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
 import numpy as np
-
+import openvino.runtime as ov
+import pytest
 from common.mo_convert_test_class import CommonMOConvertTest
 from common.onnx_layer_test_class import save_to_onnx
-
-import openvino.runtime as ov
 from openvino.runtime import PartialShape, Model
 
 
@@ -205,7 +203,7 @@ class TestTfExtensions(CommonMOConvertTest):
 
         with tf.compat.v1.Session() as sess:
             x = tf.compat.v1.placeholder(tf.float32, input_shape, input_name)
-            y = tf.cos(x)
+            tf.raw_ops.Cos(x=x, name='res')
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -232,9 +230,9 @@ class TestTfExtensions(CommonMOConvertTest):
     def create_ref_graph():
         shape = PartialShape([-1, 1, 2, 3])
         param = ov.opset14.parameter(shape, dtype=np.float32)
-        param.get_output_tensor(0).set_names({"Input1"})
+        param.get_output_tensor(0).set_names({"Input1:0"})
         y = ov.opset14.sin(param)
-        y.get_output_tensor(0).set_names({"tf.math.cos/Cos:0"})
+        y.get_output_tensor(0).set_names({"res:0"})
 
         parameter_list = [param]
 

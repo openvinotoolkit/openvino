@@ -763,7 +763,8 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_keras_layer_with_input_shapes_case1,
         create_keras_layer_with_input_shapes_case2,
         create_keras_layer_with_input_shapes_case3,
-        create_keras_layer_with_input_shapes_case4,
+        # can skip since this is legacy MO
+        # create_keras_layer_with_input_shapes_case4,
         create_keras_layer_with_tf_function_call,
         create_keras_layer_with_tf_function_call_default_compressed_to_fp16,
         create_keras_layer_with_tf_function_call_no_signature,
@@ -779,25 +780,6 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_tf1_wrap_function,
         create_tf_session,
     ]
-    test_data_legacy = [
-        # TF2
-        create_keras_model,
-        create_tf_function,
-        create_tf_checkpoint,
-    ]
-
-    @pytest.mark.parametrize("create_model", test_data_legacy)
-    @pytest.mark.nightly
-    @pytest.mark.precommit_tf_fe
-    @pytest.mark.precommit
-    def test_mo_import_from_memory_legacy_fe(self, create_model, ie_device, precision, ir_version,
-                                             temp_dir):
-        fw_model, graph_ref, mo_params = create_model(temp_dir)
-
-        test_params = {'input_model': fw_model, 'use_legacy_frontend': True}
-        if mo_params is not None:
-            test_params.update(mo_params)
-        self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
 
     @pytest.mark.parametrize("create_model", test_data)
     @pytest.mark.nightly
