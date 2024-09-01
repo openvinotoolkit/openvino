@@ -396,9 +396,10 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
 MemoryDescPtr Node::getBaseMemDescAtInputPort(size_t portNum) const {
     if (auto primDesc = getSelectedPrimitiveDescriptor()) {
         const auto& inConfs = primDesc->getConfig().inConfs;
-        if (inConfs.size() < portNum) {
-            OPENVINO_THROW("Can't get input memory desc at port: ", portNum, ", incorrect port number");
-        }
+        OPENVINO_ASSERT(portNum < inConfs.size(),
+                        "Can't get input memory desc at port: ",
+                        portNum,
+                        ", incorrect port number");
         return inConfs[portNum].getMemDesc();
     }
     OPENVINO_THROW("Can't get input memory desc, primitive descriptor is not selected");
@@ -407,9 +408,10 @@ MemoryDescPtr Node::getBaseMemDescAtInputPort(size_t portNum) const {
 MemoryDescPtr Node::getBaseMemDescAtOutputPort(size_t portNum) const {
     if (auto primDesc = getSelectedPrimitiveDescriptor()) {
         const auto& outConfs = primDesc->getConfig().outConfs;
-        if (outConfs.size() < portNum) {
-            OPENVINO_THROW("Can't get output memory desc at port: ", portNum, ", incorrect port number");
-        }
+        OPENVINO_ASSERT(portNum < outConfs.size(),
+                        "Can't get output memory desc at port: ",
+                        portNum,
+                        ", incorrect port number");
         return outConfs[portNum].getMemDesc();
     }
     OPENVINO_THROW("Can't get output memory desc, primitive descriptor is not selected");
@@ -582,18 +584,25 @@ void Node::updateDynamicParams() {
     }
 }
 
+void Node::execute(const dnnl::stream strm, int numaId) {
+    if (isDynamicNode()) {
+        return executeDynamic(strm, numaId);
+    } else {
+        return executeStatic(strm, numaId);
+    }
+}
+
 void Node::executeStatic(const dnnl::stream strm, int numaId) {
-    if (numaId >= 0)
-        toNumaNode(numaId);
+    toNumaNode(numaId);
     execute(strm);
 }
 
 void Node::executeDynamic(dnnl::stream strm, int numaId) {
     if (isExecutable()) {
-        if (numaId >= 0)
-            toNumaNode(numaId);
+        toNumaNode(numaId);
         executeDynamicImpl(strm);
     }
+
     updateLastInputDims();
 }
 
@@ -671,10 +680,21 @@ void Node::initSupportedPrimitiveDescriptors() {
     * since custom implementations can be not available at all, so a fallback to the default ones must happen
     * To achive the fallback, it is necessary to create a supported primitive descriptor for each implementation
     * since oneDNN primitive is mutating while iterating */
-
+#ifdef CPU_DEBUG_CAPS
+    {
+       if (!customImplPriorities.empty()) {
+            DEBUG_LOG("#", getName(), " customImplPriorities [", 0 , "/", customImplPriorities.size(),
+                        "]: ", impl_type_to_string(customImplPriorities[0]));
+       }
+    }
+#endif
     for (auto& desc : descs) {
         auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
         const bool first_match = customImplPriorities.empty();
+        DEBUG_LOG("#", getName(),
+                       ", itpd.impl_info_str(): ", desc.impl_info_str(),
+                    ", parsed imp_type: ", impl_type_to_string(parse_impl_name(desc.impl_info_str())),
+                    ", first_match: ", first_match ? "true" : "false");
         DnnlExtensionUtils::for_each_implementation(desc,
                                                     first_match,
                                                     [&](impl_desc_type implType) {
@@ -909,6 +929,9 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
 }
 
 void Node::toNumaNode(int numaNodeID) {
+    if (numaNodeID < 0)
+        return;
+
     return toNumaNodeImpl(numaNodeID);
 }
 

@@ -24,6 +24,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/pad_base.hpp"
+#include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -844,7 +845,7 @@ bool ov::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_ptr<ov
     // First we need to initialize and propagate RIC attributes through entire graph
     {
         using namespace init;
-        Manager m;
+        Manager m("ReverseInputChannelsFusion");
         m.set_per_pass_validation(false);
         auto ric_init = m.register_pass<GraphRewrite>();
         ADD_MATCHER(ric_init, SplitConcat, nodes_to_fuse)

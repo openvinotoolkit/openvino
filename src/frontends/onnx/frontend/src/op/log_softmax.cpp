@@ -11,6 +11,7 @@
 #include "openvino/op/log.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "utils/common.hpp"
 #include "utils/reshape.hpp"
 using namespace ov::op;
 using ov::Shape;
@@ -43,12 +44,17 @@ ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node, const int64_t
     }
     case 1: {
         // checks if the axis belongs to the allowed values set (-1 and 0 for 1D)
-        ov::util::normalize_axis(node.get_description(), axis, data_rank);
+        FRONT_END_GENERAL_CHECK(ov::util::is_axis_valid(axis, 1),
+                                node.get_description(),
+                                "Invalid axis ",
+                                axis,
+                                "for rank ",
+                                data_rank);
         result = std::make_shared<v5::LogSoftmax>(data, 0);
         break;
     }
     default: {
-        const auto normalized_axis = ov::util::normalize_axis(node.get_description(), axis, data_rank);
+        const auto normalized_axis = common::normalize_axis(node.get_description(), axis, data_rank);
 
         result = onnx_logsoftmax(data, normalized_axis);
         break;

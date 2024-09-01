@@ -8,10 +8,21 @@
 
 execute_process(COMMAND ${Python3_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{tags.interpreter_name()}{tags.interpreter_version()}')"
                 OUTPUT_VARIABLE PYTHON_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(COMMAND ${Python3_EXECUTABLE} -c "import wheel.bdist_wheel ; print(f'{wheel.bdist_wheel.get_abi_tag()}')"
+if(NOT PYTHON_TAG)
+    message(FATAL_ERROR "Failed to detect Python Tag via wheel.vendored.packaging.tags. Please, check 'wheel' dependency version update")
+endif()
+
+execute_process(COMMAND ${Python3_EXECUTABLE} -c "from setuptools.command.bdist_wheel import get_abi_tag; print(f'{get_abi_tag()}')"
                 OUTPUT_VARIABLE ABI_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(NOT ABI_TAG)
+    message(FATAL_ERROR "Failed to detect ABI Tag via setuptools.command.bdist_wheel. Please, check 'setuptools' dependency version update")
+endif()
+
 execute_process(COMMAND ${Python3_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{next(tags.platform_tags())}')"
                 OUTPUT_VARIABLE PLATFORM_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(NOT PLATFORM_TAG)
+    message(FATAL_ERROR "Failed to detect Platform Tag via wheel.vendored.packaging.tags. Please, check 'wheel' dependency version update")
+endif()
 
 # defines wheel architecture part of `PLATFORM_TAG`
 macro(_ov_platform_arch)
@@ -113,11 +124,6 @@ else()
             --dist-dir ${openvino_wheels_output_dir}
             --build-number=${WHEEL_BUILD}
             --plat-name=${PLATFORM_TAG})
-endif()
-
-# dev target includes c headers and we need to include c bindings
-if(TARGET openvino_c)
-    list(APPEND ov_setup_py_deps openvino_c)
 endif()
 
 add_custom_command(OUTPUT ${openvino_wheel_path}

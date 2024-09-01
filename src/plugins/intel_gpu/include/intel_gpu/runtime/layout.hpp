@@ -288,11 +288,11 @@ struct layout {
         return *this;
     }
 
-    layout clone_with_other_shape(const ov::PartialShape& new_shape) {
+    layout clone_with_other_shape(const ov::PartialShape& new_shape) const {
         return layout(new_shape, this->data_type, this->format, this->data_padding);
     }
 
-    layout clone_with_other_shape(const ov::Shape& new_shape) {
+    layout clone_with_other_shape(const ov::Shape& new_shape) const {
         return clone_with_other_shape(ov::PartialShape(new_shape));
     }
 

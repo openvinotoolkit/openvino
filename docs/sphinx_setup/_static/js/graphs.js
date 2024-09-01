@@ -65,7 +65,7 @@ class Filter {
 
     // param: GraphData[], ieType
     static FilterByIeType(graphDataArr, value) {
-        return graphDataArr.filter((data) => data.ieType.includes(value));
+        return graphDataArr.filter((data) => data.ieType && data.ieType.includes(value));
     }
 
     // param: GraphData[], clientPlatforms[]
@@ -184,7 +184,7 @@ class GraphData {
                 'fp32': excelData.latency32,
                 'bf16': excelData.latencyBF16
             },);
-        
+
         this.price = excelData.price;
         this.tdp = excelData.tdp;
         this.sockets = excelData.sockets;
@@ -302,7 +302,7 @@ class Graph {
     }
     data = new GraphData();
 
-    // functions to get unique keys 
+    // functions to get unique keys
     static getNetworkModels(graphDataArr) {
         return Array.from(new Set(graphDataArr.map((obj) => obj.networkModel)));
     }
@@ -336,7 +336,7 @@ class Graph {
                 return [];
         }
     }
-    
+
 
     // this returns an object that is used to ender the chart
     static getGraphConfig(kpi, units, precisions) {
@@ -477,7 +477,7 @@ $(document).ready(function () {
         $('#graphModal').remove();
         $('body').css('overflow', 'auto');
     }
-    
+
     function showModal(version) {
         $('body').css('overflow', 'hidden');
 
@@ -522,7 +522,7 @@ $(document).ready(function () {
     }
 
     function validateSelections() {
-        if (getSelectedNetworkModels().length > 0 
+        if (getSelectedNetworkModels().length > 0
         && getSelectedIeType()
         && getSelectedClientPlatforms().length > 0
         && getSelectedKpis().length > 0) {
@@ -613,7 +613,7 @@ $(document).ready(function () {
             modal.find('input').on('click', validateSelections);
         });
     }
-    
+
     function validateThroughputSelection() {
         const precisions = $('.precisions-column').find('input')
         if (getSelectedKpis().includes('Throughput') || getSelectedKpis().includes('Latency')) {
@@ -783,7 +783,7 @@ $(document).ready(function () {
       afterUpdate(chart, args, options) {
 
         const ul = getOrCreateLegendList(chart, chart.options.plugins.htmlLegend.containerID);
-        
+
         // Remove old legend items
         while (ul.firstChild) {
           ul.firstChild.remove();
@@ -919,7 +919,7 @@ $(document).ready(function () {
               createEmptyChartContainer(chartContainer);
             }
         })
-       
+
         if(kpis.includes('Value') || kpis.includes('Efficiency')){
             $('.modal-footer').append($('<div class="modal-line-divider"></div>'))
         }
@@ -967,7 +967,7 @@ $(document).ready(function () {
         labelsContainer.addClass('chart-labels-container');
         chartWrap.append(labelsContainer);
 
-        // get the kpi title's and create headers for the graphs 
+        // get the kpi title's and create headers for the graphs
         var chartGraphsContainer = $('<div>');
         chartGraphsContainer.addClass('chart-graphs-container');
         chartWrap.append(chartGraphsContainer);
@@ -990,24 +990,24 @@ $(document).ready(function () {
             chartGraphsContainer.append(graphItem);
             var graphClass = $('<div>');
             graphClass.addClass('graph-row');
-            
+
             graphItem.append(columnHeaderContainer);
             graphItem.append(graphClass);
             processMetricNew(labels, graphConfig.datasets, graphConfig.chartTitle, graphClass, 'graph-row-column', id);
-            
+
             window.setTimeout(() => {
                 const topPadding = getLabelsTopPadding(display.mode);
                 const labelsHeight = (labels.length * 55);
                 const chartHeight = $(graphItem).outerHeight();
                 const bottomPadding = (chartHeight - (topPadding + labelsHeight));
-                
+
                 var labelsItem = $('<div>');
                 labelsItem.addClass('chart-labels-item');
-                
+
                 labels.forEach((label) => {
                     labelsItem.append($('<div class="title">' + label + '</div>'));
                 });
-                
+
                 labelsItem.css('padding-top', topPadding + 'px');
                 labelsItem.css('padding-bottom', bottomPadding + 'px');
                 setInitialItemsVisibility(labelsItem, index, display.mode);
@@ -1025,7 +1025,7 @@ $(document).ready(function () {
             }
         })
         var sorted = indexes.sort(function(a, b){return b-a});
-        
+
         sorted.forEach((index)=>{
             config.datasets.splice(index,1);
         })
@@ -1037,7 +1037,7 @@ $(document).ready(function () {
         var heightRatio = (30 + (labels.length * 55));
         var chart = $('<div>');
         const containerId = `legend-container-${id}`;
-        const legend = $(`<div id="${containerId}">`);   
+        const legend = $(`<div id="${containerId}">`);
         legend.addClass('graph-legend-container');
         chart.addClass('chart');
         chart.addClass(widthClass);
@@ -1092,7 +1092,7 @@ $(document).ready(function () {
         else
             icons.css('flex-direction', 'row')
     }
-    
+
     function getLabelsTopPadding(displayMode) {
         return (displayMode == 'rowCompact') ? 105.91 : 83.912;
     }

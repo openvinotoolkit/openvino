@@ -75,6 +75,9 @@
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "impls/onednn/register.hpp"
 #endif
+#ifdef OV_GPU_WITH_SYCL
+#include "impls/sycl/register.hpp"
+#endif
 
 #include "kernel_base.h"
 
@@ -225,6 +228,8 @@ void program::init_program() {
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
                                                                       kernel_selector::KernelBase::get_db().get_batch_headers()));
 
+    _kernels_cache->set_kernels_reuse(get_config().get_property(ov::intel_gpu::hint::enable_kernels_reuse));
+
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);
 
@@ -255,6 +260,9 @@ void program::init_primitives() {
         onednn::register_implementations();
 #endif
         cpu::register_implementations();
+#ifdef OV_GPU_WITH_SYCL
+        sycl::register_implementations();
+#endif
         is_initialized = true;
     }
 }
@@ -695,11 +703,14 @@ void program::transfer_memory_to_device() {
             auto& mem = data_node.get_attached_memory();
             auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
+
+            if (mem_layout.count() == 0)
+                continue;
+
             if (!mem_layout.compatible(data_node_layout)) {
                 std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
                 throw std::invalid_argument(err_str);
             }
-
 
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
                 GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;

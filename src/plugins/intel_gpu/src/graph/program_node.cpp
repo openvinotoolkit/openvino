@@ -525,6 +525,20 @@ bool program_node::is_fused_dep(size_t dep_idx) const {
     return false;
 }
 
+std::set<size_t> program_node::get_lockable_input_ids() const {
+    const auto impl = get_selected_impl();
+    const bool has_cpu_impl = get_preferred_impl_type() == impl_types::cpu || (impl && impl->is_cpu());
+    if (has_cpu_impl) {
+        std::set<size_t> dependencies_indexes;
+        for (size_t i = 0; i < get_dependencies().size(); i++)
+            dependencies_indexes.insert(i);
+
+        return dependencies_indexes;
+    } else {
+        return {};
+    }
+}
+
 std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
     std::map<size_t, memory::ptr> mem_deps;
     for (auto& i : get_shape_infer_dependencies()) {
@@ -987,6 +1001,11 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
         ib >> fused_prims_onednn[idx].flatten;
         ib >> fused_prims_onednn[idx].dims;
         ib >> make_data(&fused_prims_onednn[idx].dt, sizeof(dnnl::memory::data_type));
+    }
+
+    // added a dummpy onednn_attrs to prevent initializing it for non-onednn impls
+    if (impl_type != impl_types::onednn) {
+        onednn_attrs = std::make_shared<dnnl::primitive_attr>();
     }
 #endif // ENABLE_ONEDNN_FOR_GPU
 }
