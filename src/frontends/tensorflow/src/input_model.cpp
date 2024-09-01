@@ -236,9 +236,12 @@ void InputModel::InputModelTFImpl::load_places() {
             m_default_places[internal_tensor_name] = tensor_place;
 
             if (op_type == "Placeholder") {
-                if (m_saved_model_input_names && (m_saved_model_input_names->size() > 0) &&
-                    m_saved_model_input_names->find(internal_tensor_name) != m_saved_model_input_names->end()) {
-                    m_inputs.push_back(tensor_place);
+                if (m_saved_model_input_names && (m_saved_model_input_names->size() > 0)) {
+                    // if input signature is defined,
+                    // found input must present in this signature
+                    if (m_saved_model_input_names->find(internal_tensor_name) != m_saved_model_input_names->end()) {
+                        m_inputs.push_back(tensor_place);
+                    }
                 } else {
                     m_inputs.push_back(tensor_place);
                 }
