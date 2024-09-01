@@ -232,7 +232,6 @@ class TestTfExtensions(CommonMOConvertTest):
         param = ov.opset14.parameter(shape, dtype=np.float32)
         param.get_output_tensor(0).set_names({"Input1:0"})
         y = ov.opset14.sin(param)
-        y.get_output_tensor(0).set_names({"res:0"})
 
         parameter_list = [param]
 

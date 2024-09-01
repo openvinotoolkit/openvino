@@ -230,14 +230,18 @@ void InputModel::InputModelTFImpl::load_places() {
             if (dtype_any.is<ov::element::Type>()) {
                 type = dtype_any.as<ov::element::Type>();
             }
-            std::vector<std::string> names = {op_name + ":0"};
+            std::string internal_tensor_name = op_name + ":0";
+            std::vector<std::string> names{internal_tensor_name};
             auto tensor_place = std::make_shared<TensorPlace>(m_input_model, pshape, type, names, op_name);
-
-            m_default_places[op_name + ":0"] = tensor_place;
+            m_default_places[internal_tensor_name] = tensor_place;
 
             if (op_type == "Placeholder") {
-                // by default, PlaceholderWithDefault is NOT used as input
-                m_inputs.push_back(tensor_place);
+                if (m_saved_model_input_names && (m_saved_model_input_names->size() > 0) &&
+                    m_saved_model_input_names->find(internal_tensor_name) != m_saved_model_input_names->end()) {
+                    m_inputs.push_back(tensor_place);
+                } else {
+                    m_inputs.push_back(tensor_place);
+                }
             }
         } else if (op_type == "input_arg") {
             if (m_input_names.size() > 0 &&
@@ -270,16 +274,6 @@ void InputModel::InputModelTFImpl::load_places() {
     }
     m_graph_iterator->reset();
     m_outputs.clear();
-
-    if (m_saved_model_input_names) {
-        // leave only real inputs for the main graph
-        // if input signature in the input model is defined
-        m_inputs.clear();
-        for (const auto& map_name : *m_saved_model_input_names) {
-            const auto& input_internal_tensor_name = map_name.first;
-            m_inputs.push_back(m_default_places[input_internal_tensor_name]);
-        }
-    }
 
     // SavedModel, MetaGraph formats have model signature that provides a concrete list of outputs
     // some output can place among intermediate layers (i.e. it can have its output consumers)
