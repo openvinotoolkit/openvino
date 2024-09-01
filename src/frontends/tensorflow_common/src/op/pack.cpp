@@ -53,7 +53,6 @@ OutputVector translate_pack_op(const NodeContext& node) {
 
     return {pack};
 }
-
 }  // namespace op
 }  // namespace tensorflow
 }  // namespace frontend
