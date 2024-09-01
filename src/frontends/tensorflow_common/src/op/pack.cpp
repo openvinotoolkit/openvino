@@ -22,7 +22,6 @@ OutputVector translate_pack_op(const NodeContext& node) {
     auto num_size = static_cast<int>(node.get_input_size());
 
     auto axis = node.get_attribute<int64_t>("axis", 0);
->cast_vector<int64_t>().size();
     if (axis < 0) {
         axis -= 1;
     }
