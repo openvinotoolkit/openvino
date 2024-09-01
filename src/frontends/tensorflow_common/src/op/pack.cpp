@@ -22,10 +22,9 @@ OutputVector translate_pack_op(const NodeContext& node) {
     auto num_size = static_cast<int>(node.get_input_size());
 
     auto axis = node.get_attribute<int64_t>("axis", 0);
-    auto input_shape = make_shared<v0::ShapeOf>(node.get_input(0));
-    auto rank = static_pointer_cast<v0::Constant>(input_shape->output(0).get_node_shared_ptr())->cast_vector<int64_t>().size();
+>cast_vector<int64_t>().size();
     if (axis < 0) {
-        axis += rank;
+        axis -= 1;
     }
 
     auto axis_const = make_shared<v0::Constant>(element::i64, Shape{}, axis);
