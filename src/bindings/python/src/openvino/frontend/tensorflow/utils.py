@@ -217,10 +217,13 @@ def create_generic_function_from_keras_model(keras_model):
     if tf_input_signature is not None:
         @tf.function(input_signature=tf_input_signature)
         def wrapper_function_dict(*args):
-            input_dict = {}
-            for ind, tensor_spec in enumerate(tf_input_signature):
-                input_dict[tensor_spec.name] = args[ind]
-            outputs = keras_model(input_dict)
+            if isinstance(keras_input_signature, list):
+                outputs = keras_model(args)
+            else:
+                input_dict = {}
+                for ind, tensor_spec in enumerate(tf_input_signature):
+                    input_dict[tensor_spec.name] = args[ind]
+                outputs = keras_model(input_dict)
             # need to wrap the output into dictionary
             # it helps to preserve original keras tensor names
             post_outputs = {}
