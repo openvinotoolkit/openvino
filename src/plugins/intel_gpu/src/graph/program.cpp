@@ -1723,11 +1723,7 @@ void program::cancel_compilation_context() {
 }
 
 void program::save(cldnn::BinaryOutputBuffer& ob) const {
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring weights_path;
-#else
     std::string weights_path;
-#endif
     weights_path = _config.get_property(ov::intel_gpu::weights_path);
     ob << weights_path;
 
@@ -1846,11 +1842,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 void program::load(cldnn::BinaryInputBuffer& ib) {
     init_program();
 
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring weights_path;
-#else
     std::string weights_path;
-#endif
     ib >> weights_path;
     ov::AnyMap weights_path_property{{"GPU_WEIGHTS_PATH", weights_path}};
     _config.set_property(weights_path_property);

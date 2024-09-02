@@ -35,11 +35,7 @@ struct data : public primitive_base<data> {
 
     size_t original_size = SIZE_MAX;
     size_t bin_offset = SIZE_MAX;
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring weights_path = L"";
-#else
     std::string weights_path = "";
-#endif
 
     size_t hash() const override {
         size_t seed = primitive::hash();
