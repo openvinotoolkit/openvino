@@ -52,7 +52,7 @@ struct RNNParams{
     primitive_id id;
     input_info xWB;
     input_info initial_hidden_state;
-    input_info initial_cell_state;/// @brief for lstm_elt primitive field for cell input_info
+    input_info initial_cell_state;/// @brief for lstm primitive field for cell input_info
     input_info R;
     input_info seq_lenghts;
     primitive_id out1_prim_id;

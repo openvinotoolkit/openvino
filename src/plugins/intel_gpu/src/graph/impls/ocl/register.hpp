@@ -123,7 +123,6 @@ REGISTER_OCL(grid_sample);
 REGISTER_OCL(group_normalization);
 REGISTER_OCL(kv_cache);
 REGISTER_OCL(lrn);
-REGISTER_OCL(lstm_elt);
 REGISTER_OCL(lstm_cell);
 REGISTER_OCL(lstm_seq);
 REGISTER_OCL(multiclass_nms);

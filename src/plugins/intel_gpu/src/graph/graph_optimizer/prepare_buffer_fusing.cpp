@@ -16,7 +16,6 @@
 #include "depth_to_space_inst.h"
 #include "resample_inst.h"
 #include "loop_inst.h"
-#include "lstm_elt_inst.h"
 #include "lstm_cell_inst.h"
 #include "fully_connected_inst.h"
 #include "strided_slice_inst.h"
@@ -519,9 +518,6 @@ bool crop_in_place_optimization::match(const program_node& node,
         return false;
 
     if (node.get_users().size() > 0) {
-        if (node.get_program().is_body_program() && node.get_dependency(0).is_type<lstm_elt>()) {
-            return false;
-        }
 
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing && node.is_dynamic()) {
