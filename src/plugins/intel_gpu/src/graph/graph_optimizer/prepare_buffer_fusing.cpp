@@ -518,7 +518,6 @@ bool crop_in_place_optimization::match(const program_node& node,
         return false;
 
     if (node.get_users().size() > 0) {
-
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing && node.is_dynamic()) {
             return false;
