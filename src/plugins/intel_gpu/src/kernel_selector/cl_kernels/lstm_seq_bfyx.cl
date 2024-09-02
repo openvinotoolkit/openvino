@@ -27,6 +27,7 @@ KERNEL(lstm_seq)(
 #endif
 )
 {
+    __local INPUT1_TYPE_VEC hiddencache[HBLOCK_NUM];
     #ifdef SEQUENCE 
         #if MAX_SEQ_LEN > 1
             INPUT3_TYPE_VEC r_block[NUM_HIDDEN_TO_DO][GATE_NUM][HBLOCK_NUM];
@@ -47,10 +48,26 @@ KERNEL(lstm_seq)(
             #else
                 const uint prev_idx = i-1;
             #endif
-            if(i>0){
-                barrier(CLK_LOCAL_MEM_FENCE);
-            }
         #endif
+        unroll_for(uint l=0;l<NUM_HIDDEN_TO_DO;++l) { //kernel responsible for HIDDEN_SIZE
+            const uint hidden_idx = local_idx*NUM_HIDDEN_TO_DO + l;
+            if (hidden_idx >= HIDDEN_SIZE) {
+                continue;
+            }
+            if(hidden_idx % VEC_SIZE == 0)
+            {
+                #ifdef SEQUENCE
+                    if(i==0){
+                        hiddencache[hidden_idx / VEC_SIZE] = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, 0, hidden_idx, 0)]);
+                    } else {
+                        hiddencache[hidden_idx / VEC_SIZE] = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, hidden_idx)]);
+                    }
+                #else
+                    hiddencache[hidden_idx / VEC_SIZE] = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, hidden_idx, 0)]);
+                #endif
+            }
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
         unroll_for(uint l=0;l<NUM_HIDDEN_TO_DO;++l) { //kernel responsible for HIDDEN_SIZE
             const uint hidden_idx = local_idx*NUM_HIDDEN_TO_DO + l;
             if (hidden_idx >= HIDDEN_SIZE) {
@@ -61,50 +78,34 @@ KERNEL(lstm_seq)(
                 INPUT3_TYPE hidden_result = 0;
                 const uint weight_idx = hidden_idx+weight_offsets[k];
                 #ifdef SEQUENCE
-                    uint rindex, initial_hidden_idx;
-                    uint initial_history_idx;
-                    if(i==0){
-                        initial_hidden_idx = INPUT1_GET_INDEX(b, 0, 0, 0);
-                        rindex = INPUT3_GET_INDEX(0, weight_idx, 0, 0);
-                    } else {
-                        initial_history_idx = OUTPUT_GET_INDEX(b, 0, prev_idx, 0);
-                    }
+                    uint rindex = INPUT3_GET_INDEX(0, weight_idx, 0, 0);
                 #else
-                    uint initial_hidden_idx = INPUT1_GET_INDEX(b, 0, 0, 0);
                     uint rindex = INPUT3_GET_INDEX(weight_idx, 0, 0, 0);
                 #endif
                 unroll_for(uint j=0;j<HBLOCK_NUM;++j) {
                     if(i==0){
                         #ifdef SEQUENCE
-                            INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[initial_hidden_idx]);
                             #if MAX_SEQ_LEN > 1
                                 r_block[l][k][j] = READ_VEC(0, &R[rindex]);
                             #else 
                                 INPUT3_TYPE_VEC r_block = READ_VEC(0, &R[rindex]); 
                             #endif
-                            initial_hidden_idx += VEC_SIZE;
                             rindex += VEC_SIZE;
                             #if MAX_SEQ_LEN > 1
-                                hidden_result += dot(initial_block, r_block[l][k][j]);
+                                hidden_result += dot(hiddencache[j], r_block[l][k][j]);
                             #else
-                                hidden_result += dot(initial_block, r_block);
+                                hidden_result += dot(hiddencache[j], r_block);
                             #endif
                         #else
-                            INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[initial_hidden_idx]);
                             INPUT3_TYPE_VEC r_block = READ_VEC(0, &R[r_index]);
-                            initial_hidden_idx += VEC_SIZE;
                             r_index += VEC_SIZE;
-                            hidden_result += dot(initial_block, r_block);
+                            hidden_result += dot(hiddencache[j], r_block);
 
                         #endif
                     }else{
                         #ifdef SEQUENCE
                             #if MAX_SEQ_LEN > 1
-                                OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[initial_history_idx]);
-                                initial_history_idx += VEC_SIZE;
-                                unroll_for(int s=0;s<VEC_SIZE;s++){
-                                    hidden_result = mad(h_block[s], r_block[l][k][j][s], hidden_result);
-                                }
+                                hidden_result += dot(hiddencache[j], r_block[l][k][j]);
                             #endif
                         #endif
                     }
