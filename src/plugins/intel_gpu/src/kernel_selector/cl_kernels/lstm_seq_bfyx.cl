@@ -149,19 +149,19 @@ KERNEL(lstm_seq)(
             #else
                 const uint cur_history_idx = i;
             #endif
-            #ifdef SEQUENCE
-                hidden_state[OUTPUT1_GET_INDEX(b, 0, hidden_idx, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state[l], ACTIVATION_PARAMS_H);
-            #else
-                hidden_state[OUTPUT_GET_INDEX(b, hidden_idx, 0, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state[l], ACTIVATION_PARAMS_H);
-            #endif
-            #ifdef SEQUENCE
-                hidden_history[OUTPUT_GET_INDEX(b, 0, cur_history_idx, hidden_idx)] = hidden_state[OUTPUT1_GET_INDEX(b, 0, hidden_idx, 0)];
-            #endif
             if(i==real_seq_length-1){
                 #ifdef SEQUENCE
+                    OUTPUT1_TYPE temp_hidden_state = gate_output[3]*ACTIVATION_H(temp_cell_state[l], ACTIVATION_PARAMS_H);
+                    hidden_history[OUTPUT_GET_INDEX(b, 0, cur_history_idx, hidden_idx)] = temp_hidden_state;
+                    hidden_state[OUTPUT1_GET_INDEX(b, 0, hidden_idx, 0)] = temp_hidden_state;
                     cell_state[OUTPUT2_GET_INDEX(b, 0, hidden_idx, 0)] = temp_cell_state[l];
                 #else
+                    hidden_state[OUTPUT_GET_INDEX(b, hidden_idx, 0, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state[l], ACTIVATION_PARAMS_H);
                     cell_state[OUTPUT1_GET_INDEX(b, hidden_idx, 0, 0)] = temp_cell_state[l];
+                #endif
+            } else {
+                #ifdef SEQUENCE
+                    hidden_history[OUTPUT_GET_INDEX(b, 0, cur_history_idx, hidden_idx)] = gate_output[3]*ACTIVATION_H(temp_cell_state[l], ACTIVATION_PARAMS_H);
                 #endif
             }
         }
