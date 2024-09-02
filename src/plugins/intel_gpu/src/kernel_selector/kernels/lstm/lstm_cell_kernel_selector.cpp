@@ -4,9 +4,13 @@
 
 #include "lstm_cell_kernel_selector.h"
 #include "lstm_cell_kernel_ref.h"
+#include "lstm_cell_kernel_bfyx.h"
 
 namespace kernel_selector {
-lstm_cell_kernel_selector::lstm_cell_kernel_selector() { Attach<LSTMCellKernelRef>(); }
+lstm_cell_kernel_selector::lstm_cell_kernel_selector() { 
+    Attach<LSTMCellKernelRef>();
+    Attach<LSTMCellKernel_bfyx>();
+}
 
 KernelsData lstm_cell_kernel_selector::GetBestKernels(const Params& params) const {
     return GetNaiveBestKernel(params, KernelType::LSTM_SEQ_CELL);
