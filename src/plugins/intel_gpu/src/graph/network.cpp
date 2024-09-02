@@ -1072,7 +1072,11 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                         OPENVINO_ASSERT(!bin.empty(), "Failure loading binary from OV_GPU_LoadDumpRawBinary : " + dump_file);
 
                         auto input_mem = get_primitive(inst->id())->dep_memory_ptr(i);
-                        OPENVINO_ASSERT(input_mem->size() == bin.size(), "memory size mis-match for OV_GPU_LoadDumpRawBinary : " + layer_name);
+                        if (input_mem->size() != bin.size()) {
+                            std::cout << "WARNING: memory size mis-match for OV_GPU_LoadDumpRawBinary : " + layer_name
+                                      << "  " << input_mem->size() << " / " << bin.size() << std::endl;
+                            bin.resize(input_mem->size());
+                        }
 
                         input_mem->copy_from(get_stream(), static_cast<void *>(&bin[0]), true);
                     }
@@ -1093,6 +1097,11 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                                         "_" + get_iteration_prefix(curr_iter) +
                                         layer_name + "_src" + std::to_string(i);
                     auto input_mem = get_primitive(inst->id())->dep_memory_ptr(i);
+                    if (input_mem == nullptr) {
+                        GPU_DEBUG_COUT  << " input_mem_" << i << " is nullptr. Nothing to dump." << std::endl;
+                        continue;
+                    }
+
                     auto dep = inst->dependencies().at(i);
                     auto input_layout = dep.first->get_output_layout(dep.second);
                     GPU_DEBUG_IF(debug_config->dump_layers_binary) {
@@ -1140,6 +1149,11 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                                         "_" + get_iteration_prefix(curr_iter) +
                                         layer_name + "_dst" + std::to_string(i);
                     auto output_mem = get_primitive(layer_name)->output_memory_ptr(i);
+                    if (output_mem == nullptr) {
+                        GPU_DEBUG_COUT  << " output_mem is nullptr. Nothing to dump." << std::endl;
+                        continue;
+                    }
+
                     GPU_DEBUG_IF(debug_config->dump_layers_binary) {
                         // Binary dump : raw
                         auto output_layout = inst->get_output_layout(i);

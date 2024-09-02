@@ -80,13 +80,14 @@ KERNEL(quantize_input)(
 #   endif
 #endif
 #if TILE_K == 4 && COMPRESSED_WEIGHTS_INT4 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
-// Data stored in memory : f0k0k1|f16k0k1|f0k2k3|f16k2k3
-// => unpack as f0k0k1|f0k2k3|f16k0k1|f16k2k3 so that the weight access order is preserved 
-#define UNPACK_INT4 UNPACK_INT4x2_OSV32_ISV2
-#define UNPACK_TRANSPOSED_INT4 UNPACK_INT4x2_OSV32_ISV2
+    // Data stored in memory : f0k0k1|f16k0k1|f0k2k3|f16k2k3
+    // => unpack as f0k0k1|f0k2k3|f16k0k1|f16k2k3 so that the weight access order is preserved
+    #define UNPACK_INT4 UNPACK_INT4x2_OSV32_ISV2
+    // No need to apply transpose for dynamic quantizing. Weight values are located in order of tile_k : f0(k0,k1),f1(k2,k3)
+    #define UNPACK_TRANSPOSED_INT4 UNPACK_INT4x2_OSV32_ISV2
 #else
-#define UNPACK_INT4 UNPACK_INT4x2
-#define UNPACK_TRANSPOSED_INT4 UNPACK_TRANSPOSED_INT4x2
+    #define UNPACK_INT4 UNPACK_INT4x2
+    #define UNPACK_TRANSPOSED_INT4 UNPACK_TRANSPOSED_INT4x2
 #endif
 // Macros for vectorized types.
 #define INPUT_VEC_TYPE             MAKE_VECTOR_TYPE(INPUT0_TYPE, TILE_IFM)
@@ -853,7 +854,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
         // DECOMPRESSION_SCALE_POST_OP SHOULD be enabled for dynamic quantize FC : scale is ACCUMULATOR_VAL_ONE
         unroll_for(uint load_iter = 0; load_iter < FILTER_LOAD_ITERS; ++load_iter) {
             SLM_FILTER_PACKED_VEC wei_packed = BLOCK_READN(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE, weights, weights_idx);
-            DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked = UNPACK_TRANSPOSED_INT4(DQ_TYPE, *((uint4x8_t *)&wei_packed));
+            DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked = UNPACK_TRANSPOSED_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD *)&wei_packed));
 
             // Calculate zero-point and scale only for DECOMPRESSION_SCALE_POST_OP enabled
             #if DECOMPRESSION_ZP_TERM
