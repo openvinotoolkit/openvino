@@ -357,9 +357,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                             v0::Constant::create(alibi_slopes->get_element_type(), {}, {-1}));
                     }
                 } else {
-                        alibi_slopes = std::make_shared<v1::Multiply>(
-                            alibi_slopes,
-                            v0::Constant::create(alibi_slopes->get_element_type(), {}, {-1}));
+                    alibi_slopes = std::make_shared<v1::Multiply>(
+                        alibi_slopes,
+                        v0::Constant::create(alibi_slopes->get_element_type(), {}, {-1}));
                 }
             }
 
