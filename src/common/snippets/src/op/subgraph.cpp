@@ -44,6 +44,7 @@
 #include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_perf_count.hpp"
 #include "snippets/lowered/pass/validate_shapes.hpp"
+#include "snippets/lowered/pass/validate_buffers.hpp"
 #include "snippets/lowered/pass/validate.hpp"
 #include "snippets/lowered/pass/pass_config.hpp"
 #include "snippets/lowered/pass/reduce_decomposition.hpp"
@@ -472,6 +473,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.register_pass<lowered::pass::AllocateBuffers>(m_linear_ir->get_config().m_are_buffers_optimized);
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     pipeline.register_positioned_passes(lowered_backend_passes);
+    pipeline.register_pass<lowered::pass::ValidateBuffers>(); // must be last
     pipeline.register_pass<lowered::pass::Validate>(); // must be last
     pipeline.run(*m_linear_ir);
 

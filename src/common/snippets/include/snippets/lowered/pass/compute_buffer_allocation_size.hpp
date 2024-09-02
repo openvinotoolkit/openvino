@@ -22,14 +22,9 @@ namespace pass {
 class ComputeBufferAllocationSize : public RangedPass {
 public:
     OPENVINO_RTTI("ComputeBufferAllocationSize", "RangedPass")
-    ComputeBufferAllocationSize(size_t buffer_allocation_rank) : m_buffer_allocation_rank(buffer_allocation_rank) {}
+    ComputeBufferAllocationSize() = default;
 
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
-
-    static size_t get_allocation_size(const LoopManagerPtr& loop_manager, const ExpressionPtr& buffer_expr, size_t allocation_rank);
-
-private:
-    const size_t m_buffer_allocation_rank = 0;
 };
 
 } // namespace pass

@@ -154,17 +154,14 @@ void RuntimeConfigurator::init_data_info(const lowered::LinearIRCPtr& linear_ir)
 }
 
 void RuntimeConfigurator::init_buffer_info(const lowered::LinearIRCPtr& linear_ir) {
-    std::map<size_t, std::set<lowered::ExpressionPtr>> dynamic_buffer_clusters, static_buffer_clusters;
+    std::map<size_t, std::set<lowered::BufferExpressionPtr>> dynamic_buffer_clusters, static_buffer_clusters;
 
     // All needed checks are in Validate pass
     const auto& buffer_expressions = linear_ir->get_buffers();
     for (const auto& buffer_expr : buffer_expressions) {
-        const auto buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
-        OPENVINO_ASSERT(buffer, "Expected Buffer ops in Buffer expressions of LinearIR");
-
         // TODO [143395] : MemoryManager should provide exact containers with needed buffers (static or dynamic) without any `is_defined()`
-        auto& clusters = buffer->is_defined() ? static_buffer_clusters : dynamic_buffer_clusters;
-        clusters[buffer->get_cluster_id()].insert(buffer_expr);
+        auto& clusters = buffer_expr->is_defined() ? static_buffer_clusters : dynamic_buffer_clusters;
+        clusters[buffer_expr->get_cluster_id()].insert(buffer_expr);
     }
 
     const auto cluster_count = dynamic_buffer_clusters.size() + static_buffer_clusters.size();
@@ -176,7 +173,7 @@ void RuntimeConfigurator::init_buffer_info(const lowered::LinearIRCPtr& linear_i
         const auto& cluster = p.second;
 
         OPENVINO_ASSERT(cluster.size() > 0, "Incorrect size of buffer cluster");
-        size_t cluster_offset = ov::as_type_ptr<op::Buffer>((*cluster.cbegin())->get_node())->get_offset();
+        size_t cluster_offset = (*cluster.cbegin())->get_offset();
         m_config->buffer_cluster_offsets[cluster_id] = cluster_offset;
     }
 
@@ -269,7 +266,8 @@ void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRC
             // No need to calculate allocation size of Buffers which are in Loops with `work_amount = 0` - they won't be executed
             if (is_not_executed(buffer_expr))
                 continue;
-            const auto& allocation_size = lowered::pass::ComputeBufferAllocationSize::get_allocation_size(loop_manager, buffer_expr, m_config->tile_rank);
+            buffer_expr->init_allocation_size(loop_manager, m_config->tile_rank);
+            const auto& allocation_size = buffer_expr->get_allocation_size();
             OPENVINO_ASSERT(!utils::is_dynamic_value(allocation_size), "Buffer scratchpad size must be defined!");
             additional_size = std::max(allocation_size * buffer_expr->get_node()->get_element_type().size(), additional_size);
         }
