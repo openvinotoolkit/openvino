@@ -35,22 +35,22 @@ on:
         description: 'Whether to build OpenVINO JS Bindings'
         type: boolean
         required: false
-        default: true
+        default: false
       build-debian-packages:
         description: 'Whether to build Debian packages'
         type: boolean
         required: false
-        default: true
+        default: false
       build-contrib:
         description: 'Whether to build OpenVINO Contrib'
         type: boolean
         required: false
-        default: true
+        default: false
       build-rpm-packages:
         description: 'Whether to build RPM Packages'
         type: boolean
         required: false
-        default: true
+        default: false
 
 permissions: read-all
 
