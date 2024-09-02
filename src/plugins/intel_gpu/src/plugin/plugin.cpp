@@ -176,9 +176,6 @@ Plugin::Plugin() {
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
-    // ov::serialize(model, "./model_pa_oo.xml");
-    // auto model_clone = model->clone();
-    // ov::pass::VisualizeTree("pa_ooo.svg").run_on_model(model_clone);
     std::string device_id = get_device_id(orig_config);
 
     auto context = get_default_context(device_id);
@@ -325,7 +322,7 @@ std::shared_ptr<RemoteContextImpl> Plugin::get_default_context(const std::string
 
 ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) const {
     if (contexts_for_tp.size() > 1) {
-        auto contexts = get_default_contexts();
+        // auto contexts = get_default_contexts();
         auto tuple_context = std::make_shared<ov::intel_gpu::TupleRemoteContextImpl>(contexts_for_tp);
         return tuple_context;
     }

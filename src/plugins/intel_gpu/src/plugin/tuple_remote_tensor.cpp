@@ -15,12 +15,15 @@
 namespace ov {
 namespace intel_gpu {
 
-TupleRemoteTensorImpl::TupleRemoteTensorImpl(std::shared_ptr<TupleRemoteContextImpl> context, std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors)
-    : m_context(context)
-    , m_tensors(tensors) {
-    for (auto& tensor : m_tensors) {
+TupleRemoteTensorImpl::TupleRemoteTensorImpl(std::shared_ptr<TupleRemoteContextImpl> context,
+                                             std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors)
+    : m_context(context),
+      m_ordered_tensor(tensors) {
+    for (auto& tensor : tensors) {
         auto remote_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(tensor._ptr);
         m_remote_tensors.emplace_back(remote_tensor);
+        auto device_name = remote_tensor->get_device_name();
+        m_tensors.insert({device_name, tensor});
     }
 }
 
@@ -29,28 +32,32 @@ TupleRemoteTensorImpl::~TupleRemoteTensorImpl() {
 }
 
 ov::SoPtr<ov::IRemoteTensor> TupleRemoteTensorImpl::get_tensor(int index) const {
-    return m_tensors[index];
+    return m_ordered_tensor[index];
+}
+
+ov::SoPtr<ov::IRemoteTensor> TupleRemoteTensorImpl::get_tensor_by_name(const std::string device_name) const {
+    return m_tensors.at(device_name);
 }
 
 const ov::element::Type& TupleRemoteTensorImpl::get_element_type() const {
-    return m_tensors[0]->get_element_type();
+    return m_tensors.begin()->second->get_element_type();
 }
 
 const ov::Shape& TupleRemoteTensorImpl::get_shape() const {
-    return m_tensors[0]->get_shape();
+    return m_tensors.begin()->second->get_shape();
 }
 
 const ov::Strides& TupleRemoteTensorImpl::get_strides() const {
-    return m_tensors[0]->get_strides();
+    return m_tensors.begin()->second->get_strides();
 }
 
 const AnyMap& TupleRemoteTensorImpl::get_properties() const {
-    return m_tensors[0]->get_properties();
+    return m_tensors.begin()->second->get_properties();
 }
 
 void TupleRemoteTensorImpl::set_shape(ov::Shape shape) {
-    for (auto& tensor : m_tensors) {
-        tensor->set_shape(shape);
+    for (auto it = m_tensors.begin(); it != m_tensors.end(); ++it) {
+        it->second->set_shape(shape);
     }
 }
 
