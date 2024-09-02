@@ -254,7 +254,8 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     }
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    return create_input_model(ov::util::wstring_to_string(weights_path));
+    std::string weights_path_str = ov::util::wstring_to_string(weights_path);
+    return create_input_model(weights_path_str);
 #else
     return create_input_model(weights_path);
 #endif
