@@ -31,7 +31,7 @@ public:
     void* getContext() const override;
     void* getDriverHandle() const;
     void* getDeviceHandle() const;
-    const std::unique_ptr<ze_graph_dditable_ext_decorator>& getGraphDdiTable();
+    ze_graph_dditable_ext_curr_t getGraphDdiTable();
 
     void updateInfo(const Config& config) override;
 

@@ -76,7 +76,7 @@ void* ZeroEngineBackend::getDeviceHandle() const {
     return _instance->getDevice();
 }
 
-const std::unique_ptr<ze_graph_dditable_ext_decorator>& ZeroEngineBackend::getGraphDdiTable() {
+ze_graph_dditable_ext_curr_t ZeroEngineBackend::getGraphDdiTable() {
     return _instance->getGraphDdiTable();
 }
 

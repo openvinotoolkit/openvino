@@ -37,14 +37,14 @@ public:
     inline ze_context_handle_t getContext() const {
         return context;
     }
-    inline const std::unique_ptr<ze_graph_dditable_ext_decorator>& getGraphDdiTable() const {
-        return graph_dditable_ext_decorator;
+    inline ze_graph_dditable_ext_curr_t getGraphDdiTable() const {
+        return graph_dditable_ext_decorator.get();
     }
-    inline const std::unique_ptr<ze_command_queue_npu_dditable_ext_decorator>& getCommandQueueDdiTable() const {
-        return command_queue_npu_dditable_ext_decorator;
+    inline ze_command_queue_npu_dditable_ext_curr_t getCommandQueueDdiTable() const {
+        return command_queue_npu_dditable_ext_decorator.get();
     }
-    inline const std::unique_ptr<ze_graph_profiling_ddi_table_ext_decorator>& getProfilingDdiTable() const {
-        return graph_profiling_npu_dditable_ext_decorator;
+    inline ze_graph_profiling_dditable_ext_curr_t getProfilingDdiTable() const {
+        return graph_profiling_npu_dditable_ext_decorator.get();
     }
     inline uint32_t getDriverVersion() const {
         return driver_properties.driverVersion;

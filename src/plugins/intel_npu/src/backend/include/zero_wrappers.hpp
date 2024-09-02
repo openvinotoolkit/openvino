@@ -27,7 +27,7 @@ class EventPool {
 public:
     EventPool() = delete;
     EventPool(ze_device_handle_t device_handle,
-              const ze_context_handle_t& context,
+              const ze_context_handle_t context,
               uint32_t event_count,
               const Config& config);
     EventPool(const EventPool&) = delete;
@@ -48,7 +48,7 @@ private:
 class Event {
 public:
     Event() = delete;
-    Event(const ze_event_pool_handle_t& event_pool, uint32_t event_index, const Config& config);
+    Event(const ze_event_pool_handle_t event_pool, uint32_t event_index, const Config& config);
     Event(const Event&) = delete;
     Event(Event&&) = delete;
     Event& operator=(const Event&) = delete;
@@ -71,11 +71,11 @@ class CommandList {
 public:
     friend class CommandQueue;
     CommandList() = delete;
-    CommandList(const ze_device_handle_t& device_handle,
-                const ze_context_handle_t& context,
-                const std::unique_ptr<ze_graph_dditable_ext_decorator>& graph_ddi_table_ext,
+    CommandList(const ze_device_handle_t device_handle,
+                const ze_context_handle_t context,
+                const ze_graph_dditable_ext_curr_t graph_ddi_table_ext,
                 const Config& config,
-                const uint32_t& group_ordinal,
+                const uint32_t group_ordinal,
                 bool mtci_is_supported = false);
     CommandList(const CommandList&) = delete;
     CommandList(CommandList&&) = delete;
@@ -100,7 +100,7 @@ public:
 private:
     ze_command_list_handle_t _handle = nullptr;
     const ze_context_handle_t _context = nullptr;
-    const std::unique_ptr<ze_graph_dditable_ext_decorator>& _graph_ddi_table_ext;
+    ze_graph_dditable_ext_curr_t _graph_ddi_table_ext = nullptr;
     uint64_t _command_id = 0;
 
     Logger _log;
@@ -131,12 +131,12 @@ private:
 class CommandQueue {
 public:
     CommandQueue() = delete;
-    CommandQueue(const ze_device_handle_t& device_handle,
-                 const ze_context_handle_t& context,
-                 const ze_command_queue_priority_t& priority,
-                 const std::unique_ptr<ze_command_queue_npu_dditable_ext_decorator>& command_queue_npu_dditable_ext,
+    CommandQueue(const ze_device_handle_t device_handle,
+                 const ze_context_handle_t context,
+                 const ze_command_queue_priority_t priority,
+                 const ze_command_queue_npu_dditable_ext_curr_t command_queue_npu_dditable_ext,
                  const Config& config,
-                 const uint32_t& group_ordinal);
+                 const uint32_t group_ordinal);
     CommandQueue(const CommandQueue&) = delete;
     CommandQueue(CommandQueue&&) = delete;
     CommandQueue& operator=(const CommandQueue&) = delete;
@@ -153,7 +153,7 @@ public:
 private:
     ze_command_queue_handle_t _handle = nullptr;
     ze_context_handle_t _context = nullptr;
-    const std::unique_ptr<ze_command_queue_npu_dditable_ext_decorator>& _command_queue_npu_dditable_ext;
+    ze_command_queue_npu_dditable_ext_curr_t _command_queue_npu_dditable_ext = nullptr;
 
     Logger _log;
 };

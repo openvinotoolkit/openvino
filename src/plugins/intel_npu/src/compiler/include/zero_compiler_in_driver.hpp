@@ -52,7 +52,7 @@ public:
     LevelZeroCompilerInDriver(ze_driver_handle_t driverHandle,
                               ze_device_handle_t deviceHandle,
                               ze_context_handle_t zeContext,
-                              const std::unique_ptr<ze_graph_dditable_ext_decorator>& graph_ddi_table_ext);
+                              ze_graph_dditable_ext_curr_t graph_ddi_table_ext);
     LevelZeroCompilerInDriver(const LevelZeroCompilerInDriver&) = delete;
     LevelZeroCompilerInDriver& operator=(const LevelZeroCompilerInDriver&) = delete;
     ~LevelZeroCompilerInDriver() override;
@@ -110,14 +110,14 @@ private:
     std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t& compilerVersion) const;
 
     template <typename T = TableExtension, typename std::enable_if_t<NotSupportArgumentMetadata(T), bool> = true>
-    void getMetadata(const std::unique_ptr<ze_graph_dditable_ext_decorator>& graphDdiTableExt,
+    void getMetadata(ze_graph_dditable_ext_curr_t graphDdiTableExt,
                      ze_graph_handle_t graphHandle,
                      uint32_t index,
                      std::vector<IODescriptor>& inputs,
                      std::vector<IODescriptor>& outputs) const;
 
     template <typename T = TableExtension, typename std::enable_if_t<!NotSupportArgumentMetadata(T), bool> = true>
-    void getMetadata(const std::unique_ptr<ze_graph_dditable_ext_decorator>& graphDdiTableExt,
+    void getMetadata(ze_graph_dditable_ext_curr_t graphDdiTableExt,
                      ze_graph_handle_t graphHandle,
                      uint32_t index,
                      std::vector<IODescriptor>& inputs,
@@ -180,7 +180,7 @@ private:
     ze_device_handle_t _deviceHandle = nullptr;
     ze_context_handle_t _context = nullptr;
 
-    const std::unique_ptr<ze_graph_dditable_ext_decorator>& _graphDdiTableExt = nullptr;
+    ze_graph_dditable_ext_curr_t _graphDdiTableExt = nullptr;
     Logger _logger;
 };
 

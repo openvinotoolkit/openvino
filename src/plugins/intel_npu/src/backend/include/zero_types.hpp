@@ -227,3 +227,7 @@ public:
     ze_pfnDeviceGetProfilingDataProperties_ext_t pfnDeviceGetProfilingDataProperties;
     ze_pfnGraphProfilingLogGetString_ext_t pfnProfilingLogGetString;
 };
+
+using ze_graph_dditable_ext_curr_t = ze_graph_dditable_ext_decorator*;
+using ze_command_queue_npu_dditable_ext_curr_t = ze_command_queue_npu_dditable_ext_decorator*;
+using ze_graph_profiling_dditable_ext_curr_t = ze_graph_profiling_ddi_table_ext_decorator*;

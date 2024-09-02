@@ -29,7 +29,7 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<IEngineBacken
     ze_context_handle_t zeContext = static_cast<ze_context_handle_t>(zeroBackend->getContext());
     ze_driver_handle_t driverHandle = static_cast<ze_driver_handle_t>(zeroBackend->getDriverHandle());
     ze_device_handle_t deviceHandle = static_cast<ze_device_handle_t>(zeroBackend->getDeviceHandle());
-    const std::unique_ptr<ze_graph_dditable_ext_decorator>& graph_ddi_table_ext = zeroBackend->getGraphDdiTable();
+    ze_graph_dditable_ext_curr_t graph_ddi_table_ext = zeroBackend->getGraphDdiTable();
 
     uint32_t graphExtVersion = graph_ddi_table_ext->version();
 

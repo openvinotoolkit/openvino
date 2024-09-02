@@ -11,7 +11,7 @@
 namespace intel_npu {
 
 EventPool::EventPool(ze_device_handle_t device_handle,
-                     const ze_context_handle_t& context,
+                     const ze_context_handle_t context,
                      uint32_t event_count,
                      const Config& config)
     : _log("EventPool", config.get<LOG_LEVEL>()) {
@@ -29,7 +29,7 @@ EventPool::~EventPool() {
     }
 }
 
-Event::Event(const ze_event_pool_handle_t& event_pool, uint32_t event_index, const Config& config)
+Event::Event(const ze_event_pool_handle_t event_pool, uint32_t event_index, const Config& config)
     : _log("Event", config.get<LOG_LEVEL>()) {
     ze_event_desc_t event_desc = {ZE_STRUCTURE_TYPE_EVENT_DESC, nullptr, event_index, 0, 0};
     zeroUtils::throwOnFail("zeEventCreate", zeEventCreate(event_pool, &event_desc, &_handle));
@@ -59,11 +59,11 @@ Event::~Event() {
     }
 }
 
-CommandList::CommandList(const ze_device_handle_t& device_handle,
-                         const ze_context_handle_t& context,
-                         const std::unique_ptr<ze_graph_dditable_ext_decorator>& graph_ddi_table_ext,
+CommandList::CommandList(const ze_device_handle_t device_handle,
+                         const ze_context_handle_t context,
+                         const ze_graph_dditable_ext_curr_t graph_ddi_table_ext,
                          const Config& config,
-                         const uint32_t& group_ordinal,
+                         const uint32_t group_ordinal,
                          bool mtci_is_supported)
     : _context(context),
       _graph_ddi_table_ext(graph_ddi_table_ext),
@@ -129,13 +129,12 @@ void CommandList::updateMutableCommandList(uint32_t arg_index, const void* arg_v
                            zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t));
 }
 
-CommandQueue::CommandQueue(
-    const ze_device_handle_t& device_handle,
-    const ze_context_handle_t& context,
-    const ze_command_queue_priority_t& priority,
-    const std::unique_ptr<ze_command_queue_npu_dditable_ext_decorator>& command_queue_npu_dditable_ext,
-    const Config& config,
-    const uint32_t& group_ordinal)
+CommandQueue::CommandQueue(const ze_device_handle_t device_handle,
+                           const ze_context_handle_t context,
+                           const ze_command_queue_priority_t priority,
+                           const ze_command_queue_npu_dditable_ext_curr_t command_queue_npu_dditable_ext,
+                           const Config& config,
+                           const uint32_t group_ordinal)
     : _context(context),
       _command_queue_npu_dditable_ext(command_queue_npu_dditable_ext),
       _log("CommandQueue", config.get<LOG_LEVEL>()) {
