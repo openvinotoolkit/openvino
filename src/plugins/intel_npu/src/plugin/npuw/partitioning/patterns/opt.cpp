@@ -10,6 +10,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
@@ -176,10 +177,19 @@ DQMatMulGQi::DQMatMulGQi() {
                 auto s_f32 = std::make_shared<ov::op::v1::Multiply>(m_f32, split_s->output(i));
                 to_concat.push_back(s_f32);
             }
+#if 0
             // Concat the vector. Reduce didn't work so do adds
             auto ccat_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
             auto ccat = std::make_shared<ov::op::v0::Concat>(to_concat, 0);
             auto cred = std::make_shared<ov::op::v1::ReduceSum>(ccat, ccat_axis, true);
+#endif
+            // Reduce via ADD
+            std::vector<ov::Output<ov::Node>> reduce_add;
+            reduce_add.push_back(std::make_shared<ov::op::v1::Add>(to_concat[0], to_concat[1]));
+            for (std::size_t i = 1; i < NSPLIT-1; i++) {
+                reduce_add.push_back(std::make_shared<ov::op::v1::Add>(reduce_add[i-1], to_concat[i+1]));
+            }
+            auto &cred = reduce_add.back();
 
             // Now.. Reconnect the matmul readers to the new output (reducesum)
             for (auto &&r : matched_matmul->output(0).get_target_inputs()) {
