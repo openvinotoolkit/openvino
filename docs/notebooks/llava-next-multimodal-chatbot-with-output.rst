@@ -1302,19 +1302,6 @@ Interactive demo
     from PIL import Image
     import torch
 
-    example_image_urls = [
-        (
-            "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/1d6a0188-5613-418d-a1fd-4560aae1d907",
-            "bee.jpg",
-        ),
-        (
-            "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/6cc7feeb-0721-4b5d-8791-2576ed9d2863",
-            "baklava.png",
-        ),
-    ]
-    for url, file_name in example_image_urls:
-        Image.open(requests.get(url, stream=True).raw).save(file_name)
-
 
     def bot_streaming(message, history):
         print(message)
@@ -1347,20 +1334,25 @@ Interactive demo
             generated_text_without_prompt = buffer[len(text_prompt) :]
             yield generated_text_without_prompt
 
+.. code:: ipython3
 
-    demo = gr.ChatInterface(
-        fn=bot_streaming,
-        title="LLaVA NeXT",
-        examples=[
-            {"text": "What is on the flower?", "files": ["./bee.jpg"]},
-            {"text": "How to make this pastry?", "files": ["./baklava.png"]},
-        ],
-        description="Try [LLaVA NeXT](https://huggingface.co/docs/transformers/main/en/model_doc/llava_next) in this demo using OpenVINO. Upload an image and start chatting about it, or simply try one of the examples below. If you don't upload an image, you will receive an error.",
-        stop_btn="Stop Generation",
-        multimodal=True,
-    )
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llava-next-multimodal-chatbot/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+
+    from gradio_helper import make_demo
+
+    demo = make_demo(fn=bot_streaming)
 
     try:
         demo.launch(debug=False)
     except Exception:
         demo.launch(debug=False, share=True)
+    # if you are launching remotely, specify server_name and server_port
+    # demo.launch(server_name='your server name', server_port='server port in int')
+    # Read more in the docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

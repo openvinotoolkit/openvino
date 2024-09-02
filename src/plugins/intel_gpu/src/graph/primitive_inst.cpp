@@ -375,7 +375,7 @@ void primitive_inst::update_shape() {
         input_shape_changed = true;
     }
 
-    if (!_node->is_type<kv_cache>() && !input_shape_changed && !_node->generates_dynamic_output() && _impl_params->get_output_layout().is_static())
+    if (!_node->is_type<kv_cache>() && !input_shape_changed && _impl_params->get_output_layout().is_static())
         return;
 
     std::vector<event::ptr> dependencies_events;
@@ -1798,7 +1798,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     , _outputs({})
     , _reordered_weights_cache(network.get_weights_cache_capacity())
     , _output_changed(false)
-    , _is_dynamic(node.is_dynamic() || node.generates_dynamic_output())
+    , _is_dynamic(node.is_dynamic())
     , _type(node.type())
     , _id(node.id())
     , _org_id(node.get_org_primitive_id())
@@ -2311,7 +2311,15 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                             return pid == in.pid;
                         }) == outer_dep_ids.end()) {
                         size_t dep_id = fd.outer_dep_start_idx;
-                        in = _node->get_dependency(dep_id).id();
+                        auto outer_dep_id = _node->get_dependency(dep_id).id();
+
+                        if (std::find_if(fd.deps.begin(), fd.deps.end(), [&](const std::pair<cldnn::primitive_id, size_t>& dep_info) {
+                                return (dep_info.first == outer_dep_id && dep_info.second == i);
+                            }) == fd.deps.end()) {
+                            in = _node->id();
+                        } else {
+                            in = outer_dep_id;
+                        }
                     }
                 }
             }
@@ -2404,6 +2412,18 @@ bool primitive_inst::is_valid_fusion() const {
 
             if (gemm_dims[0] != data_dims[0])
                 return false;
+        } else if (_node->is_type<fully_connected>() && _node->get_preferred_impl_type() == impl_types::onednn) {
+            const auto& fc_layout = _impl_params->get_output_layout();
+            const auto& data_layout = outer_dep.first->_impl_params->get_output_layout();
+
+            const auto fc_dims = fc_layout.get_dims();
+            const auto data_dims = data_layout.get_dims();
+
+            if (!(fc_dims[0] == 1 || fc_dims[1] == 1) &&
+                !(data_dims[0] == 1 && data_dims[1] == 1) &&
+                !(fc_layout.count() == data_layout.count())) {
+                return false;
+            }
         }
 #endif
 
