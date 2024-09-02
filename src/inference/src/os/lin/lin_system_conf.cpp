@@ -115,11 +115,11 @@ CPU::CPU() {
     };
 
     auto check_valid_cpu = [&]() {
-        ov::threading::CpuSet processMask;
+        ov::threading::CpuSet mask;
         int ncpus = 0;
-        std::tie(processMask, ncpus) = ov::threading::get_process_mask();
+        std::tie(mask, ncpus) = ov::threading::get_process_mask();
 
-        if ((_processors == 0) || processMask == nullptr) {
+        if ((_processors == 0) || mask == nullptr) {
             return -1;
         }
 
@@ -130,7 +130,7 @@ CPU::CPU() {
 
         numa_node_list.assign(_sockets, std::vector<int>());
         for (int i = 0; i < _processors; i++) {
-            if (CPU_ISSET(i, processMask)) {
+            if (CPU_ISSET(i, mask)) {
                 valid_cpu_mapping_table.emplace_back(_cpu_mapping_table[i]);
                 if (_cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == MAIN_CORE_PROC) {
                     phy_core_list.emplace_back(_cpu_mapping_table[i][CPU_MAP_CORE_ID]);
