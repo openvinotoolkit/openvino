@@ -1,63 +1,69 @@
 Key Features
 ==============
 
-| **Support for multiple frameworks**
+Easy integration
+#########################
+
+| :doc:`Support for multiple frameworks <../openvino-workflow/model-preparation/convert-model-to-ir>`
 | Use deep learning models from PyTorch, TensorFlow, TensorFlow Lite, PaddlePaddle, and ONNX
   directly or convert them to the optimized OpenVINO IR format for improved performance.
 
-| **Close integration with PyTorch**
+| :doc:`Close integration with PyTorch <../openvino-workflow/torch-compile>`
 | For PyTorch-based applications, specify OpenVINO as a backend using
   :doc:`torch.compile <../openvino-workflow/torch-compile>` to improve model inference. Apply
   OpenVINO optimizations to your PyTorch models directly with a single line of code.
 
-| **Model Optimization**
-| Optimize your deep learning models with :doc:`NNCF <../openvino-workflow/model-optimization>`,
-  using various training-time and post-training compression methods. Make Your models take
-  less space, run faster, and use less resources.
+| :doc:`GenAI Out Of The Box <../learn-openvino/llm_inference_guide/genai-guide>`
+| With the genAI flavor of OpenVINO, you can run generative AI with just a couple lines of code.
+  Check out the GenAI guide for instructions on how to do it.
 
-.. Optimize your deep learning models with NNCF, by reducing model size and accelerating inference.
-.. NNCF provides different optimization techniques, including post-training quantization without retraining,
-.. and training-time optimizations like Quantization-aware Training, Pruning and Sparsity. For large language models,
-.. NNCF offers weight compression method to decrease model footprint.
+| `Python / C++ / C / NodeJS APIs <https://docs.openvino.ai/2024/api/api_reference.html>`__
+| OpenVINO offers the C++ API as a complete set of available methods. For less resource-critical
+  solutions, the Python API provides almost full coverage, while C and NodeJS ones are limited
+  to the methods most basic for their typical environments. The NodeJS API, is still in its
+  early and active development.
 
-| **Top performance**
+| :doc:`Open source and easy to extend <../about-openvino/contributing>`
+| If you need a particular feature or inference accelerator to be supported, you are free to file
+  a feature request or develop new components specific to your projects yourself. As open source,
+  OpenVINO may be used and modified freely. See the extensibility guide for more information on
+  how to adapt it to your needs.
+
+Deployment
+#########################
+
+| :doc:`Local or remote <../openvino-workflow>`
+| Integrate the OpenVINO runtime directly with your application to run inference locally or use
+  `OpenVINO Model Server <https://github.com/openvinotoolkit/model_server>`__ to shift the inference
+  workload to a remote system, a separate server or a Kubernetes environment. For serving,
+  OpenVINO is also integrated with `vLLM <https://docs.vllm.ai/en/stable/getting_started/openvino-installation.html>`__
+  and `Triton <https://github.com/triton-inference-server/openvino_backend>`__ services.
+
+| :doc:`Scalable and portable <release-notes-openvino/system-requirements>`
+| Write an application once, deploy it anywhere, always making the most out of your hardware setup.
+  The automatic device selection mode gives you the ultimate deployment flexibility on all major
+  operating systems. Check out system requirements.
+
+| **Light-weight**
+| Designed with minimal external dependencies, OpenVINO does not bloat your application
+  and simplifies installation and dependency management. The custom compilation for your specific
+  model(s) may further reduce the final binary size.
+
+Performance
+#########################
+
+| :doc:`Model Optimization <../openvino-workflow/model-optimization>`
+| Optimize your deep learning models with NNCF, using various training-time and post-training
+  compression methods, such as pruning, sparsity, quantization, and weight compression. Make
+  your models take less space, run faster, and use less resources.
+
+| :doc:`Top performance <../about-openvino/performance-benchmarks>`
 | OpenVINO is optimized to work with Intel hardware, delivering confirmed high performance for
   hundreds of models. Explore OpenVINO Performance Benchmarks to discover the optimal hardware
   configurations and plan your AI deployment based on verified data.
 
-| **Deploy locally or use serving**
-| Integrate the OpenVINO runtime directly with your application to run inference locally or use
-  `OpenVINO Model Server <https://github.com/openvinotoolkit/model_server>`__ to shift the inference
-  workload to a remote system, a separate server or a Kubernetes environment. For serving,
-  OpenVINO is also integrated with vLLM and Triton services.
-
-| **Scalable and portalbe - automatic device Selection**
-| Write an application once, deploy it anywhere, always making the most out of your hardware setup.
-  The automatic device selection mode gives you the ultimate deployment flexibility, on all major
-  operating systems (check out :doc:`system requirements <release-notes-openvino/system-requirements>`).
-
-| **Lighter Deployment**
-| Designed with minimal external dependencies, OpenVINO does not bloat your application.
-| Simplifying installation and dependency management. Popular package managers enable application
-  dependencies to be easily installed and upgraded. Custom compilation for your specific model(s)
-  further reduces the final binary size.
-
-| **Python / C++ / C / NodeJS APIs**
-| As the main OpenVINO API, the C++ one offers the complete set of available operations. The Python
-  API provides an almost complete mapping of it, while C and NodeJS provide a very limited
-  functionality. JS is still in its early development stages.
-
-| **OpenVINO Extensibility**
-| You can develop your own solutions for OV easly - open source.
-
-| **Enhanced App Start-Up Time**
-| In applications where fast start-up is required, OpenVINO significantly reduces first-inference
-  latency by using the CPU for initial inference and then switching to another device once
-  the model has been compiled and loaded to memory. Compiled models are cached, improving start-up
-  time even more.
-
-| **GenAI Out Of The Box**
-| With the :doc:`GenAI flavor <../learn-openvino/llm_inference_guide/genai-guide>` of OpenVINO,
-  run generative AI withe just couple of lines of code. With full scope available in the
-  :doc:`LLM Inference Guide <../learn-openvino/llm_inference_guide>`.
+| :doc:`Enhanced App Start-Up Time <../openvino-workflow/running-inference/optimize-inference>`
+| If you need your application to launch immediately, OpenVINO will reduce first-inference latency,
+  running inference on CPU until a more suited device is ready to take over. Once a model
+  is compiled for inference, it is also cached, improving the start-up time even more.
 
