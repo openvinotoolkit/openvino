@@ -132,11 +132,11 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
                 cldnn::format::get_default_format(op->get_output_shape(1).size()),
                 tensor_from_dims(op->get_output_shape(1)));
     std::vector<cldnn::memory::ptr> shared_memories;
-    shared_memories.push_back(p.get_engine().allocate_memory(out12Layout));
+    shared_memories.push_back(p.get_engine().allocate_memory(out12Layout, cldnn::allocation_type::usm_device));
     const cldnn::primitive_id mutable_id_1 = layerName + "_md_write.1";
     const cldnn::mutable_data mutable_prim_1{mutable_id_1, shared_memories.front()};
     p.add_primitive(*op, mutable_prim_1);
-    shared_memories.push_back(p.get_engine().allocate_memory(out12Layout));
+    shared_memories.push_back(p.get_engine().allocate_memory(out12Layout, cldnn::allocation_type::usm_device));
     const cldnn::primitive_id mutable_id_2 = layerName + "_md_write.2";
     const cldnn::mutable_data mutable_prim_2{mutable_id_2, shared_memories.back()};
     p.add_primitive(*op, mutable_prim_2);

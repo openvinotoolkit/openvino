@@ -49,6 +49,7 @@ KERNEL(lstm_seq)(
                 const uint prev_idx = i-1;
             #endif
         #endif
+        barrier(CLK_LOCAL_MEM_FENCE);
         unroll_for(uint l=0;l<NUM_HIDDEN_TO_DO;++l) { //kernel responsible for HIDDEN_SIZE
             const uint hidden_idx = local_idx*NUM_HIDDEN_TO_DO + l;
             if (hidden_idx >= HIDDEN_SIZE) {
