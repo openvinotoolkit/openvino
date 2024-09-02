@@ -78,7 +78,8 @@ static std::vector<size_t> get_internal_buffer_sizes(const sdpa_params& sdpa_par
         return {blocks_indexes_buf_size};
     } else {
         if (sdpa_params.has_dynamic_tensors() || kernel_type == KernelsTypes::MULTI_TOKENS) {
-            return {1, 1};
+            const auto default_bytes_count = BytesPerElement(get_softmax_acc_type());
+            return {default_bytes_count, default_bytes_count};
         } else {
             TransposedDimensionAccessHelperBase dims_q(sdpa_params.inputs[0], sdpa_params.input0_order);
             const auto& output = sdpa_params.outputs[0];
@@ -314,13 +315,7 @@ KernelsData SDPAKernelOpt::GetKernelsData(const Params& params) const {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
 
         const auto buf_sizes = get_internal_buffer_sizes(prim_params, kernel_idx);
-        if (prim_params.conf.is_paged_attention) {
-            kd.internalBufferSizes.clear();
-            kd.internalBufferSizes.push_back(buf_sizes[0]);
-            kd.internalBufferSizes.push_back(buf_sizes[0]);
-            kd.internalBufferSizes.push_back(buf_sizes[0]);
-            kd.internalBufferDataType = Datatype::INT32;
-        } else {
+        if (!prim_params.conf.is_paged_attention) {
             kd.internalBufferSizes.clear();
             kd.internalBufferSizes.push_back(buf_sizes[0]);
             kd.internalBufferSizes.push_back(buf_sizes[0]);
@@ -359,15 +354,6 @@ void SDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
             kernel_data.kernels[0].params.workGroups.global = dispatch_data.gws;
             kernel_data.kernels[0].params.workGroups.local = dispatch_data.lws;
             kernel_data.kernels[0].skip_execution = false;
-
-            const auto blocks_indexes_dt = Datatype::INT32;
-            const auto buf_sizes = get_internal_buffer_sizes(prim_params, KernelsTypes::MULTI_TOKENS);
-
-            kernel_data.internalBufferSizes.clear();
-            kernel_data.internalBufferSizes.push_back(buf_sizes[0]);
-            kernel_data.internalBufferSizes.push_back(buf_sizes[0]);
-            kernel_data.internalBufferSizes.push_back(buf_sizes[0]);
-            kernel_data.internalBufferDataType = blocks_indexes_dt;
         } else {
             const auto num_of_partitions = get_partitions_num(prim_params, KernelsTypes::SINGLE_TOKEN);
             const auto buf_sizes = get_internal_buffer_sizes(prim_params, KernelsTypes::SINGLE_TOKEN);
