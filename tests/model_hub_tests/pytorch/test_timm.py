@@ -6,7 +6,6 @@ import os
 import pytest
 import timm
 import torch
-from huggingface_hub.utils import HfHubHTTPError, LocalEntryNotFoundError
 from models_hub_common.utils import get_models_list, retry
 
 from torch_utils import TestTorchConvertModel
@@ -48,7 +47,7 @@ torch.manual_seed(0)
 
 
 class TestTimmConvertModel(TestTorchConvertModel):
-    @retry(3, exceptions=(HfHubHTTPError, LocalEntryNotFoundError), delay=1)
+    @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, model_name, model_link):
         m = timm.create_model(model_name, pretrained=True)
         cfg = timm.get_pretrained_cfg(model_name)
@@ -73,7 +72,8 @@ class TestTimmConvertModel(TestTorchConvertModel):
                                       "vit_base_patch8_224.augreg_in21k",
                                       "beit_base_patch16_224.in22k_ft_in22k",
                                       "sequencer2d_l.in1k",
-                                      "gcresnext26ts.ch_in1k"])
+                                      "gcresnext26ts.ch_in1k",
+                                      "volo_d2_224.sail_in1k"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):
         self.mode = "trace"

@@ -169,7 +169,9 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
             -DENABLE_PROFILING_ITT=ON `
             -DSELECTIVE_BUILD=COLLECT `
+            -DENABLE_FASTER_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
+            -DCMAKE_TOOLCHAIN_FILE=${{ env.ONECORE_TOOLCHAIN }} `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
@@ -190,7 +192,7 @@ jobs:
 
       - name: Build C++ samples - OpenVINO build tree
         run: |
-          cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
+          cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples -DCMAKE_TOOLCHAIN_FILE=${{ env.ONECORE_TOOLCHAIN }}
           cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
 
       - name: Build C samples - OpenVINO install tree
@@ -247,7 +249,7 @@ jobs:
 
       - name: Upload selective build statistics package
         if: ${{ always() }}
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_selective_build_stat
           path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.zip
@@ -255,7 +257,7 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.zip
@@ -397,7 +399,7 @@ jobs:
         timeout-minutes: 60
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         if: ${{ !cancelled() }}
         with:
           name: test-results-functional-cpu

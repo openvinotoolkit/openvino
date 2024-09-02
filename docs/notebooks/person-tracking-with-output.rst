@@ -115,6 +115,16 @@ realtime tracking,” in ICIP, 2016, pp. 3464–3468.
    -  `Initialize tracker <#initialize-tracker>`__
    -  `Run Live Person Tracking <#run-live-person-tracking>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     import platform
@@ -333,14 +343,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = utils.device_widget()
 
     device
 

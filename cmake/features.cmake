@@ -8,7 +8,7 @@
 
 ov_option (ENABLE_PROXY "Proxy plugin for OpenVINO Runtime" ON)
 
-if(WIN32 AND AARCH64 AND OV_COMPILER_IS_CLANG)
+if(WIN32 AND AARCH64 AND NOT CMAKE_CL_64)
     set(ENABLE_INTEL_CPU_DEFAULT OFF)
 else()
     set(ENABLE_INTEL_CPU_DEFAULT ON)
@@ -34,9 +34,8 @@ endif()
 
 ov_dependent_option (ENABLE_INTEL_GPU "GPU OpenCL-based plugin for OpenVINO Runtime" ${ENABLE_INTEL_GPU_DEFAULT} "X86_64 OR AARCH64;NOT APPLE;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
 
-if (ANDROID OR MINGW OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0) OR (NOT BUILD_SHARED_LIBS AND ENABLE_INTEL_CPU))
-    # oneDNN doesn't support old compilers and android builds for now, so we'll build GPU plugin without oneDNN
-    # also, in case of static build CPU's and GPU's oneDNNs will conflict, so we are disabling GPU's one in this case
+if (ANDROID OR MINGW OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
+    # oneDNN doesn't support old compilers and Android builds for now, so we'll build GPU plugin without oneDNN
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
 else()
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
@@ -44,13 +43,7 @@ endif()
 
 ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
 
-if(X86_64)
-    set(ENABLE_INTEL_NPU_DEFAULT ON)
-else()
-    set(ENABLE_INTEL_NPU_DEFAULT OFF)
-endif()
-
-ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ${ENABLE_INTEL_NPU_DEFAULT} "X86 OR X86_64;NOT APPLE" OFF)
+ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ON "X86_64;WIN32 OR LINUX" OFF)
 ov_dependent_option (ENABLE_INTEL_NPU_INTERNAL "NPU plugin internal components for OpenVINO runtime" ON "ENABLE_INTEL_NPU" OFF)
 
 ov_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
@@ -86,9 +79,11 @@ ov_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file ge
 #
 
 # "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
-if(RISCV64)
-    # oneDNN does not support non-SEQ for RISC-V architecture
+if(ANDROID)
+    # on Android we experience SEGFAULT during compilation
     set(THREADING_DEFAULT "SEQ")
+elseif(RISCV64)
+    set(THREADING_DEFAULT "OMP")
 else()
     set(THREADING_DEFAULT "TBB")
 endif()
@@ -101,6 +96,17 @@ list (APPEND OV_OPTIONS THREADING)
 if(NOT THREADING IN_LIST THREADING_OPTIONS)
     message(FATAL_ERROR "THREADING should be set to either ${THREADING_OPTIONS}")
 endif()
+
+if(X86_64 AND (WIN32 OR LINUX))
+    # we have a precompiled version of Intel OMP only for this platforms
+    set(ENABLE_INTEL_OPENMP_DEFAULT ON)
+    # temporart override to OFF for testing purposes
+    set(ENABLE_INTEL_OPENMP_DEFAULT OFF)
+else()
+    set(ENABLE_INTEL_OPENMP_DEFAULT OFF)
+endif()
+
+ov_dependent_option (ENABLE_INTEL_OPENMP "Enables usage of Intel OpenMP instead of default compiler one" ${ENABLE_INTEL_OPENMP_DEFAULT} "THREADING STREQUAL SEQ" OFF)
 
 if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND
     (BUILD_SHARED_LIBS OR (LINUX AND X86_64)))
@@ -139,7 +145,18 @@ ov_option(ENABLE_OV_JAX_FRONTEND "Enable JAX FrontEnd" ON)
 ov_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ov_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ov_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
-ov_dependent_option(ENABLE_SNAPPY_COMPRESSION "Enables compression support for TF FE" ON
+
+if(WIN32 AND AARCH64 AND CMAKE_CL_64)
+    # Failed: openvino/src/bindings/js/node/thirdparty/node-lib.def: no such file or directory
+    set(ENABLE_JS_DEFAULT OFF)
+    # Some flags for building are failed on clang-cl win arm in snappy compression lib
+    set(ENABLE_SNAPPY_COMPRESSION_DEFAULT OFF)
+else()
+    set(ENABLE_JS_DEFAULT ON)
+    set(ENABLE_SNAPPY_COMPRESSION_DEFAULT ON)
+endif()
+
+ov_dependent_option(ENABLE_SNAPPY_COMPRESSION "Enables compression support for TF FE" ${ENABLE_SNAPPY_COMPRESSION_DEFAULT}
     "ENABLE_OV_TF_FRONTEND" OFF)
 
 ov_dependent_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON "ENABLE_TESTS;ENABLE_OV_ONNX_FRONTEND" OFF)
@@ -184,10 +201,7 @@ ov_dependent_option (ENABLE_SYSTEM_PROTOBUF "Enables use of system Protobuf" OFF
 ov_dependent_option (ENABLE_SYSTEM_SNAPPY "Enables use of system version of Snappy" OFF
     "ENABLE_SNAPPY_COMPRESSION" OFF)
 
-ov_dependent_option (ENABLE_PYTHON_PACKAGING "Enables packaging of Python API in APT / YUM" OFF
-    "ENABLE_PYTHON;UNIX" OFF)
-
-ov_dependent_option(ENABLE_JS "Enables JS API building" ON "NOT ANDROID;NOT EMSCRIPTEN" OFF)
+ov_dependent_option(ENABLE_JS "Enables JS API building" ${ENABLE_JS_DEFAULT} "NOT ANDROID;NOT EMSCRIPTEN" OFF)
 
 ov_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
 

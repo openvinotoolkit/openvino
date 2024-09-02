@@ -33,6 +33,14 @@ then trained in the highly compressed latent space.
 -  `Inference <#inference>`__
 -  `Interactive inference <#interactive-inference>`__
 
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -40,11 +48,18 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "diffusers>=0.27.0" accelerate datasets gradio transformers "nncf>=2.10.0" "openvino>=2024.1.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "diffusers>=0.27.0" accelerate datasets gradio transformers "nncf>=2.10.0" "protobuf>=3.20" "openvino>=2024.1.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
 
 
 .. parsed-literal::
 
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    descript-audiotools 0.7.2 requires protobuf<3.20,>=3.9.2, but you have protobuf 5.27.4 which is incompatible.
+    open-clip-torch 2.22.0 requires protobuf<4, but you have protobuf 5.27.4 which is incompatible.
+    tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 5.27.4 which is incompatible.
+    tensorflow-metadata 1.14.0 requires protobuf<4.21,>=3.20.3, but you have protobuf 5.27.4 which is incompatible.
+    tf2onnx 1.16.1 requires protobuf~=3.20, but you have protobuf 5.27.4 which is incompatible.
+    wandb 0.15.4 requires protobuf!=4.21.0,<5,>=3.12.0; python_version < "3.9" and sys_platform == "linux", but you have protobuf 5.27.4 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -67,25 +82,17 @@ Load and run the original pipeline
 
 .. parsed-literal::
 
-    2024-07-13 03:34:38.692876: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-07-13 03:34:38.727848: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+    2024-08-28 05:35:26.170985: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-28 05:35:26.206753: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-07-13 03:34:39.399629: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/vq_model.py:20: FutureWarning: `VQEncoderOutput` is deprecated and will be removed in version 0.31. Importing `VQEncoderOutput` from `diffusers.models.vq_model` is deprecated and this will be removed in a future version. Please use `from diffusers.models.autoencoders.vq_model import VQEncoderOutput`, instead.
-      deprecate("VQEncoderOutput", "0.31", deprecation_message)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/vq_model.py:25: FutureWarning: `VQModel` is deprecated and will be removed in version 0.31. Importing `VQModel` from `diffusers.models.vq_model` is deprecated and this will be removed in a future version. Please use `from diffusers.models.autoencoders.vq_model import VQModel`, instead.
-      deprecate("VQModel", "0.31", deprecation_message)
+    2024-08-28 05:35:26.755095: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
 .. parsed-literal::
 
     Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
 
 
 
@@ -248,25 +255,16 @@ here, we always use fixed shapes in conversion by using an
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4371: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4664: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:86: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:86: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if input_shape[-1] > 1 or self.sliding_window is not None:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if past_key_values_length > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:279: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:287: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if causal_attention_mask.size() != (bsz, 1, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:296: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attention_mask.size() != (bsz, 1, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:319: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
 
 
 .. parsed-literal::
 
-    ['input_ids', 'attention_mask']
     INFO:nncf:Statistics of the bitwidth distribution:
     ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
     │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
@@ -279,14 +277,6 @@ here, we always use fixed shapes in conversion by using an
 .. parsed-literal::
 
     Output()
-
-
-
-
-
-
-
-
 
 
 
@@ -318,13 +308,12 @@ here, we always use fixed shapes in conversion by using an
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unets/unet_stable_cascade.py:550: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unets/unet_stable_cascade.py:548: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if skip is not None and (x.size(-1) != skip.size(-1) or x.size(-2) != skip.size(-2)):
 
 
 .. parsed-literal::
 
-    ['sample', 'timestep_ratio', 'clip_text_pooled', 'clip_text', 'clip_img']
     INFO:nncf:Statistics of the bitwidth distribution:
     ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
     │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
@@ -337,14 +326,6 @@ here, we always use fixed shapes in conversion by using an
 .. parsed-literal::
 
     Output()
-
-
-
-
-
-
-
-
 
 
 
@@ -381,7 +362,6 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 
 .. parsed-literal::
 
-    ['input_ids', 'attention_mask']
     INFO:nncf:Statistics of the bitwidth distribution:
     ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
     │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
@@ -394,14 +374,6 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 .. parsed-literal::
 
     Output()
-
-
-
-
-
-
-
-
 
 
 
@@ -432,7 +404,6 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 
 .. parsed-literal::
 
-    ['sample', 'timestep_ratio', 'clip_text_pooled', 'effnet']
     INFO:nncf:Statistics of the bitwidth distribution:
     ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
     │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
@@ -445,14 +416,6 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 .. parsed-literal::
 
     Output()
-
-
-
-
-
-
-
-
 
 
 
@@ -488,7 +451,6 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 
 .. parsed-literal::
 
-    ['h']
     INFO:nncf:Statistics of the bitwidth distribution:
     ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
     │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
@@ -501,14 +463,6 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 .. parsed-literal::
 
     Output()
-
-
-
-
-
-
-
-
 
 
 
@@ -712,37 +666,18 @@ Interactive inference
 
 .. code:: ipython3
 
-    import gradio as gr
-    import numpy as np
+    import requests
 
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-cascade-image-generation/gradio_helper.py"
+        )
+        open("gradio_helper.py", "w").write(r.text)
 
-    demo = gr.Interface(
-        generate,
-        [
-            gr.Textbox(label="Prompt"),
-            gr.Textbox(label="Negative prompt"),
-            gr.Slider(
-                0,
-                20,
-                step=1,
-                label="Prior guidance scale",
-                info="Higher guidance scale encourages to generate images that are closely "
-                "linked to the text `prompt`, usually at the expense of lower image quality. Applies to the prior pipeline",
-            ),
-            gr.Slider(
-                0,
-                20,
-                step=1,
-                label="Decoder guidance scale",
-                info="Higher guidance scale encourages to generate images that are closely "
-                "linked to the text `prompt`, usually at the expense of lower image quality. Applies to the decoder pipeline",
-            ),
-            gr.Slider(0, np.iinfo(np.int32).max, label="Seed", step=1),
-        ],
-        "image",
-        examples=[["An image of a shiba inu, donning a spacesuit and helmet", "", 4, 0, 0], ["An armchair in the shape of an avocado", "", 4, 0, 0]],
-        allow_flagging="never",
-    )
+    from gradio_helper import make_demo
+
+    demo = make_demo(generate)
+
     try:
         demo.queue().launch(debug=False)
     except Exception:

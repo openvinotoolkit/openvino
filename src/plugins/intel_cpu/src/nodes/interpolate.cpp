@@ -1862,9 +1862,9 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
 
             const auto &interpShapeCalcMode = interpAttr.shape_calculation_mode;
             if (interpShapeCalcMode == ngInterpShapeCalcMode::SCALES) {
-                shapeCalcMode = InterpolateShapeCalcMode::scales;
+                interpAttrs.shapeCalcMode = InterpolateShapeCalcMode::scales;
             } else if (interpShapeCalcMode == ngInterpShapeCalcMode::SIZES) {
-                shapeCalcMode = InterpolateShapeCalcMode::sizes;
+                interpAttrs.shapeCalcMode = InterpolateShapeCalcMode::sizes;
             } else {
                 OPENVINO_THROW(errorPrefix, " has unsupported shape calculation mode");
             }
@@ -1925,14 +1925,14 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
 
             const auto &interpShapeCalcMode = interpAttr.shape_calculation_mode;
             if (interpShapeCalcMode == ngInterpShapeCalcMode::SCALES) {
-                shapeCalcMode = InterpolateShapeCalcMode::scales;
+                interpAttrs.shapeCalcMode = InterpolateShapeCalcMode::scales;
                 const auto scalesNode = std::dynamic_pointer_cast<const ov::op::v0::Constant>(interp->get_input_node_shared_ptr(SIZE_OR_SCALE_ID_V11));
                 if (scalesNode) {
                     scales = scalesNode->cast_vector<float>();
                     isScaleConstant = true;
                 }
             } else if (interpShapeCalcMode == ngInterpShapeCalcMode::SIZES) {
-                shapeCalcMode = InterpolateShapeCalcMode::sizes;
+                interpAttrs.shapeCalcMode = InterpolateShapeCalcMode::sizes;
             } else {
                 OPENVINO_THROW(errorPrefix, " has unsupported shape calculation mode");
             }
@@ -2021,7 +2021,13 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         return;
 
     ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
-    if ((inputPrecision != ov::element::i8) && (inputPrecision != ov::element::u8) && (inputPrecision != ov::element::bf16)) {
+
+#if defined(OV_CPU_WITH_ACL)
+    bool isInputPrecisionSupported = one_of(inputPrecision, ov::element::i8, ov::element::u8, ov::element::f16);
+#else
+    bool isInputPrecisionSupported = one_of(inputPrecision, ov::element::i8, ov::element::u8, ov::element::bf16);
+#endif
+    if (!isInputPrecisionSupported) {
         inputPrecision = ov::element::f32;
     }
 
@@ -2039,9 +2045,11 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(DATA_ID);
     }
 
+#if !defined(OV_CPU_WITH_ACL)
     if (!mayiuse(cpu::x64::sse41)) {
         inputPrecision = outputPrecision = ov::element::f32;
     }
+#endif
 
     auto targetShapeType = ov::element::i32;
     auto scalesType = ov::element::f32;
@@ -2066,7 +2074,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
     auto pushDesc = [&](LayoutType dataFormat, impl_desc_type implDetail, bool is_version11, bool useAclExecutor = false) {
         config.inConfs[DATA_ID].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA_ID)));
         if (is_version11) {
-            if (shapeCalcMode == InterpolateShapeCalcMode::sizes) {
+            if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes) {
                 config.inConfs[SIZE_OR_SCALE_ID_V11].setMemDesc(
                     creatorsMap.at(LayoutType::ncsp)->createSharedDesc(targetShapeType, getInputShapeAtPort(SIZE_OR_SCALE_ID_V11)));
             } else {
@@ -2115,6 +2123,8 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
         if (canUseAclExecutor)
             return;
+        //fallback to f32 if ref is used
+        inputPrecision = outputPrecision = ov::element::f32;
 #endif
 
         if (dataRank == 4) {
@@ -2147,6 +2157,8 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
         if (canUseAclExecutor)
             return;
+        //fallback to f32 if ref is used
+        inputPrecision = outputPrecision = ov::element::f32;
 #endif
 
         if (!mayiuse(cpu::x64::sse41) || interpAttrs.mode == InterpolateMode::linear) {
@@ -2186,7 +2198,7 @@ bool Interpolate::needShapeInfer() const {
     if (Node::inputShapesModified()) {
         return true;
     }
-    if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
+    if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales) {
         if (lastScales.empty()) {
             return true;
         }
@@ -2213,9 +2225,9 @@ bool Interpolate::needShapeInfer() const {
 void Interpolate::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 
-    const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : get_scale_id();
+    const size_t port = interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : get_scale_id();
     const auto &memory = getParentEdgeAt(port)->getMemory();
-    if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
+    if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales) {
         const float *scales = memory.getDataAs<const float>();
         lastScales.assign(scales, scales + memory.getDesc().getShape().getElementsCount());
     } else {
@@ -2256,7 +2268,7 @@ void Interpolate::prepareParams() {
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         OPENVINO_THROW(errorPrefix, " did not allocate input memory");
 
-    if (shapeCalcMode == InterpolateShapeCalcMode::sizes) {
+    if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes) {
         auto tsMemPtr = getSrcMemoryAtPort(TARGET_SHAPE_ID);
         if (!tsMemPtr || !tsMemPtr->isAllocated())
             OPENVINO_THROW(errorPrefix, " did not allocate target shape memory");
@@ -2295,7 +2307,7 @@ void Interpolate::prepareParams() {
         interpAttrs.layout = InterpolateLayoutType::by_channel;
     }
 
-    if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
+    if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales) {
         if (!isScaleConstant) {
             const auto& scalesMem = getParentEdgeAt(get_scale_id())->getMemory();
             const float* scalesData = scalesMem.getDataAs<const float>();
@@ -2448,7 +2460,7 @@ std::vector<float> Interpolate::getScales(const VectorDims &srcDimPad, const Vec
         if (interpAttrs.mode == InterpolateMode::bilinear_pillow || interpAttrs.mode == InterpolateMode::bicubic_pillow) {
             fullScales[axis] = static_cast<float>(dstDim[axis]) / static_cast<float>(srcDimPad[axis]);
         } else {
-            fullScales[axis] = (shapeCalcMode == InterpolateShapeCalcMode::scales) ? scales[i] :
+            fullScales[axis] = (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales) ? scales[i] :
                                                                                      static_cast<float>(dstDim[axis]) / static_cast<float>(srcDimPad[axis]);
         }
     }
