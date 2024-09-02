@@ -23,7 +23,6 @@
 #include "itt.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "memory_control.hpp"
 #include "node.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/common/cpu_memcpy.h"
@@ -44,8 +43,6 @@
 
 #include <oneapi/dnnl/dnnl.hpp>
 #include "common/primitive_desc_iface.hpp"
-
-#include "openvino/runtime/memory_solver.hpp" //TODO: remove
 
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/core/parallel.hpp"
@@ -832,10 +829,7 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
         OPENVINO_ASSERT(count == 1);
     }
 
-    if (!getConfig().flushIntermediateTensors) {
-        //allocate mem right away
-        m_pMemoryControl->allocateMemory();
-    }
+    m_pMemoryControl->allocateMemory();
 
     // Resolve all other edges with status NotAllocated and in-place
     for (auto& cluster : edge_clusters) {
@@ -1279,11 +1273,11 @@ int Graph::GetNumaNodeId() const {
 void Graph::Infer(SyncInferRequest* request) {
     DEBUG_LOG("Infer graph: ", GetName(), ". Status: ", static_cast<int>(status));
 
-    if ov_unlikely(!m_pMemoryControl) {
+    if (!m_pMemoryControl) {
         OPENVINO_THROW("Memory control unit is not initilized in graph: ", GetName());
     }
 
-    if ov_unlikely(!m_pMemoryControl->allocated()) {
+    if (!m_pMemoryControl->allocated()) {
         m_pMemoryControl->allocateMemory();
     }
 

@@ -46,7 +46,6 @@ struct Config {
 
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
-    bool flushIntermediateTensors = true; //TODO: change to false by default
     SnippetsMode snippetsMode = SnippetsMode::Enable;
     std::string dumpToDot = {};
     std::string device_id = {};

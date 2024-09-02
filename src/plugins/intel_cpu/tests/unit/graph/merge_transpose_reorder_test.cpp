@@ -76,7 +76,6 @@ protected:
                         "MergeTransposeReorderCPUTest doesn't support shape", shape,
                         ". Only 4D and 3D shapes are supported");
         Config conf;
-        conf.flushIntermediateTensors = false; // deferred allocation
         m_context = std::make_shared<GraphContext>(conf, nullptr, false);
         const auto replication_result = CreateModelAndReplicate(shape,
                                                                 params.firstNodeLayout,

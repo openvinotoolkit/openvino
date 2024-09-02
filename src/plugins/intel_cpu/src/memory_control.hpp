@@ -65,7 +65,7 @@ private:
     using value_type = std::unique_ptr<MemoryControl>;
 
 private:
-    std::vector<value_type> m_storage;
+    std::vector<value_type> m_controlUnits;
 };
 
 }  // namespace intel_cpu

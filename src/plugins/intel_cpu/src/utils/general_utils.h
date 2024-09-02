@@ -11,18 +11,6 @@
 
 #include "openvino/core/type/element_type.hpp"
 
-
-#if defined(__GNUC__) || defined(__clang__)
-#define ov_unlikely(x)     (__builtin_expect(!!(x), false))
-#define ov_likely(x)       (__builtin_expect(!!(x), true))
-#elif(defined(__cplusplus) && (__cplusplus >= 202002L)) || (defined(_MSVC_LANG) && _MSVC_LANG >= 202002L)
-#define ov_unlikely(x)     (x) [[unlikely]]
-#define ov_likely(x)       (x) [[likely]]
-#else
-#define ov_unlikely(x)     (x)
-#define ov_likely(x)       (x)
-#endif
-
 namespace ov {
 namespace intel_cpu {
 
