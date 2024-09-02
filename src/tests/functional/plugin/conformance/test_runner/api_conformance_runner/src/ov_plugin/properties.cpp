@@ -83,7 +83,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckSetIncorrectRWMetricsPropsTests,
         OVCheckSetIncorrectRWMetricsPropsTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    ov_plugin_mandatory,
+    ov_plugin,
     OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
     ::testing::Combine(::testing::Values(ov::test::utils::target_device), ::testing::Values(ov::AnyMap({}))),
     MARK_MANDATORY_PROPERTY_FOR_HW_DEVICE(OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName));
