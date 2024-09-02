@@ -17,15 +17,18 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
+class ExpressionFactory;
 class LinearIR;
 using ExpressionPtr = std::shared_ptr<Expression>;
 using ExpressionMap = std::unordered_map<Expression*, ExpressionPtr>;
 class Expression : public std::enable_shared_from_this<Expression> {
     friend class LinearIR;
+    friend class ExpressionFactory;
     friend class ExpressionPort;
 
 public:
     Expression() = default;
+    virtual ~Expression() = default;
 
     std::shared_ptr<Node> get_node() const;
     std::shared_ptr<Emitter> get_emitter() const;
@@ -50,7 +53,8 @@ public:
 
     void set_input_port_connector(size_t port, PortConnectorPtr to);
 
-    void validate() const;
+    // Cannot be called in ctor because validate port attributes (descs, connectors) also
+    virtual void validate() const;
 
     ExpressionPort get_input_port(size_t i);
     ExpressionPort get_output_port(size_t i);
@@ -61,16 +65,42 @@ public:
     bool needShapeInfer() const { return m_need_shape_infer; }
     const std::vector<size_t>& get_loop_ids() const;
     void set_loop_ids(const std::vector<size_t>& loops);
-    ExpressionPtr clone_with_new_inputs(const std::vector<PortConnectorPtr>& new_inputs,
-                                        const std::shared_ptr<Node>& new_node) const;
+    ExpressionPtr clone_with_new_inputs(const std::shared_ptr<Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
+                                        const std::vector<PortDescriptorPtr>& new_in_descs = {}) const;
     ExpressionPtr clone_with_new_inputs(const ExpressionMap& expr_map, const std::shared_ptr<Node>& new_node) const;
+
+    virtual bool visit_attributes(AttributeVisitor &visitor);
+
+    // Note that get_type_info_static and get_type_info are needed to mimic OPENVINO_RTTI interface,
+    // so the standard OPENVINO_RTTI(...) macros could be used in derived classes.
+    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
+        static ::ov::DiscreteTypeInfo type_info_static {"Expression"};
+        type_info_static.hash();
+        return type_info_static;
+    }
+
+    virtual const DiscreteTypeInfo& get_type_info() const {
+        return get_type_info_static();
+    }
+
+    const char* get_type_name() const {
+        return get_type_info().name;
+    }
 
 protected:
     Expression(const Expression& other);
     // Note: The constructor initialization is private since an expression can be created only by Linear IR.
     //       The method must be used only by Linear IR builder of expressions!
     Expression(const std::shared_ptr<Node>& n, const std::shared_ptr<IShapeInferSnippetsFactory>& factory, bool need_shape_infer = true);
-    void update_node_and_connectors(const std::vector<PortConnectorPtr>& new_inputs, const std::shared_ptr<Node>& new_node);
+
+    // Virtual clone method wich is called in clone_with_new_inputs with common logic
+    virtual ExpressionPtr clone() const;
+    // Called in ctors to validate expression attributes
+    virtual void validate_attributes() const;
+
+    // used in clone_with_new_inputs. New output port descriptors were inited automatically
+    void update_port_attributes(const std::shared_ptr<Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
+                                const std::vector<PortDescriptorPtr>& new_in_descs, const std::vector<PortDescriptorPtr>& new_out_descs);
 
     std::shared_ptr<Node> m_source_node{nullptr};
     std::shared_ptr<Emitter> m_emitter{nullptr};

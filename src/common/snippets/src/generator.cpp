@@ -29,7 +29,7 @@ LoweringResult Generator::generate(const lowered::LinearIRPtr& linear_ir, const 
 
     const auto kernel_op = op::Kernel::make_kernel(*linear_ir);
     kernel_op->compile_params = compile_params;
-    const auto kernel_expr = linear_ir->create_expression(kernel_op, std::vector<lowered::PortConnectorPtr>{});
+    const auto kernel_expr = linear_ir->get_expr_factory()->build<>(kernel_op, std::vector<lowered::PortConnectorPtr>{});
     const auto kernel = target->get(kernel_expr->get_node()->get_type_info())(kernel_expr);
 
     kernel->emit_code({}, {});
@@ -74,8 +74,7 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
         std::dynamic_pointer_cast<op::LoopBegin>(op) ||
         std::dynamic_pointer_cast<op::LoopEnd>(op) ||
         std::dynamic_pointer_cast<op::Brgemm>(op) ||
-        std::dynamic_pointer_cast<op::IntermediateMemoryBuffer>(op) ||
-        std::dynamic_pointer_cast<op::NewMemoryBuffer>(op) ||
+        std::dynamic_pointer_cast<op::Buffer>(op) ||
         std::dynamic_pointer_cast<op::RankNormalization>(op) ||
         std::dynamic_pointer_cast<op::Reshape>(op) ||
         std::dynamic_pointer_cast<snippets::op::Store>(op)
