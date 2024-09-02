@@ -84,21 +84,17 @@ KERNEL(lstm_seq)(
                             #endif
                             initial_hidden_idx += VEC_SIZE;
                             rindex += VEC_SIZE;
-                            unroll_for(int s=0;s<VEC_SIZE;s++){
-                                #if MAX_SEQ_LEN > 1
-                                    hidden_result = mad(initial_block[s], r_block[l][k][j][s], hidden_result);
-                                #else
-                                    hidden_result = mad(initial_block[s], r_block[s], hidden_result);
-                                #endif
-                            }
+                            #if MAX_SEQ_LEN > 1
+                                hidden_result += dot(initial_block, r_block[l][k][j]);
+                            #else
+                                hidden_result += dot(initial_block, r_block);
+                            #endif
                         #else
                             INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[initial_hidden_idx]);
                             INPUT3_TYPE_VEC r_block = READ_VEC(0, &R[r_index]);
                             initial_hidden_idx += VEC_SIZE;
                             r_index += VEC_SIZE;
-                            unroll_for(int s=0;s<VEC_SIZE;s++){
-                                hidden_result = mad(initial_block[s], r_block[s], hidden_result);
-                            }
+                            hidden_result += dot(initial_block, r_block);
 
                         #endif
                     }else{
