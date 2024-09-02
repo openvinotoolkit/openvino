@@ -853,6 +853,12 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
                        uint64_t(result));
     }
 
+    _logger.debug("createGraph - performing pfnLoad");
+    result = loadGraph(*graph);
+    if (ZE_RESULT_SUCCESS != result) {
+        OPENVINO_THROW("L0 pfnLoad", " result: ", ze_result_to_string(result), ", code 0x", std::hex, uint64_t(result));
+    }
+
     return result;
 }
 template <typename TableExtension>
@@ -953,8 +959,6 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vect
                              nullptr};
 
         auto result = _graphDdiTableExt->pfnCreate(_context, _deviceHandle, &desc, &graphHandle);
-        OV_ITT_TASK_NEXT(PARSE_BLOB, "_graphDdiTableExt");
-
         if (ZE_RESULT_SUCCESS != result) {
             OPENVINO_THROW("L0 pfnCreate",
                            " result: ",
@@ -963,6 +967,18 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vect
                            std::hex,
                            uint64_t(result));
         }
+
+        result = loadGraph(graphHandle);
+        if (ZE_RESULT_SUCCESS != result) {
+            OPENVINO_THROW("L0 pfnLoad",
+                           " result: ",
+                           ze_result_to_string(result),
+                           ", code 0x",
+                           std::hex,
+                           uint64_t(result));
+        }
+
+        OV_ITT_TASK_NEXT(PARSE_BLOB, "_graphDdiTableExt");
     } else {
         OPENVINO_THROW("Empty blob");
     }
