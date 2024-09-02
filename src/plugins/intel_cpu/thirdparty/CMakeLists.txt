@@ -15,6 +15,17 @@ if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
 
+function(ov_create_acl_version_file)
+    set(ACL_ROOT_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary")
+    set(ACL_SCONSCRIPT_FILE_PATH "${ACL_ROOT_DIR}/SConscript")
+    file(READ ${ACL_SCONSCRIPT_FILE_PATH} ACL_SCONSCRIPT_FILE_CONTENT)
+    string(REGEX MATCH "v([0-9]+\\.[0-9]+\\.?[0-9]*)" ACL_VERSION "${ACL_SCONSCRIPT_FILE_CONTENT}")
+    set(ACL_VERSION "${CMAKE_MATCH_1}")
+
+    set(ACL_VERSION_FILE_PATH "${ACL_ROOT_DIR}/build/src/core/arm_compute_version.embed")
+    file(WRITE ${ACL_VERSION_FILE_PATH} "\"arm_compute_version=v${ACL_VERSION}\"")
+endfunction()
+
 function(ov_add_onednn)
     set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
     set(CMAKE_DISABLE_FIND_PACKAGE_PythonInterp ON)
@@ -80,6 +91,7 @@ function(ov_add_onednn)
     endif()
 
     if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
+        ov_add_compiler_flags(-Wno-error)
         ov_add_compiler_flags(-Wno-undef)
         ov_add_compiler_flags(-Wno-missing-declarations)
         if(ARM OR AARCH64)
@@ -111,13 +123,6 @@ function(ov_add_onednn)
         ov_add_compiler_flags(/wd4334)
     endif()
 
-    # remove CMAKE_COMPILE_WARNING_AS_ERROR for thirdparty
-    if(CMAKE_CROSSCOMPILING AND CMAKE_COMPILE_WARNING_AS_ERROR)
-        string(REPLACE " -Werror " "  " CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-        string(REPLACE " -Werror " "  "  CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-        set(CMAKE_COMPILE_WARNING_AS_ERROR "OFF")
-    endif()
-
     if(SUGGEST_OVERRIDE_SUPPORTED)
         # xbyak compilation fails
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
@@ -126,6 +131,9 @@ function(ov_add_onednn)
     # to find our FindACL.cmake
     if(DNNL_USE_ACL)
         list(APPEND CMAKE_MODULE_PATH "${intel_cpu_thirdparty_SOURCE_DIR}")
+        # oneDNN needs arm_compute_version.embed file to detect ACL version
+        # since the file has not been generated yet, it is created manually
+        ov_create_acl_version_file()
     endif()
 
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
@@ -156,6 +164,11 @@ endif()
 if(ENABLE_MLAS_FOR_CPU)
     add_subdirectory(mlas)
     ov_install_static_lib(mlas ${OV_CPACK_COMP_CORE})
+endif()
+
+if(ENABLE_SHL_FOR_CPU)
+    add_subdirectory(shl)
+    ov_install_static_lib(shl ${OV_CPACK_COMP_CORE})
 endif()
 
 ov_add_onednn()

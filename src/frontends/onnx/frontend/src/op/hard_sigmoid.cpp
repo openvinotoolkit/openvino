@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/hard_sigmoid.hpp"
-
-#include "openvino/op/constant.hpp"
 #include "openvino/op/hard_sigmoid.hpp"
 
+#include "core/operator_set.hpp"
+#include "openvino/op/constant.hpp"
 using namespace ov::op;
 using ov::Shape;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector hard_sigmoid(const ov::frontend::onnx::Node& node) {
     const auto data = node.get_ov_inputs().at(0);
 
@@ -30,8 +29,9 @@ ov::OutputVector hard_sigmoid(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::HardSigmoid>(data, alpha, beta)};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("HardSigmoid", OPSET_SINCE(1), ai_onnx::opset_1::hard_sigmoid);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

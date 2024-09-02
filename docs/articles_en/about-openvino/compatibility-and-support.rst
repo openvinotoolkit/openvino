@@ -1,5 +1,3 @@
-.. {#compatibility_and_support}
-
 Compatibility and Support
 =========================
 
@@ -9,15 +7,17 @@ Compatibility and Support
    :hidden:
 
    compatibility-and-support/supported-devices
-   compatibility-and-support/supported-operations-inference-devices
-   compatibility-and-support/supported-operations-framework-frontend
+   compatibility-and-support/supported-operations
+   compatibility-and-support/supported-models
 
 
-:doc:`Supported Devices <compatibility-and-support/supported-devices>` - compatibility information for supported hardware accelerators.
+| :doc:`Supported Devices <compatibility-and-support/supported-devices>`:
+|     compatibility information for supported hardware accelerators.
 
-:doc:`Supported Operations <compatibility-and-support/supported-operations-inference-devices>` - a listing of framework layers supported by OpenVINO.
+| :doc:`Supported Operations <compatibility-and-support/supported-operations>`:
+|     a listing of operations supported by OpenVINO, based on device and frontend conformance.
 
-:doc:`Supported Operations <compatibility-and-support/supported-operations-framework-frontend>` - a listing of layers supported by OpenVINO inference devices.
-
-
+| :doc:`AI Models verified for OpenVINO™ <compatibility-and-support/supported-models>`:
+|     a list of selected models confirmed to work with Intel® Core Ultra™ Processors with the
+      OpenVINO™ toolkit.
 

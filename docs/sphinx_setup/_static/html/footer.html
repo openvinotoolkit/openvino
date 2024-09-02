@@ -1,0 +1,138 @@
+<style>
+    body {
+        margin: 0;
+    }
+
+    .footer .container {
+        padding-right: 30px;
+        padding-left: 30px;
+        margin-right: auto;
+        margin-left: auto;
+        background-color: rgb(240, 240, 240);
+    }
+
+    .footer-link-list a {
+        float: left;
+        margin-right: 30px;
+        text-decoration: none;
+        background-color: transparent;
+    }
+
+    .footer-link-list a:nth-child(1) {
+        margin-right: 80px;
+    }
+
+    .footer-contents {
+        border-top: 1px solid lightgray;
+        font-size: 12px;
+        box-sizing: border-box;
+        font-family: sans-serif;
+        padding-top: 10px;
+        margin-top: 0;
+        margin-bottom: 0;
+        line-height: 1.65;
+        margin-left: 0px;
+        margin-right: 0px;
+    }
+
+    .footer-item p {
+        margin-top: 0;
+        margin-bottom: 0;
+        line-height: 1.65;
+        padding: 10px 10px 0 30px !important;
+        font-size: 11px !important;
+    }
+
+    .footer-contents .footer-link-list a {
+        color: #0054AE;
+    }
+
+    .newsletter-btn,
+    .newsletter-btn:active {
+        background-color: white;
+        border: 1px solid lightgray !important;
+        border-radius: none;
+        color: #0054AE !important;
+        display: inline-block;
+        font-weight: 400;
+        font-size: .8rem;
+        line-height: 2.0;
+        padding: 0.5rem 0.65625rem 0.5rem 0.96875rem;
+        text-align: center;
+        text-decoration: none;
+        transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+        vertical-align: middle;
+        align-self: flex-start;
+    }
+
+    .no-bullets {
+        list-style-type: none;
+        margin-bottom: 0px;
+    }
+
+    .newsletter-btn:hover {
+        background-color: rgba(var(--ost-color-sst-dropdown-background), 1) !important;
+        color: rgb(240, 240, 240) !important;
+    }
+
+    .footer-list {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .footer-link-list {
+        display: flex;
+        flex-direction: row;
+    }
+
+    /* cookie wap requirement */
+    li#wap_dns {
+        display: none;
+    }
+
+    li#wap_nac {
+        display: none;
+    }
+
+    .reference:hover {
+        text-decoration: underline;
+    }
+</style>
+
+<div class="container footer-contents">
+    <div class="footer-item">
+        <div class="footer-list">
+            <div class="footer-link-list">
+                <ul class="no-bullets">
+                    <lh>©2024 Intel Corporation</lh>
+                </ul>
+                <ul class="no-bullets">
+                    <lh>OpenVINO</lh>
+                    <li><a href="https://docs.openvino.ai/2024/about-openvino/additional-resources/telemetry.html" alt="telemetry">OpenVINO™ Telemetry</a></li>
+                    <li><a href="https://docs.openvino.ai/2024/about-openvino/additional-resources/glossary.html" alt="glossary">Glossary</a></li>
+                    <li><a href="https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html"  alt="stories" target="_blank">Case Studies</a></li>
+                </ul>
+                <ul class="no-bullets">
+                    <lh>Legal</lh>
+                    <li><a href="https://docs.openvino.ai/2024/about-openvino/additional-resources/terms-of-use.html" alt="terms of use">Terms of Use</a></li>
+                    <li><a href="https://www.intel.com/content/www/us/en/artificial-intelligence/responsible-ai.html" alt="responsible ai" target="_blank">Responsible AI</a></li>
+                </ul>
+                <ul class="no-bullets">
+                    <lh>Privacy</lh>
+                    <li><a href="https://www.intel.com/content/www/us/en/privacy/intel-cookie-notice.html" alt="cookies policy" target="_blank" data-cookie-notice="true">Cookies</a></li>
+                    <li><a href="https://www.intel.com/content/www/us/en/privacy/intel-privacy-notice.html" alt="privacy" target="_blank">Privacy</a></li>
+                    <li data-wap_ref="dns" id="wap_dns"><a href="/#" alt="your privacy choice" target="_parent">Your Privacy Choices</a></li>
+                    <li id="footer_it_problem_fix_do_not_remove"></li>
+                    <li data-wap_ref="nac" id="wap_nac"><a href="https://www.intel.com/content/www/us/en/privacy/privacy-residents-certain-states.html"
+                            alt="notice at collection" target="_parent">Notice at Collection</a></li>
+                </ul>
+            </div>
+            <a id="newsletterTrigger" class="newsletter-btn" href="#" alt="Newsletter"
+                onclick="return false;">Newsletter</a>
+        </div>
+        <p style="font-size: 0.9em">Intel, the Intel logo, and other Intel marks are trademarks of Intel Corporation or
+            its subsidiaries. Other names and brands may be claimed as the property of others.</p>
+    </div>
+</div>

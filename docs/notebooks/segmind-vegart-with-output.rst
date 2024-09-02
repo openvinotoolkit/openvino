@@ -49,8 +49,8 @@ used to convert the models to OpenVINO™ IR format. Additionally, we
 demonstrate how to improve pipeline latency with the quantization UNet
 model using `NNCF <https://github.com/openvinotoolkit/nncf>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Prepare PyTorch model <#prepare-pytorch-model>`__
@@ -73,6 +73,16 @@ Table of contents:
 
 -  `Interactive Demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -82,15 +92,6 @@ Prerequisites
 
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
     "torch>=2.1" transformers diffusers "git+https://github.com/huggingface/optimum-intel.git" "gradio>=4.19" "openvino>=2023.3.0" "peft==0.6.2"
-
-
-.. parsed-literal::
-
-    WARNING: Skipping openvino-dev as it is not installed.
-    WARNING: Skipping openvino as it is not installed.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Prepare PyTorch model
 ---------------------
@@ -125,15 +126,6 @@ pipeline on disk.
         del pipe
         gc.collect()
 
-
-.. parsed-literal::
-
-    2024-01-24 14:12:38.551058: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-01-24 14:12:38.591203: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-01-24 14:12:39.344351: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
 Convert model to OpenVINO format
 --------------------------------
 
@@ -158,9 +150,9 @@ You can find a mapping between tasks and model classes in Optimum
 TaskManager
 `documentation <https://huggingface.co/docs/optimum/exporters/task_manager>`__.
 
-Additionally, you can specify weights compression ``--fp16`` for the
-compression model to FP16 and ``--int8`` for the compression model to
-INT8. Please note, that for INT8, it is necessary to install nncf.
+Additionally, you can specify weights compression ``--weight-format``
+for the model compression. Please note, that for INT8/INT4, it is
+necessary to install nncf.
 
 Full list of supported arguments available via ``--help`` For more
 details and examples of usage, please check `optimum
@@ -225,7 +217,7 @@ back to image format.
     
     
     if not skip_convert_model:
-        !optimum-cli export openvino --model $sdxl_model_id --task stable-diffusion-xl $model_dir --fp16
+        !optimum-cli export openvino --model $sdxl_model_id --task stable-diffusion-xl $model_dir --weight-format fp16
         convert_tiny_vae(tae_id, model_dir)
 
 Text-to-image generation
@@ -438,7 +430,7 @@ model inputs for calibration we should customize ``CompiledModel``.
         original_unet = pipe.unet.request
         pipe.unet.request = CompiledModelDecorator(original_unet)
     
-        dataset = datasets.load_dataset("conceptual_captions", split="train").shuffle(seed=42)
+        dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", trust_remote_code=True).shuffle(seed=42)
         disable_progress_bar(pipe)
     
         # Run inference for data collection
@@ -598,7 +590,7 @@ pipelines, we use median inference time on the calibration subset.
     import time
     
     validation_size = 7
-    calibration_dataset = datasets.load_dataset("conceptual_captions", split="train")
+    calibration_dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", trust_remote_code=True)
     validation_data = []
     for idx, batch in enumerate(calibration_dataset):
         if idx >= validation_size:
@@ -704,7 +696,11 @@ launch the interactive demo.
 
 .. code:: ipython3
 
-    import gradio as gr
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-xl/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+    
+    from gradio_helper import make_demo_segmind_vegart
     
     if use_quantized_model.value:
         if not quantized_model_present:
@@ -714,64 +710,7 @@ launch the interactive demo.
     else:
         text2image_pipe = OVStableDiffusionXLPipeline.from_pretrained(model_dir, device=device.value)
     
-    
-    def generate_from_text(text, seed, num_steps, height, width):
-        set_seed(seed)
-        result = text2image_pipe(
-            text,
-            num_inference_steps=num_steps,
-            guidance_scale=1.0,
-            height=height,
-            width=width,
-        ).images[0]
-        return result
-    
-    
-    with gr.Blocks() as demo:
-        with gr.Column():
-            positive_input = gr.Textbox(label="Text prompt")
-            with gr.Row():
-                seed_input = gr.Number(precision=0, label="Seed", value=42, minimum=0)
-                steps_input = gr.Slider(label="Steps", value=4, minimum=2, maximum=8, step=1)
-                height_input = gr.Slider(label="Height", value=512, minimum=256, maximum=1024, step=32)
-                width_input = gr.Slider(label="Width", value=512, minimum=256, maximum=1024, step=32)
-                btn = gr.Button()
-            out = gr.Image(
-                label=("Result (Quantized)" if use_quantized_model.value else "Result (Original)"),
-                type="pil",
-                width=512,
-            )
-            btn.click(
-                generate_from_text,
-                [positive_input, seed_input, steps_input, height_input, width_input],
-                out,
-            )
-            gr.Examples(
-                [
-                    ["cute cat", 999],
-                    [
-                        "underwater world coral reef, colorful jellyfish, 35mm, cinematic lighting, shallow depth of field,  ultra quality, masterpiece, realistic",
-                        89,
-                    ],
-                    [
-                        "a photo realistic happy white poodle dog ​​playing in the grass, extremely detailed, high res, 8k, masterpiece, dynamic angle",
-                        1569,
-                    ],
-                    [
-                        "Astronaut on Mars watching sunset, best quality, cinematic effects,",
-                        65245,
-                    ],
-                    [
-                        "Black and white street photography of a rainy night in New York, reflections on wet pavement",
-                        48199,
-                    ],
-                    [
-                        "cinematic photo detailed closeup portraid of a Beautiful cyberpunk woman, robotic parts, cables, lights, text; , high quality photography, 3 point lighting, flash with softbox, 4k, Canon EOS R3, hdr, smooth, sharp focus, high resolution, award winning photo, 80mm, f2.8, bokeh . 35mm photograph, film, bokeh, professional, 4k, highly detailed, high quality photography, 3 point lighting, flash with softbox, 4k, Canon EOS R3, hdr, smooth, sharp focus, high resolution, award winning photo, 80mm, f2.8, bokeh",
-                        48199,
-                    ],
-                ],
-                [positive_input, seed_input],
-            )
+    demo = make_demo_segmind_vegart(text2image_pipe, use_quantized_model)
     
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')

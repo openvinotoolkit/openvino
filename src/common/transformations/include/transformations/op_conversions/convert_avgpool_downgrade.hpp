@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Converts AvgPool v14 to AvgPool v1
  */
 class TRANSFORMATIONS_API ConvertAvgPool14ToAvgPool1 : public MatcherPass {

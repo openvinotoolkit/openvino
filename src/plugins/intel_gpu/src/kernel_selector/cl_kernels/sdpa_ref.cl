@@ -93,6 +93,24 @@ inline uint FUNC(get_input2_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint 
 #endif
 }
 
+#ifdef BEAM_TABLE_TYPE
+inline uint FUNC(get_bt_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#if BEAM_TABLE_SIMPLE
+    return GET_DATA_INDEX_6D_SAFE(BEAM_TABLE, b, f, w, z, y, x);
+#else
+#   error sdpa_ref.cl : Unsupported beam table format
+#endif
+}
+
+inline uint FUNC(get_bt_index_key)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+    return FUNC_CALL(get_bt_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT1_DIMS_ORDER);
+}
+
+inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+    return FUNC_CALL(get_bt_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT2_DIMS_ORDER);
+}
+#endif
+
 #define APPLY_SCALE_TO_QUERY 1
 
 KERNEL(sdpa_ref)(
@@ -107,6 +125,9 @@ KERNEL(sdpa_ref)(
     const __global INPUT4_TYPE* scale,
 #endif
     __global OUTPUT_TYPE* output,
+#ifdef BEAM_TABLE_TYPE
+    const __global BEAM_TABLE_TYPE* beam_table,
+#endif
     __global OUTPUT_TYPE* tmp_buf
 )
 {
@@ -129,7 +150,12 @@ KERNEL(sdpa_ref)(
             OUTPUT_TYPE acc = 0;
             for (uint h = 0; h < HEAD_SIZE /* head_size */; h++) {
                 uint query_offset = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b0, b1, 0, 0, target_seq_idx, h);
-                uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0, b1, 0, 0, s, h);
+#ifdef BEAM_TABLE_TYPE
+                uint b_idx = beam_table[FUNC_CALL(get_bt_index_key)(OPTIONAL_SHAPE_INFO_TENSOR b0, b1, 0, 0, s, h)];
+#else
+                uint b_idx = b0;
+#endif
+                uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1, 0, 0, s, h);
 
 #if APPLY_SCALE_TO_QUERY
                 INPUT0_TYPE q_val = query_input[query_offset] * scale_val;
@@ -202,7 +228,13 @@ KERNEL(sdpa_ref)(
         uint tmp_buf_offset = b0 * (NUM_HEADS * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                               b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                               target_seq_idx * (SOURCE_SEQ_LEN) + s;
-        uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0, b1, 0, 0, s, head_size_idx);
+
+#ifdef BEAM_TABLE_TYPE
+        uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0, b1, 0, 0, s, head_size_idx)];
+#else
+        uint b_idx = b0;
+#endif
+        uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1, 0, 0, s, head_size_idx);
 
         acc += tmp_buf[tmp_buf_offset] * value_input[value_offset];
     }

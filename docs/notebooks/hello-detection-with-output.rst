@@ -16,8 +16,8 @@ corner, ``(x_max, y_max)`` are the coordinates of the bottom right
 bounding box corner and ``conf`` is the confidence for the predicted
 class.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `Download model weights <#download-model-weights>`__
@@ -26,6 +26,16 @@ Table of contents:
 -  `Load an Image <#load-an-image>`__
 -  `Do Inference <#do-inference>`__
 -  `Visualize Results <#visualize-results>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 .. code:: ipython3
 
@@ -60,7 +70,7 @@ Imports
     
     open("notebook_utils.py", "w").write(r.text)
     
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 Download model weights
 ----------------------
@@ -109,16 +119,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
-    
+    device = device_widget()
     device
 
 

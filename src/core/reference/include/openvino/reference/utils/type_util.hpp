@@ -20,6 +20,7 @@ template <class T>
 constexpr bool is_floating_point() {
     using U = typename std::decay<T>::type;
     return std::is_floating_point<U>::value || std::is_same<float16, U>::value || std::is_same<bfloat16, U>::value ||
-           std::is_same<float8_e4m3, U>::value || std::is_same<float8_e5m2, U>::value;
+           std::is_same<float8_e4m3, U>::value || std::is_same<float8_e5m2, U>::value ||
+           std::is_same<float4_e2m1, U>::value || std::is_same<float8_e8m0, U>::value;
 }
 }  // namespace ov

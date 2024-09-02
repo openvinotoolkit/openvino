@@ -4,11 +4,13 @@ Interface PartialShapeConstructor
 .. code-block:: ts
 
    interface PartialShapeConstructor {
-       new PartialShape(shape): PartialShape;
+       new PartialShapeConstructor(shape): PartialShape;
    }
 
+This interface contains constructor of the :doc:`PartialShape <PartialShape>` class.
+
 * **Defined in:**
-  `addon.ts:169 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L169>`__
+  `addon.ts:567 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L567>`__
 
 
 Constructors
@@ -17,18 +19,27 @@ Constructors
 
 .. rubric:: constructor
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
-       new PartialShape(shape): PartialShape
+       new PartialShapeConstructor(shape): PartialShape
+
+   It constructs ``PartialShape`` with a specified string.
+   Skip defining the ``shape`` parameter to create an empty shape.
 
    * **Parameters:**
 
-     - shape: string
+     - ``Optional``:
+
+       .. code-block:: ts
+
+          shape: string
+
+     A string representation of the shape.
 
    * **Returns:**  :doc:`PartialShape <PartialShape>`
 
    - **Defined in**
-     `addon.ts:170 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L170>`__
+     `addon.ts:578 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L578>`__
 

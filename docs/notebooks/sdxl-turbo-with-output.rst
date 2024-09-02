@@ -16,7 +16,7 @@ More details about model can be found in `Stability AI blog
 post <https://stability.ai/news/stability-ai-sdxl-turbo>`__.
 
 Previously, we already discussed how to launch Stable Diffusion XL model
-using OpenVINO in the following `notebook <../stable-diffusion-xl>`__,
+using OpenVINO in the following `notebook <stable-diffusion-xl-with-output.html>`__,
 in this tutorial we will focus on the
 `SDXL-turbo <https://huggingface.co/stabilityai/sdxl-turbo>`__ version.
 Additionally, to improve image decoding speed, we will use `Tiny
@@ -29,8 +29,8 @@ simplify the user experience, the `Hugging Face Optimum
 Intel <https://huggingface.co/docs/optimum/intel/index>`__ library is
 used to convert the models to OpenVINO™ IR format.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Convert model to OpenVINO
@@ -53,6 +53,16 @@ Table of contents:
 
 -  `Interactive Demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -60,7 +70,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
     "torch>=2.1" transformers diffusers "git+https://github.com/huggingface/optimum-intel.git" "gradio>=4.19" "peft==0.6.2" "openvino>=2023.3.0"
 
 Convert model to OpenVINO format
@@ -89,9 +99,9 @@ You can find a mapping between tasks and model classes in Optimum
 TaskManager
 `documentation <https://huggingface.co/docs/optimum/exporters/task_manager>`__.
 
-Additionally, you can specify weights compression ``--fp16`` for the
-compression model to FP16 and ``--int8`` for the compression model to
-INT8. Please note, that for INT8, it is necessary to install nncf.
+Additionally, you can specify weights compression ``--weight-format``
+for the model compression. Please note, that for INT8/INT4, it is
+necessary to install nncf.
 
 Full list of supported arguments available via ``--help`` For more
 details and examples of usage, please check `optimum
@@ -107,7 +117,7 @@ back to image format.
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     model_dir = Path("./model")
     sdxl_model_id = "stabilityai/sdxl-turbo"
     tae_id = "madebyollin/taesdxl"
@@ -119,26 +129,26 @@ back to image format.
     import openvino as ov
     from diffusers import AutoencoderTiny
     import gc
-    
-    
+
+
     class VAEEncoder(torch.nn.Module):
         def __init__(self, vae):
             super().__init__()
             self.vae = vae
-    
+
         def forward(self, sample):
             return self.vae.encode(sample)
-    
-    
+
+
     class VAEDecoder(torch.nn.Module):
         def __init__(self, vae):
             super().__init__()
             self.vae = vae
-    
+
         def forward(self, latent_sample):
             return self.vae.decode(latent_sample)
-    
-    
+
+
     def convert_tiny_vae(model_id, output_path):
         tiny_vae = AutoencoderTiny.from_pretrained(model_id)
         tiny_vae.eval()
@@ -150,10 +160,10 @@ back to image format.
         ov_model = ov.convert_model(vae_decoder, example_input=torch.zeros((1, 4, 64, 64)))
         ov.save_model(ov_model, output_path / "vae_decoder/openvino_model.xml")
         tiny_vae.save_config(output_path / "vae_decoder")
-    
-    
+
+
     if not skip_convert_model:
-        !optimum-cli export openvino --model $sdxl_model_id --task stable-diffusion-xl $model_dir --fp16
+        !optimum-cli export openvino --model $sdxl_model_id --task stable-diffusion-xl $model_dir --weight-format fp16
         convert_tiny_vae(tae_id, model_dir)
 
 Text-to-image generation
@@ -177,44 +187,27 @@ Select inference device for text-to-image generation
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
-
-
-
-
-.. parsed-literal::
-
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
-
-
 
 .. code:: ipython3
 
     from optimum.intel.openvino import OVStableDiffusionXLPipeline
-    
+
     text2image_pipe = OVStableDiffusionXLPipeline.from_pretrained(model_dir, device=device.value)
 
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
-
-
-.. parsed-literal::
-
-    /home/ea/work/genai_env/lib/python3.8/site-packages/torch/cuda/__init__.py:138: UserWarning: CUDA initialization: The NVIDIA driver on your system is too old (found version 11080). Please update your GPU driver by downloading and installing a new version from the URL: http://www.nvidia.com/Download/index.aspx Alternatively, go to: https://pytorch.org to install a PyTorch version that has been compiled with your version of the CUDA driver. (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:108.)
-      return torch._C._cuda_getDeviceCount() > 0
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
     Compiling the vae_decoder to AUTO ...
     Compiling the unet to AUTO ...
     Compiling the text_encoder to AUTO ...
@@ -232,7 +225,7 @@ disabled using ``guidance_scale = 0``
 .. code:: ipython3
 
     import numpy as np
-    
+
     prompt = "cute cat"
     image = text2image_pipe(
         prompt,
@@ -277,7 +270,7 @@ For that, we should replace ``OVStableDiffusionXLPipeline`` with
 .. code:: ipython3
 
     from optimum.intel import OVStableDiffusionXLImg2ImgPipeline
-    
+
     image2image_pipe = OVStableDiffusionXLImg2ImgPipeline.from_pretrained(model_dir, device=device.value)
 
 
@@ -285,8 +278,8 @@ For that, we should replace ``OVStableDiffusionXLPipeline`` with
 
     Compiling the vae_decoder to AUTO ...
     Compiling the unet to AUTO ...
-    Compiling the text_encoder_2 to AUTO ...
     Compiling the vae_encoder to AUTO ...
+    Compiling the text_encoder_2 to AUTO ...
     Compiling the text_encoder to AUTO ...
 
 
@@ -372,12 +365,8 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
-    
+    skip_for_device = "GPU" in device.value
+    to_quantize = widgets.Checkbox(value=not skip_for_device, description="Quantization", disabled=skip_for_device)
     to_quantize
 
 
@@ -393,17 +382,14 @@ improve model inference speed.
 
     # Fetch `skip_kernel_extension` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-    
+
     int8_pipe = None
-    
-    if to_quantize.value and "GPU" in device.value:
-        to_quantize.value = False
-    
+
     %load_ext skip_kernel_extension
 
 Prepare calibration dataset
@@ -419,8 +405,8 @@ model inputs for calibration we should customize ``CompiledModel``.
 .. code:: ipython3
 
     UNET_INT8_OV_PATH = model_dir / "optimized_unet" / "openvino_model.xml"
-    
-    
+
+
     def disable_progress_bar(pipeline, disable=True):
         if not hasattr(pipeline, "_progress_bar_config"):
             pipeline._progress_bar_config = {"disable": disable}
@@ -430,31 +416,31 @@ model inputs for calibration we should customize ``CompiledModel``.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import datasets
     import numpy as np
     from tqdm.notebook import tqdm
     from transformers import set_seed
     from typing import Any, Dict, List
-    
+
     set_seed(1)
-    
+
     class CompiledModelDecorator(ov.CompiledModel):
         def __init__(self, compiled_model: ov.CompiledModel, data_cache: List[Any] = None):
             super().__init__(compiled_model)
             self.data_cache = data_cache if data_cache else []
-    
+
         def __call__(self, *args, **kwargs):
             self.data_cache.append(*args)
             return super().__call__(*args, **kwargs)
-    
+
     def collect_calibration_data(pipe, subset_size: int) -> List[Dict]:
         original_unet = pipe.unet.request
         pipe.unet.request = CompiledModelDecorator(original_unet)
-    
-        dataset = datasets.load_dataset("conceptual_captions", split="train").shuffle(seed=42)
+
+        dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", trust_remote_code=True).shuffle(seed=42)
         disable_progress_bar(pipe)
-    
+
         # Run inference for data collection
         pbar = tqdm(total=subset_size)
         diff = 0
@@ -476,7 +462,7 @@ model inputs for calibration we should customize ``CompiledModel``.
                 break
             pbar.update(collected_subset_size - diff)
             diff = collected_subset_size
-    
+
         calibration_dataset = pipe.unet.request.data_cache
         disable_progress_bar(pipe, disable=False)
         pipe.unet.request = original_unet
@@ -485,10 +471,26 @@ model inputs for calibration we should customize ``CompiledModel``.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     if not UNET_INT8_OV_PATH.exists():
         text2image_pipe = OVStableDiffusionXLPipeline.from_pretrained(model_dir, device=device.value)
         unet_calibration_data = collect_calibration_data(text2image_pipe, subset_size=200)
+
+
+.. parsed-literal::
+
+    Compiling the vae_decoder to AUTO ...
+    Compiling the unet to AUTO ...
+    Compiling the text_encoder_2 to AUTO ...
+    Compiling the vae_encoder to AUTO ...
+    Compiling the text_encoder to AUTO ...
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/200 [00:00<?, ?it/s]
+
 
 Run quantization
 ~~~~~~~~~~~~~~~~
@@ -506,10 +508,10 @@ sensitive ``Convolution`` layers in FP16 precision.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import nncf
     from nncf.scopes import IgnoredScope
-    
+
     UNET_OV_PATH = model_dir / "unet" / "openvino_model.xml"
     if not UNET_INT8_OV_PATH.exists():
         unet = core.read_model(UNET_OV_PATH)
@@ -527,19 +529,119 @@ sensitive ``Convolution`` layers in FP16 precision.
         )
         ov.save_model(quantized_unet, UNET_INT8_OV_PATH)
 
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    INFO:nncf:3 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:448 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:Not adding activation input quantizer for operation: 6 __module.model.conv_in/aten::_convolution/Convolution
+    14 __module.model.conv_in/aten::_convolution/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 317 __module.model.up_blocks.2.resnets.2.conv_shortcut/aten::_convolution/Convolution
+    543 __module.model.up_blocks.2.resnets.2.conv_shortcut/aten::_convolution/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1242 __module.model.conv_out/aten::_convolution/Convolution
+    1426 __module.model.conv_out/aten::_convolution/Add
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Let us check predictions with the quantized UNet using the same input
 data.
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from IPython.display import display
-    
+
     int8_text2image_pipe = OVStableDiffusionXLPipeline.from_pretrained(model_dir, device=device.value, compile=False)
     int8_text2image_pipe.unet.model = core.read_model(UNET_INT8_OV_PATH)
     int8_text2image_pipe.unet.request = None
-    
+
     prompt = "cute cat"
     image = int8_text2image_pipe(prompt, num_inference_steps=1, height=512, width=512, guidance_scale=0.0, generator=np.random.RandomState(987)).images[0]
     display(image)
@@ -570,11 +672,11 @@ data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     int8_image2image_pipe = OVStableDiffusionXLImg2ImgPipeline.from_pretrained(model_dir, device=device.value, compile=False)
     int8_image2image_pipe.unet.model = core.read_model(UNET_INT8_OV_PATH)
     int8_image2image_pipe.unet.request = None
-    
+
     photo_prompt = "a cute cat with bow tie"
     photo_image = int8_image2image_pipe(photo_prompt, image=image, num_inference_steps=2, generator=np.random.RandomState(511), guidance_scale=0.0, strength=0.5).images[0]
     display(photo_image)
@@ -611,10 +713,10 @@ Compare UNet file size
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     fp16_ir_model_size = UNET_OV_PATH.with_suffix(".bin").stat().st_size / 1024
     quantized_model_size = UNET_INT8_OV_PATH.with_suffix(".bin").stat().st_size / 1024
-    
+
     print(f"FP16 model size: {fp16_ir_model_size:.2f} KB")
     print(f"INT8 model size: {quantized_model_size:.2f} KB")
     print(f"Model compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
@@ -622,9 +724,9 @@ Compare UNet file size
 
 .. parsed-literal::
 
-    FP16 model size: 5014578.27 KB
-    INT8 model size: 2513541.44 KB
-    Model compression rate: 1.995
+    FP16 model size: 5014578.62 KB
+    INT8 model size: 2517944.84 KB
+    Model compression rate: 1.992
 
 
 Compare inference time of the FP16 and INT8 models
@@ -642,20 +744,20 @@ pipelines, we use median inference time on calibration subset.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import time
-    
+
     validation_size = 7
-    calibration_dataset = datasets.load_dataset("conceptual_captions", split="train")
+    calibration_dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", trust_remote_code=True)
     validation_data = []
     for batch in calibration_dataset:
         prompt = batch["caption"]
         validation_data.append(prompt)
-    
+
     def calculate_inference_time(pipe, dataset):
         inference_time = []
         disable_progress_bar(pipe)
-    
+
         for idx, prompt in enumerate(dataset):
             start = time.perf_counter()
             image = pipe(
@@ -675,7 +777,7 @@ pipelines, we use median inference time on calibration subset.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     int8_latency = calculate_inference_time(int8_text2image_pipe, validation_data)
     text2image_pipe = OVStableDiffusionXLPipeline.from_pretrained(model_dir, device=device.value)
     fp_latency = calculate_inference_time(text2image_pipe, validation_data)
@@ -688,16 +790,16 @@ pipelines, we use median inference time on calibration subset.
 
     Compiling the vae_decoder to AUTO ...
     Compiling the unet to AUTO ...
-    Compiling the text_encoder_2 to AUTO ...
-    Compiling the text_encoder to AUTO ...
     Compiling the vae_encoder to AUTO ...
+    Compiling the text_encoder to AUTO ...
+    Compiling the text_encoder_2 to AUTO ...
 
 
 .. parsed-literal::
 
-    FP16 pipeline latency: 1.391
-    INT8 pipeline latency: 0.781
-    Text-to-Image generation speed up: 1.780
+    FP16 pipeline latency: 1.775
+    INT8 pipeline latency: 0.673
+    Text-to-Image generation speed up: 2.636
 
 
 Interactive Demo
@@ -721,13 +823,13 @@ launch the interactive demo.
 .. code:: ipython3
 
     quantized_model_present = UNET_INT8_OV_PATH.exists()
-    
+
     use_quantized_model = widgets.Checkbox(
         value=True if quantized_model_present else False,
         description="Use quantized model",
         disabled=False,
     )
-    
+
     use_quantized_model
 
 
@@ -742,15 +844,15 @@ launch the interactive demo.
 .. code:: ipython3
 
     import gradio as gr
-    
+
     text2image_pipe = OVStableDiffusionXLPipeline.from_pretrained(model_dir, device=device.value)
     if use_quantized_model.value:
         if not quantized_model_present:
             raise RuntimeError("Quantized model not found.")
         text2image_pipe.unet.model = core.read_model(UNET_INT8_OV_PATH)
         text2image_pipe.unet.request = core.compile_model(text2image_pipe.unet.model, device.value)
-    
-    
+
+
     def generate_from_text(text, seed, num_steps, height, width):
         result = text2image_pipe(
             text,
@@ -761,8 +863,8 @@ launch the interactive demo.
             width=width,
         ).images[0]
         return result
-    
-    
+
+
     with gr.Blocks() as demo:
         with gr.Column():
             positive_input = gr.Textbox(label="Text prompt")
@@ -804,7 +906,7 @@ launch the interactive demo.
                 ],
                 [positive_input, seed_input],
             )
-    
+
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/

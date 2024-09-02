@@ -7,7 +7,7 @@
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 #include "transformations_visibility.hpp"
@@ -15,7 +15,7 @@
 namespace ov {
 namespace pass {
 
-class PrevSequenceLengthPattern;
+class TRANSFORMATIONS_API PrevSequenceLengthPattern;
 
 }  // namespace pass
 }  // namespace ov
@@ -23,6 +23,5 @@ class PrevSequenceLengthPattern;
 class ov::pass::PrevSequenceLengthPattern : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("PrevSequenceLengthPattern", "0");
-    explicit PrevSequenceLengthPattern(const std::shared_ptr<ov::op::v1::Subtract>& prev_max_seq_len,
-                                       std::shared_ptr<ov::Node>);
+    explicit PrevSequenceLengthPattern(std::shared_ptr<ov::Node> prev_max_seq_len, std::shared_ptr<ov::Node> batch_dim);
 };

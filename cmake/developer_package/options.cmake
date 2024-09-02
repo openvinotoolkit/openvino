@@ -8,16 +8,18 @@ if(POLICY CMP0127)
     cmake_policy(SET CMP0127 NEW)
 endif()
 
+unset(OV_OPTIONS CACHE)
+
 macro(ov_option variable description value)
     option(${variable} "${description}" ${value})
     list(APPEND OV_OPTIONS ${variable})
-    list(APPEND IE_OPTIONS ${variable})
+    set(OV_OPTIONS "${OV_OPTIONS}" CACHE INTERNAL "A list of OpenVINO cmake options")
 endmacro()
 
 macro(ov_dependent_option variable description def_value condition fallback_value)
     cmake_dependent_option(${variable} "${description}" ${def_value} "${condition}" ${fallback_value})
     list(APPEND OV_OPTIONS ${variable})
-    list(APPEND IE_OPTIONS ${variable})
+    set(OV_OPTIONS "${OV_OPTIONS}" CACHE INTERNAL "A list of OpenVINO cmake options")
 endmacro()
 
 macro(ov_option_enum variable description value)
@@ -31,7 +33,7 @@ macro(ov_option_enum variable description value)
     endif()
 
     list(APPEND OV_OPTIONS ${variable})
-    list(APPEND IE_OPTIONS ${variable})
+    set(OV_OPTIONS "${OV_OPTIONS}" CACHE INTERNAL "A list of OpenVINO cmake options")
 
     set(${variable} ${value} CACHE STRING "${description}")
     set_property(CACHE ${variable} PROPERTY STRINGS ${OPTION_ENUM_ALLOWED_VALUES})

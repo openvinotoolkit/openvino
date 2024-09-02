@@ -9,6 +9,11 @@ param (
 $Env:INTEL_OPENVINO_DIR = Split-Path $MyInvocation.MyCommand.Path
 
 $Env:OpenVINO_DIR = "$Env:INTEL_OPENVINO_DIR/runtime/cmake"
+if (Test-Path -Path "$Env:OpenVINO_DIR/OpenVINOGenAIConfig.cmake")
+{
+    # If GenAI is installed, export it as well.
+    $Env:OpenVINOGenAI_DIR = $Env:OpenVINO_DIR
+}
 $Env:OPENVINO_LIB_PATHS = "$Env:INTEL_OPENVINO_DIR/runtime/bin/intel64/Release;$Env:INTEL_OPENVINO_DIR/runtime/bin/intel64/Debug;$Env:OPENVINO_LIB_PATHS"
 
 # TBB

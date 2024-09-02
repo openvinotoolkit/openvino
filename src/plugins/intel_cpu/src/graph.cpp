@@ -5,6 +5,7 @@
 #include "graph.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <limits>
 #include <map>
 #include <memory>
@@ -32,6 +33,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
@@ -70,6 +72,7 @@ void Graph::CreateGraph(NET &net, const GraphContext::CPtr ctx) {
         ForgetGraphData();
 
     context = ctx;
+    m_stream = dnnl::stream(getEngine());
 
     Replicate(net);
 
@@ -86,6 +89,7 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
         ForgetGraphData();
 
     context = ctx;
+    m_stream = dnnl::stream(getEngine());
 
     this->_name = std::move(name);
     this->reuse_io_tensors = false;
@@ -229,30 +233,6 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
     }
 }
 
-void Graph::GroupParallelNodes() {
-    std::map<std::string, std::vector<NodePtr>> pdomain_nodes;
-    for (size_t k = 0; k < graphNodes.size(); k++) {
-        auto& node = graphNodes[k];
-        auto& domain = node->getParallelDomain();
-        if (domain.empty())
-            continue;
-        if (pdomain_nodes.count(domain) == 0)
-            pdomain_nodes[domain] = {};
-        pdomain_nodes[domain].push_back(node);
-    }
-
-    // record valid paralell_nodes
-    for (auto& pn : pdomain_nodes) {
-        auto& node_ptrs = pn.second;
-        if (node_ptrs.size() > 1) {
-            // parallelWith includes pointer to itself
-            for (auto& pnode : node_ptrs) {
-                pnode->parallelWith = node_ptrs;
-            }
-        }
-    }
-}
-
 static std::vector<size_t> IdentifySyncPoints(const std::vector<NodePtr>& graphNodes) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::IdentifySyncPoints");
     std::vector<size_t> syncNodesInds;
@@ -288,7 +268,8 @@ static std::tuple<std::vector<NodePtr>, std::vector<size_t>> ExtractExecutableNo
     std::vector<NodePtr> executableGraphNodes;
     for (size_t i = 0; i < graphNodes.size(); i++) {
         const auto& graphNode = graphNodes[i];
-        if ((!graphNode->isConstant() && CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable())) || graphNode->isDynamicNode()) {
+        if ((!graphNode->isConstant() && CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable())) || // non-constant executable or
+            (graphNode->isDynamicNode() && !one_of(graphNode->getType(), Type::Input, Type::Output))) { // dynamic, except inputs / outputs
             /* @todo
              * Revise implementation.
              * With current way it is possible that with debug_caps enabled
@@ -341,11 +322,15 @@ void Graph::InitGraph(bool optimize) {
     optimizer.ShareReorders(*this);
     RemoveDroppedNodes();
 
+    SortTopologically();
+
     ResolveComplexInplaceConflicts();
 
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
 
-    GroupParallelNodes();
+    SortTopologically();
+
+    ResolveComplexInplaceConflicts();
 
     SortTopologically();
 
@@ -364,7 +349,8 @@ void Graph::InitGraph(bool optimize) {
 
     std::tie(m_executableGraphNodes, m_executableSyncNodesInds) = ExtractExecutableNodesAndSyncPoints(syncNodesInds, graphNodes);
 
-    status = hasDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
+    status = hasDynNodes ? (parallel_get_max_threads() > 1 ? Status::ReadyDynamic : Status::ReadyDynamicSeq)
+        : Status::ReadyStatic;
 
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
@@ -387,7 +373,23 @@ void Graph::InitDescriptors() {
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.initSupportedPrimitiveDescriptors);
         DEBUG_LOG("Init supported primitive descriptors for node: ", node->getName());
         node->initSupportedPrimitiveDescriptors();
-
+#ifdef CPU_DEBUG_CAPS
+        {
+            const auto& SPDs = node->getSupportedPrimitiveDescriptors();
+            for (size_t i = 0; i < SPDs.size(); i++) {
+                DEBUG_LOG("#",
+                        node->getExecIndex(),
+                        " ",
+                        node->getName(),
+                        " Before filter, SupportedPrimitiveDescriptors [",
+                        i,
+                        "/",
+                        SPDs.size(),
+                        "]: \n",
+                        SPDs[i]);
+            }
+        }
+#endif
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.filterSupportedPrimitiveDescriptors);
         DEBUG_LOG("Filter supported primitive descriptors for node: ", node->getName());
         node->filterSupportedPrimitiveDescriptors();
@@ -399,7 +401,7 @@ void Graph::InitDescriptors() {
                       node->getExecIndex(),
                       " ",
                       node->getName(),
-                      "  SupportedPrimitiveDescriptors [",
+                      " After filter,  SupportedPrimitiveDescriptors [",
                       i,
                       "/",
                       SPDs.size(),
@@ -437,8 +439,6 @@ void Graph::InitOptimalPrimitiveDescriptors() {
 
 void Graph::CreatePrimitivesAndExecConstants() const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::CreatePrimitivesAndExecConstants");
-    dnnl::stream stream(getEngine());
-
     using shared_memory_ptr = WeightsSharing::SharedMemory::Ptr;
 
     auto acquireSharedOutputs = [this](const NodePtr & node) {
@@ -478,13 +478,13 @@ void Graph::CreatePrimitivesAndExecConstants() const {
             auto sharedOutputs = acquireSharedOutputs(node);
 
             if (std::get<0>(sharedOutputs) || std::get<1>(sharedOutputs)) {
-                ExecuteNode(node, stream);
+                ExecuteNodeWithCatch(node);
 
                 for (auto & output : std::get<2>(sharedOutputs))
                     output->valid(true);
             }
         } else {
-            ExecuteNode(node, stream);
+            ExecuteNodeWithCatch(node);
         }
     }
 }
@@ -534,59 +534,65 @@ void Graph::insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<st
     InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
 }
 
-void Graph::ResolveEdgeConflicts() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveEdgeConflicts");
+void Graph::insertConvert(EdgePtr& edge) {
+    const auto& inDesc = edge->getInputDesc();
+    const auto& outDesc = edge->getOutputDesc();
 
-    ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
+    std::string convertName = edge->getParent()->getName() + "_" +
+        inDesc.getPrecision().get_type_name() + "_" + outDesc.getPrecision().get_type_name();
 
+    auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
+                                                       convertName, context);
+    convertNode->setDescs(inDesc, outDesc);
+    InsertNode(edge, convertNode, true);
+}
+
+static std::unordered_set<std::string> getUniqueLayerNames(const std::vector<NodePtr>& graphNodes) {
     std::unordered_set<std::string> uniqueLayerNames;
+    uniqueLayerNames.reserve(graphNodes.size());
+
     for (auto node : graphNodes) {
         uniqueLayerNames.insert(node->getName());
     }
 
-    auto updateEdge = [&](ptrdiff_t& i) {
-        graphEdges.erase(graphEdges.begin() + i);
-        i--;
-        numberOfEdges--;
-    };
+    return uniqueLayerNames;
+}
 
-    for (ptrdiff_t i = 0; i < numberOfEdges; i++) {
-        auto edge = graphEdges[i];
-        auto reorderStatus = graphEdges[i]->needReorder();
-        DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", reorderStatus);
-        if (reorderStatus == Edge::ReorderStatus::Regular) {
-            Edge::ReorderStatus reorderStatusInternal = Edge::ReorderStatus::Regular;
-            // Check if there is a reorder that needs the precision conversion
-            if (edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
-                    !isReorderAvailable(edge->getInputPortDesc()->getMemDesc(),
-                                        edge->getOutputPortDesc()->getMemDesc(),
-                                        this->getEngine())) {
-                // If we are here, then we need to insert Convert, because there are no reorders that support such type conversion
-                const auto& inDesc = edge->getInputDesc();
-                const auto& outDesc = edge->getOutputDesc();
+void Graph::ResolveEdgeConflicts() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveEdgeConflicts");
 
-                std::string convertName = edge->getParent()->getName() + "_" +
-                                          inDesc.getPrecision().get_type_name() + "_" + outDesc.getPrecision().get_type_name();
+    std::unordered_set<std::string> uniqueLayerNames = getUniqueLayerNames(graphNodes);
 
-                auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
-                                                                   convertName, context);
-                convertNode->setDescs(inDesc, outDesc);
-                InsertNode(edge, convertNode, true);
+    /* When inserting convert / reorder, two new edges are added (pushed to the end) to the graphEdges.
+       So use a plain for loop, to handle newly inserted edges as well */
+    for (size_t i = 0; i < graphEdges.size(); i++) {
+        auto& edge = graphEdges[i];
+        auto reorderStatus = edge->needReorder();
+        DEBUG_LOG(*edge, " reorderStatus = ", reorderStatus);
 
-                //Check if reorder is still needed
-                reorderStatusInternal = convertNode->getChildEdgeAt(0)->needReorder();
-                if (reorderStatusInternal != Edge::ReorderStatus::No)
-                    edge = convertNode->getChildEdgeAt(0);
+        switch (reorderStatus) {
+        case Edge::ReorderStatus::Regular: {
+            if (reorderStatus == Edge::ReorderStatus::Regular &&
+                edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
+                !isReorderAvailable(edge->getInputPortDesc()->getMemDesc(),
+                                    edge->getOutputPortDesc()->getMemDesc(),
+                                    this->getEngine())) {
+                // just insert convert. If layout reorder is still needed, it will be inserted later in the traverse
+                insertConvert(edge);
+            } else {
+                insertReorder(edge, false, uniqueLayerNames);
             }
-            if (reorderStatusInternal != Edge::ReorderStatus::No) {
-                insertReorder(edge, reorderStatusInternal == Edge::ReorderStatus::Optimized, uniqueLayerNames);
-            }
-            updateEdge(i);
-        } else if (reorderStatus == Edge::ReorderStatus::Optimized) {
+            break;
+        }
+        case Edge::ReorderStatus::Optimized:
             insertReorder(edge, true, uniqueLayerNames);
-            updateEdge(i);
+            break;
+        case Edge::ReorderStatus::No:
+            break;
         }
     }
+
+    RemoveDroppedEdges();
 }
 
 void Graph::ResolveComplexInplaceConflicts() {
@@ -594,10 +600,7 @@ void Graph::ResolveComplexInplaceConflicts() {
 
     ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
 
-    std::unordered_set<std::string> uniqueLayerNames;
-    for (auto node : graphNodes) {
-        uniqueLayerNames.insert(node->getName());
-    }
+    std::unordered_set<std::string> uniqueLayerNames = getUniqueLayerNames(graphNodes);
 
     auto updateEdge = [&](ptrdiff_t& i) {
         graphEdges.erase(graphEdges.begin() + i);
@@ -1120,31 +1123,19 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
     }
 }
 
-void Graph::InferStatic(SyncInferRequest* request) {
-    dnnl::stream stream(getEngine());
-
+void Graph::InferStatic(SyncInferRequest* request, int numaId) {
     for (const auto& node : m_executableGraphNodes) {
-        VERBOSE(node, getConfig().debugCaps.verbose);
-        PERF(node, getConfig().collectPerfCounters);
-
-        if (request)
-            request->throw_if_canceled();
-        ExecuteNode(node, stream);
+        ExecuteNodeWithCatch(node, request, numaId);
     }
 }
 
 namespace {
 
-class IUpdateNodes {
-public:
-    virtual void run(size_t stopIndx) = 0;
-    virtual ~IUpdateNodes() = default;
-};
-
-class UpdateNodesSeq : public IUpdateNodes {
+class UpdateNodesSeq {
 public:
     explicit UpdateNodesSeq(std::vector<NodePtr>& executableGraphNodes) : m_executableGraphNodes(executableGraphNodes) {}
-    void run(size_t stopIndx) override {
+
+    void operator()(size_t stopIndx) {
         for (; prepareCounter < stopIndx; ++prepareCounter) {
             const auto& node = m_executableGraphNodes[prepareCounter];
             if (node->isDynamicNode()) {
@@ -1175,7 +1166,7 @@ private:
 #        define ov_memory_order_acquire std::memory_order::memory_order_acquire
 #    endif
 
-class UpdateNodesBase : public IUpdateNodes {
+class UpdateNodesBase {
 public:
     explicit UpdateNodesBase(std::vector<NodePtr>& executableGraphNodes) : m_executableGraphNodes(executableGraphNodes) {}
     void updateShapes(size_t node_indx, size_t stop_indx) {
@@ -1246,7 +1237,8 @@ private:
 class UpdateNodes : public UpdateNodesBase {
 public:
     using UpdateNodesBase::UpdateNodesBase;
-    void run(size_t stopIndx) override {
+
+    void operator()(size_t stopIndx) {
         m_completion.store(false);
         auto startCounter = m_prepareCounter.load();
         tbb::detail::d1::wait_context wait_ctx(2);
@@ -1287,7 +1279,7 @@ private:
 class UpdateNodes : public UpdateNodesBase {
 public:
     using UpdateNodesBase::UpdateNodesBase;
-    void run(size_t stopIndx) override {
+    void operator()(size_t stopIndx) {
         m_completion.store(false);
         auto startCounter = m_prepareCounter.load();
         tbb::task& root = *new(tbb::task::allocate_root()) tbb::empty_task;
@@ -1315,7 +1307,7 @@ public:
 class UpdateNodes : public UpdateNodesBase {
 public:
     using UpdateNodesBase::UpdateNodesBase;
-    void run(size_t stopIndx) override {
+    void operator()(size_t stopIndx) {
         m_completion.store(false);
         auto startCounter = m_prepareCounter.load();
 
@@ -1338,128 +1330,73 @@ public:
 #endif
 } // namespace
 
+/* group all the profiling macros into a single one
+ * to avoid cluttering a core logic */
+#define VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(ittScope, node, config) \
+    VERBOSE(node, config.debugCaps.verbose); \
+    PERF(node, config.collectPerfCounters); \
+    DUMP(node, config.debugCaps, infer_count); \
+    OV_ITT_SCOPED_TASK(ittScope, node->profiling.execute); \
+    DEBUG_LOG(*node);
 
-void Graph::InferDynamic(SyncInferRequest* request) {
-    dnnl::stream stream(getEngine());
+inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, int numaId) const {
+    if (request)
+        request->throw_if_canceled();
 
-    std::unique_ptr<IUpdateNodes> updateNodes{};
-    if (parallel_get_max_threads() > 1) {
-        updateNodes.reset(new UpdateNodes(m_executableGraphNodes));
-    } else {
-        updateNodes.reset(new UpdateNodesSeq(m_executableGraphNodes));
+    node->execute(m_stream, numaId);
+}
+
+inline void Graph::ExecuteNodeWithCatch(const NodePtr& node, SyncInferRequest* request, int numaId) const {
+    VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(itt::domains::intel_cpu, node, getConfig());
+
+    try {
+        ExecuteNode(node, request, numaId);
+    } catch (const std::exception& exp) {
+        OPENVINO_THROW(*node, exp.what());
     }
+}
 
+template<typename UpdateStrategy>
+void Graph::InferDynamic(SyncInferRequest* request, int numaId, UpdateStrategy&& update) {
     size_t inferCounter = 0;
     for (auto stopIndx : m_executableSyncNodesInds) {
-        updateNodes->run(stopIndx);
+        update(stopIndx);
+
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = m_executableGraphNodes[inferCounter];
-            VERBOSE(node, getConfig().debugCaps.verbose);
-            PERF(node, getConfig().collectPerfCounters);
 
-            if (request)
-                request->throw_if_canceled();
-            ExecuteNode(node, stream);
+            ExecuteNodeWithCatch(node, request, numaId);
         }
     }
 }
 
-inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const {
-    if (!node->parallelWith.empty()) {
-        // run nodes in parallel
-        auto& parallelNodes = node->parallelWith;
-        if (node == parallelNodes[0]) {
-            if (const auto& cpuExecutor = context->getCPUStreamExecutor()) {
-                auto num_parallel_nodes = parallelNodes.size();
-                ParalleMtNuma(num_parallel_nodes, cpuExecutor, [&](int subStreamID, size_t i) {
-                    auto& n = parallelNodes[i];
-
-                    if (n->isDynamicNode()) {
-                        n->executeDynamic(stream, subStreamID);
-                    } else {
-                        n->executeStatic(stream, subStreamID);
-                    }
-                });
-            } else {
-                // fallback to serialize executor
-                for (auto& node : parallelNodes) {
-                    if (node->isDynamicNode()) {
-                        node->executeDynamic(stream);
-                    } else {
-                        node->executeStatic(stream);
-                    }
-                }
-            }
-        }
-    } else {
-        DUMP(node, getConfig().debugCaps, infer_count);
-        OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
-        DEBUG_LOG(*node);
-        // TODO: 132954 workaround for latency
-        int subStreamID = -1;
+static int GetNumaNodeId(const GraphContext::CPtr& context) {
+    int numaNodeId = -1;
 #if defined(__x86_64__) && defined(__linux__)
-        if ((getGraphContext()->getCPUStreamExecutor()) && (getConfig().hintPerfMode == ov::hint::PerformanceMode::LATENCY)) {
-            subStreamID = getGraphContext()->getCPUStreamExecutor()->get_numa_node_id();
-        }
+    if ((context->getCPUStreamExecutor()) &&
+        (context->getConfig().hintPerfMode == ov::hint::PerformanceMode::LATENCY)) {
+        numaNodeId = context->getCPUStreamExecutor()->get_numa_node_id();
+    }
 #endif
-        if (node->isDynamicNode()) {
-            node->executeDynamic(stream, subStreamID);
-        } else {
-            node->executeStatic(stream, subStreamID);
-        }
-    }
-}
-
-void Graph::ParalleMtNuma(size_t num_nodes,
-                          ov::threading::CPUStreamsExecutor::Ptr executor,
-                          const std::function<void(size_t, size_t)>& func) const {
-    OPENVINO_ASSERT(num_nodes > 1, "Parallel Nodes must be more than 1. But now got ",
-                                   num_nodes,
-                                   " Nodes, which shouldn't invoke multi nodes parallel.");
-    std::atomic<int> nodes_remain(num_nodes);
-    int cur_numa_id = executor->get_numa_node_id();
-    // enqueue (nsockets-1) sub stream tasks
-    int sub_stream_id = 0;
-    for (size_t socket_id = 0; socket_id < num_nodes; socket_id++) {
-        if (socket_id != static_cast<size_t>(cur_numa_id)) {
-            size_t i0{0}, i1{0};
-            splitter(num_nodes, num_nodes, socket_id, i0, i1);
-            executor->run_sub_stream(
-                [socket_id, i0, i1, &func, &nodes_remain]() {
-                    for (size_t i = i0; i < i1; i++) {
-                        func(socket_id, i);
-                        nodes_remain--;
-                    }
-                },
-                sub_stream_id);
-            sub_stream_id++;
-        }
-    }
-    // run in main stream (current socket)
-    {
-        size_t i0{0}, i1{0};
-        splitter(num_nodes, num_nodes, static_cast<size_t>(cur_numa_id), i0, i1);
-        for (size_t i = i0; i < i1; i++) {
-            func(cur_numa_id, i);
-            nodes_remain--;
-        }
-    }
-    // wait and sync
-    while (nodes_remain.load() > 0) {}
+    return numaNodeId;
 }
 
 void Graph::Infer(SyncInferRequest* request) {
-    DEBUG_LOG("Starting inference of the graph: ", GetName(), ". Status: ", static_cast<int>(status));
-    if (!IsReady()) {
-        OPENVINO_THROW("Wrong state of the ov::intel_cpu::Graph. Topology is not ready.");
-    }
+    DEBUG_LOG("Infer graph: ", GetName(), ". Status: ", static_cast<int>(status));
+    const int numaId = GetNumaNodeId(context);
 
-    if (Status::ReadyDynamic == status) {
-        InferDynamic(request);
-    } else if (Status::ReadyStatic == status) {
-        InferStatic(request);
-    } else {
-        OPENVINO_THROW("Unknown ov::intel_cpu::Graph state: " , static_cast<size_t>(status));
+    switch (status) {
+    case Status::ReadyDynamic:
+        InferDynamic(request, numaId, UpdateNodes(m_executableGraphNodes));
+        break;
+    case Status::ReadyDynamicSeq:
+        InferDynamic(request, numaId, UpdateNodesSeq(m_executableGraphNodes));
+        break;
+    case Status::ReadyStatic:
+        InferStatic(request, numaId);
+        break;
+    default:
+        OPENVINO_ASSERT(IsReady(), "Wrong state of the ov::intel_cpu::Graph. Topology is not ready: ", static_cast<int>(status));
     }
 
     if (infer_count != -1) infer_count++;
@@ -1468,39 +1405,42 @@ void Graph::Infer(SyncInferRequest* request) {
 void Graph::SortTopologically() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::SortTopologically");
 
-    auto sort = [](const std::vector<NodePtr>& nodes) {
-        std::unordered_set<NodePtr> visited;
-        visited.reserve(nodes.size());
+    // Set execIndex of all nodes to default invaild value
+    for (auto &node : graphNodes) {
+        node->execIndex = -1;
+    }
+
+    auto sort = [this](const std::vector<NodePtr>& nodes) {
         std::vector<NodePtr> sorted;
         sorted.reserve(nodes.size());
 
+        int execIndexCnt = -1;
+
         std::function<void(const NodePtr)> visit;
-        visit = [&visited, &sorted, &visit](const NodePtr node) {
-            const bool inserted = visited.insert(node).second;
-            if (!inserted)
+        visit = [&execIndexCnt, &sorted, &visit](const NodePtr node) {
+            if (node->execIndex >= 0)
                 return; // already visited
 
-            if (!node->parallelWith.empty()) {
-                for (auto& n : node->parallelWith) {
-                    for (size_t i = 0; i < n->getChildEdges().size(); i++) {
-                        visit(n->getChildEdgeAt(i)->getChild());
-                    }
-                }
-
-                // make sure parallel nodes are always enqueue together
-                for (auto& n : node->parallelWith) {
-                    if (std::find(sorted.begin(), sorted.end(), n) == sorted.end()) {
-                        sorted.push_back(n);
-                    }
-                }
-            } else {
-                for (size_t i = 0; i < node->getChildEdges().size(); i++) {
-                    visit(node->getChildEdgeAt(i)->getChild());
-                }
-
-                sorted.push_back(node);
+            for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+                visit(node->getParentEdgeAt(i)->getParent());
             }
+
+            sorted.push_back(node);
+            node->execIndex = ++execIndexCnt;
         };
+
+        // First execute MemoryInput because it will change the memory pointer of
+        // its sibling MemoryOutput. So execute first to avoid potential issue.
+        for (const auto& node : nodes) {
+            if (node->getType() == Type::MemoryInput) {
+                visit(node);
+            }
+        }
+
+        // Always start from output nodes
+        for (auto&& kvp : outputNodesMap) {
+            visit(kvp.second);
+        }
 
         for (const auto& node : nodes) {
             visit(node);
@@ -1509,25 +1449,7 @@ void Graph::SortTopologically() {
         return sorted;
     };
 
-    // as a first step sort in reversed topological order to avoid an insertion into the front of the vector
     graphNodes = sort(graphNodes);
-    // reverse to the actual topological order
-    std::reverse(graphNodes.begin(), graphNodes.end());
-    // number the nodes based on topological order
-    for (size_t i = 0; i < graphNodes.size(); i++) {
-        // parallel nodes has same execIndex
-        // so they can provide correct start/end time point for
-        // their input and output memory object
-        if (graphNodes[i]->parallelWith.size()) {
-            if (graphNodes[i]->parallelWith[0] == graphNodes[i]) {
-                for (auto& n : graphNodes[i]->parallelWith) {
-                    n->execIndex = static_cast<int>(i);
-                }
-            }
-            continue;
-        }
-        graphNodes[i]->execIndex = static_cast<int>(i);
-    }
 
     // Sort in / out child edges by port index
     // Make first N (N == port_num) edge indexes match with port index
@@ -1755,7 +1677,7 @@ void Graph::EnforceInferencePrecision() {
 
     const auto inferPrec = getConfig().inferencePrecision;
 
-    if (one_of(inferPrec, element::f32, element::undefined))
+    if (one_of(inferPrec, element::f32, element::undefined, ov::element::f16))
         return; // nothing to do, only precision reduction is currently allowed
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     if (inferPrec == ov::element::f16)
@@ -1775,7 +1697,8 @@ void Graph::EnforceInferencePrecision() {
                         Type::RNNSeq,         // recurent nets
                         Type::MatMul,         // bert nets
                         Type::ROIPooling,     // object detection nets
-                        Type::Interpolate))   // super resolution nets
+                        Type::Interpolate,    // super resolution nets
+                        Type::PagedAttention))// page attention
                     continue;   // stop at significant nodes
             } else if (inferPrec == ov::element::f16) {
                 /* list of node types that must be forced to be executed in FP16 precision
@@ -1826,7 +1749,7 @@ void Graph::EnforceInferencePrecision() {
 
         for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
             auto keepOriginalInputPrecisionAtPort = [](const NodePtr& node, const size_t inPort) {
-                // keep non-float precisions
+                // keep non-float32 precisions
                 if (node->getOriginalInputPrecisionAtPort(inPort) != ov::element::f32)
                     return true;
 
@@ -1870,7 +1793,7 @@ void Graph::EnforceInferencePrecision() {
         }
 
         for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
-            // keep non-float precisions
+            // keep non-float32 precisions
             if (node->getOriginalOutputPrecisionAtPort(i) != ov::element::f32)
                 continue;
 
@@ -1878,6 +1801,9 @@ void Graph::EnforceInferencePrecision() {
             // TODO: Incorrect subgraph is generated by ONNX FE + ticket 117861.
             const auto &child = node->getChildEdgeAt(i)->getChild();
             if (child->getType() == Type::Range && node->getType() == Type::Convert)
+                continue;
+            // skip second output of PagedAttention
+            if (node->getType() == Type::PagedAttention && (i != 0))
                 continue;
 
             DEBUG_LOG("#",

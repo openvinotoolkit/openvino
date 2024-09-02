@@ -7,20 +7,6 @@
 #include "npu_private_properties.hpp"
 #include "utils.hpp"
 
-namespace ov {
-
-namespace test {
-
-namespace utils {
-
-const char* DEVICE_NPU = "NPU";
-
-}  // namespace utils
-
-}  // namespace test
-
-}  // namespace ov
-
 std::string getBackendName(const ov::Core& core) {
     return core.get_property("NPU", ov::intel_npu::backend_name.name()).as<std::string>();
 }

@@ -2,23 +2,44 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import itertools
-from copy import deepcopy
-
 import numpy as np
+import os
 from common.constants import test_device, test_precision
+from copy import deepcopy
 from jax import numpy as jnp
 from openvino.runtime import Core
 
 
 class JaxLayerTest:
-    def _test(self, model, ref_net, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True,
+
+    @staticmethod
+    def _check_kind_exist(jaxpr, kind):
+        for node in jaxpr.eqns:
+            if node.primitive.name == kind:
+                return True
+        return False
+
+    @staticmethod
+    def use_jaxpr_tracing():
+        jax_compile_env = os.getenv("JAX_TRACE_MODE")
+        if jax_compile_env is not None:
+            return jax_compile_env == "JAXPR"
+        return False
+
+    def _test(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True,
               **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
                                                        Example: "transform_1,transform_2"
         """
         inputs = self._prepare_input()
-        converted_model = self.convert_via_tensorflow_function(model, inputs)
+        if self.use_jaxpr_tracing():
+            converted_model, jaxpr = self.convert_via_jaxpr(model, inputs)
+            # check that expected operation presents in a graph
+            if kind is not None:
+                assert self._check_kind_exist(jaxpr, kind), '{} operation does not present in a graph'.format(kind)
+        else:
+            converted_model = self.convert_via_tensorflow_function(model, inputs)
 
         # OV infer:
         core = Core()
@@ -109,6 +130,15 @@ class JaxLayerTest:
                         input_signature=function_signature)
         converted_model = convert_model(f)
         return converted_model
+
+    def convert_via_jaxpr(self, model, inputs):
+        import jax
+        from openvino.tools.ovc import convert_model
+
+        jaxpr = jax.make_jaxpr(model)(*inputs)
+        converted_model = convert_model(jaxpr)
+
+        return converted_model, jaxpr
 
 
 def get_params(ie_device=None, precision=None):

@@ -11,7 +11,7 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
@@ -95,6 +95,7 @@ public:
         }
     }
 
+    // the lowest value (example, for signed symetric types: -max)
     static float getMinValue(const element::Type precision, const size_t levels) {
         switch (precision) {
             case element::u4:
@@ -134,6 +135,8 @@ public:
                 break;
             case element::f16:
                 return -1.0e15f;
+            case element::bf16:
+                return -3.38953139e38f;
             case element::f32:
                 return std::numeric_limits<float>::lowest();
             default:
@@ -172,6 +175,8 @@ public:
                 return 2147483648.f;  // 2147483648.f == 2147483647.f
             case element::f16:
                 return 1.0e15f;
+            case element::bf16:
+                return 3.38953139e38f;
             case element::f32:
                 return std::numeric_limits<float>::max();
             default:
@@ -268,6 +273,9 @@ public:
         }
 
         bool updatePrecisions;
+        // Use deqPrecision only for FakeQuantize operation decomposition,
+        // use existing precisions in other cases.
+        // In this case if FakeQuantize operations were decomposed then original precision will be used.
         element::Type deqPrecision;
         std::vector<ov::element::Type> defaultPrecisions;
         // to support GPU workarround to keep Reshape and MatMul in FP32

@@ -65,8 +65,8 @@ The tutorial consists of the following steps:
    **Note**: Some demonstrated models can require at least 64GB RAM for
    conversion and running.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Install prerequisites <#install-prerequisites>`__
 -  `SDXL Base model <#sdxl-base-model>`__
@@ -92,6 +92,16 @@ Table of contents:
    -  `Run Text2Image generation with
       Refinement <#run-text2image-generation-with-refinement>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Install prerequisites
 ---------------------
 
@@ -99,7 +109,7 @@ Install prerequisites
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1" "diffusers>=0.18.0" "invisible-watermark>=0.2.0" "transformers>=4.33.0" "accelerate" "onnx" "peft==0.6.2"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1,<2.4" "torchvision<0.19.0" "diffusers>=0.18.0" "invisible-watermark>=0.2.0" "transformers>=4.33.0" "accelerate" "onnx" "peft==0.6.2"
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
     %pip install -q "openvino>=2023.1.0" "gradio>=4.19" "nncf>=2.9.0"
 
@@ -234,17 +244,17 @@ compression parameters.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -266,17 +276,17 @@ compression parameters.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -298,17 +308,17 @@ compression parameters.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -330,17 +340,17 @@ compression parameters.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -362,17 +372,17 @@ compression parameters.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -432,66 +442,27 @@ Text2image Generation Interactive Demo
 
 .. code:: ipython3
 
-    import gradio as gr
+    import requests
+    
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-xl/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+    
+    from gradio_helper import make_demo_sd_xl_text2image
     
     if text2image_pipe is None:
         text2image_pipe = OVStableDiffusionXLPipeline.from_pretrained(model_dir, device=device.value)
     
-    prompt = "cute cat 4k, high-res, masterpiece, best quality, soft lighting, dynamic angle"
-    
-    
-    def generate_from_text(text, seed, num_steps):
-        result = text2image_pipe(
-            text,
-            num_inference_steps=num_steps,
-            generator=np.random.RandomState(seed),
-            height=512,
-            width=512,
-        ).images[0]
-        return result
-    
-    
-    with gr.Blocks() as demo:
-        with gr.Column():
-            positive_input = gr.Textbox(label="Text prompt")
-            with gr.Row():
-                seed_input = gr.Number(precision=0, label="Seed", value=42, minimum=0)
-                steps_input = gr.Slider(label="Steps", value=10)
-                btn = gr.Button()
-            out = gr.Image(label="Result", type="pil", width=512)
-            btn.click(generate_from_text, [positive_input, seed_input, steps_input], out)
-            gr.Examples(
-                [
-                    [prompt, 999, 20],
-                    [
-                        "underwater world coral reef, colorful jellyfish, 35mm, cinematic lighting, shallow depth of field,  ultra quality, masterpiece, realistic",
-                        89,
-                        20,
-                    ],
-                    [
-                        "a photo realistic happy white poodle dog ​​playing in the grass, extremely detailed, high res, 8k, masterpiece, dynamic angle",
-                        1569,
-                        15,
-                    ],
-                    [
-                        "Astronaut on Mars watching sunset, best quality, cinematic effects,",
-                        65245,
-                        12,
-                    ],
-                    [
-                        "Black and white street photography of a rainy night in New York, reflections on wet pavement",
-                        48199,
-                        10,
-                    ],
-                ],
-                [positive_input, seed_input, steps_input],
-            )
+    demo = make_demo_sd_xl_text2image(text2image_pipe)
     
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
     # if you want create public link for sharing demo, please add share=True
-    demo.launch()
+    try:
+        demo.launch(debug=False)
+    except Exception:
+        demo.launch(share=True, debug=False)
 
 .. code:: ipython3
 
@@ -577,63 +548,25 @@ Image2Image Generation Interactive Demo
 
 .. code:: ipython3
 
-    import gradio as gr
-    from diffusers.utils import load_image
-    import numpy as np
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-xl/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
-    
-    load_image("https://huggingface.co/datasets/optimum/documentation-images/resolve/main/intel/openvino/sd_xl/castle_friedrich.png").resize((512, 512)).save(
-        "castle_friedrich.png"
-    )
-    
+    from gradio_helper import make_demo_sd_xl_image2image
     
     if image2image_pipe is None:
         image2image_pipe = OVStableDiffusionXLImg2ImgPipeline.from_pretrained(model_dir)
     
-    
-    def generate_from_image(text, image, seed, num_steps):
-        result = image2image_pipe(
-            text,
-            image=image,
-            num_inference_steps=num_steps,
-            generator=np.random.RandomState(seed),
-        ).images[0]
-        return result
-    
-    
-    with gr.Blocks() as demo:
-        with gr.Column():
-            positive_input = gr.Textbox(label="Text prompt")
-            with gr.Row():
-                seed_input = gr.Number(precision=0, label="Seed", value=42, minimum=0)
-                steps_input = gr.Slider(label="Steps", value=10)
-                btn = gr.Button()
-            with gr.Row():
-                i2i_input = gr.Image(label="Input image", type="pil")
-                out = gr.Image(label="Result", type="pil", width=512)
-            btn.click(
-                generate_from_image,
-                [positive_input, i2i_input, seed_input, steps_input],
-                out,
-            )
-            gr.Examples(
-                [
-                    ["amazing landscape from legends", "castle_friedrich.png", 971, 60],
-                    [
-                        "Masterpiece of watercolor painting in Van Gogh style",
-                        "cat.png",
-                        37890,
-                        40,
-                    ],
-                ],
-                [positive_input, i2i_input, seed_input, steps_input],
-            )
+    demo = make_demo_sd_xl_image2image(image2image_pipe)
     
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
     # if you want create public link for sharing demo, please add share=True
-    demo.launch()
+    try:
+        demo.launch(debug=False)
+    except Exception:
+        demo.launch(share=True, debug=False)
 
 .. code:: ipython3
 

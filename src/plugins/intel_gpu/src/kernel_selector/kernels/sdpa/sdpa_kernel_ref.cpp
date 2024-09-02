@@ -13,6 +13,8 @@ ParamsKey SDPAKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    // beam table input
+    k.EnableInputDataType(Datatype::INT32);
 
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
@@ -71,6 +73,9 @@ KernelsData SDPAKernelRef::GetKernelsData(const Params& params) const {
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      "", false, false, static_cast<int>(prim_params.inputs.size()),
                      GetFusedPrimitiveInputsCount(params), 1, prim_params.is_shape_agnostic);
+
+    if (prim_params.indirect_axis != -1)
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(prim_params.inputs.size())});
 
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
 

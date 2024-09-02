@@ -4,7 +4,8 @@
 
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
 
@@ -57,6 +58,13 @@ static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
             }
         }
 
+        int64_t axis = -1;
+        auto const_axis = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        if (const_axis) {
+            axis = ov::util::try_normalize_axis(const_axis->cast_vector<int64_t>()[0],
+                                                op->get_input_partial_shape(0).rank(),
+                                                *op);
+        }
         cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
         auto num_splits = static_cast<size_t>(1);
         if (ov::is_type<ov::op::v1::Split>(op)) {
@@ -65,12 +73,17 @@ static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
         }
 
         for (size_t i = 0; i < op->get_output_size(); i++) {
+            const auto& users = op->get_output_target_inputs(i);
+            // don't add crop primitive if port is not used by anyone
+            if (users.size() == 0)
+                continue;
             auto cropPrim = cldnn::crop(get_layer_name(i),
                                         inputs,
                                         cldnn::tensor(1),
                                         (offsets.empty() ? cldnn::tensor(0) : offsets[i]),
                                         op_mode,
                                         static_cast<int>(i),
+                                        axis,
                                         num_splits);
             p.add_primitive(*op, cropPrim);
         }

@@ -77,6 +77,17 @@ struct FileTraits<wchar_t> {
     }
 };
 
+/**
+ * @brief Convert path as char string to to a single-byte chain.
+ * @param path Path as char string.
+ * @return Reference to input path (no conversion).
+ */
+template <class Path,
+          typename std::enable_if<std::is_same<typename std::decay<Path>::type, std::string>::value>::type* = nullptr>
+const std::string& path_to_string(const Path& path) {
+    return path;
+}
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
  * @brief Conversion from wide character string to a single-byte chain.
@@ -90,6 +101,17 @@ std::string wstring_to_string(const std::wstring& wstr);
  * @return A wide-char string
  */
 std::wstring string_to_wstring(const std::string& str);
+
+/**
+ * @brief Convert path as wide character string to a single-byte chain.
+ * @param path  Path as wide-char string.
+ * @return A char string
+ */
+template <class Path,
+          typename std::enable_if<std::is_same<typename std::decay<Path>::type, std::wstring>::value>::type* = nullptr>
+std::string path_to_string(const Path& path) {
+    return ov::util::wstring_to_string(path);
+}
 
 #endif
 
@@ -124,6 +146,15 @@ bool is_absolute_file_path(const std::string& path);
  * @throw runtime_error if any error occurred
  */
 void create_directory_recursive(const std::string& path);
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+/**
+ * @brief Interface function to create directorty recursively by given path
+ * @param path - path to file wide-string, can be relative to current working directory
+ * @throw runtime_error if any error occurred
+ */
+void create_directory_recursive(const std::wstring& path);
+#endif
 
 /**
  * @brief Interface function to check if directory exists for given path

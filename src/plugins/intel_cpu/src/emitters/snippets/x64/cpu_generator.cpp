@@ -61,8 +61,7 @@ namespace ov {
 static bool is_load_emitter(const intel_cpu::jit_emitter *emitter) {
     bool ret = false;
     if (dynamic_cast<const intel_cpu::jit_load_memory_emitter*>(emitter) ||
-        dynamic_cast<const intel_cpu::jit_load_broadcast_emitter*>(emitter) ||
-        dynamic_cast<const intel_cpu::jit_load_convert_emitter*>(emitter)) {
+        dynamic_cast<const intel_cpu::jit_load_broadcast_emitter*>(emitter)) {
         return true;
     }
     return ret;
@@ -70,8 +69,7 @@ static bool is_load_emitter(const intel_cpu::jit_emitter *emitter) {
 
 static bool is_store_emitter(const intel_cpu::jit_emitter *emitter) {
     bool ret = false;
-    if (dynamic_cast<const intel_cpu::jit_store_memory_emitter*>(emitter) ||
-        dynamic_cast<const intel_cpu::jit_store_convert_emitter*>(emitter)) {
+    if (dynamic_cast<const intel_cpu::jit_store_memory_emitter*>(emitter)) {
         return true;
     }
     return ret;
@@ -158,7 +156,6 @@ public:
 intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                               ov::intel_cpu::MultiCacheWeakPtr cache)
    : TargetMachine(std::make_shared<CPURuntimeConfigurator>()), h(new jit_snippet()), isa(host_isa), compiled_kernel_cache(std::move(cache)) {
-    kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
     // data movement
     jitters[op::v0::Parameter::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[op::v0::Result::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
@@ -171,12 +168,12 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[snippets::op::Load::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_memory_emitter);
     jitters[snippets::op::LoadReshape::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_memory_emitter);
     jitters[snippets::op::BroadcastLoad::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_broadcast_emitter);
-    jitters[intel_cpu::LoadConvertSaturation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_convert_emitter);
-    jitters[intel_cpu::LoadConvertTruncation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_convert_emitter);
+    jitters[intel_cpu::LoadConvertSaturation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_memory_emitter);
+    jitters[intel_cpu::LoadConvertTruncation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_memory_emitter);
 
     jitters[snippets::op::Store::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_store_memory_emitter);
-    jitters[intel_cpu::StoreConvertSaturation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_store_convert_emitter);
-    jitters[intel_cpu::StoreConvertTruncation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_store_convert_emitter);
+    jitters[intel_cpu::StoreConvertSaturation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_store_memory_emitter);
+    jitters[intel_cpu::StoreConvertTruncation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_store_memory_emitter);
 
     jitters[snippets::op::Scalar::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_scalar_emitter);
     jitters[snippets::op::BroadcastMove::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_broadcast_move_emitter);
@@ -239,13 +236,11 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
 
     jitters[snippets::op::KernelStatic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_kernel_static_emitter);
     jitters[snippets::op::KernelDynamic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_kernel_dynamic_emitter);
-    jitters[snippets::op::LoopBeginStatic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_begin_static_emitter);
-    jitters[snippets::op::LoopBeginDynamic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_begin_dynamic_emitter);
-    jitters[snippets::op::LoopEndStatic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_end_static_emitter);
-    jitters[snippets::op::LoopEndDynamic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_end_dynamic_emitter);
+    jitters[snippets::op::LoopBegin::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_begin_emitter);
+    jitters[snippets::op::LoopEnd::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_end_emitter);
     // Note: jit_brgemm_emitter supports runtime recompilation, so its constructor takes additional arguments
     jitters[intel_cpu::BrgemmCPU::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_brgemm_emitter,
-                                                                                    kernel_executor_table,
+                                                                                    configurator->get_kernel_executor_table(),
                                                                                     compiled_kernel_cache);
     jitters[intel_cpu::BrgemmCopyB::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_brgemm_copy_b_emitter);
     jitters[snippets::op::ReduceMax::get_type_info_static()] = CREATE_UNDEFINED_EMITTER({{ov::element::f32}});

@@ -57,6 +57,9 @@ LIRComparator::Result LIRComparator::compare(const LinearIRPtr& linear_ir,
     const auto& results = linear_ir->get_results();
     const auto& results_ref = linear_ir_ref->get_results();
     COMPARE("Number of results", results.size(), results_ref.size());
+    const auto& buffers = linear_ir->get_buffers();
+    const auto& buffers_ref = linear_ir_ref->get_buffers();
+    COMPARE("Number of buffers", buffers.size(), buffers_ref.size());
 
     auto run_comparison = [&](const LinearIR::constExprIt& expr_it, const LinearIR::constExprIt& expr_it_ref) {
         const auto& expr = expr_it->get();
@@ -93,8 +96,9 @@ LIRComparator::Result LIRComparator::compare(const LinearIRPtr& linear_ir,
     for (auto result_it = results.begin(), result_it_ref = results_ref.begin(); result_it != results.end(); ++result_it, ++result_it_ref)
         PROPAGATE_ERROR("", run_comparison(result_it, result_it_ref));
 
-    if (should_compare(LIRCmpValues::LOOP_MANAGER))
+    if (should_compare(LIRCmpValues::LOOP_MANAGER)) {
         PROPAGATE_ERROR("Loop managers", compare_loop_managers(linear_ir->get_loop_manager(), linear_ir_ref->get_loop_manager()));
+    }
     return Result::ok();
 }
 

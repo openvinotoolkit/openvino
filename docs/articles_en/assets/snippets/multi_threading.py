@@ -37,7 +37,7 @@ compiled_model_3 = core.compile_model(
 # ! [ov:intel_cpu:multi_threading:part0]
 
 # ! [ov:intel_cpu:multi_threading:part1]
-# Disable CPU threads pinning for inference when system supoprt it
+# Disable CPU thread pinning for inference when the system supports it
 compiled_model_4 = core.compile_model(
     model=model,
     device_name=device_name,

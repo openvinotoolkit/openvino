@@ -35,8 +35,8 @@ Transformer <https://en.wikipedia.org/wiki/Transformer_(machine_learning_model)>
 and
 `ResNet34 <https://pytorch.org/vision/main/models/generated/torchvision.models.resnet34.html>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `The models <#the-models>`__
@@ -54,6 +54,16 @@ Table of contents:
    -  `AI Functions <#ai-functions>`__
    -  `Main Processing Function <#main-processing-function>`__
    -  `Run Action Recognition <#run-action-recognition>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 .. code:: ipython3
 
@@ -210,15 +220,7 @@ Select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = utils.device_widget()
     
     device
 

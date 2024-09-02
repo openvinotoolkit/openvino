@@ -343,28 +343,6 @@ void Input::cloneBlobIfRequired() {
         return false;
     };
 
-    // WA for CVS-46304
-    auto isWA = [&, this] () {
-        auto outputs = constOp->outputs();
-        for (const auto& output : outputs) {
-            auto node = output.get_node();
-            if (!node
-                || TypeFromName(node->get_type_name()) != Type::FullyConnected)
-                continue;
-            if (mayiuse(cpu_isa_t::avx512_core)) {
-                if (size % 16)
-                    return true;
-            } else if (mayiuse(cpu_isa_t::avx)) {
-                if (size % 8)
-                    return true;
-            } else if (mayiuse(cpu_isa_t::sse41)) {
-                if (size % 4)
-                    return true;
-            }
-        }
-        return false;
-    };
-
     auto blobKey = [&, this] () {
         char ptr[32];
         snprintf(ptr, sizeof ptr, "%p", constOp->get_data_ptr());
@@ -373,18 +351,20 @@ void Input::cloneBlobIfRequired() {
                 + "_" + ptr;
     };
 
-    auto weightCache = context->getWeightsCache();
+    const auto weightCache = context->getWeightsCache();
+    const bool clone_is_not_needed =
+        prec != element::string &&
+        // IRs already have all subnormals flushed to zero, but in
+        // read_model scenario with directly loaded original model still can have subnormals
+        isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) &&
+        // Blob should be cloned in cache only if original weights are stored on other numa node.
+        // This is possible only in multistream case on multisocket machine.
+        // TODO: don't clone blob for multisocket + multistream case if current stream is run on the numa node where original weights are stored.
+        (!weightCache || context->getNumNumaNodes() == 1 || context->getCPUStreamExecutor()->get_streams_num() == 1);
 
-    if (weightCache) {
-        MemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
-        memoryPtr = std::const_pointer_cast<const IMemory>(ptr);
-    // IRs already have all subnormals flushed to zero, but in
-    // read_model scenario with directly loaded original model still can have subnormals
-    } else if (prec != element::string && isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) && !isWA()) {
-        memoryPtr = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
-    } else {
-        memoryPtr = std::const_pointer_cast<const IMemory>(cloneBlob());
-    }
+    memoryPtr = clone_is_not_needed ? std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr())
+                                    : std::const_pointer_cast<const IMemory>(
+                                          weightCache ? *weightCache->findOrCreate(blobKey(), cloneBlob) : cloneBlob());
 }
 
 static std::vector<Shape> createInputShapes(const Shape& shape,

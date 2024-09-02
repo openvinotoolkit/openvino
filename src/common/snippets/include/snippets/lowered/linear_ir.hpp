@@ -9,33 +9,19 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/target_machine.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
+#ifdef SNIPPETS_DEBUG_CAPS
+#include "snippets/utils/debug_caps_config.hpp"
+#endif
 
 namespace ov {
 namespace snippets {
 namespace lowered {
-
-#ifdef SNIPPETS_DEBUG_CAPS
-// Snippets performance count mode
-// Disabled - default, w/o perf count for snippets
-// Chrono - perf count with chrono call. This is a universal method, and support multi-thread case to output perf count data for each thread.
-// BackendSpecific - perf count provided by backend. This is for device specific requirment.
-// For example, in sake of more light overhead and more accurate result, x86 CPU specific mode via read RDTSC register is implemented,
-// which take ~50ns, while Chrono mode take 260ns for a pair of perf count start and perf count end execution, on ICX. This mode only support single thread.
-enum PerfCountMode {
-    Disabled,
-    Chrono,
-    BackendSpecific,
-};
-#endif
 
 class Config {
 public:
     // True if we should check runtime info for nodes to call specific needed transformations
     bool m_need_fill_tail_register = false;
     size_t m_loop_depth = 1;
-#ifdef SNIPPETS_DEBUG_CAPS
-    PerfCountMode perf_count_mode = PerfCountMode::Disabled;
-#endif
     // Some Subgraphs doesn't support domain optimization due to operations' semantics
     bool m_enable_domain_optimization = false;
     // Minimal advised work amount for parallel execution.
@@ -51,6 +37,9 @@ public:
     // True if LIR can be fully manually built: all (including I/O) expressions can be added to LIR
     // False if LIR can be built from ov::Model only. Prevents adding I/O expressions
     bool m_manual_build_support = false;
+#ifdef SNIPPETS_DEBUG_CAPS
+    DebugCapsConfig debug_config;
+#endif
 };
 
 class LinearIRBuilder;
@@ -76,13 +65,14 @@ public:
     ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) const;
 
     const container& get_ops() const { return m_expressions; }
+    const container& get_buffers() const { return m_buffer_expressions; }
     const container& get_parameters() const { return m_parameter_expressions; }
     const container& get_results() const { return m_result_expressions; }
     const Config& get_config() const { return m_config; }
-    size_t get_buffer_scratchpad_size() const { return m_buffer_scratchpad_size; }
+    size_t get_static_buffer_scratchpad_size() const { return m_static_buffer_scratchpad_size; }
 
     void set_loop_depth(size_t loop_depth) { m_config.m_loop_depth = loop_depth; }
-    void set_buffer_scratchpad_size(size_t size) { m_buffer_scratchpad_size = size; }
+    void set_static_buffer_scratchpad_size(size_t size) { m_static_buffer_scratchpad_size = size; }
 
     const ExpressionPtr& get_expr_by_node(const std::shared_ptr<Node>& n) const;
 
@@ -139,6 +129,8 @@ public:
     VectorDims get_master_shape() const;
 
     bool is_dynamic() const;
+
+    void enumerate_expressions() const;
 
     /* ------ Helpers for work with LinearIR ----- */
     /**
@@ -271,22 +263,28 @@ private:
     ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& new_inputs,
                                     const std::vector<size_t>& loop_ids, bool update_loop_ports, const std::vector<std::set<ExpressionPort>>& consumers = {});
 
-    void register_expression(const ExpressionPtr& expr, bool io_allowed);
+    void register_expression(const ExpressionPtr& expr, bool io_allowed, double exec_num);
     void unregister_expression(const ExpressionPtr& expr);
+
+    // return execution number for new expression which will be inserted before `insert_pos`
+    double get_inserted_expr_exec_num(constExprIt insertion_pos) const;
 
     container m_expressions{};
     std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Expression>> m_node2expression_map;
     container m_parameter_expressions{};
     container m_result_expressions{};
+    container m_buffer_expressions{};
     Config m_config{};
     LoopManagerPtr m_loop_manager;
     std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory;
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
     bool m_is_dynamic = false;
 
-    size_t m_buffer_scratchpad_size = 0;
+    // Size of static Buffer Scratchpad (Buffers with defined allocation size)
+    size_t m_static_buffer_scratchpad_size = 0;
 };
 using LinearIRPtr = std::shared_ptr<LinearIR>;
+using LinearIRCPtr = std::shared_ptr<const LinearIR>;
 
 template<typename iterator>
 iterator LinearIR::find(iterator begin, iterator end, const ExpressionPtr& target) const {

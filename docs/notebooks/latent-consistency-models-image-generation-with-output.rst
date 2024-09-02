@@ -44,8 +44,8 @@ An additional part demonstrates how to run quantization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
 pipeline.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Prepare models for OpenVINO format
@@ -72,6 +72,16 @@ Table of contents:
       -  `Compare UNet file size <#compare-unet-file-size>`__
 
 -  `Interactive demo <#interactive-demo>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Prerequisites
 -------------
@@ -291,21 +301,7 @@ hidden states.
         print(f"Text encoder will be loaded from {TEXT_ENCODER_OV_PATH}")
     
     del text_encoder
-    gc.collect()
-
-
-.. parsed-literal::
-
-    Text encoder will be loaded from model/text_encoder.xml
-
-
-
-
-.. parsed-literal::
-
-    9
-
-
+    gc.collect();
 
 U-Net
 ~~~~~
@@ -364,21 +360,7 @@ Model predicts the ``sample`` state for the next step.
     else:
         print(f"Unet will be loaded from {UNET_OV_PATH}")
     del unet
-    gc.collect()
-
-
-.. parsed-literal::
-
-    Unet successfully converted to IR and saved to model/unet.xml
-
-
-
-
-.. parsed-literal::
-
-    0
-
-
+    gc.collect();
 
 VAE
 ~~~
@@ -443,21 +425,7 @@ VAE encoder, can be found in Stable Diffusion notebook.
         print(f"VAE decoder will be loaded from {VAE_DECODER_OV_PATH}")
     
     del vae
-    gc.collect()
-
-
-.. parsed-literal::
-
-    VAE decoder will be loaded from model/vae_decoder.xml
-
-
-
-
-.. parsed-literal::
-
-    0
-
-
+    gc.collect();
 
 Prepare inference pipeline
 --------------------------
@@ -839,12 +807,8 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
-    
+    skip_for_device = "GPU" in device.value
+    to_quantize = widgets.Checkbox(value=not skip_for_device, description="Quantization", disabled=skip_for_device)
     to_quantize
 
 
@@ -863,9 +827,6 @@ Let’s load ``skip magic`` extension to skip quantization if
 
     int8_pipe = None
     
-    if to_quantize.value and "GPU" in device.value:
-        to_quantize.value = False
-    
     # Fetch `skip_kernel_extension` module
     import requests
     
@@ -881,7 +842,7 @@ Prepare calibration dataset
 
 
 We use a portion of
-`conceptual_captions <https://huggingface.co/datasets/conceptual_captions>`__
+`conceptual_captions <https://huggingface.co/datasets/google-research-datasets/conceptual_captions>`__
 dataset from Hugging Face as calibration data. To collect intermediate
 model inputs for calibration we should customize ``CompiledModel``.
 
@@ -911,7 +872,7 @@ model inputs for calibration we should customize ``CompiledModel``.
         original_unet = lcm_pipeline.unet
         lcm_pipeline.unet = CompiledModelDecorator(original_unet, prob=0.3)
     
-        dataset = datasets.load_dataset("conceptual_captions", split="train").shuffle(seed=42)
+        dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", trust_remote_code=True).shuffle(seed=42)
         lcm_pipeline.set_progress_bar_config(disable=True)
         safety_checker = lcm_pipeline.safety_checker
         lcm_pipeline.safety_checker = None
@@ -1011,17 +972,17 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1032,17 +993,17 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1058,17 +1019,17 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1143,7 +1104,7 @@ pipelines, we use median inference time on calibration subset.
     import time
     
     validation_size = 10
-    calibration_dataset = datasets.load_dataset("conceptual_captions", split="train")
+    calibration_dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", trust_remote_code=True)
     validation_data = []
     for idx, batch in enumerate(calibration_dataset):
         if idx >= validation_size:
@@ -1223,22 +1184,11 @@ Interactive demo
     
     MAX_SEED = np.iinfo(np.int32).max
     
-    examples = [
-        "portrait photo of a girl, photograph, highly detailed face, depth of field, moody light, golden hour,"
-        "style by Dan Winters, Russell James, Steve McCurry, centered, extremely detailed, Nikon D850, award winning photography",
-        "Self-portrait oil painting, a beautiful cyborg with golden hair, 8k",
-        "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k",
-        "A photo of beautiful mountain with realistic sunset and blue lake, highly detailed, masterpiece",
-    ]
-    
     
     def randomize_seed_fn(seed: int, randomize_seed: bool) -> int:
         if randomize_seed:
             seed = random.randint(0, MAX_SEED)
         return seed
-    
-    
-    MAX_IMAGE_SIZE = 768
     
     
     def generate(
@@ -1271,112 +1221,20 @@ Interactive demo
     generate_original = partial(generate, ov_pipe)
     generate_optimized = partial(generate, int8_pipe)
     quantized_model_present = int8_pipe is not None
-    
-    with gr.Blocks() as demo:
-        with gr.Group():
-            with gr.Row():
-                prompt = gr.Text(
-                    label="Prompt",
-                    show_label=False,
-                    max_lines=1,
-                    placeholder="Enter your prompt",
-                    container=False,
-                )
-            with gr.Row():
-                with gr.Column():
-                    result = gr.Image(
-                        label="Result (Original)" if quantized_model_present else "Image",
-                        type="pil",
-                    )
-                    run_button = gr.Button("Run")
-                with gr.Column(visible=quantized_model_present):
-                    result_optimized = gr.Image(
-                        label="Result (Optimized)",
-                        type="pil",
-                        visible=quantized_model_present,
-                    )
-                    run_quantized_button = gr.Button(value="Run quantized", visible=quantized_model_present)
-    
-        with gr.Accordion("Advanced options", open=False):
-            seed = gr.Slider(label="Seed", minimum=0, maximum=MAX_SEED, step=1, value=0, randomize=True)
-            randomize_seed = gr.Checkbox(label="Randomize seed across runs", value=True)
-            with gr.Row():
-                width = gr.Slider(
-                    label="Width",
-                    minimum=256,
-                    maximum=MAX_IMAGE_SIZE,
-                    step=32,
-                    value=512,
-                )
-                height = gr.Slider(
-                    label="Height",
-                    minimum=256,
-                    maximum=MAX_IMAGE_SIZE,
-                    step=32,
-                    value=512,
-                )
-            with gr.Row():
-                guidance_scale = gr.Slider(
-                    label="Guidance scale for base",
-                    minimum=2,
-                    maximum=14,
-                    step=0.1,
-                    value=8.0,
-                )
-                num_inference_steps = gr.Slider(
-                    label="Number of inference steps for base",
-                    minimum=1,
-                    maximum=8,
-                    step=1,
-                    value=4,
-                )
-    
-        gr.Examples(
-            examples=examples,
-            inputs=prompt,
-            outputs=result,
-            cache_examples=False,
-        )
-    
-        gr.on(
-            triggers=[
-                prompt.submit,
-                run_button.click,
-            ],
-            fn=generate_original,
-            inputs=[
-                prompt,
-                seed,
-                width,
-                height,
-                guidance_scale,
-                num_inference_steps,
-                randomize_seed,
-            ],
-            outputs=[result, seed],
-        )
-    
-        if quantized_model_present:
-            gr.on(
-                triggers=[
-                    prompt.submit,
-                    run_quantized_button.click,
-                ],
-                fn=generate_optimized,
-                inputs=[
-                    prompt,
-                    seed,
-                    width,
-                    height,
-                    guidance_scale,
-                    num_inference_steps,
-                    randomize_seed,
-                ],
-                outputs=[result_optimized, seed],
-            )
+    generate = generate_optimized if quantized_model_present else generate_original
 
 .. code:: ipython3
 
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/latent-consistency-models-image-generation/gradio_helper.py"
+        )
+        open("gradio_helper.py", "w").write(r.text)
+    
+    from gradio_helper import make_demo_lcm
+    
+    demo = make_demo_lcm(fn=generate, quantized=quantized_model_present)
+    
     try:
         demo.queue().launch(debug=False)
     except Exception:
@@ -1384,3 +1242,8 @@ Interactive demo
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

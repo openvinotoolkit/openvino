@@ -54,7 +54,11 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {ActivationTypes::RoundHalfAwayFromZero, {}},
         {ActivationTypes::GeluErf,               {}},
         {ActivationTypes::GeluTanh,              {}},
-        {ActivationTypes::Swish,                 {{0.4f}}}
+        {ActivationTypes::Swish,                 {{0.4f}}},
+        {ActivationTypes::IsFinite,              {}},
+        {ActivationTypes::IsInf,                 {}},
+        {ActivationTypes::IsNaN,                 {{}}},
+        {ActivationTypes::LogicalNot,            {}},
 };
 
 // List of operations that should be tested also with integer precision

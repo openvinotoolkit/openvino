@@ -1,10 +1,12 @@
 # Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 import pytest
 import tensorflow as tf
-
 from common.tf2_layer_test_class import CommonTF2LayerTest
+
+rng = np.random.default_rng()
 
 
 def fn_1(x):
@@ -57,15 +59,33 @@ class MapFNLayer(tf.keras.layers.Layer):
 
 
 class TestMapFN(CommonTF2LayerTest):
+    def _prepare_input(self, inputs_info):
+        inputs_data = {}
+        for input_name in list(inputs_info.keys()):
+            input_shape = inputs_info[input_name]
+            if np.issubdtype(self.input_type, np.floating):
+                inputs_data[input_name] = rng.uniform(-5.0, 5.0, input_shape).astype(self.input_type)
+            else:
+                inputs_data[input_name] = rng.integers(-8, 8, input_shape).astype(self.input_type)
+
+        return inputs_data
+
     def create_map_fn_net(self, fn, input_type, fn_output_signature, back_prop,
                           input_names, input_shapes, ir_version):
+        self.input_type = input_type.as_numpy_dtype
         # create TensorFlow 2 model using MapFN construction
         tf.keras.backend.clear_session()
         inputs = []
+        lambdas = []
         for ind in range(len(input_names)):
-            inputs.append(tf.keras.Input(shape=input_shapes[ind][1:], name=input_names[ind],
-                                         dtype=input_type))
-        map_fn_layer = MapFNLayer(fn, input_type, fn_output_signature, back_prop)(inputs)
+            input_ = tf.keras.Input(shape=input_shapes[ind][1:], name=input_names[ind],
+                                    dtype=input_type)
+            inputs.append(input_)
+            # add additional layer Add to avoid
+            # double tensor name for Parameter after EliminateLoopInputsOutputs elimination
+            lambda_ = tf.keras.layers.Lambda(lambda x: x + 1)(input_)
+            lambdas.append(lambda_)
+        map_fn_layer = MapFNLayer(fn, input_type, fn_output_signature, back_prop)(lambdas)
         tf2_net = tf.keras.Model(inputs=inputs, outputs=[map_fn_layer])
 
         # TODO: add reference IR net. Now it is omitted and tests only inference result that is more important

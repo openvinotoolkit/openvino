@@ -21,12 +21,12 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | AddV2                                                   | YES                           |                               |
 | AdjustContrast                                          | NO                            |                               |
 | AdjustContrastv2                                        | YES                           |                               |
-| AdjustHue                                               | NO                            |                               |
-| AdjustSaturation                                        | NO                            |                               |
+| AdjustHue<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
+| AdjustSaturation<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
 | All                                                     | YES                           |                               |
 | AllCandidateSampler                                     | NO                            |                               |
 | AllToAll                                                | NO                            |                               |
-| Angle<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
+| Angle                                                   | YES                           |                               |
 | AnonymousHashTable                                      | NO                            |                               |
 | AnonymousIterator                                       | NO                            |                               |
 | AnonymousIteratorV2                                     | NO                            |                               |
@@ -57,7 +57,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | ApplyProximalGradientDescent                            | NO                            |                               |
 | ApplyRMSProp                                            | NO                            |                               |
 | ApproxTopK                                              | NO                            |                               |
-| ApproximateEqual<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
+| ApproximateEqual                                        | YES                           |                               |
 | ArgMax                                                  | YES                           |                               |
 | ArgMin                                                  | YES                           |                               |
 | AsString                                                | NO                            |                               |
@@ -111,7 +111,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | BatchMatrixDeterminant                                  | NO                            |                               |
 | BatchMatrixDiag                                         | NO                            |                               |
 | BatchMatrixDiagPart                                     | NO                            |                               |
-| BatchMatrixInverse                                      | NO                            |                               |
+| BatchMatrixInverse                                      | YES                           |                               |
 | BatchMatrixSetDiag                                      | NO                            |                               |
 | BatchMatrixSolve                                        | NO                            |                               |
 | BatchMatrixSolveLs                                      | NO                            |                               |
@@ -139,7 +139,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | BiasAdd                                                 | YES                           |                               |
 | BiasAddGrad                                             | NO                            |                               |
 | BiasAddV1                                               | NO                            |                               |
-| Bincount<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
+| Bincount                                                | YES                           |                               |
 | Bitcast                                                 | NO                            |                               |
 | BitwiseAnd                                              | YES                           |                               |
 | BitwiseOr                                               | YES                           |                               |
@@ -487,7 +487,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | GroupByReducerDataset                                   | NO                            |                               |
 | GroupByWindowDataset                                    | NO                            |                               |
 | GuaranteeConst                                          | NO                            |                               |
-| HSVToRGB                                                | NO                            |                               |
+| HSVToRGB<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
 | HashTable                                               | YES                           |                               |
 | HashTableV2                                             | YES                           |                               |
 | HistogramFixedWidth                                     | NO                            |                               |
@@ -561,7 +561,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | LeakyRelu                                               | YES                           |                               |
 | LeakyReluGrad                                           | NO                            |                               |
 | LearnedUnigramCandidateSampler                          | NO                            |                               |
-| LeftShift                                               | NO                            |                               |
+| LeftShift                                               | YES                           |                               |
 | LegacyParallelInterleaveDatasetV2                       | NO                            |                               |
 | Less                                                    | YES                           |                               |
 | LessEqual                                               | YES                           |                               |
@@ -601,8 +601,8 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | LookupTableInsert                                       | YES                           |                               |
 | LookupTableInsertV2                                     | YES                           |                               |
 | LookupTableRemoveV2                                     | NO                            |                               |
-| LookupTableSize                                         | NO                            |                               |
-| LookupTableSizeV2                                       | NO                            |                               |
+| LookupTableSize                                         | YES                           |                               |
+| LookupTableSizeV2                                       | YES                           |                               |
 | LoopCond                                                | YES                           |                               |
 | LowerBound                                              | NO                            |                               |
 | Lu                                                      | NO                            |                               |
@@ -829,7 +829,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | RFFT                                                    | YES                           |                               |
 | RFFT2D                                                  | YES                           |                               |
 | RFFT3D                                                  | YES                           |                               |
-| RGBToHSV                                                | NO                            |                               |
+| RGBToHSV                                                | YES                           |                               |
 | RaggedBincount                                          | NO                            |                               |
 | RaggedCountSparseOutput                                 | NO                            |                               |
 | RaggedCross                                             | NO                            |                               |
@@ -838,8 +838,8 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | RaggedGather                                            | NO                            |                               |
 | RaggedRange                                             | NO                            |                               |
 | RaggedTensorFromVariant                                 | NO                            |                               |
-| RaggedTensorToSparse<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           | openvino-tokenizers required  |
-| RaggedTensorToTensor<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           | openvino-tokenizers required  |
+| RaggedTensorToSparse                                    | YES                           | openvino-tokenizers required  |
+| RaggedTensorToTensor                                    | YES                           | openvino-tokenizers required  |
 | RaggedTensorToVariant                                   | NO                            |                               |
 | RaggedTensorToVariantGradient                           | NO                            |                               |
 | RandomCrop                                              | NO                            |                               |
@@ -987,7 +987,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | ReverseSequence                                         | YES                           |                               |
 | ReverseV2                                               | YES                           |                               |
 | RewriteDataset                                          | NO                            |                               |
-| RightShift                                              | NO                            |                               |
+| RightShift                                              | YES                           |                               |
 | Rint                                                    | YES                           |                               |
 | RngReadAndSkip                                          | NO                            |                               |
 | RngSkip                                                 | NO                            |                               |
@@ -1149,8 +1149,8 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | SparseSparseMaximum                                     | NO                            |                               |
 | SparseSparseMinimum                                     | NO                            |                               |
 | SparseSplit                                             | NO                            |                               |
-| SparseTensorDenseAdd                                    | NO                            |                               |
-| SparseTensorDenseMatMul                                 | NO                            |                               |
+| SparseTensorDenseAdd                                    | YES                           |                               |
+| SparseTensorDenseMatMul                                 | YES                           |                               |
 | SparseTensorSliceDataset                                | NO                            |                               |
 | SparseTensorToCSRSparseMatrix                           | NO                            |                               |
 | SparseToDense                                           | YES                           |                               |
@@ -1209,7 +1209,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | StatelessTruncatedNormalV2                              | NO                            |                               |
 | StatelessWhile                                          | YES                           |                               |
 | StaticRegexFullMatch                                    | YES                           |                               |
-| StaticRegexReplace<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           | openvino-tokenizers required  |
+| StaticRegexReplace                                      | YES                           | openvino-tokenizers required  |
 | StatsAggregatorHandle                                   | NO                            |                               |
 | StatsAggregatorHandleV2                                 | NO                            |                               |
 | StatsAggregatorSetSummaryWriter                         | NO                            |                               |
@@ -1221,10 +1221,10 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | StringFormat                                            | NO                            |                               |
 | StringJoin                                              | YES                           |                               |
 | StringLength                                            | NO                            |                               |
-| StringLower<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           | openvino-tokenizers required  |
+| StringLower                                             | YES                           | openvino-tokenizers required  |
 | StringNGrams                                            | NO                            |                               |
 | StringSplit                                             | NO                            |                               |
-| StringSplitV2<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           | openvino-tokenizers required  |
+| StringSplitV2                                           | YES                           | openvino-tokenizers required  |
 | StringStrip                                             | NO                            |                               |
 | StringToHashBucket                                      | NO                            |                               |
 | StringToHashBucketFast                                  | YES                           | openvino-tokenizers required  |
@@ -1318,7 +1318,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | TensorScatterMax                                        | NO                            |                               |
 | TensorScatterMin                                        | NO                            |                               |
 | TensorScatterSub                                        | NO                            |                               |
-| TensorScatterUpdate                                     | NO                            |                               |
+| TensorScatterUpdate                                     | YES                           |                               |
 | TensorSliceDataset                                      | NO                            |                               |
 | TensorStridedSliceUpdate                                | NO                            |                               |
 | TensorSummary                                           | NO                            |                               |

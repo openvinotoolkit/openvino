@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/quantize_linear.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
@@ -12,15 +11,15 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
+#include "utils/common.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace ai_onnx {
 namespace detail {
 namespace {
 ov::Output<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
@@ -138,7 +137,7 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale
 }
 }  // namespace detail
 
-namespace set_1 {
+namespace opset_1 {
 ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
     auto x = inputs.at(0);
@@ -151,16 +150,17 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
 
     return {detail::make_fake_quantize(y_scale, y_zero_point, x)};
 }
-}  // namespace set_1
+ONNX_OP("QuantizeLinear", {1, 12}, ai_onnx::opset_1::quantize_linear);
+}  // namespace opset_1
 
-namespace set_13 {
-namespace {
+namespace opset_13 {
+namespace detail {
 ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
                                  ov::Output<ov::Node> y_scale,
                                  ov::Output<ov::Node> y_zero_point,
                                  int64_t axis,
                                  Node node) {
-    namespace detail = ov::frontend::onnx::op::detail;
+    namespace detail = ov::frontend::onnx::ai_onnx::detail;
 
     x = detail::validate_data(node, x);
     detail::validate_zero_point_type(node, y_zero_point);
@@ -168,7 +168,9 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
 
     const auto& x_shape = x.get_partial_shape();
 
-    axis = ov::util::normalize_axis(node.get_description(), axis, x_shape.rank());
+    if (x_shape.rank().is_static()) {
+        axis = common::normalize_axis(node.get_description(), axis, x_shape.rank());
+    }
 
     const auto& y_scale_shape = y_scale.get_partial_shape();
     const auto& y_zero_point_shape = y_zero_point.get_partial_shape();
@@ -205,7 +207,7 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
 
     return {detail::make_fake_quantize(y_scale, y_zero_point, x)};
 }
-}  // namespace
+}  // namespace detail
 
 ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector inputs{node.get_ov_inputs()};
@@ -217,18 +219,19 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
 
     const auto& x = inputs[0];
     const auto& scale = inputs[1];
-    const auto zero_point = op::detail::get_zero_point(inputs);
+    const auto zero_point = ai_onnx::detail::get_zero_point(inputs);
 
     // per-tensor quantization, axis attribute ignored
     if (scale.get_partial_shape().rank().is_static() && scale.get_partial_shape().rank().get_length() == 0 &&
         zero_point.get_partial_shape().rank().is_static() && zero_point.get_partial_shape().rank().get_length() == 0) {
-        return set_1::quantize_linear(node);
+        return ai_onnx::opset_1::quantize_linear(node);
     }
 
-    return quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
+    return detail::quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
 }
-}  // namespace set_13
-}  // namespace op
+ONNX_OP("QuantizeLinear", OPSET_SINCE(13), ai_onnx::opset_13::quantize_linear);
+}  // namespace opset_13
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

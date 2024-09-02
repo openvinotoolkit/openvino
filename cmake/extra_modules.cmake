@@ -119,13 +119,17 @@ function(_ov_register_extra_modules)
     add_library(${NS}::${exported_target_clean_name} ALIAS ${exported_target})
 endif()\n")
         endforeach()
+
+        configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cmake.in"
+                       "${OpenVINODeveloperPackage_DIR}/OpenVINODeveloperPackageConfig-version.cmake" 
+                       @ONLY)
     endfunction()
 
     _ov_generate_fake_developer_package("openvino")
 
     # detect where OPENVINO_EXTRA_MODULES contains folders with CMakeLists.txt
     # other folders are supposed to have sub-folders with CMakeLists.txt
-    foreach(module_path IN LISTS OPENVINO_EXTRA_MODULES IE_EXTRA_MODULES)
+    foreach(module_path IN LISTS OPENVINO_EXTRA_MODULES)
         get_filename_component(module_path "${module_path}" ABSOLUTE)
         if(EXISTS "${module_path}/CMakeLists.txt")
             list(APPEND extra_modules "${module_path}")

@@ -36,28 +36,6 @@ if(NOT DEFINED OpenVINODeveloperPackage_RELOCATABLE)
 endif()
 
 #
-# Settings for FindPython3.cmake
-#
-
-if(NOT DEFINED Python3_USE_STATIC_LIBS)
-    set(Python3_USE_STATIC_LIBS OFF)
-endif()
-
-if(NOT DEFINED Python3_FIND_VIRTUALENV)
-    set(Python3_FIND_VIRTUALENV FIRST)
-endif()
-
-if(NOT DEFINED Python3_FIND_IMPLEMENTATIONS)
-    set(Python3_FIND_IMPLEMENTATIONS CPython PyPy)
-endif()
-
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
-    set(python3_development_component Development.Module)
-else()
-    set(python3_development_component Development)
-endif()
-
-#
 # Check python requirements
 #
 
@@ -137,6 +115,9 @@ set(INIT_FILES_RUNTIME "${OpenVINOPython_SOURCE_DIR}/src/openvino/__init__.py"
 ov_check_init_files_alignment("${INIT_FILES_RUNTIME}")
 
 ov_option(ENABLE_PYTHON "Enables OpenVINO Python API build" ${ENABLE_PYTHON_DEFAULT})
+
+ov_dependent_option (ENABLE_PYTHON_PACKAGING "Enables packaging of Python API in APT / YUM" OFF
+    "ENABLE_PYTHON;LINUX" OFF)
 
 #
 # Check for wheel package
@@ -270,7 +251,9 @@ endmacro()
 macro(ov_define_setup_py_dependencies)
     foreach(_target
             # Python API dependencies
-            _pyopenvino py_ov_frontends
+            pyopenvino py_ov_frontends
+            # C API
+            openvino_c
             # plugins
             ov_plugins
             # frontends
@@ -388,7 +371,7 @@ if(ENABLE_PYTHON_PACKAGING)
     ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_package_${pyversion} HIDDEN)
 
     install(DIRECTORY ${ov_python_package_prefix}/ ${telemetry_python_package_prefix}/
-            DESTINATION ${CMAKE_INSTALL_PREFIX}
+            DESTINATION .
             COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_${pyversion}
             ${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL}
             USE_SOURCE_PERMISSIONS)
@@ -402,6 +385,10 @@ if(ENABLE_TESTS)
     add_subdirectory(tests/mock/mock_py_frontend)
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
     install(FILES constraints.txt
+            DESTINATION tests/bindings/python
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+    install(FILES requirements_test.txt
             DESTINATION tests/bindings/python
             COMPONENT tests
             EXCLUDE_FROM_ALL)

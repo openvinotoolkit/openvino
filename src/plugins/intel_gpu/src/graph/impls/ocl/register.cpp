@@ -23,6 +23,7 @@ void register_implementations() {
     REGISTER_OCL(depth_to_space);
     REGISTER_OCL(detection_output);
     REGISTER_OCL(dft);
+    REGISTER_OCL(dynamic_quantize);
     REGISTER_OCL(batch_to_space);
     REGISTER_OCL(experimental_detectron_detection_output);
     REGISTER_OCL(experimental_detectron_generate_proposals_single_image);
@@ -39,6 +40,7 @@ void register_implementations() {
     REGISTER_OCL(grid_sample);
     REGISTER_OCL(group_normalization);
     REGISTER_OCL(kv_cache);
+    REGISTER_OCL(paged_attention);
     REGISTER_OCL(lrn);
     REGISTER_OCL(lstm_elt);
     REGISTER_OCL(multiclass_nms);
@@ -94,6 +96,7 @@ void register_implementations() {
     REGISTER_OCL(unique_count);
     REGISTER_OCL(unique_gather);
     REGISTER_OCL(scaled_dot_product_attention);
+    REGISTER_OCL(rope);
 }
 
 }  // namespace ocl

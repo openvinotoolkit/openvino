@@ -21,6 +21,8 @@ on:
         type: string
         required: true
 
+permissions: read-all
+
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
@@ -41,24 +43,20 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
     steps:
-      - name: Set apt retries
-        if: runner.os == 'Linux'
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Download OpenVINO tokenizers extension
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: openvino_tokenizers_wheel
           path: ${{ env.INSTALL_DIR }}
@@ -92,12 +90,8 @@ jobs:
             Expand-Archive openvino_tests.zip -DestinationPath ${{ env.INSTALL_DIR }}
           popd
 
-      - name: Install OpenVINO dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y -c=gpu
-
       - name: Fetch setup_python action
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -164,7 +158,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         if: ${{ !cancelled() }}
         with:
           name: test-results-python-tf-layers

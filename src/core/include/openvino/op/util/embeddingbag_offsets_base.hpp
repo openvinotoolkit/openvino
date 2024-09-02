@@ -22,21 +22,20 @@ public:
     /// \brief Constructs a EmbeddingBagOffsetsBase operation.
     ///
     /// EmbeddingBagOffsetsBase constructs an output tensor by replacing every index in
-    /// a
-    /// given
-    /// input tensor with a row (from the weights matrix) at that index
+    /// a given input tensor with a row (from the weights matrix) at that index
     ///
     /// \param emb_table tensor containing the embedding lookup table of the module of
     /// shape [num_emb, emb_dim1, emb_dim2, ...] and  of type T
     /// \param indices tensor of shape [num_indices] and of type T_IND. Required
     /// \param offsets tensor of shape [batch] and of type T_IND containing the starting
     /// index positions of each "bag" in indices. Required.
+    /// \param default_index scalar of type T_IND containing default index in embedding
+    /// table to fill empty "bags". If set to value -1 or not provided, empty "bags"
+    /// are filled with zeros. Reverse indexing using negative values is not supported. Optional.
     /// \param per_sample_weights tensor of the same shape as indices and of type T.
     /// Each value in this tensor are multiplied with each
     /// value pooled from embedding table for each index. Optional.
-    /// \param default_index scalar of type T_IND containing default index in embedding
-    /// table to fill empty "bags". If not provided empty "bags"
-    /// are filled with zeros. Optional.
+    /// \param reduction enum to select algorithm used to perform reduction of elements in bag. Optional.
     EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
                             const Output<Node>& indices,
                             const Output<Node>& offsets,

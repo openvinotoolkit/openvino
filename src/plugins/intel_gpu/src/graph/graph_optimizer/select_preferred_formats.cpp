@@ -31,6 +31,7 @@ void select_preferred_formats::run(program& p) {
         return;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+
     auto forcing_map = _lo.get_implementation_forcing();
 
     engine.create_onednn_engine(p.get_config());
@@ -49,8 +50,14 @@ void select_preferred_formats::run(program& p) {
         // Onednn primitive descriptor creation may fail, for example, due to asymmetric weight.
         try {
             if (n->is_type<convolution>()) {
-                if (n->as<convolution>().weights_zero_points_term())
-                    continue;
+                if (n->as<convolution>().weights_zero_points_term()) {
+                    if (n->as<convolution>().weights_zero_points().get_output_layout().count() != 1 ||
+                        n->as<convolution>().get_groups() > 1) {
+                        // onednn convolution doesn't support per_oc and grouped as weights zero points.
+                        continue;
+                    }
+                }
+
                 auto prim_desc = onednn::get_convolution_primitive_descriptor(*n->get_kernel_impl_params(),
                                                                               dnnl::primitive_attr(),
                                                                               dnnl::memory::format_tag::any);

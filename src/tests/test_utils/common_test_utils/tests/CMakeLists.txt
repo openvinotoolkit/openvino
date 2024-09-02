@@ -10,6 +10,8 @@ ov_add_test_target(
     DEPENDENCIES
     LINK_LIBRARIES
       common_test_utils
+      func_test_utils
+      sharedTestClasses
     ADD_CPPLINT
     LABELS
       OV UNIT

@@ -8,12 +8,19 @@ Interface CompiledModel
        outputs: Output[];
        createInferRequest(): InferRequest;
        exportModelSync(): Buffer;
-       input(nameOrId?): Output;
-       output(nameOrId?): Output;
+       input(): Output;
+       input(index): Output;
+       input(name): Output;
+       output(): Output;
+       output(index): Output;
+       output(name): Output;
    }
 
+CompiledModel represents a model that is compiled for a specific device by applying
+multiple optimization transformations, then mapping to compute kernels.
+
 * **Defined in:**
-  `addon.ts:65 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L65>`__
+  `addon.ts:272 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L272>`__
 
 
 Properties
@@ -22,26 +29,30 @@ Properties
 
 .. rubric:: inputs
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
       inputs: Output []
 
+   It gets all inputs of a compiled model.
+
    -  **Defined in:**
-      `addon.ts:67 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L67>`__
+      `addon.ts:274 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L274>`__
 
 
 .. rubric:: outputs
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
       outputs: Output []
 
+   It gets all outputs of a compiled model.
+
    -  **Defined in:**
-      `addon.ts:66 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L66>`__
+      `addon.ts:276 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L276>`__
 
 
 Methods
@@ -49,22 +60,26 @@ Methods
 
 
 .. rubric:: createInferRequest
+   :name: createInferRequest
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
       createInferRequest(): InferRequest
 
+   It creates an inference request object used to infer the compiled model.
+
    * **Returns:** :doc:`InferRequest <InferRequest>`
 
    -  **Defined in:**
-      `addon.ts:84 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L84>`__
+      `addon.ts:281 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L281>`__
 
 
 .. rubric:: exportModelSync
+   :name: exportModelSync
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -73,50 +88,130 @@ Methods
    * **Returns:** Buffer
 
    -  **Defined in:**
-      `addon.ts:85 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L85>`__
+      `addon.ts:288 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L288>`__
 
 
 .. rubric:: input
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
-      input(nameOrId?): Output
+      input(): Output
 
+   It gets a single input of a compiled model. If a model has more than one input,
+   this method throws an exception.
+
+   * **Returns:** :doc:`Output <Output>`
+
+     A compiled model input.
+
+   * **Defined in:**
+     `addon.ts:312 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L312>`__
+
+
+   .. code-block:: ts
+
+      input(index): Output
+
+   It gets input of a compiled model identified by an index.
 
    * **Parameters:**
 
-     - ``Optional``
+     - index: number
 
-       .. code-block:: ts
+       An input tensor index.
 
-          nameOrId: string|number
+   * **Returns:** :doc:`Output <Output>`
 
-   * **Returns:** :doc:`InferRequest <Output>`
+     A compiled model input.
 
    * **Defined in:**
-     `addon.ts:83 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L83>`__
+     `addon.ts:318 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L318>`__
+
+
+   .. code-block:: ts
+
+      input(name): Output
+
+   It gets input of a compiled model identified by an index.
+
+   * **Parameters:**
+
+     - name: string
+
+       An input tensor name.
+
+   * **Returns:** :doc:`Output <Output>`
+
+     A compiled model input.
+
+   * **Defined in:**
+     `addon.ts:324 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L324>`__
 
 
 .. rubric:: output
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
-      output(nameOrId?): Output
+      output(): Output
 
-   * **Parameters:**
-
-     - ``Optional``
-
-       .. code-block:: ts
-
-          nameOrId: string|number
+   It gets a single output of a compiled model. If a model has more than one output, this method throws an exception.
 
    * **Returns:**  :doc:`Output <Output>`
 
+     A compiled model output.
+
    * **Defined in:**
-   `addon.ts:82 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L82>`__
+     `addon.ts:294 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L294>`__
+
+
+   .. code-block:: ts
+
+      output(index): Output
+
+   It gets output of a compiled model identified by an index.
+
+   * **Parameters:**
+
+     -
+
+       .. code-block:: ts
+
+          index: number
+
+       An output tensor index.
+
+   * **Returns:**  :doc:`Output <Output>`
+
+     A compiled model output.
+
+   * **Defined in:**
+     `addon.ts:300 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L300>`__
+
+
+   .. code-block:: ts
+
+      output(name): Output
+
+   It gets output of a compiled model identified by a tensorName.
+
+   * **Parameters:**
+
+     -
+
+       .. code-block:: ts
+
+          name: string
+
+       An output tensor name.
+
+   * **Returns:**  :doc:`Output <Output>`
+
+     A compiled model output.
+
+   * **Defined in:**
+     `addon.ts:306 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L306>`__
 

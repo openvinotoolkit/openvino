@@ -503,7 +503,7 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
         auto& dep = fc_node.get_dependency(dep_id);
         auto target_layout = dep.get_output_layout();
         target_layout.format = format::fbyx;
-        auto reorder_prim = std::make_shared<reorder>(dep.id() + "_reorder", dep.id(), target_layout);
+        auto reorder_prim = std::make_shared<reorder>(dep.id() + "_reorder_" + fc_node.id(), dep.id(), target_layout);
         p.add_intermediate(reorder_prim, fc_node, dep_id, true);
         fc_node.get_dependency(dep_id).recalc_output_layout(false);
     };
@@ -511,8 +511,9 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
     auto need_reorder = [&](size_t dep_id) {
         auto dep_layout = fc_node.get_input_layout(dep_id);
         auto dep_pshape = dep_layout.get_partial_shape();
-
-        auto groups_count = dep_pshape[dep_pshape.size() - 1].get_length();
+        // Group for scale_idx is always 1, whereas zero_point_idx is 0.
+        auto groups_idx = (dep_pshape.size() > 1) ? 1 : 0;
+        auto groups_count = dep_pshape[groups_idx].get_length();
 
         return groups_count > 1;
     };

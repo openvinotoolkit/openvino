@@ -49,6 +49,10 @@ const std::vector<std::pair<std::string, ov::Any>> compiledModelProperties = {
         {ov::intel_npu::use_elf_compiler_backend.name(), ov::Any(ov::intel_npu::ElfCompilerBackend::NO)},
         {ov::intel_npu::create_executor.name(), ov::Any(2)}};
 
+const std::string& expectedModelName = []() -> std::string {
+    return ov::test::behavior::getDefaultNGraphFunctionForTheDevice()->get_friendly_name();
+}();
+
 const std::vector<ov::AnyMap> publicCompiledModelConfigs = {
         {{ov::device::id.name(), ov::Any("")}},
         {{ov::hint::enable_cpu_pinning.name(), ov::Any(false)}},
@@ -57,21 +61,11 @@ const std::vector<ov::AnyMap> publicCompiledModelConfigs = {
         {{ov::hint::execution_mode.name(), ov::Any(ov::hint::ExecutionMode::PERFORMANCE)}},
         {{ov::hint::inference_precision.name(), ov::Any(ov::element::f16)}},
         {{ov::loaded_from_cache.name(), ov::Any(false)}},
-        {{ov::model_name.name(), ov::Any("")}},
+        {{ov::model_name.name(), ov::Any(expectedModelName)}},
         {{ov::optimal_number_of_infer_requests.name(), ov::Any(1u)}},
         {{ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::LATENCY)}},
         {{ov::hint::num_requests.name(), ov::Any(1u)}},
-        {{ov::enable_profiling.name(), ov::Any(false)}},
-        {{ov::supported_properties.name(),  // needed for HETERO
-          ov::Any(std::vector<ov::PropertyName>{
-                  ov::PropertyName(ov::device::id.name()), ov::PropertyName(ov::hint::enable_cpu_pinning.name()),
-                  ov::PropertyName(ov::execution_devices.name()), ov::PropertyName(ov::hint::execution_mode.name()),
-                  ov::PropertyName(ov::hint::inference_precision.name()),
-                  ov::PropertyName(ov::loaded_from_cache.name()), ov::PropertyName(ov::hint::model_priority.name()),
-                  ov::PropertyName(ov::model_name.name()),
-                  ov::PropertyName(ov::optimal_number_of_infer_requests.name()),
-                  ov::PropertyName(ov::hint::performance_mode.name()), ov::PropertyName(ov::hint::num_requests.name()),
-                  ov::PropertyName(ov::enable_profiling.name()), ov::PropertyName(ov::supported_properties.name())})}}};
+        {{ov::enable_profiling.name(), ov::Any(false)}}};
 
 const std::vector<ov::AnyMap> compiledModelIncorrectConfigs = {
         {{"NPU_INEXISTENT_PROPERTY", "NPU_INEXISTENT_PROPERTY_VALUE"}}};
@@ -80,8 +74,8 @@ const std::vector<std::pair<std::string, ov::Any>> allModelPriorities = {
         ov::hint::model_priority(ov::hint::Priority::LOW), ov::hint::model_priority(ov::hint::Priority::MEDIUM),
         ov::hint::model_priority(ov::hint::Priority::HIGH)};
 
-std::vector<std::pair<std::string, std::string>> compiledModelPropertiesAnyToString =
-        []() -> const std::vector<std::pair<std::string, std::string>> {
+const std::vector<std::pair<std::string, std::string>>& compiledModelPropertiesAnyToString =
+        []() -> std::vector<std::pair<std::string, std::string>> {
     std::vector<std::pair<std::string, std::string>> compiledModelProps(compiledModelProperties.size());
     for (auto it = compiledModelProperties.cbegin(); it != compiledModelProperties.cend(); ++it) {
         auto&& distance = it - compiledModelProperties.cbegin();
@@ -90,7 +84,7 @@ std::vector<std::pair<std::string, std::string>> compiledModelPropertiesAnyToStr
     return compiledModelProps;
 }();
 
-std::vector<ov::AnyMap> compiledModelConfigs = []() -> std::vector<ov::AnyMap> {
+const std::vector<ov::AnyMap>& compiledModelConfigs = []() -> std::vector<ov::AnyMap> {
     std::vector<ov::AnyMap> compiledModelConfigsMap(compiledModelProperties.size());
     for (auto it = compiledModelProperties.cbegin(); it != compiledModelProperties.cend(); ++it) {
         auto&& distance = it - compiledModelProperties.cbegin();
@@ -99,7 +93,7 @@ std::vector<ov::AnyMap> compiledModelConfigs = []() -> std::vector<ov::AnyMap> {
     return compiledModelConfigsMap;
 }();
 
-auto heteroCompiledModelConfigs = []() -> std::vector<ov::AnyMap> {
+const auto& heteroCompiledModelConfigs = []() -> std::vector<ov::AnyMap> {
     std::vector<ov::AnyMap> heteroConfigs(compiledModelConfigs.size());
     for (auto it = compiledModelConfigs.cbegin(); it != compiledModelConfigs.cend(); ++it) {
         auto&& distance = it - compiledModelConfigs.cbegin();
@@ -110,21 +104,7 @@ auto heteroCompiledModelConfigs = []() -> std::vector<ov::AnyMap> {
     return heteroConfigs;
 }();
 
-auto heteroCompiledModelPublicConfigs = []() -> ov::AnyMap {
-    ov::AnyMap heteroPublicConfigs = {
-            ov::device::priorities(ov::test::utils::DEVICE_NPU),
-            {ov::device::properties.name(), ov::Any(ov::AnyMap{{ov::test::utils::DEVICE_NPU, ov::Any(ov::AnyMap{})}})}};
-    auto& devicePropertiesAnyMap = heteroPublicConfigs.find(ov::device::properties.name())
-                                           ->second.as<ov::AnyMap>()
-                                           .begin()
-                                           ->second.as<ov::AnyMap>();
-    for (auto&& publicCompiledModelProp : publicCompiledModelConfigs) {
-        devicePropertiesAnyMap.emplace(*publicCompiledModelProp.begin());
-    }
-    return heteroPublicConfigs;
-}();
-
-auto combineParamsExecDevices = []() -> std::vector<std::pair<ov::AnyMap, std::string>> {
+const auto& combineParamsExecDevices = []() -> std::vector<std::pair<ov::AnyMap, std::string>> {
     std::vector<std::pair<ov::AnyMap, std::string>> execParams(compiledModelConfigs.size());
     for (auto it = compiledModelConfigs.cbegin(); it != compiledModelConfigs.cend(); ++it) {
         auto&& distance = it - compiledModelConfigs.cbegin();
@@ -133,7 +113,7 @@ auto combineParamsExecDevices = []() -> std::vector<std::pair<ov::AnyMap, std::s
     return execParams;
 }();
 
-auto combineHeteroParamsExecDevices = []() -> std::vector<std::pair<ov::AnyMap, std::string>> {
+const auto& combineHeteroParamsExecDevices = []() -> std::vector<std::pair<ov::AnyMap, std::string>> {
     std::vector<std::pair<ov::AnyMap, std::string>> execHeteroParams(heteroCompiledModelConfigs.size());
     for (auto it = heteroCompiledModelConfigs.cbegin(); it != heteroCompiledModelConfigs.cend(); ++it) {
         auto&& distance = it - heteroCompiledModelConfigs.cbegin();
@@ -142,7 +122,7 @@ auto combineHeteroParamsExecDevices = []() -> std::vector<std::pair<ov::AnyMap, 
     return execHeteroParams;
 }();
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVClassCompiledModelGetIncorrectPropertyTest,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVClassCompiledModelGetIncorrectPropertyTest,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
                          ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelGetIncorrectPropertyTest>);
 
@@ -151,7 +131,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVClassCompiledModelGetInco
                                            ov::test::utils::DEVICE_NPU),
                          ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelGetIncorrectPropertyTest>);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVClassCompiledModelGetPropertyTest,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVClassCompiledModelGetPropertyTest,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
                          ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelGetPropertyTest>);
 
@@ -160,7 +140,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVClassCompiledModelGetProp
                                            ov::test::utils::DEVICE_NPU),
                          ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelGetPropertyTest>);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVClassCompiledModelGetConfigTest,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVClassCompiledModelGetConfigTest,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
                          ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelGetConfigTest>);
 
@@ -186,12 +166,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVClassCompileModelWithCorr
                                             ::testing::ValuesIn(heteroCompiledModelConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVClassCompileModelWithCorrectPropertiesTest>);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVClassCompiledModelPropertiesIncorrectTests,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVClassCompiledModelPropertiesIncorrectTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(compiledModelIncorrectConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelPropertiesIncorrectTests>);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelIncorrectDevice,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVCompiledModelIncorrectDevice,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
                          ov::test::utils::appendPlatformTypeTestName<OVCompiledModelIncorrectDevice>);
 
@@ -199,15 +179,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelPropertiesDefaultSu
                          ::testing::Values(ov::test::utils::DEVICE_NPU),	
                          ov::test::utils::appendPlatformTypeTestName<OVCompiledModelPropertiesDefaultSupportedTests>);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVClassCompiledModelPropertiesDefaultTests,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVClassCompiledModelPropertiesDefaultTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(publicCompiledModelConfigs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelPropertiesDefaultTests>);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVClassCompiledModelPropertiesDefaultTests,
-                         ::testing::Combine(::testing::Values(std::string(ov::test::utils::DEVICE_HETERO) + ":" +
-                                                              ov::test::utils::DEVICE_NPU),
-                                            ::testing::Values(heteroCompiledModelPublicConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelPropertiesDefaultTests>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVClassCompiledModelSetCorrectConfigTest,
@@ -221,7 +195,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVClassCompiledModelSetCorr
                                             ::testing::ValuesIn(compiledModelPropertiesAnyToString)),
                          ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelSetCorrectConfigTest>);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVClassCompiledModelSetIncorrectConfigTest,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVClassCompiledModelSetIncorrectConfigTest,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
                          ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelSetIncorrectConfigTest>);
 

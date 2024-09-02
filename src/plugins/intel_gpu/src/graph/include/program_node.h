@@ -70,7 +70,6 @@ public:
     virtual const primitive_id& id() const { return desc->id; }
     virtual primitive_type_id type() const { return desc->type; }
     virtual std::shared_ptr<NodeFuseParams> get_fuse_params() const { return nullptr; }
-    virtual bool generates_dynamic_output() const { return false; }
 
     virtual std::vector<size_t> get_shape_infer_dependencies() const {
         // Default impl will request all deps for shape infer
@@ -142,7 +141,8 @@ public:
             }
         }
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        params->fused_desc_onednn = get_fused_primitives_onednn();
+        params->fused_desc_onednn   = get_fused_primitives_onednn();
+        params->attrs_onednn        = get_onednn_primitive_attributes();
 #endif // ENABLE_ONEDNN_FOR_GPU
         return params;
     }
@@ -356,6 +356,8 @@ public:
         return as<To>();
     }
 
+    virtual std::set<size_t> get_lockable_input_ids() const;
+
     void add_dependant_shape_of_node(const program_node* node);
 
     const std::set<const program_node*>& get_dependant_shape_of_nodes() const {
@@ -402,6 +404,11 @@ public:
     std::vector<fused_primitive_desc_onednn>& get_fused_primitives_onednn() { return fused_prims_onednn; }
 
     void init_onednn_primitive_attributes();
+    void create_onednn_primitive_attributes(
+                                const std::vector<fused_primitive_desc>& cldnn_post_ops,
+                                std::shared_ptr<dnnl::primitive_attr>& attrs,
+                                std::vector<fused_primitive_desc_onednn>& fused_ops,
+                                kernel_impl_params* impl_params) const;
 #endif // ENABLE_ONEDNN_FOR_GPU
 
     size_t get_fused_inputs_count() const {
@@ -521,7 +528,9 @@ private:
         onednn_attrs = attrs;
     }
 
-    dnnl::post_ops try_optimize_post_ops(dnnl::post_ops& p_ops, const std::shared_ptr<dnnl::primitive_attr>& attr, bool& optimization_is_completed);
+    dnnl::post_ops try_optimize_post_ops(std::vector<fused_primitive_desc_onednn>& cur_post_ops,
+                                                    dnnl::post_ops& p_ops, const std::shared_ptr<dnnl::primitive_attr>& attr,
+                                                    bool& optimization_is_completed) const;
 
 #endif // ENABLE_ONEDNN_FOR_GPU
     size_t num_outputs = 1;

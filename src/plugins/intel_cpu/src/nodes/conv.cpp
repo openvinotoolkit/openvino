@@ -512,12 +512,13 @@ void Convolution::getSupportedDescriptors() {
     if (canBeExecutedInInt8()) {
         DEBUG_LOG(getName(), "Creating I8 descriptor");
 
-        SetPostOpsAndZeroPoints(attrs);
-
         // so far oneDNN INT8 convolution only support s8,u8,s32,f32,bf16 output types
         if (outputDataType == memory::data_type::f16) {
             outputDataType = memory::data_type::f32;
+            eltwisePrecision = ov::element::f32;
         }
+
+        SetPostOpsAndZeroPoints(attrs);
 
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, nspc);
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), outputDataType, nspc);
@@ -530,8 +531,9 @@ void Convolution::getSupportedDescriptors() {
         auto dt = memory::data_type::f32;
 
         // supported lower precisions: bf16, f16
-        if (one_of(originalDT, memory::data_type::bf16, memory::data_type::f16))
+        if (one_of(originalDT, memory::data_type::bf16, memory::data_type::f16) && hasHardwareSupport(originalPrec)) {
             dt = originalDT;
+        }
 
         // fallback to f32 on special case for performance reasons
         if (isDepthWise() && ndims == 5)
@@ -803,7 +805,14 @@ void Convolution::initSupportedPrimitiveDescriptors() {
 
         supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     };
-
+#ifdef CPU_DEBUG_CAPS
+    {
+       if (!customImplPriorities.empty()) {
+            DEBUG_LOG("#", getName(), " customImplPriorities [", 0 , "/", customImplPriorities.size(),
+                        "]: ", impl_type_to_string(customImplPriorities[0]));
+       }
+    }
+#endif
     for (size_t dIdx = 0; dIdx < descs.size(); dIdx++) {
         auto& desc = descs[dIdx];
         auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
@@ -814,6 +823,10 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         };
 
         const bool first_match = customImplPriorities.empty();
+        DEBUG_LOG("#", getName(),
+                       ", itpd.impl_info_str(): ", desc.impl_info_str(),
+                    ", parsed imp_type: ", impl_type_to_string(parse_impl_name(desc.impl_info_str())),
+                    ", first_match: ", first_match ? "true" : "false");
         DnnlExtensionUtils::for_each_implementation(desc,
                                                     first_match,
                                                     [&](impl_desc_type implType) {

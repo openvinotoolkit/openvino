@@ -29,9 +29,8 @@ struct resample : public primitive_base<resample> {
              const input_info& input,
              tensor output_size,
              uint32_t num_filter,
-             InterpolateOp::InterpolateMode operation_type = InterpolateOp::InterpolateMode::NEAREST,
-             const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+             InterpolateOp::InterpolateMode operation_type = InterpolateOp::InterpolateMode::NEAREST)
+        : primitive_base(id, {input}),
           output_size(output_size),
           num_filter(num_filter),
           sizes({}),
@@ -65,9 +64,8 @@ struct resample : public primitive_base<resample> {
              InterpolateOp::InterpolateMode operation_type = InterpolateOp::InterpolateMode::LINEAR,
              InterpolateOp::ShapeCalcMode shape_calc_mode = InterpolateOp::ShapeCalcMode::SIZES,
              InterpolateOp::CoordinateTransformMode ctm = InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
-             InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR,
-             const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+             InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR)
+        : primitive_base(id, {input}),
           output_size(tensor()),
           num_filter(0),
           sizes(sizes),
@@ -99,10 +97,11 @@ struct resample : public primitive_base<resample> {
              InterpolateOp::ShapeCalcMode shape_calc_mode = InterpolateOp::ShapeCalcMode::SIZES,
              InterpolateOp::CoordinateTransformMode ctm = InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
              InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR,
-             const padding& output_padding = padding())
-        : primitive_base(id, {input, sizes_id, scales_id}, {output_padding}),
+             const int scales_port = 2)
+        : primitive_base(id, {input, sizes_id, scales_id}),
           output_size(tensor()),
           num_filter(0),
+          scales_port(scales_port),
           sizes({}),
           scales({}),
           axes(axes),
@@ -129,6 +128,8 @@ struct resample : public primitive_base<resample> {
     tensor output_size;
     /// @param num_filter Input filter. Only used by bilinear sample_type.
     uint32_t num_filter = 0;
+    /// @param num_filter Port number of scales.
+    uint32_t scales_port;
     /// @param sizes Describing output shape for spatial axes.
     std::vector<int64_t> sizes;
     /// @param scales Scales of spatial axes, i.e. output_shape / input_shape

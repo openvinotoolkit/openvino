@@ -12,10 +12,12 @@
 """
 import json
 import os
+import numpy as np
 import pathlib
 import pytest
 from common.samples_common_test_class import get_devices, get_cmd_output, prepend
-
+from openvino.runtime import opset8 as opset
+import openvino.runtime as ov
 
 def get_executable(sample_language):
     executable = 'benchmark_app'
@@ -25,11 +27,21 @@ def get_executable(sample_language):
         return executable
     return 'benchmark_app'
 
+def create_random_4bit_bin_file(tmp_path, shape, name):
+    fullname = tmp_path / name
+    rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(0)))
+    pack_shape = [x for x in shape]
+    pack_shape[-1] = pack_shape[-1]*4
+    rand_data = (rs.uniform(0, 15, list(pack_shape)) >= 7).astype(int).flatten()
+    raw_data = np.packbits(rand_data)
+    with open(fullname, "wb") as f:
+        f.write(raw_data)
 
-def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx'):
+
+def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx', inp='dog-224x224.bmp', batch='1', niter='10', tm=None):
     output = get_cmd_output(
         get_executable(sample_language),
-        *prepend(cache, 'dog-224x224.bmp', model),
+        *prepend(cache, inp, model, tmp_path),
         *('-nstreams', nstreams) if nstreams else '',
         *('-layout', layout) if layout else '',
         *('-nireq', nireq) if nireq else '',
@@ -40,7 +52,10 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
         *('-api', api) if api else '',
         *('-dump_config', tmp_path / 'conf.json') if tmp_path else '',
         *('-exec_graph_path', tmp_path / 'exec_graph.xml') if tmp_path else '',
-        '-d', device, '-b', '1', '-niter', '10'
+        *('-b', batch) if batch else '',
+        *('-niter', niter) if niter else '10',
+        *('-t', tm) if tm else '',
+        '-d', device
     )
     assert 'FPS' in output
     if tmp_path:
@@ -65,8 +80,8 @@ def test_benchmark_app_help(sample_language):
 @pytest.mark.parametrize('api', ['sync', 'async'])
 @pytest.mark.parametrize('nireq', ['4', ''])
 @pytest.mark.parametrize('device', get_devices())
-def test_nireq(sample_language, api, nireq, device, cache):
-    verify(sample_language, device, api=api, nireq=nireq, cache=cache)
+def test_nireq(sample_language, api, nireq, device, cache, tmp_path):
+    verify(sample_language, device, api=api, nireq=nireq, cache=cache, tmp_path=tmp_path)
 
 
 @pytest.mark.skipif('CPU' not in get_devices(), reason='affinity is a CPU property')
@@ -91,11 +106,42 @@ def test_api(sample_language, api, device, cache, tmp_path):
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
-def test_reshape(sample_language, device, cache):
-    verify(sample_language, device, shape='data_0[2,3,224,224]', cache=cache)
+def test_reshape(sample_language, device, cache, tmp_path):
+    verify(sample_language, device, shape='data_0[2,3,224,224]', cache=cache, tmp_path=tmp_path)
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
-def test_dynamic_shape(sample_language, device, cache):
-    verify(sample_language, device, model='efficientnet-lite4-11-qdq.onnx', shape='[?,224,224,3]', data_shape='[1,224,224,3][2,224,224,3]', layout='[NHWC]', cache=cache)
+def test_dynamic_shape(sample_language, device, cache, tmp_path):
+    verify(sample_language, device, model='efficientnet-lite4-11-qdq.onnx',
+           shape='[?,224,224,3]', data_shape='[1,224,224,3][2,224,224,3]', layout='[NHWC]', cache=cache, tmp_path=tmp_path)
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('device', ['CPU'])
+@pytest.mark.parametrize('inp', [None, 'random_4bit_data.bin'])
+def test_4bit_precision_input(sample_language, device, inp, cache, tmp_path):
+    inp_type = ov.Type.i4
+    inp_shape = [128] # only pass scalar.
+    input = opset.parameter(inp_shape, inp_type, name='in')
+    cvt = opset.convert(input, ov.Type.f32)
+    result = opset.result(cvt, name='cvt')
+    model_4bit = ov.Model([result], [input], 'model_with_4bit_input')
+    if inp != None and inp.endswith(".bin"):
+        create_random_4bit_bin_file(tmp_path, inp_shape, inp)
+    verify(sample_language, device, model=model_4bit, inp=inp, cache=cache, tmp_path=tmp_path, batch=None, tm='1')
+
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('device', get_devices())
+def test_out_of_tensor_size_range_npy_multibatch(sample_language, device, cache, tmp_path):
+    inp = tmp_path / 'batch2.npy'
+    with open(inp, "wb") as batch2_npy:
+        np.save(
+            batch2_npy,
+            np.random.RandomState(
+                np.random.MT19937(np.random.SeedSequence(0))
+            ).uniform(0, 256, [2, 3, 224, 224]).astype(np.uint8)
+        )
+    # benchmark_app reads batch from model or cmd, not from npy.
+    # benchmark_app still verifyes npy shape for python impl.
+    verify(sample_language, device, inp=inp, cache=cache, tmp_path=tmp_path, batch='2')

@@ -44,6 +44,10 @@ void PermConvPermConcat::SetUp() {
     std::tie(element_type, targetDevice, input_shape, kernel_shape, output_channels, additional_config) =
         this->GetParam();
 
+    if (element_type == ov::element::f32) {
+        abs_threshold = 1e-6;
+    }
+
     configuration.insert(additional_config.begin(), additional_config.end());
 
     const std::size_t input_dim = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<size_t>());

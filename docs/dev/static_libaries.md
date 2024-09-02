@@ -28,15 +28,15 @@ It is possible because not all interface symbols of OpenVINO Runtime libraries a
 ## Configure OpenVINO Runtime in the CMake stage
 
 The default architecture of OpenVINO Runtime assumes that the following components are subject to dynamic loading during execution:
-* (Device) Inference backends (CPU, GPU, MULTI, HETERO, etc.)
-* (Model) Frontends (IR, ONNX, PDPD, etc.)
-* Preprocessing library (to perform preprocessing, e.g. resize and color space conversions)
+* (Device) Inference backends (CPU, GPU, NPU, MULTI, HETERO, etc.)
+* (Model) Frontends (IR, ONNX, PDPD, TF, JAX, etc.)
 
 With the static OpenVINO Runtime, all these modules should be linked into a final user application and **the list of modules/configuration must be known for the CMake configuration stage**. To minimize the total binary size, you can explicitly turn `OFF` unnecessary components. Use [[CMake Options for Custom Compilation|CMakeOptionsForCustomCompilation ]] as a reference for OpenVINO CMake configuration.
 
 For example, to enable only IR v11 reading and CPU inference capabilities, use:
 ```sh
 cmake -DENABLE_INTEL_GPU=OFF \
+      -DENABLE_INTEL_NPU=OFF \
       -DENABLE_TEMPLATE=OFF \
       -DENABLE_HETERO=OFF \
       -DENABLE_MULTI=OFF \
@@ -46,7 +46,9 @@ cmake -DENABLE_INTEL_GPU=OFF \
       -DENABLE_OV_PADDLE_FRONTEND=OFF \
       -DENABLE_OV_TF_FRONTEND=OFF \
       -DENABLE_OV_TF_LITE_FRONTEND=OFF \
+      -DENABLE_OV_JAX_FRONTEND=OFF \
       -DENABLE_OV_PYTORCH_FRONTEND=OFF \
+      -DENABLE_OV_JAX_FRONTEND=OFF \
       -DENABLE_INTEL_CPU=ON \
       -DENABLE_OV_IR_FRONTEND=ON
 ```
@@ -132,21 +134,16 @@ cmake -DCMAKE_TOOLCHAIN_FILE=<openvino source dir>/cmake/toolchains/mt.runtime.w
 * The enabled and tested capabilities of OpenVINO Runtime in a static build:
     * OpenVINO common runtime - work with `ov::Model`, perform model loading on particular device
     * MULTI, HETERO, AUTO, and BATCH inference modes
-    * IR, ONNX, PDPD, and TF frontends to read `ov::Model`
+    * IR, ONNX, PDPD, TF and TF Lite frontends to read `ov::Model`
 * Static build support for building static libraries only for OpenVINO Runtime libraries. All other third-party prebuilt dependencies remain in the same format:
-    * `libGNA` is a shared library.
     * `TBB` is a shared library; to provide your own TBB build from [[oneTBB source code|https://github.com/oneapi-src/oneTBB]] use `export TBBROOT=<tbb_root>` before OpenVINO CMake scripts are run.
 
     > **NOTE**: The TBB team does not recommend using oneTBB as a static library, see [[Why onetbb does not like a static library?|https://github.com/oneapi-src/oneTBB/issues/646]]
 
 * `TBBBind_2_5` is not available on Windows x64 during a static OpenVINO build (see description for `ENABLE_TBBBIND_2_5` CMake option [[here|CMakeOptionsForCustomCompilation]] to understand what this library is responsible for). So, capabilities enabled by `TBBBind_2_5` are not available. To enable them, build [[oneTBB from source code|https://github.com/oneapi-src/oneTBB]] and provide the path to built oneTBB artifacts via `TBBROOT` environment variable before OpenVINO CMake scripts are run.
 
-* `ov::Op::type_info` static member is deprecated and not available in static build. Don't use `type_info` during implementation of your own custom operations, use `ov::Op::get_type_info_static()` instead. 
-
 ## See also
 
  * [OpenVINO README](../../README.md)
  * [OpenVINO Developer Documentation](index.md)
  * [How to Build OpenVINO](build.md)
-
- 

@@ -1,17 +1,24 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import os
-from typing import Iterable, Union
-
+import importlib.util
+import logging as log
 import numpy as np
+import os
+import sys
 from openvino.tools.ovc.error import Error
+from typing import Iterable, Union
 
 try:
     import openvino_telemetry as tm
     from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.ovc.telemetry_stub as tm
+
+if sys.version_info < (3, 8):
+    import importlib_metadata
+else:
+    import importlib.metadata as importlib_metadata
 
 dynamic_dimension = np.ma.masked
 
@@ -107,3 +114,83 @@ def get_ir_version():
     :return: the IR version
     """
     return 11
+
+
+def import_openvino_tokenizers():
+    # extract openvino version
+    if importlib.util.find_spec("openvino") is None:
+        return False
+    try:
+        from openvino import get_version
+        openvino_version = get_version()
+        openvino_available = True
+    except ImportError:
+        openvino_available = False
+    if not openvino_available:
+        return False
+
+    if importlib.util.find_spec("openvino_tokenizers") is None:
+        return False
+
+    try:
+        pip_metadata_version = importlib_metadata.version("openvino")
+    except importlib_metadata.PackageNotFoundError:
+        pip_metadata_version = False
+    try:
+        pip_metadata_version = importlib_metadata.version("openvino-nightly")
+        is_nightly = True
+    except importlib_metadata.PackageNotFoundError:
+        is_nightly = False
+
+    try:
+        import openvino_tokenizers  # pylint: disable=no-name-in-module,import-error
+
+        openvino_tokenizers._get_factory()
+    except RuntimeError:
+        tokenizers_version = openvino_tokenizers.__version__
+
+        if tokenizers_version == "0.0.0.0":
+            try:
+                tokenizers_version = importlib_metadata.version("openvino_tokenizers") or tokenizers_version
+            except importlib_metadata.PackageNotFoundError:
+                pass
+        message = (
+            "OpenVINO and OpenVINO Tokenizers versions are not binary compatible.\n"
+            f"OpenVINO version:            {openvino_version}\n"
+            f"OpenVINO Tokenizers version: {tokenizers_version}\n"
+            "First 3 numbers should be the same. Update OpenVINO Tokenizers to compatible version. "
+        )
+        if not pip_metadata_version:
+            message += (
+                "For archive installation of OpenVINO try to build OpenVINO Tokenizers from source: "
+                "https://github.com/openvinotoolkit/openvino_tokenizers/tree/master?tab=readme-ov-file"
+                "#build-and-install-from-source"
+            )
+            if sys.platform == "linux":
+                message += (
+                    "\nThe PyPI version of OpenVINO Tokenizers is built on CentOS and may not be compatible with other "
+                    "Linux distributions; rebuild OpenVINO Tokenizers from source."
+                )
+        else:
+            message += (
+                "It is recommended to use the same day builds for pre-release version. "
+                "To install both OpenVINO and OpenVINO Tokenizers release version perform:\n"
+            )
+            if is_nightly:
+                message += "pip uninstall -y openvino-nightly && "
+            message += "pip install --force-reinstall openvino openvino-tokenizers\n"
+            if is_nightly:
+                message += (
+                    "openvino-nightly package will be deprecated in the future - use pre-release drops instead. "
+                )
+            message += "To update both OpenVINO and OpenVINO Tokenizers to the latest pre-release version perform:\n"
+            if is_nightly:
+                message += "pip uninstall -y openvino-nightly && "
+            message += (
+                "pip install --pre -U openvino openvino-tokenizers "
+                "--extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly"
+            )
+        log.warning(message)
+        return False
+
+    return True

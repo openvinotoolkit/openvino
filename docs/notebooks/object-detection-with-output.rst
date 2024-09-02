@@ -14,8 +14,8 @@ Additionally, you can also upload a video file.
    server, the webcam will not work. However, you can still do inference
    on a video.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Preparation <#preparation>`__
 
@@ -38,6 +38,16 @@ Table of contents:
    -  `Run Live Object Detection <#run-live-object-detection>`__
 
 -  `References <#references>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Preparation
 -----------
@@ -70,9 +80,8 @@ Install requirements
     Note: you may need to restart the kernel to use updated packages.
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     magika 0.5.1 requires numpy<2.0,>=1.24; python_version >= "3.8" and python_version < "3.9", but you have numpy 1.23.5 which is incompatible.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.3.0+cpu which is incompatible.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.0+cpu which is incompatible.
-    optimum-intel 1.17.0.dev0+8c2b787 requires transformers<4.41.0,>=4.36.0, but you have transformers 4.33.3 which is incompatible.
+    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
+    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -81,7 +90,7 @@ Install requirements
 
 .. parsed-literal::
 
-    21503
+    24165
 
 
 
@@ -189,6 +198,13 @@ converted, this step is skipped.
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+
+
+.. parsed-literal::
+
     [ WARNING ]  The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if applicable) are kept.
 
 
@@ -208,17 +224,9 @@ best performance. For that purpose, just use ``AUTO``.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
     core = ov.Core()
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
-    
+    device = utils.device_widget()
     device
 
 

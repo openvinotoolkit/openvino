@@ -6,7 +6,7 @@
 abs_path () {
     script_path=$(eval echo "$1")
     directory=$(dirname "$script_path")
-    builtin cd "$directory" || exit
+    builtin cd "$directory" >/dev/null 2>&1 || exit
     pwd -P
 }
 
@@ -33,6 +33,8 @@ done
 
 if [ -e "$INSTALLDIR/runtime" ]; then
     export OpenVINO_DIR=$INSTALLDIR/runtime/cmake
+    # If GenAI is installed, export it as well.
+    [ -f "$OpenVINO_DIR/OpenVINOGenAIConfig.cmake" ] && export OpenVINOGenAI_DIR=$OpenVINO_DIR
 
     system_type=$(/bin/ls "$INSTALLDIR/runtime/lib/")
     OV_PLUGINS_PATH=$INSTALLDIR/runtime/lib/$system_type

@@ -7,7 +7,7 @@
 
 #include "snippets/itt.hpp"
 #include "snippets/op/subgraph.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -20,7 +20,8 @@ ov::snippets::pass::TokenizeGNSnippets::TokenizeGNSnippets() {
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::pass::TokenizeGNSnippets")
         auto group_norm_node = ov::as_type_ptr<ov::op::v12::GroupNormalization>(m.get_match_root());
-        if (group_norm_node->is_dynamic() || group_norm_node->get_element_type() != element::f32)
+        if (group_norm_node->is_dynamic() || group_norm_node->get_element_type() != element::f32 ||
+            GetSnippetsNodeType(group_norm_node) == SnippetsNodeType::SkippedByPlugin)
             return false;
 
         auto subgraph = op::Subgraph::wrap_node_as_subgraph(group_norm_node);

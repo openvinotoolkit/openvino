@@ -266,7 +266,7 @@ def get_numpy_tensors(numpy_paths: List[str], info: AppInputInfo, batch_sizes: L
                 else:
                     try:
                         if info.layout.has_name("N"):
-                            numpy_arrays[[None] * info.layout.get_index_by_name("N") + [b]] = numpy_arr
+                            numpy_arrays[[None] * info.layout.get_index_by_name("N") + [b]] = numpy_arr[b]
                         else:
                             numpy_arrays = numpy_arr
                     except ValueError:
@@ -291,7 +291,7 @@ def get_binary_tensors(binary_paths: List[str], info: AppInputInfo, batch_sizes:
     tensors = []
     for i in range(niter):
         shape_id = i % num_shapes
-        dtype = get_dtype(info.element_type)
+        dtype = np.uint8() if info.element_type.bitwidth < 8 else get_dtype(info.element_type)
         shape = list(info.shapes[shape_id])
         binaries = np.ndarray(shape=shape, dtype=dtype)
         binary_index = processed_frames
@@ -301,14 +301,14 @@ def get_binary_tensors(binary_paths: List[str], info: AppInputInfo, batch_sizes:
             binary_filename: str = binary_paths[binary_index]
             extension = binary_filename.lower().split('.')[-1]
             if extension == "bin":
-                binary_file_size = os.path.getsize(binary_filename)
-                blob_size = dtype.itemsize * int(np.prod(shape))
-                if blob_size != binary_file_size:
+                binary_file_bit_size = os.path.getsize(binary_filename) * 8
+                blob_bit_size = info.element_type.bitwidth * int(np.prod(shape))
+                if blob_bit_size != binary_file_bit_size:
                     raise Exception(
-                        f"File {binary_filename} contains {binary_file_size} bytes but model expects {blob_size}")
-                from_file = np.reshape(np.fromfile(binary_filename, dtype), shape)
+                        f"File {binary_filename} contains {binary_file_bit_size} bites but model expects {blob_bit_size}")
+                from_file = np.fromfile(binary_filename, dtype)
                 if info.layout.has_name("N"):
-                    binaries[[None] * info.layout.get_index_by_name("N") + [b]] = from_file
+                    binaries[[None] * info.layout.get_index_by_name("N") + [b]] = from_file[b]
                 else:
                     binaries = from_file
             else:
@@ -317,7 +317,7 @@ def get_binary_tensors(binary_paths: List[str], info: AppInputInfo, batch_sizes:
 
             binary_index += 1
         processed_frames += current_batch_size
-        tensors.append(Tensor(binaries))
+        tensors.append(Tensor(binaries, shape, info.element_type))
     return tensors
 
 

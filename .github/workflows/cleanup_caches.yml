@@ -5,6 +5,8 @@ on:
     # at 00:00 on the 1st day of every month
     - cron: '0 0 1 * *'
 
+permissions: read-all
+
 jobs:
   Cleanup_PIP:
     runs-on: aks-linux-2-cores-8gb
@@ -42,7 +44,7 @@ jobs:
 
     steps:
       - name: Checkout cach action
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: .github/actions/cache
 

@@ -7,6 +7,7 @@
 #include "utils.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/pass/gn_tokenization.hpp"
 #include "snippets/lowered/expression.hpp"
 
 
@@ -30,6 +31,7 @@ DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&
     jitters[op::v1::Divide::get_type_info_static()] = dummy_functor;
     jitters[op::v1::Maximum::get_type_info_static()] = dummy_functor;
     jitters[op::v0::Exp::get_type_info_static()] = dummy_functor;
+    jitters[op::v0::Sqrt::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::PowerStatic::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::HorizonMax::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::HorizonSum::get_type_info_static()] = dummy_functor;
@@ -42,10 +44,8 @@ DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&
     jitters[ov::snippets::op::BroadcastMove::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::KernelDynamic::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::KernelStatic::get_type_info_static()] = dummy_functor;
-    jitters[ov::snippets::op::LoopBeginDynamic::get_type_info_static()] = dummy_functor;
-    jitters[ov::snippets::op::LoopBeginStatic::get_type_info_static()] = dummy_functor;
-    jitters[ov::snippets::op::LoopEndDynamic::get_type_info_static()] = dummy_functor;
-    jitters[ov::snippets::op::LoopEndStatic::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::LoopBegin::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::LoopEnd::get_type_info_static()] = dummy_functor;
 #ifdef SNIPPETS_DEBUG_CAPS
     jitters[ov::snippets::op::PerfCountBegin::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::PerfCountEnd::get_type_info_static()] = dummy_functor;
@@ -57,6 +57,7 @@ DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&
     jitters[ov::snippets::op::Fill::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::ReduceMax::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::ReduceSum::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::Reshape::get_type_info_static()] = dummy_functor;
 
     for (const auto& elem : custom_opset) {
         jitters[elem] = dummy_functor;
@@ -81,7 +82,7 @@ void LoweringTests::TearDown() {
         model_ref = cloned_model;
     }
     manager.run_passes(model);
-    ASSERT_NO_THROW(check_rt_info(model));
+    OV_ASSERT_NO_THROW(check_rt_info(model));
 
     if (comparator.should_compare(FunctionsComparator::ACCURACY)) {
         auto acc_comparator = FunctionsComparator::no_default();
@@ -133,6 +134,7 @@ std::shared_ptr<ov::snippets::op::Subgraph> LoweringTests::getTokenizedSubgraph(
     ov::pass::Manager m;
     ov::snippets::pass::SnippetsTokenization::Config config = get_default_tokenization_config();
     m.register_pass<ov::snippets::pass::EnumerateNodes>();
+    m.register_pass<ov::snippets::pass::TokenizeGNSnippets>();
     m.register_pass<ov::snippets::pass::TokenizeSnippets>(config);
     m.run_passes(f);
     // Perform lowering

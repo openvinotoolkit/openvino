@@ -93,8 +93,8 @@ realtime tracking,” in ICIP, 2016, pp. 3464–3468.
 
 .. |deepsort| image:: https://user-images.githubusercontent.com/91237924/221744683-0042eff8-2c41-43b8-b3ad-b5929bafb60b.png
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `Download the Model <#download-the-model>`__
@@ -114,6 +114,16 @@ Table of contents:
 
    -  `Initialize tracker <#initialize-tracker>`__
    -  `Run Live Person Tracking <#run-live-person-tracking>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 .. code:: ipython3
 
@@ -333,14 +343,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = utils.device_widget()
 
     device
 
@@ -367,9 +370,9 @@ Data Processing
 Data Processing includes data preprocess and postprocess functions.
 
 - Data preprocess function is used to change the layout and shape of input
-data, according to requirement of the network input format.
+  data, according to requirement of the network input format.
 - Data postprocess function is used to extract the useful information from
-network’s original output and visualize it.
+  network’s original output and visualize it.
 
 .. code:: ipython3
 

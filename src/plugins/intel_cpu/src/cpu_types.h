@@ -61,11 +61,14 @@ enum class Type {
     TensorIterator,
     Convert,
     ColorConvert,
+    Col2Im,
     MVN,
     NormalizeL2,
     ScatterUpdate,
     ScatterElementsUpdate,
     ScatterNDUpdate,
+    StringTensorPack,
+    StringTensorUnpack,
     Interpolate,
     Reduce,
     Broadcast,
@@ -124,6 +127,9 @@ enum class Type {
     PagedAttention,
     RoPE,
     CausalMaskPreprocess,
+    LLMMLP,
+    QKVProjection,
+    RMS
 };
 
 enum class Algorithm {
@@ -153,6 +159,7 @@ enum class Algorithm {
     EltwiseMultiply,
     EltwiseSubtract,
     EltwiseDivide,
+    EltwiseFloor,
     EltwiseFloorMod,
     EltwiseMod,
     EltwiseMaximum,
@@ -197,6 +204,8 @@ enum class Algorithm {
     EltwiseBitwiseNot,
     EltwiseBitwiseOr,
     EltwiseBitwiseXor,
+    EltwiseBitwiseLeftShift,
+    EltwiseBitwiseRightShift,
 
     // FakeQuantize algorithms
     FQCommon,

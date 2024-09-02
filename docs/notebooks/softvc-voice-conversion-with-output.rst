@@ -18,8 +18,8 @@ audio are preserved.
 
 In this tutorial we will use the base model flow.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Use the original model to run an
@@ -28,6 +28,16 @@ Table of contents:
 -  `Run the OpenVINO model <#run-the-openvino-model>`__
 -  `Interactive inference <#interactive-inference>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -35,7 +45,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q --upgrade pip setuptools
+    %pip install -qU "pip<24.1"  # to fix fairseq install problem
     %pip install -q "openvino>=2023.2.0"
     !git clone https://github.com/svc-develop-team/so-vits-svc -b 4.1-Stable
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  tqdm librosa "torch>=2.1.0" "torchaudio>=2.1.0" faiss-cpu "gradio>=4.19" "numpy>=1.23.5" "fairseq==0.12.2" praat-parselmouth
@@ -58,7 +68,7 @@ own <https://github.com/svc-develop-team/so-vits-svc#%EF%B8%8F-training>`__.
     )
     
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
     
     # ContentVec
     download_file(
@@ -206,17 +216,11 @@ Select a device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
     import openvino as ov
     
     core = ov.Core()
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 

@@ -22,8 +22,8 @@ segmentation, to scene semantic parsing. It is highly efficient and
 effective, showing strong performance on par or even better than state
 of the art.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `Prepare the Model <#prepare-the-model>`__
@@ -32,6 +32,16 @@ Table of contents:
 -  `Run inference <#run-inference>`__
 
    -  `Select inference device <#select-inference-device>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 .. code:: ipython3
 
@@ -72,7 +82,7 @@ Imports
     )
     open("notebook_utils.py", "w").write(r.text)
     
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 Prepare the Model
 -----------------
@@ -216,7 +226,7 @@ chair for example.
 
 .. parsed-literal::
 
-    /tmp/ipykernel_16799/2434168836.py:12: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
+    /tmp/ipykernel_56852/2434168836.py:12: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
       ax.scatter3D(X, Y, Z, s=5, cmap="jet", marker="o", label="chair")
 
 
@@ -264,14 +274,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -317,7 +320,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    /tmp/ipykernel_16799/2804603389.py:23: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
+    /tmp/ipykernel_56852/2804603389.py:23: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
       ax.scatter(XCur, YCur, ZCur, s=5, cmap="jet", marker="o", label=classes[i])
 
 

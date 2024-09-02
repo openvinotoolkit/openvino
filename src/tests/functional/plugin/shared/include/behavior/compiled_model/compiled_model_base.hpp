@@ -3,22 +3,22 @@
 //
 
 #include <fstream>
-#include <openvino/pass/serialize.hpp>
 #include <openvino/core/preprocess/pre_post_process.hpp>
 #include <openvino/opsets/opset8.hpp>
+#include <openvino/pass/serialize.hpp>
 
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/runtime/exec_model_info.hpp"
-#include "openvino/runtime/tensor.hpp"
+#include "common_test_utils/subgraph_builders/concat_with_params.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/subgraph_builders/multiple_input_outpput_double_concat.hpp"
 #include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
-#include "common_test_utils/subgraph_builders/concat_with_params.hpp"
 #include "common_test_utils/subgraph_builders/single_split.hpp"
 #include "common_test_utils/subgraph_builders/split_concat.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace test {
@@ -98,7 +98,7 @@ TEST_P(OVCompiledModelBaseTest, canCompileModel) {
 }
 
 TEST_P(OVCompiledModelBaseTest, canCompileModelFromMemory) {
- std::string model = R"V0G0N(
+    std::string model = R"V0G0N(
         <net name="Network" version="10">
             <layers>
                 <layer name="in1" type="Parameter" id="0" version="opset8">
@@ -165,11 +165,11 @@ TEST_P(OVCompiledModelBaseTest, canCompileModelFromMemory) {
             </edges>
         </net>
         )V0G0N";
-    EXPECT_NO_THROW(auto execNet = core ->compile_model(model, ov::Tensor(), target_device, configuration));
+    EXPECT_NO_THROW(auto execNet = core->compile_model(model, ov::Tensor(), target_device, configuration));
 }
 
 TEST_P(OVCompiledModelBaseTest, canCompileModelwithBrace) {
- std::string model = R"V0G0N(
+    std::string model = R"V0G0N(
         <net name="Network" version="10">
             <layers>
                 <layer name="in1" type="Parameter" id="0" version="opset8">
@@ -297,7 +297,7 @@ TEST_P(OVCompiledModelBaseTest, CanSetInputPrecisionForNetwork) {
     input.model().set_layout("??HW");
     input.preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
     model = ppp.build();
-    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+    OV_ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
 }
 
 TEST_P(OVCompiledModelBaseTest, CanSetOutputPrecisionForNetwork) {
@@ -307,7 +307,7 @@ TEST_P(OVCompiledModelBaseTest, CanSetOutputPrecisionForNetwork) {
     ov::preprocess::OutputInfo& output = ppp.output();
     output.postprocess().convert_element_type(ov::element::u8);
     model = ppp.build();
-    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+    OV_ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
 }
 
 TEST_P(OVCompiledModelBaseTest, CanGetOutputsInfo) {
@@ -461,8 +461,8 @@ TEST_P(OVCompiledModelBaseTest, CheckExecGraphInfoSerialization) {
     std::shared_ptr<const ov::Model> runtime_model;
 
     auto compiled_model = core->compile_model(function, target_device, configuration);
-    ASSERT_NO_THROW(runtime_model = compiled_model.get_runtime_model());
-    ASSERT_NO_THROW(ov::serialize(runtime_model, out_xml_path, out_bin_path));
+    OV_ASSERT_NO_THROW(runtime_model = compiled_model.get_runtime_model());
+    OV_ASSERT_NO_THROW(ov::serialize(runtime_model, out_xml_path, out_bin_path));
     ov::test::utils::removeIRFiles(out_xml_path, out_bin_path);
 }
 
@@ -628,9 +628,9 @@ TEST_P(OVCompiledModelBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrec
     for (const auto& confItem : configuration) {
         config.emplace(confItem.first, confItem.second);
     }
-    bool is_meta_devices =
-        target_device.find("AUTO") != std::string::npos || target_device.find("MULTI") != std::string::npos ||
-        target_device.find("HETERO") != std::string::npos;
+    bool is_meta_devices = target_device.find("AUTO") != std::string::npos ||
+                           target_device.find("MULTI") != std::string::npos ||
+                           target_device.find("HETERO") != std::string::npos;
     if (is_meta_devices) {
         EXPECT_NO_THROW(auto execNet = core->compile_model(function, target_device, config));
     } else {
@@ -638,20 +638,11 @@ TEST_P(OVCompiledModelBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrec
     }
 }
 
-TEST_P(OVAutoExecutableNetworkTest, AutoNotImplementedSetConfigToExecNet) {
-    std::map<std::string, ov::Any> config;
-    for (const auto& confItem : configuration) {
-        config.emplace(confItem.first, confItem.second);
-    }
-    auto execNet = core->compile_model(function, target_device, config);
-    EXPECT_ANY_THROW(execNet.set_property(config));
-}
-
-typedef std::tuple<
-        ov::element::Type,     // Type to convert
-        std::string,           // Device name
-        ov::AnyMap             // Config
-> CompiledModelSetTypeParams;
+typedef std::tuple<ov::element::Type,  // Type to convert
+                   std::string,        // Device name
+                   ov::AnyMap          // Config
+                   >
+    CompiledModelSetTypeParams;
 
 class CompiledModelSetType : public testing::WithParamInterface<CompiledModelSetTypeParams>,
                              public OVCompiledNetworkTestBase {
@@ -698,7 +689,7 @@ TEST_P(CompiledModelSetType, canSetInputTypeAndCompileModel) {
     auto& input = ppp.input();
     input.preprocess().convert_element_type(convert_type);
     model = ppp.build();
-    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+    OV_ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
 }
 
 TEST_P(CompiledModelSetType, canSetOutputTypeAndCompileModel) {
@@ -709,7 +700,7 @@ TEST_P(CompiledModelSetType, canSetOutputTypeAndCompileModel) {
     auto& output = ppp.output();
     output.postprocess().convert_element_type(convert_type);
     model = ppp.build();
-    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+    OV_ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
 }
 
 TEST_P(CompiledModelSetType, canSetInputOutputTypeAndCompileModel) {
@@ -722,7 +713,7 @@ TEST_P(CompiledModelSetType, canSetInputOutputTypeAndCompileModel) {
     auto& output = ppp.output();
     output.postprocess().convert_element_type(convert_type);
     model = ppp.build();
-    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+    OV_ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
 }
 }  // namespace behavior
 }  // namespace test

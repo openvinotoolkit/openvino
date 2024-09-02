@@ -30,8 +30,8 @@ Notebook contains the following steps:
 2. Add OpenVINO optimization using OpenVINO TorchDynamo backend.
 3. Run Stable Diffusion pipeline with OpenVINO.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Stable Diffusion with Diffusers
@@ -43,6 +43,16 @@ Table of contents:
 -  `Interactive demo <#interactive-demo>`__
 -  `Support for Automatic1111 Stable Diffusion
    WebUI <#support-for-automatic1111-stable-diffusion-webui>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Prerequisites
 -------------
@@ -57,29 +67,25 @@ Prerequisites
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
 .. code:: ipython3
 
-    import gradio as gr
-    import random
     import torch
-    import time
     
-    from diffusers import StableDiffusionPipeline, StableDiffusionImg2ImgPipeline
+    from diffusers import StableDiffusionPipeline
     import ipywidgets as widgets
 
 
 .. parsed-literal::
 
-    2024-05-16 02:20:53.109524: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-16 02:20:53.144373: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-08-28 05:59:21.270898: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-28 05:59:21.305288: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-16 02:20:53.774988: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-08-28 05:59:21.972104: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
 
 
 Stable Diffusion with Diffusers library
@@ -104,12 +110,6 @@ The code below demonstrates how to create the
     
     # Pipeline for text-to-image generation
     pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float32)
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-      warnings.warn(
 
 
 
@@ -219,6 +219,18 @@ Run Image generation
     image
 
 
+.. parsed-literal::
+
+    Traceback (most recent call last):
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/_inductor/compile_worker/__main__.py", line 45, in <module>
+        main()
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/_inductor/compile_worker/__main__.py", line 38, in main
+        pre_fork_setup()
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/_inductor/async_compile.py", line 62, in pre_fork_setup
+        from triton.compiler.compiler import triton_key
+    ImportError: cannot import name 'triton_key' from 'triton.compiler.compiler' (/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/triton/compiler/compiler.py)
+
+
 
 .. parsed-literal::
 
@@ -227,7 +239,7 @@ Run Image generation
 
 
 
-.. image:: stable-diffusion-torchdynamo-backend-with-output_files/stable-diffusion-torchdynamo-backend-with-output_14_1.png
+.. image:: stable-diffusion-torchdynamo-backend-with-output_files/stable-diffusion-torchdynamo-backend-with-output_14_2.png
 
 
 
@@ -242,177 +254,18 @@ pipeline. Optionally, you can also change some input parameters.
 
 .. code:: ipython3
 
-    time_stamps = []
+    import requests
+    from pathlib import Path
     
-    
-    def callback(iter, t, latents):
-        time_stamps.append(time.time())
-    
-    
-    def error_str(error, title="Error"):
-        return (
-            f"""#### {title}
-                {error}"""
-            if error
-            else ""
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-torchdynamo-backend/gradio_helper.py"
         )
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo
     
-    def on_mode_change(mode):
-        return gr.update(visible=mode == modes["img2img"]), gr.update(visible=mode == modes["txt2img"])
-    
-    
-    def inference(
-        inf_mode,
-        prompt,
-        guidance=7.5,
-        steps=25,
-        width=768,
-        height=768,
-        seed=-1,
-        img=None,
-        strength=0.5,
-        neg_prompt="",
-    ):
-        if seed == -1:
-            seed = random.randint(0, 10000000)
-        generator = torch.Generator().manual_seed(seed)
-        res = None
-    
-        global time_stamps, pipe
-        time_stamps = []
-        try:
-            if inf_mode == modes["txt2img"]:
-                if type(pipe).__name__ != "StableDiffusionPipeline":
-                    pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float32)
-                    pipe.unet = torch.compile(pipe.unet, backend="openvino")
-                res = pipe(
-                    prompt,
-                    negative_prompt=neg_prompt,
-                    num_inference_steps=int(steps),
-                    guidance_scale=guidance,
-                    width=width,
-                    height=height,
-                    generator=generator,
-                    callback=callback,
-                    callback_steps=1,
-                ).images
-            elif inf_mode == modes["img2img"]:
-                if img is None:
-                    return (
-                        None,
-                        None,
-                        gr.update(
-                            visible=True,
-                            value=error_str("Image is required for Image to Image mode"),
-                        ),
-                    )
-                if type(pipe).__name__ != "StableDiffusionImg2ImgPipeline":
-                    pipe = StableDiffusionImg2ImgPipeline.from_pretrained(model_id, torch_dtype=torch.float32)
-                    pipe.unet = torch.compile(pipe.unet, backend="openvino")
-                res = pipe(
-                    prompt,
-                    negative_prompt=neg_prompt,
-                    image=img,
-                    num_inference_steps=int(steps),
-                    strength=strength,
-                    guidance_scale=guidance,
-                    generator=generator,
-                    callback=callback,
-                    callback_steps=1,
-                ).images
-        except Exception as e:
-            return None, None, gr.update(visible=True, value=error_str(e))
-    
-        warmup_duration = time_stamps[1] - time_stamps[0]
-        generation_rate = (steps - 1) / (time_stamps[-1] - time_stamps[1])
-        res_info = "Warm up time: " + str(round(warmup_duration, 2)) + " secs "
-        if generation_rate >= 1.0:
-            res_info = res_info + ", Performance: " + str(round(generation_rate, 2)) + " it/s "
-        else:
-            res_info = res_info + ", Performance: " + str(round(1 / generation_rate, 2)) + " s/it "
-    
-        return (
-            res,
-            gr.update(visible=True, value=res_info),
-            gr.update(visible=False, value=None),
-        )
-    
-    
-    modes = {
-        "txt2img": "Text to Image",
-        "img2img": "Image to Image",
-    }
-    
-    with gr.Blocks(css="style.css") as demo:
-        gr.HTML(
-            f"""
-                Model used: {model_id}         
-            """
-        )
-        with gr.Row():
-            with gr.Column(scale=60):
-                with gr.Group():
-                    prompt = gr.Textbox(
-                        "a photograph of an astronaut riding a horse",
-                        label="Prompt",
-                        max_lines=2,
-                    )
-                    neg_prompt = gr.Textbox(
-                        "frames, borderline, text, character, duplicate, error, out of frame, watermark, low quality, ugly, deformed, blur",
-                        label="Negative prompt",
-                    )
-                    res_img = gr.Gallery(label="Generated images", show_label=False)
-                error_output = gr.Markdown(visible=False)
-    
-            with gr.Column(scale=40):
-                generate = gr.Button(value="Generate")
-    
-                with gr.Group():
-                    inf_mode = gr.Dropdown(list(modes.values()), label="Inference Mode", value=modes["txt2img"])
-    
-                    with gr.Column(visible=False) as i2i:
-                        image = gr.Image(label="Image", height=128, type="pil")
-                        strength = gr.Slider(
-                            label="Transformation strength",
-                            minimum=0,
-                            maximum=1,
-                            step=0.01,
-                            value=0.5,
-                        )
-    
-                with gr.Group():
-                    with gr.Row() as txt2i:
-                        width = gr.Slider(label="Width", value=512, minimum=64, maximum=1024, step=8)
-                        height = gr.Slider(label="Height", value=512, minimum=64, maximum=1024, step=8)
-    
-                with gr.Group():
-                    with gr.Row():
-                        steps = gr.Slider(label="Steps", value=20, minimum=1, maximum=50, step=1)
-                        guidance = gr.Slider(label="Guidance scale", value=7.5, maximum=15)
-    
-                    seed = gr.Slider(-1, 10000000, label="Seed (-1 = random)", value=-1, step=1)
-    
-                res_info = gr.Markdown(visible=False)
-    
-        inf_mode.change(on_mode_change, inputs=[inf_mode], outputs=[i2i, txt2i], queue=False)
-    
-        inputs = [
-            inf_mode,
-            prompt,
-            guidance,
-            steps,
-            width,
-            height,
-            seed,
-            image,
-            strength,
-            neg_prompt,
-        ]
-    
-        outputs = [res_img, res_info, error_output]
-        prompt.submit(inference, inputs=inputs, outputs=outputs)
-        generate.click(inference, inputs=inputs, outputs=outputs)
+    demo = make_demo(model_id)
     
     try:
         demo.queue().launch(debug=False)

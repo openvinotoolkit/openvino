@@ -1,12 +1,13 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import platform
-
 import numpy as np
+import os
+import platform
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
+from common.utils.common_utils import generate_ir_ovc
 from common.utils.tf_utils import run_in_jenkins
 
 rng = np.random.default_rng()
@@ -57,3 +58,45 @@ class TestStringLower(CommonTFLayerTest):
                                                  strings_dictionary=strings_dictionary),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
+
+
+class TestStringLowerOVC:
+    def prepare_data(self):
+        inputs_data = {}
+        inputs_data['input:0'] = np.array(['Some sentence', 'ANOTHER sentenCE'], dtype=str)
+        ref_data = np.array(['some sentence', 'another sentence'], dtype=str)
+        return inputs_data, ref_data
+
+    def create_string_lower_model(self, output_dir):
+        tf.compat.v1.reset_default_graph()
+        with tf.compat.v1.Session() as sess:
+            input = tf.compat.v1.placeholder(tf.string, [2], 'input')
+            tf.raw_ops.StringLower(input=input, name='StringLower')
+            tf.compat.v1.global_variables_initializer()
+            tf.compat.v1.io.write_graph(sess.graph, output_dir, 'model_string_lower.pb', as_text=False)
+        return os.path.join(output_dir, 'model_string_lower.pb')
+
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'],
+                       reason='Ticket - 126314, 132699')
+    def test_string_lower_with_ovc(self, ie_device, temp_dir, precision):
+        if ie_device == 'GPU' or run_in_jenkins():
+            pytest.skip("operation extension is not supported on GPU")
+        input_model_path = self.create_string_lower_model(temp_dir)
+        output_model_path = os.path.join(temp_dir, 'model_string_lower.xml')
+        return_code, _, _ = generate_ir_ovc(input_model_path, {'output_model': output_model_path})
+        assert return_code == 0, "OVC tool is failed for conversion model {}".format(input_model_path)
+
+        import openvino_tokenizers
+        import openvino as ov
+        core = ov.Core()
+        compiled_model = core.compile_model(output_model_path, ie_device)
+        input_data, ref_data = self.prepare_data()
+        ov_result = compiled_model(input_data)['StringLower:0']
+
+        assert np.array_equal(ov_result, ref_data), 'OpenVINO result does not match the reference:' \
+                                                    'OpenVINO result - {},' \
+                                                    'Reference - {}'.format(ov_result, ref_data)

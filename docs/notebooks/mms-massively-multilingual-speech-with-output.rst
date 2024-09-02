@@ -29,8 +29,8 @@ it. Additional models quantization step is employed to improve models
 inference speed. In the end of the notebook there’s a Gradio-based
 interactive demo.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Prepare an example audio <#prepare-an-example-audio>`__
@@ -64,6 +64,16 @@ Table of contents:
       accuracy <#compare-model-size-performance-and-accuracy>`__
 
 -  `Interactive demo with Gradio <#interactive-demo-with-gradio>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Prerequisites
 -------------
@@ -127,7 +137,7 @@ Specify ``streaming=True`` to not download the entire dataset.
     from datasets import load_dataset
     
     
-    mls_dataset = load_dataset("facebook/multilingual_librispeech", SAMPLE_LANG.value, split="test", streaming=True)
+    mls_dataset = load_dataset("facebook/multilingual_librispeech", SAMPLE_LANG.value, split="test", streaming=True, trust_remote_code=True)
     mls_dataset = iter(mls_dataset)  # make it iterable
     
     example = next(mls_dataset)  # get one example
@@ -150,7 +160,7 @@ transcription.
 
     import IPython.display as ipd
     
-    print(example["text"])
+    print(example["transcript"])
     ipd.Audio(example["audio"]["array"], rate=16_000)
 
 
@@ -330,11 +340,11 @@ Let’s check another language.
 
 .. code:: ipython3
 
-    mls_dataset = load_dataset("facebook/multilingual_librispeech", SAMPLE_LANG.value, split="test", streaming=True)
+    mls_dataset = load_dataset("facebook/multilingual_librispeech", SAMPLE_LANG.value, split="test", streaming=True, trust_remote_code=True)
     mls_dataset = iter(mls_dataset)
     
     example = next(mls_dataset)
-    print(example["text"])
+    print(example["transcript"])
     ipd.Audio(example["audio"]["array"], rate=16_000)
 
 
@@ -488,15 +498,6 @@ for these purposes.
     
     compiled_asr_model = get_asr_model(asr_model_xml_path_template, language_id)
 
-
-.. parsed-literal::
-
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-
-
 Run inference.
 
 .. code:: ipython3
@@ -512,7 +513,7 @@ Run inference.
     
     
     transcription = recognize_audio(compiled_asr_model, example["audio"]["array"])
-    print("Original text:", example["text"])
+    print("Original text:", example["transcript"])
     print("Transcription:", transcription)
 
 
@@ -606,7 +607,7 @@ dataset for the selected language.
 
     %%skip not $to_quantize.value
     
-    mls_dataset = iter(load_dataset("facebook/multilingual_librispeech", SAMPLE_LANG.value, split="validation", streaming=True))
+    mls_dataset = iter(load_dataset("facebook/multilingual_librispeech", SAMPLE_LANG.value, split="validation", streaming=True, trust_remote_code=True))
     example = next(mls_dataset)
 
 Create calibration dataset for quantization.
@@ -815,7 +816,7 @@ speech recognition models.
     from jiwer import wer
     
     TEST_DATASET_SIZE = 20
-    test_dataset = load_dataset("facebook/multilingual_librispeech", SAMPLE_LANG.value, split="test", streaming=True)
+    test_dataset = load_dataset("facebook/multilingual_librispeech", SAMPLE_LANG.value, split="test", streaming=True, trust_remote_code=True)
     test_dataset = test_dataset.take(TEST_DATASET_SIZE)
     
     def calculate_transcription_time_and_accuracy(lid_model, asr_model):
@@ -836,7 +837,7 @@ speech recognition models.
             end_time = time.perf_counter()
             transcription_time.append(end_time - start_time)
     
-            ground_truths.append(data_item["text"])
+            ground_truths.append(data_item["transcript"])
             predictions.append(transcription)
     
         word_accuracy = (1 - wer(ground_truths, predictions)) * 100
@@ -995,43 +996,3 @@ data is sampled to 16000 kHz.
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-    
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    WARNING:nncf:NNCF provides best results with torch==2.0.1, while current torch version is 1.13.1+cu117. If you encounter issues, consider switching to torch==2.0.1
-
-
-.. parsed-literal::
-
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda-11.7'
-    /home/nsavel/venvs/ov_notebooks_tmp/lib/python3.8/site-packages/transformers/models/wav2vec2/modeling_wav2vec2.py:595: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-    /home/nsavel/venvs/ov_notebooks_tmp/lib/python3.8/site-packages/transformers/models/wav2vec2/modeling_wav2vec2.py:634: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
-

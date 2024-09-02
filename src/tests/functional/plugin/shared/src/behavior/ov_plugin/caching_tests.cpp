@@ -227,7 +227,7 @@ void CompileModelCacheTestBase::run() {
         GTEST_FAIL() << "Plugin doesn't support import and export - skipping test" << std::endl;
     }
     if (importExportSupported(*core)) {
-        ASSERT_NO_THROW(core->get_property(targetDevice, ov::internal::caching_properties));
+        OV_ASSERT_NO_THROW(core->get_property(targetDevice, ov::internal::caching_properties));
     }
     configure_model();
     try {
@@ -248,13 +248,13 @@ void CompileModelCacheTestBase::run() {
         // Step 2: Load with cache. Export or import shall not throw
         {
             core->set_property(ov::cache_dir(m_cacheFolderName));
-            ASSERT_NO_THROW(compiledModel = core->compile_model(function, targetDevice, configuration));
+            OV_ASSERT_NO_THROW(compiledModel = core->compile_model(function, targetDevice, configuration));
             if (targetDevice.find("AUTO") == std::string::npos) {
                 // Apply check only for HW plugins
                 ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
             }
             generate_inputs(targetStaticShapes.front());
-            ASSERT_NO_THROW(infer());
+            OV_ASSERT_NO_THROW(infer());
         }
         compare(originalOutputs, get_plugin_outputs());
         // Destroy objects here
@@ -362,7 +362,7 @@ TEST_P(CompileModelLoadFromFileTestBase, CanCreateCacheDirAndDumpBinariesUnicode
         ov::util::string_to_wstring(cache_path_mb + ov::util::FileTraits<char>::file_separator + m_weightsName);
 
     try {
-        ov::test::utils::createDirectory(cache_path_mb);
+        ov::test::utils::createDirectory(cache_path_w);
 
         // Copy IR files into unicode folder for read_model test
         ov::test::utils::copyFile(m_modelName, model_xml_path_w);
@@ -457,10 +457,10 @@ void CompileModelCacheRuntimePropertiesTestBase::run() {
     // Second compile model will load from model cache.
     for (int i = 0; i < 2; i++) {
         {
-            ASSERT_NO_THROW(compiledModel = core->compile_model(m_modelName, targetDevice, configuration));
+            OV_ASSERT_NO_THROW(compiledModel = core->compile_model(m_modelName, targetDevice, configuration));
             ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
-            ASSERT_NO_THROW(inferRequest = compiledModel.create_infer_request());
-            ASSERT_NO_THROW(inferRequest.infer());
+            OV_ASSERT_NO_THROW(inferRequest = compiledModel.create_infer_request());
+            OV_ASSERT_NO_THROW(inferRequest.infer());
         }
         // cache is created and reused
         ASSERT_EQ(ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
@@ -495,10 +495,10 @@ void CompileModelCacheRuntimePropertiesTestBase::run() {
     // Fourth compile model will load from model cache.
     for (int i = 0; i < 2; i++) {
         {
-            ASSERT_NO_THROW(compiledModel = core->compile_model(m_modelName, targetDevice, configuration));
+            OV_ASSERT_NO_THROW(compiledModel = core->compile_model(m_modelName, targetDevice, configuration));
             ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
-            ASSERT_NO_THROW(inferRequest = compiledModel.create_infer_request());
-            ASSERT_NO_THROW(inferRequest.infer());
+            OV_ASSERT_NO_THROW(inferRequest = compiledModel.create_infer_request());
+            OV_ASSERT_NO_THROW(inferRequest.infer());
         }
         // old cache has been removed and new cache is created and reused
         ASSERT_EQ(ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
@@ -886,6 +886,72 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
     }
 }
 #endif
+
+std::string CompileModelWithCacheEncryptionTest::getTestCaseName(
+    testing::TestParamInfo<std::string> obj) {
+    auto deviceName = obj.param;
+    std::ostringstream result;
+    std::replace(deviceName.begin(), deviceName.end(), ':', '.');
+    result << "device_name=" << deviceName << "_";
+    return result.str();
+}
+
+void CompileModelWithCacheEncryptionTest::SetUp() {
+    ovModelWithName funcPair;
+    targetDevice = GetParam();
+    target_device = targetDevice;
+    EncryptionCallbacks encryption_callbacks;
+    encryption_callbacks.encrypt = ov::util::codec_xor;
+    encryption_callbacks.decrypt = ov::util::codec_xor;
+    configuration.insert(ov::cache_encryption_callbacks(encryption_callbacks));
+    APIBaseTest::SetUp();
+    std::stringstream ss;
+    std::string filePrefix = ov::test::utils::generateTestFilePrefix();
+    ss << "testCache_" << filePrefix;
+    m_modelName = ss.str() + ".xml";
+    m_weightsName = ss.str() + ".bin";
+    m_cacheFolderName = ss.str();
+    core->set_property(ov::cache_dir());
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
+    manager.run_passes(ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32));
+}
+
+void CompileModelWithCacheEncryptionTest::TearDown() {
+    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "blob");
+    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "cl_cache");
+    ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
+    std::remove(m_cacheFolderName.c_str());
+    core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
+    APIBaseTest::TearDown();
+}
+
+void CompileModelWithCacheEncryptionTest::run() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    core->set_property(ov::cache_dir(m_cacheFolderName));
+    try {
+        compiledModel = core->compile_model(m_modelName, targetDevice, configuration);
+        EXPECT_EQ(false, compiledModel.get_property(ov::loaded_from_cache.name()).as<bool>());
+
+        std::stringstream strm;
+        compiledModel.export_model(strm);
+        ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
+        EXPECT_EQ(false, importedCompiledModel.get_property(ov::loaded_from_cache.name()).as<bool>());
+
+        compiledModel = core->compile_model(m_modelName, targetDevice, configuration);
+        EXPECT_EQ(true, compiledModel.get_property(ov::loaded_from_cache.name()).as<bool>());
+    } catch (const Exception& ex) {
+        GTEST_FAIL() << "Can't compile network from cache dir " << m_cacheFolderName <<
+        "\nException [" << ex.what() << "]" << std::endl;
+    } catch (...) {
+        GTEST_FAIL() << "Can't compile network with model path " << m_modelName << std::endl;
+    }
+}
+
+TEST_P(CompileModelWithCacheEncryptionTest, CanImportModelWithoutException) {
+    run();
+}
 } // namespace behavior
 } // namespace test
 } // namespace ov

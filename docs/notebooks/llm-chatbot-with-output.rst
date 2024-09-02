@@ -18,14 +18,19 @@ accuracy.
 
 Previously, we already discussed how to build an instruction-following
 pipeline using OpenVINO and Optimum Intel, please check out `Dolly
-example <../dolly-2-instruction-following>`__ for reference. In this
+example <dolly-2-instruction-following-with-output.html>`__ for reference. In this
 tutorial, we consider how to use the power of OpenVINO for running Large
 Language Models for chat. We will use a pre-trained model from the
 `Hugging Face
 Transformers <https://huggingface.co/docs/transformers/index>`__
 library. To simplify the user experience, the `Hugging Face Optimum
 Intel <https://huggingface.co/docs/optimum/intel/index>`__ library is
-used to convert the models to OpenVINO™ IR format.
+used to convert the models to OpenVINO™ IR format and to create
+inference pipeline. The inference pipeline can also be created using
+`OpenVINO Generate
+API <https://github.com/openvinotoolkit/openvino.genai/tree/master/src>`__,
+the example of that, please, see in the notebook `LLM chatbot with
+OpenVINO Generate API <llm-chatbot-generate-api-with-output.html>`__
 
 The tutorial consists of the following steps:
 
@@ -38,8 +43,8 @@ The tutorial consists of the following steps:
 -  Create a chat inference pipeline
 -  Run chat pipeline
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Select model for inference <#select-model-for-inference>`__
@@ -49,12 +54,23 @@ Table of contents:
 
    -  `Weights Compression using
       Optimum-CLI <#weights-compression-using-optimum-cli>`__
+   -  `Weight compression with AWQ <#weight-compression-with-awq>`__
 
 -  `Select device for inference and model
    variant <#select-device-for-inference-and-model-variant>`__
 -  `Instantiate Model using Optimum
    Intel <#instantiate-model-using-optimum-intel>`__
 -  `Run Chatbot <#run-chatbot>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Prerequisites
 -------------
@@ -65,22 +81,28 @@ Install required dependencies
 
 .. code:: ipython3
 
-    %pip uninstall -q -y openvino-dev openvino openvino-nightly optimum optimum-intel
+    import os
+
+    os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
+
+    %pip install -Uq pip
+    %pip uninstall -q -y optimum optimum-intel
+    %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
     "git+https://github.com/huggingface/optimum-intel.git"\
     "git+https://github.com/openvinotoolkit/nncf.git"\
     "torch>=2.1"\
     "datasets" \
-    "accelerate"\
-    "openvino-nightly"\
-    "gradio>=4.19"\
-    "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.38.1" "bitsandbytes"
+    "accelerate" \
+    "gradio>=4.19" \
+    "onnx<=1.16.1; sys_platform=='win32'" "einops" "transformers>=4.43" "transformers_stream_generator" "tiktoken" "transformers>=4.40" "bitsandbytes"
 
 .. code:: ipython3
 
     import os
     from pathlib import Path
     import requests
+    import shutil
 
     # fetch model configuration
 
@@ -89,10 +111,21 @@ Install required dependencies
 
     if not config_dst_path.exists():
         if config_shared_path.exists():
-            os.symlink(config_shared_path, config_dst_path)
+            try:
+                os.symlink(config_shared_path, config_dst_path)
+            except Exception:
+                shutil.copy(config_shared_path, config_dst_path)
         else:
             r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
-            with open("llm_config.py", "w") as f:
+            with open("llm_config.py", "w", encoding="utf-8") as f:
+                f.write(r.text)
+    elif not os.path.islink(config_dst_path):
+        print("LLM config will be updated")
+        if config_shared_path.exists():
+            shutil.copy(config_shared_path, config_dst_path)
+        else:
+            r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
+            with open("llm_config.py", "w", encoding="utf-8") as f:
                 f.write(r.text)
 
 Select model for inference
@@ -105,7 +138,11 @@ provided options to compare the quality of open source LLM solutions.
 >\ **Note**: conversion of some models can require additional actions
 from user side and at least 64GB RAM for conversion.
 
-The available options are:
+.. raw:: html
+
+   <details>
+
+Click here to see available models options
 
 -  **tiny-llama-1b-chat** - This is the chat model finetuned on top of
    `TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T <https://huggingface.co/TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T>`__.
@@ -156,7 +193,7 @@ The available options are:
        except OSError:
            notebook_login()
 
--  **phi3-mini-instruct<|end|>** - The Phi-3-Mini is a 3.8B parameters,
+-  **phi3-mini-instruct** - The Phi-3-Mini is a 3.8B parameters,
    lightweight, state-of-the-art open model trained with the Phi-3
    datasets that includes both synthetic data and the filtered publicly
    available websites data with a focus on high-quality and reasoning
@@ -269,6 +306,49 @@ The available options are:
        except OSError:
            notebook_login()
 
+-  **llama-3.1-8b-instruct** - The Llama 3.1 instruction tuned text only
+   models (8B, 70B, 405B) are optimized for multilingual dialogue use
+   cases and outperform many of the available open source and closed
+   chat models on common industry benchmarks. More details about model
+   can be found in `Meta blog
+   post <https://ai.meta.com/blog/meta-llama-3-1/>`__, `model
+   website <https://llama.meta.com>`__ and `model
+   card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__.
+   >\ **Note**: run model with demo, you will need to accept license
+   agreement. >You must be a registered user in Hugging Face Hub.
+   Please visit `HuggingFace model
+   card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__,
+   carefully read terms of usage and click accept button. You will need
+   to use an access token for the code below to run. For more
+   information on access tokens, refer to `this section of the
+   documentation <https://huggingface.co/docs/hub/security-tokens>`__.
+   >You can login on Hugging Face Hub in notebook environment, using
+   following code:
+
+.. code:: python
+
+       ## login to huggingfacehub to get access to pretrained model
+
+       from huggingface_hub import notebook_login, whoami
+
+       try:
+           whoami()
+           print('Authorization token already provided')
+       except OSError:
+           notebook_login()
+
+-  **qwen2-1.5b-instruct/qwen2-7b-instruct** - Qwen2 is the new series
+   of Qwen large language models.Compared with the state-of-the-art open
+   source language models, including the previous released Qwen1.5,
+   Qwen2 has generally surpassed most open source models and
+   demonstrated competitiveness against proprietary models across a
+   series of benchmarks targeting for language understanding, language
+   generation, multilingual capability, coding, mathematics, reasoning,
+   etc. For more details, please refer to
+   `model_card <https://huggingface.co/Qwen/Qwen2-7B-Instruct>`__,
+   `blog <https://qwenlm.github.io/blog/qwen2/>`__,
+   `GitHub <https://github.com/QwenLM/Qwen2>`__, and
+   `Documentation <https://qwen.readthedocs.io/en/latest/>`__.
 -  **qwen1.5-0.5b-chat/qwen1.5-1.8b-chat/qwen1.5-7b-chat** - Qwen1.5 is
    the beta version of Qwen2, a transformer-based decoder-only language
    model pretrained on a large amount of data. Qwen1.5 is a language
@@ -369,6 +449,19 @@ The available options are:
    significant improvements in various capabilities, including
    reasoning, mathematics, and coding. More details about model can be
    found in `model repository <https://huggingface.co/internlm>`__.
+-  **glm-4-9b-chat** - GLM-4-9B is the open-source version of the latest
+   generation of pre-trained models in the GLM-4 series launched by
+   Zhipu AI. In the evaluation of data sets in semantics, mathematics,
+   reasoning, code, and knowledge, GLM-4-9B and its human
+   preference-aligned version GLM-4-9B-Chat have shown superior
+   performance beyond Llama-3-8B. In addition to multi-round
+   conversations, GLM-4-9B-Chat also has advanced features such as web
+   browsing, code execution, custom tool calls (Function Call), and long
+   text reasoning (supporting up to 128K context). More details about
+   model can be found in `model
+   card <https://huggingface.co/THUDM/glm-4-9b-chat/blob/main/README_en.md>`__,
+   `technical report <https://arxiv.org/pdf/2406.12793>`__ and
+   `repository <https://github.com/THUDM/GLM-4>`__
 
 .. code:: ipython3
 
@@ -403,7 +496,7 @@ The available options are:
 
     model_id = widgets.Dropdown(
         options=model_ids,
-        value=model_ids[2],
+        value=model_ids[0],
         description="Model:",
         disabled=False,
     )
@@ -415,7 +508,7 @@ The available options are:
 
 .. parsed-literal::
 
-    Dropdown(description='Model:', index=2, options=('tiny-llama-1b-chat', 'gemma-2b-it', 'phi-3-mini-instruct', '…
+    Dropdown(description='Model:', options=('qwen2-0.5b-instruct', 'tiny-llama-1b-chat', 'qwen2-1.5b-instruct', 'g…
 
 
 
@@ -427,7 +520,7 @@ The available options are:
 
 .. parsed-literal::
 
-    Selected model phi-3-mini-instruct
+    Selected model qwen2-0.5b-instruct
 
 
 Convert model using Optimum-CLI tool
@@ -460,7 +553,8 @@ that exported model should solve. For LLMs it will be
 ``text-generation-with-past``. If model initialization requires to use
 remote code, ``--trust-remote-code`` flag additionally should be passed.
 
-<|end|>## Compress model weights
+Compress model weights
+----------------------
 
 The `Weights
 Compression <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__
@@ -490,10 +584,10 @@ you can add ``--sym``.
 For INT4 quantization you can also specify the following arguments :
 
 - The ``--group-size`` parameter will define the group size to use for
-quantization, -1 it will results in per-column quantization.
+  quantization, -1 it will results in per-column quantization.
 - The ``--ratio`` parameter controls the ratio between 4-bit and 8-bit
-quantization. If set to 0.9, it means that 90% of the layers will be
-quantized to int4 while 10% will be quantized to int8.
+  quantization. If set to 0.9, it means that 90% of the layers will be
+  quantized to int4 while 10% will be quantized to int8.
 
 Smaller group_size and ratio values usually improve accuracy at the
 sacrifice of the model size and inference latency.
@@ -542,6 +636,46 @@ sacrifice of the model size and inference latency.
 .. parsed-literal::
 
     Checkbox(value=False, description='Prepare FP16 model')
+
+
+Weight compression with AWQ
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+`Activation-aware Weight
+Quantization <https://arxiv.org/abs/2306.00978>`__ (AWQ) is an algorithm
+that tunes model weights for more accurate INT4 compression. It slightly
+improves generation quality of compressed LLMs, but requires significant
+additional time for tuning weights on a calibration dataset. We use
+``wikitext-2-raw-v1/train`` subset of the
+`Wikitext <https://huggingface.co/datasets/Salesforce/wikitext>`__
+dataset for calibration.
+
+Below you can enable AWQ to be additionally applied during model export
+with INT4 precision.
+
+   **Note**: Applying AWQ requires significant memory and time.
+
+..
+
+   **Note**: It is possible that there will be no matching patterns in
+   the model to apply AWQ, in such case it will be skipped.
+
+.. code:: ipython3
+
+    enable_awq = widgets.Checkbox(
+        value=False,
+        description="Enable AWQ",
+        disabled=not prepare_int4_model.value,
+    )
+    display(enable_awq)
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=False, description='Enable AWQ')
 
 
 We can now save floating point and compressed model variants
@@ -626,6 +760,11 @@ We can now save floating point and compressed model variants
                 "group_size": 128,
                 "ratio": 0.8,
             },
+            "llama-3.1-8b-instruct": {
+                "sym": True,
+                "group_size": 128,
+                "ratio": 1.0,
+            },
             "gemma-7b-it": {
                 "sym": True,
                 "group_size": 128,
@@ -657,6 +796,8 @@ We can now save floating point and compressed model variants
         int4_compression_args = " --group-size {} --ratio {}".format(model_compression_params["group_size"], model_compression_params["ratio"])
         if model_compression_params["sym"]:
             int4_compression_args += " --sym"
+        if enable_awq.value:
+            int4_compression_args += " --awq --dataset wikitext2 --num-samples 128"
         export_command_base += int4_compression_args
         if remote_code:
             export_command_base += " --trust-remote-code"
@@ -692,7 +833,7 @@ Let’s compare model size for different compression types
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 2339.74 MB
+    Size of model with INT4 compressed weights is 358.86 MB
 
 
 Select device for inference and model variant
@@ -727,7 +868,7 @@ Select device for inference and model variant
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
 
 
 
@@ -813,6 +954,9 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
 
     ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
 
+    if "GPU" in device.value and "qwen2-7b-instruct" in model_id.value:
+        ov_config["GPU_ENABLE_SDPA_OPTIMIZATION"] = "NO"
+
     # On a GPU device a model is executed in FP16 precision. For red-pajama-3b-chat model there known accuracy
     # issues caused by this, which we avoid by setting precision hint to "f32".
     if model_id.value == "red-pajama-3b-chat" and "GPU" in core.available_devices and device.value in ["GPU", "AUTO"]:
@@ -832,46 +976,11 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+    Loading model from qwen2-0.5b-instruct/INT4_compressed_weights
 
 
 .. parsed-literal::
 
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    2024-04-23 22:13:04.208987: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-23 22:13:04.210866: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-04-23 22:13:04.245998: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-04-23 22:13:04.246894: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-04-23 22:13:04.941663: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/cextension.py:34: UserWarning: The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
-      warn("The installed version of bitsandbytes was compiled without GPU support. "
-
-
-.. parsed-literal::
-
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/libbitsandbytes_cpu.so: undefined symbol: cadam32bit_grad_fp32
-
-
-.. parsed-literal::
-
-    WARNING[XFORMERS]: xFormers can't load C++/CUDA extensions. xFormers was built for:
-        PyTorch 2.0.1+cu118 with CUDA 1108 (you have 2.1.2+cpu)
-        Python  3.8.18 (you have 3.8.10)
-      Please reinstall xformers (see https://github.com/facebookresearch/xformers#installing-xformers)
-      Memory-efficient attention, SwiGLU, sparse and more won't be available.
-      Set XFORMERS_MORE_DETAILS=1 for more details
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-
-
-.. parsed-literal::
-
-    Loading model from phi-3-mini-instruct/INT4_compressed_weights
-
-
-.. parsed-literal::
-
-    The argument `trust_remote_code` is to be used along with export=True. It will be ignored.
     Compiling the model to CPU ...
 
 
@@ -988,6 +1097,7 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
     model_name = model_configuration["model_id"]
     start_message = model_configuration["start_message"]
     history_template = model_configuration.get("history_template")
+    has_chat_template = model_configuration.get("has_chat_template", history_template is None)
     current_message_template = model_configuration.get("current_message_template")
     stop_tokens = model_configuration.get("stop_tokens")
     tokenizer_kwargs = model_configuration.get("tokenizer_kwargs", {})
@@ -1086,7 +1196,7 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
             input_tokens.extend(tok.encode(history[-1][0]))
             input_tokens.append(196)
             input_token = torch.LongTensor([input_tokens])
-        elif history_template is None:
+        elif history_template is None or has_chat_template:
             messages = [{"role": "system", "content": start_message}]
             for idx, (user_msg, model_msg) in enumerate(history):
                 if idx == len(history) - 1 and not model_msg:
@@ -1322,7 +1432,10 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
     # if you have any issue to launch on your platform, you can pass share=True to launch method:
     # demo.launch(share=True)
     # it creates a publicly shareable link for the interface. Read more in the docs: https://gradio.app/docs/
-    demo.launch()
+    try:
+        demo.launch()
+    except Exception:
+        demo.launch(share=True)
 
 
 .. parsed-literal::
@@ -1330,13 +1443,6 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
     Running on local URL:  http://127.0.0.1:7860
 
     To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
 
 
 
@@ -1357,4 +1463,4 @@ Besides chatbot, we can use LangChain to augmenting LLM knowledge with
 additional data, which allow you to build AI applications that can
 reason about private data or data introduced after a model’s cutoff
 date. You can find this solution in `Retrieval-augmented generation
-(RAG) example <../llm-rag-langchain/>`__.
+(RAG) example <llm-rag-langchain-with-output.html>`__.

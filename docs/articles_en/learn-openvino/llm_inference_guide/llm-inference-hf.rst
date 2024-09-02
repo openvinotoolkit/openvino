@@ -1,16 +1,20 @@
-.. {#llm_inference}
+Run LLMs with Hugging Face and Optimum Intel
+===============================================================================================
 
-Inference with Hugging Face and Optimum Intel
-=====================================================
+.. meta::
+   :description: Learn how to use the native OpenVINO package to execute LLM models.
 
-The steps below show how to load and infer LLMs from Hugging Face using Optimum Intel.
-They also show how to convert models into OpenVINO IR format so they can be optimized
-by NNCF and used with other OpenVINO tools.
+
+The steps below show how to load and infer LLMs from
+`Hugging Face <https://huggingface.co/models>`__ using Optimum Intel. They also show how to
+convert models into OpenVINO IR format so they can be optimized by NNCF and used with
+other OpenVINO tools.
 
 Prerequisites
 ############################################################
 
-* Create a Python environment by following the instructions on the :doc:`Install OpenVINO PIP <../../get-started/install-openvino>` page.
+* Create a Python environment by following the instructions on the
+  :doc:`Install OpenVINO PIP <../../get-started/install-openvino>` page.
 * Install the necessary dependencies for Optimum Intel:
 
 .. code-block:: console
@@ -20,7 +24,8 @@ Prerequisites
 Loading a Hugging Face Model to Optimum Intel
 ############################################################
 
-To start using OpenVINO as a backend for Hugging Face, change the original Hugging Face code in two places:
+To start using OpenVINO as a backend for Hugging Face, change the original Hugging Face
+code in two places:
 
 .. code-block:: diff
 
@@ -218,6 +223,8 @@ as in OpenVINO native API:
 
    model.to("GPU")
 
+.. _enabling-runtime-optimizations:
+
 Enabling OpenVINO Runtime Optimizations
 ############################################################
 
@@ -225,22 +232,41 @@ OpenVINO runtime provides a set of optimizations for more efficient LLM inferenc
 includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls and
 **KV-cache quantization**.
 
-* **Dynamic quantization** enables quantization of activations of MatMul operations that have 4 or 8-bit quantized weights (see :doc:`LLM Weight Compression <../../openvino-workflow/model-optimization-guide/weight-compression>`).
-  It improves inference latency and throughput of LLMs, though it may cause insignificant deviation in generation accuracy.  Quantization is performed in a
-  group-wise manner, with configurable group size. It means that values in a group share quantization parameters. Larger group sizes lead to faster inference but lower accuracy. Recommended group size values are ``32``, ``64``, or ``128``. To enable Dynamic quantization, use the corresponding
-  inference property as follows:
+* **Dynamic quantization** enables quantization of activations of MatMul operations
+  that have 4 or 8-bit quantized weights (see
+  :doc:`LLM Weight Compression <../../openvino-workflow/model-optimization-guide/weight-compression>`).
+  It improves inference latency and throughput of LLMs, though it may cause
+  insignificant deviation in generation accuracy.  Quantization is performed in a group-wise
+  manner, with configurable group size. It means that values in a group share quantization
+  parameters. Larger group sizes lead to faster inference but lower accuracy. Recommended
+  group size values are ``0``, ``32``, ``64``, or ``128``. Dynamic quantization is enabled **by
+  default** on the CPU device. To disable dynamic quantization you can either:
 
+  * **(Primary Option)** Set ``DYNAMIC_QUANTIZATION_GROUP_SIZE`` to the ``0`` value.
+  * Switch execution mode from the ``PERFORMANCE mode`` to the ``ACCURACY mode``. However, this
+    option affects inference precision as well. You can learn more about both: ``PERFORMANCE``
+    and ``ACCURACY`` modes by following the :ref:`Precision Control Guide <execution-mode>`.
+
+  To change a group size value (e.g. to ``64``), you need to execute the following code:
 
   .. code-block:: python
 
      model = OVModelForCausalLM.from_pretrained(
          model_path,
-         ov_config={"DYNAMIC_QUANTIZATION_GROUP_SIZE": "32", "PERFORMANCE_HINT": "LATENCY"}
+         ov_config={"DYNAMIC_QUANTIZATION_GROUP_SIZE": "64"}
      )
 
-* **KV-cache quantization** allows lowering the precision of Key and Value cache in LLMs. This helps reduce memory consumption during inference, improving latency and throughput. KV-cache can be quantized into the following precisions:
-  ``u8``, ``bf16``, ``f16``.  If ``u8`` is used, KV-cache quantization is also applied in a group-wise manner. Thus, it can use ``DYNAMIC_QUANTIZATION_GROUP_SIZE`` value if defined.
-  Otherwise, the group size ``32`` is used by default. KV-cache quantization can be enabled as follows:
+  .. note::
+
+     As of release 2024.3, dynamic quantization is not enabled for BF16 inference.
+
+
+* **KV-cache quantization** allows lowering the precision of Key and Value cache in LLMs.
+  This helps reduce memory consumption during inference, improving latency and throughput.
+  KV-cache can be quantized into the following precisions: ``u8``, ``bf16``, ``f16``.
+  If ``u8`` is used, KV-cache quantization is also applied in a group-wise manner. Thus,
+  it can use ``DYNAMIC_QUANTIZATION_GROUP_SIZE`` value if defined. Otherwise, the group
+  size ``32`` is used by default. KV-cache quantization can be enabled as follows:
 
 
   .. code-block:: python

@@ -343,7 +343,7 @@ std::map<int32_t, std::shared_ptr<ov::Model>> FrontEnd::convert_each_node_recurs
 
 void FrontEnd::try_remove_internal_ops(const std::vector<std::shared_ptr<Model>>& models) const {
     for (auto& model : models) {
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("Frontend:Paddle:try_remove_internal_ops");
         manager.register_pass<ov::frontend::paddle::pass::TransformTensorArray>(models);
         manager.register_pass<ov::frontend::paddle::pass::TransformIf>(models);
         manager.register_pass<ov::frontend::paddle::pass::TransformWhile>(models);
@@ -357,7 +357,7 @@ void FrontEnd::try_remove_internal_ops(const std::vector<std::shared_ptr<Model>>
 
 void FrontEnd::fuse_fakequantize_ops(const std::vector<std::shared_ptr<Model>>& models) const {
     for (auto& model : models) {
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("Frontend:Paddle:fuse_fakequantize_ops");
         manager.register_pass<ov::frontend::paddle::pass::TransformFakeQuantize>();
         manager.run_passes(model);
     }
@@ -378,6 +378,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants[0].is<std::string>()) {
         std::string suffix = ".pdmodel";
         std::string model_path = variants[0].as<std::string>();
+        FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: \"", model_path, '"');
         if (!ov::util::ends_with(model_path, suffix)) {
             model_path += paddle::get_path_sep<char>() + "__model__";
         }
@@ -390,6 +391,10 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     else if (variants[0].is<std::wstring>()) {
         std::wstring suffix = L".pdmodel";
         std::wstring model_path = variants[0].as<std::wstring>();
+        FRONT_END_GENERAL_CHECK(util::file_exists(model_path),
+                                "Could not open the file: \"",
+                                util::path_to_string(model_path),
+                                '"');
         if (!ov::util::ends_with(model_path, suffix)) {
             model_path += paddle::get_path_sep<wchar_t>() + L"__model__";
         }
@@ -501,7 +506,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& mo
     if (!m_transformation_extensions.empty()) {
         auto function = decode(model);
 
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("Frontend:Paddle:convert_partially");
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }
@@ -567,7 +572,7 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("Frontend:Paddle:normalize");
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(model);
 }

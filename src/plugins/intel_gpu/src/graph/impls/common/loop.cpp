@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "loop_inst.h"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 #include "register.hpp"
 #include "mutable_data_inst.h"
 #include "input_layout_inst.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include <vector>
 #include <algorithm>
 
@@ -130,17 +129,17 @@ struct loop_impl : typed_primitive_impl<loop> {
         }
 
         body_network->set_shape_predictor(outer_network.get_shape_predictor());
-        OPENVINO_ASSERT(!primitive->num_iteration_id.empty(), "loop operation should have num_iteration_id");
+        OPENVINO_ASSERT(!instance.get_num_iterations_id().empty(), "loop operation should have num_iteration_id");
 
         // shortcut of execution_condition memory in body network
         memory::ptr body_execution_condition_mem = nullptr;
-        if (!primitive->body_execution_condition_id.empty()) {
-            body_execution_condition_mem = body_network->get_primitive(primitive->body_execution_condition_id)->output_memory_ptr();
+        if (!instance.get_condition_id().empty()) {
+            body_execution_condition_mem = body_network->get_primitive(instance.get_condition_id())->output_memory_ptr();
         }
 
         // shortcut of current_iteration memory in body network
-        if (!primitive->body_current_iteration_id.empty()) {
-            memory::ptr body_current_iteration_mem = body_network->get_primitive(primitive->body_current_iteration_id)->output_memory_ptr();
+        if (!instance.get_current_iteration_id().empty()) {
+            memory::ptr body_current_iteration_mem = body_network->get_primitive(instance.get_current_iteration_id())->output_memory_ptr();
             write_scalar_value(body_current_iteration_mem, body_network->get_stream(), 0);
         }
 
@@ -149,11 +148,11 @@ struct loop_impl : typed_primitive_impl<loop> {
 
         // read trip_count from outer network
         int64_t trip_count = -1;
-        if (!primitive->trip_count_id.empty()) {
-            memory::ptr trip_count_mem = outer_network.get_primitive(primitive->trip_count_id)->output_memory_ptr();
+        if (!instance.get_trip_count_id().empty()) {
+            memory::ptr trip_count_mem = outer_network.get_primitive(instance.get_trip_count_id())->output_memory_ptr();
             trip_count = read_scalar_value(std::move(trip_count_mem), stream);
         } else {
-            OPENVINO_ASSERT(!primitive->body_execution_condition_id.empty()
+            OPENVINO_ASSERT(!instance.get_condition_id().empty()
                             || num_iterations > 0 || primitive->max_num_iterations > 0,
                             "num_iterations should be positive when trip_count_id is not existed");
             // If trip_count_id is not existed, the original ngraph operation is TensorIterator.
@@ -166,11 +165,11 @@ struct loop_impl : typed_primitive_impl<loop> {
 
         // read initial execution condition from outer network
         int64_t execution_condition = 1;
-        if (!primitive->first_execution_condition_id.empty()) {
+        if (!instance.get_initial_execution_id().empty()) {
             // Wait for completion of the execution_condition of outer_network
-            if (outer_network.has_event(primitive->first_execution_condition_id))
-                outer_network.get_primitive_event(primitive->first_execution_condition_id)->wait();
-            memory::ptr first_execution_condition_mem = outer_network.get_primitive(primitive->first_execution_condition_id)->output_memory_ptr();
+            if (outer_network.has_event(instance.get_initial_execution_id()))
+                outer_network.get_primitive_event(instance.get_initial_execution_id())->wait();
+            memory::ptr first_execution_condition_mem = outer_network.get_primitive(instance.get_initial_execution_id())->output_memory_ptr();
             execution_condition = read_scalar_value(first_execution_condition_mem, stream);
         }
         GPU_DEBUG_LOG << "execution_condition: " << execution_condition << std::endl;
@@ -178,7 +177,7 @@ struct loop_impl : typed_primitive_impl<loop> {
         // When execution_condition is false or trip_count is zero, return execute_impl without any body_network execution.
         if (!execution_condition || trip_count == 0) {
             // Update num_iterations (actual number of iterations)
-            memory::ptr num_actual_iterations_mem = outer_network.get_primitive(primitive->num_iteration_id)->output_memory_ptr();
+            memory::ptr num_actual_iterations_mem = outer_network.get_primitive(instance.get_num_iterations_id())->output_memory_ptr();
             write_scalar_value(num_actual_iterations_mem, stream, current_iteration_idx);
 
             instance.update_output_layout();
@@ -255,7 +254,7 @@ struct loop_impl : typed_primitive_impl<loop> {
 
             // execution condition is the result of body network execution
             if (body_execution_condition_mem != nullptr) {
-                auto execution_id = primitive->body_execution_condition_id;
+                auto execution_id = instance.get_condition_id();
                 if (body_network->has_event(execution_id)) {
                     auto ev = body_network->get_primitive_event(execution_id);
                     if (ev) ev->wait();
@@ -275,9 +274,9 @@ struct loop_impl : typed_primitive_impl<loop> {
 
         // Update actual num iteration
         // update num_iterations (actual number of iterations)
-        memory::ptr num_actual_iterations_mem = outer_network.get_primitive(primitive->num_iteration_id)->output_memory_ptr();
+        memory::ptr num_actual_iterations_mem = outer_network.get_primitive(instance.get_num_iterations_id())->output_memory_ptr();
         write_scalar_value(num_actual_iterations_mem, stream, current_iteration_idx);
-        GPU_DEBUG_LOG << "current_iteration_idx(" << primitive->num_iteration_id << ", "
+        GPU_DEBUG_LOG << "current_iteration_idx(" << instance.get_num_iterations_id() << ", "
                         << num_actual_iterations_mem << ")  : " << current_iteration_idx << std::endl;
 
         if (is_dynamic)
@@ -311,7 +310,7 @@ attach_loop_common::attach_loop_common() {
     implementation_map<loop>::add(impl_types::common,
                                     shape_types::dynamic_shape,
                                     loop_impl::create,
-                                    {},
+                                    std::vector<data_types>{},
                                     {});
     implementation_map<loop>::add(impl_types::common, loop_impl::create, {});
 }

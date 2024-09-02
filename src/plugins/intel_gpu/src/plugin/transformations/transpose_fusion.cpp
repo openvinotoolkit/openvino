@@ -4,6 +4,7 @@
 
 #include "intel_gpu/op/gemm.hpp"
 #include "intel_gpu/op/sdpa.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -27,9 +28,40 @@ using ov::pass::pattern::op::Or;
 namespace ov {
 namespace intel_gpu {
 
-TransposeFusion::TransposeFusion() {
-    add_matcher<TransposeMatMulTransposeMatcher>();
-    add_matcher<TransposeMatMulMatcher>();
+namespace {
+
+bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_immad) {
+    if (!output.get_element_type().is_real())
+        return false;
+
+    if (output.get_partial_shape().is_static() && !supports_immad)
+        return false;
+
+    auto order_node = output.get_node()->get_input_node_shared_ptr(1);
+    if (!ov::is_type<ov::op::v0::Constant>(order_node))
+        return false;
+
+    auto transpose_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(order_node)->cast_vector<int64_t>();
+    static const std::vector<std::vector<int64_t>> allowed_orders = {
+        {0, 1, 2, 3},
+        {0, 1, 3, 2},
+        {0, 2, 1, 3},
+        {0, 3, 1, 2},
+        {1, 2, 0, 3},
+        {2, 0, 1, 3},
+        {3, 0, 1, 2},
+    };
+
+    if (!cldnn::one_of(transpose_order, allowed_orders))
+        return false;
+
+    return true;
+}
+}  // namespace
+
+TransposeFusion::TransposeFusion(bool supports_immad) {
+    add_matcher<TransposeMatMulTransposeMatcher>(supports_immad);
+    add_matcher<TransposeMatMulMatcher>(supports_immad);
     add_matcher<TransposeSDPAMatcher>();
 }
 
@@ -44,14 +76,6 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
     auto not_transpose = [is_fp_type](const ov::Output<ov::Node>& output) -> bool {
         return std::dynamic_pointer_cast<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr
                && is_fp_type(output);
-    };
-    auto is_dynamic = [](const ov::Output<ov::Node>& output) -> bool {
-        bool is_dynamic = output.get_node_shared_ptr()->get_output_partial_shape(0).is_dynamic();
-        size_t num_inputs = output.get_node_shared_ptr()->get_input_size();
-        for (size_t idx = 0; idx < num_inputs; idx++) {
-            is_dynamic |= output.get_node_shared_ptr()->get_input_partial_shape(idx).is_dynamic();
-        }
-        return is_dynamic;
     };
 
     auto input_q_m = any_input(not_transpose);
@@ -70,24 +94,17 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
     auto sdpa_in_k = std::make_shared<Or>(OutputVector{input_k_m, transpose_k_m});
     auto sdpa_in_v = std::make_shared<Or>(OutputVector{input_v_m, transpose_v_m});
 
-    auto sdpa_without_attn_mask_m = wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v }, is_dynamic);
-    auto sdpa_with_attn_mask_m = wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v, input_attn_mask }, is_dynamic);
+    auto sdpa_without_attn_mask_m = wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v });
+    auto sdpa_with_attn_mask_m = wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v, input_attn_mask });
     auto sdpa_with_attn_mask_and_scale_m =
-        wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v, input_attn_mask, input_scale }, is_dynamic);
+        wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v, input_attn_mask, input_scale });
 
     auto sdpa_m = std::make_shared<Or>(OutputVector{sdpa_without_attn_mask_m, sdpa_with_attn_mask_m, sdpa_with_attn_mask_and_scale_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        std::shared_ptr<ov::op::v13::ScaledDotProductAttention> sdpa;
-        if (pattern_map.find(sdpa_without_attn_mask_m) != pattern_map.end()) {
-            sdpa = std::dynamic_pointer_cast<ov::op::v13::ScaledDotProductAttention>(pattern_map.at(sdpa_without_attn_mask_m).get_node_shared_ptr());
-        } else if (pattern_map.find(sdpa_with_attn_mask_m) != pattern_map.end()) {
-            sdpa = std::dynamic_pointer_cast<ov::op::v13::ScaledDotProductAttention>(pattern_map.at(sdpa_with_attn_mask_m).get_node_shared_ptr());
-        } else if (pattern_map.find(sdpa_with_attn_mask_and_scale_m) != pattern_map.end()) {
-            sdpa = std::dynamic_pointer_cast<ov::op::v13::ScaledDotProductAttention>(pattern_map.at(sdpa_with_attn_mask_and_scale_m).get_node_shared_ptr());
-        }
+        auto sdpa = std::dynamic_pointer_cast<ov::op::v13::ScaledDotProductAttention>(m.get_match_root());
 
         if (!sdpa || transformation_callback(sdpa)) {
             return false;
@@ -101,49 +118,59 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
         size_t input_k_output_idx = sdpa->get_input_source_output(1).get_index();
         size_t input_v_output_idx = sdpa->get_input_source_output(2).get_index();
 
-        if (pattern_map.count(transpose_q_m) > 0) {
-            auto tranpose_a_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(transpose_q_order_m).get_node_shared_ptr());
-            order_q = tranpose_a_order->cast_vector<int64_t>();
-            if (order_q.back() != static_cast<int64_t>(order_q.size() - 1)) // Allow any transposes without head_size dim position change
+        auto process_transpose = [](const std::shared_ptr<Node>& transpose_node,
+                                    const std::shared_ptr<Node>& transpose_order_const_node,
+                                    std::vector<int64_t>& order,
+                                    size_t& output_idx) {
+            auto transpose_order_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose_order_const_node);
+
+            order = transpose_order_const->cast_vector<int64_t>();
+            // Allow any transposes without head_size dim position change
+            if (order.back() != static_cast<int64_t>(order.size() - 1))
                 return false;
 
-            auto tranpose_a = std::dynamic_pointer_cast<ov::op::v1::Transpose>(pattern_map.at(transpose_q_m).get_node_shared_ptr());
-            input_q_output_idx = tranpose_a->get_input_source_output(0).get_index();
-        }
-        if (pattern_map.count(transpose_k_m) > 0) {
-            auto tranpose_b_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(transpose_k_order_m).get_node_shared_ptr());
-            order_k = tranpose_b_order->cast_vector<int64_t>();
-            if (order_k.back() != static_cast<int64_t>(order_k.size() - 1)) // Allow any transposes without head_size dim position change
-                return false;
+            auto transpose = std::dynamic_pointer_cast<ov::op::v1::Transpose>(transpose_node);
+            output_idx = transpose->get_input_source_output(0).get_index();
 
-            auto tranpose_b = std::dynamic_pointer_cast<ov::op::v1::Transpose>(pattern_map.at(transpose_k_m).get_node_shared_ptr());
-            input_k_output_idx = tranpose_b->get_input_source_output(0).get_index();
-        }
-        if (pattern_map.count(transpose_v_m) > 0) {
-            auto tranpose_c_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(transpose_v_order_m).get_node_shared_ptr());
-            order_v = tranpose_c_order->cast_vector<int64_t>();
-            if (order_v.back() != static_cast<int64_t>(order_v.size() - 1)) // Allow any transposes without head_size dim position change
-                return false;
+            return true;
+        };
 
-            auto tranpose_c = std::dynamic_pointer_cast<ov::op::v1::Transpose>(pattern_map.at(transpose_k_m).get_node_shared_ptr());
-            input_v_output_idx = tranpose_c->get_input_source_output(0).get_index();
-        }
+        bool can_fuse_transposes = true;
+        if (pattern_map.count(transpose_q_m) > 0)
+            can_fuse_transposes &= process_transpose(pattern_map.at(transpose_q_m).get_node_shared_ptr(),
+                                                     pattern_map.at(transpose_q_order_m).get_node_shared_ptr(),
+                                                     order_q, input_q_output_idx);
+
+        if (pattern_map.count(transpose_k_m) > 0)
+            can_fuse_transposes &= process_transpose(pattern_map.at(transpose_k_m).get_node_shared_ptr(),
+                                                     pattern_map.at(transpose_k_order_m).get_node_shared_ptr(),
+                                                     order_k, input_k_output_idx);
+
+        if (pattern_map.count(transpose_v_m) > 0)
+            can_fuse_transposes &= process_transpose(pattern_map.at(transpose_v_m).get_node_shared_ptr(),
+                                                     pattern_map.at(transpose_v_order_m).get_node_shared_ptr(),
+                                                     order_v, input_v_output_idx);
+
+        if (!can_fuse_transposes)
+            return false;
 
         auto input_q = ov::Output<Node>(pattern_map.at(input_q_m).get_node_shared_ptr(), input_q_output_idx);
         auto input_k = ov::Output<Node>(pattern_map.at(input_k_m).get_node_shared_ptr(), input_k_output_idx);
         auto input_v = ov::Output<Node>(pattern_map.at(input_v_m).get_node_shared_ptr(), input_v_output_idx);
 
-        std::shared_ptr<op::SDPA> sdpa_new;
-        if (pattern_map.find(sdpa_without_attn_mask_m) != pattern_map.end()) {
-            sdpa_new = std::make_shared<op::SDPA>(input_q, input_k, input_v, order_q, order_k, order_v, order_output, sdpa->get_causal());
-        } else if (pattern_map.find(sdpa_with_attn_mask_m) != pattern_map.end()) {
-            auto attn_mask = sdpa->get_input_source_output(3);
-            sdpa_new = std::make_shared<op::SDPA>(input_q, input_k, input_v, attn_mask, order_q, order_k, order_v, order_output, sdpa->get_causal());
+        OutputVector inputs;
+        inputs.push_back(ov::Output<Node>(pattern_map.at(input_q_m).get_node_shared_ptr(), input_q_output_idx));
+        inputs.push_back(ov::Output<Node>(pattern_map.at(input_k_m).get_node_shared_ptr(), input_k_output_idx));
+        inputs.push_back(ov::Output<Node>(pattern_map.at(input_v_m).get_node_shared_ptr(), input_v_output_idx));
+
+        if (pattern_map.find(sdpa_with_attn_mask_m) != pattern_map.end()) {
+            inputs.push_back(sdpa->get_input_source_output(3));
         } else if (pattern_map.find(sdpa_with_attn_mask_and_scale_m) != pattern_map.end()) {
-            auto attn_mask = sdpa->get_input_source_output(3);
-            auto scale = sdpa->get_input_source_output(4);
-            sdpa_new = std::make_shared<op::SDPA>(input_q, input_k, input_v, attn_mask, scale, order_q, order_k, order_v, order_output, sdpa->get_causal());
+            inputs.push_back(sdpa->get_input_source_output(3));
+            inputs.push_back(sdpa->get_input_source_output(4));
         }
+
+        auto sdpa_new = std::make_shared<op::SDPA>(inputs, sdpa->get_causal(), order_q, order_k, order_v, order_output);
 
         sdpa_new->set_friendly_name(sdpa->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa_new);
@@ -155,37 +182,26 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
     this->register_matcher(m, callback);
 }
 
-TransposeMatMulMatcher::TransposeMatMulMatcher() {
-    auto is_fp_type = [](const ov::Output<ov::Node>& output) -> bool {
-        switch (output.get_element_type()) {
-            case ov::element::f16:
-            case ov::element::f32: return true;
-            default: return false;
-        }
-    };
-    auto not_transpose = [is_fp_type](const ov::Output<ov::Node>& output) -> bool {
+TransposeMatMulMatcher::TransposeMatMulMatcher(bool supports_immad) {
+    auto not_transpose = [](const ov::Output<ov::Node>& output) -> bool {
         return std::dynamic_pointer_cast<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr
-               && is_fp_type(output);
+               && output.get_element_type().is_real();
     };
-    auto is_dynamic = [](const ov::Output<ov::Node>& output) -> bool {
-        bool is_dynamic = output.get_node_shared_ptr()->get_output_partial_shape(0).is_dynamic();
-        size_t num_inputs = output.get_node_shared_ptr()->get_input_size();
-        for (size_t idx = 0; idx < num_inputs; idx++) {
-            is_dynamic |= output.get_node_shared_ptr()->get_input_partial_shape(idx).is_dynamic();
-        }
-        return is_dynamic;
+
+    auto transpose_predicate = [supports_immad](const ov::Output<ov::Node>& output) -> bool {
+        return has_optimized_version(output, supports_immad);
     };
     auto input_a_m = any_input(not_transpose);
     auto input_b_m = any_input(not_transpose);
     auto transpose_a_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto transpose_b_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
-    auto transpose_a_m = wrap_type<ov::op::v1::Transpose>({input_a_m, transpose_a_order_m}, is_fp_type);
-    auto transpose_b_m = wrap_type<ov::op::v1::Transpose>({input_b_m, transpose_b_order_m}, is_fp_type);
+    auto transpose_a_m = wrap_type<ov::op::v1::Transpose>({input_a_m, transpose_a_order_m}, transpose_predicate);
+    auto transpose_b_m = wrap_type<ov::op::v1::Transpose>({input_b_m, transpose_b_order_m}, transpose_predicate);
 
     auto matmul_in_a = std::make_shared<Or>(OutputVector{input_a_m, transpose_a_m});
     auto matmul_in_b = std::make_shared<Or>(OutputVector{input_b_m, transpose_b_m});
 
-    auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b }, is_dynamic);
+    auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b });
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -239,39 +255,27 @@ TransposeMatMulMatcher::TransposeMatMulMatcher() {
     this->register_matcher(m, callback);
 }
 
-TransposeMatMulTransposeMatcher::TransposeMatMulTransposeMatcher() {
-    auto is_fp_type = [](const ov::Output<ov::Node>& output) -> bool {
-        switch (output.get_element_type()) {
-            case ov::element::f16:
-            case ov::element::f32: return true;
-            default: return false;
-        }
-    };
-    auto not_transpose = [is_fp_type](const ov::Output<ov::Node>& output) -> bool {
+TransposeMatMulTransposeMatcher::TransposeMatMulTransposeMatcher(bool supports_immad) {
+    auto not_transpose = [](const ov::Output<ov::Node>& output) -> bool {
         return std::dynamic_pointer_cast<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr
-               && is_fp_type(output);
+               && output.get_element_type().is_real();
     };
-    auto is_dynamic = [](const ov::Output<ov::Node>& output) -> bool {
-        bool is_dynamic = output.get_node_shared_ptr()->get_output_partial_shape(0).is_dynamic();
-        size_t num_inputs = output.get_node_shared_ptr()->get_input_size();
-        for (size_t idx = 0; idx < num_inputs; idx++) {
-            is_dynamic |= output.get_node_shared_ptr()->get_input_partial_shape(idx).is_dynamic();
-        }
-        return is_dynamic;
+    auto transpose_predicate = [supports_immad](const ov::Output<ov::Node>& output) -> bool {
+        return has_optimized_version(output, supports_immad);
     };
     auto input_a_m = any_input(not_transpose);
     auto input_b_m = any_input(not_transpose);
     auto transpose_a_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto transpose_b_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
-    auto transpose_a_m = wrap_type<ov::op::v1::Transpose>({input_a_m, transpose_a_order_m}, is_fp_type);
-    auto transpose_b_m = wrap_type<ov::op::v1::Transpose>({input_b_m, transpose_b_order_m}, is_fp_type);
+    auto transpose_a_m = wrap_type<ov::op::v1::Transpose>({input_a_m, transpose_a_order_m}, transpose_predicate);
+    auto transpose_b_m = wrap_type<ov::op::v1::Transpose>({input_b_m, transpose_b_order_m}, transpose_predicate);
 
     auto matmul_in_a = std::make_shared<Or>(OutputVector{input_a_m, transpose_a_m});
     auto matmul_in_b = std::make_shared<Or>(OutputVector{input_b_m, transpose_b_m});
 
-    auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b }, is_dynamic);
+    auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b });
     auto transpose_c_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
-    auto transpose_c_m = wrap_type<ov::op::v1::Transpose>({matmul_m, transpose_c_order_m});
+    auto transpose_c_m = wrap_type<ov::op::v1::Transpose>({matmul_m, transpose_c_order_m}, transpose_predicate);
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

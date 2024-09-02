@@ -21,7 +21,7 @@
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/remarks.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -47,8 +47,8 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::is_supported_op")
     auto is_supported_matmul = [](const std::shared_ptr<const Node>& n) -> bool {
         const auto& matmul = ov::as_type_ptr<const opset1::MatMul>(n);
-        const auto& out_shape = n->get_output_partial_shape(0);
-        if (!matmul || out_shape.is_dynamic() || out_shape.size() != 4)
+        const auto& out_rank = n->get_output_partial_shape(0).rank();
+        if (!matmul || out_rank.is_dynamic() || out_rank.get_length() != 4)
             return false;
         const auto intype_0 = matmul->get_input_element_type(0);
         const auto intype_1 = matmul->get_input_element_type(1);
@@ -59,8 +59,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     };
     auto is_supported_transpose = [](const std::shared_ptr<const Node>& n) -> bool {
         const auto& transpose = as_type_ptr<const opset1::Transpose>(n);
-        const auto& out_shape = n->get_output_partial_shape(0);
-        if (transpose && out_shape.is_static()) {
+        if (transpose) {
             const auto parent = transpose->get_input_node_shared_ptr(0);
             const auto child = transpose->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
             auto is_brgemm_case = ov::is_type<opset1::MatMul>(parent) || ov::is_type<opset1::MatMul>(child);
@@ -125,6 +124,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             || ov::is_type<ov::op::v0::Erf>(n)
             || ov::is_type<ov::op::v0::Exp>(n)
             || ov::is_type<ov::op::v1::LogicalNot>(n)
+            || ov::is_type<ov::op::v4::Mish>(n)
             || ov::is_type<ov::op::v0::Negative>(n)
             || ov::is_type<ov::op::v0::Relu>(n)
             || ov::is_type<ov::op::v5::Round>(n)
@@ -143,7 +143,9 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         int64_t axis = -1;
         const auto rank = n->get_input_partial_shape(0).rank();
         if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(n)) {
-            axis = ov::util::normalize_axis(n->get_friendly_name(), softmax_v8->get_axis(), rank);
+            if (rank.is_static()) {
+                axis = ov::util::try_normalize_axis(softmax_v8->get_axis(), rank, *n);
+            }
         } else if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(n)) {
             axis = softmax_v1->get_axis();
         } else {
@@ -171,7 +173,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
                 return false;
 
             const auto axis_value = axis_constant->cast_vector<int32_t>(1)[0];
-            const auto normalized_axis = ov::util::normalize_axis(n->get_friendly_name(), axis_value, rank);
+            const auto normalized_axis = util::normalize(axis_value, rank.get_length());
             // Note: Reduction only over the last dimension is currently supported
             return normalized_axis == rank.get_length() - 1;
         }
@@ -229,8 +231,11 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
 } // namespace
 
 const std::set<ov::element::Type>& ov::snippets::pass::TokenizeSnippets::get_supported_element_types() {
-    static const std::set<ov::element::Type> supported_element_types =
-        { ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8 };
+    static const std::set<ov::element::Type> supported_element_types = {ov::element::f32,
+                                                                        ov::element::bf16,
+                                                                        ov::element::f16,
+                                                                        ov::element::i8,
+                                                                        ov::element::u8};
     return supported_element_types;
 }
 
