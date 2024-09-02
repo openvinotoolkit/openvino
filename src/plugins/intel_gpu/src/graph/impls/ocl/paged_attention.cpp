@@ -221,7 +221,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             execute_stage(dep_events, instance, res_events, Stage::PA_SDPA);
         }
 
-        return aggregate_events(res_events, instance.get_network().get_stream(), res_events.size() > 1);
+        return instance.get_network().get_stream().aggregate_events(res_events, res_events.size() > 1);
     }
 
     static int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const PagedAttentionStage& stage, int64_t target_seq_len_block_size = 16) {

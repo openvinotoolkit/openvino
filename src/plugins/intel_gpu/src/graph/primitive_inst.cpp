@@ -375,7 +375,7 @@ void primitive_inst::update_shape() {
         input_shape_changed = true;
     }
 
-    if (!_node->is_type<kv_cache>() && !input_shape_changed && !_node->generates_dynamic_output() && _impl_params->get_output_layout().is_static())
+    if (!_node->is_type<kv_cache>() && !input_shape_changed && _impl_params->get_output_layout().is_static())
         return;
 
     std::vector<event::ptr> dependencies_events;
@@ -1798,7 +1798,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     , _outputs({})
     , _reordered_weights_cache(network.get_weights_cache_capacity())
     , _output_changed(false)
-    , _is_dynamic(node.is_dynamic() || node.generates_dynamic_output())
+    , _is_dynamic(node.is_dynamic())
     , _type(node.type())
     , _id(node.id())
     , _org_id(node.get_org_primitive_id())

@@ -49,11 +49,6 @@ public:
         return make_unique<wait_for_events_impl>(input);
     }
 
-    static std::unique_ptr<primitive_impl> create_prior_box(const prior_box_node& prior_box, const kernel_impl_params&) {
-        // This primitive is being executed on CPU during network compilation.
-        return make_unique<wait_for_events_impl>(prior_box);
-    }
-
     void update(primitive_inst& inst, const kernel_impl_params& impl_param) override { }
 };
 
@@ -65,10 +60,6 @@ attach_data_common::attach_data_common() {
 
 attach_input_layout_common::attach_input_layout_common() {
     implementation_map<input_layout>::add(impl_types::common, shape_types::any, wait_for_events_impl::create_input_layout, {});
-}
-
-attach_prior_box_common::attach_prior_box_common() {
-    implementation_map<prior_box>::add(impl_types::common, wait_for_events_impl::create_prior_box, {});
 }
 
 }  // namespace detail

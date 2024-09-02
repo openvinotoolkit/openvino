@@ -70,7 +70,6 @@ public:
     virtual const primitive_id& id() const { return desc->id; }
     virtual primitive_type_id type() const { return desc->type; }
     virtual std::shared_ptr<NodeFuseParams> get_fuse_params() const { return nullptr; }
-    virtual bool generates_dynamic_output() const { return false; }
 
     virtual std::vector<size_t> get_shape_infer_dependencies() const {
         // Default impl will request all deps for shape infer
