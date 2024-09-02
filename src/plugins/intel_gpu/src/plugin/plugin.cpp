@@ -205,17 +205,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
     auto parse_devices_id = [&](const std::string devices_for_tp,
                                 const std::string delimiter = ",") -> std::vector<std::string> {
+        bool is_set_device_id = orig_config.find(ov::device::id.name()) != orig_config.end();
         std::vector<std::string> ret;
+        if (is_set_device_id)
+            ret.push_back(device_id);
         std::size_t start = 0, end = devices_for_tp.find(delimiter);
         while (end != std::string::npos) {
             std::string device_with_id = devices_for_tp.substr(start, end - start);
             auto dotPos = device_with_id.find(".");
             if (dotPos != std::string::npos) {
                 auto target_id = device_with_id.substr(dotPos + 1);
-                if (m_device_map.count(target_id)) {
-                    if (target_id != device_id &&
-                        m_device_map.at(target_id)->get_info().dev_type == device_ptr->get_info().dev_type) {
+                if (m_device_map.count(target_id) &&
+                    m_device_map.at(target_id)->get_info().dev_type == device_ptr->get_info().dev_type) {
+                    if (!is_set_device_id) {
                         ret.push_back(target_id);
+                    } else if (target_id != device_id) {
+                        ret.push_back(target_id);
+                        return ret;
                     }
                 } else {
                     OPENVINO_THROW("Invalid device found for TP: ", device_with_id);
@@ -228,40 +234,59 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         auto dotPos = last.find(".");
         if (dotPos != std::string::npos) {
             auto target_id = last.substr(dotPos + 1);
-            if (m_device_map.count(target_id)) {
-                if (target_id != device_id &&
-                    m_device_map.at(target_id)->get_info().dev_type == device_ptr->get_info().dev_type) {
+            if (m_device_map.count(target_id) &&
+                m_device_map.at(target_id)->get_info().dev_type == device_ptr->get_info().dev_type) {
+                if (!is_set_device_id) {
                     ret.push_back(target_id);
+                } else if (target_id != device_id) {
+                    ret.push_back(target_id);
+                    return ret;
                 }
             } else {
                 OPENVINO_THROW("Invalid device found for TP: ", last);
             }
         }
-        if (ret.empty())
-            OPENVINO_THROW("Invalid number of parsed device found for TP from specified device candidate list: ",
-                           devices_for_tp);
-        if (ret.size() == 1) {
-            auto id = ret.front();
-            if (id != device_id && device_ptr->get_info().dev_type == m_device_map.at(id)->get_info().dev_type) {
-                ret.push_back(device_id);
-            } else {
-                for (const auto& item : m_device_map) {
-                    if (item.first != id && item.second->get_info().dev_type == device_ptr->get_info().dev_type) {
-                        ret.push_back(item.first);
+        std::string target_device = is_set_device_id ? std::string("GPU.") + device_id : "GPU";
+        if (is_set_device_id) {
+            if (ret.size() < 2) {
+                OPENVINO_THROW("Invalid number of parsed device found for TP from specified device candidate list: ",
+                               devices_for_tp,
+                               " when compiling model to target device: ",
+                               target_device);
+            }
+        } else {
+            if (ret.empty()) {
+                OPENVINO_THROW("Invalid number of parsed device found for TP from specified device candidate list: ",
+                               devices_for_tp,
+                               " when compiling model to target device: ",
+                               target_device);
+            }
+            if (ret.size() == 1) {
+                auto id = ret.front();
+                if (id != device_id && device_ptr->get_info().dev_type == m_device_map.at(id)->get_info().dev_type) {
+                    ret.push_back(device_id);
+                } else {
+                    for (const auto& item : m_device_map) {
+                        if (item.first != id && item.second->get_info().dev_type == device_ptr->get_info().dev_type) {
+                            ret.push_back(item.first);
+                        }
                     }
                 }
             }
-        }
-        if (ret.size() > 2) {
-            GPU_DEBUG_LOG << "Will only select 2 devices for TP." << std::endl;
-            std::cout << "[WY-DEBUG][" << __FILE__ << ":" << __LINE__ << "] will keep the first 2 device from list.";
-            ret = std::vector<std::string>(ret.begin(), ret.begin() + 2);
+            if (ret.size() > 2) {
+                GPU_DEBUG_LOG << "Will only select 2 devices for TP." << std::endl;
+                std::cout << "[WY-DEBUG][" << __FILE__ << ":" << __LINE__
+                          << "] will keep the first 2 device from list.";
+                ret = std::vector<std::string>(ret.begin(), ret.begin() + 2);
+            }
         }
         return ret;
     };
     auto devices_id_for_tp = parse_devices_id(devices_for_tp);
-    std::cout << "[WY-DEBUG][" << __FILE__ << ":" << __LINE__
-              << "] device priorities after filtered: " << devices_for_tp << std::endl;
+    std::cout << "[WY-DEBUG][" << __FILE__ << ":" << __LINE__ << "] device priorities after filtered: ";
+    for (const auto& device_id : devices_id_for_tp)
+        std::cout << "\tGPU." << device_id;
+    std::cout << std::endl;
     if (1) {
         auto get_rank_table = [&]() {
             std::vector<std::vector<int>> rank_table = {};
