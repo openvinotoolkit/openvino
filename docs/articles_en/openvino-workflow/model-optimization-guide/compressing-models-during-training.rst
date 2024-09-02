@@ -31,7 +31,7 @@ See the following Jupyter Notebooks for step-by-step examples showing how to add
 - `Quantization Aware Training with NNCF and PyTorch <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-aware-training>`__.
 - `Quantization Aware Training with NNCF and TensorFlow <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/tensorflow-quantization-aware-training>`__.
 
-More detailed information about NNCF (e.g. installation guide) are present in the dedicated
+More detailed information about NNCF (e.g. installation guide) is present in the dedicated
 :doc:`NNCF article <../model-optimization>`.
 
 Working with NNCF
