@@ -34,14 +34,12 @@ protected:
      */
     virtual std::tuple<size_t, size_t, size_t> get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const;
     /**
-     * @interface get_blocking_params
-     * @brief Computes optimal blocking params for current dimensions M,N,K
-     * @param M dimension M
-     * @param N dimension N
-     * @param K dimension K
-     * @return tuple in format (m_block, n_block, k_block)
+     * @interface get_brgemm_dimensions
+     * @brief Extract current dimensions M,N,K of `brgemm_expr`
+     * @param brgemm_expr Brgemm expression
+     * @return tuple in format (M, N, K)
      */
-    virtual std::tuple<size_t, size_t, size_t> get_blocking_params(size_t M, size_t N, size_t K) const = 0;
+    static std::tuple<size_t, size_t, size_t> get_brgemm_dimensions(const ov::snippets::lowered::ExpressionPtr& brgemm_expr);
     /**
      * @interface mark_blocking_loops
      * @brief Covers brgemm with blocking loops. Also should calculate optimal blocking parameters inside.

@@ -56,7 +56,13 @@ LinearIR::constExprIt BrgemmCPUBlocking::get_loop_begin_pos(LinearIR& linear_ir,
     return loop_begin_it;
 }
 
-std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(size_t M, size_t N, size_t K) const {
+std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
+    const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
+    OPENVINO_ASSERT(brgemm, "BrgemmCPU is expected!");
+
+    size_t m, n, k;
+    std::tie(m, n, k) = get_brgemm_dimensions(brgemm_expr);
+
     // Ticket: 113745
     // TODO: extend block size selection heuristics
     auto get_block_size_m = [](const size_t M) -> size_t {
@@ -65,28 +71,20 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(size_t
             return get_full_dim_value();
         return default_m_blk;
     };
-    auto get_block_size_n = [](const size_t N) -> size_t {
+    auto get_block_size_n = [&](const size_t N) -> size_t {
         const size_t default_n_blk = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
-        if (!snippets::utils::is_dynamic_value(N) && N <= default_n_blk)
+        if (with_repacking(brgemm->get_type()) || (!snippets::utils::is_dynamic_value(N) && N <= default_n_blk))
             return get_full_dim_value();
         return default_n_blk;
     };
-    auto get_block_size_k = [](const size_t K) -> size_t {
-        if (ov::snippets::utils::is_dynamic_value(K))
-            return 512;
-        return K > 1024 ? 1024 : K > 512 ? 512 : get_full_dim_value();
+    auto get_block_size_k = [&](const size_t K) -> size_t {
+        const size_t high_k_blk = 1024;
+        const size_t low_k_blk = 512;
+        if (with_repacking(brgemm->get_type()) || (!ov::snippets::utils::is_dynamic_value(K) && K <= low_k_blk))
+            return get_full_dim_value();
+        return !ov::snippets::utils::is_dynamic_value(K) && K > high_k_blk ? high_k_blk : low_k_blk;
     };
-    return std::make_tuple(get_block_size_m(M), get_block_size_n(N), get_block_size_k(K));
-}
-
-std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
-    auto blocking_params = ov::snippets::lowered::pass::BrgemmBlockingBase::get_blocking_params(brgemm_expr);
-    const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
-    if (with_repacking(brgemm->get_type())) {
-        std::get<1>(blocking_params) = get_full_dim_value();
-        std::get<2>(blocking_params) = get_full_dim_value();
-    }
-    return blocking_params;
+    return std::make_tuple(get_block_size_m(m), get_block_size_n(n), get_block_size_k(k));
 }
 
 SpecificIterationHandlers BrgemmCPUBlocking::get_k_loop_handlers(size_t work_amount, size_t block_size) const {

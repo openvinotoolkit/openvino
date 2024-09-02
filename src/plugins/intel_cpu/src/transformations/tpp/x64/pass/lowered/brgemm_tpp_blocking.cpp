@@ -32,12 +32,14 @@ std::shared_ptr<snippets::lowered::pass::PassBase> BrgemmTPPBlocking::SetBrgemmB
     return !other || ov::is_type<SetBrgemmBeta>(other) ? std::make_shared<SetBrgemmBeta>() : nullptr;
 }
 
-std::tuple<size_t, size_t, size_t> BrgemmTPPBlocking::get_blocking_params(size_t M, size_t N, size_t K) const {
-    OPENVINO_ASSERT(!is_dynamic_value(M) && !is_dynamic_value(N) && !is_dynamic_value(K), "BrgemmTPP doesn't support dynamic shapes");
+std::tuple<size_t, size_t, size_t> BrgemmTPPBlocking::get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
+    size_t m, n, k;
+    std::tie(m, n, k) = get_brgemm_dimensions(brgemm_expr);
+    OPENVINO_ASSERT(!is_dynamic_value(m) && !is_dynamic_value(n) && !is_dynamic_value(n), "BrgemmTPP doesn't support dynamic shapes");
 
-    const auto block_size_m = std::min<size_t>(32, M);
-    const auto block_size_n = std::min<size_t>(64, N);
-    const auto block_size_k = K > 1024 ? 1024 : K > 512 ? 512 : K;
+    const auto block_size_m = std::min<size_t>(32, m);
+    const auto block_size_n = std::min<size_t>(64, n);
+    const auto block_size_k = k > 1024 ? 1024 : k > 512 ? 512 : k;
     return std::make_tuple(block_size_m, block_size_n, block_size_k);
 }
 

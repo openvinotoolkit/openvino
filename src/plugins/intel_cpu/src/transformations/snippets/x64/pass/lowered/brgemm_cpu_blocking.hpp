@@ -47,7 +47,6 @@ private:
     snippets::lowered::SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_size) const override;
 
     std::tuple<size_t, size_t, size_t> get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const override;
-    std::tuple<size_t, size_t, size_t> get_blocking_params(size_t M, size_t N, size_t K) const override;
     bool mark_blocking_loops(snippets::lowered::LinearIR& linear_ir,
                              const snippets::lowered::LinearIR::constExprIt& brgemm_it,
                              size_t m_block,
