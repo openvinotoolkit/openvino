@@ -1,17 +1,16 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import defusedxml.ElementTree as ET
 import itertools
+import numpy as np
 import os
 import re
 import warnings
-from pathlib import Path
-
-import defusedxml.ElementTree as ET
-import numpy as np
 from common.constants import test_device, test_precision
 from common.layer_utils import InferAPI
 from common.utils.common_utils import generate_ir_python_api
+from pathlib import Path
 
 
 class CommonLayerTest:
@@ -177,9 +176,9 @@ class CommonLayerTest:
                             rtol=framework_eps):
                 is_ok = False
                 if ie_res.dtype != bool:
-                    print("Max diff is {}".format(
-                        np.array(
-                            abs(ie_res - framework_res[framework_out_name])).max()))
+                    fw_res = np.array(framework_res[framework_out_name])
+                    diff = np.array(abs(ie_res - fw_res)).max()
+                    print("Max diff is {}".format(diff))
                 else:
                     print("Boolean results are not equal")
             else:

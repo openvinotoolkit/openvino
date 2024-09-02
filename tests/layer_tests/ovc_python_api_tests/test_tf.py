@@ -1,21 +1,19 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-import os
-import tempfile
-import unittest
-from pathlib import Path
-
 import numpy as np
 import openvino.runtime as ov
+import os
 import pytest
+import tempfile
 import tensorflow as tf
-from openvino.runtime import PartialShape, Model, Dimension
-from openvino.test_utils import compare_functions
-
+import unittest
 from common import constants
 from common.layer_test_class import CommonLayerTest
 from common.mo_convert_test_class import CommonMOConvertTest
 from common.utils.tf_utils import save_to_pb
+from openvino.runtime import PartialShape, Model, Dimension
+from openvino.test_utils import compare_functions
+from pathlib import Path
 
 
 def create_tf_graph_def(tmp_dir):
@@ -53,8 +51,9 @@ def create_keras_model(temp_dir):
 
     x1 = tf.keras.Input(shape=input_shape, name=input_names[0])
     x2 = tf.keras.Input(shape=input_shape, name=input_names[1])
-    y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
-    keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[y])
+    relu = tf.keras.layers.Activation('relu')(x1 + x2)
+    sigmoid = tf.keras.layers.Activation('sigmoid')(relu)
+    keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[sigmoid])
 
     shape = PartialShape([-1, 1, 2, 3])
     param1 = ov.opset8.parameter(shape, dtype=np.float32)
@@ -136,8 +135,8 @@ def create_tf_module(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = Net()
-    return net, model_ref, {'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
-                                               np.random.rand(1, 2, 3).astype(np.float32))}
+    return net, model_ref, {'example_input': (np.random.rand(1, 2, 3).astype(np.float32),
+                                              np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_tf_module_dynamic(tmp_dir):
@@ -162,8 +161,8 @@ def create_tf_module_dynamic(tmp_dir):
 
     net = Net()
     return net, model_ref, {'input': input_shapes,
-                            'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
-                                               np.random.rand(1, 2, 3).astype(np.float32))}
+                            'example_input': (np.random.rand(1, 2, 3).astype(np.float32),
+                                              np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_keras_layer(tmp_dir):
@@ -186,8 +185,8 @@ def create_keras_layer(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = LayerModel()
-    return net, model_ref, {'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
-                                               np.random.rand(1, 2, 3).astype(np.float32))}
+    return net, model_ref, {'example_input': (np.random.rand(1, 2, 3).astype(np.float32),
+                                              np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_keras_layer_dynamic(tmp_dir):
@@ -224,9 +223,9 @@ def create_tf_checkpoint(tmp_dir):
 
     x1 = tf.keras.Input(shape=input_shape, name=input_names[0])
     x2 = tf.keras.Input(shape=input_shape, name=input_names[1])
-    y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
-
-    model = tf.keras.Model(inputs=[x1, x2], outputs=[y])
+    relu = tf.keras.layers.Activation('relu')(x1 + x2)
+    sigmoid = tf.keras.layers.Activation('sigmoid')(relu)
+    model = tf.keras.Model(inputs=[x1, x2], outputs=[sigmoid])
     checkpoint = tf.train.Checkpoint(model)
 
     shape = PartialShape([-1, 1, 2, 3])
@@ -295,8 +294,9 @@ def create_tf_saved_model_dir(temp_dir):
 
     x1 = tf.keras.Input(shape=input_shape, name=input_names[0])
     x2 = tf.keras.Input(shape=input_shape, name=input_names[1])
-    y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
-    keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[y])
+    relu = tf.keras.layers.Activation('relu')(x1 + x2)
+    sigmoid = tf.keras.layers.Activation('sigmoid')(relu)
+    keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[sigmoid])
 
     tf.saved_model.save(keras_net, temp_dir + "/model")
 
@@ -385,7 +385,7 @@ def create_keras_layer_input_list_one_inp():
             res_list = [tf.sigmoid(tf.nn.relu(x)), tf.nn.relu(x)]
             return res_list
 
-    input_shapes = [PartialShape([1,2,3])]
+    input_shapes = [PartialShape([1, 2, 3])]
 
     param1 = ov.opset8.parameter(input_shapes[0], dtype=np.float32)
     relu1 = ov.opset8.relu(param1)
@@ -478,31 +478,31 @@ def two_params_function_reference_fp16_compressed(shapes, const_value):
 
 def create_keras_layer_with_example_input_1(tmp_dir):
     model, model_ref = create_keras_layer_input_list()
-    example_input = (np.random.rand(1,2,3).astype(np.float32), np.random.rand(1,2,3).astype(np.float32))
+    example_input = (np.random.rand(1, 2, 3).astype(np.float32), np.random.rand(1, 2, 3).astype(np.float32))
     return model, model_ref, {'example_input': example_input}
 
 
 def create_keras_layer_with_example_input_2(tmp_dir):
     model, model_ref = create_keras_layer_input_dict()
-    example_input = {'a': np.random.rand(1,2,3).astype(np.float32), 'b': np.random.rand(1,2,3).astype(np.float32)}
+    example_input = {'a': np.random.rand(1, 2, 3).astype(np.float32), 'b': np.random.rand(1, 2, 3).astype(np.float32)}
     return model, model_ref, {'example_input': example_input}
 
 
 def create_keras_layer_with_input_shapes_case1(tmp_dir):
     model, model_ref = create_keras_layer_input_list()
-    return model, model_ref, {'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
-                                                 np.random.rand(1, 2, 3).astype(np.float32))}
+    return model, model_ref, {'example_input': (np.random.rand(1, 2, 3).astype(np.float32),
+                                                np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_keras_layer_with_input_shapes_case2(tmp_dir):
     model, model_ref = create_keras_layer_input_list()
-    return model, model_ref, {'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
-                                                 np.random.rand(1, 2, 3).astype(np.float32))}
+    return model, model_ref, {'example_input': (np.random.rand(1, 2, 3).astype(np.float32),
+                                                np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_keras_layer_with_input_shapes_case3(tmp_dir):
     model, model_ref = create_keras_layer_input_dict_one_inp()
-    return model, model_ref, {'example_input':  {'args': np.random.rand(1, 2, 3).astype(np.float32)}}
+    return model, model_ref, {'example_input': {'args': np.random.rand(1, 2, 3).astype(np.float32)}}
 
 
 def create_keras_layer_with_input_shapes_case4(tmp_dir):
@@ -520,6 +520,7 @@ def create_keras_layer_with_tf_function_call(tmp_dir):
         def __call__(self, input1, input2):
             sigm = tf.nn.sigmoid(input1) + input2
             return sigm * self.var1
+
     model = LayerModel()
     model_ref = two_params_function_reference([[1, 2], [1, 2]], [[5.0]])
     return model, model_ref, {'compress_to_fp16': False}
@@ -535,6 +536,7 @@ def create_keras_layer_with_tf_function_call_default_compressed_to_fp16(tmp_dir)
         def __call__(self, input1, input2):
             sigm = tf.nn.sigmoid(input1) + input2
             return sigm * self.var1
+
     model = LayerModel()
     model_ref = two_params_function_reference_fp16_compressed([[1, 2], [1, 2]], [[5.0]])
     return model, model_ref, {}
@@ -572,6 +574,7 @@ def create_keras_layer_with_tf_function_call_no_signature(tmp_dir):
         def __call__(self, input1, input2):
             sigm = tf.nn.sigmoid(input1) + input2
             return sigm * self.var1
+
     model = LayerModel()
     example_input = [np.random.rand(2, 3).astype(np.float32), np.random.rand(2, 3).astype(np.float32)]
 
@@ -589,6 +592,7 @@ def create_keras_layer_with_tf_function_call_no_signature_single_input(tmp_dir):
         def __call__(self, input1):
             sigm = tf.nn.sigmoid(input1)
             return sigm * self.var1
+
     model = LayerModel()
     example_input = np.random.rand(2, 3).astype(np.float32)
 
@@ -745,7 +749,6 @@ class TestMoConvertTF(CommonMOConvertTest):
                 self.var1 = tf.Variable([7., 5., 6.], name='var1')
                 self.var2 = tf.Variable([5., 7., 3.], name='var2')
 
-
             @tf.function
             def sub_function(self, input):
                 return input * self.var1 + self.var2
@@ -782,7 +785,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         fw_infer2 = keras_model(test_input).numpy()
 
         assert np.array_equal(ov_infer2['Identity:0'], fw_infer2)
-        assert np.array_equal(ov_infer2['Identity:0'], [ 0., 8., 16.])
+        assert np.array_equal(ov_infer2['Identity:0'], [0., 8., 16.])
 
     def test_turn_off_sharing(self, ie_device, precision, ir_version, temp_dir):
         from openvino.tools.ovc import convert_model
@@ -792,7 +795,6 @@ class TestMoConvertTF(CommonMOConvertTest):
                 super(LayerModel, self).__init__()
                 self.var1 = tf.Variable([7., 5., 6.], name='var1')
                 self.var2 = tf.Variable([5., 7., 3.], name='var2')
-
 
             @tf.function
             def sub_function(self, input):
@@ -854,7 +856,6 @@ class TestMoConvertTF(CommonMOConvertTest):
         else:
             eps = 5e-2
 
-
         test_input = np.array([2.1, 7.3, 4.6]).astype(np.float32)
 
         # Convert model to OV
@@ -898,7 +899,6 @@ class TestMoConvertTF(CommonMOConvertTest):
                 self.var1 = tf.Variable(-0.5, name='var1')
                 self.var2 = tf.Variable(1.7, name='var2')
 
-
             @tf.function
             def sub_function(self, input):
                 return input + self.var1 + self.var2
@@ -937,7 +937,6 @@ class TestMoConvertTF(CommonMOConvertTest):
                 super(LayerModel, self).__init__()
                 self.var1 = tf.Variable([1.6, 3.8])
                 self.var2 = tf.Variable(-0.5)
-
 
             @tf.function
             def sub_function(self, input):
@@ -1016,6 +1015,7 @@ class TestTFLoadByModel(unittest.TestCase):
                 tf.compat.v1.global_variables_initializer()
                 tf_net = sess.graph
             return tf_net
+
         from openvino.frontend.tensorflow.graph_iterator import GraphIteratorTFGraph
         from openvino.frontend import FrontEndManager
         model = GraphIteratorTFGraph(simple_tf_model(), True)
@@ -1044,7 +1044,8 @@ class TestTFConvertRaises(unittest.TestCase):
 
 class TestTFConversionParams(CommonMOConvertTest):
     test_data = [
-        {'params_test': {'input': [tf.shape(tf.zeros((2, 3, 4))), tf.zeros((2, 3, 4)).shape, tf.TensorShape((2, 3, 4))]},
+        {'params_test': {
+            'input': [tf.shape(tf.zeros((2, 3, 4))), tf.zeros((2, 3, 4)).shape, tf.TensorShape((2, 3, 4))]},
          'fw_model': create_tf_model_three_inputs([1, 2, 3, 4]),
          'ref_model': create_ref_model_three_inputs([2, 3, 4])},
         {'params_test': {'input': [tf.float32, tf.float32, tf.float32]},
@@ -1087,12 +1088,12 @@ class TestOutputTensorName(unittest.TestCase):
 
         x1 = tf.keras.Input(shape=input_shape, name=input_names[0])
         x2 = tf.keras.Input(shape=input_shape, name=input_names[1])
-        y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
-        keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[{"output": y}])
+        relu = tf.keras.layers.Activation('relu')(x1 + x2)
+        sigmoid = tf.keras.layers.Activation('sigmoid')(relu)
+        keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[{"output": sigmoid}])
         keras_net.output_names[0] = "output"
 
         return keras_net
-
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -1144,7 +1145,6 @@ class TestOutputTensorName(unittest.TestCase):
 
         assert len(out_tensors) == 1
         assert list(out_tensors)[0] == "Sigmoid:0"
-
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -1238,7 +1238,6 @@ class TestInputTensorName(unittest.TestCase):
             assert len(tensors) == 1
             out_tensor = list(tensors)[0]
             assert out_tensor == ref_inputs[idx]
-
 
     @pytest.mark.nightly
     @pytest.mark.precommit

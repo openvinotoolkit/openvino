@@ -92,8 +92,9 @@ class TestOVCTool(unittest.TestCase):
 
         x1 = tf.keras.Input(shape=input_shape, name=input_names[0])
         x2 = tf.keras.Input(shape=input_shape, name=input_names[1])
-        y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
-        keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[y])
+        relu = tf.keras.layers.Activation('relu')(x1 + x2)
+        sigmoid = tf.keras.layers.Activation('sigmoid')(relu)
+        keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[sigmoid])
 
         tf.saved_model.save(keras_net, temp_dir + "/test_model")
 

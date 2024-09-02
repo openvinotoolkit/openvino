@@ -1,14 +1,12 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import tempfile
-from pathlib import Path
-
 import numpy as np
 import pytest
+import tempfile
 import tensorflow as tf
-
 from common import constants
+from pathlib import Path
 
 
 def create_net_list(input_names, input_shapes):
@@ -83,7 +81,7 @@ class TestTFInputOutputOrder():
         fw_model = create_model_method(input_names, input_shapes)
 
         if save_to_file:
-            tf.keras.models.save_model(fw_model, self.tmp_dir + "./model")
+            fw_model.export(self.tmp_dir + "./model")
             ov_model = convert_model(self.tmp_dir + "./model")
         else:
             ov_model = convert_model(fw_model)

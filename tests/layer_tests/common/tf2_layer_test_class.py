@@ -10,7 +10,8 @@ from common.utils.tflite_utils import get_tflite_results, save_tf2_saved_model_t
 def save_to_tf2_savedmodel(tf2_model, path_to_saved_tf2_model):
     import tensorflow as tf
     assert int(tf.__version__.split('.')[0]) >= 2, "TensorFlow 2 must be used for this suite validation"
-    tf.keras.models.save_model(tf2_model, path_to_saved_tf2_model, save_format='tf')
+    # Since TF 2.16 this is only way to serialize Keras objects into SavedModel format
+    tf2_model.export(path_to_saved_tf2_model)
     assert os.path.isdir(path_to_saved_tf2_model), "the model haven't been saved " \
                                                    "here: {}".format(path_to_saved_tf2_model)
     return path_to_saved_tf2_model
