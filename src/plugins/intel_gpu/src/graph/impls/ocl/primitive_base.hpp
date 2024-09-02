@@ -134,17 +134,6 @@ protected:
         return args;
     }
 
-    event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
-        if (events.size() == 1 && !is_output)
-            return events[0];
-
-        if (group && !is_output)
-            return stream.group_events(events);
-
-        return events.empty() ? stream.create_user_event(true)
-                              : stream.enqueue_marker(events, is_output);
-    }
-
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
         if (is_cpu()) {
             return;
@@ -245,7 +234,7 @@ protected:
                             typed_primitive_inst<PType>& instance) override {
         stream& stream = instance.get_network().get_stream();
         if (instance.can_be_optimized()) {
-            return aggregate_events(events, stream, false, instance.is_output());
+            return stream.aggregate_events(events, false, instance.is_output());
         }
         std::vector<event::ptr> tmp_events(events);
         std::vector<event::ptr> all_events;
@@ -282,10 +271,10 @@ protected:
         }
 
         if ((all_events.size() == 0) && (tmp_events.size() > 0))
-            return aggregate_events(tmp_events, stream);
+            return stream.aggregate_events(tmp_events);
 
         bool group_events = (all_events.size() > 1);
-        return aggregate_events(all_events, stream, group_events);
+        return stream.aggregate_events(all_events, group_events);
     }
 
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
