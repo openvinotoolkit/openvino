@@ -36,6 +36,7 @@
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.hpp"
+#include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
@@ -129,6 +130,7 @@
 #include "transformations/cpu_opset/arm/pass/mish_decomposition.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp"
 #include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
+#include "transformations/cpu_opset/common/pass/decompose_rms_norm.hpp"
 #include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
@@ -158,6 +160,7 @@
 #include "nodes/scaled_attn.h"
 #include "nodes/llm_mlp.h"
 #include "nodes/qkv_proj.h"
+#include "nodes/rms_norm.h"
 #include "dnnl.hpp"
 #if defined(OPENVINO_ARCH_ARM64)
 #include "cpu/aarch64/cpu_isa_traits.hpp"
@@ -323,7 +326,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                                                      ov::element::i4,
                                                      ov::element::nf4,
                                                      ov::element::f4e2m1};
-    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, false, false);
+    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, false, true);
     CPU_SET_CALLBACK_X64(decompression_handling_manager, [&](const_node_ptr &node) -> bool {
         return !is_decompression_multiply(node);
     }, ov::pass::MarkDequantizationSubgraph);
@@ -825,35 +828,37 @@ void Transformations::PostLpt() {
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
     auto can_use_amx_bf16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) && (inferencePrecision == element::bf16);
     if (can_use_amx_bf16) {
-        auto has_paged_attention = op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model);
-        if (has_paged_attention) {
-            CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
-            CPU_SET_CALLBACK_X64(postLPTPassManager,
-                [](const_node_ptr &node) -> bool {
-                    std::string errorMsg;
-                    return node::LLMMLP::isSupportedOperation(node, errorMsg);
-                },
-                MLPFusion);
-        }
+        CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
+        CPU_SET_CALLBACK_X64(postLPTPassManager,
+            [](const_node_ptr &node) -> bool {
+                std::string errorMsg;
+                return node::LLMMLP::isSupportedOperation(node, errorMsg);
+            },
+            MLPFusion);
 
-        // Limitations: at least 3 workers are required for QKV fusion
         size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
         if (concurrency == 0)
             concurrency = parallel_get_max_threads();
-        if (concurrency >= 3) {
-            if (has_paged_attention) {
-                CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
-                CPU_SET_CALLBACK_X64(postLPTPassManager,
-                    [](const_node_ptr &node) -> bool {
-                        std::string errorMsg;
-                        return node::QKVProjection::isSupportedOperation(node, errorMsg);
-                    },
-                    QKVProjFusion);
-            }
-        }
+        CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
+        CPU_SET_CALLBACK_X64(postLPTPassManager,
+            [concurrency](const_node_ptr &node) -> bool {
+                std::string errorMsg;
+                return node::QKVProjection::isSupportedOperation(node, errorMsg, concurrency);
+            },
+            QKVProjFusion);
     }
+
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion, false);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
+    CPU_SET_CALLBACK_X64(postLPTPassManager,
+        [](const std::shared_ptr<const ov::Node>& node) -> bool {
+            std::string errorMsg;
+            return node::RMSNorm::isSupportedOperation(node, errorMsg);
+        },
+        ov::intel_cpu::DecomposeRMSNorm);
+
     // markup Rope Input when BF16/F16 inference.
     if (one_of(inferencePrecision, ov::element::bf16, ov::element::f16))
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkRopeInputsToKeepInMixedPrecision);

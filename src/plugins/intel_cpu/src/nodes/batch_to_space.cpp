@@ -180,33 +180,37 @@ void BatchToSpace::batchToSpaceKernel() {
                 oAdd.push_back(oAdd[1]);
                 oAdd.erase(oAdd.begin() + 1);
             }
-            begin[1] = (blockShape[1] - 1 - oAdd[1]) / blockShape[1] / blockSize;
-            finish[1] = (outShape5D[1] - 1 - oAdd[1]) / blockShape[1] / blockSize;
+
+            const auto numBlockElements = blockShape[1] * blockSize;
+            begin[1] = (blockShape[1] - 1 - oAdd[1]) / numBlockElements;
+            finish[1] = (outShape5D[1] + numBlockElements - 1 - oAdd[1]) / numBlockElements;
             begin[2] = (blockShape[2] - 1 - oAdd[2]) / blockShape[2];
-            finish[2] = (outShape5D[2] - 1 - oAdd[2]) / blockShape[2];
+            finish[2] = (outShape5D[2] + blockShape[2] - 1 - oAdd[2]) / blockShape[2];
             begin[3] = (blockShape[3] - 1 - oAdd[3]) / blockShape[3];
-            finish[3] = (outShape5D[3] - 1 - oAdd[3]) / blockShape[3];
+            finish[3] = (outShape5D[3] + blockShape[3] - 1 - oAdd[3]) / blockShape[3];
             begin[4] = (blockShape[4] - 1 - oAdd[4]) / blockShape[4];
-            finish[4] = (outShape5D[4] - 1 - oAdd[4]) / blockShape[4];
+            finish[4] = (outShape5D[4] + blockShape[4] - 1 - oAdd[4]) / blockShape[4];
             const int64_t addTmpOC = blocked ? 0lu : oAdd[1];
             const int64_t addTmpOc = blocked ? oAdd[1] : 0lu;
-            indxStart[1] = begin[1] > indxStart[1] ? begin[1] : indxStart[1];
-            const size_t lastI1 = i0 == indxEnd[0] ? (indxEnd[1] > finish[1] ? finish[1] : indxEnd[1]) : finish[1];
-            for (; indxStart[1] < lastI1 + 1; ++indxStart[1]) {
-                const size_t block = indxStart[1] == finish[1] ? lastBlock : blockSize;
-                const int64_t tmpOC = indxStart[1] * blockShape[1] + addTmpOC;
-                const size_t srcIdx1 = srcIdx0 + indxStart[1] * inSpatialStep * blockSize;
+
+            const size_t firstI1 = i0 == 0 ?          std::max(begin[1], indxStart[1])    : begin[1];
+            const size_t lastI1  = i0 == indxEnd[0] ? std::min(indxEnd[1] + 1, finish[1]) : finish[1];
+
+            for (size_t i1 = firstI1; i1 < lastI1; ++i1) {
+                const size_t block = i1 == finish[1] ? lastBlock : blockSize;
+                const int64_t tmpOC = i1 * blockShape[1] + addTmpOC;
+                const size_t srcIdx1 = srcIdx0 + i1 * inSpatialStep * blockSize;
                 const size_t dstIdx1 = dstIdx0 + tmpOC * outSpatialStep * blockSize;
                 const size_t itEnd = blocked ? ((block - 1) * blockShape[1] + oAdd[1]) / blockSize : 0lu;
-                for (size_t i2 = begin[2]; i2 < finish[2] + 1; ++i2) {
+                for (size_t i2 = begin[2]; i2 < finish[2]; ++i2) {
                     const int64_t tmpOd = i2 * blockShape[2] + oAdd[2];
                     const size_t srcIdx2 = srcIdx1 + i2 * inShape5D[3] * inShape5D[4] * blockSize;
                     const size_t dstIdx2 = dstIdx1 + tmpOd * outShape5D[3] * outShape5D[4] * blockSize;
-                    for (size_t i3 = begin[3]; i3 < finish[3] + 1; ++i3) {
+                    for (size_t i3 = begin[3]; i3 < finish[3]; ++i3) {
                         const int64_t tmpOh = i3 * blockShape[3] + oAdd[3];
                         const size_t srcIdx3 = srcIdx2 + i3 * inShape5D[4] * blockSize;
                         const size_t dstIdx3 = dstIdx2 + tmpOh * outShape5D[4] * blockSize;
-                        for (size_t i4 = begin[4]; i4 < finish[4] + 1; ++i4) {
+                        for (size_t i4 = begin[4]; i4 < finish[4]; ++i4) {
                             const int64_t tmpOw = i4 * blockShape[4] + oAdd[4];
                             const size_t srcIdx4 = srcIdx3 + i4 * blockSize;
                             const size_t dstIdx4 = dstIdx3 + tmpOw * blockSize;
@@ -225,7 +229,6 @@ void BatchToSpace::batchToSpaceKernel() {
                     }
                 }
             }
-            indxStart[1] = 0lu;
         }
     });
 }

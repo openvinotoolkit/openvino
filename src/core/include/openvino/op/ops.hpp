@@ -178,6 +178,7 @@
 #include "openvino/op/sin.hpp"
 #include "openvino/op/sinh.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/slice_scatter.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/softplus.hpp"
 #include "openvino/op/softsign.hpp"

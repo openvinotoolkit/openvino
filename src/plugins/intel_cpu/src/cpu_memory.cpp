@@ -687,7 +687,7 @@ MemoryPtr split_horizontal(const dnnl::engine& eng, const MemoryPtr src, int dim
         MemoryPtr ptr = std::make_shared<Memory>(eng, new_desc);
         return ptr;
     }
-    assert(dims[dim] >= w_size);
+    assert(static_cast<int>(dims[dim]) >= w_size);
     auto splited_dim_vec = split_parts(dims[dim], w_size);
 
     // reference stride
@@ -741,7 +741,7 @@ MemoryPtr split_vertical(const dnnl::engine& eng, const MemoryPtr src, int dim, 
         MemoryPtr ptr = std::make_shared<Memory>(eng, new_desc);
         return ptr;
     }
-    assert(dims[dim] >= w_size);
+    assert(static_cast<int>(dims[dim]) >= w_size);
     const auto splited_size = dims[dim] * prec.size();
     auto splited_dim_vec = split_parts(dims[dim], w_size);
     auto element_size = prec.size();
