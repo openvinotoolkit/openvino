@@ -53,6 +53,9 @@ bool ShapePredictor::can_preallocate(size_t desired_buffer_size) {
     const auto memory_threshold = 0.90f;
     auto device_mem_usage = _engine->get_used_device_memory(cldnn::allocation_type::usm_device);
 
+    if (desired_buffer_size > _engine->get_device_info().max_alloc_mem_size)
+        return false;
+
     return device_mem_usage + desired_buffer_size < _engine->get_device_info().max_global_mem_size * memory_threshold;
 }
 
