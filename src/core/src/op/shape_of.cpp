@@ -25,16 +25,16 @@ inline bool evaluate(const Shape& shape, Tensor& output_value) {
 }
 
 bool evaluate_shape_of(Tensor& output_value, const Shape& input_shape) {
-    bool rc;
+    bool rc = false;  // Initialize rc to false at the beginning of the function
     output_value.set_shape(Shape{input_shape.size()});
     switch (output_value.get_element_type()) {
         OPENVINO_TYPE_CASE(evaluate_shape_of, i32, input_shape, output_value);
         OPENVINO_TYPE_CASE(evaluate_shape_of, i64, input_shape, output_value);
         OPENVINO_TYPE_CASE(evaluate_shape_of, u32, input_shape, output_value);
         OPENVINO_TYPE_CASE(evaluate_shape_of, u64, input_shape, output_value);
-    default:
-        rc = false;
-        break;
+        default:
+            // rc is already initialized, no need to re-initialize here
+            break;
     }
     return rc;
 }
