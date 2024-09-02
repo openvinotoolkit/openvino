@@ -62,7 +62,9 @@ AtenStackListConstructReplacer::AtenStackListConstructReplacer() {
             }
 
             copy_runtime_info_and_name(stack, {node}, {input_node});
+            std::cout << "debug20 " << std::endl;
             replace_node(stack, node);
+            std::cout << "debug21 " << std::endl;
             return true;
         }
         add_exception_to_fw_node(stack, "Unsupported case of aten::stack.");

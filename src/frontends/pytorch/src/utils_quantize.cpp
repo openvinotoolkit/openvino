@@ -4,6 +4,7 @@
 
 #include "utils_quantize.hpp"
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -247,9 +248,10 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
     if (axis != -1 && static_cast<uint64_t>(axis) != weights_u8->get_shape().size() - 1)
         return nullptr;
 
-    if (!ov::op::util::has_constant_value<uint64_t>(bitwise_and->get_input_node_shared_ptr(1), 0x0F))
+    if (!ov::op::util::has_constant_value<uint64_t>(ov::util::get_constant_from_source(bitwise_and->input_value(1)), 0x0F))
         return nullptr;
 
+    std::cout << ov::util::get_constant_from_source(bitwise_shift->input_value(1)) << std::endl;
     if (!ov::op::util::has_constant_value<uint64_t>(bitwise_shift->get_input_node_shared_ptr(1), 4))
         return nullptr;
 
