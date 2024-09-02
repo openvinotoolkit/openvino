@@ -1,7 +1,7 @@
 Key Features
 ==============
 
-Easy integration
+Easy Integration
 #########################
 
 | :doc:`Support for multiple frameworks <../openvino-workflow/model-preparation/convert-model-to-ir>`
