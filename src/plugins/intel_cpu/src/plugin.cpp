@@ -610,7 +610,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& networkMo
         [this](const std::string& model, const ov::Tensor& weights) {
             return get_core()->read_model(model, weights, true);
         },
-        decrypt);
+        std::move(decrypt));
 
     std::shared_ptr<ov::Model> model;
     deserializer >> model;

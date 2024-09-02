@@ -26,7 +26,7 @@ static void setInfo(pugi::xml_node& root, std::shared_ptr<ov::Model>& model) {
 }
 
 ModelSerializer::ModelSerializer(std::ostream& ostream, cache_encrypt encrypt_fn)
-    : _ostream(ostream), _cache_encrypt(encrypt_fn) {}
+    : _ostream(ostream), _cache_encrypt(std::move(encrypt_fn)) {}
 
 void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
     auto serializeInfo = [&](std::ostream& stream) {
@@ -48,8 +48,8 @@ void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
 
 ModelDeserializer::ModelDeserializer(std::istream & istream, model_builder fn, cache_decrypt decrypt_fn)
     : _istream(istream)
-    , _model_builder(fn)
-    , _cache_decrypt(decrypt_fn) {
+    , _model_builder(std::move(fn))
+    , _cache_decrypt(std::move(decrypt_fn)) {
 }
 
 void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
