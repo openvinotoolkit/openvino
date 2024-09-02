@@ -9,7 +9,6 @@
 
 #include "openvino/openvino.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/op/matmul.hpp"
 
 namespace ov {
 namespace npuw {
