@@ -336,18 +336,30 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             }
 
             // Jais-13b case
-            if (auto alibi_constant =
-                    std::dynamic_pointer_cast<v0::Constant>(pattern_map.at(alibi).get_node_shared_ptr())) {
-                auto alibi_constant_values = alibi_constant->cast_vector<float>();
-                bool all_values_nagative =
-                    std::all_of(alibi_constant_values.begin(), alibi_constant_values.end(), [&](float value) {
-                        return value < 0.0;
-                    });
+            if (pattern_map.find(mirroring_abs) != pattern_map.end()) {
+                // For now there's no such case with Alibi slopes being not a Constant,
+                // however that may change in the future. That is why the presence of
+                // Abs is the main sign of the Jais-like topology, thus we need to multiply
+                // by -1. If we encounter the Alibi being a constant, we may do the additional
+                // checking of the values to be negative and, if it fails, we won't multiply
+                // the values by -1.
+                if (auto alibi_constant =
+                        std::dynamic_pointer_cast<v0::Constant>(pattern_map.at(alibi).get_node_shared_ptr())) {
+                    auto alibi_constant_values = alibi_constant->cast_vector<float>();
+                    bool all_values_nagative =
+                        std::all_of(alibi_constant_values.begin(), alibi_constant_values.end(), [&](float value) {
+                            return value < 0.0;
+                        });
 
-                if (all_values_nagative && pattern_map.find(mirroring_abs) != pattern_map.end()) {
-                    alibi_slopes = std::make_shared<v1::Multiply>(
-                        alibi_slopes,
-                        v0::Constant::create(alibi_slopes->get_element_type(), {}, {-1}));
+                    if (all_values_nagative) {
+                        alibi_slopes = std::make_shared<v1::Multiply>(
+                            alibi_slopes,
+                            v0::Constant::create(alibi_slopes->get_element_type(), {}, {-1}));
+                    }
+                } else {
+                        alibi_slopes = std::make_shared<v1::Multiply>(
+                            alibi_slopes,
+                            v0::Constant::create(alibi_slopes->get_element_type(), {}, {-1}));
                 }
             }
 
