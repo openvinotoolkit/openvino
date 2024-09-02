@@ -67,15 +67,6 @@ using CpuSet = std::unique_ptr<cpu_set_t, ReleaseProcessMaskDeleter>;
 std::tuple<CpuSet, int> get_process_mask();
 
 /**
- * @brief Get the cores affinity mask supported machines with more than 1024 cores
- * @ingroup ov_dev_api_threading
- * @return A core affinity mask
- */
-#if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
-cpu_set_t* get_affinity();
-#endif
-
-/**
  * @brief      Pins current thread to a set of cores determined by the mask
  * @ingroup    ov_dev_api_threading
  *
