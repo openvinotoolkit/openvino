@@ -31,7 +31,7 @@ KERNEL(lstm_seq)(
     #else
         const uint real_seq_length = 1;
     #endif
-
+    ACCUMULATOR_TYPE temp_cell_state[NUM_HIDDEN_TO_DO];
     unroll_for(uint i=0;i<real_seq_length;++i){
         #ifdef SEQUENCE
             #if DIRECTION == 1 //reverse
@@ -88,16 +88,15 @@ KERNEL(lstm_seq)(
                         break;
                 }
             }
-            ACCUMULATOR_TYPE temp_cell_state;
             if (i==0){
                 #ifdef SEQUENCE
-                    temp_cell_state = gate_output[0]*initial_cell_state[INPUT2_GET_INDEX(b, 0, hidden_idx, 0)] + gate_output[1]*gate_output[2];
+                    temp_cell_state[l] = gate_output[0]*initial_cell_state[INPUT2_GET_INDEX(b, 0, hidden_idx, 0)] + gate_output[1]*gate_output[2];
                 #else
-                    temp_cell_state = gate_output[0]*initial_cell_state[INPUT2_GET_INDEX(b, hidden_idx, 0, 0)] + gate_output[1]*gate_output[2];
+                    temp_cell_state[l] = gate_output[0]*initial_cell_state[INPUT2_GET_INDEX(b, hidden_idx, 0, 0)] + gate_output[1]*gate_output[2];
                 #endif
             }else{
-                temp_cell_state *= gate_output[0];
-                temp_cell_state += gate_output[1]*gate_output[2];
+                temp_cell_state[l] *= gate_output[0];
+                temp_cell_state[l] += gate_output[1]*gate_output[2];
             }
             
             #if DIRECTION == 1  //reverse
@@ -106,18 +105,18 @@ KERNEL(lstm_seq)(
                 const uint cur_history_idx = i;
             #endif
             #ifdef SEQUENCE
-                hidden_state[OUTPUT1_GET_INDEX(b, 0, hidden_idx, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state, ACTIVATION_PARAMS_H);
+                hidden_state[OUTPUT1_GET_INDEX(b, 0, hidden_idx, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state[l], ACTIVATION_PARAMS_H);
             #else
-                hidden_state[OUTPUT_GET_INDEX(b, hidden_idx, 0, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state, ACTIVATION_PARAMS_H);
+                hidden_state[OUTPUT_GET_INDEX(b, hidden_idx, 0, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state[l], ACTIVATION_PARAMS_H);
             #endif
             #ifdef SEQUENCE
                 hidden_history[OUTPUT_GET_INDEX(b, 0, cur_history_idx, hidden_idx)] = hidden_state[OUTPUT1_GET_INDEX(b, 0, hidden_idx, 0)];
             #endif
             if(i==real_seq_length-1){
                 #ifdef SEQUENCE
-                    cell_state[OUTPUT2_GET_INDEX(b, 0, hidden_idx, 0)] = temp_cell_state;
+                    cell_state[OUTPUT2_GET_INDEX(b, 0, hidden_idx, 0)] = temp_cell_state[l];
                 #else
-                    cell_state[OUTPUT1_GET_INDEX(b, hidden_idx, 0, 0)] = temp_cell_state;
+                    cell_state[OUTPUT1_GET_INDEX(b, hidden_idx, 0, 0)] = temp_cell_state[l];
                 #endif
             }
         }
