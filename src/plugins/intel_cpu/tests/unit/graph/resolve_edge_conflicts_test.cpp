@@ -43,7 +43,6 @@ TEST(ResolveEdgeConflictsCPUTest, smoke_Run_ResolveEdgeConflicts) {
     */
     Config conf;
     conf.rtCacheCapacity = 100;
-    conf.flushIntermediateTensors = false; // allocate memory at initialization
     auto context = std::make_shared<GraphContext>(conf, nullptr, false);
     const dnnl::engine cpuEngine = context->getEngine();
 
@@ -105,7 +104,6 @@ TEST(ResolveEdgeConflictsCPUTest2, smoke_Run_ResolveEdgeConflicts2) {
     */
     Config conf;
     conf.rtCacheCapacity = 100;
-    conf.flushIntermediateTensors = false; // allocate memory at initialization
     auto context = std::make_shared<GraphContext>(conf, nullptr, false);
 
     std::unique_ptr<Graph> graph = std::unique_ptr<Graph>(new Graph());

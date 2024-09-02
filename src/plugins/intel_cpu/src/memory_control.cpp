@@ -118,7 +118,7 @@ private:
     MemoryControl::MemoryBlockMap m_blocks;
 };
 
-class MemoryManagerStaticSolver : public IMemoryManager {
+class MemoryManagerStatic : public IMemoryManager {
 public:
     void insert(const MemoryRegion& reg) override {
         m_boxes.emplace_back(MemorySolver::Box{reg.start, reg.finish, reg.size, reg.id});
@@ -148,7 +148,7 @@ private:
             auto memoryBlock = std::make_shared<StaticPartitionMemoryBlock>(m_workspace, offset * alignment);
             m_blocks[box.id] = std::move(memoryBlock);
         }
-        // m_boxes.clear();
+        m_boxes.clear();
     }
 
     void allocate() override {
@@ -225,7 +225,7 @@ private:
                 m_internalBlocks[box.id] = grpMemBlock;
             }
         }
-        // m_boxes.clear();
+        m_boxes.clear();
     }
 
     void allocate() override {
@@ -296,7 +296,7 @@ MemoryControl::MemoryControl(std::vector<size_t> syncInds) {
     // init handlers
 
     // handler for dynamic tensors
-    m_handlers.emplace_back(buildHandler<MemoryManagerStaticSolver>([](const MemoryRegion& reg) {
+    m_handlers.emplace_back(buildHandler<MemoryManagerStatic>([](const MemoryRegion& reg) {
         if (reg.size < 0 || MemoryRegion::RegionType::VARIABLE != reg.type ||
             MemoryRegion::AllocType::POD != reg.alloc_type) {
             return false;
@@ -408,18 +408,18 @@ edgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEd
 }
 
 MemoryControl& NetworkMemoryControl::createMemoryControlUnit(std::vector<size_t> syncInds) {
-    m_storage.emplace_back(std::unique_ptr<MemoryControl>(new MemoryControl(syncInds)));
-    return *(m_storage.back());
+    m_controlUnits.emplace_back(std::unique_ptr<MemoryControl>(new MemoryControl(syncInds)));
+    return *(m_controlUnits.back());
 }
 
 void NetworkMemoryControl::allocateMemory() {
-    for (auto&& item : m_storage) {
+    for (auto&& item : m_controlUnits) {
         item->allocateMemory();
     }
 }
 
 void NetworkMemoryControl::releaseMemory() {
-    for (auto&& item : m_storage) {
+    for (auto&& item : m_controlUnits) {
         item->releaseMemory();
     }
 }
