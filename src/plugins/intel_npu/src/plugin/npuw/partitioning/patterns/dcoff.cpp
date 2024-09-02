@@ -23,91 +23,295 @@ namespace npuw {
 
 namespace pattern_utils {
 
-std::shared_ptr<ov::op::v0::MatMul> find_matmul_downwards(const std::shared_ptr<ov::Node>& start_node) {
-    std::shared_ptr<ov::Node> current_node = start_node;
-    while (current_node) {
-        // Check if the current node is a MatMul
-        if (auto matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(current_node)) {
-            return matmul;
-        }
-        // Move to the next node in the path if there is one
-        if (!current_node->outputs().empty()) {
-            auto output = current_node->outputs().at(0);
-            if (!output.get_target_inputs().empty()) {
-                current_node = output.get_target_inputs().begin()->get_node()->shared_from_this();
-            } else {
-                // No further outputs, end the search
-                break;
-            }
-        } else {
-            // No outputs, end the search
-            break;
-        }
-    }
-    return nullptr; // MatMul not found
-}
-
-
-std::shared_ptr<ov::op::v0::MatMul> get_root_matmul(ov::pass::pattern::Matcher& m) {
-    auto& node_to_output = m.get_pattern_value_map();
-
-    // If the map is not empty, start the search from the first matched node
-    if (!node_to_output.empty()) {
-        auto start_node = node_to_output.begin()->second.get_node_shared_ptr();
-        return find_matmul_downwards(start_node);
-    }
-
-    // If the map is empty or no MatMul node is found, return nullptr
-    LOG_DEBUG("NO MATMUL FOUND!");
-    return nullptr;
+std::shared_ptr<ov::op::v0::MatMul> get_root_matmul(const ov::Output<Node>& last_node_output) {
+    auto consumer = last_node_output.get_target_inputs().begin()->get_node()->shared_from_this();
+    // Attempt to cast the consumer node to a MatMul node
+    auto matmul_node = std::dynamic_pointer_cast<ov::op::v0::MatMul>(consumer);
+    NPUW_ASSERT(matmul_node);
+    return matmul_node;
 }
 
 bool transpose_required(const std::shared_ptr<ov::op::v0::MatMul>& matmul_node) {
-    if (!matmul_node) {
-        LOG_DEBUG("NOT a MATMUL NODE!");
-    }
-
-    // Get the shape of the second input to the MatMul node
     const auto& input_shape = matmul_node->input_value(1).get_shape();
+    const auto& output_shape = matmul_node->output(0).get_shape();
 
-    // Check if the highest dimension is not at the first index
-    if (input_shape.size() >= 2) {
-        size_t max_dim = *std::max_element(input_shape.begin(), input_shape.end());
-        if (input_shape[0] != max_dim) {
-            return true; // Transpose is required
-        }
+    if (output_shape.back() != input_shape.back()) {
+        return true; // Transpose is required
     }
 
-    return false; // Transpose is not required
+    return false;
 }
 
 void transpose_param_shape(std::shared_ptr<ov::op::v0::Parameter>& param) {
     auto partial_shape = param->get_partial_shape();
+    NPUW_ASSERT(partial_shape.is_static());
+    auto shape = partial_shape.to_shape();
 
-    // Ensure the shape is static before proceeding
-    if (partial_shape.is_static()) {
-        auto shape = partial_shape.to_shape();
+    // Check if the shape is 2D or 3D
+    if (shape.size() == 2) {
+        // For 2D shapes, swap the dimensions
+        std::swap(shape[0], shape[1]);
+    } else if (shape.size() == 3) {
+        // For 3D shapes, bring the last dimension to the front
+        std::rotate(shape.rbegin(), shape.rbegin() + 1, shape.rend());
+    }
 
-        // Check if the shape is 2D or 3D and needs transposing
-        if (shape.size() == 2 && shape[0] < shape[1]) {
-            // For 2D shapes, swap the dimensions if the second dimension is larger
-            std::swap(shape[0], shape[1]);
-        } else if (shape.size() == 3) {
-            // For 3D shapes, bring the largest dimension to the front
-            auto max_dim_it = std::max_element(shape.begin(), shape.end());
-            if (max_dim_it != shape.begin()) {
-                std::rotate(shape.begin(), max_dim_it, shape.end());
+    // Set the new shape to the parameter
+    param->set_partial_shape(ov::PartialShape(shape));
+    LOG_DEBUG("Modifying the shape of: " << param << " to " << param->get_partial_shape());
+}
+
+std::vector<uint8_t> unpack_u4_to_u8(const uint8_t* packed_data, size_t total_u4_elements) {
+    std::vector<uint8_t> unpacked_data(total_u4_elements);
+    for (size_t i = 0; i < total_u4_elements; ++i) {
+        if (i % 2 == 0) {
+            // Even index: take the lower 4 bits directly
+            unpacked_data[i] = packed_data[i / 2] & 0x0F;
+        } else {
+            // Odd index: take the higher 4 bits and shift them to the lower 4 bits
+            unpacked_data[i] = (packed_data[i / 2] >> 4) & 0x0F;
+        }
+    }
+    return unpacked_data;
+}
+
+std::vector<uint8_t> pack_u8_to_u4(const uint8_t* unpacked_data, size_t total_u4_elements) {
+    std::vector<uint8_t> packed_data((total_u4_elements + 1) / 2);
+    for (size_t i = 0; i < total_u4_elements; i += 2) {
+        // Combine two u4 elements into one uint8_t, with one in the lower 4 bits and the other in the higher 4 bits
+        packed_data[i / 2] = (unpacked_data[i] & 0x0F) | ((unpacked_data[i + 1] & 0x0F) << 4);
+    }
+    // Handle the case where the total number of u4 elements is odd
+    if (total_u4_elements % 2 != 0) {
+        packed_data[total_u4_elements / 2] = unpacked_data[total_u4_elements - 1] & 0x0F;
+    }
+    return packed_data;
+}
+
+ov::Tensor transpose_u4(const ov::Tensor& tensor) {
+    const auto& shape = tensor.get_shape();
+    size_t total_u4_elements = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
+
+    const uint8_t* packed_data = tensor.data<uint8_t>();
+    std::vector<uint8_t> unpacked_data = unpack_u4_to_u8(packed_data, total_u4_elements);
+
+    if (shape.size() == 2) {
+        // For a 2D tensor with shape KxM, transpose to MxK
+        size_t K = shape[0];
+        size_t M = shape[1];
+
+        std::vector<uint8_t> transposed_unpacked_data(K * M);
+
+        for (size_t k = 0; k < K; ++k) {
+            for (size_t m = 0; m < M; ++m) {
+                transposed_unpacked_data[m * K + k] = unpacked_data[k * M + m];
             }
         }
 
-        // Set the new shape to the parameter
-        param->set_partial_shape(ov::PartialShape(shape));
-        LOG_DEBUG("Modifying the shape of: " << param << " to " << param->get_partial_shape());
+        std::vector<uint8_t> transposed_packed_data = pack_u8_to_u4(transposed_unpacked_data.data(), total_u4_elements);
+        ov::Tensor transposed_tensor(ov::element::u4, {M, K});
+        std::memcpy(transposed_tensor.data(), transposed_packed_data.data(), transposed_packed_data.size());
+        return transposed_tensor;
     }
+
+    if (shape.size() == 3) {
+        // For a 3D tensor with shape KxMxN, transpose to NxKxM
+        size_t K = shape[0];
+        size_t M = shape[1];
+        size_t N = shape[2];
+
+        std::vector<uint8_t> transposed_unpacked_data(K * M * N);
+
+        for (size_t n = 0; n < N; ++n) {
+            for (size_t k = 0; k < K; ++k) {
+                for (size_t m = 0; m < M; ++m) {
+                    transposed_unpacked_data[n * (K * M) + k * M + m] = unpacked_data[k * (M * N) + m * N + n];
+                }
+            }
+        }
+        std::vector<uint8_t> transposed_packed_data = pack_u8_to_u4(transposed_unpacked_data.data(), total_u4_elements);
+        ov::Tensor transposed_tensor(ov::element::u4, {N, K, M});
+        std::memcpy(transposed_tensor.data(), transposed_packed_data.data(), transposed_packed_data.size());
+        return transposed_tensor;
+    }
+
+    // Invalid case
+    NPUW_ASSERT(false);
 }
 
-ov::Tensor transpose_tensor(const ov::Tensor&) {
+std::vector<int8_t> unpack_i4_to_i8(const int8_t* packed_data, size_t total_i4_elements) {
+    std::vector<int8_t> unpacked_data(total_i4_elements);
+    for (size_t i = 0; i < total_i4_elements; ++i) {
+        if (i % 2 == 0) {
+            // Even index: take the lower 4 bits directly
+            unpacked_data[i] = packed_data[i / 2] & 0x0F;
+        } else {
+            // Odd index: take the higher 4 bits and shift them to the lower 4 bits
+            unpacked_data[i] = (packed_data[i / 2] >> 4) & 0x0F;
+        }
+    }
+    return unpacked_data;
+}
 
+std::vector<int8_t> pack_i8_to_i4(const int8_t* unpacked_data, size_t total_i4_elements) {
+    std::vector<int8_t> packed_data((total_i4_elements + 1) / 2, 0);
+    for (size_t i = 0; i < total_i4_elements; i += 2) {
+        // Combine two i4 elements into one uint8_t, with one in the lower 4 bits and the other in the higher 4 bits
+        packed_data[i / 2] = (unpacked_data[i] & 0x0F) | ((unpacked_data[i + 1] & 0x0F) << 4);
+    }
+    // Handle the case where the total number of i4 elements is odd
+    if (total_i4_elements % 2 != 0) {
+        packed_data[total_i4_elements / 2] |= unpacked_data[total_i4_elements - 1] & 0x0F;
+    }
+    return packed_data;
+}
+
+ov::Tensor transpose_i4(const ov::Tensor& tensor) {
+    const auto& shape = tensor.get_shape();
+    size_t total_i4_elements = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
+
+    const int8_t* packed_data = tensor.data<int8_t>();
+    std::vector<int8_t> unpacked_data = unpack_i4_to_i8(packed_data, total_i4_elements);
+
+    if (shape.size() == 2) {
+        // For a 2D tensor with shape KxM, transpose to MxK
+        size_t K = shape[0];
+        size_t M = shape[1];
+
+        std::vector<int8_t> transposed_unpacked_data(K * M);
+
+        for (size_t k = 0; k < K; ++k) {
+            for (size_t m = 0; m < M; ++m) {
+                transposed_unpacked_data[m * K + k] = unpacked_data[k * M + m];
+            }
+        }
+
+        std::vector<int8_t> transposed_packed_data = pack_i8_to_i4(transposed_unpacked_data.data(), total_i4_elements);
+        ov::Tensor transposed_tensor(ov::element::i4, {M, K});
+        std::memcpy(transposed_tensor.data(), transposed_packed_data.data(), transposed_packed_data.size());
+        return transposed_tensor;
+    }
+
+    if (shape.size() == 3) {
+        // For a 3D tensor with shape KxMxN, transpose to NxKxM
+        size_t K = shape[0];
+        size_t M = shape[1];
+        size_t N = shape[2];
+
+        std::vector<int8_t> transposed_unpacked_data(K * M * N);
+
+        for (size_t n = 0; n < N; ++n) {
+            for (size_t k = 0; k < K; ++k) {
+                for (size_t m = 0; m < M; ++m) {
+                    transposed_unpacked_data[n * (K * M) + k * M + m] = unpacked_data[k * (M * N) + m * N + n];
+                }
+            }
+        }
+        std::vector<int8_t> transposed_packed_data = pack_i8_to_i4(transposed_unpacked_data.data(), total_i4_elements);
+        ov::Tensor transposed_tensor(ov::element::i4, {N, K, M});
+        std::memcpy(transposed_tensor.data(), transposed_packed_data.data(), transposed_packed_data.size());
+        return transposed_tensor;
+    }
+
+    // Invalid case
+    NPUW_ASSERT(false);
+}
+
+ov::Tensor transpose_f16(const ov::Tensor& tensor) {
+    const auto& shape = tensor.get_shape();
+    const int16_t* data = reinterpret_cast<const int16_t*>(tensor.data());
+
+    if (shape.size() == 2) {
+        // For a 2D tensor with shape KxM, transpose to MxK
+        size_t K = shape[0];
+        size_t M = shape[1];
+
+        ov::Tensor transposed_tensor(ov::element::f16, {M, K});
+        int16_t* transposed_data = reinterpret_cast<int16_t*>(transposed_tensor.data());
+
+        for (size_t k = 0; k < K; ++k) {
+            for (size_t m = 0; m < M; ++m) {
+                transposed_data[m * K + k] = data[k * M + m];
+            }
+        }
+        return transposed_tensor;
+    } else if (shape.size() == 3) {
+        // For a 3D tensor with shape KxMxN, transpose to NxKxM
+        size_t K = shape[0];
+        size_t M = shape[1];
+        size_t N = shape[2];
+
+        ov::Tensor transposed_tensor(ov::element::f16, {N, K, M});
+        int16_t* transposed_data = reinterpret_cast<int16_t*>(transposed_tensor.data());
+
+        for (size_t n = 0; n < N; ++n) {
+            for (size_t k = 0; k < K; ++k) {
+                for (size_t m = 0; m < M; ++m) {
+                    transposed_data[n * (K * M) + k * M + m] = data[k * (M * N) + m * N + n];
+                }
+            }
+        }
+        return transposed_tensor;
+    }
+
+    // Invalid case
+    NPUW_ASSERT(false);
+}
+
+ov::Tensor transpose_f32(const ov::Tensor& tensor) {
+    const auto& shape = tensor.get_shape();
+    const float* data = tensor.data<float>();
+
+    if (shape.size() == 2) {
+        // For a 2D tensor with shape KxM, transpose to MxK
+        size_t K = shape[0];
+        size_t M = shape[1];
+        
+        ov::Tensor transposed_tensor(ov::element::f32, {M, K});
+        float* transposed_data = transposed_tensor.data<float>();
+
+        for (size_t k = 0; k < K; ++k) {
+            for (size_t m = 0; m < M; ++m) {
+                transposed_data[m * K + k] = data[k * M + m];
+            }
+        }
+        return transposed_tensor;
+    } else if (shape.size() == 3) {
+        // For a 3D tensor with shape KxMxN, transpose to NxKxM
+        size_t K = shape[0];
+        size_t M = shape[1];
+        size_t N = shape[2];
+
+        ov::Tensor transposed_tensor(ov::element::f32, {N, K, M});
+        float* transposed_data = transposed_tensor.data<float>();
+
+        for (size_t n = 0; n < N; ++n) {
+            for (size_t k = 0; k < K; ++k) {
+                for (size_t m = 0; m < M; ++m) {
+                    transposed_data[n * (K * M) + k * M + m] = data[k * (M * N) + m * N + n];
+                }
+            }
+        }
+        return transposed_tensor;
+    }
+
+    // Invalid case
+    NPUW_ASSERT(false);
+}
+
+ov::Tensor transpose_tensor(const ov::Tensor& tensor) {
+    switch (tensor.get_element_type()) {
+        case ov::element::u4:
+            return transpose_u4(tensor);
+        case ov::element::i4:
+            return transpose_i4(tensor);
+        case ov::element::f16:
+            return transpose_f16(tensor);
+        case ov::element::f32:
+            return transpose_f32(tensor);
+        default:
+            NPUW_ASSERT(false);
+    }
 }
 
 }  // namespace matmul_utils
@@ -217,45 +421,35 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
     // reserve a new_scales vector to have the same size, filled with
     // empty tensors by default.
     for (auto&& i : m.closure_remap) {
-        // Check if the index is marked for transposition
-        if (std::find(m.transpose_indices.begin(), m.transpose_indices.end(), i) != m.transpose_indices.end()) {
-            // Transpose the tensor before adding it to new_closure
-            new_closure.push_back(pattern_utils::transpose_tensor(fcall._closure[i]));
-        } else {
-            // Add the original tensor to new_closure
-            new_closure.push_back(fcall._closure[i]);
-        }
-
-        // Handle scale remap
+        new_closure.push_back(fcall._closure[i]);
+        
         auto scale_iter = m.scale_remap.find(i);
-        if (scale_iter != m.scale_remap.end()) {
-            // Check if the scale index is marked for transposition
-            if (std::find(m.transpose_indices.begin(), m.transpose_indices.end(), scale_iter->second) != m.transpose_indices.end()) {
-                // Transpose the tensor before adding it to new_scales
-                new_scales.push_back(pattern_utils::transpose_tensor(fcall._closure[scale_iter->second]));
-            } else {
-                // Add the original tensor to new_scales
-                new_scales.push_back(fcall._closure[scale_iter->second]);
-            }
-        } else {
-            new_scales.push_back(ov::Tensor());
-        }
-
-        // Handle zero point remap
+        new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._closure[scale_iter->second] : ov::Tensor());
+        // Check for asymmetric zero points and add them to new_zerops
         auto zerop_iter = m.zerop_remap.find(i);
-        if (zerop_iter != m.zerop_remap.end()) {
-            // Check if the zero point index is marked for transposition
-            if (std::find(m.transpose_indices.begin(), m.transpose_indices.end(), zerop_iter->second) != m.transpose_indices.end()) {
-                // Transpose the tensor before adding it to new_zerops
-                new_zerops.push_back(pattern_utils::transpose_tensor(fcall._closure[zerop_iter->second]));
-            } else {
-                // Add the original tensor to new_zerops
-                new_zerops.push_back(fcall._closure[zerop_iter->second]);
-            }
+        const auto& zerop = zerop_iter != m.zerop_remap.end() ? fcall._closure[zerop_iter->second] : m.zero_points[i];
+        new_zerops.push_back(zerop);
+    }
+
+    for (auto&& i : m.transpose_indices) {
+        if (std::find(m.closure_remap.begin(), m.closure_remap.end(), i) != m.closure_remap.end()) {
+            new_scales[i] = pattern_utils::transpose_tensor(new_scales[i]);
         } else {
-            // Add the zero point tensor from the closure remap
-            const auto& zerop = m.zero_points[i];
-            new_zerops.push_back(zerop);
+            auto it_scale = std::find_if(m.scale_remap.begin(), m.scale_remap.end(),
+                                     [i](const std::pair<std::size_t, std::size_t>& pair) {
+                                         return pair.second == i;
+                                     });
+            if (it_scale != m.scale_remap.end()) {
+                new_scales[i] = pattern_utils::transpose_tensor(new_scales[i]);
+                continue;
+            }
+            auto it_zerop = std::find_if(m.zerop_remap.begin(), m.zerop_remap.end(),
+                                     [i](const std::pair<std::size_t, std::size_t>& pair) {
+                                         return pair.second == i;
+                                     });
+            if (it_zerop != m.zerop_remap.end()) {
+                new_zerops[i] = pattern_utils::transpose_tensor(new_zerops[i]);
+            }
         }
     }
 
@@ -322,8 +516,8 @@ namespace SymmNoZP {
 
 DCOFFPassBase::DCOFFPassBase(DCOffMode dcoff_mode,
                              ov::element::Type dcoff_type,
-                             DCOFFParamRef pref,
-                             bool enable_transpose)
+                             bool enable_transpose,
+                             DCOFFParamRef pref)
     : m_dcoff_mode(dcoff_mode),
       m_dcoff_type(dcoff_type),
       m_params_to(pref),
@@ -461,12 +655,12 @@ namespace SymmZP {
 
 DCOFFPassBase::DCOFFPassBase(DCOffMode dcoff_mode,
                              ov::element::Type dcoff_type,
-                             DCOFFParamRef pref,
-                             bool enable_transpose)
+                             bool enable_transpose,
+                             DCOFFParamRef pref)
     : m_dcoff_mode(dcoff_mode),
       m_dcoff_type(dcoff_type),
-      m_params_to(pref),
-      m_enable_transpose(enable_transpose) {}
+      m_enable_transpose(enable_transpose),
+      m_params_to(pref) {}
 
 void DCOFFPassBase::build() {
     paramA = opp::wrap_type<ov::op::v0::Parameter>();
@@ -499,7 +693,8 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
         LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << m_dcoff_type);
         matched_paramA->set_element_type(m_dcoff_type);
 
-        auto matched_MM = pattern_utils::get_root_matmul(m);
+        ov::Output<Node> last_node_output = get_last_node_output(m);
+        auto matched_MM = pattern_utils::get_root_matmul(last_node_output);
         const bool need_transpose = pattern_utils::transpose_required(matched_MM);
         if (m_enable_transpose && need_transpose) {
             m_params_to.get().transpose_required.insert(matched_paramA);
@@ -508,7 +703,6 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
             pattern_utils::transpose_param_shape(matched_paramC);
             matched_MM->set_transpose_b(true);
         }
-
 
         if (m_dcoff_mode == DCOffMode::CAST_SCALE) {
             NPUW_ASSERT(m_dcoff_type == ov::element::f16);
@@ -564,6 +758,11 @@ void DCOFFPassReshape1::reconnect_root(ov::pass::pattern::Matcher& m) {
     matched_reshpe->input(0).replace_source_output(matched_convrt);
 }
 
+ov::Output<Node> DCOFFPassReshape1::get_last_node_output(ov::pass::pattern::Matcher& m) const {
+        auto& node_to_output = m.get_pattern_value_map();
+        return node_to_output.at(reshpe).get_node_shared_ptr()->output(0);
+}
+
 void DCOFFPassConvert1::build() {
     DCOFFPassBase::build();
     cvtEnd = opp::wrap_type<ov::op::v0::Convert>({mulply});
@@ -577,6 +776,11 @@ void DCOFFPassConvert1::reconnect_root(ov::pass::pattern::Matcher& m) {
     auto matched_convrt = node_to_output.at(cvtA).get_node_shared_ptr();
     auto matched_cvtEnd = node_to_output.at(cvtEnd).get_node_shared_ptr();
     matched_cvtEnd->input(0).replace_source_output(matched_convrt);
+}
+
+ov::Output<Node> DCOFFPassConvert1::get_last_node_output(ov::pass::pattern::Matcher& m) const {
+        auto& node_to_output = m.get_pattern_value_map();
+        return node_to_output.at(cvtEnd).get_node_shared_ptr()->output(0);
 }
 
 //------------------------------------------------------------------------------
@@ -612,7 +816,7 @@ void DCOFFPassConvert1::reconnect_root(ov::pass::pattern::Matcher& m) {
 //                      V                   >
 //
 
-DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool enable_transpose) {
+DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type,  bool enable_transpose, DCOFFParamRef pref) {
     auto paramA = opp::wrap_type<ov::op::v0::Parameter>();
     auto constB = opp::wrap_type<ov::op::v0::Constant>();
     auto paramC = opp::wrap_type<ov::op::v0::Parameter>();
@@ -703,7 +907,7 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
 //            V                       >
 //         Convert
 
-DCOFFPassReshape3::DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool enable_transpose) {
+DCOFFPassReshape3::DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, bool enable_transpose, DCOFFParamRef pref) {
     auto paramA = opp::wrap_type<ov::op::v0::Parameter>();
     auto paramC = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtA = opp::wrap_type<ov::op::v0::Convert>({paramA});
@@ -995,7 +1199,7 @@ namespace AsymmZP {
 //                    :                     >
 //                    V                     >
 //
-DCOFFPassReshape::DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool enable_transpose) {
+DCOFFPassReshape::DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff_type, bool enable_transpose, DCOFFParamRef pref) {
     auto paramA = opp::wrap_type<ov::op::v0::Parameter>();
     auto paramB = opp::wrap_type<ov::op::v0::Parameter>();
     auto paramC = opp::wrap_type<ov::op::v0::Parameter>();

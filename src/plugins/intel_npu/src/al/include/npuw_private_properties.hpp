@@ -180,7 +180,7 @@ static constexpr ov::Property<bool> dcoff_with_scale{"NPUW_DCOFF_SCALE"};
 /**
  * @brief
  * Type: bool.
- * Tranpose input weight and the corresponding scale and zero tensors (if any) before passing as inputs.
+ * Transpose input weight and the corresponding scale and zero tensors (if any) before passing as inputs, if required.
  * Works with function "NPUW_FOLD"ing.
  * Default value: false.
  */

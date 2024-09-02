@@ -22,15 +22,6 @@ enum class DCOffMode : int {
     CAST_SCALE,
 };
 
-namespace pattern_utils {
-
-std::shared_ptr<ov::op::v0::MatMul> find_matmul_downwards(const std::shared_ptr<ov::Node>& start_node);
-std::shared_ptr<ov::op::v0::MatMul> get_root_matmul(ov::pass::pattern::Matcher& m);
-bool transpose_required(const std::shared_ptr<ov::op::v0::MatMul>& matmul_node);
-ov::Tensor transpose_tensor(const ov::Tensor& tensor);
-
-}  // namespace matmul_utils
-
 namespace patterns {
 
 // Common structures here
@@ -75,7 +66,7 @@ protected:
     bool matcher_callback(ov::pass::pattern::Matcher& m);
 
 public:
-    DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool enable_transpose);
+    DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, bool enable_transpose, DCOFFParamRef pref);
 
     virtual void build();
     virtual void reconnect_root_to_convert(ov::pass::pattern::Matcher& m) = 0;
@@ -116,10 +107,11 @@ protected:
     bool matcher_callback(ov::pass::pattern::Matcher& m);
 
 public:
-    DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool enable_transpose);
+    DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type,  bool enable_transpose, DCOFFParamRef pref);
 
     virtual void build();
     virtual void reconnect_root(ov::pass::pattern::Matcher& m) = 0;
+    virtual ov::Output<Node> get_last_node_output(ov::pass::pattern::Matcher& m) const = 0;
 };
 
 class DCOFFPassReshape1 final : public DCOFFPassBase {
@@ -129,6 +121,7 @@ public:
     using DCOFFPassBase::DCOFFPassBase;
     void build() override;
     void reconnect_root(ov::pass::pattern::Matcher& m) override;
+    ov::Output<Node> get_last_node_output(ov::pass::pattern::Matcher& m) const override;
 };
 
 class DCOFFPassConvert1 final : public DCOFFPassBase {
@@ -138,16 +131,17 @@ public:
     using DCOFFPassBase::DCOFFPassBase;
     void build() override;
     void reconnect_root(ov::pass::pattern::Matcher& m) override;
+    ov::Output<Node> get_last_node_output(ov::pass::pattern::Matcher& m) const override;
 };
 
 class DCOFFPassReshape2 : public ov::pass::MatcherPass {
 public:
-    DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool enable_transpose);
+    DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type,  bool enable_transpose, DCOFFParamRef pref);
 };
 
 class DCOFFPassReshape3 : public ov::pass::MatcherPass {
 public:
-    DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool enable_transpose);
+    DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, bool enable_transpose, DCOFFParamRef pref);
 };
 
 class CWAI1 : public ov::pass::MatcherPass {
@@ -179,7 +173,7 @@ public:
 namespace AsymmZP {
 class DCOFFPassReshape : public ov::pass::MatcherPass {
 public:
-    DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref, bool transpose_weights);
+    DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff_type, bool enable_transpose, DCOFFParamRef pref);
 };
 
 }  // namespace AsymmZP
