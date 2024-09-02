@@ -19,8 +19,11 @@ numpy_to_ov_type_map = {
     np.float64: OVType.f64,
     np.uint8: OVType.u8,
     np.int8: OVType.i8,
+    np.uint16: OVType.u16,
     np.int16: OVType.i16,
+    np.uint32: OVType.u32,
     np.int32: OVType.i32,
+    np.uint64: OVType.u64,
     np.int64: OVType.i64,
 }
 
@@ -31,8 +34,11 @@ jax_to_ov_type_map = {
     jnp.float64: OVType.f64,
     jnp.uint8: OVType.u8,
     jnp.int8: OVType.i8,
+    jnp.uint16: OVType.u16,
     jnp.int16: OVType.i16,
+    jnp.uint32: OVType.u32,
     jnp.int32: OVType.i32,
+    jnp.uint64: OVType.u64,
     jnp.int64: OVType.i64,
 }
 
@@ -56,6 +62,9 @@ ov_type_to_int_map = {
     OVType.f16: 5,
     OVType.f32: 6,
     OVType.f64: 7,
+    OVType.u16: 8,
+    OVType.u32: 9,
+    OVType.u64: 10,
     OVType.boolean: 11,
     OVType.bf16: 15,
 }

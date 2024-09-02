@@ -4,6 +4,7 @@ on:
   workflow_run:
     workflows:
       - Android ARM64 with vcpkg
+      - Android x64
       - Documentation
       - Cleanup PIP caches
       - Code snippets
