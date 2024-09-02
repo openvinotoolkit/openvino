@@ -35,6 +35,9 @@
 
 #endif
 
+#if !IS_DYNAMIC
+__attribute__((reqd_work_group_size(LWS, 1, 1)))
+#endif
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL (softmax_gpu_continuous_bfyx)(
     OPTIONAL_SHAPE_INFO_ARG
