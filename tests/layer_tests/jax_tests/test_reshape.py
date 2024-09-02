@@ -21,7 +21,11 @@ class TestReshape(JaxLayerTest):
             out = lax.reshape(inp, new_sizes=new_sizes)
             return out
 
-        return jax_reshape, None
+        expected_op = 'reshape'
+        if input_shape == new_sizes:
+            expected_op = None
+
+        return jax_reshape, None, expected_op
 
     @pytest.mark.parametrize("input_shape", [
         [64],
@@ -38,7 +42,8 @@ class TestReshape(JaxLayerTest):
         self._test(*self.create_model(input_shape=input_shape, new_sizes=new_sizes),
                    ie_device, precision,
                    ir_version)
-        
+
+
 class TestReshapeWithDimensions(JaxLayerTest):
     def _prepare_input(self):
         inp = jnp.array(np.random.rand(*self.input_shape).astype(np.float32))
@@ -51,7 +56,11 @@ class TestReshapeWithDimensions(JaxLayerTest):
             out = lax.reshape(inp, new_sizes=new_sizes, dimensions=dimensions)
             return out
 
-        return jax_reshape_with_dimensions, None
+        expected_op = 'reshape'
+        if input_shape == new_sizes:
+            expected_op = None
+
+        return jax_reshape_with_dimensions, None, expected_op
 
     @pytest.mark.parametrize("input_shape", [
         [4, 16, 1],

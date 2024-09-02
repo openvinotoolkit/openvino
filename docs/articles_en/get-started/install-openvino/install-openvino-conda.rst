@@ -71,6 +71,41 @@ need to install additional components. Check the description below, as well as t
 :doc:`list of additional configurations <../configurations>`
 to see if your case needs any of them.
 
+Enabling GPU device for inference
++++++++++++++++++++++++++++++++++
+
+To use a GPU device for OpenVINO inference on Linux, you must install OpenCL ICD:
+
+.. code-block:: sh
+
+   conda install ocl-icd-system
+
+This step is not required on Windows, as Intel® Graphics Compute Runtime for
+OpenCL™ Driver is included with the Intel® Graphics Driver package.
+
+Compiling with OpenVINO Runtime from Conda-Forge on Linux
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+When linking OpenVINO libraries from Conda on Linux, ensure that you have the necessary Conda compilers installed and Conda standard libraries are used.
+To do so, run the following command in your Conda environment:
+
+.. code-block:: sh
+
+    conda install cmake c-compiler cxx-compiler make
+    conda env config vars set LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+
+It is crucial to reactivate your Conda environment after installing the compilers.
+This step ensures that all the environment variables are set correctly for successful linkage.
+
+To reactivate your Conda environment, execute the following command:
+
+.. code-block:: sh
+
+    conda activate py310
+
+Once you have reactivated your Conda environment, make sure that all the necessary environment
+variables are properly set and proceed with linking the OpenVINO libraries.
+
 Installing specific components of OpenVINO from Conda Forge
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -111,43 +146,6 @@ For multiple components, use:
 .. code-block:: sh
 
    conda install conda-forge::libopenvino-intel-cpu-plugin conda-forge::libopenvino-arm-cpu-plugin conda-forge::libopenvino-intel-npu-plugin conda-forge::libopenvino-intel-gpu-plugin
-
-
-Compiling with OpenVINO Runtime from Conda-Forge on Linux
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-When linking OpenVINO libraries from Conda on Linux, ensure that you have the necessary Conda compilers installed and Conda standard libraries are used.
-To do so, run the following command in your Conda environment:
-
-.. code-block:: sh
-
-    conda install cmake c-compiler cxx-compiler make
-    conda env config vars set LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
-
-It is crucial to reactivate your Conda environment after installing the compilers.
-This step ensures that all the environment variables are set correctly for successful linkage.
-
-To reactivate your Conda environment, execute the following command:
-
-.. code-block:: sh
-
-    conda activate py310
-
-Once you have reactivated your Conda environment, make sure that all the necessary environment
-variables are properly set and proceed with linking the OpenVINO libraries.
-
-Enabling GPU device for inference
-+++++++++++++++++++++++++++++++++
-
-To use a GPU device for OpenVINO inference on Linux, you must install OpenCL ICD:
-
-.. code-block:: sh
-
-   conda install ocl-icd-system
-
-This step is not required on Windows, as Intel® Graphics Compute Runtime for
-OpenCL™ Driver is included with the Intel® Graphics Driver package.
-
 
 Uninstalling OpenVINO™ Runtime
 ###########################################################

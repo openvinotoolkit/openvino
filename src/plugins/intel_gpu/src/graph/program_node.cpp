@@ -525,6 +525,20 @@ bool program_node::is_fused_dep(size_t dep_idx) const {
     return false;
 }
 
+std::set<size_t> program_node::get_lockable_input_ids() const {
+    const auto impl = get_selected_impl();
+    const bool has_cpu_impl = get_preferred_impl_type() == impl_types::cpu || (impl && impl->is_cpu());
+    if (has_cpu_impl) {
+        std::set<size_t> dependencies_indexes;
+        for (size_t i = 0; i < get_dependencies().size(); i++)
+            dependencies_indexes.insert(i);
+
+        return dependencies_indexes;
+    } else {
+        return {};
+    }
+}
+
 std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
     std::map<size_t, memory::ptr> mem_deps;
     for (auto& i : get_shape_infer_dependencies()) {

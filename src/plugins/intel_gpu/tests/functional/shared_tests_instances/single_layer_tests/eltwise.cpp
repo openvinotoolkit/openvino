@@ -71,7 +71,8 @@ std::vector<EltwiseTypes> smoke_intOnly_eltwiseOpTypes = {
 };
 
 std::vector<ov::test::ElementType> intOnly_netPrecisions = {
-        ov::element::i32
+        ov::element::i32,
+        ov::element::u16
 };
 
 ov::AnyMap additional_config = {};
