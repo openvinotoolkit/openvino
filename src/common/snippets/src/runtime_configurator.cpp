@@ -10,6 +10,7 @@
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/utils.hpp"
+#include "snippets/utils/loop_utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -187,8 +188,8 @@ void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_i
                                            LoopInfoRuntimeParamsMap& initializated_info_map) const {
     auto update_unified_loop_info = [&](const lowered::UnifiedLoopInfoPtr& unified_loop_info) {
         if (initializated_info_map.count(unified_loop_info) == 0) {
-            lowered::pass::InitLoops::update_runtime_parameters(unified_loop_info);
-            initializated_info_map[unified_loop_info] = compute_runtime_params(unified_loop_info);
+            utils::update_runtime_parameters(unified_loop_info);
+            initializated_info_map[unified_loop_info] = get_runtime_params(unified_loop_info);
         }
     };
 
@@ -348,7 +349,7 @@ void RuntimeConfigurator::set_kernel_executor_table(std::shared_ptr<KernelExecut
     m_config->kernel_executor_table = std::move(table);
 }
 
-RuntimeConfigurator::UnifiedLoopInfoRtParams RuntimeConfigurator::compute_runtime_params(const lowered::UnifiedLoopInfoPtr& loop_info) {
+RuntimeConfigurator::UnifiedLoopInfoRtParams RuntimeConfigurator::get_runtime_params(const lowered::UnifiedLoopInfoPtr& loop_info) {
     RuntimeConfigurator::UnifiedLoopInfoRtParams rt_params;
     rt_params.work_amount = loop_info->get_work_amount();
     const auto count = loop_info->get_input_count() + loop_info->get_output_count();
@@ -365,7 +366,7 @@ RuntimeConfigurator::UnifiedLoopInfoRtParams RuntimeConfigurator::compute_runtim
     return rt_params;
 }
 
-void RuntimeConfigurator::ParallelWAOptimizer::init(const lowered::LinearIRCPtr& linear_ir,
+void RuntimeConfigurator::MHAParallelWAOptimizer::init(const lowered::LinearIRCPtr& linear_ir,
                                                     const std::vector<PortDescriptorPtr>& io_descs,
                                                     size_t in_num) {
     if (linear_ir->get_config().m_enable_domain_optimization || !linear_ir->is_dynamic())
@@ -393,11 +394,11 @@ void RuntimeConfigurator::ParallelWAOptimizer::init(const lowered::LinearIRCPtr&
     }
 }
 
-bool RuntimeConfigurator::ParallelWAOptimizer::enabled() {
+bool RuntimeConfigurator::MHAParallelWAOptimizer::enabled() const {
     return !loops_to_split.empty();
 }
 
-void RuntimeConfigurator::ParallelWAOptimizer::optimize(VectorDims& master_shape,
+void RuntimeConfigurator::MHAParallelWAOptimizer::optimize(VectorDims& master_shape,
                                                         RuntimeConfigurator::LoopInfoRuntimeParamsMap& map,
                                                         std::vector<ov::snippets::VectorDims>& shapes,
                                                         std::vector<std::vector<size_t>>& layouts,
@@ -412,21 +413,21 @@ void RuntimeConfigurator::ParallelWAOptimizer::optimize(VectorDims& master_shape
     update_layouts(layouts);
 }
 
-void RuntimeConfigurator::ParallelWAOptimizer::update_master_shape(VectorDims& master_shape, size_t new_batch_dim, size_t new_kernel_dim) {
+void RuntimeConfigurator::MHAParallelWAOptimizer::update_master_shape(VectorDims& master_shape, size_t new_batch_dim, size_t new_kernel_dim) {
     *++master_shape.rbegin() = new_kernel_dim;
     master_shape.insert(master_shape.cbegin() + master_shape.size() - 2, new_batch_dim);
 }
 
-void RuntimeConfigurator::ParallelWAOptimizer::update_split_loops_info(LoopInfoRuntimeParamsMap& initialized_info, size_t new_kernel_dim) {
-    OPENVINO_ASSERT(initialized_info.empty(), "ParallelWAOptimizer::update_split_loops_info expects empty initialized_info map");
+void RuntimeConfigurator::MHAParallelWAOptimizer::update_split_loops_info(LoopInfoRuntimeParamsMap& initialized_info, size_t new_kernel_dim) {
+    OPENVINO_ASSERT(initialized_info.empty(), "MHAParallelWAOptimizer::update_split_loops_info expects empty initialized_info map");
     for (const auto& loop : loops_to_split) {
         loop->set_work_amount(new_kernel_dim);
-        lowered::pass::InitLoops::update_data_pointer_shifts(loop);
-        initialized_info[loop] = compute_runtime_params(loop);
+        utils::update_data_pointer_shifts(loop);
+        initialized_info[loop] = get_runtime_params(loop);
     }
 }
 
-void RuntimeConfigurator::ParallelWAOptimizer::update_shapes(std::vector<VectorDims>& shapes, size_t new_batch_dim, size_t new_kernel_dim) {
+void RuntimeConfigurator::MHAParallelWAOptimizer::update_shapes(std::vector<VectorDims>& shapes, size_t new_batch_dim, size_t new_kernel_dim) {
     for (size_t i = 0; i < m_dim_idces.size(); ++i) {
         shapes[i] = unsqueezed_params.count(i)
                         ? SplitDimensionM::unsqueeze_m_dim(shapes[i], m_dim_idces[i])
@@ -434,11 +435,11 @@ void RuntimeConfigurator::ParallelWAOptimizer::update_shapes(std::vector<VectorD
     }
 }
 
-void RuntimeConfigurator::ParallelWAOptimizer::update_layouts(std::vector<std::vector<size_t>>& layouts) {
+void RuntimeConfigurator::MHAParallelWAOptimizer::update_layouts(std::vector<std::vector<size_t>>& layouts) {
     layouts = optimized_layouts;
 }
 
-std::unordered_set<ExpressionPtr> RuntimeConfigurator::ParallelWAOptimizer::find_applicable_brgemms(
+std::unordered_set<ExpressionPtr> RuntimeConfigurator::MHAParallelWAOptimizer::find_applicable_brgemms(
     const lowered::LinearIRCPtr& linear_ir) {
     auto is_brgemm = [](const ExpressionPtr& expr) {
         return ov::is_type<op::Brgemm>(expr->get_node());
@@ -472,7 +473,7 @@ std::unordered_set<ExpressionPtr> RuntimeConfigurator::ParallelWAOptimizer::find
     return std::all_of(brgemms.begin(), brgemms.end(), applicable_brgemm) ? brgemms : std::unordered_set<ExpressionPtr>{};
 }
 
-std::unordered_set<size_t> RuntimeConfigurator::ParallelWAOptimizer::find_unsqueezed_params(
+std::unordered_set<size_t> RuntimeConfigurator::MHAParallelWAOptimizer::find_unsqueezed_params(
     const lowered::LinearIRCPtr& linear_ir,
     const std::unordered_set<ExpressionPtr>& brgemms) {
     const auto& params = linear_ir->get_parameters();
@@ -493,7 +494,7 @@ std::unordered_set<size_t> RuntimeConfigurator::ParallelWAOptimizer::find_unsque
     return unsqueezed_params;
 }
 
-std::unordered_set<UnifiedLoopInfoPtr> RuntimeConfigurator::ParallelWAOptimizer::find_loops_to_split(
+std::unordered_set<UnifiedLoopInfoPtr> RuntimeConfigurator::MHAParallelWAOptimizer::find_loops_to_split(
     const lowered::LinearIRCPtr& linear_ir,
     const std::unordered_set<size_t>& unsqueezed_params) {
     const auto loop_manager = linear_ir->get_loop_manager();

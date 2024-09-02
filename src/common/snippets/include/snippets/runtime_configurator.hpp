@@ -126,7 +126,7 @@ protected:
         std::vector<int64_t> ptr_increments;
         std::vector<int64_t> finalization_offsets;
     };
-    static UnifiedLoopInfoRtParams compute_runtime_params(const lowered::UnifiedLoopInfoPtr& unified_loop_info);
+    static UnifiedLoopInfoRtParams get_runtime_params(const lowered::UnifiedLoopInfoPtr& unified_loop_info);
     using LoopInfoRuntimeParamsMap = std::unordered_map<lowered::UnifiedLoopInfoPtr, UnifiedLoopInfoRtParams>;
     /**
      * @brief Update Loop informations in LinearIR: Unified and ExpandedLoopInfo
@@ -157,10 +157,10 @@ protected:
      */
     std::vector<std::vector<size_t>> extract_layouts() const;
 
-    class ParallelWAOptimizer {
+    class MHAParallelWAOptimizer {
     public:
         /**
-         * @brief Inits ParallelWAOptimizer: computes optimizer parameters which should be set at compilation stage
+         * @brief Inits MHAParallelWAOptimizer: computes optimizer parameters which should be set at compilation stage
          * @param linear_ir LinearIR
          * @param io_descs Input/output descriptors which are used for optimizer parameters initialization
          * @param in_num Number of inputs. It is needed to distinguish input and output shapes/layouts
@@ -171,9 +171,9 @@ protected:
         /**
          * @brief Checks if optimizer is enabled
          * @todo Ticket 148891: when RuntimeConfigurator::update will be rewritten on PassPipeline, this method should be removed
-         * We will not just register ParallelWAOptimizer in case if it is not needed
+         * We will not just register MHAParallelWAOptimizer in case if it is not needed
          */
-        bool enabled();
+        bool enabled() const;
         /**
          * @brief Checks if the current master shape can be optimized, and if yes, updates all the necessary runtime information
          * @param master_shape Master shape
