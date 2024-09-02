@@ -149,7 +149,7 @@ protected:
             all_events.push_back(ev);
         }
 
-        return aggregate_events(all_events, stream, all_events.size() > 1);
+        return stream.aggregate_events(all_events, all_events.size() > 1);
     }
 
     bool need_indirect_load(const scaled_dot_product_attention_inst& instance) const {
