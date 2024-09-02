@@ -16,6 +16,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
+#include "patterns/opt.hpp"
 
 namespace {
 
@@ -277,6 +278,7 @@ public:
     void matchResults(const std::string& func_name);
     void createFunction(const std::string& func_name);
     void matchRepeatedSubgraphs(const std::string& func_name);
+    void optimize(const std::string &func_name);
     void decompressionCutOff(const std::string& func_name);
 
     // Final steps
@@ -1557,6 +1559,22 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
     LOG_VERB("Done");
 }
 
+void Partitioner::optimize(const std::string& func_name) {
+    LOG_VERB("Optimize function " << func_name << " in model " << model->get_friendly_name() << "...");
+    LOG_BLOCK();
+
+    ov::npuw::Function& f = P.functions.at(func_name);
+
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQi>();
+    rewr.run_on_model(f._model);
+
+    ov::pass::Validate val;
+    val.run_on_model(f._model);
+
+    LOG_VERB("Done");
+}
+
 void Partitioner::decompressionCutOff(const std::string& func_name) {
     LOG_VERB("Decompression cut-off for function " << func_name << " in model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
@@ -1826,6 +1844,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
                 p.matchRepeatedSubgraphs(func_group);
+                p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }
         } else if (cfg.get<::intel_npu::NPUW_CWAI>()) {
@@ -1841,6 +1860,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.saveTinyConstants(func_group);
                 p.saveScaleFactors(func_group);
                 p.createFunction(func_group);
+                p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }
         } else {

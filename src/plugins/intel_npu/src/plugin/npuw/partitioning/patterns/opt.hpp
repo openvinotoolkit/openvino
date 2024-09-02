@@ -22,6 +22,11 @@ public:
     DQMatMulCWi();
 };
 
+class DQMatMulGQi : public ov::pass::MatcherPass {
+public:
+    DQMatMulGQi();
+};
+
 }  // namespace opt
 }  // namespace patterns
 }  // namespace npuw
