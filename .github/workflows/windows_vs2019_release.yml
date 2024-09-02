@@ -319,7 +319,7 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
         shell: cmd
         run: |
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -n logical -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
