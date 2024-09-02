@@ -57,7 +57,7 @@ using MatmulWeightsDecompressionParams = std::tuple<ShapeParams,              //
                                                     bool,                     // decompression subtract
                                                     bool,                     // reshape on decompression constants
                                                     bool,                     // per-tensor zero-point
-                                                    int                       // dynamic_quantization_group_size
+                                                    uint64_t                  // dynamic_quantization_group_size
                                                     >;
 
 class MatmulWeightsDecompression : public testing::WithParamInterface<MatmulWeightsDecompressionParams>,
@@ -71,7 +71,7 @@ public:
         bool decompression_sub;
         bool reshape_on_decompression;
         bool per_tensor_zp;
-        int dyn_quan_group_size;
+        uint64_t dyn_quan_group_size;
 
         std::tie(shape_params,
                  weights_precision,
@@ -243,7 +243,7 @@ protected:
         bool decompression_sub;
         bool reshape_on_decompression;
         bool per_tensor_zp;
-        int dyn_quan_group_size;
+        uint64_t dyn_quan_group_size;
 
         std::tie(shape_params,
                  weights_precision,

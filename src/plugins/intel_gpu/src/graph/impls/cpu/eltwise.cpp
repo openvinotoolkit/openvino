@@ -29,6 +29,8 @@
 #include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/is_nan.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -165,6 +167,12 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
             }
             case eltwise_mode::is_nan:
                 op = std::make_shared<ov::op::v10::IsNaN>();
+                break;
+            case eltwise_mode::right_shift:
+                op = std::make_shared<ov::op::v15::BitwiseRightShift>();
+                break;
+            case eltwise_mode::left_shift:
+                op = std::make_shared<ov::op::v15::BitwiseLeftShift>();
                 break;
             default:
                 OPENVINO_THROW("[GPU] Couldn't create eltwise operation: unsupported eltwise operation (", static_cast<size_t>(mode), ")");
