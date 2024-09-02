@@ -76,13 +76,13 @@ both `the NNCF repository <https://github.com/openvinotoolkit/nncf?tab=readme-ov
    .. tab-item:: System Requirements
       :sync: sys-req
 
-      | Full requirement listing is available in:
-      | `NNCF GitHub Repository <https://github.com/openvinotoolkit/nncf?tab=readme-ov-file#system-requirements>`__
-      |
-      | Note that to optimize a model, you will need to install this model's framework as well.
-      | Install NNCF in the same Python environment as the framework. For a list of recommended
-      | framework versions, see the
-      | `framework compatibility table <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Installation.md#corresponding-versions>`__.
+      Full requirement listing is available in the
+      `NNCF GitHub Repository <https://github.com/openvinotoolkit/nncf?tab=readme-ov-file#system-requirements>`__
+
+      Note that to optimize a model, you will need to install this model's framework as well.
+      Install NNCF in the same Python environment as the framework. For a list of recommended
+      framework versions, see the
+      `framework compatibility table <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Installation.md#corresponding-versions>`__.
 
 
 .. note::
