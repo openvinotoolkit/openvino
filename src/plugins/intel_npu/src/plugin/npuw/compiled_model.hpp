@@ -72,8 +72,6 @@ private:
 
     void implement_properties();
 
-    void fill_weights_bank(const std::size_t idx);
-
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
     GetPropertiesMap m_prop_to_opt;

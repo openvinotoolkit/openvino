@@ -245,12 +245,14 @@ public:
     Partitioner(const std::shared_ptr<ov::Model>& _model,
                 ov::npuw::Ensemble& _ens,
                 ov::npuw::Partitioning& _P,
-                ::intel_npu::Config& cfg)
+                ::intel_npu::Config& _cfg,
+                const std::shared_ptr<ov::npuw::weights::Bank>& _bank)
         : model(_model),
           ens(_ens),
           P(_P),
           func_pipeline_type(FunctionPipelineType::FOLD),
-          cfg(cfg) {}
+          cfg(_cfg),
+          bank(_bank) {}
 
     ////////////////////////////////////////////////////////
     // Partitioning execution pipeline
@@ -285,6 +287,7 @@ public:
 private:
     FunctionPipelineType func_pipeline_type;
     ::intel_npu::Config& cfg;
+    const std::shared_ptr<ov::npuw::weights::Bank>& bank;
 };
 
 void Partitioner::identifySubgraphs() {
@@ -1450,7 +1453,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
                 new_param_idx++;
 
                 LOG_DEBUG("Register " << prod_output << " in the function closure");
-                funcall._closure.push_back(ov::npuw::util::tensor_from_const(input_node));  // (n)/1/i/c
+                funcall._closure.push_back(bank->update(input_node));  // (n)/1/i/c
             } else if (ov::op::util::is_parameter(input_node)) {
                 LOG_DEBUG("Handling a Parameter input " << prod_output);
                 LOG_BLOCK();
@@ -1543,8 +1546,7 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
                         std::make_pair(proto_layer_name, input_desc.get_index()));  // (t)/1/b
                     LOG_DEBUG("Register " << prod_output << " in the function closure[" << param_idx
                                           << "] (via prototype " << proto_layer_name << ")");
-                    funcall._closure[param_idx - function._param_offset] =
-                        ov::npuw::util::tensor_from_const(input_node);  // (t)/1/c
+                    funcall._closure[param_idx - function._param_offset] = bank->update(input_node);  // (t)/1/c
                 }
             }  // for (inputs)
         }      // for(nodes)
@@ -1645,7 +1647,7 @@ void Partitioner::decompressionCutOff(const std::string& func_name) {
 
             // Build a closure remap here: which input tensors are no
             // longer parameters but move to the unpack procedure?
-            auto closure_remap = ov::npuw::patterns::build_remap(f, params_to);
+            auto closure_remap = ov::npuw::patterns::build_remap(f, params_to, bank);
 
             // Now modify the each function call's closure accordingly
             // according to the remaps.
@@ -1747,7 +1749,9 @@ void Partitioner::finalizeLinks() {
 
 }  // namespace
 
-ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg) {
+ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model>& model,
+                                                 ::intel_npu::Config& cfg,
+                                                 const std::shared_ptr<weights::Bank>& bank) {
     LOG_INFO("Building partitioning for model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
 
@@ -1806,7 +1810,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
     Partitioning P;
     P.total_gflops = ens.gflops;
 
-    Partitioner p(model, ens, P, cfg);
+    Partitioner p(model, ens, P, cfg, bank);
     p.identifySubgraphs();
 
     if (!ens.repeated.empty()) {

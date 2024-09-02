@@ -47,7 +47,9 @@ namespace opp = ov::pass::pattern;
 //      Const tensor will be taken from [i-base]'th closure in the
 //      updated closure tensor.
 
-ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
+ClosureRemap build_remap(const Function& fbody,
+                         const DCOFFParams& params_to,
+                         const std::shared_ptr<ov::npuw::weights::Bank>& bank) {
     LOG_DEBUG("Creating a closure remap for " << fbody._model->get_friendly_name());
     LOG_BLOCK();
 
@@ -100,7 +102,7 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
         auto zerop_iter = params_to.zerops.find(param);
         if (zerop_iter != params_to.zerops.end()) {
             LOG_DEBUG("This parameter requires zero point: " << zerop_iter->second);
-            m.zero_points.push_back(ov::npuw::util::tensor_from_const(zerop_iter->second));
+            m.zero_points.push_back(bank->update(zerop_iter->second));
         } else {
             m.zero_points.push_back(ov::Tensor());
         }

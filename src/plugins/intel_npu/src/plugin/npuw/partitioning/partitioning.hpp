@@ -9,6 +9,7 @@
 #include <variant>
 #include <vector>
 
+#include "../weights_bank.hpp"
 #include "intel_npu/al/config/config.hpp"
 #include "openvino/openvino.hpp"
 
@@ -105,7 +106,9 @@ struct Partitioning {
     float total_gflops = 0.f;
 };
 
-Partitioning getPartitioning(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& config);
+Partitioning getPartitioning(const std::shared_ptr<ov::Model>& model,
+                             ::intel_npu::Config& config,
+                             const std::shared_ptr<weights::Bank>& bank);
 
 }  // namespace npuw
 }  // namespace ov

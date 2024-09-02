@@ -7,6 +7,7 @@
 #include <map>
 #include <vector>
 
+#include "../../weights_bank.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 
@@ -44,7 +45,7 @@ struct ClosureRemap {
     std::vector<ov::Tensor> zero_points;  // zero points for closures, if needed
 };
 
-ClosureRemap build_remap(const Function& fbody, const DCOFFParams& p);
+ClosureRemap build_remap(const Function& fbody, const DCOFFParams& p, const std::shared_ptr<weights::Bank>& bank);
 void apply_remap(Subgraph& fcall, const ClosureRemap& m);
 void finalize_remap(Function& fbody, const ClosureRemap& m);
 

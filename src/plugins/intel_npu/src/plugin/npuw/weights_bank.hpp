@@ -23,14 +23,17 @@ public:
     explicit Bank(const std::shared_ptr<const ov::ICore>& core) : m_core(core) {}
 
     // Capture CPU version of the tensor
-    ov::Tensor update(const ov::Tensor& tensor);
+    ov::Tensor update(const std::shared_ptr<ov::Node>& tensor);
 
     // Based on previously captured tensor allocate a new tensor (if needed) on a specified device
     ov::Tensor get(const ov::Tensor& tensor, const std::string& device);
 
 private:
+    // After get() allocates device memory, remove reference to the CPU Node
+    void drop(const ov::Tensor& tensor);
+
     // Default CPU bank. Filled by update()
-    std::unordered_map<void*, ov::Tensor> m_bank;
+    std::unordered_map<void*, std::shared_ptr<ov::Node>> m_bank;
     // Bank for specified device and their allocated memory
     std::unordered_map<std::string, std::unordered_map<void*, ov::Tensor>> m_device_bank;
     std::mutex m_mutex;

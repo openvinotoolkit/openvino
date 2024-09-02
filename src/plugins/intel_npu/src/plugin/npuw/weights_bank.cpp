@@ -4,6 +4,8 @@
 
 #include "weights_bank.hpp"
 
+#include "util.hpp"
+
 using ov::npuw::weights::Bank;
 
 class BankManager {
@@ -28,19 +30,34 @@ private:
     std::mutex m_mutex;
 };
 
-ov::Tensor Bank::update(const ov::Tensor& tensor) {
-    if (!tensor) {
-        OPENVINO_THROW("Uninitialized tensor in weights bank allocation!");
+ov::Tensor Bank::update(const std::shared_ptr<ov::Node>& node) {
+    if (!node) {
+        OPENVINO_THROW("Uninitialized ov::Node in weights bank allocation!");
     }
 
     std::lock_guard<std::mutex> guard(m_mutex);
 
+    auto tensor = ov::npuw::util::tensor_from_const(node);
+
     if (m_bank.find(tensor.data()) == m_bank.end()) {
         // need to allocate first
-        m_bank[tensor.data()] = tensor;
+        m_bank[tensor.data()] = node;
     }
 
     return tensor;
+}
+
+void Bank::drop(const ov::Tensor& tensor) {
+    if (!tensor) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> guard(m_mutex);
+
+    auto it = m_bank.find(tensor.data());
+    if (it != m_bank.end()) {
+        m_bank.erase(it);
+    }
 }
 
 ov::Tensor Bank::get(const ov::Tensor& tensor, const std::string& device) {
@@ -61,7 +78,7 @@ ov::Tensor Bank::get(const ov::Tensor& tensor, const std::string& device) {
 
     // If target device is CPU - just reuse the default bank
     if (device == "CPU") {
-        return iter_cpu->second;
+        return ov::npuw::util::tensor_from_const(iter_cpu->second);
     }
 
     // Non-CPU - check if the tensor is already there
@@ -78,6 +95,9 @@ ov::Tensor Bank::get(const ov::Tensor& tensor, const std::string& device) {
     auto allocated_tensor = ov::make_tensor(remote_tensor);
     tensor.copy_to(allocated_tensor);
     device_bank[tensor.data()] = allocated_tensor;
+    // Now can drop reference to the original CPU memory
+    drop(tensor);
+
     return allocated_tensor;
 }
 

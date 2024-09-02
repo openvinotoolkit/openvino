@@ -135,7 +135,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // FIXME: Find a better place to call this transformation
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(model);
 
-    auto partitioning = getPartitioning(model, m_cfg);
+    auto partitioning = getPartitioning(model, m_cfg, m_weights_bank);
     m_total_stat.gflops = partitioning.total_gflops;
     m_total_stat.ops = partitioning.total_ops;
     const std::vector<ov::npuw::Subgraph>& orderedSubgraphs = partitioning.subgraphs;
@@ -275,8 +275,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             m_compiled_submodels[id].closure = subgraph._closure;
             m_compiled_submodels[id].scales = subgraph._scales;
             m_compiled_submodels[id].zerops = subgraph._zerops;
-            m_compiled_submodels[id].update_required.resize(subgraph._closure.size(), false);
-            fill_weights_bank(id);
+            m_compiled_submodels[id].update_required.resize(subgraph._closure.size(),
+                                                            m_cfg.get<::intel_npu::NPUW_FOLD>() ? true : false);
         }  // if(!funcall)
 
         if (!m_compiled_submodels[id].model && !m_compiled_submodels[id].replaced_by) {
@@ -391,26 +391,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     m_finalized = true;
     reset_io();
-}
-
-void ov::npuw::CompiledModel::fill_weights_bank(const std::size_t idx) {
-    LOG_VERB("Filling weights bank for Subgraph[" << idx << "]...");
-    LOG_BLOCK();
-
-    NPUW_ASSERT(m_compiled_submodels[idx].replaced_by);
-
-    auto& comp_model_desc = m_compiled_submodels[idx];
-
-    for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
-        comp_model_desc.closure[cidx] = m_weights_bank->update(comp_model_desc.closure[cidx]);
-        if (m_cfg.get<::intel_npu::NPUW_FOLD>()) {
-            comp_model_desc.update_required[cidx] = true;
-        } else {
-            comp_model_desc.update_required[cidx] = false;
-        }
-    }
-
-    LOG_VERB("DONE");
 }
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
