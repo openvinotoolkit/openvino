@@ -85,6 +85,14 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
 
         _logger.debug("load graph on executor");
         zeroUtils::throwOnFail("pfnLoad", _graph_ddi_table_ext->pfnLoad(_graph));
+
+        // Blob is consumed by driver and we can release the blob here to reduce memory consumption.
+        // Profiling mode is an exception.
+        if (!_config.get<PERF_COUNT>()) {
+            NetworkDescription* network = const_cast<NetworkDescription*>(_networkDesc.get());
+            network->compiledNetwork.clear();
+            network->compiledNetwork.shrink_to_fit();
+        }
     } else {
         _logger.debug("reuse graph handle created from compiler");
         _graph = static_cast<ze_graph_handle_t>(_networkDesc->metadata.graphHandle);

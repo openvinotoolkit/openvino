@@ -101,6 +101,9 @@ private:
     std::vector<ov::PropertyName> _supportedProperties;
 
     const ov::SoPtr<ICompiler> _compiler;
+
+    // If we are on import_model path instead of compile_model path
+    bool _imported = false;
 };
 
 }  //  namespace intel_npu

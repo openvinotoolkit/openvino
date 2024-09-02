@@ -1217,6 +1217,7 @@ template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_3_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_4_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_5_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_6_t>;
+template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_7_t>;
 
 }  // namespace driverCompilerAdapter
 }  // namespace intel_npu
