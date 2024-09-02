@@ -10,12 +10,12 @@ Model Optimization - NNCF
    model-optimization-guide/weight-compression
 
 
-Model optimization means altering the model itself to improve its performance.
-It is an optional step, typically used only at the development stage, so that the pre-optimized
-model is used in the final AI application.
+Model optimization means altering the model itself to improve its performance and reduce
+its size. It is an optional step, typically used only at the development stage, so that
+a pre-optimized model is used in the final AI application.
 
 In OpenVINO, the default optimization tool is NNCF (Neural Network Compression Framework).
-It is a `set of compression algorithms <https://github.com/openvinotoolkit/nncf/blob/develop/docs/NNCFArchitecture.md>`__,
+It is a `set of compression algorithms <https://github.com/openvinotoolkit/nncf/blob/develop/README.md>`__,
 organized as a Python package, that make your models smaller and faster. Note that NNCF
 is **not part of the OpenVINO package**, so it needs to be installed separately. It supports
 models in **PyTorch**, **TensorFlow** , **ONNX**, and **OpenVINO IR** formats, offering
@@ -107,6 +107,7 @@ Additional Resources
 #######################
 
 * `NNCF GitHub repository <https://github.com/openvinotoolkit/nncf>`__
+* `NNCF Architecture <https://github.com/openvinotoolkit/nncf/blob/develop/docs/NNCFArchitecture.md>`__
 * `NNCF Tutorials <https://github.com/openvinotoolkit/nncf?tab=readme-ov-file#demos-tutorials-and-samples>`__
 * `NNCF Compressed Model Zoo <https://github.com/openvinotoolkit/nncf/blob/develop/docs/ModelZoo.md>`__
 * :doc:`Deployment optimization <running-inference/optimize-inference>`
