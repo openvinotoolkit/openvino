@@ -47,11 +47,7 @@ static std::tuple<uint32_t, std::string> queryDriverExtVersion(const char* extNa
         }
     }
 
-    if (functionExtName == nullptr) {
-        return std::make_tuple(targetVersion, "");
-    } else {
-        return std::make_tuple(targetVersion, functionExtName);
-    }
+    return std::make_tuple(targetVersion, functionExtName ? functionExtName : "");
 }
 
 ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder", Logger::global().level()) {

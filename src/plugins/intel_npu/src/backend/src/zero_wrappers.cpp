@@ -61,7 +61,7 @@ Event::~Event() {
 
 CommandList::CommandList(const ze_device_handle_t device_handle,
                          const ze_context_handle_t context,
-                         const ze_graph_dditable_ext_curr_t graph_ddi_table_ext,
+                         const ze_graph_dditable_ext_curr_t* graph_ddi_table_ext,
                          const Config& config,
                          const uint32_t group_ordinal,
                          bool mtci_is_supported)
@@ -132,7 +132,7 @@ void CommandList::updateMutableCommandList(uint32_t arg_index, const void* arg_v
 CommandQueue::CommandQueue(const ze_device_handle_t device_handle,
                            const ze_context_handle_t context,
                            const ze_command_queue_priority_t priority,
-                           const ze_command_queue_npu_dditable_ext_curr_t command_queue_npu_dditable_ext,
+                           ze_command_queue_npu_dditable_ext_curr_t* command_queue_npu_dditable_ext,
                            const Config& config,
                            const uint32_t group_ordinal)
     : _context(context),

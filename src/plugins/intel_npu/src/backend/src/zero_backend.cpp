@@ -76,7 +76,7 @@ void* ZeroEngineBackend::getDeviceHandle() const {
     return _instance->getDevice();
 }
 
-ze_graph_dditable_ext_curr_t ZeroEngineBackend::getGraphDdiTable() {
+ze_graph_dditable_ext_curr_t* ZeroEngineBackend::getGraphDdiTable() const {
     return _instance->getGraphDdiTable();
 }
 

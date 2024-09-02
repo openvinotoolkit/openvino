@@ -9,6 +9,8 @@
 #include <ze_graph_ext.h>
 #include <ze_graph_profiling_ext.h>
 
+#include <string_view>
+
 #include "intel_npu/al/config/runtime.hpp"
 
 /**
@@ -38,7 +40,7 @@ private:
     ze_graph_dditable_ext_decorator(const ze_graph_dditable_ext_decorator&) = delete;
     ze_graph_dditable_ext_decorator(ze_graph_dditable_ext_decorator&&) = delete;
 
-    void throwWhenUnsupported(const std::string func, uint32_t since) {
+    void throwWhenUnsupported(std::string_view func, uint32_t since) {
         if (_driverExtVersion < since) {
             OPENVINO_THROW("L0 extension function ",
                            func,
@@ -85,7 +87,7 @@ public:
     }
     ~ze_graph_dditable_ext_decorator() = default;
 
-    uint32_t version() {
+    inline const uint32_t version() const {
         return _driverExtVersion;
     }
 
@@ -161,7 +163,7 @@ private:
     ze_command_queue_npu_dditable_ext_decorator(const ze_command_queue_npu_dditable_ext_decorator&) = delete;
     ze_command_queue_npu_dditable_ext_decorator(ze_command_queue_npu_dditable_ext_decorator&&) = delete;
 
-    void throwWhenUnsupported(const std::string func, uint32_t since) {
+    void throwWhenUnsupported(std::string_view func, uint32_t since) {
         if (_commandQueueExtVersion < since) {
             OPENVINO_THROW("Command Queue extension function ",
                            func,
@@ -180,7 +182,7 @@ public:
           _commandQueueExtVersion(commandQueueExtVersion) {}
     ~ze_command_queue_npu_dditable_ext_decorator() = default;
 
-    uint32_t version() {
+    inline const uint32_t version() const {
         return _commandQueueExtVersion;
     }
 
@@ -228,6 +230,6 @@ public:
     ze_pfnGraphProfilingLogGetString_ext_t pfnProfilingLogGetString;
 };
 
-using ze_graph_dditable_ext_curr_t = ze_graph_dditable_ext_decorator*;
-using ze_command_queue_npu_dditable_ext_curr_t = ze_command_queue_npu_dditable_ext_decorator*;
-using ze_graph_profiling_dditable_ext_curr_t = ze_graph_profiling_ddi_table_ext_decorator*;
+using ze_graph_dditable_ext_curr_t = ze_graph_dditable_ext_decorator;
+using ze_command_queue_npu_dditable_ext_curr_t = ze_command_queue_npu_dditable_ext_decorator;
+using ze_graph_profiling_dditable_ext_curr_t = ze_graph_profiling_ddi_table_ext_decorator;
