@@ -13,8 +13,9 @@
 ov::snippets::pass::SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
     MATCHER_SCOPE(SoftmaxReshapeElimination);
     const auto m_reshape0 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({ov::pass::pattern::any_input(),
-                                                                               ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
-    const auto m_softmax = ov::pass::pattern::wrap_type<ov::op::v1::Softmax, ov::op::v8::Softmax>({m_reshape0});
+                                                                               ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+                                                                               ov::pass::pattern::consumers_count(1));
+    const auto m_softmax = ov::pass::pattern::wrap_type<ov::op::v1::Softmax, ov::op::v8::Softmax>({m_reshape0}, ov::pass::pattern::consumers_count(1));
     const auto m_reshape1 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({m_softmax, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(m_reshape1, matcher_name),
@@ -24,9 +25,6 @@ ov::snippets::pass::SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
             auto reshape0 = pattern_to_output[m_reshape0].get_node_shared_ptr();
             auto softmax = pattern_to_output[m_softmax].get_node_shared_ptr();
             auto reshape1 = pattern_to_output[m_reshape1].get_node_shared_ptr();
-
-            if (reshape0->get_output_target_inputs(0).size() != 1)
-                return false;
 
             const auto input_shape = reshape0->get_input_partial_shape(0);
             const auto output_shape = reshape1->get_output_partial_shape(0);
