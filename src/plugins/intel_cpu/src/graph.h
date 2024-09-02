@@ -224,12 +224,30 @@ protected:
     bool ProcessDynNodes();
     void Allocate(const std::vector<size_t>& syncNodesInds);
     void AllocateWithReuse(const std::vector<size_t>& syncNodesInds);
-    void ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const;
     void CreatePrimitivesAndExecConstants() const;
-    void InferStatic(SyncInferRequest* request);
 
+    /**
+     * Execute a given \p node within \p request using \p numaId
+     * and catch possible exceptions to include extra information
+     *
+     * @params node     Node to execute
+     * @params request  Current inference request, which is checked for cancelation
+     * @params numaId   Numa Id to be used for an execution
+     */
+    void ExecuteNodeWithCatch(const NodePtr& node, SyncInferRequest* request = nullptr, int numaId = -1) const;
+
+    /**
+     * Execute a given \p node within \p request using \p numaId
+     *
+     * @params node     Node to execute
+     * @params request  Current inference request, which is checked for cancelation
+     * @params numaId   Numa Id to be used for an execution
+     */
+    void ExecuteNode(const NodePtr& node, SyncInferRequest* request = nullptr, int numaId = -1) const;
+
+    void InferStatic(SyncInferRequest* request, int numaId);
     template<typename UpdateStrategy>
-    void InferDynamic(SyncInferRequest* request, UpdateStrategy&& update);
+    void InferDynamic(SyncInferRequest* request, int numaId, UpdateStrategy&& update);
 
     friend class intel_cpu::SyncInferRequest;
     friend std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph);
@@ -242,7 +260,6 @@ private:
     void EnforceBF16();
     void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
     void insertConvert(EdgePtr& edge);
-    int GetNumaNodeId() const;
 
 private:
     // TODO: change std::map to std::unordered_map
