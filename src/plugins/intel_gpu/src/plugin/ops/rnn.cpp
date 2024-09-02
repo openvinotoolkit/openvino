@@ -12,7 +12,6 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
-#include "intel_gpu/primitives/lstm.hpp"
 #include "intel_gpu/primitives/lstm_cell.hpp"
 #include "intel_gpu/primitives/crop.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
