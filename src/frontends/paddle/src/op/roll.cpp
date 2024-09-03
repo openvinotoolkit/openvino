@@ -13,7 +13,9 @@ NamedOutputs roll(const NodeContext& node) {
     auto input_node = node.get_input("X");
     Output<Node> shifts_node;
     if (node.has_input("ShiftsTensor")) {
-        auto shifts_node = node.get_input("ShiftsTensor");
+        auto shifts = node.get_input("ShiftsTensor");
+        auto shifts_var_node = std::make_shared<default_opset::Convert>(shifts, element::i64);
+        shifts_node = std::make_shared<default_opset::Squeeze>(shifts_var_node);
     } else {
         const auto shifts = node.get_attribute<std::vector<int64_t>>("shifts");
         shifts_node = default_opset::Constant::create(element::i64, {shifts.size()}, shifts);

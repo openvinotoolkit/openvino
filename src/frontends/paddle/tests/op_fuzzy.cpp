@@ -513,6 +513,7 @@ static const std::vector<std::string> models{
     std::string("roll_test_1/roll_test_1.pdmodel"),
     std::string("roll_test_2/roll_test_2.pdmodel"),
     std::string("roll_test_3/roll_test_3.pdmodel"),
+    std::string("roll_test_4/roll_test_4.pdmodel"),
     std::string("round/round.pdmodel"),
     std::string("scale_bias_after_float32/scale_bias_after_float32.pdmodel"),
     std::string("scale_bias_after_int32/scale_bias_after_int32.pdmodel"),
