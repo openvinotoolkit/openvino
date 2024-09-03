@@ -24,7 +24,20 @@ public:
 };
 
 struct Context {
-    std::vector<std::shared_ptr<ov::op::v0::Parameter> > closures_to_transpose;
+    using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
+
+    std::vector<PPtr> closures_to_transpose;
+
+    struct View {
+        std::size_t axis;
+        std::size_t splits;
+        std::size_t idx;
+        bool operator< (const View &rhs) const {
+            return std::make_tuple(axis, splits, idx) < std::make_tuple(rhs.axis, rhs.splits, rhs.idx);
+        }
+    };
+    std::map< std::pair<PPtr, View>, PPtr > closure_views;
+    PPtr view(PPtr orig_param, const View &v);
 
     using Ref = std::reference_wrapper<Context>;
 };

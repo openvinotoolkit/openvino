@@ -1567,24 +1567,65 @@ void Partitioner::optimize(const std::string& func_name) {
     ov::npuw::Function& f = P.functions.at(func_name);
 
     ov::npuw::patterns::opt::Context ctx;
-
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQi>(std::ref(ctx));
     rewr.run_on_model(f._model);
-    ov::pass::Validate val;
-    val.run_on_model(f._model);
+
+    // Add new parameters where required
+    std::set<ov::npuw::patterns::opt::Context::PPtr> to_delete;
+    std::vector<ov::npuw::patterns::opt::Context::PPtr> new_params;
+    for (auto &&v : ctx.closure_views) {
+        to_delete.insert(v.first.first);
+        new_params.push_back(v.second);
+    }
+    f._model->add_parameters(new_params);
+    ov::pass::Validate().run_on_model(f._model);
 
     // Transpose tensors where required
     auto& func_group = all_functions.at(func_name);
     for (auto &&p : ctx.closures_to_transpose) {
         auto param_idx = f._model->get_parameter_index(p);
         auto closure_idx = param_idx - f._param_offset;
-
         ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
             auto& funcall = func_group.refs[f_idx].get();
             ov::npuw::util::transpose(funcall._closure[closure_idx]);
         });
     }
+
+    // Now add new closure tensors
+    for (auto &&v : ctx.closure_views) {
+        ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+            auto& funcall = func_group.refs[f_idx].get();
+            auto& orig_param = v.first.first;
+            auto& view_detail = v.first.second;
+            auto param_idx = f._model->get_parameter_index(orig_param);
+            auto closure_idx = param_idx - f._param_offset;
+            funcall._closure.push_back(ov::npuw::util::slice(funcall._closure[closure_idx],
+                                                             view_detail.axis,
+                                                             view_detail.splits,
+                                                             view_detail.idx));
+        });
+    }
+
+    // Store the indices of parameters to delete. Remap closures, then delete parameters
+    std::set<std::size_t> idx_to_delete;
+    for (auto &&now_delete : to_delete) {
+        idx_to_delete.insert(f._model->get_parameter_index(now_delete));
+    }
+    for (auto &&fref : func_group.refs) {
+        auto& funcall = fref.get();
+        std::vector<ov::Tensor> new_closure;
+        for (std::size_t cidx = 0; cidx < funcall._closure.size(); cidx++) {
+            if (idx_to_delete.count(f._param_offset + cidx) == 0) {
+                new_closure.push_back(funcall._closure[cidx]);
+            }
+        }
+        funcall._closure = std::move(new_closure);
+    }
+    for (auto &&now_delete : to_delete) {
+        f._model->remove_parameter(now_delete);
+    }
+    f._model->validate_nodes_and_infer_types();
 
     LOG_VERB("Done");
 }

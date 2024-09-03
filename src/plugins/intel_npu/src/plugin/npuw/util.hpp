@@ -53,6 +53,8 @@ void to_f32(const ov::Tensor& in, ov::Tensor& out);
 
 void transpose(ov::Tensor &t);
 
+ov::Tensor slice(const ov::Tensor &t, std::size_t axis, std::size_t splits, std::size_t idx);
+
 }  // namespace util
 }  // namespace npuw
 }  // namespace ov

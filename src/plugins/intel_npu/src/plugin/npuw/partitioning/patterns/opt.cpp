@@ -112,6 +112,23 @@ DQMatMulCWi::DQMatMulCWi() {
     register_matcher(std::make_shared<opp::Matcher>(qmm, "OptDQMatMulCWi"), std::move(callback));
 }
 
+Context::PPtr Context::view(PPtr orig_param, const View &v) {
+    // FIXME: Assumed called only once
+    auto key = std::make_pair(orig_param, v);
+    auto iter = closure_views.find(key);
+    if (iter != closure_views.end()) {
+        return iter->second;
+    }
+
+    auto view_shape = orig_param->output(0).get_shape();
+    view_shape[v.axis] /= v.splits; // FIXME: handle rounding here
+    auto view_param = std::make_shared<ov::op::v0::Parameter>(orig_param->get_element_type(), view_shape);
+
+    closure_views[key] = view_param;
+    return view_param;
+}
+
+
 // FROM:
 //     ???(Act) -------------------------------------------->
 //     Param(W) -> Convert(f16|f32) -> Multiply -> Reshape -> MatMul
@@ -168,17 +185,21 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
             // Split Act, W, and S tensors by the group size
             const auto NSPLIT = qweight_shape[0];
             auto a_split_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 2);
-            auto w_split_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1);
-            auto s_split_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
+            // auto w_split_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1);
+            // auto s_split_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
             auto split_a = std::make_shared<ov::op::v1::Split>(matched_out_mmi, a_split_axis, NSPLIT);
-            auto split_w = std::make_shared<ov::op::v1::Split>(matched_qweight, w_split_axis, NSPLIT);
-            auto split_s = std::make_shared<ov::op::v1::Split>(matched_qcoeff, s_split_axis, NSPLIT);
+            // auto split_w = std::make_shared<ov::op::v1::Split>(matched_qweight, w_split_axis, NSPLIT);
+            // auto split_s = std::make_shared<ov::op::v1::Split>(matched_qcoeff, s_split_axis, NSPLIT);
 
             // Do the CW MM for every group
             std::vector<std::shared_ptr<ov::Node> > to_concat;
+            using View = Context::View;
             for (std::size_t i = 0; i < NSPLIT; i++) {
+                auto split_w = ctx.get().view(matched_qweight, View{1, NSPLIT, i});
+                auto split_s = ctx.get().view(matched_qcoeff, View{0, NSPLIT, i});
+
                 auto a_f16 = std::make_shared<ov::op::v0::Convert>(split_a->output(i), ov::element::f16);
-                auto w_f16 = std::make_shared<ov::op::v0::Convert>(split_w->output(i), ov::element::f16);
+                auto w_f16 = std::make_shared<ov::op::v0::Convert>(split_w, ov::element::f16);
 
                 // Fix the W shape to maintain the matmul contract
                 auto wtile_shape = w_f16->output(0).get_shape();
@@ -189,7 +210,7 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
                 auto m_f16 = std::make_shared<ov::op::v0::MatMul>(a_f16, wresh, false, true);
                 auto m_f32 = std::make_shared<ov::op::v0::Convert>(m_f16, ov::element::f32);
 
-                auto s_f32 = std::make_shared<ov::op::v1::Multiply>(m_f32, split_s->output(i));
+                auto s_f32 = std::make_shared<ov::op::v1::Multiply>(m_f32, split_s);
                 to_concat.push_back(s_f32);
             }
 #if 0
@@ -197,7 +218,7 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
             auto ccat_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
             auto ccat = std::make_shared<ov::op::v0::Concat>(to_concat, 0);
             auto cred = std::make_shared<ov::op::v1::ReduceSum>(ccat, ccat_axis, true);
-#endif
+#else
             // Reduce via ADD
             std::vector<ov::Output<ov::Node>> reduce_add;
             reduce_add.push_back(std::make_shared<ov::op::v1::Add>(to_concat[0], to_concat[1]));
@@ -205,7 +226,7 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
                 reduce_add.push_back(std::make_shared<ov::op::v1::Add>(reduce_add[i-1], to_concat[i+1]));
             }
             auto &cred = reduce_add.back();
-
+#endif
             // Now.. Reconnect the matmul readers to the new output (reducesum)
             for (auto &&r : matched_matmul->output(0).get_target_inputs()) {
                 r.replace_source_output(cred);
