@@ -80,7 +80,12 @@ ov::OutputVector mmdeploy_trt_batched_nms(const ov::frontend::onnx::Node& node) 
 
 
     auto concat_outputs = std::make_shared<v0::Concat>(OutputVector{split_outputs[2], split_outputs[1]}, 2)->outputs();
+//dets; 3-D tensor of shape (N, valid_num_boxes, 5), `valid_num_boxes` is the number of boxes after NMS. For each row `dets[i,j,:] = [x0, y0, x1, y1, score]`
+//labels; 2-D tensor of shape (N, valid_num_boxes).
 
+//[number of selected boxes, 6] [class_id, box_score, xmin, ymin, xmax, ymax]
+//[number of selected boxes, 1] the selected indices in the flattened boxes
+//split_outputs : [number of selected boxes, 1]
     return {concat_outputs[0], split_outputs[0]};
 }
 
