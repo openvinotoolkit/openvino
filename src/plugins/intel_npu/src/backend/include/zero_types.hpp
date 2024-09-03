@@ -55,33 +55,28 @@ private:
 public:
     ze_graph_dditable_ext_decorator(ze_graph_dditable_ext_last_t* impl, uint32_t driverExtVersion)
         : _impl(impl),
-          _driverExtVersion(driverExtVersion) {
-        // version 1.0
-        pfnCreate = _impl->pfnCreate;
-        pfnDestroy = _impl->pfnDestroy;
-        pfnGetProperties = _impl->pfnGetProperties;
-        pfnGetArgumentProperties = _impl->pfnGetArgumentProperties;
-        pfnSetArgumentValue = _impl->pfnSetArgumentValue;
-        pfnAppendGraphInitialize = _impl->pfnAppendGraphInitialize;
-        pfnAppendGraphExecute = _impl->pfnAppendGraphExecute;
-        pfnGetNativeBinary = _impl->pfnGetNativeBinary;
-        pfnDeviceGetGraphProperties = _impl->pfnDeviceGetGraphProperties;
-
-        // version 1.1
-        pfnGraphGetArgumentMetadata = _impl->pfnGraphGetArgumentMetadata;
-        pfnGetArgumentProperties2 = _impl->pfnGetArgumentProperties2;
-
-        // version 1.2
-        pfnGetArgumentProperties3 = _impl->pfnGetArgumentProperties3;
-
-        // version 1.3
-        pfnQueryNetworkCreate = _impl->pfnQueryNetworkCreate;
-        pfnQueryNetworkDestroy = _impl->pfnQueryNetworkDestroy;
-        pfnQueryNetworkGetSupportedLayers = _impl->pfnQueryNetworkGetSupportedLayers;
-
-        // version 1.4
-        pfnBuildLogGetString = _impl->pfnBuildLogGetString;
-
+          _driverExtVersion(driverExtVersion),
+          // version 1.0
+          pfnCreate(_impl->pfnCreate),
+          pfnDestroy(_impl->pfnDestroy),
+          pfnGetProperties(_impl->pfnGetProperties),
+          pfnGetArgumentProperties(_impl->pfnGetArgumentProperties),
+          pfnSetArgumentValue(_impl->pfnSetArgumentValue),
+          pfnAppendGraphInitialize(_impl->pfnAppendGraphInitialize),
+          pfnAppendGraphExecute(_impl->pfnAppendGraphExecute),
+          pfnGetNativeBinary(_impl->pfnGetNativeBinary),
+          pfnDeviceGetGraphProperties(_impl->pfnDeviceGetGraphProperties),
+          // version 1.1
+          pfnGraphGetArgumentMetadata(_impl->pfnGraphGetArgumentMetadata),
+          pfnGetArgumentProperties2(_impl->pfnGetArgumentProperties2),
+          // version 1.2
+          pfnGetArgumentProperties3(_impl->pfnGetArgumentProperties3),
+          // version 1.3
+          pfnQueryNetworkCreate(_impl->pfnQueryNetworkCreate),
+          pfnQueryNetworkDestroy(_impl->pfnQueryNetworkDestroy),
+          pfnQueryNetworkGetSupportedLayers(_impl->pfnQueryNetworkGetSupportedLayers),
+          // version 1.4
+          pfnBuildLogGetString(_impl->pfnBuildLogGetString) {
         // version 1.5
         // wrappers replace pointers
     }
@@ -208,16 +203,16 @@ private:
     ze_graph_profiling_ddi_table_ext_decorator(ze_graph_profiling_ddi_table_ext_decorator&&) = delete;
 
 public:
-    ze_graph_profiling_ddi_table_ext_decorator(ze_graph_profiling_dditable_ext_last_t* impl) : _impl(impl) {
-        // version 1.0
-        pfnProfilingPoolCreate = _impl->pfnProfilingPoolCreate;
-        pfnProfilingPoolDestroy = _impl->pfnProfilingPoolDestroy;
-        pfnProfilingQueryCreate = _impl->pfnProfilingQueryCreate;
-        pfnProfilingQueryDestroy = _impl->pfnProfilingQueryDestroy;
-        pfnProfilingQueryGetData = _impl->pfnProfilingQueryGetData;
-        pfnDeviceGetProfilingDataProperties = _impl->pfnDeviceGetProfilingDataProperties;
-        pfnProfilingLogGetString = _impl->pfnProfilingLogGetString;
-    }
+    ze_graph_profiling_ddi_table_ext_decorator(ze_graph_profiling_dditable_ext_last_t* impl)
+        : _impl(impl),
+          // version 1.0
+          pfnProfilingPoolCreate(_impl->pfnProfilingPoolCreate),
+          pfnProfilingPoolDestroy(_impl->pfnProfilingPoolDestroy),
+          pfnProfilingQueryCreate(_impl->pfnProfilingQueryCreate),
+          pfnProfilingQueryDestroy(_impl->pfnProfilingQueryDestroy),
+          pfnProfilingQueryGetData(_impl->pfnProfilingQueryGetData),
+          pfnDeviceGetProfilingDataProperties(_impl->pfnDeviceGetProfilingDataProperties),
+          pfnProfilingLogGetString(_impl->pfnProfilingLogGetString) {}
     ~ze_graph_profiling_ddi_table_ext_decorator() = default;
 
     // version 1.0
