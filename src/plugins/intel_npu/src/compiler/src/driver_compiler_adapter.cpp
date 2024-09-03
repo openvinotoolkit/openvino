@@ -106,13 +106,13 @@ std::vector<ov::ProfilingInfo> LevelZeroCompilerAdapter::process_profiling_outpu
 
 void LevelZeroCompilerAdapter::release(std::shared_ptr<const NetworkDescription> networkDescription) {
     _logger.info("release - using adapter to release networkDescription");
-    apiAdapter->release(networkDescription);
+    apiAdapter->release(std::move(networkDescription));
 }
 
 std::vector<uint8_t> LevelZeroCompilerAdapter::getCompiledNetwork(
     std::shared_ptr<const NetworkDescription> networkDescription) {
     _logger.info("getCompiledNetwork - using adapter to perform getCompiledNetwork(networkDescription)");
-    return apiAdapter->getCompiledNetwork(networkDescription);
+    return apiAdapter->getCompiledNetwork(std::move(networkDescription));
 }
 
 }  // namespace driverCompilerAdapter
