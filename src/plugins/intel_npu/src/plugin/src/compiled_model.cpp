@@ -107,7 +107,7 @@ CompiledModel::~CompiledModel() {
     // Call compiler to destroy graphHandle only if no executor created
     if (_executorPtr == nullptr) {
         _logger.debug("~CompiledModel() - _executorPtr is a nullptr, compiler release _executorPtr");
-        _compiler->release(_networkPtr);
+        _compiler->release(_networkPtr.get());
     }
 }
 
@@ -139,7 +139,7 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
-    const auto&& blob = _compiler->getCompiledNetwork(_networkPtr);
+    const auto&& blob = _compiler->getCompiledNetwork(_networkPtr.get());
     stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
     std::stringstream str;
     str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
