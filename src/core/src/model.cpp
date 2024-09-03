@@ -608,6 +608,16 @@ void ov::Model::remove_sink(const std::shared_ptr<ov::op::Sink>& sink) {
     m_shared_rt_info->set_use_topological_cache(false);
 }
 
+void ov::Model::remove_const_sink(const std::shared_ptr<const ov::op::Sink>& sink) {
+    m_sinks.erase(std::remove_if(m_sinks.begin(),
+                                 m_sinks.end(),
+                                 [&sink](std::shared_ptr<ov::op::Sink>& s) {
+                                     return s == sink;
+                                 }),
+                  m_sinks.end());
+    m_shared_rt_info->set_use_topological_cache(false);
+}
+
 void ov::Model::add_results(const ResultVector& results) {
     m_results.insert(m_results.end(), results.begin(), results.end());
     // reset topological nodes order cache as new sinks/results/parameters
