@@ -257,7 +257,7 @@ to avoid exceptions from the compiler.
 
 .. note::
 
-   ``ov::intel_npu::tiles`` overrides the configuration set by performance hints
+   ``ov::intel_npu::tiles`` overrides the default number of tiles selected by the compiler based on performance hints
    (``ov::hint::performance_mode``).
    Any tile number other than 1 may be a problem for cross platform compatibility,
    if not tested explicitly versus the max_tiles value.

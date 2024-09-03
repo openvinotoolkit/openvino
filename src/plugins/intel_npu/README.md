@@ -245,7 +245,7 @@ must be preceded by reading intel_npu::max_tiles first, to make sure that
 ``ov::intel_npu::tiles`` <= ``ov::intel_npu::max_tiles``  
 to avoid exceptions from the compiler.
 
-   Note that ``ov::intel_npu::tiles`` overrides the configuration set by performance hints
+   Note that ``ov::intel_npu::tiles`` overrides the default number of tiles selected by the compiler based on performance hints
    (``ov::hint::performance_mode``).
    Any tile number other than 1 may be a problem for cross platform compatibility,
    if not tested explicitly versus the max_tiles value.
