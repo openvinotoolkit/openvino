@@ -10,7 +10,7 @@ on:
 
 concurrency:
   # github.ref is not unique in post-commit
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-cc
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-cc-fix-it
   cancel-in-progress: true
 
 permissions: read-all
@@ -87,7 +87,7 @@ jobs:
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_BUILD_TYPE: 'RelWithDebInfo'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
@@ -191,8 +191,8 @@ jobs:
       - name: Perform code tracing via ITT collector
         run: |
           python3 ${OPENVINO_REPO}/thirdparty/itt_collector/runtool/sea_runtool.py \
-            --bindir ${OPENVINO_REPO}/bin/intel64/Release -o ${SELECTIVE_BUILD_STAT_DIR}/itt_stat ! \
-          ${OPENVINO_REPO}/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
+            --bindir ${OPENVINO_REPO}/bin/intel64/RelWithDebInfo -o ${SELECTIVE_BUILD_STAT_DIR}/itt_stat ! \
+          ${OPENVINO_REPO}/bin/intel64/RelWithDebInfo/benchmark_app -niter 1 -nireq 1 \
             -m ${MODELS_PATH}/models/test_model/test_model_fp32.xml -d CPU
 
       - name: Pack Artifacts
@@ -333,7 +333,7 @@ jobs:
         run: ${SCCACHE_PATH} --show-stats
 
       - name: Run with CC-ed runtime
-        run: ${OPENVINO_REPO}/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 -m ${MODELS_PATH}/models/test_model/test_model_fp32.xml -d CPU
+        run: ${OPENVINO_REPO}/bin/intel64/RelWithDebInfo/benchmark_app -niter 1 -nireq 1 -m ${MODELS_PATH}/models/test_model/test_model_fp32.xml -d CPU
 
   CPU_Functional_Tests:
     name: CPU functional tests
