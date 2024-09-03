@@ -106,7 +106,7 @@ protected:
     bool matcher_callback(ov::pass::pattern::Matcher& m);
 
 public:
-    DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type,  bool enable_transpose, DCOFFParamRef pref);
+    DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, bool enable_transpose, DCOFFParamRef pref);
 
     virtual void build();
     virtual void reconnect_root(ov::pass::pattern::Matcher& m) = 0;
@@ -132,7 +132,7 @@ public:
 
 class DCOFFPassReshape2 : public ov::pass::MatcherPass {
 public:
-    DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type,  bool enable_transpose, DCOFFParamRef pref);
+    DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type, bool enable_transpose, DCOFFParamRef pref);
 };
 
 class DCOFFPassReshape3 : public ov::pass::MatcherPass {
