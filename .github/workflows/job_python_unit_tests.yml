@@ -270,7 +270,9 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
-        if: fromJSON(inputs.affected-components).TF_FE.test
+        # no longer workable since TF 2.17
+        # will be removed in 2024.5
+        if: ${{ 'false' }}
         run: python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/test_tf2_keras_activation.py --use_legacy_frontend --ir_version=11 -k "sigmoid" --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_Activation.xml
         env:
           TEST_DEVICE: CPU
@@ -306,7 +308,7 @@ jobs:
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         if: ${{ !cancelled() }}
         with:
           name: test-results-python
