@@ -49,7 +49,7 @@ public:
                                        "Set property to Core::compile_model during compilation");
     };
 
-    void release_buffers() override;
+    void release_memory() override;
 
 private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;

@@ -138,7 +138,7 @@ public:
      * @brief Release intermediate memory
      * 
      */
-    virtual void release_buffers();
+    virtual void release_memory();
 
     virtual ~ICompiledModel() = default;
 

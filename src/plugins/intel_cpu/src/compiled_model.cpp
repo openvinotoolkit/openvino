@@ -342,7 +342,7 @@ void CompiledModel::export_model(std::ostream& modelStream) const {
     serializer << m_model;
 }
 
-void CompiledModel::release_buffers() {
+void CompiledModel::release_memory() {
     for (auto&& graph : m_graphs) {
         GraphGuard::Lock graph_lock{graph};
         auto ctx = graph_lock._graph.getGraphContext();
