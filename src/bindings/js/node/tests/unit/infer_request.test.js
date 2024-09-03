@@ -12,28 +12,33 @@ const testXml = getModelPath().xml;
 
 describe('ov.InferRequest tests', () => {
 
+  let compiledModel = null;
+  let tensorData = null;
+  let tensor = null;
+  let resTensor = null;
+  let tensorLike = null;
+
   before(async () => {
     await isModelAvailable(testModels.testModelFP32);
+
+    const core = new ov.Core();
+    const model = core.readModelSync(testXml);
+    compiledModel = core.compileModelSync(model, 'CPU');
+
+    tensorData = Float32Array.from({ length: 3072 }, () => (Math.random() + epsilon));
+    tensor = new ov.Tensor(
+      ov.element.f32,
+      [1, 3, 32, 32],
+      tensorData,
+    );
+    resTensor = new ov.Tensor(
+      ov.element.f32,
+      [1, 10],
+      tensorData.slice(-10),
+    );
+    tensorLike = [[tensor],
+      [tensorData]];
   });
-
-  const core = new ov.Core();
-  const model = core.readModelSync(testXml);
-  const compiledModel = core.compileModelSync(model, 'CPU');
-
-  const tensorData = Float32Array.from({ length: 3072 }, () => (Math.random() + epsilon));
-  const tensor = new ov.Tensor(
-    ov.element.f32,
-    [1, 3, 32, 32],
-    tensorData,
-  );
-  const resTensor = new ov.Tensor(
-    ov.element.f32,
-    [1, 10],
-    tensorData.slice(-10),
-  );
-  const tensorLike = [[tensor],
-    [tensorData]];
-    
 
   describe('infer() method', () => {
     let inferRequest = null;
@@ -63,25 +68,27 @@ describe('ov.InferRequest tests', () => {
         {message: /TypedArray cannot be passed directly into infer\(\) method./});
     });
 
-    const buffer = new ArrayBuffer(tensorData.length);
-    const inputMessagePairs = [
-      ['string', 'Cannot create a tensor from the passed Napi::Value.'],
-      [tensorData.slice(-10), 'Memory allocated using shape and element::type mismatch passed data\'s size'],
-      [new Float32Array(buffer, 4), 'TypedArray.byteOffset has to be equal to zero.'],
-      [{}, /Invalid argument/], // Test for object that is not Tensor
-    ];
+    it('Test for invalid input data', () => {
+      const buffer = new ArrayBuffer(tensorData.length);
+      const inputMessagePairs = [
+        ['string', 'Cannot create a tensor from the passed Napi::Value.'],
+        [tensorData.slice(-10), 'Memory allocated using shape and element::type mismatch passed data\'s size'],
+        [new Float32Array(buffer, 4), 'TypedArray.byteOffset has to be equal to zero.'],
+        [{}, /Invalid argument/], // Test for object that is not Tensor
+      ];
 
-    inputMessagePairs.forEach( ([tl, msg]) => {
-      it(`Test infer([data]) throws ${msg}`, () => {
+      inputMessagePairs.forEach( ([tl, msg]) => {
+
         assert.throws(
           () => inferRequest.infer([tl]),
-          {message: new RegExp(msg)});
-      });
-      it(`Test infer({ data: tl}) throws ${msg}`, () => {
+          {message: new RegExp(msg)}, 'infer([data]) throws');
+
         assert.throws(
           () => inferRequest.infer({data: tl}),
-          {message: new RegExp(msg)});
+          {message: new RegExp(msg)}, 'infer({ data: tl}) throws');
+
       });
+
     });
 
   });

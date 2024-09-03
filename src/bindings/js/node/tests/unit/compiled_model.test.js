@@ -9,14 +9,17 @@ const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
 
 describe('ov.CompiledModel tests', () => {
 
-  before(async () => {
-    await isModelAvailable(testModels.testModelFP32);
-  });
 
-  const testXml = getModelPath().xml;
-  const core = new ov.Core();
+  let testXml = null;
+  let core = null;
   let compiledModel = null;
 
+  before(async () => {
+    await isModelAvailable(testModels.testModelFP32);
+    testXml = getModelPath().xml;
+    core = new ov.Core();
+  });
+  
   beforeEach( () => {
     const properties = {
       'AUTO_BATCH_TIMEOUT': '1',

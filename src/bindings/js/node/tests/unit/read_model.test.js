@@ -12,15 +12,19 @@ const { xml: modelPath, bin: weightsPath } = getModelPath();
 
 describe('Tests for reading model.', () => {
 
+  let modelFile = null;
+  let modelStr = null;
+  let weightsFile = null;
+  let weightsTensor= null;
+  let core = null;
+
   before(async () => {
     await isModelAvailable(testModels.testModelFP32);
+    modelFile = fs.readFileSync(modelPath);
+    modelStr = fs.readFileSync(modelPath, 'utf8');
+    weightsFile = fs.readFileSync(weightsPath);
   });
 
-  const modelFile = fs.readFileSync(modelPath);
-  const modelStr = fs.readFileSync(modelPath, 'utf8');
-  const weightsFile = fs.readFileSync(weightsPath);
-  let core = null;
-  let weightsTensor= null;
   beforeEach(() => {
     core = new ov.Core();
     weightsTensor = new ov.Tensor(ov.element.u8, [weightsFile.buffer.byteLength], new Uint8Array(weightsFile.buffer));

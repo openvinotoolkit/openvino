@@ -9,15 +9,16 @@ const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
 
 describe('ov basic tests.', () => {
 
-  before(async () => {
-    await isModelAvailable(testModels.testModelFP32);
-  });
-
-  const testXml = getModelPath().xml;
+  let testXml = null; 
   let core = null;
   let model = null;
   let compiledModel = null;
   let modelLike = null;
+
+  before(async () => {
+    await isModelAvailable(testModels.testModelFP32);
+    testXml = getModelPath().xml;
+  });
 
   beforeEach(() => {
     core = new ov.Core();

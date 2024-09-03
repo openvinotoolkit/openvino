@@ -9,13 +9,16 @@ const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
 
 describe('ov.Model tests', () => {
 
+  let testXml = null;
+  let core = null;
+  let model = null;
+
   before(async () => {
     await isModelAvailable(testModels.testModelFP32);
+    testXml = getModelPath().xml;
+    core = new ov.Core();
   });
 
-  const testXml = getModelPath().xml;
-  const core = new ov.Core();
-  let model = null;
   beforeEach(() => {
     model = core.readModelSync(testXml);
   });
