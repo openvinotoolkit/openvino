@@ -119,12 +119,13 @@ class TestLLMModel(TestTorchConvertModel):
 
         example = t("Some input text to verify that model works.",
                     return_tensors='pt').__dict__['data']
-        if type not in ["gptj", "starcoder2", "mpt"]:
+        atype = type.replace("_gptq", "")
+        if atype not in ["gptj", "starcoder2", "mpt"]:
             pkv, am = self.get_pkv(model, t)
             example["past_key_values"] = pkv
             example["attention_mask"] = torch.cat(
                 [example["attention_mask"], am], -1)
-        if type not in ["opt", "falcon", "mbart_gptq", "mpt"]:
+        if atype not in ["opt", "falcon", "mbart_gptq", "mpt"]:
             ids = torch.cumsum(example["attention_mask"] != 0, dim=1) - 1
             example["position_ids"] = ids[:, -
                                           example["input_ids"].shape[1]:]
