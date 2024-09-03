@@ -15,12 +15,18 @@ namespace {
 void CreateBucketizeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v3::Bucketize>& op) {
     validate_inputs_count(op, {2});
 
-    bool is_boundary_empty = shape_size(op->get_input_shape(1)) == 0 ? true : false;
+    cldnn::bucketize_boundary boundary_status = cldnn::bucketize_boundary::dynamic;
+    if (op->get_input_partial_shape(0).is_static()) {
+        boundary_status = shape_size(op->get_input_shape(1)) == 0 ? cldnn::bucketize_boundary::empty
+                                                                  : cldnn::bucketize_boundary::exists;
+    }
+
     const cldnn::bucketize bucketize_prim(layer_type_name_ID(op),
                                           p.GetInputInfo(op),
                                           cldnn::element_type_to_data_type(op->get_output_type()),
                                           op->get_with_right_bound(),
-                                          is_boundary_empty);
+                                          boundary_status);
+
     p.add_primitive(*op, bucketize_prim);
 }
 

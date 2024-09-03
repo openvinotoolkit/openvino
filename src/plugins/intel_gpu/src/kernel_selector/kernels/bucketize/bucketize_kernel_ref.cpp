@@ -102,9 +102,7 @@ JitConstants BucketizeKernelRef::GetJitConstants(const bucketize_params& kernel_
         jit_constants.AddConstant(MakeJitConstant("WITH_RIGHT_BOUND", true));
     }
 
-    if (kernel_params.is_boundary_empty) {
-        jit_constants.AddConstant(MakeJitConstant("IS_BOUNDARY_EMPTY", true));
-    }
+    jit_constants.AddConstant(MakeJitConstant("IS_BOUNDARY_EMPTY", kernel_params.is_boundary_empty));
 
     return jit_constants;
 }
