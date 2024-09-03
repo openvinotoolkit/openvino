@@ -191,8 +191,8 @@ jobs:
       - name: Perform code tracing via ITT collector
         run: |
           python3 ${OPENVINO_REPO}/thirdparty/itt_collector/runtool/sea_runtool.py \
-            --bindir ${OPENVINO_REPO}/bin/intel64/Release -o ${SELECTIVE_BUILD_STAT_DIR}/itt_stat ! \
-          ${OPENVINO_REPO}/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
+            --bindir ${OPENVINO_REPO}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }} -o ${SELECTIVE_BUILD_STAT_DIR}/itt_stat ! \
+          ${OPENVINO_REPO}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/benchmark_app -niter 1 -nireq 1 \
             -m ${MODELS_PATH}/models/test_model/test_model_fp32.xml -d CPU
 
       - name: Pack Artifacts
