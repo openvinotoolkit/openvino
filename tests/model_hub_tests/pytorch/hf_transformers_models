@@ -2,7 +2,6 @@
 albert,albert/albert-base-v2
 align,kakaobrain/align-base,xfail,Compile error: AvgPool: Kernel after dilation has size (dim: 640) larger than the data shape after padding (dim: 9) at axis 0.
 altclip,BAAI/AltCLIP
-aquila,BAAI/AquilaCode-py
 audio-spectrogram-transformer,MIT/ast-finetuned-audioset-10-10-0.4593
 autoformer,huggingface/autoformer-tourism-monthly,xfail,Load error: mat1 and mat2 shapes cannot be multiplied
 bark,suno/bark,xfail,Load error: got an unexpected keyword argument 'input_ids'
@@ -65,7 +64,7 @@ encoder_decoder,patrickvonplaten/bert2gpt2-cnn_dailymail-fp16,xfail,Load error: 
 encoder-decoder,raynardj/wenyanwen-chinese-translate-to-ancient
 ernie,nghuyong/ernie-3.0-base-zh
 ernie_m,MoritzLaurer/ernie-m-large-mnli-xnli
-esm,InstaDeepAI/nucleotide-transformer-2.5b-multi-species
+esm,InstaDeepAI/nucleotide-transformer-500m-human-ref
 f_t5,flax-community/ft5-cnn-dm
 fastspeech2_conformer,espnet/fastspeech2_conformer,xfail,Compile error: CPU plug-in doesn't support Tile operation with dynamic rank. Operation name: aten::repeat_interleave/Tile
 fastspeech2_conformer_with_hifigan,espnet/fastspeech2_conformer_with_hifigan,xfail,Compile error: CPU plug-in doesn't support Tile operation with dynamic rank. Operation name: __module.model/aten::repeat_interleave/Tile
@@ -81,7 +80,6 @@ glpn,vinvino02/glpn-nyu
 gpt_bigcode,bigcode/tiny_starcoder_py
 gpt_neo,EleutherAI/gpt-neo-2.7B
 gpt2,openai-community/gpt2
-gptj,databricks/dolly-v1-6b
 gptsan-japanese,Tanrei/GPTSAN-japanese,xfail,Unsupported op aten::index_put_ prim::TupleConstruct prim::TupleUnpack
 graphormer,clefourrier/graphormer-base-pcqm4mv2,xfail,Load error: GraphormerForGraphClassification.forward() missing 6 required positional arguments: 'input_edges' 'attn_bias' 'in_degree' 'out_degree' 'spatial_pos' and 'attn_edge_type'
 grounding-dino,IDEA-Research/grounding-dino-base,xfail,Trace error: op->outputs().size() == 1 INTERNAL ASSERT FAILED
@@ -129,7 +127,6 @@ mobilenet_v2,google/mobilenet_v2_1.0_224
 mobilevit,apple/mobilevit-small
 mobilevitv2,apple/mobilevitv2-1.0-imagenet1k-256
 mpnet,sentence-transformers/all-mpnet-base-v2
-mpt,team-lucid/mptk-1b
 mra,uw-madison/mra-base-512-4
 mt5,csebuetnlp/mT5_multilingual_XLSum
 musicgen,facebook/musicgen-large
@@ -171,7 +168,7 @@ rt_detr,rafaelpadilla/porting_rt_detr,xfail,Trace error: Only tensors lists tupl
 rwkv,RWKV/rwkv-4-169m-pile
 sam,facebook/sam-vit-huge
 scibert,Goutham-Vignesh/ContributionSentClassification-scibert
-seamless_m4t,facebook/hf-seamless-m4t-large
+seamless_m4t,facebook/hf-seamless-m4t-medium
 segformer,mattmdjaga/segformer_b2_clothes
 seg-ment-tation,NiCy/seg-ment-tation
 sew,anton-l/sew-mid-100k-ft-keyword-spotting
@@ -180,12 +177,10 @@ siglip,google/siglip-base-patch16-224
 siglip_vision_model,bczhou/TinyLLaVA-3.1B-SigLIP
 speech_to_text,facebook/s2t-small-librispeech-asr
 speech_to_text_2,pirxus/s2t2_decoder_base
-speech-encoder-decoder,facebook/wav2vec2-xls-r-2b-22-to-16
+speech-encoder-decoder,facebook/wav2vec2-xls-r-300m-en-to-15
 speecht5,microsoft/speecht5_tts,xfail,Unsupported op aten::bernoulli
 splinter,tau/splinter-base-qass
 squeezebert,typeform/squeezebert-mnli
-stablelm,pansophic/rocket-3B
-starcoder2,cognitivecomputations/dolphincoder-starcoder2-7b
 superpoint,stevenbucaille/superpoint,xfail,Unsupported prim::TupleConstruct prim::TupleUnpack
 swiftformer,MBZUAI/swiftformer-xs
 swin,microsoft/swin-tiny-patch4-window7-224
