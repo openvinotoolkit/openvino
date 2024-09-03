@@ -170,8 +170,8 @@ void run_eltwise_generic_test(cldnn::eltwise_mode mode) {
 
 }
 
-template <typename T>
-int8_t eltwise_bool_execute(cldnn::eltwise_mode mode, T x, T y) {
+template <typename T, typename TOut>
+TOut eltwise_int_execute(cldnn::eltwise_mode mode, T x, T y) {
     switch (mode) {
     case eltwise_mode::eq:
         return x == y;
@@ -189,13 +189,17 @@ int8_t eltwise_bool_execute(cldnn::eltwise_mode mode, T x, T y) {
         return x && y;
     case eltwise_mode::logic_or:
         return x || y;
+    case eltwise_mode::right_shift:
+        return x >> y;
+    case eltwise_mode::left_shift:
+        return x << y;
     default:
-        return (int8_t)0;
+        return (TOut)0;
     }
 }
 
-template <typename T>
-VVVVF<int8_t> eltwise_bool_reference(VVVVF<T> &input1, VVVVF<T> &input2,
+template <typename T, typename TOut>
+VVVVF<TOut> eltwise_int_reference(VVVVF<T> &input1, VVVVF<T> &input2,
     cldnn::eltwise_mode mode, int input_padding_y = 0,
     int input_padding_x = 0, int output_padding_y = 0,
     int output_padding_x = 0) {
@@ -206,14 +210,14 @@ VVVVF<int8_t> eltwise_bool_reference(VVVVF<T> &input1, VVVVF<T> &input2,
     size_t output_f = input1[0].size();
     size_t output_y = input1[0][0].size() + 2 * padding_y;
     size_t output_x = input1[0][0][0].size() + 2 * padding_x;
-    VVVVF<int8_t> output(output_b, VVVF<int8_t>(output_f, VVF<int8_t>(output_y, VF<int8_t>(output_x))));
+    VVVVF<TOut> output(output_b, VVVF<TOut>(output_f, VVF<TOut>(output_y, VF<TOut>(output_x))));
 
     T res;
     for (size_t b = 0; b < output_b; ++b) {
         for (size_t f = 0; f < output_f; ++f) {
             for (size_t y = 0; y < input1[0][0].size(); ++y) {
                 for (size_t x = 0; x < input1[0][0][0].size(); ++x) {
-                    res = eltwise_bool_execute<T>(mode, input1[b][f][y][x], input2[b][f][y][x]);
+                    res = eltwise_int_execute<T, TOut>(mode, input1[b][f][y][x], input2[b][f][y][x]);
                     output[b][f][y + padding_y][x + padding_x] = res;
                 }
             }
@@ -222,14 +226,28 @@ VVVVF<int8_t> eltwise_bool_reference(VVVVF<T> &input1, VVVVF<T> &input2,
     return output;
 }
 
-template <typename T>
-void generic_eltwise_bool_test(cldnn::format test_input_fmt, int input_b, int input_f, int input_y, int input_x, cldnn::eltwise_mode mode,
-    int input_padding_y, int input_padding_x, int output_padding_y, int output_padding_x) {
+template <typename T, typename TOut>
+void generic_eltwise_int_test(cldnn::format test_input_fmt,
+                              int input_b,
+                              int input_f,
+                              int input_y,
+                              int input_x,
+                              cldnn::eltwise_mode mode,
+                              int input_padding_y,
+                              int input_padding_x,
+                              int output_padding_y,
+                              int output_padding_x,
+                              int input1_min_val,
+                              int input1_max_val,
+                              int input2_min_val,
+                              int input2_max_val) {
+    static_assert(std::is_integral<T>::value, "T must be an integral type");
+    static_assert(std::is_integral<TOut>::value, "TOut must be an integral type");
+    
     tests::random_generator rg(GET_SUITE_NAME);
 
-    int min_random = -2, max_random = 2;
-    VVVVF<T> input1_rnd = rg.generate_random_4d<T>(input_b, input_f, input_y, input_x, min_random, max_random);
-    VVVVF<T> input2_rnd = rg.generate_random_4d<T>(input_b, input_f, input_y, input_x, min_random, max_random);
+    VVVVF<T> input1_rnd = rg.generate_random_4d<T>(input_b, input_f, input_y, input_x, input1_min_val, input1_max_val);
+    VVVVF<T> input2_rnd = rg.generate_random_4d<T>(input_b, input_f, input_y, input_x, input2_min_val, input2_max_val);
     VF<T> input1_rnd_vec = flatten_4d<T>(test_input_fmt, input1_rnd);
     VF<T> input2_rnd_vec = flatten_4d<T>(test_input_fmt, input2_rnd);
 
@@ -257,9 +275,9 @@ void generic_eltwise_bool_test(cldnn::format test_input_fmt, int input_b, int in
 
     auto output_memory = outputs.at("eltwise").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<int8_t> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<TOut> output_ptr(output_memory, get_test_stream());
 
-    VVVVF<int8_t> output_cpu = eltwise_bool_reference<T>(input1_rnd, input2_rnd, mode, input_padding_y, input_padding_x, output_padding_y, output_padding_x);
+    VVVVF<TOut> output_cpu = eltwise_int_reference<T, TOut>(input1_rnd, input2_rnd, mode, input_padding_y, input_padding_x, output_padding_y, output_padding_x);
     ASSERT_EQ(output_layout.format.value, test_input_fmt.value);
     auto output_tensor = output_layout.get_padded_dims();
     int x_size = output_tensor[3];
@@ -273,9 +291,11 @@ void generic_eltwise_bool_test(cldnn::format test_input_fmt, int input_b, int in
     ASSERT_EQ(b_size, (int)output_cpu.size());
 
     bool test_is_correct = true;
-    VF<int8_t> output_cpu_vec = flatten_4d<int8_t>(test_input_fmt, output_cpu);
+    VF<TOut> output_cpu_vec = flatten_4d<TOut>(test_input_fmt, output_cpu);
     for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
-        if (output_cpu_vec[i] != output_ptr[i]) {
+        const TOut cpu_val = output_cpu_vec[i]; 
+        const TOut gpu_val = output_ptr[i];
+        if (cpu_val != gpu_val) {
             test_is_correct = false;
             break;
         }
@@ -299,8 +319,41 @@ void run_eltwise_bool_generic_test(cldnn::eltwise_mode mode)
     cldnn::format test_inputs_fmt = cldnn::format::bfyx;
     std::pair<int, int> input_size = { 227, 227 };
 
-    generic_eltwise_bool_test<int32_t>(test_inputs_fmt, 1, 1, input_size.first, input_size.second, mode, 0, 0, 0, 0);
-    generic_eltwise_bool_test<int8_t>(test_inputs_fmt, 1, 1, input_size.first, input_size.second, mode, 0, 0, 0, 0);
+    generic_eltwise_int_test<int32_t, int8_t>(test_inputs_fmt, 1, 1, input_size.first, input_size.second, mode, 0, 0, 0, 0, -2, 2, -2, 2);
+    generic_eltwise_int_test<int8_t, int8_t>(test_inputs_fmt, 1, 1, input_size.first, input_size.second, mode, 0, 0, 0, 0, -2, 2, -2, 2);
+}
+
+void run_eltwise_int_shift_generic_test(cldnn::eltwise_mode mode) {
+    OPENVINO_ASSERT(mode == eltwise_mode::right_shift || mode == eltwise_mode::left_shift,
+                    "Only right_shift amd left_shift mode is supported for this test");
+    cldnn::format test_inputs_fmt = cldnn::format::bfyx;
+    const int dim_size = 227;
+
+#define ELTWISE_INT_TEST_CASES(type)                                                             \
+    generic_eltwise_int_test<type, type>(test_inputs_fmt,                                        \
+                                         1,                                                      \
+                                         1,                                                      \
+                                         dim_size,                                               \
+                                         dim_size,                                               \
+                                         mode,                                                   \
+                                         0,                                                      \
+                                         0,                                                      \
+                                         0,                                                      \
+                                         0,                                                      \
+                                         0,                                                      \
+                                         static_cast<int>(std::numeric_limits<type>::max()) / 2, \
+                                         0,                                                      \
+                                         ((sizeof(type) * 8) - 1) / 2);
+
+    ELTWISE_INT_TEST_CASES(int8_t);
+    ELTWISE_INT_TEST_CASES(uint8_t);
+    ELTWISE_INT_TEST_CASES(int16_t);
+    ELTWISE_INT_TEST_CASES(uint16_t);
+    ELTWISE_INT_TEST_CASES(int32_t);
+    ELTWISE_INT_TEST_CASES(uint32_t);
+    ELTWISE_INT_TEST_CASES(int64_t);
+
+#undef ELTWISE_INT_TEST_CASES
 }
 }  // namespace
 
@@ -3892,6 +3945,14 @@ TEST(eltwise_gpu_bool, eltwise_and) {
 
 TEST(eltwise_gpu_bool, eltwise_or) {
     run_eltwise_bool_generic_test(cldnn::eltwise_mode::logic_or);
+}
+
+TEST(eltwise_gpu, eltwise_right_shift) {
+    run_eltwise_int_shift_generic_test(cldnn::eltwise_mode::right_shift);
+}
+
+TEST(eltwise_gpu, eltwise_left_shift) {
+    run_eltwise_int_shift_generic_test(cldnn::eltwise_mode::left_shift);
 }
 
 TEST(eltwise_gpu, eltwise_div) {

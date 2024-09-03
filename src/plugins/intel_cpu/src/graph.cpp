@@ -326,6 +326,10 @@ void Graph::InitGraph(bool optimize) {
 
     SortTopologically();
 
+    ResolveComplexInplaceConflicts();
+
+    SortTopologically();
+
     const bool hasDynNodes = ProcessDynNodes();
     const auto syncNodesInds = hasDynNodes ? IdentifySyncPoints(graphNodes) : std::vector<size_t>{};
 

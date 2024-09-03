@@ -106,6 +106,8 @@ struct Config {
 
     int modelPreferThreads = -1;
     ModelType modelType = ModelType::Unknown;
+    std::function<std::string(const std::string&)> cacheEncrypt;
+    std::function<std::string(const std::string&)> cacheDecrypt;
 
 #ifdef CPU_DEBUG_CAPS
     DebugCapsConfig debugCaps;
