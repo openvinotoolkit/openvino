@@ -121,13 +121,24 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                         }
                     }
 
-                    if (has_pa_op)
+                    if (has_pa_op) {
+                        std::map<size_t, ov::PartialShape> shapes;
+                        const auto& params = model_clone->get_parameters();
+                        for (size_t input_id = 0; input_id < params.size(); input_id++) {
+                            const auto& param = params[input_id];
+                            shapes[input_id] = param->get_output_partial_shape(0);
+                            if (param->get_friendly_name().find("_cache") != std::string::npos) {
+                                auto head_num = shapes[input_id][1];
+                                shapes[input_id][1] = head_num / config.get_context_for_tp().size();
+                            }
+                        }
+                        model_clone->reshape(shapes);
                         manager.register_pass<ov::intel_gpu::PATensorParallelFusion>(config.get_context_for_tp().size(),
                                                                                      i);
+                    }
                     manager.register_pass<ov::intel_gpu::RemainFCParallelFusion>(config.get_context_for_tp().size(), i);
                     manager.run_passes(model_clone);
                 }
-
                 //ov::serialize(model_clone, "integrated_vllm_pa_" + std::to_string(i) + ".xml");
                 m_sub_compiled_models.push_back(std::make_shared<CompiledModel>(
                     model_clone, plugin, m_config.get_context_for_tp()[i].as<RemoteContextImpl::Ptr>(), configs_for_tp[i], m_sub_memory_manager));

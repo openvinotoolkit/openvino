@@ -3,25 +3,33 @@
 <!--- The note below is intended for master branch only for pre-release purpose. Remove it for official releases. --->
 > **NOTE**: This version is pre-release software and has not undergone full release validation or qualification. No support is offered on pre-release software and APIs/behavior are subject to change. It should NOT be incorporated into any production software/solution and instead should be used only for early testing and integration while awaiting a final release version of this software.
 
-Intel® Distribution of OpenVINO™ toolkit is an open-source toolkit for optimizing and deploying AI inference. It can be used to develop applications and solutions based on deep learning tasks, such as: emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, etc. It provides high-performance and rich deployment options, from edge to cloud.
+Intel® Distribution of OpenVINO™ toolkit is an open-source toolkit for optimizing and deploying
+AI inference. It can be used to develop applications and solutions based on deep learning tasks,
+such as: emulation of human vision, automatic speech recognition, natural language processing,
+recommendation systems, etc. It provides high-performance and rich deployment options, from
+edge to cloud.
 
-If you have already finished developing your models and converting them to the OpenVINO model format, you can install OpenVINO Runtime to deploy your applications on various devices. The [OpenVINO™](https://docs.openvino.ai/2024/openvino-workflow/running-inference.html) Python package includes a set of libraries for an easy inference integration with your products.
+If you have chosen a model, you can integrate it with your application through OpenVINO™ and
+deploy it on various devices. The OpenVINO™ Python package includes a set of libraries for easy
+inference integration with your products.
 
 ## System Requirements
 
-Before you start the installation, check the supported operating systems and required Python* versions. The complete list of supported hardware is available in the [System Requirements](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html).
+Before you start the installation, check the supported operating systems and required Python*
+versions. The complete list of supported hardware is available on the
+[System Requirements page](https://docs.openvino.ai/system_requirements).
 
-**C++ libraries** are also required for the installation on Windows*. To install that, you can [download the Visual Studio Redistributable file (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe).
+**C++ libraries** are also required for the installation on Windows*. To install that, you can
+[download the Visual Studio Redistributable file (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe).
 
-> **NOTE**: This package can be installed on other versions of Linux and Windows OSes, but only the specific versions above are fully validated.
+> **NOTE**: This package may work on other Linux and Windows versions but only the versions specified in system requirements are fully validated.
 
 ## Install OpenVINO™
 
 ### Step 1. Set Up Python Virtual Environment
 
-Use a virtual environment to avoid dependency conflicts.
-
-To create a virtual environment, use the following commands:
+Use a virtual environment to avoid dependency conflicts. To create a virtual environment, use
+the following commands:
 
 On Windows:
 ```sh
@@ -33,9 +41,9 @@ On Linux and macOS:
 python3 -m venv openvino_env
 ```
 
-> **NOTE**: On Linux and macOS, you may need to [install pip](https://pip.pypa.io/en/stable/installation/). For example, on Ubuntu execute the following command to get pip installed: `sudo apt install python3-venv python3-pip`.
+> **NOTE**: On Linux and macOS, you may need to [install pip](https://pip.pypa.io/en/stable/installation/).
 
-### Step 2. Activate Virtual Environment
+### Step 2. Activate the Virtual Environment
 
 On Windows:
 ```sh
@@ -73,19 +81,55 @@ If installation was successful, you will see the list of available devices.
 
 ## What's in the Package
 
-| Component        | Content                                                                  | Description                                                                                                                                                                                                                                                                                                   |
-|------------------|---------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [OpenVINO Runtime](https://docs.openvino.ai/2024/openvino-workflow/running-inference.html#) | `openvino package` |**OpenVINO Runtime**  is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice. Use the OpenVINO Runtime API to read PyTorch\*, TensorFlow\*, TensorFlow Lite\*, ONNX\*, and PaddlePaddle\* models and execute them on preferred devices. OpenVINO Runtime uses a plugin architecture and includes the following plugins: [CPU](https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device.html), [GPU](https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.html), [Auto Batch](https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching.html), [Auto](https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection.html), [Hetero](https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/hetero-execution.html).
-| [OpenVINO Model Converter (OVC)](https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html#convert-a-model-in-cli-ovc) | `ovc` |**OpenVINO Model Converter**  converts models that were trained in popular frameworks to a format usable by OpenVINO components. <br>Supported frameworks include ONNX\*, TensorFlow\*, TensorFlow Lite\*, and PaddlePaddle\*.                                    |
-| [Benchmark Tool](https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html)| `benchmark_app` | **Benchmark Application** allows you to estimate deep learning inference performance on supported devices for synchronous and asynchronous modes.                                              |
+<table>
+  <tr>
+    <th>Component</th>
+    <th>Content</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><a href="https://docs.openvino.ai/2024/openvino-workflow/running-inference.html">OpenVINO Runtime</a></td>
+    <td>`openvino package`</td>
+    <td>OpenVINO Runtime is a set of C++ libraries with C and Python bindings providing a common
+        API to deliver inference solutions on the platform of your choice. Use the OpenVINO
+        Runtime API to read PyTorch, TensorFlow, TensorFlow Lite, ONNX, and PaddlePaddle models
+        and execute them on preferred devices. OpenVINO Runtime uses a plugin architecture and
+        includes the following plugins:
+        <a href="https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device.html">CPU</a>,
+        <a href="https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.html">GPU</a>,
+        <a href="https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching.html">Auto Batch</a>,
+        <a href="https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection.html">Auto</a>,
+        <a href="https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/hetero-execution.html">Hetero</a>,
+    </td>
+  </tr>
+  <tr>
+    <td><a href="https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html#convert-a-model-in-cli-ovc">OpenVINO Model Converter (OVC)</a></td>
+    <td>`ovc`</td>
+    <td>OpenVINO Model Converter converts models that were trained in popular frameworks to a
+        format usable by OpenVINO components. </br>Supported frameworks include ONNX, TensorFlow,
+        TensorFlow Lite, and PaddlePaddle.
+    </td>
+  </tr>
+  <tr>
+    <td><a href="https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html">Benchmark Tool</a></td>
+    <td>`benchmark_app`</td>
+    <td>Benchmark Application** allows you to estimate deep learning inference performance on
+        supported devices for synchronous and asynchronous modes.
+    </td>
+</table>
+
+
 
 ## Troubleshooting
 
-For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2024/get-started/troubleshooting-install-config.html). The following sections also provide explanations to several error messages.
+For general troubleshooting steps and issues, see
+[Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2024/get-started/troubleshooting-install-config.html).
+The following sections also provide explanations to several error messages.
 
 ### Errors with Installing via PIP for Users in China
 
-Users in China might encounter errors while downloading sources via PIP during OpenVINO™ installation. To resolve the issues, try the following solution:
+Users in China may encounter errors while downloading sources via PIP during OpenVINO™ installation.
+To resolve the issues, try the following solution:
 
 * Add the download source using the ``-i`` parameter with the Python ``pip`` command. For example:
 
@@ -96,7 +140,10 @@ Users in China might encounter errors while downloading sources via PIP during O
 
 ### ERROR:root:Could not find OpenVINO Python API.
 
-On Windows*, some libraries are necessary to run OpenVINO. To resolve this issue, install the [C++ redistributable (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe). You can also view a full download list on the [official support page](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
+On Windows, additional libraries may be necessary to run OpenVINO. To resolve this issue, install
+the [C++ redistributable (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe).
+You can also view a full download list on the
+[official support page](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
 
 ### ImportError: libpython3.8.so.1.0: cannot open shared object file: No such file or directory
 
@@ -114,7 +161,18 @@ sudo apt-get install libpython3.8
 
 Copyright © 2018-2024 Intel Corporation
 > **LEGAL NOTICE**: Your use of this software and any required dependent software (the
-“Software Package”) is subject to the terms and conditions of the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0.html) for the Software Package, which may also include notices, disclaimers, or
-license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the “third-party-programs.txt” or other similarly-named text file included with the Software Package for additional details.
+“Software Package”) is subject to the terms and conditions of the
+[Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0.html) for the Software Package,
+which may also include notices, disclaimers, or license terms for third party or open source
+software included in or with the Software Package, and your use indicates your acceptance of all
+such terms. Please refer to the “third-party-programs.txt” or other similarly-named text file
+included with the Software Package for additional details.
 
->Intel is committed to the respect of human rights and avoiding complicity in human rights abuses, a policy reflected in the [Intel Global Human Rights Principles](https://www.intel.com/content/www/us/en/policy/policy-human-rights.html). Accordingly, by accessing the Intel material on this platform you agree that you will not use the material in a product or application that causes or contributes to a violation of an internationally recognized human right.
+>Intel is committed to the respect of human rights and avoiding complicity in human rights abuses,
+a policy reflected in the [Intel Global Human Rights Principles](https://www.intel.com/content/www/us/en/policy/policy-human-rights.html).
+Accordingly, by accessing the Intel material on this platform you agree that you will not use the
+material in a product or application that causes or contributes to a violation of an
+internationally recognized human right.
+
+Intel, the Intel logo, and other Intel marks are trademarks of Intel Corporation or its
+subsidiaries. Other names and brands may be claimed as the property of others.
