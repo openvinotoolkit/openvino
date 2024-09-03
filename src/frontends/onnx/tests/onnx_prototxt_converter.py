@@ -32,18 +32,23 @@ ONNX_SUFFX = '.onnx'
 PROTOTXT_SUFFX = '.prototxt'
 
 def _bin2txt(model):
+    print('_bin2txt')
     return text_format.MessageToString(model, as_utf8=True, float_format='.17g')
 
 def _txt2bin(model):
+    print('_txt2bin')
     m_proto = onnx.ModelProto()
+    print('_txt2bin: Parse')
     text_format.Parse(model, m_proto, allow_field_number=True)
     return m_proto
 
 def _is_bin_file(path):
+    print('_is_bin_file')
     # check file extension
     return os.path.splitext(path)[1] == ONNX_SUFFX
 
 def _is_txt_file(path):
+    print('_is_txt_file')
     # check file extension
     return os.path.splitext(path)[1] == PROTOTXT_SUFFX
 
@@ -57,13 +62,18 @@ def _get_output_file_path(path, extension):
 
 
 def save_model(proto, f, format=None, save_as_external_data=False, all_tensors_to_one_file=True, location=None, size_threshold=1024, convert_attribute=False):
+    print('save_model')
     if isinstance(proto, bytes):
+        print('save_model: serialization 1')
         proto = onnx.serialization.registry.get("protobuf").serialize_proto(proto, onnx.ModelProto())
 
     if save_as_external_data:
+        print('save_model: convert_model_to_external_data')
         convert_model_to_external_data(proto, all_tensors_to_one_file, location, size_threshold, convert_attribute)
 
+    print('save_model: serialization 2')
     s = onnx.serialization.registry.get("protobuf").serialize_proto(proto)
+    print('save_model: _save_bytes')
     onnx._save_bytes(s, f)
 
 
