@@ -380,8 +380,7 @@ def test_partial_shape_equals():
     with pytest.raises(TypeError) as e:
         ps = PartialShape.dynamic()
         tuple_ps = ()
-        if ps == tuple_ps:
-            pass
+        assert ps == tuple_ps
     assert (
         "Cannot compare dynamic shape with <class 'tuple'>" in str(e.value)
     )
