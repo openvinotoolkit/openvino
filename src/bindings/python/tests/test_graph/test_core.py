@@ -389,8 +389,7 @@ def test_partial_shape_equals():
     with pytest.raises(TypeError) as e:
         ps = PartialShape.dynamic()
         list_ps = []
-        if ps == list_ps:
-            pass
+        assert ps == list_ps
     assert (
         "Cannot compare dynamic shape with <class 'list'>" in str(e.value)
     )
