@@ -5,9 +5,9 @@ Model Optimization - NNCF
    :maxdepth: 1
    :hidden:
 
+   model-optimization-guide/weight-compression
    model-optimization-guide/quantizing-models-post-training
    model-optimization-guide/compressing-models-during-training
-   model-optimization-guide/weight-compression
 
 
 Model optimization means altering the model itself to improve its performance and reduce
@@ -24,6 +24,10 @@ the following optimizations:
 .. image:: ../assets/images/WHAT_TO_USE.svg
 
 
+| :doc:`Weight Compression <model-optimization-guide/weight-compression>`:
+|      an easy-to-use method for Large Language Model footprint reduction and inference
+       acceleration.
+
 | :doc:`Post-training Quantization <model-optimization-guide/quantizing-models-post-training>`:
 |      designed to optimize deep learning models by applying 8-bit integer quantization. Being
        the easiest way to optimize a model it does not require its retraining or fine-tuning
@@ -34,10 +38,6 @@ the following optimizations:
 |      involves a suite of advanced methods such as Structured or Unstructured Pruning, as well
        as Quantization-aware Training. This kind of optimization requires the use of the model's
        original framework, for NNCF, it is either PyTorch or TensorFlow.
-
-| :doc:`Weight Compression <model-optimization-guide/weight-compression>`:
-|      an easy-to-use method for Large Language Model footprint reduction and inference
-       acceleration.
 
 
 To learn about the full scope of the framework, its installation, and technical details, visit
