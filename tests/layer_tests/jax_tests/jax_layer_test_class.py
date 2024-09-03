@@ -6,7 +6,6 @@ import numpy as np
 import os
 from common.constants import test_device, test_precision
 from copy import deepcopy
-from jax import numpy as jnp
 from openvino.runtime import Core
 
 
@@ -126,8 +125,12 @@ class JaxLayerTest:
             input_type = _input.dtype
             function_signature.append(tf.TensorSpec(input_shape, input_type))
 
-        f = tf.function(jax2tf.convert(model), autograph=False,
-                        input_signature=function_signature)
+        f = tf.function(jax2tf.convert(model,
+                                       # request JAX to be lowered with one TensorFlow op for each JAX primitive
+                                       # avoid JAX compilation into StableHLO representation wrapped in XlaCallModule
+                                       # in early JAX version native_serialization was default but not now
+                                       native_serialization=False),
+                        autograph=False, input_signature=function_signature)
         converted_model = convert_model(f)
         return converted_model
 
