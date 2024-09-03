@@ -85,7 +85,6 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     if (std::accumulate(const_shape.begin(), const_shape.end(), size_t(1), std::multiplies<size_t>()) == 0)
         constTensor = cldnn::tensor{1};
 
-    // Here where problem starts for gpu func i16 elementwise tests(i16 wrongly converted to f32).
     cldnn::data_types out_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
     cldnn::layout constLayout = p.use_new_shape_infer() ? cldnn::layout(const_shape, out_dtype, constFormat) :
                                                           cldnn::layout(out_dtype, constFormat, constTensor);

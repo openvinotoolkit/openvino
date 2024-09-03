@@ -29,7 +29,6 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
     }
 
     cldnn::format input_format = cldnn::format::get_default_format(input_pshape.size());
-    // Here where problem starts for gpu func i16 elementwise tests(i16 wrongly converted to f32).
     auto element_type = cldnn::element_type_to_data_type(convert_to_supported_device_type(op->get_output_element_type(0)));
 
     // look at the expected color format of this input
