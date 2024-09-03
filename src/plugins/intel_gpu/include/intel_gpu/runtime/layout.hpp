@@ -114,7 +114,9 @@ inline ::std::ostream& operator<<(::std::ostream& os, const data_types& dt) {
 inline data_types element_type_to_data_type(ov::element::Type t) {
     switch (t) {
     case ov::element::Type_t::i16:
+        return data_types::i16;
     case ov::element::Type_t::u16:
+        return data_types::u16;
     case ov::element::Type_t::f64:
         return cldnn::data_types::f32;
     case ov::element::Type_t::u32:
