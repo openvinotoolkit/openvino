@@ -4,7 +4,7 @@
 
 const { addon: ov } = require('../..');
 const assert = require('assert');
-const { describe, it, before } = require('node:test');
+const { describe, it, before, beforeEach } = require('node:test');
 const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
 
 describe('ov basic tests.', () => {
@@ -14,11 +14,18 @@ describe('ov basic tests.', () => {
   });
 
   const testXml = getModelPath().xml;
-  const core = new ov.Core();
-  const model = core.readModelSync(testXml);
-  const compiledModel = core.compileModelSync(model, 'CPU');
-  const modelLike = [[model],
-    [compiledModel]];
+  let core = null;
+  let model = null;
+  let compiledModel = null;
+  let modelLike = null;
+
+  beforeEach(() => {
+    core = new ov.Core();
+    model = core.readModelSync(testXml);
+    compiledModel = core.compileModelSync(model, 'CPU');
+    modelLike = [model,
+      compiledModel];
+  });
 
   it('Core.getAvailableDevices()', () => {
     const devices = core.getAvailableDevices();
@@ -164,18 +171,19 @@ describe('ov basic tests.', () => {
 
   });
 
-  describe('Output class', () => {
+  describe('ov.Model/ov.CompiledModel output()', () => {
 
-    it('Output type', () => {
+    it('model.output() type', () => {
       assert.ok(model.output() instanceof ov.Output);
     });
 
-    it('ConstOutput type', () => {
+    it('compiledModel.output() type', () => {
       assert.ok(compiledModel.output() instanceof ov.ConstOutput);
     });
 
-    modelLike.forEach(([obj]) => {
-      it('Output getters and properties', () => {
+    it('output() methods/properties', () => {
+
+      modelLike.forEach((obj) => {
         assert.strictEqual(obj.outputs.length, 1);
         // tests for an obj with one output
         assert.strictEqual(obj.output().toString(), 'fc_out');
@@ -186,60 +194,53 @@ describe('ov basic tests.', () => {
         assert.strictEqual(obj.output().getAnyName(), 'fc_out');
         assert.strictEqual(obj.output().anyName, 'fc_out');
       });
-    });
 
+    });
   });
 
-  describe('Input class for ov::Input<const ov::Node>', () => {
+  describe('ov.Model/ov.CompiledModel input()', () => {
 
-    it('Output type', () => {
+    it('ov.Model.input() type', () => {
       assert.ok(model.input() instanceof ov.Output);
     });
 
-    it('ConstOutput type', () => {
+    it('ov.CompiledModel.input() type', () => {
       assert.ok(compiledModel.input() instanceof ov.ConstOutput);
     });
 
-    modelLike.forEach(([obj]) => {
-      it('input() is typeof object', () => {
+    it('input() methods/properties', () => {
+      modelLike.forEach((obj) => {
+
         assert.strictEqual(typeof obj.input(), 'object');
-      });
-
-      it('inputs property', () => {
         assert.strictEqual(obj.inputs.length, 1);
-      });
-
-      it('input().toString()', () => {
         assert.strictEqual(obj.input().toString(), 'data');
-      });
-
-      it('input(idx: number).ToString() method', () => {
         assert.strictEqual(obj.input(0).toString(), 'data');
-      });
-
-      it('input(tensorName: string).ToString() method', () => {
         assert.strictEqual(obj.input('data').toString(), 'data');
-      });
-
-      it('input().getAnyName() and anyName', () => {
         assert.strictEqual(obj.input().getAnyName(), 'data');
         assert.strictEqual(obj.input().anyName, 'data');
-      });
 
-      it('input(idx).shape property with dimensions', () => {
         assert.deepStrictEqual(obj.input(0).shape, [1, 3, 32, 32]);
         assert.deepStrictEqual(obj.input(0).getShape(), [1, 3, 32, 32]);
       });
+
     });
 
   });
 
   describe('Test exportModel()/importModel()', () => {
-    const userStream = compiledModel.exportModelSync();
     const epsilon = 0.5;
     const tensor = Float32Array.from({ length: 3072 }, () => (Math.random() + epsilon));
-    const inferRequest = compiledModel.createInferRequest();
-    const res1 = inferRequest.infer([tensor]);
+    let userStream = null;
+    let res1 = null;
+
+    before( () => {
+      const core = new ov.Core();
+      const model = core.readModelSync(testXml);
+      const compiledModel = core.compileModelSync(model, 'CPU');
+      userStream = compiledModel.exportModelSync();
+      const inferRequest = compiledModel.createInferRequest();
+      res1 = inferRequest.infer([tensor]);
+    });
 
     it('Test importModelSync(stream, device)', () => {
       const newCompiled = core.importModelSync(userStream, 'CPU');

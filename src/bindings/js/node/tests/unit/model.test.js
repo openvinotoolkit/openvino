@@ -4,7 +4,7 @@
 
 const { addon: ov } = require('../..');
 const assert = require('assert');
-const { describe, it, before } = require('node:test');
+const { describe, it, before, beforeEach } = require('node:test');
 const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
 
 describe('ov.Model tests', () => {
@@ -15,8 +15,10 @@ describe('ov.Model tests', () => {
 
   const testXml = getModelPath().xml;
   const core = new ov.Core();
-  const model = core.readModelSync(testXml);
-  const clonedModel = model.clone();
+  let model = null;
+  beforeEach(() => {
+    model = core.readModelSync(testXml);
+  });
 
   describe('Model.isDynamic()', () => {
     it('should return a boolean value indicating if the model is dynamic', () => {
@@ -61,10 +63,6 @@ describe('ov.Model tests', () => {
     });
   });
   describe('Model.setFriendlyName()', () => {
-    it('sets a friendly name for the model', () => {
-      assert.doesNotThrow(() => model.setFriendlyName('MyFriendlyName'));
-    });
-
     it('throws an error when called without a string argument', () => {
       assert.throws(
         () => model.setFriendlyName(),
@@ -97,7 +95,7 @@ describe('ov.Model tests', () => {
 
     it('handles setting an empty string as a friendly name', () => {
       assert.doesNotThrow(() => model.setFriendlyName(''));
-      assert.strictEqual(model.getFriendlyName(), 'Model1');
+      assert.strictEqual(model.getFriendlyName(), model.getName());
     });
   });
 
@@ -166,10 +164,12 @@ describe('ov.Model tests', () => {
 
   describe('Model.clone()', () => {
     it('should return an object of type model', () => {
+      const clonedModel = model.clone();
       assert.ok(clonedModel instanceof ov.Model, 'clone() should return a model');
     });
 
     it('should return a model that is a clone of the calling model', () => {
+      const clonedModel = model.clone();
       assert.deepStrictEqual(clonedModel, model, 'Cloned Model should be exactly equal to the calling model');
     });
 

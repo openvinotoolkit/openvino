@@ -5,7 +5,7 @@
 const fs = require('node:fs');
 const { addon: ov } = require('../..');
 const assert = require('assert');
-const { describe, it, before } = require('node:test');
+const { describe, it, before, beforeEach } = require('node:test');
 const { testModels, isModelAvailable, getModelPath } = require('./utils.js');
 
 const { xml: modelPath, bin: weightsPath } = getModelPath();
@@ -19,9 +19,12 @@ describe('Tests for reading model.', () => {
   const modelFile = fs.readFileSync(modelPath);
   const modelStr = fs.readFileSync(modelPath, 'utf8');
   const weightsFile = fs.readFileSync(weightsPath);
-  const weightsTensor = new ov.Tensor(ov.element.u8, [weightsFile.buffer.byteLength], new Uint8Array(weightsFile.buffer));
-
-  const core = new ov.Core();
+  let core = null;
+  let weightsTensor= null;
+  beforeEach(() => {
+    core = new ov.Core();
+    weightsTensor = new ov.Tensor(ov.element.u8, [weightsFile.buffer.byteLength], new Uint8Array(weightsFile.buffer));
+  });
 
   describe('Core.readModeSync', () => {
     it('readModeSync(xmlPath) ', () => {

@@ -4,7 +4,7 @@
 
 const { addon: ov } = require('../..');
 const assert = require('assert');
-const { describe, it, before } = require('node:test');
+const { describe, it, before, beforeEach } = require('node:test');
 const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
 
 describe('ov.preprocess.PrePostProcessor tests', () => {
@@ -15,7 +15,10 @@ describe('ov.preprocess.PrePostProcessor tests', () => {
 
   const testXml = getModelPath().xml;
   const core = new ov.Core();
-  const model = core.readModelSync(testXml);
+  let model = null;
+  beforeEach(() => {
+    model = core.readModelSync(testXml);
+  });
 
   describe('PrePostProcess', () => {
 
