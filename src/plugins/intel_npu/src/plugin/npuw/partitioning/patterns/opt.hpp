@@ -39,6 +39,8 @@ struct Context {
     std::map< std::pair<PPtr, View>, PPtr > closure_views;
     PPtr view(PPtr orig_param, const View &v);
 
+    void permute(PPtr orig_param, const std::vector<std::size_t> &order) {}
+
     using Ref = std::reference_wrapper<Context>;
 };
 
