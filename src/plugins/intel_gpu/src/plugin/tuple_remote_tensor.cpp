@@ -107,12 +107,8 @@ void TupleRemoteTensorImpl::copy_to(const std::shared_ptr<ov::ITensor>& dst, siz
         }
     } else {
         int i = 0;
-        auto remote_tensor_offset = sizeof(get_element_type());
-        for (auto shape : roi_shape) {
-            remote_tensor_offset *= shape;
-        }
         for (auto& tensor : m_remote_tensors) {
-            tensor->copy_to(dst, src_offset, dst_offset + i * remote_tensor_offset / 2, roi_shape);
+            tensor->copy_to(dst, src_offset, dst_offset + i * get_strides()[0], roi_shape);
             i++;
         }
     }
@@ -127,15 +123,11 @@ void TupleRemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& 
             i++;
         }
     } else {
-        auto remote_tensor_offset = sizeof(get_element_type());
         auto new_roi_shape = get_shape();
         new_roi_shape[0] = roi_shape[0];
-        for (auto shape : new_roi_shape) {
-            remote_tensor_offset *= shape;
-        }
         int i = 0;
         for (auto& tensor : m_remote_tensors) {
-            tensor->copy_from(src, src_offset + i * remote_tensor_offset / 2, dst_offset, new_roi_shape);
+            tensor->copy_from(src, src_offset + i * get_strides()[0], dst_offset, new_roi_shape);
             i++;
         }
     }
