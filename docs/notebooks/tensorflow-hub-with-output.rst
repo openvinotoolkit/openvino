@@ -173,13 +173,6 @@ and wrap it as a Keras layer with ``hub.KerasLayer``.
 
     model = hub.KerasLayer(MODEL_URL, input_shape=IMAGE_SHAPE + (3,))
 
-
-.. parsed-literal::
-
-    2024-08-07 04:14:59.634170: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-08-07 04:14:59.634342: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
-
-
 Download a single image to try the model on
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

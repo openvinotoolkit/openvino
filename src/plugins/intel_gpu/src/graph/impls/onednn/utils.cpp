@@ -3,12 +3,9 @@
 //
 
 #include "utils.hpp"
-#include "onednn_formats_map.hpp"
 #include <oneapi/dnnl/dnnl_debug.h>
 #include <numeric>
 #include <oneapi/dnnl/dnnl_ocl.hpp>
-
-#include "to_string_utils.h"
 
 namespace cldnn {
 namespace onednn {
