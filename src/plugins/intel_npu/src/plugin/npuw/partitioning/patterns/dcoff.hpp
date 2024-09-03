@@ -110,7 +110,6 @@ public:
 
     virtual void build();
     virtual void reconnect_root(ov::pass::pattern::Matcher& m) = 0;
-    virtual ov::Output<Node> get_last_node_output(ov::pass::pattern::Matcher& m) const = 0;
 };
 
 class DCOFFPassReshape1 final : public DCOFFPassBase {
@@ -120,7 +119,6 @@ public:
     using DCOFFPassBase::DCOFFPassBase;
     void build() override;
     void reconnect_root(ov::pass::pattern::Matcher& m) override;
-    ov::Output<Node> get_last_node_output(ov::pass::pattern::Matcher& m) const override;
 };
 
 class DCOFFPassConvert1 final : public DCOFFPassBase {
@@ -130,7 +128,6 @@ public:
     using DCOFFPassBase::DCOFFPassBase;
     void build() override;
     void reconnect_root(ov::pass::pattern::Matcher& m) override;
-    ov::Output<Node> get_last_node_output(ov::pass::pattern::Matcher& m) const override;
 };
 
 class DCOFFPassReshape2 : public ov::pass::MatcherPass {
