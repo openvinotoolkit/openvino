@@ -188,8 +188,6 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DynamicQuantizeGroupSize", "Specify a group size of dynamic quantization to enable "
                               "dynamic quantization for Fully-connected primitive.");
     message_list.emplace_back("OV_GPU_DisableHorizontalFCFusion", "Disable horizontal fc fusion");
-    message_list.emplace_back("OV_GPU_CheckKernelsProperties", "Print info for all OpenCL kernels related to TPM (Thread Private Memory), "
-                              "SLM (Shared Local Memory) memory usage or SPILLs and print warnings if there are issues");
     message_list.emplace_back("OV_GPU_DumpIteration", "Dump n-th execution of network, separated by space.");
     message_list.emplace_back("OV_GPU_MemPreallocationOptions", "Controls buffer pre-allocation feature. Expects 4 values separated by space in "
                               "the following order: number of iterations for pre-allocation(int), max size of single iteration in bytes(int), "
@@ -255,9 +253,6 @@ debug_configuration::debug_configuration()
         , disable_runtime_skip_reorder(0)
         , disable_primitive_fusing(0)
         , disable_fake_alignment(0)
-        , enable_dynamic_quantize(0)
-        , disable_horizontal_fc_fusion(0)
-        , check_kernels_properties(0)
         , dynamic_quantize_group_size(0)
         , disable_horizontal_fc_fusion(0) {
 #ifdef GPU_DEBUG_CONFIG
@@ -310,8 +305,6 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DisableRuntimeSkipReorder", disable_runtime_skip_reorder);
     get_gpu_debug_env_var("DisablePrimitiveFusing", disable_primitive_fusing);
     get_gpu_debug_env_var("DisableFakeAlignment", disable_fake_alignment);
-    get_gpu_debug_env_var("CheckKernelsProperties", check_kernels_properties);
-    get_gpu_debug_env_var("EnableDynamicQuantize", enable_dynamic_quantize);
     get_gpu_debug_env_var("DynamicQuantizeGroupSize", dynamic_quantize_group_size);
     get_gpu_debug_env_var("DisableHorizontalFCFusion", disable_horizontal_fc_fusion);
     std::string dump_iteration_str;
