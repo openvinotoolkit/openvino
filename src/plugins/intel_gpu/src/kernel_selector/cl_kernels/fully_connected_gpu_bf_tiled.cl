@@ -898,14 +898,15 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 #if DECOMPRESSION_ZP_SCALAR
                     DQ_SLM_FILTER_UNPACKED_VEC dzp = (DQ_SLM_FILTER_UNPACKED_VEC)(DECOMPRESSION_ZP_VALUE);
                 #elif DECOMPRESSION_ZP_GROUPS_NUM > 1
-                    DQ_SLM_FILTER_UNPACKED_VEC dzp;
+                    DQ_TYPE* w = (DQ_TYPE*)(&dq_wei_unpacked);
+                    const uint ni_offset = ni * TILE_IFM * SIMD + local_id * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE;
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                        const uint offset_ofm = out_f + fi*SIMD + sglid;
                         unroll_for(uint kii = 0; kii < FILTER_LOAD_BLOCK_SIZE; ++kii) {
-                            const uint offset_ofm = out_f + fi*SIMD + sglid;
-                            const uint offset_ifm = ni * TILE_IFM * SIMD + local_id * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE + load_iter * FILTER_LOAD_BLOCK_SIZE + kii;
+                            const uint offset_ifm = ni_offset + load_iter * FILTER_LOAD_BLOCK_SIZE + kii;
                             const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
                                                     (offset_ifm / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
-                            dzp[W_IDX] = decompression_zp[zp_offset];
+                            w[W_IDX] = w[W_IDX] - TO_DQ_TYPE(decompression_zp[zp_offset]);
                         }
                     }
                 #else
@@ -916,7 +917,9 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             #endif
 
             // Calculate weight : w = (w - dzp) * ds
-            dq_wei_unpacked -= dzp;
+            #if !(DECOMPRESSION_ZP_TERM && (DECOMPRESSION_ZP_GROUPS_NUM > 1))
+                dq_wei_unpacked -= dzp;
+            #endif
 
             #if FILTER_LOAD_BLOCK_SIZE == 2
                 DQ_SLM_FILTER_VEC wei_1 = {dq_wei_unpacked.s01, dq_wei_unpacked.s23};

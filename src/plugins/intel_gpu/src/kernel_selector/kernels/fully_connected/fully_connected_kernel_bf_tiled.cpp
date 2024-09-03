@@ -111,8 +111,7 @@ static bool should_dynamic_quantize(const fully_connected_params& params) {
     if ((scale_group_size % simd == 0) && (input_f % dynamic_quantization_group_size == 0) &&
         (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_slm_size)) &&
         params.inputs[0].GetDType() == Datatype::F16 &&
-        (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
-        (params.decompression_zero_point.Feature().v == 1)) {
+        (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4)) {
         GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size " << scale_group_size << ", Input (" <<
             kernel_selector::toString(params.inputs[0].GetDType()) << ", " << kernel_selector::toString(params.outputs[0].GetLayout()) <<
             ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v << ", Y: " << params.inputs[0].Y().v << std ::endl;
