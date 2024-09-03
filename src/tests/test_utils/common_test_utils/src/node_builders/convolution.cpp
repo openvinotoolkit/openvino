@@ -49,8 +49,7 @@ std::shared_ptr<ov::Node> make_convolution(const ov::Output<Node>& in,
         ov::Shape bias_shape(rank, 1);
         bias_shape[1] = num_out_channels;
         if (!biases_weights.empty()) {
-            biases_weights_node =
-                std::make_shared<ov::op::v0::Constant>(type, bias_shape, biases_weights);
+            biases_weights_node = std::make_shared<ov::op::v0::Constant>(type, bias_shape, biases_weights);
         } else {
             auto tensor = create_and_fill_tensor(type, bias_shape, 9, 1);
             biases_weights_node = std::make_shared<ov::op::v0::Constant>(tensor);
@@ -89,8 +88,7 @@ std::shared_ptr<ov::Node> make_convolution(const ov::Output<Node>& in_data,
         ov::Shape bias_shape(rank, 1);
         bias_shape[1] = num_out_channels;
         if (!biases_weights.empty()) {
-            biases_weights_node =
-                std::make_shared<ov::op::v0::Constant>(type, bias_shape, biases_weights);
+            biases_weights_node = std::make_shared<ov::op::v0::Constant>(type, bias_shape, biases_weights);
         } else {
             auto tensor = create_and_fill_tensor(type, bias_shape, 9, 1);
             biases_weights_node = std::make_shared<ov::op::v0::Constant>(tensor);
