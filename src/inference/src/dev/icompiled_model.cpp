@@ -148,6 +148,6 @@ void ov::ICompiledModel::set_model_shared_object(ov::Model& model, const std::sh
     model.m_shared_object = shared_object;
 }
 
-void ov::ICompiledModel::release_buffers() {
-    OPENVINO_THROW("ov::ICompiledModel::release_buffers() is not implemented");
+void ov::ICompiledModel::release_memory() {
+    // nothing to do
 }

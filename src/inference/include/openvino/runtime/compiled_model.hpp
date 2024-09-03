@@ -204,10 +204,10 @@ public:
      * @brief Release intermediate memory.
      *
      * This methods forces the Compiled model to release memory allocated for intermediate structures, e.g. caches,
-     * tensors, temporal buffers etc.
+     * tensors, temporal buffers etc., when possible
      *
      */
-    void release_buffers();
+    void release_memory();
 
     /**
      * @brief Returns pointer to device-specific shared context
