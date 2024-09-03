@@ -34,7 +34,7 @@ public:
     std::map<ov::element::Type, float> getGops() const override;
     ov::device::Type getDeviceType() const override;
 
-    std::shared_ptr<SyncInferRequest> createInferRequest(const ICompiledModel* compiledModel,
+    std::shared_ptr<SyncInferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel> compiledModel,
                                                          IExecutor* executor,
                                                          const Config& config) override;
     void updateInfo(const Config& config) override {

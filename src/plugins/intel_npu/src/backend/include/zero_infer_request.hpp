@@ -21,7 +21,7 @@ namespace intel_npu {
 class ZeroInferRequest final : public SyncInferRequest {
 public:
     explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder> backendPtr,
-                              const ICompiledModel* compiledModel,
+                              const std::shared_ptr<const ICompiledModel> compiledModel,
                               const IExecutor* executor,
                               const Config& config);
 

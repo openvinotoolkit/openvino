@@ -79,9 +79,10 @@ public:
     virtual ov::device::Type getDeviceType() const;
     virtual std::map<ov::element::Type, float> getGops() const;
 
-    virtual std::shared_ptr<SyncInferRequest> createInferRequest(const ICompiledModel* compiledModel,
-                                                                 IExecutor* executor,
-                                                                 const Config& config) = 0;
+    virtual std::shared_ptr<SyncInferRequest> createInferRequest(
+        const std::shared_ptr<const ICompiledModel> compiledModel,
+        IExecutor* executor,
+        const Config& config) = 0;
 
     virtual void updateInfo(const Config& config) = 0;
 
