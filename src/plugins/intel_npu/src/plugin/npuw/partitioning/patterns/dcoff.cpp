@@ -55,7 +55,7 @@ bool transpose_required(const std::shared_ptr<ov::op::v0::MatMul>& matmul_node) 
     const auto& input_shape = matmul_node->input_value(1).get_shape();
     const auto& output_shape = matmul_node->output(0).get_shape();
 
-    if (output_shape.back() != input_shape.back()) {
+    if (output_shape.back() != input_shape.front()) {
         return true; // Transpose is required
     }
 
