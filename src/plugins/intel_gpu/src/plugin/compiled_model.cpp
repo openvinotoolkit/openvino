@@ -16,6 +16,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "plugin/transformations/pa_tensor_parallel.hpp"
+#include "plugin/transformations/fc_all_reduce.hpp"
 #include "plugin/transformations/remaining_fc_parallel.hpp"
 #include <sys/types.h>
 #include "openvino/pass/visualize_tree.hpp"
@@ -102,21 +103,31 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                                                                  configs_for_tp[i].streamsRankTable[i]};
                 configs_for_tp[i].subStreamExecConfig = std::move(streamExecutorConfig);
                 auto model_clone = model->clone();
-                // ov::serialize(model_clone, "./model_pa_original.xml");
+                //ov::serialize(model_clone, "./model_clone_original.xml");
                 //ov::serialize(model_clone, "./model_pa_o.xml", "./model_pa_o.bin");
                 ov::pass::Manager manager;
-                bool has_pa_op = false;
-                for (const auto& op : model_clone->get_ops()) {
-                    if (std::dynamic_pointer_cast<ov::op::PagedAttentionExtension>(op)) {
-                        has_pa_op = true;
-                        break;
+
+                const char* env = getenv("OV_TP_ALLREDUCE_TEST");
+                if (env) {
+                    std::cout << "Notice: GPU TP allReduce test only!" << std::endl;
+                    manager.register_pass<FCALLReduce>(m_config.get_context_for_tp().size(), i);
+                    manager.run_passes(model_clone);
+                } else {
+                    bool has_pa_op = false;
+                    for (const auto& op : model_clone->get_ops()) {
+                        if (std::dynamic_pointer_cast<ov::op::PagedAttentionExtension>(op)) {
+                            has_pa_op = true;
+                            break;
+                        }
                     }
+
+                    if (has_pa_op)
+                        manager.register_pass<ov::intel_gpu::PATensorParallelFusion>(config.get_context_for_tp().size(),
+                                                                                     i);
+                    manager.register_pass<ov::intel_gpu::RemainFCParallelFusion>(config.get_context_for_tp().size(), i);
+                    manager.run_passes(model_clone);
                 }
 
-                if (has_pa_op)
-                    manager.register_pass<ov::intel_gpu::PATensorParallelFusion>(config.get_context_for_tp().size(), i);
-                manager.register_pass<ov::intel_gpu::RemainFCParallelFusion>(config.get_context_for_tp().size(), i);
-                manager.run_passes(model_clone);
                 //ov::serialize(model_clone, "integrated_vllm_pa_" + std::to_string(i) + ".xml");
                 m_sub_compiled_models.push_back(std::make_shared<CompiledModel>(
                     model_clone, plugin, m_config.get_context_for_tp()[i].as<RemoteContextImpl::Ptr>(), configs_for_tp[i], m_sub_memory_manager));

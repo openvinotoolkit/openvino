@@ -263,7 +263,13 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
         ev = mem_new->copy_from(_network.get_stream(), *_outputs[idx], false);
     } else {
         ev = get_network().get_stream().create_user_event(true);
-        _outputs[idx] = mem_new;
+        if (get_node().is_type<sync_tensor>()) {
+            auto w_rank = get_network().get_program()->get_config().subStreamExecConfig.get_rank()[0];
+            // auto w_size = get_network().get_program()->get_config().get_context_for_tp().size();
+            _outputs[w_rank] = mem_new;
+        } else {
+            _outputs[idx] = mem_new;
+        }
     }
     return ev;
 }
@@ -2177,6 +2183,13 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
 
     auto alloc_type = use_lockable_memory ? lockable_mem_type
                     : !usm_device_allocatable ? lockable_mem_type : allocation_type::usm_device;
+
+    if (_node.is_type<fully_connected>() && _node.as<fully_connected>().w_size != 1) {
+        alloc_type = allocation_type::cl_mem;
+    }
+    if (_node.is_type<sync_tensor>()) {
+        alloc_type = allocation_type::cl_mem;
+    }
 
     if (is_internal) {
         bool is_reorder_weights = _node.is_type<reorder>() && _node.as<reorder>().get_primitive()->weights_reorder_params;

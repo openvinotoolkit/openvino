@@ -415,6 +415,12 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
     build_exec_order();
     validate_primitives();
     add_default_output_chains();
+
+    if (_sub_memory_manager) {
+        auto id = get_program()->get_config().subStreamExecConfig.get_rank()[0];
+        _sub_memory_manager->_memorys_table[0][id].stream_ptr = _stream;
+        _sub_memory_manager->_memorys_table[1][id].stream_ptr = _stream;
+    }
 }
 
 network::network(engine& engine,
@@ -1559,7 +1565,8 @@ void network::execute_primitive(const std::shared_ptr<primitive_inst>& primitive
     // 1) OOO queue execution
     // 2) Profiling mode is enabled
     // 3) Primitive has CPU user or primitive is output
-    if (get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling || primitive->needs_completion_event()) {
+    if (get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling ||
+        primitive->needs_completion_event() || primitive->get_node().is_type<sync_tensor>()) {
         auto id = primitive->id();
         _events.insert({id, ev});
     }

@@ -48,6 +48,7 @@ enum class sync_methods {
 class ocl_stream : public stream {
 public:
     const ocl_queue_type& get_cl_queue() const { return _command_queue; }
+    const ocl_engine& get_engine() const { return _engine; }
 
     explicit ocl_stream(const ocl_engine& engine, const ExecutionConfig& config);
     ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, void *handle);
@@ -78,6 +79,7 @@ public:
     void enqueue_barrier() override;
     event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
+    event::ptr create_event(cl::Event event);
 
     const cl::UsmHelper& get_usm_helper() const { return _engine.get_usm_helper(); }
 

@@ -2185,35 +2185,39 @@ public:
     }
 
     void test_compressed_scale_zp_nobias_activation(bool is_caching_test) {
-        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, 2 });
-        std::vector<uint8_t> weights_values = { 1, 2, 3, 4};
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 2, 2 }, weights_values);
+        std::cout << "[+] test_compressed_scale_zp_nobias_activation is_caching_test: " << is_caching_test << std::endl;
+
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 2});
+        std::vector<uint8_t> weights_values = {1, 2, 3, 4};
+        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{2, 2}, weights_values);
         auto convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
         std::vector<float> zp_value = {2.0f, 3.0f};
-        auto zp_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 2, 1 }, zp_value);
+        auto zp_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{2, 1}, zp_value);
         auto sub = std::make_shared<ov::op::v1::Subtract>(convert, zp_const);
         std::vector<float> scale_value = {2.0f, 4.0f};
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 2, 1 }, scale_value);
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{2, 1}, scale_value);
         auto scale = std::make_shared<ov::op::v1::Multiply>(sub, scale_const);
         auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         // auto bias = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 1, 2 }, {1});
         auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input1, scale, no_bias);
         const auto relu = std::make_shared<ov::op::v0::Relu>(fc);
-        auto model = std::make_shared<ov::Model>(ov::NodeVector{ relu }, ov::ParameterVector{ input1 });
+        auto model = std::make_shared<ov::Model>(ov::NodeVector{relu}, ov::ParameterVector{input1});
         ov::Core core;
-        ov::CompiledModel compiled_model = core.compile_model(model, "GPU.1", {{"MODEL_DISTRIBUTION_POLICY", "TENSOR_PARALLEL"}});
-        core.get_property("GPU.1", ov::intel_gpu::device_total_mem_size);
-        auto memory_statistics_before = core.get_property("GPU.1", ov::intel_gpu::memory_statistics);
+
+        std::cout << "[+] test_compressed_scale_zp_nobias_activation compiled_model GPU " << std::endl;
+        ov::CompiledModel compiled_model =
+            core.compile_model(model, "GPU", {{"MODEL_DISTRIBUTION_POLICY", "TENSOR_PARALLEL"}});
         ov::InferRequest infer_request = compiled_model.create_infer_request();
         auto input_generate = ov::test::utils::InputGenerateData(1, 1);
         auto tensor = ov::test::utils::create_and_fill_tensor(infer_request.get_input_tensor().get_element_type(),
                                                               ov::Shape{{1, 2}},
                                                               input_generate);
         infer_request.set_input_tensor(tensor);
+        std::cout << "infer_request infer " << std::endl;
         infer_request.infer();
-        auto memory_statistics_after = core.get_property("GPU.1", ov::intel_gpu::memory_statistics);
         const ov::Tensor& output_tensor = infer_request.get_output_tensor();
         for (size_t i = 0; i < 2; i++) {
+            std::cout << "output_tensor[" << i << "] " << output_tensor.data<float>()[i] << std::endl;
             std::cout << output_tensor.data<float>()[i] << std::endl;
         }
     }

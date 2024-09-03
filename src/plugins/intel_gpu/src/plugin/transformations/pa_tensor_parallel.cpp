@@ -470,7 +470,7 @@ PATensorParallelFusion::PATensorParallelFusion(size_t world_size, size_t world_r
                 sync_node->set_friendly_name(first_fc_after_pa->get_friendly_name() + "_TP");
                 copy_runtime_info(first_fc_after_pa, new_fc);
                 for (auto& iter : org_users) {
-                    iter.second->input(iter.first).replace_source_output(sync_node->output(0));
+                    iter.second->input(iter.first).replace_source_output(sync_node->output(world_rank));
                 }
                 first_fc_after_pa->clear_control_dependencies();
             } else {
