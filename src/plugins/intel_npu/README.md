@@ -236,6 +236,15 @@ Supported values:
     compile_model(model, config);
 ```
 
+### ov::intel_npu::max_tiles and ov::intel_npu::tiles
+
+Max_tiles property is read-write to enable compiling models off-device.  
+When on npu device, max_tiles will return the number of tiles thedevice has.  
+Setting the number of tiles to compile for (via intel_npu::tiles), when on device,
+must be preceded by reading intel_npu::max_tiles first, to make sure that  
+``ov::intel_npu::tiles`` <= ``ov::intel_npu::max_tiles``  
+to avoid exceptions from the compiler.
+
 &nbsp;
 ## Stateful models
 
