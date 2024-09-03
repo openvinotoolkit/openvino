@@ -9,10 +9,8 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_helpers.h"
-#include "mvn_inst.h"
 #include "to_string_utils.h"
 #include "pooling_inst.h"
-#include "reshape_inst.h"
 #include "fully_connected_inst.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -26,15 +24,14 @@
 #include <list>
 #include <map>
 #include <set>
-#include <tuple>
 
 using namespace cldnn;
 
 // ToDo remove friendship relation from program
 
-reorder_inputs::reorder_inputs(layout_optimizer& lo_ref, reorder_factory& rf_ref) : base_pass("reorder_inputs"), _lo(lo_ref), _rf(rf_ref) {}
+reorder_inputs::reorder_inputs(reorder_factory& rf_ref) : base_pass("reorder_inputs"), _rf(rf_ref) {}
 
-void reorder_inputs::run(program& p) { run(p, _lo, _rf); }
+void reorder_inputs::run(program& p) { run(p, _rf); }
 
 namespace {
 
@@ -681,8 +678,10 @@ void insert_reorders(program& p, const std::map<program_node*, format::type>& fm
 
 }  // namespace
 
-void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) {
+void reorder_inputs::run(program& p, reorder_factory& rf) {
     GPU_DEBUG_GET_INSTANCE(debug_config);
+
+    auto& lo = p.get_layout_optimizer();
 
     auto fmt_map = get_preferred_formats(p, lo);
 

@@ -4,15 +4,9 @@
 
 #include "pass_manager.h"
 #include "program_node.h"
-#include "layout_optimizer.h"
 #include "intel_gpu/graph/program.hpp"
-#include "program_helpers.h"
 #include "intel_gpu/runtime/itt.hpp"
-#include <vector>
-#include <memory>
 #include <list>
-#include <map>
-#include <set>
 
 using namespace cldnn;
 

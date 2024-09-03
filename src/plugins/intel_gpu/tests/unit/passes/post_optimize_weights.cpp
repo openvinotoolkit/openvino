@@ -230,9 +230,6 @@ TEST(post_optimize_weights, fuse_reorder_to_onednn_weights_reorder_test) {
         config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc", fc_impl} }));
     }
 
-    layout_optimizer lo(true);
-    lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
-
     auto prog = program::build_program(engine, topology, config);
 
     ASSERT_TRUE(has_node(*prog, "reorder_dt"));
@@ -276,15 +273,12 @@ TEST(post_optimize_weights, onednn_group_conv_weights_reorder_test) {
         config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", conv_impl} }));
     }
 
-    layout_optimizer lo(true);
-    lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
-
     auto prog = program::build_program(engine, topology, config);
 
     auto& conv_node = prog->get_node("conv");
     auto weights_param = conv_node.as<convolution>().get_selected_impl()->get_weights_reorder_params();
     ASSERT_TRUE(format::is_weights_format(prog->get_node("weights_weights_reorder_0").get_output_layout().format));
-    
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     // Check onednn_weights_params->_out_desc.get_size() with reorder output_layout bytes_count
     auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(weights_param);

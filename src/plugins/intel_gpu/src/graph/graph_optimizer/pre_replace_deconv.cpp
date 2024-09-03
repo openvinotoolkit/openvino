@@ -21,6 +21,8 @@ void pre_replace_deconv::run(program& p) {
 
     auto& stream = p.get_stream();
 
+    auto& lo = p.get_layout_optimizer();
+
     auto itr = p.nodes_map.begin();
     while (itr != p.nodes_map.end()) {
         auto node_itr = itr++;
@@ -51,8 +53,8 @@ void pre_replace_deconv::run(program& p) {
                 // fp16 and fp32 bfyx implementation supports transposed convolution
                 perform_opt |= cldnn::format::dimension(input_layout.format) == 4 &&
                                (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16) &&
-                               !((_lo.get_optimization_attributes().b_fs_yx_fsv16_network || input_layout.format == format::b_fs_yx_fsv16) &&
-                                _lo.is_format_optimized(deconv_node, format::b_fs_yx_fsv16));
+                               !((lo.get_optimization_attributes().b_fs_yx_fsv16_network || input_layout.format == format::b_fs_yx_fsv16) &&
+                                lo.is_format_optimized(deconv_node, format::b_fs_yx_fsv16));
                 // int8/uint8 input
                 perform_opt |= (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8);
 

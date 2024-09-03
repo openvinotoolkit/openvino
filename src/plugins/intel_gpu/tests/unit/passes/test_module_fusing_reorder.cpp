@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/permute.hpp"
 #include "test_utils.h"
 #include "program_helpers.h"
 #include "layout_optimizer.h"
@@ -339,8 +340,7 @@ TEST_P(can_fuse_reorder, surface_input_reorder) {
         return;
     }
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
-    layout_optimizer lo = layout_optimizer();
-    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog);
 
     size_t reorders_count = 0;
     const size_t expected_reorders_count = 1;
@@ -403,8 +403,7 @@ TEST_P(can_fuse_reorder, surface_input_reorder_batched) {
     }
 
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
-    layout_optimizer lo = layout_optimizer();
-    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog);
 
     size_t reorders_count = 0;
     const size_t expected_reorders_count = req_format == format::bfyx ? 2 : 3;
@@ -456,7 +455,7 @@ TEST_P(test_can_fuse_reorder_onednn_errata, errata_case_for_conv) {
 
     ExecutionConfig cfg = get_test_default_config(engine);
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
-    layout_optimizer lo = layout_optimizer();
+    auto& lo = prog->get_layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
     setting_onednn_conv(prog, lo, "conv", p.conv_layout);
 

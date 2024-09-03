@@ -42,7 +42,6 @@ struct program {
     friend class pre_replace_deconv;                // to be removed when possible
     friend class prepare_primitive_fusing;          // to be removed when possible
     friend class prepare_quantization;              // to be removed when possible
-    friend class prepare_conv_eltw_fusing;          // to be removed when possible
     friend class reorder_inputs;                    // to be removed when possible
     friend class remove_redundant_reorders;         // to be removed when possible
     friend class post_optimize_weights;             // to be removed when possible
@@ -289,6 +288,7 @@ public:
     bool is_loaded_from_cache() const { return _loaded_from_cache; }
 
     bool is_new_shape_infer() const { return new_shape_infer; }
+    layout_optimizer& get_layout_optimizer() const { return *_layout_optimizer; }
 
 private:
     uint32_t prog_id = 0;
@@ -303,6 +303,7 @@ private:
     nodes_ordering processing_order;
     std::vector<primitive_id> allocating_order;
     std::unique_ptr<pass_manager> pm;
+    std::unique_ptr<layout_optimizer> _layout_optimizer;
     bool is_internal;
     bool _is_body_program;
     // if subgraph can be optimized if it consists of only inputs and corresponding outputs

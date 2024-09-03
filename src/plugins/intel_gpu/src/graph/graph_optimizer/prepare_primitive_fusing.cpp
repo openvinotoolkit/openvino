@@ -422,6 +422,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
     bool recalc_processing_order = false;
     std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
 
+    auto& lo = p.get_layout_optimizer();
+
     const auto supports_immad = p.get_engine().get_device_info().supports_immad;
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
@@ -437,8 +439,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto conv_supports_fusings = [&](convolution_node& node) -> bool {
-            if (_lo.get_optimization_attributes().use_onednn_impls == 1 &&
-                _lo.get_preferred_impl_type(node, format::byxf /*dummy value to disable format checking*/) == impl_types::onednn) {
+            if (lo.get_optimization_attributes().use_onednn_impls == 1 &&
+                lo.get_preferred_impl_type(node, format::byxf /*dummy value to disable format checking*/) == impl_types::onednn) {
                 return true;
             }
 
@@ -452,34 +454,34 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             // Since reorder inputs is called after this pass
             // we have to check that blocked formats can be used in the network and layer is optimized for it.
             if ((node.get_output_layout().format == format::b_fs_yx_fsv16 ||
-                _lo.should_select_b_fs_yx_fsv16_layout(node, node.get_input_layout(1))) &&
+                lo.should_select_b_fs_yx_fsv16_layout(node, node.get_input_layout(1))) &&
                  !is_grouped_conv(node))
                 return true;
 
             if ((node.get_output_layout().format == format::bfzyx &&
-                (!_lo.get_optimization_attributes().b_fs_zyx_fsv16_network || !_lo.is_format_optimized(node, format::b_fs_zyx_fsv16))))
+                (!lo.get_optimization_attributes().b_fs_zyx_fsv16_network || !lo.is_format_optimized(node, format::b_fs_zyx_fsv16))))
                 return true;
 
             if ((node.get_output_layout().format == format::fs_b_yx_fsv32 ||
-                (_lo.get_optimization_attributes().fs_b_yx_fsv32_network &&
-                 _lo.is_format_optimized(node, format::fs_b_yx_fsv32) && node.get_primitive()->groups == 1)))
+                (lo.get_optimization_attributes().fs_b_yx_fsv32_network &&
+                 lo.is_format_optimized(node, format::fs_b_yx_fsv32) && node.get_primitive()->groups == 1)))
                     return true;
 
             const size_t in_feature = node.get_input_layout(0).feature();
             if ((node.get_output_layout().format == format::b_fs_zyx_fsv16 ||
-                 (_lo.is_format_optimized(node, format::b_fs_zyx_fsv16) &&
-                  _lo.get_optimization_attributes().b_fs_zyx_fsv16_network)) && in_feature != 3)
+                 (lo.is_format_optimized(node, format::b_fs_zyx_fsv16) &&
+                  lo.get_optimization_attributes().b_fs_zyx_fsv16_network)) && in_feature != 3)
                 return true;
 
             if ((node.get_output_layout().format == format::bs_fs_yx_bsv16_fsv16 ||
-                 (_lo.is_format_optimized(node, format::bs_fs_yx_bsv16_fsv16) &&
-                  _lo.get_optimization_attributes().bs_fs_yx_bsv16_fsv16_network)) && node.get_primitive()->groups == 1)
+                 (lo.is_format_optimized(node, format::bs_fs_yx_bsv16_fsv16) &&
+                  lo.get_optimization_attributes().bs_fs_yx_bsv16_fsv16_network)) && node.get_primitive()->groups == 1)
                 return true;
 
-            if (node.get_output_layout().format == format::bs_fs_yx_bsv32_fsv32 || _lo.is_format_optimized(node, format::bs_fs_yx_bsv32_fsv32))
+            if (node.get_output_layout().format == format::bs_fs_yx_bsv32_fsv32 || lo.is_format_optimized(node, format::bs_fs_yx_bsv32_fsv32))
                 return true;
 
-            if (node.get_output_layout().format == format::bs_fs_yx_bsv32_fsv16 || _lo.is_format_optimized(node, format::bs_fs_yx_bsv32_fsv16))
+            if (node.get_output_layout().format == format::bs_fs_yx_bsv32_fsv16 || lo.is_format_optimized(node, format::bs_fs_yx_bsv32_fsv16))
                 return true;
 
             auto in_dt = node.get_input_layout(0).data_type;
@@ -489,8 +491,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fc_supports_fusings = [&](fully_connected_node& node) -> bool {
-            if (_lo.get_optimization_attributes().use_onednn_impls &&
-                _lo.get_preferred_impl_type(node, format::any /*dummy*/) == impl_types::onednn) {
+            if (lo.get_optimization_attributes().use_onednn_impls &&
+                lo.get_preferred_impl_type(node, format::any /*dummy*/) == impl_types::onednn) {
                 return true;
             } else {
                 auto in_dt = node.get_input_layout(0).data_type;
@@ -586,8 +588,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto out_layout = node.get_output_layout();
             // Do not fuse if the estimated format is fs_b_yx_fsv32 because the optimized kernel does not support fusion
             if (out_layout.data_type == data_types::f16 && out_layout.is_static() && out_layout.batch() > 1 &&
-                ((_lo.get_optimization_attributes().fs_b_yx_fsv32_network &&
-                  !_lo.get_optimization_attributes().use_onednn_impls && !has_reorder_behind_mvn()) ||
+                ((lo.get_optimization_attributes().fs_b_yx_fsv32_network &&
+                  !lo.get_optimization_attributes().use_onednn_impls && !has_reorder_behind_mvn()) ||
                  out_layout.format == format::fs_b_yx_fsv32)) {
                 return false;
             }
@@ -663,7 +665,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (input.in_shape_of_subgraph || node->in_shape_of_subgraph)
                 return;
 
-            if (_lo.get_optimization_attributes().use_onednn_impls) {
+            if (lo.get_optimization_attributes().use_onednn_impls) {
                 if (input.is_type<reshape>() || input.is_type<concatenation>())
                     return;
                 auto additional_params_input = activation_node.get_primitive()->additional_params_input;
@@ -673,7 +675,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                     return;
                 }
                 // Activation should not be fused if oneDNN does NOT support it
-                if (_lo.is_primitive_implemented_for_onednn(input))  {
+                if (lo.is_primitive_implemented_for_onednn(input))  {
                     #ifdef ENABLE_ONEDNN_FOR_GPU
                     try {
                         onednn::convert_activation_func(activation_func);
@@ -766,7 +768,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
 
             // Onednn reorder does not support eltwise nor binary post operation
-            if (_lo.get_optimization_attributes().use_onednn_impls && input.is_type<reorder>()) {
+            if (lo.get_optimization_attributes().use_onednn_impls && input.is_type<reorder>()) {
                 return;
             }
 
@@ -804,10 +806,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                            ((out_dt == data_types::f32 || out_dt == data_types::f16)  ||
                             in_layout.format == format::b_fs_yx_fsv16 ||
                             in_layout.format == format::bs_fs_yx_bsv32_fsv16 ||
-                            (_lo.should_select_b_fs_yx_fsv16_layout(input_data.as<convolution>(), input_data.get_input_layout(1)) &&
+                            (lo.should_select_b_fs_yx_fsv16_layout(input_data.as<convolution>(), input_data.get_input_layout(1)) &&
                              !is_grouped_conv(input_data.as<convolution>())) ||
                            // Avoid fusing to b_fs_yx_fsv16 (and similar) kernels
-                           _lo.get_optimization_attributes().use_onednn_impls ||
+                           lo.get_optimization_attributes().use_onednn_impls ||
                            (in_dt_is_i8_u8 && out_dt_is_i8_u8));
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt();
@@ -1045,7 +1047,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             auto fused_node = parents[fused_idx].first;
             auto peer_node = parents[peer_idx].first;
-            if (_lo.get_optimization_attributes().use_onednn_impls && _lo.is_primitive_implemented_for_onednn(*fused_node)) {
+            if (lo.get_optimization_attributes().use_onednn_impls && lo.is_primitive_implemented_for_onednn(*fused_node)) {
                 auto eltw_in_size = peer_node->get_output_layout();
                 if (eltw_in_size.is_dynamic()
                     // this whitelist condition is temporarily and to be relaxed soon.
@@ -1168,6 +1170,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 }
 
 void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
+    auto& lo = p.get_layout_optimizer();
+
     std::function<const program_node*(const program_node*)> get_weightable_node =
         [&get_weightable_node](const program_node* node) -> const program_node* {
         if (node->get_users().empty())
@@ -1272,7 +1276,7 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
         new_const_node.recalc_output_layout(false);
 
         // Add format reorder in case of onednn to avoid overhead during execution on weights memory allocation
-        if (_lo.get_preferred_impl_type(const_cast<program_node&>(*weightable_node), format::any /*dummy*/) == impl_types::onednn) {
+        if (lo.get_preferred_impl_type(const_cast<program_node&>(*weightable_node), format::any /*dummy*/) == impl_types::onednn) {
             auto next_node = new_const_node.get_users().front();
             bool can_be_fused = next_node->is_type<reorder>() &&
                                 next_node->as<reorder>().is_simple_reorder() &&
