@@ -124,16 +124,22 @@ static std::mutex debug_mutex;
 static const std::chrono::_V2::system_clock::time_point perf_dump_start() {
     return std::chrono::high_resolution_clock::now();
 }
-
+static std::once_flag check_flag;
+static bool debug_enable = false;
 static void perf_dump_done(const std::chrono::_V2::system_clock::time_point& start,
                            std::string str,
                            bool enable = false) {
-    if (enable) {
+    std::call_once(check_flag, [] {
+        const char* env = getenv("OV_TP_P2P_DEBUG");
+        if (env)
+            debug_enable = true;
+    });
+    if (enable && debug_enable) {
         const auto end = std::chrono::high_resolution_clock::now();
         const std::chrono::duration<double, std::milli> elapsed_1 = end - start;
         {
             std::lock_guard<std::mutex> lock(debug_mutex);
-            std::cout << str << " cost: " << elapsed_1.count() << " ms" << std::endl << std::endl;
+            std::cout << str << " cost: " << elapsed_1.count() << " ms" << std::endl;
         }
     }
 }
@@ -352,6 +358,8 @@ public:
         cl_int err;
         auto& ocl_stream = downcast<ocl::ocl_stream>(stream);
 
+        std::cout << "get_or_create_kernel_if_possible: create_kernel name = " << kernelName << std::endl;
+
         cl_uint knlcount = 1;
         const char* knlstrList[] = {kernel_code};
         size_t knlsizeList[] = {strlen(kernel_code)};
@@ -359,6 +367,8 @@ public:
         cl_context context = ocl_stream.get_engine().get_cl_context().get();
         program = clCreateProgramWithSource(context, knlcount, knlstrList, knlsizeList, &err);
         CHECK_OCL_ERROR_EXIT(err, "clCreateProgramWithSource failed");
+
+        std::cout << "get_or_create_kernel_if_possible: create_kernel->clCreateProgramWithSource " << kernelName << std::endl;
 
         std::string buildopt = "-cl-std=CL2.0 -cl-intel-greater-than-4GB-buffer-required";
         err = clBuildProgram(program, 0, NULL, buildopt.c_str(), NULL, NULL);
@@ -375,13 +385,14 @@ public:
 
             exit(1);
         }
-
+         std::cout << "get_or_create_kernel_if_possible: create_kernel->clBuildProgram " << kernelName << std::endl;
         cl_kernel kernel = clCreateKernel(program, kernelName, &err);
         CHECK_OCL_ERROR_EXIT(err, "clCreateKernel failed");
         return kernel;
     }
 
     cl_kernel get_or_create_kernel_if_possible(cldnn::stream& stream, kernel_data_type type) {
+        // std::cout << "get_or_create_kernel_if_possible: type = " << static_cast<int>(type) << std::endl;
         if (type == kernel_data_type::e_type_fp16) {
             if (kernels[type])
                 return kernels[type];
@@ -439,27 +450,33 @@ public:
         const auto start = perf_dump_start();
 
         cl_kernel kernel = get_or_create_kernel_if_possible(stream, data_type);
+
+        perf_dump_done(start, std::string("get_or_create_kernel_if_possible"), false);
+
         err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &src);
         CHECK_OCL_ERROR_EXIT(err, "clSetKernelArg src failed");
 
         err = clSetKernelArg(kernel, 1, sizeof(cl_mem), &dst);
         CHECK_OCL_ERROR_EXIT(err, "clSetKernelArg dst failed");
 
+        perf_dump_done(start, std::string("tensor_add->clSetKernelArg"), false);
+
         size_t global_size[] = {element_count};
         auto queue = ocl_stream.get_cl_queue().get();
         // auto wait_event = std::dynamic_pointer_cast<ocl::ocl_event>(event)->get().get();
         // auto usr_event = ocl_stream.create_user_event(false);
         // cl_event ret = std::dynamic_pointer_cast<ocl::ocl_event>(usr_event)->get().get();
-        // cl_event ret;
+        cl_event ret;
 
-        err = clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, global_size, nullptr, 0, nullptr, nullptr /*&ret*/);
+        err = clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, global_size, nullptr, 0, nullptr, &ret);
         CHECK_OCL_ERROR_EXIT(err, "clEnqueueNDRangeKernel failed");
-        clFinish(queue);
+        // clFinish(queue);
+        // clWaitForEvents(1, &ret);
 
-        perf_dump_done(start, std::string("tensor add host time"));
-        // return ocl_stream.create_event(cl::Event(ret));
+        perf_dump_done(start, std::string("tensor add host time"), true);
+        return ocl_stream.create_event(cl::Event(ret));
         // return usr_event;
-        return stream.create_user_event(true);
+        // return stream.create_user_event(true);
     }
 
     void finish(cldnn::stream& stream) {
@@ -517,16 +534,17 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
         // wait for all reduce data are ready
         std::vector<int> copy_list(w_size, 1);
         copy_list[w_rank] = 0;
+        auto start = perf_dump_start();
         while (true) {
             for (size_t idx = 0; idx < w_size; idx++) {
                 if (idx != static_cast<size_t>(w_rank) && copy_list[idx]) {
                     // Wait for reduce data has been ready
-                    auto& remote_ocl_stream =
-                        downcast<ocl::ocl_stream>(*sub_mem_mgr->_memorys_table[id][idx].stream_ptr);
+                    // auto& remote_ocl_stream =
+                    //    downcast<ocl::ocl_stream>(*sub_mem_mgr->_memorys_table[id][idx].stream_ptr);
                     auto event = sub_mem_mgr->_memorys_table[id][idx].events[w_rank];
                     if (event) {
-                        remote_ocl_stream.finish();
-                        // event->wait();
+                        // remote_ocl_stream.finish();
+                        event->wait();
                         copy_list[idx] = 0;
                         {
                             std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
@@ -539,7 +557,15 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                 std::accumulate(copy_list.begin(), copy_list.end(), static_cast<size_t>(1), std::multiplies<size_t>());
             if (left_size == 0)
                 break;
+            auto end = perf_dump_start();
+            std::chrono::duration<double, std::milli> duration = end - start;
+            if (duration.count() > 10000) {
+                std::cout << "Warning: sync_tensor wait_p2p_done timeout..." << std::endl;
+            }
         }
+        perf_dump_done(start,
+                       std::string("rank[") + std::to_string(w_rank) + std::string("] sync_tensor wait p2p done"),
+                       true);
     }
 
     std::vector<cldnn::event::ptr> propagate_p2p_events(ov::intel_gpu::SubMemoryManager::ptr& sub_mem_mgr,
@@ -547,13 +573,12 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                                                         size_t w_size,
                                                         int32_t w_rank) {
         std::vector<cldnn::event::ptr> sync_events;
-        // wait for all reduce data are ready
         std::vector<int> copy_list(w_size, 1);
         copy_list[w_rank] = 0;
+        auto start = perf_dump_start();
         while (true) {
             for (size_t idx = 0; idx < w_size; idx++) {
                 if (idx != static_cast<size_t>(w_rank) && copy_list[idx]) {
-                    // Wait for reduce data has been ready
                     auto event = sub_mem_mgr->_memorys_table[id][idx].events[w_rank];
                     if (event) {
                         sync_events.emplace_back(event);
@@ -565,6 +590,11 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                 std::accumulate(copy_list.begin(), copy_list.end(), static_cast<size_t>(1), std::multiplies<size_t>());
             if (left_size == 0)
                 break;
+            auto end = perf_dump_start();
+            std::chrono::duration<double, std::milli> duration = end - start;
+            if (duration.count() > 10000) {
+                std::cout << "Warning: sync_tensor propagate_p2p_events timeout..." << std::endl;
+            }
         }
 
         return sync_events;
@@ -584,7 +614,9 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                 e->wait();
             }
         }
-        perf_dump_done(start, std::string("rank[") + std::to_string(w_rank) + std::string("] sync_tensor wait events"));
+        perf_dump_done(start,
+                       std::string("rank[") + std::to_string(w_rank) + std::string("] sync_tensor wait events"),
+                       true);
 
         auto sub_mem_mgr = instance.get_network().get_sub_mem_mgr();
         auto id = sub_mem_mgr->get_memory_id(w_rank);
@@ -601,11 +633,17 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
             if (sub_mem_mgr->_use_count[id] == 0) {
                 break;
             }
+            auto end_1 = perf_dump_start();
+            std::chrono::duration<double, std::milli> duration = end_1 - start_1;
+            if (duration.count() > 10000) {
+                std::cout << "Warning: sync_tensor wait data ready timeout..." << std::endl;
+            }
         }
         perf_dump_done(start_1,
-                       std::string("rank[") + std::to_string(w_rank) + std::string("] sync_tensor wait data ready"));
+                       std::string("rank[") + std::to_string(w_rank) + std::string("] sync_tensor wait data ready"),
+                       true);
 
-        auto p2p_helper = get_ocl_p2p_instance(w_rank);
+        auto& p2p_helper = get_ocl_p2p_instance(w_rank);
         auto& ocl_stream = downcast<ocl::ocl_stream>(stream);
         auto local_context = ocl_stream.get_engine().get_cl_context().get();
         // sub_mem_mgr->_memorys_table[id][w_rank].send_buf = instance.output_memory(w_rank).buffer_ptr();
@@ -662,11 +700,18 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
             if (wait_size == 0) {
                 break;
             }
+            auto end_2 = perf_dump_start();
+            std::chrono::duration<double, std::milli> duration = end_2 - start_2;
+            if (duration.count() > 10000) {
+                std::cout << "Warning: sync_tensor p2p write timeout...." << std::endl;
+            }
         }
+
+        auto str_need_add = instance.get_impl_params()->need_add ? std::string("[need_add]") : std::string("");
         perf_dump_done(start_2,
                        std::string("rank[") + std::to_string(w_rank) + std::string("] sync_tensor p2p write ") +
-                           std::to_string(data_size) + " bytes",
-                       false);
+                           std::to_string(data_size) + " bytes" + str_need_add,
+                       true);
 
         if (0) {
             std::lock_guard<std::mutex> lock(debug_mutex);
@@ -681,7 +726,6 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
         std::vector<cldnn::event::ptr> sync_events;
         if (instance.get_impl_params()->need_add) {
             auto start_3 = perf_dump_start();
-            auto add_worker = get_adder_instance(w_rank);
             auto dst_mem = std::dynamic_pointer_cast<const ocl::gpu_buffer>(instance.output_memory_ptr(w_rank));
             auto dst_cl_buf = dst_mem->get_buffer().get();
             // auto data_size = dst_mem->size();
@@ -692,19 +736,19 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                     auto src_cl_buf = std::dynamic_pointer_cast<const ocl::gpu_buffer>(instance.output_memory_ptr(idx))
                                           ->get_buffer()
                                           .get();
-                    sync_event =
-                        add_worker.tensor_add(stream,
-                                              src_cl_buf,
-                                              dst_cl_buf,
-                                              dst_mem->count(),
-                                              element_type_to_kernel_data_type(dst_mem->get_layout().data_type));
+                    sync_event = get_adder_instance(w_rank).tensor_add(
+                        stream,
+                        src_cl_buf,
+                        dst_cl_buf,
+                        dst_mem->count(),
+                        element_type_to_kernel_data_type(dst_mem->get_layout().data_type));
                     sync_events.emplace_back(sync_event);
                 }
             }
             // add_worker.finish(stream);
             perf_dump_done(start_3,
                            std::string("rank[") + std::to_string(w_rank) + std::string("] sync_tensor allreduce add"),
-                           false);
+                           true);
 
             if (0) {
                 std::lock_guard<std::mutex> lock(debug_mutex);
@@ -728,7 +772,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
         }
         perf_dump_done(start,
                        std::string("rank[") + std::to_string(w_rank) + std::string("] sync_tensor total"),
-                       false);
+                       true);
 
         for (auto& evt : sync_events) {
             evt->wait();
