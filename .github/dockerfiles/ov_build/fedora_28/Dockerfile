@@ -1,4 +1,4 @@
-FROM openvinogithubactions.azurecr.io/dockerio/library/fedora:28
+FROM redhat/ubi8:8.4
 
 USER root
 
@@ -12,6 +12,8 @@ RUN yum update -y && yum install -y \
     wget \
     make \
     tar \
+    gcc \
+    gcc-c++ \
     xz
 
 # Install build dependencies
