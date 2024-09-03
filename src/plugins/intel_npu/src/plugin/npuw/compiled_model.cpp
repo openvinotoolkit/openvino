@@ -695,8 +695,9 @@ void ov::npuw::CompiledModel::implement_properties() {
     //    request. So the vector will define public properties.
     // 3. Create mappings for all remaining (private) NPUW-specific properties
     //    to getters of their values from config.
-
-#define GET_PLUGIN_PROP(property) return get_plugin()->get_property(property.name(), ov::AnyMap());
+#define GET_PASSED_OR_PLUGIN_PROP(property)                                               \
+    return m_non_npuw_props.count(property.name()) ? m_non_npuw_props.at(property.name()) \
+                                                   : get_plugin()->get_property(property.name(), ov::AnyMap());
 
     // 1.
     // OV Public
@@ -709,12 +710,12 @@ void ov::npuw::CompiledModel::implement_properties() {
                      {ov::device::id.name(),
                       {ov::PropertyMutability::RO,
                        [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::device::id);
+                           GET_PASSED_OR_PLUGIN_PROP(ov::device::id);
                        }}},
                      {ov::enable_profiling.name(),
                       {ov::PropertyMutability::RO,
                        [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::enable_profiling);
+                           GET_PASSED_OR_PLUGIN_PROP(ov::enable_profiling);
                        }}},
                      {ov::model_name.name(),
                       {ov::PropertyMutability::RO,
@@ -741,32 +742,32 @@ void ov::npuw::CompiledModel::implement_properties() {
                      {ov::hint::performance_mode.name(),
                       {ov::PropertyMutability::RO,
                        [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::hint::performance_mode);
+                           GET_PASSED_OR_PLUGIN_PROP(ov::hint::performance_mode);
                        }}},
                      {ov::hint::execution_mode.name(),
                       {ov::PropertyMutability::RO,
                        [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::hint::execution_mode);
+                           GET_PASSED_OR_PLUGIN_PROP(ov::hint::execution_mode);
                        }}},
                      {ov::hint::num_requests.name(),
                       {ov::PropertyMutability::RO,
                        [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::hint::num_requests);
+                           GET_PASSED_OR_PLUGIN_PROP(ov::hint::num_requests);
                        }}},
                      {ov::hint::inference_precision.name(),
                       {ov::PropertyMutability::RO,
                        [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::hint::inference_precision);
+                           GET_PASSED_OR_PLUGIN_PROP(ov::hint::inference_precision);
                        }}},
                      {ov::hint::enable_cpu_pinning.name(),
                       {ov::PropertyMutability::RO,
                        [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::hint::enable_cpu_pinning);
+                           GET_PASSED_OR_PLUGIN_PROP(ov::hint::enable_cpu_pinning);
                        }}},
                      {ov::hint::model_priority.name(), {ov::PropertyMutability::RO, [&](const ::intel_npu::Config&) {
-                                                            GET_PLUGIN_PROP(ov::hint::model_priority);
+                                                            GET_PASSED_OR_PLUGIN_PROP(ov::hint::model_priority);
                                                         }}}};
-#undef GET_PLUGIN_PROP
+#undef GET_PASSED_OR_PLUGIN_PROP
 
     // 2.
     for (auto& p : m_prop_to_opt) {

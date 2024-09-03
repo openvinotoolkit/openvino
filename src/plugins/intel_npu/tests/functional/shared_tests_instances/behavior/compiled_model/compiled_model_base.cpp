@@ -6,6 +6,7 @@
 #include "common/utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "intel_npu/al/config/common.hpp"
+#include "npuw_private_properties.hpp"
 
 using namespace ov::test::behavior;
 namespace {
@@ -13,6 +14,8 @@ namespace {
 const std::vector<ov::element::Type> modelTypes{ov::element::f16, ov::element::f32};
 
 const std::vector<ov::AnyMap> compiledModelConfigs = {{}};
+
+const ov::AnyMap npuwConfig = {ov::intel_npu::use_npuw(true)};
 
 // Hetero configs
 
@@ -31,6 +34,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelBaseTest,
                                             ::testing::ValuesIn(compiledModelConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVCompiledModelBaseTest>);
 
+INSTANTIATE_TEST_SUITE_P(smoke_NPUW_BehaviorTests, OVCompiledModelBaseTest,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::Values(npuwConfig)),
+                         ov::test::utils::appendPlatformTypeTestName<OVCompiledModelBaseTest>);
+
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVCompiledModelBaseTest,
                          ::testing::Combine(::testing::Values(std::string(ov::test::utils::DEVICE_HETERO) + ":" +
                                                               ov::test::utils::DEVICE_NPU),
@@ -40,6 +48,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVCompiledModelBaseTest,
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelBaseTestOptional,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(compiledModelConfigs)),
+                         ov::test::utils::appendPlatformTypeTestName<OVCompiledModelBaseTestOptional>);
+
+INSTANTIATE_TEST_SUITE_P(smoke_NPUW_BehaviorTests, OVCompiledModelBaseTestOptional,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::Values(npuwConfig)),
                          ov::test::utils::appendPlatformTypeTestName<OVCompiledModelBaseTestOptional>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVCompiledModelBaseTestOptional,
@@ -53,11 +66,22 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVAutoExecutableNetw
                                             ::testing::ValuesIn(compiledModelConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVAutoExecutableNetworkTest>);
 
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_NPUW_BehaviorTests, OVAutoExecutableNetworkTest,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::Values(npuwConfig)),
+                         ov::test::utils::appendPlatformTypeTestName<OVAutoExecutableNetworkTest>);
+
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVAutoExecutableNetworkTest,
                          ::testing::Combine(::testing::Values(std::string(ov::test::utils::DEVICE_HETERO) + ":" +
                                                               ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(heteroCompiledModelConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVAutoExecutableNetworkTest>);
+
+INSTANTIATE_TEST_SUITE_P(smoke_NPUW_BehaviorTests, CompiledModelSetType,
+                         ::testing::Combine(::testing::ValuesIn(modelTypes),
+                                            ::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::Values(npuwConfig)),
+                         ov::test::utils::appendPlatformTypeTestName<CompiledModelSetType>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, CompiledModelSetType,
                          ::testing::Combine(::testing::ValuesIn(modelTypes),
