@@ -90,7 +90,11 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
             fw_outputs = [fw_outputs.numpy(force=True)]
         return fw_outputs
 
-    @pytest.mark.parametrize("model_name", ["efficientnet_b7", "raft_small", "swin_v2_s"])
+    @pytest.mark.parametrize("model_name", ["efficientnet_b7",
+                                            "raft_small",
+                                            "swin_v2_s",
+                                            "quantized_mobilenet_v3_large",
+                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, ie_device):
         self.mode = "trace"
