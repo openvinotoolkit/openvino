@@ -42,11 +42,10 @@ public:
     }
 
 protected:
-    ov::Shape input_shape;
+    ov::Shape input_shape, indices_shape;
     std::tuple<int, int> axis_batch_idx;
 
     void SetUp() override {
-        ov::Shape indices_shape;
         ov::element::Type input_precision;
         targetDevice = ov::test::utils::DEVICE_GPU;
         std::tie(input_shape, indices_shape, axis_batch_idx, input_precision) = GetParam();
@@ -68,7 +67,7 @@ protected:
         function = std::make_shared<ov::Model>(result, ov::ParameterVector{indices_node}, "gather");
     }
 
-void generate_inputs(const std::vector<ov::Shape>& target_shapes) {
+void generate_inputs(const std::vector<ov::Shape>& target_shapes) override {
     inputs.clear();
     const auto& func_inputs = function->inputs();
     auto& data_input = func_inputs[0];
@@ -76,7 +75,7 @@ void generate_inputs(const std::vector<ov::Shape>& target_shapes) {
     ov::test::utils::InputGenerateData in_data;
     in_data.start_from = 0;
     in_data.range = input_shape[std::get<0>(axis_batch_idx)];
-    tensor = ov::test::utils::create_and_fill_tensor(ov::element::i64, ov::Shape{}, in_data);
+    tensor = ov::test::utils::create_and_fill_tensor(ov::element::i64, indices_shape, in_data);
     inputs.insert({data_input.get_node_shared_ptr(), tensor});
 }
 };
