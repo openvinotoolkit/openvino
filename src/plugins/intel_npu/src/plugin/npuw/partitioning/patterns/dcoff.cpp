@@ -58,7 +58,9 @@ bool transpose_required(const std::shared_ptr<ov::op::v0::MatMul>& matmul_node) 
     if (output_shape.back() != input_shape.front()) {
         return true;  // Transpose is required
     }
-
+    if (input_shape.size() == 2 && input_shape[0] == input_shape[1] && !matmul_node->get_transpose_b()){
+        return true;
+    }
     return false;
 }
 
@@ -839,6 +841,16 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode,
             ov::element::f32 == matched_paramC->get_element_type()) {
             LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << dcoff_type);
             matched_paramA->set_element_type(dcoff_type);
+
+            auto matched_MM = pattern_utils::get_root_matmul(m);
+            const bool need_transpose = pattern_utils::transpose_required(matched_MM);
+            if (enable_transpose && need_transpose) {
+                pref.get().transpose_required.insert(matched_paramA);
+                pref.get().transpose_required.insert(matched_paramC);
+                pattern_utils::transpose_param_shape(matched_paramA);
+                pattern_utils::transpose_param_shape(matched_paramC);
+                matched_MM->set_transpose_b(true);
+            }
 
             if (dcoff_mode == DCOffMode::CAST_SCALE) {
                 NPUW_ASSERT(dcoff_type == ov::element::f16);
