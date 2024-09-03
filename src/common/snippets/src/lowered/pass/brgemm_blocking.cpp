@@ -91,28 +91,28 @@ SpecificIterationHandlers BrgemmBlockingBase::get_k_loop_handlers(size_t work_am
     return get_default_blocking_loop_handlers(work_amount, block_size);
 }
 
+size_t BrgemmBlockingBase::get_default_m_blk(size_t m) const {
+    return 32;
+}
+size_t BrgemmBlockingBase::get_default_n_blk(size_t n) const {
+    return 64;
+}
+size_t BrgemmBlockingBase::get_default_k_blk(size_t k) const {
+    return !utils::is_dynamic_value(k) && k > 1024 ? 1024 : 512;
+}
+
 std::tuple<size_t, size_t, size_t> BrgemmBlockingBase::get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
     size_t m, n, k;
     std::tie(m, n, k) = get_brgemm_dimensions(brgemm_expr);
 
     // Ticket: 113745
     // TODO: extend block size selection heuristics
-    auto get_block_size_m = [](const size_t M) -> size_t {
-        if (!snippets::utils::is_dynamic_value(M) && M <= 32)
+    auto get_block_size = [](const size_t dim, const size_t default_blk) {
+        if (!snippets::utils::is_dynamic_value(dim) && dim <= default_blk)
             return get_full_dim_value();
-        return 32;
+        return default_blk;
     };
-    auto get_block_size_n = [](const size_t N) -> size_t {
-        if (!snippets::utils::is_dynamic_value(N) && N <= 64)
-            return get_full_dim_value();
-        return 64;
-    };
-    auto get_block_size_k = [](const size_t K) -> size_t {
-        if (ov::snippets::utils::is_dynamic_value(K))
-            return 512;
-        return K > 1024 ? 1024 : K > 512 ? 512 : get_full_dim_value();
-    };
-    return std::make_tuple(get_block_size_m(m), get_block_size_n(n), get_block_size_k(k));
+    return std::make_tuple(get_block_size(m, get_default_m_blk(m)), get_block_size(n, get_default_n_blk(n)), get_block_size(k, get_default_k_blk(k)));
 }
 
 std::tuple<size_t, size_t, size_t> BrgemmBlockingBase::get_brgemm_dimensions(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {

@@ -52,6 +52,8 @@ private:
                              size_t m_block,
                              size_t n_block,
                              size_t k_block) override;
+
+    size_t get_default_n_blk(size_t n) const override;
 };
 
 }  // namespace pass

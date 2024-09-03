@@ -79,6 +79,10 @@ protected:
     virtual SpecificIterationHandlers get_m_loop_handlers(size_t work_amount, size_t block_size) const;
     virtual SpecificIterationHandlers get_n_loop_handlers(size_t work_amount, size_t block_size) const;
     virtual SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_size) const;
+
+    virtual size_t get_default_m_blk(size_t m) const;
+    virtual size_t get_default_n_blk(size_t n) const;
+    virtual size_t get_default_k_blk(size_t k) const;
 };
 
 /**

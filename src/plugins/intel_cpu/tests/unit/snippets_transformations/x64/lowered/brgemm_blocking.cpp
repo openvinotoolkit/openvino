@@ -176,6 +176,34 @@ TEST_F(BrgemmCPUBlockingTest, Floating) {
     }
 }
 
+TEST_F(BrgemmCPUBlockingTest, Floating_LargeK) {
+    const ov::Dimension::value_type m = 384;
+    const ov::Dimension::value_type n = 384;
+    const ov::Dimension::value_type k = 2048;
+    const ov::PartialShape input_shape_a{1, 16, m, k};
+    const ov::PartialShape input_shape_b{1, 16, k, n};
+    const auto precision = ov::element::f32;
+    k_blk = 1024;
+
+    {
+        auto data_a = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_a);
+        auto data_b = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_b);
+        auto brgemm = linear_ir->push_node<BrgemmCPU>(data_a.second, data_b.second, BRGEMM_TYPE::STAND_ALONE);
+        init_expr_descriptors(*brgemm.first, {});
+        auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
+    }
+    {
+        auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
+        auto data_b = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_b);
+        auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, data_b.second, BRGEMM_TYPE::STAND_ALONE);
+        const auto& brgemm_expr = *brgemm.first;
+        init_expr_descriptors(brgemm_expr, {{m_blk, k_blk}, {k_blk, n_blk}, {m_blk, n_blk}});
+        create_brgemm_loop_infos(linear_ir_ref, brgemm_expr, m, m_blk, k, k_blk, n, n_blk);
+        brgemm_expr->set_loop_ids({2, 1, 0});
+        auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
+    }
+}
+
 TEST_F(BrgemmCPUBlockingTest, BlockingIsNotNeeded) {
     const ov::Dimension::value_type m = 32;
     const ov::Dimension::value_type k = 16;

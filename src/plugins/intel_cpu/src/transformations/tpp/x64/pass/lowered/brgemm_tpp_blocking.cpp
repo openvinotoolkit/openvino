@@ -37,10 +37,11 @@ std::tuple<size_t, size_t, size_t> BrgemmTPPBlocking::get_blocking_params(const 
     std::tie(m, n, k) = get_brgemm_dimensions(brgemm_expr);
     OPENVINO_ASSERT(!is_dynamic_value(m) && !is_dynamic_value(n) && !is_dynamic_value(n), "BrgemmTPP doesn't support dynamic shapes");
 
-    const auto block_size_m = std::min<size_t>(32, m);
-    const auto block_size_n = std::min<size_t>(64, n);
-    const auto block_size_k = k > 1024 ? 1024 : k > 512 ? 512 : k;
-    return std::make_tuple(block_size_m, block_size_n, block_size_k);
+    size_t m_blk, n_blk, k_blk;
+    std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
+
+    auto get_projected_blk = [](const size_t dim, const size_t blk) { return ov::snippets::utils::is_full_dim_value(blk) ? dim : blk; };
+    return std::make_tuple(get_projected_blk(m, m_blk), get_projected_blk(n, n_blk), get_projected_blk(k, k_blk));
 }
 
 ov::snippets::lowered::SpecificIterationHandlers BrgemmTPPBlocking::get_k_loop_handlers(size_t work_amount, size_t block_size) const {
