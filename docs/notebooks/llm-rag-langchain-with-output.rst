@@ -146,6 +146,13 @@ Install required dependencies
                 f.write(r.text)
 
 
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    with open("notebook_utils.py", "w") as f:
+        f.write(r.text)
+    import notebook_utils as utils
+
     if not text_example_en_path.exists():
         r = requests.get(url=text_example_en)
         content = io.BytesIO(r.content)
@@ -204,7 +211,6 @@ You can also find available LLM model options in
 .. code:: ipython3
 
     from pathlib import Path
-    import openvino as ov
     import torch
     import ipywidgets as widgets
     from transformers import (
@@ -691,16 +697,7 @@ Select device for embedding model inference
 
 .. code:: ipython3
 
-    core = ov.Core()
-
-    support_devices = core.available_devices
-
-    embedding_device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
+    embedding_device = utils.device_widget()
 
     embedding_device
 
@@ -733,13 +730,6 @@ model to NPU device.
     npu_embedding_dir = embedding_model_id.value + "-npu"
     npu_embedding_path = Path(npu_embedding_dir) / "openvino_model.xml"
     if USING_NPU and not Path(npu_embedding_dir).exists():
-        r = requests.get(
-            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-        )
-        with open("notebook_utils.py", "w") as f:
-            f.write(r.text)
-        import notebook_utils as utils
-
         shutil.copytree(embedding_model_id.value, npu_embedding_dir)
         utils.optimize_bge_embedding(Path(embedding_model_id.value) / "openvino_model.xml", npu_embedding_path)
 
@@ -750,12 +740,7 @@ Select device for rerank model inference
 
 .. code:: ipython3
 
-    rerank_device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
+    rerank_device = utils.device_widget()
 
     rerank_device
 
@@ -785,12 +770,7 @@ Select device for LLM model inference
 
 .. code:: ipython3
 
-    llm_device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
+    llm_device = utils.device_widget("CPU", exclude=["NPU"])
 
     llm_device
 
