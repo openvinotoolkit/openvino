@@ -60,7 +60,7 @@ public:
 
 protected:
     virtual JitConstants GetJitConstants(const lstm_params& params, bool) const;
-    KernelsData GetCommonKernelsData(const Params& params, bool) const;
+    KernelsData GetCommonKernelsData(const Params& params, bool, bool) const;
 
     bool Validate(const Params& p) const override {
         if (p.GetType() != KernelType::LSTM_SEQ_CELL) {

@@ -25,7 +25,7 @@ ParamsKey LSTMCellKernel_bfyx::GetSupportedKey() const {
 }
 
 KernelsData LSTMCellKernel_bfyx::GetKernelsData(const Params& params) const {
-    return GetCommonKernelsData(params, false);
+    return GetCommonKernelsData(params, false, true);
 }
 
 KernelsPriority LSTMCellKernel_bfyx::GetKernelsPriority(const Params& /*params*/) const {

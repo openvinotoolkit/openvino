@@ -34,13 +34,14 @@ KERNEL(lstm_seq)(
         #endif
     #endif    
     const uint b = get_global_id(1);
-    const uint local_idx = get_local_id(0);
+    const uint glocal_idx = get_global_id(0);
     const uint weight_offsets[4] = {GEMM_OFFSET_F, GEMM_OFFSET_I, GEMM_OFFSET_Z, GEMM_OFFSET_O};
     #ifdef SEQUENCE
         const uint real_seq_length = sequence_lengths[INPUT4_GET_INDEX(b, 0, 0, 0)];
     #else
         const uint real_seq_length = 1;
     #endif
+   
     unroll_for(uint i=0;i<real_seq_length;++i){
         #ifdef SEQUENCE
             #if DIRECTION == 1 //reverse
@@ -49,29 +50,31 @@ KERNEL(lstm_seq)(
                 const uint prev_idx = i-1;
             #endif
         #endif
-        barrier(CLK_LOCAL_MEM_FENCE);
-        unroll_for(uint l=0;l<NUM_HIDDEN_TO_DO;++l) { //kernel responsible for HIDDEN_SIZE
-            const uint hidden_idx = local_idx*NUM_HIDDEN_TO_DO + l;
-            if (hidden_idx >= HIDDEN_SIZE) {
-                continue;
+        #if MAX_SEQ_LEN > 1
+            barrier(CLK_LOCAL_MEM_FENCE);
+            unroll_for(uint l=0;l<NUM_HIDDEN_TO_DO;++l) { //kernel responsible for HIDDEN_SIZE
+                const uint hidden_idx = glocal_idx*NUM_HIDDEN_TO_DO + l;
+                if (hidden_idx >= HIDDEN_SIZE) {
+                    continue;
+                }
+                if(hidden_idx % VEC_SIZE == 0)
+                {
+                    #ifdef SEQUENCE
+                        if(i==0){
+                            hiddencache[hidden_idx / VEC_SIZE] = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, 0, hidden_idx, 0)]);
+                        } else {
+                            hiddencache[hidden_idx / VEC_SIZE] = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, hidden_idx)]);
+                        }
+                    #else
+                        hiddencache[hidden_idx / VEC_SIZE] = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, hidden_idx, 0)]);
+                    #endif
+                }
             }
-            if(hidden_idx % VEC_SIZE == 0)
-            {
-                #ifdef SEQUENCE
-                    if(i==0){
-                        hiddencache[hidden_idx / VEC_SIZE] = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, 0, hidden_idx, 0)]);
-                    } else {
-                        hiddencache[hidden_idx / VEC_SIZE] = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, hidden_idx)]);
-                    }
-                #else
-                    hiddencache[hidden_idx / VEC_SIZE] = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, hidden_idx, 0)]);
-                #endif
-            }
-        }
-        barrier(CLK_LOCAL_MEM_FENCE);
+            barrier(CLK_LOCAL_MEM_FENCE);
+        #endif
         ACCUMULATOR_TYPE temp_cell_state[NUM_HIDDEN_TO_DO];
         unroll_for(uint l=0;l<NUM_HIDDEN_TO_DO;++l) { //kernel responsible for HIDDEN_SIZE
-            const uint hidden_idx = local_idx*NUM_HIDDEN_TO_DO + l;
+            const uint hidden_idx = glocal_idx*NUM_HIDDEN_TO_DO + l;
             if (hidden_idx >= HIDDEN_SIZE) {
                 continue;
             }
@@ -80,28 +83,22 @@ KERNEL(lstm_seq)(
                 INPUT3_TYPE hidden_result = 0;
                 const uint weight_idx = hidden_idx+weight_offsets[k];
                 #ifdef SEQUENCE
-                    uint rindex = INPUT3_GET_INDEX(0, weight_idx, 0, 0);
+                    uint r_index = INPUT3_GET_INDEX(0, weight_idx, 0, 0);
                 #else
-                    uint rindex = INPUT3_GET_INDEX(weight_idx, 0, 0, 0);
+                    uint r_index = INPUT3_GET_INDEX(weight_idx, 0, 0, 0);
                 #endif
+                int initial_idx = INPUT1_GET_INDEX(b, 0, hidden_idx, 0);
                 unroll_for(uint j=0;j<HBLOCK_NUM;++j) {
                     if(i==0){
-                        #ifdef SEQUENCE
-                            #if MAX_SEQ_LEN > 1
-                                r_block[l][k][j] = READ_VEC(0, &R[rindex]);
-                            #else 
-                                INPUT3_TYPE_VEC r_block = READ_VEC(0, &R[rindex]); 
-                            #endif
-                            rindex += VEC_SIZE;
-                            #if MAX_SEQ_LEN > 1
-                                hidden_result += dot(hiddencache[j], r_block[l][k][j]);
-                            #else
-                                hidden_result += dot(hiddencache[j], r_block);
-                            #endif
+                        #if SEQUENCE && MAX_SEQ_LEN > 1
+                            r_block[l][k][j] = READ_VEC(0, &R[r_index]);
+                            r_index += VEC_SIZE;
+                            hidden_result += dot(hiddencache[j], r_block[l][k][j]);
                         #else
                             INPUT3_TYPE_VEC r_block = READ_VEC(0, &R[r_index]);
                             r_index += VEC_SIZE;
-                            hidden_result += dot(hiddencache[j], r_block);
+                            hidden_result += dot(READ_VEC(0, &initial_hidden_state[initial_idx]), r_block);
+                            initial_idx += VEC_SIZE;
 
                         #endif
                     }else{

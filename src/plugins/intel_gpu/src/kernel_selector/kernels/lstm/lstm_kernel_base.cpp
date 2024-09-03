@@ -22,7 +22,11 @@ JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params, bool seq
     if (sequential) {
         jit.AddConstants({MakeJitConstant("SEQUENCE", 1)});
     }
-    jit.AddConstants({MakeJitConstant("MAX_SEQ_LEN", static_cast<int>(params.inputs[0].Feature().v))});
+    if (sequential) {
+        jit.AddConstants({MakeJitConstant("MAX_SEQ_LEN", static_cast<int>(params.inputs[0].Feature().v))});
+    } else {
+        jit.AddConstants({MakeJitConstant("MAX_SEQ_LEN", 1)});
+    }
     int num_hidden_kernels;
     int hidden_size;
     if (sequential) {
@@ -79,7 +83,7 @@ JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params, bool seq
     return jit;
 }
 
-KernelsData LSTMKernelBase::GetCommonKernelsData(const Params& params, bool sequential) const {
+KernelsData LSTMKernelBase::GetCommonKernelsData(const Params& params, bool sequential, bool bfyx) const {
     if (!Validate(params)) {
         return {};
     }
@@ -113,7 +117,13 @@ KernelsData LSTMKernelBase::GetCommonKernelsData(const Params& params, bool sequ
         num_hidden_kernels = static_cast<size_t>(std::min({params.engineInfo.maxWorkGroupSize, out.Feature().v}));
     }
     kernel.params.workGroups.global = {num_hidden_kernels, out.Batch().v, 1};
-    kernel.params.workGroups.local = {num_hidden_kernels, 1, 1};
+    if (bfyx && ((sequential && static_cast<int>(orgParams.inputs[0].Feature().v) == 1) || !sequential)) {
+        size_t expected_local_hidden = 8;
+        long unsigned int local_hidden = static_cast<size_t>(std::min(expected_local_hidden, num_hidden_kernels));
+        kernel.params.workGroups.local = {local_hidden, 1, 1};
+    } else {
+        kernel.params.workGroups.local = {num_hidden_kernels, 1, 1};
+    }
     kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
 
     return {kd};
