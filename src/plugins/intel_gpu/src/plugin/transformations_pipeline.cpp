@@ -411,14 +411,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertPad12ToPad1, false>();
         manager.register_pass<DecomposeReduceForScalarOutput>();
 
-        precisions_map int_convert_precision_map {
-                {ov::element::i64, ov::element::i32},
-                {ov::element::u64, ov::element::i32},
-                {ov::element::u16, ov::element::i32},
-                {ov::element::u32, ov::element::i32},
-                {ov::element::boolean, ov::element::u8},
-                {ov::element::i4, ov::element::i8},
-                {ov::element::u4, ov::element::u8},
+        precisions_map int_convert_precision_map{
+            {ov::element::i64, ov::element::i32},
+            {ov::element::u64, ov::element::i32},
+            {ov::element::i16,
+             ov::element::i32},  //< Workaround for supporting 16 by Elementwise ops... i16 is converted here to i32, to
+                                 //be later converted to back to i16, but otherwise it will be converted to fp32 by e.g.
+                                 // Constant or Parameter ops...
+            {ov::element::u16, ov::element::i32},
+            {ov::element::u32, ov::element::i32},
+            {ov::element::boolean, ov::element::u8},
+            {ov::element::i4, ov::element::i8},
+            {ov::element::u4, ov::element::u8},
         };
 
         manager.register_pass<ov::pass::Validate>();

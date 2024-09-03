@@ -63,11 +63,9 @@ inline cldnn::layout make_layout(const ov::element::Type type, const ov::Shape& 
 
 inline ov::element::Type convert_to_supported_device_type(ov::element::Type et) {
     switch (et) {
-        case ov::element::i16:
-            return ov::element::i16;
-        case ov::element::u16:
-            return ov::element::u16;
         case ov::element::f64:
+        case ov::element::i16:
+        case ov::element::u16:
             return ov::element::f32;
         case ov::element::u64:
         case ov::element::u32:
