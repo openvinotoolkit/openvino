@@ -140,13 +140,12 @@ std::optional<size_t> ZeroInferRequest::getBatchSize(const NetworkMetadata& meta
 
 //------------------------------------------------------------------------------
 ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder> initStructs,
-                                   const std::shared_ptr<const ICompiledModel> compiledModel,
-                                   const std::shared_ptr<const IExecutor> executor,
+                                   const ICompiledModel* compiledModel,
+                                   const IExecutor* executor,
                                    const Config& config)
-    : SyncInferRequest(std::move(compiledModel)),
+    : SyncInferRequest(compiledModel),
       _initStructs(std::move(initStructs)),
-      _executorPtr(std::move(executor)),
-      _executor(static_cast<const ZeroExecutor*>(_executorPtr.get())),
+      _executor(static_cast<const ZeroExecutor*>(executor)),
       _config(config),
       _logger("ZeroInferRequest", config.get<LOG_LEVEL>()),
       _levelZeroInputTensors(_metadata.inputs.size(), nullptr),
@@ -257,9 +256,8 @@ void ZeroInferRequest::create_pipeline() {
 
     _logger.debug("ZeroInferRequest::create_pipeline - constructing pipeline");
     // Construct pipeline
-
     _pipeline = std::make_unique<Pipeline>(_config,
-                                           _executorPtr,
+                                           _executor,
                                            _profilingPool,
                                            _profilingQuery,
                                            _npuProfiling,

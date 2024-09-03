@@ -20,7 +20,7 @@ class ZeroDevice : public IDevice {
 public:
     ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder> initStructs);
 
-    std::shared_ptr<IExecutor> createExecutor(const std::shared_ptr<const NetworkDescription> networkDescription,
+    std::shared_ptr<IExecutor> createExecutor(const NetworkDescription* networkDescription,
                                               const Config& config) override;
 
     std::string getName() const override;
@@ -34,8 +34,8 @@ public:
     std::map<ov::element::Type, float> getGops() const override;
     ov::device::Type getDeviceType() const override;
 
-    std::shared_ptr<SyncInferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel> compiledModel,
-                                                         const std::shared_ptr<IExecutor> executor,
+    std::shared_ptr<SyncInferRequest> createInferRequest(const ICompiledModel* compiledModel,
+                                                         IExecutor* executor,
                                                          const Config& config) override;
     void updateInfo(const Config& config) override {
         log.setLevel(config.get<LOG_LEVEL>());

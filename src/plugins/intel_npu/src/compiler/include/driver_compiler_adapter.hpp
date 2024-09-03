@@ -19,7 +19,7 @@ namespace driverCompilerAdapter {
  */
 class LevelZeroCompilerAdapter final : public ICompiler {
 public:
-    LevelZeroCompilerAdapter(std::shared_ptr<IEngineBackend> iEngineBackend);
+    LevelZeroCompilerAdapter(IEngineBackend* iEngineBackend);
 
     uint32_t getSupportedOpsetVersion() const override final;
 

@@ -22,7 +22,7 @@ namespace intel_npu {
  */
 class SyncInferRequest : public ov::IInferRequest {
 public:
-    explicit SyncInferRequest(const std::shared_ptr<const ICompiledModel> compiledModel);
+    explicit SyncInferRequest(const ICompiledModel* compiledModel);
 
     /**
      * @brief Gets an input/output tensor for inference.

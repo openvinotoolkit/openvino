@@ -19,8 +19,8 @@ constexpr size_t BATCH_AXIS = 0;
 
 namespace intel_npu {
 
-SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel> compiledModel)
-    : _compiledModel(std::move(compiledModel)),
+SyncInferRequest::SyncInferRequest(const ICompiledModel* compiledModel)
+    : _compiledModel(compiledModel),
       _metadata(compiledModel->get_network_metadata()),
       _userInputTensors(_metadata.inputs.size(), nullptr),
       _userOutputTensors(_metadata.outputs.size(), nullptr) {

@@ -115,14 +115,14 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
 
     if (_executorPtr == nullptr && _device != nullptr) {
-        _executorPtr = _device->createExecutor(_networkPtr, _config);
+        _executorPtr = _device->createExecutor(_networkPtr.get(), _config);
     }
     if (_executorPtr == nullptr) {
         OPENVINO_THROW(NO_EXECUTOR_FOR_INFERENCE);
     }
 
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =
-        _device->createInferRequest(shared_from_this(), _executorPtr, _config);
+        _device->createInferRequest(shared_from_this().get(), _executorPtr.get(), _config);
     syncInferRequest->initialize_states();
 
     return std::make_shared<AsyncInferRequest>(syncInferRequest,
@@ -407,7 +407,7 @@ void CompiledModel::create_executor() {
         // If no device has been defined, the executor shall keep the default value of "nullptr". In this scenario,
         // only export operations will be allowed
         if (_device != nullptr) {
-            _executorPtr = _device->createExecutor(_networkPtr, _config);
+            _executorPtr = _device->createExecutor(_networkPtr.get(), _config);
         }
     } else {
         _logger.info("Executor will not be created inside the \"CompiledModel\" constructor");

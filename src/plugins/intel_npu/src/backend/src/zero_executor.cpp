@@ -20,13 +20,12 @@
 using namespace intel_npu;
 
 ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder> initStructs,
-                           const std::shared_ptr<const NetworkDescription> networkDescription,
+                           const NetworkDescription* networkDescription,
                            const Config& config,
                            const uint32_t& group_ordinal)
     : _config(config),
       _logger("Graph", _config.get<LOG_LEVEL>()),
       _initStructs(std::move(initStructs)),
-      _networkDesc(std::move(networkDescription)),
       _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
       _group_ordinal(group_ordinal),
       _command_queues{std::make_shared<CommandQueue>(_initStructs->getDevice(),
@@ -57,13 +56,13 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder> in
 
     // _graph is a nullptr for CIP path, a new handle will be obtained from the driver based on the given
     // compiledNetwork _graph gets (reuses) graphHandle from the compiler for CID path
-    if (_networkDesc->metadata.graphHandle == nullptr) {
+    if (networkDescription->metadata.graphHandle == nullptr) {
         _logger.debug("create graph handle on executor");
         ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                              nullptr,
                              ZE_GRAPH_FORMAT_NATIVE,
-                             _networkDesc->compiledNetwork.size(),
-                             _networkDesc->compiledNetwork.data(),
+                             networkDescription->compiledNetwork.size(),
+                             networkDescription->compiledNetwork.data(),
                              nullptr};
 
         zeroUtils::throwOnFail(
@@ -72,7 +71,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder> in
 
     } else {
         _logger.debug("reuse graph handle created from compiler");
-        _graph = static_cast<ze_graph_handle_t>(_networkDesc->metadata.graphHandle);
+        _graph = static_cast<ze_graph_handle_t>(networkDescription->metadata.graphHandle);
     }
 
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetProperties");

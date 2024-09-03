@@ -14,7 +14,6 @@
 
 namespace intel_npu {
 
-ov::SoPtr<ICompiler> createCompiler(std::shared_ptr<intel_npu::NPUBackends> npuBackends,
-                                    ov::intel_npu::CompilerType compilerType);
+ov::SoPtr<ICompiler> createCompiler(intel_npu::NPUBackends* npuBackends, ov::intel_npu::CompilerType compilerType);
 
 }  // namespace intel_npu

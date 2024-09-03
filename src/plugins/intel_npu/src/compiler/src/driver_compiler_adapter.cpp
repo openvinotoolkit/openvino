@@ -16,12 +16,11 @@
 namespace intel_npu {
 namespace driverCompilerAdapter {
 
-LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<IEngineBackend> iEngineBackend)
+LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(IEngineBackend* iEngineBackend)
     : _logger("LevelZeroCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize LevelZeroCompilerAdapter start");
 
-    std::shared_ptr<ZeroEngineBackend> zeroBackend = nullptr;
-    zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(iEngineBackend);
+    ZeroEngineBackend* zeroBackend = static_cast<ZeroEngineBackend*>(iEngineBackend);
     if (!zeroBackend) {
         OPENVINO_THROW("LevelZeroCompilerAdapter init failed to cast zeroBackend, zeroBackend is a nullptr");
     }

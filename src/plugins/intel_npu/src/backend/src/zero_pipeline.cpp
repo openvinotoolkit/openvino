@@ -16,7 +16,7 @@
 namespace intel_npu {
 
 Pipeline::Pipeline(const Config& config,
-                   const std::shared_ptr<const IExecutor>& executorPtr,
+                   const ZeroExecutor* executor,
                    zeroProfiling::ProfilingPool& profiling_pool,
                    zeroProfiling::ProfilingQuery& profiling_query,
                    std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
@@ -24,10 +24,9 @@ Pipeline::Pipeline(const Config& config,
                    const std::vector<std::optional<TensorData>>& outputTensorsData,
                    const size_t numberOfCommandLists)
     : _config(config),
-      _executor(static_cast<const ZeroExecutor*>(executorPtr.get())),
-      _command_queue(*_executor->getCommandQueue()),
-      _event_pool{_executor->getInitStructs()->getDevice(),
-                  _executor->getInitStructs()->getContext(),
+      _command_queue(*executor->getCommandQueue()),
+      _event_pool{executor->getInitStructs()->getDevice(),
+                  executor->getInitStructs()->getContext(),
                   numberOfCommandLists ? static_cast<uint32_t>(numberOfCommandLists) : 1,
                   _config},
       _npu_profiling(std::move(npu_profiling)),
@@ -45,30 +44,30 @@ Pipeline::Pipeline(const Config& config,
     _logger.debug("IntegratedPipeline - emplace_back _event_pool and _command_queue");
     for (size_t i = 0; i < numberOfCommandLists; i++) {
         _command_lists.emplace_back(
-            std::make_unique<CommandList>(_executor->getInitStructs()->getDevice(),
-                                          _executor->getInitStructs()->getContext(),
-                                          _executor->getInitStructs()->getGraphDdiTable(),
+            std::make_unique<CommandList>(executor->getInitStructs()->getDevice(),
+                                          executor->getInitStructs()->getContext(),
+                                          executor->getInitStructs()->getGraphDdiTable(),
                                           _config,
-                                          _executor->get_group_ordinal(),
-                                          _executor->getInitStructs()->getMutableCommandListVersion() ? true : false));
+                                          executor->get_group_ordinal(),
+                                          executor->getInitStructs()->getMutableCommandListVersion() ? true : false));
         _events.emplace_back(std::make_unique<Event>(_event_pool.handle(), static_cast<uint32_t>(i), _config));
         _fences.emplace_back(std::make_unique<Fence>(_command_queue, _config));
     }
 
     for (size_t i = 0; i < numberOfCommandLists; i++) {
         size_t ioIndex = 0;
-        for (const auto& desc : _executor->get_input_descriptors()) {
-            _executor->setArgumentValue(desc.idx,
-                                        static_cast<unsigned char*>(inputTensorsData.at(ioIndex)->mem) +
-                                            (i * inputTensorsData.at(ioIndex)->size) / numberOfCommandLists);
+        for (const auto& desc : executor->get_input_descriptors()) {
+            executor->setArgumentValue(desc.idx,
+                                       static_cast<unsigned char*>(inputTensorsData.at(ioIndex)->mem) +
+                                           (i * inputTensorsData.at(ioIndex)->size) / numberOfCommandLists);
             ++ioIndex;
         }
 
         ioIndex = 0;
-        for (const auto& desc : _executor->get_output_descriptors()) {
-            _executor->setArgumentValue(desc.idx,
-                                        static_cast<unsigned char*>(outputTensorsData.at(ioIndex)->mem) +
-                                            (i * outputTensorsData.at(ioIndex)->size) / numberOfCommandLists);
+        for (const auto& desc : executor->get_output_descriptors()) {
+            executor->setArgumentValue(desc.idx,
+                                       static_cast<unsigned char*>(outputTensorsData.at(ioIndex)->mem) +
+                                           (i * outputTensorsData.at(ioIndex)->size) / numberOfCommandLists);
             ++ioIndex;
         }
 
@@ -78,7 +77,7 @@ Pipeline::Pipeline(const Config& config,
             _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_start));
         }
 
-        _command_lists.at(i)->appendGraphExecute(_executor->graph(), profiling_query.getHandle());
+        _command_lists.at(i)->appendGraphExecute(executor->graph(), profiling_query.getHandle());
 
         /// append timestamp command if feature was activated
         if (_npu_profiling != nullptr) {

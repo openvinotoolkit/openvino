@@ -65,9 +65,8 @@ class IDevice : public std::enable_shared_from_this<IDevice> {
 public:
     using Uuid = ov::device::UUID;
 
-    virtual std::shared_ptr<IExecutor> createExecutor(
-        const std::shared_ptr<const NetworkDescription> networkDescription,
-        const Config& config) = 0;
+    virtual std::shared_ptr<IExecutor> createExecutor(const NetworkDescription* networkDescription,
+                                                      const Config& config) = 0;
 
     virtual std::string getName() const = 0;
     virtual std::string getFullDeviceName() const = 0;
@@ -80,10 +79,9 @@ public:
     virtual ov::device::Type getDeviceType() const;
     virtual std::map<ov::element::Type, float> getGops() const;
 
-    virtual std::shared_ptr<SyncInferRequest> createInferRequest(
-        const std::shared_ptr<const ICompiledModel> compiledModel,
-        const std::shared_ptr<IExecutor> executor,
-        const Config& config) = 0;
+    virtual std::shared_ptr<SyncInferRequest> createInferRequest(const ICompiledModel* compiledModel,
+                                                                 IExecutor* executor,
+                                                                 const Config& config) = 0;
 
     virtual void updateInfo(const Config& config) = 0;
 
