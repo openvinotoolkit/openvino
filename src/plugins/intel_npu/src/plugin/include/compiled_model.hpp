@@ -29,9 +29,9 @@ public:
      * @param config Custom configuration object
      */
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
-                  const std::shared_ptr<const ov::IPlugin>& plugin,
-                  const std::shared_ptr<IDevice>& device,
-                  const ov::SoPtr<ICompiler>& compiler,
+                  const std::shared_ptr<const ov::IPlugin> plugin,
+                  const std::shared_ptr<IDevice> device,
+                  const ov::SoPtr<ICompiler> compiler,
                   const bool profiling,
                   const Config& config);
 
@@ -46,10 +46,10 @@ public:
      * @param config Custom configuration object
      */
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
-                  const std::shared_ptr<const ov::IPlugin>& plugin,
-                  const std::shared_ptr<const NetworkDescription>& networkDescription,
-                  const std::shared_ptr<IDevice>& device,
-                  const ov::SoPtr<ICompiler>& compiler,
+                  const std::shared_ptr<const ov::IPlugin> plugin,
+                  const std::shared_ptr<const NetworkDescription> networkDescription,
+                  const std::shared_ptr<IDevice> device,
+                  const ov::SoPtr<ICompiler> compiler,
                   const Config& config);
 
     CompiledModel(const CompiledModel&) = delete;
