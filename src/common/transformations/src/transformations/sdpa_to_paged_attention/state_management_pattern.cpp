@@ -219,9 +219,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         };
 
         auto num_k_heads =
-            extract_num_kv_heads(k_heads_unsqueeze, sdpa_node->get_input_tensor(1).get_partial_shape()[-3]/2);
+            extract_num_kv_heads(k_heads_unsqueeze, sdpa_node->get_input_tensor(1).get_partial_shape()[-3]);
         auto num_v_heads =
-            extract_num_kv_heads(v_heads_unsqueeze, sdpa_node->get_input_tensor(2).get_partial_shape()[-3]/2);
+            extract_num_kv_heads(v_heads_unsqueeze, sdpa_node->get_input_tensor(2).get_partial_shape()[-3]);
         const ov::element::Type kv_cache_type = real_q.get_element_type();
         std::string layer_index_str = std::to_string(layer_index);
         auto k_parameter = setName(std::make_shared<v0::Parameter>(kv_cache_type, PartialShape{-1, num_k_heads, E}),
