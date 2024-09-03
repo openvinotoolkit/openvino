@@ -94,7 +94,7 @@ Import
     )
 
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file, segmentation_map_to_image
+    from notebook_utils import download_file, segmentation_map_to_image, device_widget
 
 Prepare the Model and Test Image
 --------------------------------
@@ -591,14 +591,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -651,7 +644,7 @@ bounds of input batch size.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f27e75e4d30>
+    <matplotlib.image.AxesImage at 0x7f630dca0bb0>
 
 
 

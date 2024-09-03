@@ -2585,7 +2585,8 @@ public:
         ASSERT_EQ(3.0f, output_ptr[3]);
     }
 
-    void test_compressed_int4_scale_dyn_quan_weight_i4(bool is_dynamic, int batch = 1, int ifm = 512, int ofm = 2048) {
+    void test_compressed_int4_scale_dyn_quan_weight_i4(bool is_dynamic, int batch = 1, int ifm = 512, int ofm = 2048,
+                                                        int quantize_group_size = 32, int scales_group_size = 128) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
@@ -2595,7 +2596,6 @@ public:
         long int batch_num = batch;
         long int ifm_num = ifm;
         long int ofm_num = ofm;
-        int scales_group_size = 128;
 
         auto input_ps = ov::PartialShape{ batch_num, 1, ifm_num };
         auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
@@ -2609,7 +2609,7 @@ public:
         auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 4);
         set_values(weights_mem, weigths_data);
 
-        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -4.f, 4.f);
+        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -2.f, 2.f);
         set_values(scale_mem, scale_data);
 
         auto in_layout = is_dynamic ? layout{ ov::PartialShape{ -1, -1, -1 }, data_types::f16, format::bfyx }
@@ -2656,7 +2656,7 @@ public:
         auto config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::hint::dynamic_quantization_group_size(32));
+        config.set_property(ov::hint::dynamic_quantization_group_size(quantize_group_size));
 
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
 
@@ -2664,7 +2664,9 @@ public:
             auto inst = network->get_primitive("fc_prim");
             auto impl = inst->get_impl();
             ASSERT_TRUE(impl != NULL);
-            ASSERT_EQ(impl->get_kernels().size(), size_t((is_dynamic ? 3 : 2)));
+            auto kernel_num = (is_dynamic) ? 3 : 2;
+            kernel_num = (quantize_group_size < 32) ? 2 : kernel_num;
+            ASSERT_EQ(impl->get_kernels().size(), size_t(kernel_num));
         }
 
         network->set_input_data("input", input_mem);
@@ -2688,10 +2690,10 @@ public:
                 max_diff = abs_diff;
             avg += abs_diff;
             count++;
-            OPENVINO_ASSERT(abs_diff < 10);
+            OPENVINO_ASSERT(abs_diff < 5);
         }
         GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
-        OPENVINO_ASSERT((avg/count) < 1);
+        OPENVINO_ASSERT((avg/count) < 0.5);
     }
 };
 
@@ -3712,6 +3714,35 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_quan_dynamic_f_input
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case) {
     this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_12_groupsize) {
+    // Expect no dynamic-quantized FC
+    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 269, 512, 1024, 12);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_34_groupsize) {
+    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560, 34);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_64_groupsize) {
+    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560, 64);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_148_groupsize) {
+    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560, 148);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_128_groupsize) {
+    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560, 128);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_128_groupsize_32_scale) {
+    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560, 128, 32);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_128_groupsize_64_scale) {
+    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560, 128, 64);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_scale_bias) {

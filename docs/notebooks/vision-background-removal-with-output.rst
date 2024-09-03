@@ -21,11 +21,11 @@ The model source is available
 
    -  `Install requirements <#install-requirements>`__
    -  `Import the PyTorch Library and
-      U\ :math:`^2`-Net <#import-the-pytorch-library-and-u2-net>`__
+      U2-Net <#import-the-pytorch-library-and-u2-net>`__
    -  `Settings <#settings>`__
-   -  `Load the U\ :math:`^2`-Net Model <#load-the-u2-net-model>`__
+   -  `Load the U2-Net Model <#load-the-u2-net-model>`__
 
--  `Convert PyTorch U\ :math:`^2`-Net model to OpenVINO
+-  `Convert PyTorch U2-Net model to OpenVINO
    IR <#convert-pytorch-u2-net-model-to-openvino-ir>`__
 -  `Load and Pre-Process Input
    Image <#load-and-pre-process-input-image>`__
@@ -113,7 +113,7 @@ Import the PyTorch Library and U\ :math:`^2`-Net
 
         open("notebook_utils.py", "w").write(r.text)
 
-    from notebook_utils import load_image, download_file
+    from notebook_utils import load_image, download_file, device_widget
 
     if not Path("./model/u2net.py").exists():
         download_file(
@@ -194,7 +194,7 @@ next cell loads the model and the pre-trained weights.
     Downloading...
     From: https://drive.google.com/uc?id=1W8E4FHIlTVstfRkYmNOjbr0VDXTZm0jD
     To: <_io.BufferedWriter name='model/u2net_lite/u2net_lite.pth'>
-    100%|██████████| 4.68M/4.68M [00:00<00:00, 33.6MB/s]
+    100%|██████████| 4.68M/4.68M [00:00<00:00, 33.7MB/s]
 
 .. parsed-literal::
 
@@ -245,7 +245,7 @@ OpenVINO IR format. Executing the following command may take a while.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:3782: UserWarning: nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:3782: UserWarning: nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.
       warnings.warn("nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.")
 
 
@@ -296,15 +296,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -342,7 +334,7 @@ Load the OpenVINO IR model to OpenVINO Runtime and do inference.
 
 .. parsed-literal::
 
-    Inference finished. Inference time: 0.122 seconds, FPS: 8.16.
+    Inference finished. Inference time: 0.109 seconds, FPS: 9.18.
 
 
 Visualize Results

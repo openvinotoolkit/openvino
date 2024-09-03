@@ -191,7 +191,7 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
             resamplePrim = std::make_shared<cldnn::resample>(layerName,
                                                              inputs[0],
                                                              inputs[eScalesOrSizesIndex],
-                                                             inputs[eScalesOrSizesIndex],
+                                                             inputs[eAxesIndex],
                                                              axes,
                                                              attrs.pads_begin,
                                                              attrs.pads_end,
@@ -200,7 +200,8 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
                                                              attrs.mode,
                                                              attrs.shape_calculation_mode,
                                                              attrs.coordinate_transformation_mode,
-                                                             attrs.nearest_mode);
+                                                             attrs.nearest_mode,
+                                                             1);
         }
     } else {
         auto outShape = op->get_output_shape(0);

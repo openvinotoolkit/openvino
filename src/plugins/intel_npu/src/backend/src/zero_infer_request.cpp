@@ -82,7 +82,7 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
 
 std::optional<size_t> ZeroInferRequest::getBatchSize(const NetworkMetadata& metadata) {
     if (!metadata.outputs.at(0).shapeFromIRModel.has_value()) {
-        _logger.warning("Batching on the plugin is not used, batching is handled by the compiler");
+        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
     }
 
@@ -99,7 +99,7 @@ std::optional<size_t> ZeroInferRequest::getBatchSize(const NetworkMetadata& meta
 
     const size_t candidateBatchSize = firstOutputShape[BATCH_AXIS].get_length();
     if (candidateBatchSize == 0 || candidateBatchSize == DEFAULT_BATCH_SIZE) {
-        _logger.warning("Batching on the plugin is not used, batching is handled by the compiler");
+        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
     }
 
@@ -129,11 +129,11 @@ std::optional<size_t> ZeroInferRequest::getBatchSize(const NetworkMetadata& meta
 
     if (!checkDescriptorsUseCandidateBatchSize(metadata.inputs) ||
         !checkDescriptorsUseCandidateBatchSize(metadata.outputs)) {
-        _logger.warning("Batching on the plugin is not used, batching is handled by the compiler");
+        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
     }
 
-    _logger.warning("Batching is handled by the plugin");
+    _logger.debug("Batching is handled by the plugin");
 
     return candidateBatchSize;
 }
