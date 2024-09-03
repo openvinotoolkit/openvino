@@ -162,8 +162,9 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
         //move to next filter
         in_addr += INPUT0_FEATURE_PITCH;
 
-        for(int pf=0; pf<PREFETCH && weight_addr<FILTER_LENGTH; pf++) {
-            w[pf] = weights[weight_addr]; weight_addr += OSV_SIZE;
+        for(int pf=0; pf<PREFETCH; pf++) {
+            w[pf] = weight_addr<FILTER_LENGTH ? weights[weight_addr] : UNIT_VAL_ZERO;
+            weight_addr += OSV_SIZE;
         }
 
         uint wi = 0;
@@ -188,7 +189,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
                         out[br * OUTPUT_BLOCK_WIDTH + bc] = mad(w[wi % PREFETCH], val, out[br * OUTPUT_BLOCK_WIDTH + bc]);
                     }
                 }
-                w[wi % PREFETCH] = weights[weight_addr];
+                w[wi % PREFETCH] = weight_addr < FILTER_LENGTH ? weights[weight_addr] : UNIT_VAL_ZERO;
                 weight_addr += OSV_SIZE; // weights must be stored in just the right SIMD swizzled format for this to work, see host code for details.
                 wi++;
             });
