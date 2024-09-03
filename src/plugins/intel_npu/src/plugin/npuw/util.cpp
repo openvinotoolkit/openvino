@@ -15,6 +15,7 @@
 
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"
 
 #ifdef UNPACK_PROFILING
@@ -1404,4 +1405,46 @@ void ov::npuw::util::to_f32(const ov::Tensor& in, ov::Tensor& out) {
         OPENVINO_THROW("Unsupported precision {0}", in.get_element_type().get_type_name());
         break;
     }
+}
+
+inline uint8_t tread_4b(const ov::Tensor &t, std::size_t r, std::size_t c, std::size_t COLS) {
+    const uint8_t *tdata = static_cast<uint8_t*>(t.data());
+    const uint8_t *trow  = tdata + r*COLS/2;
+    const uint8_t *telem = trow + c/2;
+    if (c % 2 == 0) {
+        return lo4(*telem);
+    }
+    return hi4(*telem);
+}
+
+inline void twrite_4b(ov::Tensor &t, uint8_t value, std::size_t r, std::size_t c, std::size_t COLS) {
+    uint8_t *tdata = static_cast<uint8_t*>(t.data());
+    uint8_t *trow  = tdata + r*COLS / 2;
+    uint8_t *telem = trow + c/2;
+    if (c % 2 == 0) {
+        *telem = (hi4(*telem) << 4) | lo4(value);
+    } else {
+        *telem = (lo4(value) << 4) | lo4(*telem);
+    }
+}
+
+void ov::npuw::util::transpose(ov::Tensor &t) {
+    ov::Shape shape = t.get_shape();
+    NPUW_ASSERT(shape.size() == 3); // Yes, so far only transpose 3D tensors
+    NPUW_ASSERT(t.get_element_type() == ov::element::i4);
+
+    ov::Shape tshape = { shape[2], shape[0], shape[1] };
+    ov::Tensor tnew(t.get_element_type(), tshape);
+
+    const auto IN_ROWS = shape[0] * shape[1];
+    const auto IN_COLS = shape[2];
+
+    for (std::size_t i = 0; i < IN_ROWS; i++) {
+        for (std::size_t j = 0; j < IN_COLS; j++) {
+            uint8_t value = tread_4b(t, i, j, IN_COLS);
+            twrite_4b(tnew, value, j, i, IN_ROWS);
+        }
+    }
+
+    t = std::move(tnew);
 }

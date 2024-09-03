@@ -51,6 +51,8 @@ void unpack(const ov::SoPtr<ov::ITensor>& from,
 
 void to_f32(const ov::Tensor& in, ov::Tensor& out);
 
+void transpose(ov::Tensor &t);
+
 }  // namespace util
 }  // namespace npuw
 }  // namespace ov

@@ -15,6 +15,7 @@
 #include "openvino/pass/validate.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
+#include "openvino/core/parallel.hpp"
 #include "patterns/dcoff.hpp"
 #include "patterns/opt.hpp"
 
@@ -1565,12 +1566,25 @@ void Partitioner::optimize(const std::string& func_name) {
 
     ov::npuw::Function& f = P.functions.at(func_name);
 
-    ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQi>();
-    rewr.run_on_model(f._model);
+    ov::npuw::patterns::opt::Context ctx;
 
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQi>(std::ref(ctx));
+    rewr.run_on_model(f._model);
     ov::pass::Validate val;
     val.run_on_model(f._model);
+
+    // Transpose tensors where required
+    auto& func_group = all_functions.at(func_name);
+    for (auto &&p : ctx.closures_to_transpose) {
+        auto param_idx = f._model->get_parameter_index(p);
+        auto closure_idx = param_idx - f._param_offset;
+
+        ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+            auto& funcall = func_group.refs[f_idx].get();
+            ov::npuw::util::transpose(funcall._closure[closure_idx]);
+        });
+    }
 
     LOG_VERB("Done");
 }

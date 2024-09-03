@@ -5,15 +5,17 @@
 #include "opt.hpp"
 
 #include "../../logging.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/split.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -122,7 +124,7 @@ DQMatMulCWi::DQMatMulCWi() {
 //     Param(S) ----> Split(G) -->[------------------------------>Multiply]}
 //
 
-DQMatMulGQi::DQMatMulGQi() {
+DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
@@ -156,24 +158,37 @@ DQMatMulGQi::DQMatMulGQi() {
             qcoeff_shape[1] == 1 &&
             qcoeff_shape[2] == qweight_shape[2] &&
             !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b()) {
-            auto a_f16 = std::make_shared<ov::op::v0::Convert>(matched_out_mmi, ov::element::f16);
-            auto w_f16 = std::make_shared<ov::op::v0::Convert>(matched_qweight, ov::element::f16);
+            // Mark W closure to transpose, and transpose the respective parameter
+            ctx.get().closures_to_transpose.push_back(matched_qweight);
+
+            ov::Shape tw_shape = { qweight_shape[2], qweight_shape[0], qweight_shape[1] };
+            matched_qweight->set_partial_shape(tw_shape);
+            matched_qweight->validate_and_infer_types();
 
             // Split Act, W, and S tensors by the group size
             const auto NSPLIT = qweight_shape[0];
             auto a_split_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 2);
-            auto w_split_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
+            auto w_split_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1);
             auto s_split_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
-            auto split_a = std::make_shared<ov::op::v1::Split>(a_f16, a_split_axis, NSPLIT);
-            auto split_w = std::make_shared<ov::op::v1::Split>(w_f16, w_split_axis, NSPLIT);
-            auto split_s = std::make_shared<ov::op::v1::Split>(matched_node_qcoeff, s_split_axis, NSPLIT);
+            auto split_a = std::make_shared<ov::op::v1::Split>(matched_out_mmi, a_split_axis, NSPLIT);
+            auto split_w = std::make_shared<ov::op::v1::Split>(matched_qweight, w_split_axis, NSPLIT);
+            auto split_s = std::make_shared<ov::op::v1::Split>(matched_qcoeff, s_split_axis, NSPLIT);
 
             // Do the CW MM for every group
             std::vector<std::shared_ptr<ov::Node> > to_concat;
             for (std::size_t i = 0; i < NSPLIT; i++) {
-                auto m_f16 = std::make_shared<ov::op::v0::MatMul>(split_a->output(i),
-                                                                  split_w->output(i));
+                auto a_f16 = std::make_shared<ov::op::v0::Convert>(split_a->output(i), ov::element::f16);
+                auto w_f16 = std::make_shared<ov::op::v0::Convert>(split_w->output(i), ov::element::f16);
+
+                // Fix the W shape to maintain the matmul contract
+                auto wtile_shape = w_f16->output(0).get_shape();
+                std::vector<std::size_t> wreshv = { wtile_shape[1], wtile_shape[0], wtile_shape[2] };
+                auto wreshc = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, wreshv);
+                auto wresh = std::make_shared<ov::op::v1::Reshape>(w_f16, wreshc, false);
+
+                auto m_f16 = std::make_shared<ov::op::v0::MatMul>(a_f16, wresh, false, true);
                 auto m_f32 = std::make_shared<ov::op::v0::Convert>(m_f16, ov::element::f32);
+
                 auto s_f32 = std::make_shared<ov::op::v1::Multiply>(m_f32, split_s->output(i));
                 to_concat.push_back(s_f32);
             }

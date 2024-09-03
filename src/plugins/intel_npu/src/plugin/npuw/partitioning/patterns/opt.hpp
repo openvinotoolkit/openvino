@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <functional>
 
 #include "openvino/openvino.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -22,9 +23,15 @@ public:
     DQMatMulCWi();
 };
 
+struct Context {
+    std::vector<std::shared_ptr<ov::op::v0::Parameter> > closures_to_transpose;
+
+    using Ref = std::reference_wrapper<Context>;
+};
+
 class DQMatMulGQi : public ov::pass::MatcherPass {
 public:
-    DQMatMulGQi();
+    explicit DQMatMulGQi(Context::Ref ctx);
 };
 
 }  // namespace opt
