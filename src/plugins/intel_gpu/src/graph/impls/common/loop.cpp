@@ -310,7 +310,7 @@ attach_loop_common::attach_loop_common() {
     implementation_map<loop>::add(impl_types::common,
                                     shape_types::dynamic_shape,
                                     loop_impl::create,
-                                    {},
+                                    std::vector<data_types>{},
                                     {});
     implementation_map<loop>::add(impl_types::common, loop_impl::create, {});
 }

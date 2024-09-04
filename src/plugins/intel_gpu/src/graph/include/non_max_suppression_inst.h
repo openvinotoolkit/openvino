@@ -197,10 +197,6 @@ public:
         set_runtime_skippable(true);
     }
 
-    bool generates_dynamic_output() const override {
-        return true;
-    }
-
     std::vector<size_t> get_shape_infer_dependencies() const override { return {0, 1, 2}; }
 };
 

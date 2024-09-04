@@ -4,16 +4,18 @@
 
 const { addon: ov } = require('../..');
 const assert = require('assert');
-const { describe, it, before } = require('node:test');
+const { describe, it, before, beforeEach } = require('node:test');
 const { testModels, isModelAvailable, getModelPath } = require('./utils.js');
 
 describe('ov.Core tests', () => {
-
+  let core = null;
   before(async () => {
     await isModelAvailable(testModels.testModelFP32);
   });
-
-  const core = new ov.Core();
+ 
+  beforeEach(() => {
+    core = new ov.Core();
+  });
   
   it('Core.setProperty()', () => {
     const tmpDir = '/tmp';
