@@ -38,7 +38,7 @@ KERNEL(lstm_seq)(
     const uint glocal_idx = get_global_id(0);
     const uint weight_offsets[4] = {GEMM_OFFSET_F, GEMM_OFFSET_I, GEMM_OFFSET_Z, GEMM_OFFSET_O};
     #ifdef SEQUENCE
-        const uint real_seq_length = sequence_lengths[INPUT4_GET_INDEX(b, 0, 0, 0)];
+        const uint real_seq_length = sequence_lengths[INPUT4_OFFSET + b*INPUT4_FEATURE_PITCH];
     #else
         const uint real_seq_length = 1;
     #endif
@@ -60,7 +60,7 @@ KERNEL(lstm_seq)(
                     }
                     if(hidden_idx % VEC_SIZE == 0)
                     {
-                        hiddencache_parity[hidden_idx / VEC_SIZE] = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, 0, hidden_idx, 0)]);
+                        hiddencache_parity[hidden_idx / VEC_SIZE] = READ_VEC(0, &initial_hidden_state[INPUT1_OFFSET + b*INPUT1_BATCH_PITCH + hidden_idx*INPUT1_Y_PITCH]);
                     }
                 }
             }
@@ -77,11 +77,11 @@ KERNEL(lstm_seq)(
                 INPUT3_TYPE hidden_result = 0;
                 const uint weight_idx = hidden_idx+weight_offsets[k];
                 #ifdef SEQUENCE
-                    uint r_index = INPUT3_GET_INDEX(0, weight_idx, 0, 0);
+                    uint r_index = INPUT3_OFFSET + weight_idx*INPUT3_FEATURE_PITCH;
                 #else
-                    uint r_index = INPUT3_GET_INDEX(weight_idx, 0, 0, 0);
+                    uint r_index = INPUT3_OFFSET + weight_idx*INPUT3_BATCH_PITCH;
                 #endif
-                int initial_idx = INPUT1_GET_INDEX(b, 0, hidden_idx, 0);
+                int initial_idx = INPUT1_OFFSET + b*INPUT1_BATCH_PITCH + hidden_idx*INPUT1_Y_PITCH;
                 unroll_for(uint j=0;j<HBLOCK_NUM;++j) {
                     if(i==0){
                         #if SEQUENCE && MAX_SEQ_LEN > 1
@@ -108,12 +108,12 @@ KERNEL(lstm_seq)(
                     }
                 }
                 #if DIRECTION == 1 //reverse
-                    gate_output[k] = hidden_result + xWB[INPUT0_GET_INDEX(b, real_seq_length-1-i, weight_idx, 0)];
+                    gate_output[k] = hidden_result + xWB[INPUT0_OFFSET + b*INPUT0_BATCH_PITCH + (real_seq_length-1-i)*INPUT0_FEATURE_PITCH + weight_idx*INPUT0_Y_PITCH];
                 #else
                     #ifdef SEQUENCE
-                        gate_output[k] = hidden_result + xWB[INPUT0_GET_INDEX(b, i, weight_idx, 0)];
+                        gate_output[k] = hidden_result + xWB[INPUT0_OFFSET + b*INPUT0_BATCH_PITCH + i*INPUT0_FEATURE_PITCH + weight_idx*INPUT0_Y_PITCH];
                     #else
-                        gate_output[k] = hidden_result + xWB[INPUT0_GET_INDEX(b, weight_idx, 0, 0)];
+                        gate_output[k] = hidden_result + xWB[INPUT0_OFFSET + b*INPUT0_BATCH_PITCH + weight_idx*INPUT0_FEATURE_PITCH];
                     #endif
                 #endif //DIRECTION
                 switch(k){
@@ -131,9 +131,9 @@ KERNEL(lstm_seq)(
             }
             if (i==0){
                 #ifdef SEQUENCE
-                    temp_cell_state[l] = gate_output[0]*initial_cell_state[INPUT2_GET_INDEX(b, 0, hidden_idx, 0)] + gate_output[1]*gate_output[2];
+                    temp_cell_state[l] = gate_output[0]*initial_cell_state[INPUT2_OFFSET + b*INPUT2_BATCH_PITCH + hidden_idx*INPUT2_Y_PITCH] + gate_output[1]*gate_output[2];
                 #else
-                    temp_cell_state[l] = gate_output[0]*initial_cell_state[INPUT2_GET_INDEX(b, hidden_idx, 0, 0)] + gate_output[1]*gate_output[2];
+                    temp_cell_state[l] = gate_output[0]*initial_cell_state[INPUT2_OFFSET + b*INPUT2_BATCH_PITCH + hidden_idx*INPUT2_FEATURE_PITCH] + gate_output[1]*gate_output[2];
                 #endif
             }else{
                 temp_cell_state[l] *= gate_output[0];
@@ -148,12 +148,12 @@ KERNEL(lstm_seq)(
             if(i==real_seq_length-1){
                 #ifdef SEQUENCE
                     OUTPUT1_TYPE temp_hidden_state = gate_output[3]*ACTIVATION_H(temp_cell_state[l], ACTIVATION_PARAMS_H);
-                    hidden_history[OUTPUT_GET_INDEX(b, 0, cur_history_idx, hidden_idx)] = temp_hidden_state;
-                    hidden_state[OUTPUT1_GET_INDEX(b, 0, hidden_idx, 0)] = temp_hidden_state;
-                    cell_state[OUTPUT2_GET_INDEX(b, 0, hidden_idx, 0)] = temp_cell_state[l];
+                    hidden_history[OUTPUT_OFFSET+b*OUTPUT_BATCH_PITCH + cur_history_idx*OUTPUT_Y_PITCH + hidden_idx*OUTPUT_X_PITCH] = temp_hidden_state;
+                    hidden_state[OUTPUT1_OFFSET+b*OUTPUT1_BATCH_PITCH + hidden_idx*OUTPUT1_Y_PITCH] = temp_hidden_state;
+                    cell_state[OUTPUT2_OFFSET + b*OUTPUT2_BATCH_PITCH + hidden_idx*OUTPUT2_Y_PITCH] = temp_cell_state[l];
                 #else
-                    hidden_state[OUTPUT_GET_INDEX(b, hidden_idx, 0, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state[l], ACTIVATION_PARAMS_H);
-                    cell_state[OUTPUT1_GET_INDEX(b, hidden_idx, 0, 0)] = temp_cell_state[l];
+                    hidden_state[OUTPUT_OFFSET + b*OUTPUT_BATCH_PITCH + hidden_idx*OUTPUT_FEATURE_PITCH] = gate_output[3]*ACTIVATION_H(temp_cell_state[l], ACTIVATION_PARAMS_H);
+                    cell_state[OUTPUT1_OFFSET + b*OUTPUT1_BATCH_PITCH + hidden_idx*OUTPUT1_FEATURE_PITCH] = temp_cell_state[l];
                 #endif
             } else {
                 #if MAX_SEQ_LEN > 1
@@ -187,7 +187,7 @@ KERNEL(lstm_seq)(
                                 }
                             #endif //VEC_SIZE == 4
                         }
-                    hidden_history[OUTPUT_GET_INDEX(b, 0, cur_history_idx, hidden_idx)] = history_val;
+                    hidden_history[OUTPUT_OFFSET + b*OUTPUT_BATCH_PITCH + cur_history_idx*OUTPUT_Y_PITCH + hidden_idx*OUTPUT_X_PITCH] = history_val;
                 #endif
             }
         }
