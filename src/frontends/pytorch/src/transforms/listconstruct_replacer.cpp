@@ -5,6 +5,7 @@
 #include "listconstruct_replacer.hpp"
 
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/adaptive_avg_pool.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -105,7 +106,11 @@ ListConstructReplacer::ListConstructReplacer() {
             }
             // reshape all elements to 1D
             auto reshape = rg.make<v1::Reshape>(input, neg_1, false);
-            inputs.push_back(reshape);
+            if (const auto list_const = ov::util::get_constant_from_source(reshape)) {
+                inputs.push_back(list_const);
+            } else {
+                inputs.push_back(reshape);
+            }
         }
         auto concat = rg.make<v0::Concat>(inputs, 0);
         copy_runtime_info_and_name(list_node, rg.get());
