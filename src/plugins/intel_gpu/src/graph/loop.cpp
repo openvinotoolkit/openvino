@@ -1009,37 +1009,11 @@ void loop_inst::set_memory_in_body_network(cldnn::network::ptr body_network,
                         "impl_params layout size(", impl_layout.to_short_string(),
                         ") should not exceed memory size(", updated_mem->get_layout().to_short_string(), ")");
         if (impl_layout.bytes_count() < updated_mem->get_layout().bytes_count()) {
-            updated_mem = body_network->get_engine().reinterpret_buffer(*updated_mem, impl_layout);
+            inst->set_output_layout(updated_mem->get_layout(), 0);
+            inst->set_output_memory(updated_mem, false, 0);
+            inst->update_shape();
         }
         body_network->set_input_data(inst->id(), updated_mem);
-    } else if (inst->is_output()) {
-        body_network->set_output_memory(inst->id(), mem);
-    } else {
-        inst->set_output_memory(mem, false);
-    }
-}
-
-void loop_inst::set_memory_in_body_network_from_output(cldnn::network::ptr body_network,
-                const std::shared_ptr<cldnn::primitive_inst>& inst, memory::ptr mem) {
-    if (inst->is_input()) {
-        // in case where memory buffer has been over-allocated by shape predictor, memory layout might be unexpected shape.
-        // so memory layout needs to be re-interprete according to original layout.
-
-            memory::ptr updated_mem = mem;
-            layout impl_layout = inst->get_impl_params()->get_output_layout();
-            OPENVINO_ASSERT(impl_layout.bytes_count() <= updated_mem->get_layout().bytes_count(),
-                            "impl_params layout size(", impl_layout.to_short_string(),
-                            ") should not exceed memory size(", updated_mem->get_layout().to_short_string(), ")");
-            // if (impl_layout.bytes_count() < updated_mem->get_layout().bytes_count()) {
-            //     updated_mem = body_network->get_engine().reinterpret_buffer(*updated_mem, impl_layout);
-            // }
-            inst->set_output_layout(updated_mem->get_layout(), 0);
-            auto& inst_engine = body_network->get_engine();
-            auto new_mem = inst_engine.allocate_memory(updated_mem->get_layout(), updated_mem->get_allocation_type(), true);
-            inst->set_output_memory(new_mem, false, 0);
-            inst->update_shape();
-            body_network->set_input_data(inst->id(), updated_mem);
-
     } else if (inst->is_output()) {
         body_network->set_output_memory(inst->id(), mem);
     } else {
@@ -1090,11 +1064,7 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
             if (mapping.from_mem == nullptr) {
                 mapping.from_mem = mapping.from_primitive->output_memory_ptr();
                 OPENVINO_ASSERT(mapping.from_mem != nullptr, "from_mem should not be null");
-                if (mapping.to_primitive->get_output_layout(0).count() < mapping.from_primitive->get_output_layout(0).count()) {
-                    set_memory_in_body_network_from_output(body_network, mapping.to_primitive, mapping.from_mem);
-                } else {
-                    set_memory_in_body_network(body_network, mapping.to_primitive, mapping.from_mem);
-                }
+                set_memory_in_body_network(body_network, mapping.to_primitive, mapping.from_mem);
                 GPU_DEBUG_LOG << iter << ") [SINGLE_SHARED] Set memory from from_mem(" << mapping.from_mem
                                 << ") to " << mapping.to_primitive->id() << ")" << std::endl;
             }
