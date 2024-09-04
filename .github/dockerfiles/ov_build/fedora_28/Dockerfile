@@ -5,10 +5,12 @@ USER root
 RUN yum update -y && yum install -y \
     git \
     curl \
-    tar
+    tar \
+    wget
 
 # Install brew
-RUN NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+RUN wget -O brew_install.sh https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh
+RUN NONINTERACTIVE=1 bash brew_install.sh
 ENV PATH="/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:$PATH"
 
 # Install build dependencies
