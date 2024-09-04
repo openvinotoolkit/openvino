@@ -248,7 +248,7 @@ jobs:
           TEST_PRECISION: FP16
       
       - name: JAX Layer Tests - JAX FE
-        if: ${{ fromJSON(inputs.affected-components).JAX_FE.test && runner.arch != 'ARM64' && runner.os != 'macOS' }}
+        if: ${{ 'false' }}  # 145688, enabled for master only
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit_jax_fe --junitxml=${INSTALL_TEST_DIR}/TEST-jax_fe.xml
         env:
           TEST_DEVICE: CPU
@@ -270,7 +270,9 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
-        if: fromJSON(inputs.affected-components).TF_FE.test
+        # no longer workable since TF 2.17
+        # will be removed in 2024.5
+        if: ${{ 'false' }}
         run: python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/test_tf2_keras_activation.py --use_legacy_frontend --ir_version=11 -k "sigmoid" --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_Activation.xml
         env:
           TEST_DEVICE: CPU
