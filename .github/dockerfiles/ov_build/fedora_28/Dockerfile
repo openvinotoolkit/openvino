@@ -1,4 +1,4 @@
-FROM fedora:28
+FROM openvinogithubactions.azurecr.io/dockerio/library/fedora:28
 
 USER root
 
