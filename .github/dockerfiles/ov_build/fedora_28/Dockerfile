@@ -1,4 +1,4 @@
-FROM openvinogithubactions.azurecr.io/dockerio/library/fedora:28
+FROM fedora:28
 
 USER root
 
@@ -10,7 +10,8 @@ RUN yum update -y && yum install -y \
 
 # Install brew
 RUN wget -O brew_install.sh https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh
-RUN NONINTERACTIVE=1 bash brew_install.sh
+ENV NONINTERACTIVE=1
+RUN chmod +x brew_install.sh && ./brew_install.sh
 ENV PATH="/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:$PATH"
 
 # Install build dependencies
