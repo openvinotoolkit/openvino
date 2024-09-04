@@ -257,6 +257,7 @@ TEST(OvSerializationTests, SerializeRawMeta) {
 		<custom_rt_info2>
 			<item0 value="testvalue2" />
 		</custom_rt_info2>
+		<weights_path value="" />
 	</rt_info>
 </net>
 )V0G0N";
