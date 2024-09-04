@@ -88,15 +88,21 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
 
     //output size should be equal to requested plus output padding
     ASSERT_TRUE(output->get_layout().get_tensor() == reshape_size);
-    ASSERT_TRUE(output->get_layout().get_buffer_size() == reshape_size.add(output_padd.lower_size()).add(output_padd.upper_size()));
+    auto output_fmt = output->get_layout().format;
+    auto default_fmt = format::get_default_format(output_fmt.dimension(), format::is_weights_format(output_fmt), format::is_grouped(output_fmt));
+    std::vector<tensor::value_type> lower_sizes, upper_sizes;
+    lower_sizes.assign(output_padd._lower_size.begin(), output_padd._lower_size.begin() + output_fmt.dimension());
+    upper_sizes.assign(output_padd._upper_size.begin(), output_padd._upper_size.begin() + output_fmt.dimension());
+    ASSERT_TRUE(tensor(default_fmt, output->get_layout().get_padded_dims()) ==
+        reshape_size.add(tensor(default_fmt, lower_sizes, 0)).add(tensor(default_fmt, upper_sizes, 0)));
 
     {
         cldnn::mem_lock<const ElemType> output_ptr(output, get_test_stream());
         auto output_itr = output_ptr.begin();
 
         auto sizes = reshape_size.sizes(fmt);
-        auto lower = output_padd.lower_size().sizes(fmt);
-        auto upper = output_padd.upper_size().sizes(fmt);
+        auto lower = tensor(default_fmt, lower_sizes, 0).sizes(fmt);
+        auto upper = tensor(default_fmt, upper_sizes, 0).sizes(fmt);
         auto buffer_sizes = sizes;
         int32_t accum = 1;
         for (size_t i = 1; i <= sizes.size(); ++i) {
@@ -546,7 +552,7 @@ void test_basic_bfwzyx(bool is_caching_test) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     auto reshape_prim = reshape("reshape", input_info("input"), tensor(batch(1), feature(1), spatial(2, 2, 3, 3)), cldnn::reshape::reshape_mode::base);
-    reshape_prim.output_paddings = {padding({0, 0, 0, 0, 0, 1}, 0.f)};
+    reshape_prim.output_paddings = {padding({0, 0, 1, 0, 0, 0}, 0.f)};
     topology.add(reshape_prim);
 
     // clang-format off

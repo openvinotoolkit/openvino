@@ -89,7 +89,9 @@ public:
     }
 
     bool has_padding() const {
-        return (this->get_output_layout().data_padding || input().get_output_layout(false).data_padding || input().get_output_layout(false).has_dynamic_pad());
+        return (this->get_output_layout().data_padding
+                || input().get_output_layout(false).data_padding
+                || input().get_output_layout(false).data_padding.is_dynamic());
     }
 
     bool has_outer_padding_offset() const {
@@ -99,15 +101,15 @@ public:
         auto input_layout = input().get_output_layout(false);
         auto input_pad = input_layout.data_padding;
         for (size_t i = 0 ; i < input_layout.get_spatial_rank() ; i++) {
-            if (input_pad.lower_size().spatial[i] != 0)
+            if (input_pad._lower_size[2 + i] != 0)
                 return false;
-            if (input_pad.upper_size().spatial[i] != 0)
+            if (input_pad._upper_size[2 + i] != 0)
                 return false;
         }
 
         // Expected a padded input of only batch axis with 'bxxx' format
         if (input_layout.format.dims_order()[0] != 0 ||
-            input_pad.lower_size().feature[0] != 0)
+            input_pad._lower_size[1] != 0)
             return false;
 
         if (format::is_multi_blocked(input_layout.format))
@@ -121,7 +123,7 @@ public:
         if (this->is_output() || this->has_fused_primitives())
             return false;
 
-        if (input().get_output_layout(false).has_dynamic_pad() && is_runtime_propagatable_padding())
+        if (input().get_output_layout(false).data_padding.is_dynamic() && is_runtime_propagatable_padding())
             return true;
 
         if (has_padding())
@@ -136,7 +138,7 @@ public:
 
         auto input_layout = input().get_output_layout(false);
         auto output_layout = this->get_output_layout();
-        if (input_layout.has_dynamic_pad()) {
+        if (input_layout.data_padding.is_dynamic()) {
             auto prim = typed_desc();
             // TODO: If outer padding exists, ouput padding propagation is not supported in the base mode
             if (prim->mode == reshape::reshape_mode::base)
@@ -159,9 +161,9 @@ public:
             // adjust output padding if Reshape has an outer padding exists in an input
             auto input_pitches = input_layout.get_pitches();
             auto input_pad = input_layout.data_padding;
-            size_t first_element_offset = input_pad.lower_size().batch[0];
+            size_t first_element_offset = input_pad._lower_size[0];
             // feature and spatial size
-            first_element_offset *= input_pitches.batch[0];
+            first_element_offset *= input_pitches[0];
 
             size_t inner_size = 1;
             for (size_t i = 0 ; i < output_layout.get_spatial_rank() ; i++) {

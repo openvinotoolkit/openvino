@@ -519,7 +519,7 @@ public:
 
     /// @brief Calculates linear offset for given @p coord within current tensor.
     /// @param coord The coordinate within current tensor.
-    size_t get_linear_offset(const tensor& coord, cldnn::format fmt) const {
+    size_t get_linear_offset(const tensor& coord, const cldnn::format& fmt) const {
         auto my_sizes = this->sizes(fmt);
         auto adjusted_coords = coord.sizes(fmt);
 

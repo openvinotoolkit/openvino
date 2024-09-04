@@ -85,7 +85,7 @@ TEST(eltwise_activation_fusing_test, basic_dynamic_rank4) {
     auto output_mem = outputs.begin()->second.get_memory();
     cldnn::mem_lock<float> output_mem_ptr(output_mem, get_test_stream());
 
-    for (size_t i = 0; i < output_mem->get_layout().get_buffer_size().count(); ++i) {
+    for (size_t i = 0; i < output_mem->get_layout().get_linear_size(); ++i) {
         ASSERT_EQ(output_mem_ptr[i], ref[i]);
     }
 }
