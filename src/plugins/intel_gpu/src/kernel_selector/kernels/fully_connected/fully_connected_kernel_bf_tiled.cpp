@@ -370,6 +370,8 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
             } else {
                 if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
                     return selector.Default(tune_params(1, 1, 4, 4, 1, 1, EXE_MODE_DEFAULT));
+                } else if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv64) {
+                    return selector.Default(tune_params(1, 4, 4, 2, 1, 1, EXE_MODE_DEFAULT));
                 } else {
                     return selector.Default(tune_params(1, 2, 4, 2, 1, 1, EXE_MODE_DEFAULT));
                 }
@@ -745,6 +747,12 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
     if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
+        && !is_weight_with_small_ofm(fc_params, output_f) && !is_weight_with_large_ifm(fc_params)
+        && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_iyx_osv64)
+        && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)) {
+        // Large N + Small K case to use [osv64] + TILE_OFM 4 for batch 1
+        weights_layout = WeightsLayout::os_iyx_osv64;
+    } else if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
         && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)
         && is_weight_with_small_ofm(fc_params, output_f) && is_weight_with_large_ifm(fc_params)
         && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_iyx_osv16)) {
