@@ -87,8 +87,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
-      _compiler(compiler),
-      _imported(true) {
+      _compiler(compiler) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
     OPENVINO_ASSERT(_networkPtr != nullptr,
                     "NPU CompiledModel: the pointer towards the NetworkDescription object is null");
@@ -141,7 +140,7 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
-    if (_imported) {
+    if (_networkPtr->metadata.imported) {
         OPENVINO_THROW("The CompiledModel is created from import_model path."
                        "Application shall already hold a compiled model in memory!");
     }

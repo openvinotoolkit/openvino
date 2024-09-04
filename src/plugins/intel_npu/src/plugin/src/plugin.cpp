@@ -768,6 +768,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             blob.shrink_to_fit();
         }
         meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
+        meta.imported = true;
 
         const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(meta.inputs, meta.outputs);
 
