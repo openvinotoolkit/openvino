@@ -12,7 +12,7 @@ on:
       - Code coverage
       - Coverity (Ubuntu 20.04, Python 3.11)
       - Debian 10 ARM
-      - Fedora 28 (RHEL 8), Python 3.8
+      - Fedora 29 (RHEL 8.4), Python 3.8
       - Fedora 33 (RHEL 9), Python 3.9
       - Linux (Ubuntu 20.04, Python 3.8)
       - Linux (Ubuntu 22.04, Python 3.11)

@@ -28,7 +28,7 @@ RUN cd /usr/src && \
     wget https://www.python.org/ftp/python/3.8.9/Python-3.8.9.tar.xz && \
     tar xvf Python-3.8.9.tar.xz
 RUN cd /usr/src/Python-3.8.9 && \
-    ./configure --enable-optimizations && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions && \
     make altinstall
 
 # Install sscache
