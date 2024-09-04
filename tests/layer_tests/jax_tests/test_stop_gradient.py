@@ -4,7 +4,6 @@
 import jax
 import numpy as np
 import pytest
-from jax import lax
 from jax import numpy as jnp
 
 from jax_layer_test_class import JaxLayerTest
@@ -38,6 +37,7 @@ class TestStopGradient(JaxLayerTest):
     @pytest.mark.parametrize("input_shape", [[2], [3, 4]])
     @pytest.mark.parametrize("input_type", [np.float16, np.float32, np.float64])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     def test_jax_stop_gradient(self, ie_device, precision, ir_version, input_shape, input_type):
         kwargs = {}

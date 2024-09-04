@@ -38,6 +38,7 @@ class TestBroadcastInDim(JaxLayerTest):
 
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     def test_broadcast_in_dim(self, ie_device, precision, ir_version, params):
         self._test(*self.create_model(**params),

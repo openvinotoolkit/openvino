@@ -46,6 +46,7 @@ class TestSub(JaxLayerTest):
     ]
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("input_type", input_types)
@@ -86,6 +87,7 @@ class TestSubWithConstant(JaxLayerTest):
     ]
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("input_type", input_types)
@@ -126,6 +128,7 @@ class TestSubWithLiteralInvar(JaxLayerTest):
     ]
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("input_type", input_types)

@@ -4,7 +4,6 @@
 import jax
 import numpy as np
 import pytest
-from jax import lax
 from jax import numpy as jnp
 
 from jax_layer_test_class import JaxLayerTest
@@ -38,6 +37,7 @@ class TestIntegerPow(JaxLayerTest):
                                             np.int32, np.uint32, np.int64, np.uint64,
                                             np.float16, np.float32, np.float64])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     def test_integer_pow(self, x_shape, y, input_type,
                          ie_device, precision, ir_version):
