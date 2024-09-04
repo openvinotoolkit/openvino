@@ -172,7 +172,16 @@ public:
                                                 (cl_mem_properties)fd,
                                                 0};
         cl_mem extMemBuffer = clCreateBufferWithProperties(context, extMemProperties, 0, size, NULL, &err);
-        CHECK_OCL_ERROR(err, "clCreateBufferWithProperties - CL_EXTERNAL_MEMORY_HANDLE_DMA_BUF_KHR failed");
+        // CHECK_OCL_ERROR(err, "clCreateBufferWithProperties - CL_EXTERNAL_MEMORY_HANDLE_DMA_BUF_KHR failed");
+        if (err < 0) {
+            printf("clCreateBufferWithProperties failed, clbuf = %p, fd = %ld, size = %ld, new_cl_mem = %p\n",
+                   clbuf,
+                   fd,
+                   size,
+                   extMemBuffer);
+            while (1)
+                std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        }
 
         if (0) {
             cl_mem_object_type type;
@@ -665,6 +674,8 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
         wait_list[w_rank] = 0;  // no need to wait for itself
         size_t data_size = 0;
         event::ptr sync_event = nullptr;
+        auto src_cl_buf =
+            std::dynamic_pointer_cast<const ocl::gpu_buffer>(instance.output_memory_ptr(w_rank))->get_buffer().get();
         while (true) {
             int wait_size = 0;
             for (int idx = 0; idx < static_cast<int>(w_size); idx++) {
@@ -672,10 +683,6 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                     // auto& remote_ocl_stream =
                     // downcast<ocl::ocl_stream>(*sub_mem_mgr->_memorys_table[id][idx].stream_ptr); auto remote_context
                     // = remote_ocl_stream.get_engine().get_cl_context().get();
-                    auto src_cl_buf =
-                        std::dynamic_pointer_cast<const ocl::gpu_buffer>(instance.output_memory_ptr(w_rank))
-                            ->get_buffer()
-                            .get();
                     cldnn::memory::ptr dst_mem = sub_mem_mgr->_memorys_table[id][idx].recv_bufs[w_rank];
                     auto dst_cl_buf_remote =
                         std::dynamic_pointer_cast<const ocl::gpu_buffer>(dst_mem)->get_buffer().get();
@@ -757,12 +764,9 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
             }
         } else {
             sync_events = propagate_p2p_events(sub_mem_mgr, id, w_size, w_rank);
+            // wait_p2p_done(sub_mem_mgr, id, w_size, w_rank);
         }
 
-        {
-            std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
-            sub_mem_mgr->_use_count[id]++;
-        }
         if (pass_through_events) {
             if (events.size() > 1) {
                 return stream.group_events(events);
@@ -775,10 +779,16 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                        true);
 
         for (auto& evt : sync_events) {
-            evt->wait();
+             evt->wait();
         }
-        return stream.create_user_event(true);
-        // return sync_events.size() > 0 ? stream.group_events(sync_events) : stream.create_user_event(true);
+
+        // This block MUST be put exactly at the end of this method.
+        {
+            std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
+            sub_mem_mgr->_use_count[id]++;
+        }
+        // return stream.create_user_event(true);
+        return sync_events.size() > 0 ? stream.group_events(sync_events) : stream.create_user_event(true);
     }
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
