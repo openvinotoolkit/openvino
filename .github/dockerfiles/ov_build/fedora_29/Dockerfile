@@ -7,6 +7,7 @@ RUN yum update -y && yum install -y \
     curl \
     # To build Python from source
     openssl-devel \
+    sqlite-devel \
     bzip2-devel \
     libffi-devel \
     zlib-devel \
