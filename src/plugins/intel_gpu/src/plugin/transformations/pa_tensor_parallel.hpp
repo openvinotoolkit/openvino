@@ -24,10 +24,13 @@ public:
 private:
     std::shared_ptr<ov::Node> find_first_fc_after_pa(std::shared_ptr<ov::Node> input);
     std::shared_ptr<ov::Node> find_first_fc_before_pa(std::shared_ptr<ov::Node> input);
+    void find_first_fcs_before_pa(std::shared_ptr<ov::Node> input);
     void find_ops_in_fc_to_pa(std::shared_ptr<ov::Node> input);
     void find_ops_in_pa_to_fc(std::shared_ptr<ov::Node> input);
     std::unordered_set<std::shared_ptr<ov::Node>> has_visited;
     std::vector<std::shared_ptr<ov::Node>> vector_visited;
+    std::unordered_set<std::shared_ptr<ov::Node>> has_visited_fc;
+    std::vector<std::shared_ptr<ov::Node>> vector_visited_fc;
 };
 
 }   // namespace intel_gpu
