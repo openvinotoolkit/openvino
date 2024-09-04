@@ -20,7 +20,7 @@ describe('ov.CompiledModel tests', () => {
     core = new ov.Core();
   });
   
-  beforeEach( () => {
+  beforeEach(() => {
     const properties = {
       'AUTO_BATCH_TIMEOUT': '1',
     };

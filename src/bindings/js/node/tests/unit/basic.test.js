@@ -24,8 +24,7 @@ describe('ov basic tests.', () => {
     core = new ov.Core();
     model = core.readModelSync(testXml);
     compiledModel = core.compileModelSync(model, 'CPU');
-    modelLike = [model,
-      compiledModel];
+    modelLike = [model, compiledModel];
   });
 
   it('Core.getAvailableDevices()', () => {
@@ -234,7 +233,7 @@ describe('ov basic tests.', () => {
     let userStream = null;
     let res1 = null;
 
-    before( () => {
+    before(() => {
       const core = new ov.Core();
       const model = core.readModelSync(testXml);
       const compiledModel = core.compileModelSync(model, 'CPU');

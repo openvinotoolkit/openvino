@@ -81,11 +81,11 @@ describe('ov.InferRequest tests', () => {
 
         assert.throws(
           () => inferRequest.infer([tl]),
-          {message: new RegExp(msg)}, 'infer([data]) throws');
+          { message: new RegExp(msg) }, 'infer([data]) throws');
 
         assert.throws(
           () => inferRequest.infer({data: tl}),
-          {message: new RegExp(msg)}, 'infer({ data: tl}) throws');
+          { message: new RegExp(msg) }, 'infer({ data: tl}) throws');
 
       });
 
