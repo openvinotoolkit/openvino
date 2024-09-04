@@ -112,7 +112,14 @@ KERNEL(pa_sdpa_opt)(
                                head_num_idx * HEAD_SIZE +
                                query_idx_local;
 
-        slm_query[query_idx_local] = BLOCK_READN(INPUT0_TYPE, 1, query, query_idx);
+        INPUT0_TYPE q_val = BLOCK_READN(INPUT0_TYPE, 1, query, query_idx);
+
+        // Apply scale value directly to the query input to improve accuracy in case of a high range of input data
+#ifdef SCALE_VAL
+        q_val = TO_INPUT0_TYPE(SCALE_VAL) * q_val;
+#endif
+
+        slm_query[query_idx_local] = q_val;
 
         barrier(CLK_LOCAL_MEM_FENCE);
 #else
@@ -122,6 +129,11 @@ KERNEL(pa_sdpa_opt)(
                                    head_num_idx * HEAD_SIZE +
                                    i * SUBGROUP_SIZE;
             q_val[i] = BLOCK_READN(INPUT0_TYPE, 1, query, query_idx);
+
+            // Apply scale value directly to the query input to improve accuracy in case of a high range of input data
+#ifdef SCALE_VAL
+            q_val[i] = TO_INPUT0_TYPE(SCALE_VAL) * q_val[i];
+#endif
         }
 #endif
 
@@ -161,10 +173,6 @@ KERNEL(pa_sdpa_opt)(
 #endif
                 }
             }
-
-#ifdef SCALE_VAL
-            qk_acc = TO_INPUT0_TYPE(SCALE_VAL) * qk_acc;
-#endif
 
             const uint token_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + block_num * SUBGROUPS_PER_WG * SUBGROUP_SIZE + sgid * SUBGROUP_SIZE + sglid;
 

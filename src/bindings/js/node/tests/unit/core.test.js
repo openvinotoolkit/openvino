@@ -4,11 +4,14 @@
 
 const { addon: ov } = require('../..');
 const assert = require('assert');
-const { describe, it } = require('node:test');
+const { describe, it, beforeEach } = require('node:test');
 
 describe('ov.Core tests', () => {
 
-  const core = new ov.Core();
+  let core = null;
+  beforeEach(() => {
+    core = new ov.Core();
+  });
 
   it('Core.setProperty()', () => {
     const tmpDir = '/tmp';
