@@ -119,7 +119,7 @@ KernelsData LSTMKernelBase::GetCommonKernelsData(const Params& params, bool sequ
     kernel.params.workGroups.global = {num_hidden_kernels, out.Batch().v, 1};
     if (bfyx && ((sequential && static_cast<int>(orgParams.inputs[0].Feature().v) == 1) || !sequential)) {
         size_t expected_local_hidden = 8;
-        long unsigned int local_hidden = static_cast<size_t>(std::min(expected_local_hidden, num_hidden_kernels));
+        long unsigned int local_hidden = static_cast<unsigned int>(std::min(expected_local_hidden, num_hidden_kernels));
         kernel.params.workGroups.local = {local_hidden, 1, 1};
     } else {
         kernel.params.workGroups.local = {num_hidden_kernels, 1, 1};
