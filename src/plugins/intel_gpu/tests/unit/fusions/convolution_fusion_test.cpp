@@ -702,7 +702,7 @@ TEST_P(conv_duplicated_connection, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_duplicated_connection, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 3, 3 },
 }));
 
 class conv_fp32_bias : public ConvFusingTest {};
