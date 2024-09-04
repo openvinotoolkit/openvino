@@ -148,15 +148,17 @@ add_custom_command(OUTPUT "${fdupes_report}"
     COMMENT "Run 'fdupes' checks for wheel ${openvino_wheel_name}"
     VERBATIM)
 
-add_custom_command(OUTPUT ${openvino_wheel_cleanup}
+add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path} ${fdupes_report})
+
+add_custom_command(
+    TARGET ie_wheel
+    POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/build_${pyversion}"
     COMMAND ${CMAKE_COMMAND} -E true # w/a this ensures the command always succeeds
     DEPENDS ${openvino_wheel_path}
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     COMMENT "Cleaning up Python wheel build for wheel ${openvino_wheel_name}"
     VERBATIM)
-
-add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path} ${fdupes_report} ${openvino_wheel_cleanup})
 
 # install
 
