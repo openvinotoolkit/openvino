@@ -115,8 +115,10 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
         for(uint in_block_pos = 0; in_block_pos < IN_BLOCK_ARRAY_SIZE * SUB_GROUP_SIZE; in_block_pos += SUB_GROUP_SIZE) {
             // Horizontal position in input block after read.
             const uint in_block_next_x_pos = in_block_pos % IN_BLOCK_WIDTH + SUB_GROUP_SIZE;
-            const int idx = tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH;
-            in[in_block_pos / SUB_GROUP_SIZE] = idx < input0_physical_len ? input[idx] : UNIT_VAL_ZERO;
+            uint idx = tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH;
+            // index clipping to avoid out-of-bound memory access. Such data is not supposed to be used in actual computation.
+            idx = min(idx, input0_physical_len - 1);
+            in[in_block_pos / SUB_GROUP_SIZE] = input[idx];
 
             // If we have row break, move to the next row.
             if (in_block_next_x_pos == IN_BLOCK_WIDTH)
@@ -129,8 +131,9 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
             const uint in_block_next_x_pos = in_block_pos % IN_BLOCK_WIDTH + SUB_GROUP_SIZE;
 
             if (in_block_next_x_pos <= IN_BLOCK_WIDTH) {
-                const int idx = tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH;
-                in[in_block_pos / SUB_GROUP_SIZE] = idx < input0_physical_len ? input[idx] : UNIT_VAL_ZERO;
+                uint idx = tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH;
+                idx = min(idx, input0_physical_len - 1);
+                in[in_block_pos / SUB_GROUP_SIZE] = input[idx];
 
                 // If we have row break, move to the next row.
                 if (in_block_next_x_pos == IN_BLOCK_WIDTH)
@@ -161,7 +164,8 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
         in_addr += INPUT0_FEATURE_PITCH;
 
         for(int pf=0; pf<PREFETCH; pf++) {
-            w[pf] = weight_addr<filter_physical_len ? weights[weight_addr] : UNIT_VAL_ZERO;
+            uint weight_addr_safe = min(weight_addr, filter_physical_len - 1);
+            w[pf] = weights[weight_addr_safe];
             weight_addr += OSV_SIZE;
         }
 
@@ -172,7 +176,6 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
             uint kc = 0; // kc = Kernel Column
             LOOP(FILTER_SIZE_X, kc,
             {
-                //w = weights[weight_addr];
                 for(uint br=0; br<OUTPUT_BLOCK_HEIGHT; br++) {
                     for(uint bc=0; bc<OUTPUT_BLOCK_WIDTH; bc++) {
 
@@ -186,7 +189,8 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
                         out[br * OUTPUT_BLOCK_WIDTH + bc] = mad(w[wi % PREFETCH], val, out[br * OUTPUT_BLOCK_WIDTH + bc]);
                     }
                 }
-                w[wi % PREFETCH] = weight_addr < filter_physical_len ? weights[weight_addr] : UNIT_VAL_ZERO;
+                uint weight_addr_safe = min(weight_addr, filter_physical_len - 1);
+                w[wi % PREFETCH] = weights[weight_addr_safe];
                 weight_addr += OSV_SIZE; // weights must be stored in just the right SIMD swizzled format for this to work, see host code for details.
                 wi++;
             });
