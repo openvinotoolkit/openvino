@@ -6,6 +6,7 @@ const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it, before, beforeEach } = require('node:test');
 const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
+const epsilon = 0.5;
 
 describe('ov basic tests.', () => {
 
@@ -228,12 +229,12 @@ describe('ov basic tests.', () => {
   });
 
   describe('Test exportModel()/importModel()', () => {
-    const epsilon = 0.5;
-    const tensor = Float32Array.from({ length: 3072 }, () => (Math.random() + epsilon));
+    let tensor = null;
     let userStream = null;
     let res1 = null;
 
     before(() => {
+      tensor = Float32Array.from({ length: 3072 }, () => (Math.random() + epsilon));
       const core = new ov.Core();
       const model = core.readModelSync(testXml);
       const compiledModel = core.compileModelSync(model, 'CPU');

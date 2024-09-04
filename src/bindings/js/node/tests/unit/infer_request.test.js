@@ -36,8 +36,7 @@ describe('ov.InferRequest tests', () => {
       [1, 10],
       tensorData.slice(-10),
     );
-    tensorLike = [[tensor],
-      [tensorData]];
+    tensorLike = [tensor, tensorData];
   });
 
   describe('infer() method', () => {
@@ -47,7 +46,7 @@ describe('ov.InferRequest tests', () => {
     });
 
     it('Test infer(inputData: {inputName: string]: Tensor[]/TypedArray[]}', () => {
-      tensorLike.forEach(([tl]) => {
+      tensorLike.forEach((tl) => {
         const result = inferRequest.infer({ data: tl });
         assert.deepStrictEqual(Object.keys(result), ['fc_out']);
         assert.deepStrictEqual(result['fc_out'].data.length, 10);
@@ -55,7 +54,7 @@ describe('ov.InferRequest tests', () => {
     });
 
     it('Test infer(inputData: Tensor[]/TypedArray[])', () => {
-      tensorLike.forEach(([tl]) => {
+      tensorLike.forEach((tl) => {
         const result = inferRequest.infer([tl]);
         assert.deepStrictEqual(Object.keys(result), ['fc_out']);
         assert.deepStrictEqual(result['fc_out'].data.length, 10);
