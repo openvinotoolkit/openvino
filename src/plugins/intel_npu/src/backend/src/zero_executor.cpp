@@ -28,12 +28,12 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder> in
       _initStructs(std::move(initStructs)),
       _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
       _group_ordinal(group_ordinal),
-      _command_queues{std::make_shared<CommandQueue>(_initStructs->getDevice(),
-                                                     _initStructs->getContext(),
-                                                     zeroUtils::toZeQueuePriority(_config.get<MODEL_PRIORITY>()),
-                                                     _initStructs->getCommandQueueDdiTable(),
-                                                     _config,
-                                                     group_ordinal)} {
+      _command_queue{std::make_shared<CommandQueue>(_initStructs->getDevice(),
+                                                    _initStructs->getContext(),
+                                                    zeroUtils::toZeQueuePriority(_config.get<MODEL_PRIORITY>()),
+                                                    _initStructs->getCommandQueueDdiTable(),
+                                                    _config,
+                                                    group_ordinal)} {
     _logger.debug("ZeroExecutor::ZeroExecutor init start - create graph_command_list");
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::ZeroExecutor");
     CommandList graph_command_list(_initStructs->getDevice(),
@@ -128,7 +128,7 @@ void ZeroExecutor::setWorkloadType(const ov::WorkloadType workloadType) const {
         OPENVINO_THROW("Unknown value for WorkloadType!");
     }
 
-    _command_queues->setWorkloadType(zeWorkloadType);
+    _command_queue->setWorkloadType(zeWorkloadType);
 }
 
 void ZeroExecutor::setArgumentValue(uint32_t argi_, const void* argv_) const {

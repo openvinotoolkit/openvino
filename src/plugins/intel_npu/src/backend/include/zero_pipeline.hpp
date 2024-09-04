@@ -41,7 +41,7 @@ public:
 
 protected:
     const Config _config;
-    CommandQueue& _command_queue;
+    std::shared_ptr<CommandQueue> _command_queue;
     std::vector<std::unique_ptr<CommandList>> _command_lists;
     std::vector<std::unique_ptr<Fence>> _fences;
     EventPool _event_pool;

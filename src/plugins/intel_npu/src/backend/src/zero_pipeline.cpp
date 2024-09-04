@@ -24,7 +24,7 @@ Pipeline::Pipeline(const Config& config,
                    const std::vector<std::optional<TensorData>>& outputTensorsData,
                    const size_t numberOfCommandLists)
     : _config(config),
-      _command_queue(*executor->getCommandQueue()),
+      _command_queue(executor->getCommandQueue()),
       _event_pool{executor->getInitStructs()->getDevice(),
                   executor->getInitStructs()->getContext(),
                   numberOfCommandLists ? static_cast<uint32_t>(numberOfCommandLists) : 1,
@@ -51,7 +51,7 @@ Pipeline::Pipeline(const Config& config,
                                           executor->get_group_ordinal(),
                                           executor->getInitStructs()->getMutableCommandListVersion() ? true : false));
         _events.emplace_back(std::make_unique<Event>(_event_pool.handle(), static_cast<uint32_t>(i), _config));
-        _fences.emplace_back(std::make_unique<Fence>(_command_queue, _config));
+        _fences.emplace_back(std::make_unique<Fence>(*_command_queue, _config));
     }
 
     for (size_t i = 0; i < numberOfCommandLists; i++) {
@@ -101,9 +101,9 @@ void Pipeline::push() {
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_PUSH, itt::domains::LevelZeroBackend, "IntegratedPipeline", "push");
         if (sync_output_with_fences_) {
-            _command_queue.executeCommandList(*_command_lists.at(i), *_fences.at(i));
+            _command_queue->executeCommandList(*_command_lists.at(i), *_fences.at(i));
         } else {
-            _command_queue.executeCommandList(*_command_lists.at(i));
+            _command_queue->executeCommandList(*_command_lists.at(i));
         }
     }
 

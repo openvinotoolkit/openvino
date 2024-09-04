@@ -44,8 +44,8 @@ public:
     inline std::shared_ptr<const ZeroInitStructsHolder> getInitStructs() const {
         return _initStructs;
     }
-    inline const std::shared_ptr<CommandQueue>& getCommandQueue() const {
-        return _command_queues;
+    inline const std::shared_ptr<CommandQueue> getCommandQueue() const {
+        return _command_queue;
     }
     inline const uint32_t& get_group_ordinal() const {
         return _group_ordinal;
@@ -73,7 +73,7 @@ private:
     std::vector<ArgumentDescriptor> _input_descriptors;
     std::vector<ArgumentDescriptor> _output_descriptors;
 
-    std::shared_ptr<CommandQueue> _command_queues;
+    std::shared_ptr<CommandQueue> _command_queue;
 
     mutable std::mutex _mutex;
 };
