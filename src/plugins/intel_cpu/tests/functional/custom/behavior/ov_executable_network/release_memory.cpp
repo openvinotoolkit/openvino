@@ -103,9 +103,16 @@ public:
 };
 
 TEST_P(MemoryReleaseTest, ConsequitiveRelease) {
-    run();
+    compile_model();
+    for (const auto& targetStaticShapeVec : targetStaticShapes) {
+        generate_inputs(targetStaticShapeVec);
+        validate();
+    }
     compiledModel.release_memory();
-    run();
+    for (const auto& targetStaticShapeVec : targetStaticShapes) {
+        generate_inputs(targetStaticShapeVec);
+        validate();
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_release_memory,
