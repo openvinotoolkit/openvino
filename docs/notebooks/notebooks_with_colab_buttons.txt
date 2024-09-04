@@ -27,6 +27,7 @@ mobileclip-video-search
 music-generation
 named-entity-recognition
 nano-llava-multimodal-chatbot
+nuextract-structure-extraction
 object-detection
 openvino-api
 openvino-tokenizers
