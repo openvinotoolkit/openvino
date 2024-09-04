@@ -1734,9 +1734,13 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
                 continue;
             } else {
                 node.second->as<data>().typed_desc()->mem = data_node.get_attached_memory_ptr();
-                node.second->as<data>().typed_desc()->weights_path = weights_path;
             }
         }
+
+        if (node.second->is_type<data>()) {
+            node.second->as<data>().typed_desc()->weights_path = weights_path;
+        }
+
         ob << true;
 
         ob << node.second->desc;
