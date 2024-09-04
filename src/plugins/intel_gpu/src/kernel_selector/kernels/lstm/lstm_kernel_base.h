@@ -59,7 +59,7 @@ public:
     struct DispatchData : public CommonDispatchData {};
 
 protected:
-    virtual JitConstants GetJitConstants(const lstm_params& params, bool) const;
+    virtual JitConstants GetJitConstants(const lstm_params& params, bool, size_t) const;
     KernelsData GetCommonKernelsData(const Params& params, bool, bool) const;
 
     bool Validate(const Params& p) const override {
@@ -77,6 +77,32 @@ protected:
             return 2;
         } else {
             return 1;
+        }
+    }
+
+    static int gcd(int a, int b) {
+        while (a != b) {
+            if (a > b) {
+                a -= b;
+            } else {
+                b -= a;
+            }
+        }
+        return a;
+    }
+
+    static size_t get_num_hidden_kernels(int hidden_size, int max_work_group_size) {
+        if (max_work_group_size >= hidden_size) {
+            return static_cast<size_t>(hidden_size);
+        } else {
+            int gcd_result = gcd(max_work_group_size, hidden_size);
+            int minimal_number_when_gcd_low = 16;
+            if (gcd_result < minimal_number_when_gcd_low) {
+                if (minimal_number_when_gcd_low < max_work_group_size && minimal_number_when_gcd_low < hidden_size) {
+                    return static_cast<size_t>(minimal_number_when_gcd_low);
+                }
+            }
+            return static_cast<size_t>(minimal_number_when_gcd_low);
         }
     }
 };
