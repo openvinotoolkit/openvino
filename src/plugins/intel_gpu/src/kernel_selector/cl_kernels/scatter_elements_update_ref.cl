@@ -205,11 +205,11 @@ KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
 }
 
 #ifdef REDUCE_MODE
-    #undef SUM
-    #undef PROD
-    #undef MIN
-    #undef MAX
-    #undef MEAN
+    #undef SUM_MODE
+    #undef PROD_MODE
+    #undef MIN_MODE
+    #undef MAX_MODE
+    #undef MEAN_MODE
     #undef REDUCTION_NEUTRAL_VALUE
 #endif
 
