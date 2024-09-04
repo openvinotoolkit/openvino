@@ -2728,13 +2728,13 @@ public:
                                                                                 data_types::f16,
                                                                                 format::bfyx,
                                                                                 n_dim_only ? padding({0, 0, 0, 0}, {0, 0, 0, 0}, dyn_pad_dims_input1) :
-                                                                                             padding({0, 0, 0, 0}, {padding_size_batch1, padding_size_batch2, padding_size_k, padding_size_m}, dyn_pad_dims_input1)});
+                                                                                             padding({0, 0, 0, 0}, {padding_size_batch1, padding_size_batch2, padding_size_m, padding_size_k}, dyn_pad_dims_input1)});
 
         auto input2_mem = engine.reinterpret_buffer(*aligned_input2_mem, layout{ov::PartialShape(in2_shape),
                                                                                 data_types::f16,
                                                                                 format::bfyx,
-                                                                                n_dim_only ? padding({0, 0, 0, 0}, {0, 0, padding_size_n, 0}, dyn_pad_dims_input2) :
-                                                                                             padding({0, 0, 0, 0}, {padding_size_batch1, padding_size_batch2, padding_size_n, padding_size_k}, dyn_pad_dims_input2)});
+                                                                                n_dim_only ? padding({0, 0, 0, 0}, {0, 0, 0, padding_size_n}, dyn_pad_dims_input2) :
+                                                                                             padding({0, 0, 0, 0}, {padding_size_batch1, padding_size_batch2, padding_size_k, padding_size_n}, dyn_pad_dims_input2)});
 
         auto input_1_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in1_shape), -2, 2);
         auto input_2_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in2_shape), -2, 2);
