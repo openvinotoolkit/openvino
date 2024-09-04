@@ -31,12 +31,13 @@ using namespace cldnn;
 #define LOG_NODE_REMOVAL(id)      GPU_DEBUG_LOG_PASS << __func__ << ":" << __LINE__  << ": remove node: " << (id) << std::endl;
 #define LOG_NODE_REPLACEMENT(id)  GPU_DEBUG_LOG_PASS << __func__ << ":" << __LINE__  << ": replace node: " << (id) << std::endl;
 
-remove_redundant_reorders::remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing, bool update_implementations,
+remove_redundant_reorders::remove_redundant_reorders(bool enable_reorder_fusing, bool update_implementations,
     bool remove_output_reorders)
-    : base_pass("remove_redundant_reorders"), lo(lo_ref), enable_reorder_fusing(enable_reorder_fusing), update_implementations(update_implementations),
+    : base_pass("remove_redundant_reorders"), enable_reorder_fusing(enable_reorder_fusing), update_implementations(update_implementations),
     remove_output_reorders(remove_output_reorders) {}
 
 void remove_redundant_reorders::run(program& p) {
+    auto& lo = p.get_layout_optimizer();
     auto update_implementation = [&](program_node& node) {
         if (!update_implementations)
             return;
@@ -474,7 +475,8 @@ void remove_redundant_reorders::run(program& p) {
         auto quantize_opt = usr->is_type<quantize>() &&
                             (dep.get_output_layout().format == format::b_fs_yx_fsv16 ||
                              dep.get_output_layout().format == format::bfyx ||
-                             (dep.get_output_layout().format == format::fs_b_yx_fsv32 && !lo.get_optimization_attributes().use_onednn_impls));
+                             (dep.get_output_layout().format == format::fs_b_yx_fsv32 &&
+                             !lo.get_optimization_attributes().use_onednn_impls));
 
         auto convert_color_opt = usr->is_type<convert_color>() && prim_desc->has_surface_input();
 

@@ -19,4 +19,15 @@ QueueTypes stream::detect_queue_type(engine_types engine_type, void* queue_handl
     }
 }
 
+event::ptr stream::aggregate_events(const std::vector<event::ptr>& events, bool group, bool is_output) {
+    if (events.size() == 1 && !is_output)
+        return events[0];
+
+    if (group && !is_output)
+        return group_events(events);
+
+    return events.empty() ? create_user_event(true)
+                          : enqueue_marker(events, is_output);
+}
+
 }  // namespace cldnn
