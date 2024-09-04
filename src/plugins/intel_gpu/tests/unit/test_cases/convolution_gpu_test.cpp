@@ -10465,6 +10465,8 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv16_no_bias) {
     auto outputs = network.execute();
 
     auto output_memory = outputs.at("conv").get_memory();
+    ov::intel_gpu::ImplementationDesc conv_impl_ref = { format::bfyx, "convolution_gpu_ref", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl_ref } }));
     auto output_memory_ref = calculate_ref(input, weights, config);
 
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
