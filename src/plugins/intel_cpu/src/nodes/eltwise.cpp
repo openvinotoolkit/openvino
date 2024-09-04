@@ -2574,6 +2574,14 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         return;
     }
 #endif
+    // To make attention_mask process align with SDPA layout
+    if (getAlgorithm() == Algorithm::EltwiseClamp) {
+        auto parentNode = getParentEdgeAt(0)->getParent();
+        if (Config::ModelType::LLM == context->getConfig().modelType && "Ceiling" == parentNode->getTypeStr() &&
+            Algorithm::MathCeiling == parentNode->getAlgorithm()) {
+            isChannelsFirstApplicable = false;
+        }
+    }
 
 #if defined(OV_CPU_WITH_SHL)
     eltwiseAttrs = {algorithm, alpha, beta, gamma};
