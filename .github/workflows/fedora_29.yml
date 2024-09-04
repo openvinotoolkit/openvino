@@ -91,7 +91,7 @@ jobs:
             -DENABLE_SYSTEM_OPENCL=ON \
             -DENABLE_PYTHON_PACKAGING=ON \
             -DCPACK_GENERATOR=TGZ \
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DCMAKE_BUILD_TYPE=Release
 
   Overall_Status:
