@@ -56,14 +56,21 @@ LinearIR::constExprIt BrgemmCPUBlocking::get_loop_begin_pos(LinearIR& linear_ir,
     return loop_begin_it;
 }
 
-std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
-    auto blocking_params = ov::snippets::lowered::pass::BrgemmBlockingBase::get_blocking_params(brgemm_expr);
+size_t BrgemmCPUBlocking::get_default_n_blk(size_t n) const {
+    return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
+}
+
+std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
     const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
+    OPENVINO_ASSERT(brgemm, "BrgemmCPU is expected!");
+
+    size_t m_blk, n_blk, k_blk;
+    std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
     if (with_repacking(brgemm->get_type())) {
-        std::get<1>(blocking_params) = get_full_dim_value();
-        std::get<2>(blocking_params) = get_full_dim_value();
+        n_blk = get_full_dim_value();
+        k_blk = get_full_dim_value();
     }
-    return blocking_params;
+    return std::make_tuple(m_blk, n_blk, k_blk);
 }
 
 SpecificIterationHandlers BrgemmCPUBlocking::get_k_loop_handlers(size_t work_amount, size_t block_size) const {

@@ -38,7 +38,7 @@ public:
     };
 
 private:
-    std::tuple<size_t, size_t, size_t> get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) override;
+    std::tuple<size_t, size_t, size_t> get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const override;
     ov::snippets::lowered::SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_size) const override;
 };
 
