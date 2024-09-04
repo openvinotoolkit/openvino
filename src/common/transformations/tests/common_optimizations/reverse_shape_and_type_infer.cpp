@@ -733,7 +733,7 @@ TEST_F(TransformationTestsF, SqueezeAxesReverseInferTorchMode) {
     auto dyn = Dimension::dynamic();
     {
         auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape{1, dyn, 1, dyn, dyn, dyn});
-        auto squeeze = std::make_shared<opset10::Squeeze>(data, true);
+        auto squeeze = std::make_shared<opset10::Squeeze>(data);
         // Convolution is needed to produce static rank
         auto weights =
             opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));

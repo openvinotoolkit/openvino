@@ -29,7 +29,7 @@ public:
     /// \param axis The axis along which to squeeze the input tensor.
     /// \param torch_mode Shape inference result dynamic rank if selected axis has 1 in range of its dynamic
     Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool torch_mode = false);
-    Squeeze(const Output<Node>& data, const bool torch_mode = false);
+    Squeeze(const Output<Node>& data);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -50,7 +50,7 @@ public:
 
 private:
     Output<Node> get_default_axes_input() const;
-    bool m_pytorch_dynamic_rank{};
+    bool m_pytorch_dynamic_rank{}; // TODO: rananme
     ov::PartialShape deduced_output_shape{};
     bool is_deduced_output_shape{};
 };

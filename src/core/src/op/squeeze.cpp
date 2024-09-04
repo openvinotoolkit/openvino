@@ -32,7 +32,7 @@ Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool 
     constructor_validate_and_infer_types();
 }
 
-Squeeze::Squeeze(const Output<Node>& data, const bool torch_mode) : Op({data}), m_pytorch_dynamic_rank{torch_mode} {
+Squeeze::Squeeze(const Output<Node>& data) : Op({data}), m_pytorch_dynamic_rank{false} {
     constructor_validate_and_infer_types();
 }
 
@@ -57,7 +57,7 @@ std::shared_ptr<Node> Squeeze::clone_with_new_inputs(const OutputVector& new_arg
 
     switch (new_args.size()) {
     case 1:
-        return std::make_shared<Squeeze>(new_args[0], m_pytorch_dynamic_rank);
+        return std::make_shared<Squeeze>(new_args[0]);
     case 2:
         return std::make_shared<Squeeze>(new_args[0], new_args[1], m_pytorch_dynamic_rank);
     default:
