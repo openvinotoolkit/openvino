@@ -204,12 +204,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     config.set_user_property(orig_config);
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
-    auto rt_info = model->get_rt_info();
-    auto weights_path = rt_info.find("weights_path");
-    if (weights_path != rt_info.end()) {
-        ov::AnyMap weights_path_property{{"GPU_WEIGHTS_PATH", weights_path->second}};
-        config.set_property(weights_path_property);
-    }
+    set_cache_info(model, config);
 
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
     return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config);
