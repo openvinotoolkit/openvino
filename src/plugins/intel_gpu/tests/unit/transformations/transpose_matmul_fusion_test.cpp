@@ -124,6 +124,17 @@ TEST_F(TransformationTestsF, TranposeMatmulFusion4) {
     }
 }
 
+TEST_F(TransformationTestsF, TranposeMatmulFusion_Illegal_1) {
+    {
+        auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, 20});
+        auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{20, 30});
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(input_a, input_b);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{ matmul }, ov::ParameterVector{ input_a, input_b });
+        manager.register_pass<TransposeFusion>();
+    }
+}
+
 }  // namespace intel_gpu
 }  // namespace test
 }  // namespace ov

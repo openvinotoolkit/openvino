@@ -191,6 +191,22 @@ TransposeMatMulMatcher::TransposeMatMulMatcher(bool supports_immad) {
     auto transpose_predicate = [supports_immad](const ov::Output<ov::Node>& output) -> bool {
         return has_optimized_version(output, supports_immad);
     };
+
+    // Don't convert MatMul -> Gemm if no transpose input found as
+    // CreateMatMulOp factory can now insert extra transpose which improves the performance
+    auto matmul_predicate = [](const ov::Output<ov::Node>& output) -> bool {
+        auto node = output.get_node();
+        if (node->is_dynamic())
+            return true;
+
+        for (size_t i = 0; i < node->get_input_size(); i++) {
+            if (ov::is_type<ov::op::v1::Transpose>(node->get_input_node_ptr(i)))
+                return true;
+        }
+
+        return false;
+    };
+
     auto input_a_m = any_input(not_transpose);
     auto input_b_m = any_input(not_transpose);
     auto transpose_a_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
@@ -201,7 +217,7 @@ TransposeMatMulMatcher::TransposeMatMulMatcher(bool supports_immad) {
     auto matmul_in_a = std::make_shared<Or>(OutputVector{input_a_m, transpose_a_m});
     auto matmul_in_b = std::make_shared<Or>(OutputVector{input_b_m, transpose_b_m});
 
-    auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b });
+    auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b }, matmul_predicate);
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
