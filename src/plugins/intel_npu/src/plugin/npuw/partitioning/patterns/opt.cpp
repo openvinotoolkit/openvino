@@ -128,6 +128,10 @@ Context::PPtr Context::view(PPtr orig_param, const View &v) {
     return view_param;
 }
 
+void Context::permute(PPtr orig_param, const Context::Axes &order) {
+    closures_to_permute[orig_param] = order;
+}
+
 
 // FROM:
 //     ???(Act) -------------------------------------------->
@@ -141,14 +145,10 @@ Context::PPtr Context::view(PPtr orig_param, const View &v) {
 //                                         [1, 1 ,128]   x
 // TO:                                     [1,11K,128]T  =
 //                 [32,1,128]              [1, 1 ,11K]
-//     ???(Act)  -> Reshape > Split(/32) ->[to(f16) ->          ]} x32
-//     Param(W*) -----------> Split(/32) ->[to(f16) -> MatMul ->]} Concat(0)
-//                                                                    v
-//                                                                  to(f32)
-//                                                                    v
-//     Param(S)  ------------------------------------------------> Multiply
-//                                                                    v
-//                                                                 ReduceSum
+//     ???(Act)  -> Reshape > Split(/32) ->[to(f16) ->                                 ]} x32
+//     Param(W*) -----------> Split(/32) ->[to(f16) -> MatMul -> to(f32) ->            ]} Reduce(Add)
+//     Param(S)  -------------Split(/32) ->[------------------------------> Multiply ->]}
+//
 // WHERE:
 //     W* : [32,11008,128]
 
@@ -203,6 +203,7 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
             auto split_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
             auto split_a = std::make_shared<ov::op::v1::Split>(rshp_act, split_axis, NSPLIT);
             auto split_w = std::make_shared<ov::op::v1::Split>(matched_qweight, split_axis, NSPLIT);
+            auto split_s = std::make_shared<ov::op::v1::Split>(matched_qcoeff, split_axis, NSPLIT);
 
             // Do the CW MM for every split
             std::vector<std::shared_ptr<ov::Node> > to_concat;
@@ -210,19 +211,17 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
                 auto a_f16 = std::make_shared<ov::op::v0::Convert>(split_a->output(i), ov::element::f16);
                 auto w_f16 = std::make_shared<ov::op::v0::Convert>(split_w->output(i), ov::element::f16);
                 auto m_f16 = std::make_shared<ov::op::v0::MatMul>(a_f16, w_f16, false, true);
-                // auto m_f32 = std::make_shared<ov::op::v0::Convert>(m_f16, ov::element::f32);
-
-                // auto s_f32 = std::make_shared<ov::op::v1::Multiply>(m_f32, split_s);
-                to_concat.push_back(m_f16);
+                auto m_f32 = std::make_shared<ov::op::v0::Convert>(m_f16, ov::element::f32);
+                auto s_f32 = std::make_shared<ov::op::v1::Multiply>(m_f32, split_s->output(i));
+                to_concat.push_back(s_f32);
             }
-            // Assemble the MM output, promote to f32 & Multiply by S
-            auto concat = std::make_shared<ov::op::v0::Concat>(to_concat, 0);
-            auto c_f32 = std::make_shared<ov::op::v0::Convert>(concat, ov::element::f32);
-            auto o_f32 = std::make_shared<ov::op::v1::Multiply>(c_f32, matched_qcoeff);
 
-            // Reduce the parts back to [1,?,N]. Reduce didn't work again on N?U so
-            // do an add cascade
-            auto sum = std::make_shared<ov::op::v1::ReduceSum>(o_f32, split_axis, true);
+            std::vector<ov::Output<ov::Node> > reduce;
+            reduce.push_back(std::make_shared<ov::op::v1::Add>(to_concat[0], to_concat[1]));
+            for (std::size_t i = 1; i < NSPLIT-1; i++) {
+                reduce.push_back(std::make_shared<ov::op::v1::Add>(reduce[i-1], to_concat[i+1]));
+            }
+            auto sum = reduce.back();
 
             // Now.. Reconnect the matmul readers to the new output (reducesum)
             for (auto &&r : matched_matmul->output(0).get_target_inputs()) {

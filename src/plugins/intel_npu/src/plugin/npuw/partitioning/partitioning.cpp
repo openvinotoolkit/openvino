@@ -1592,6 +1592,17 @@ void Partitioner::optimize(const std::string& func_name) {
         });
     }
 
+    // Permute tensors where required. FIXME: The above snippet can be
+    // generalized to this one.
+    for (auto &&p : ctx.closures_to_permute) {
+        auto param_idx = f._model->get_parameter_index(p.first);
+        auto closure_idx = param_idx - f._param_offset;
+        ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+            auto& funcall = func_group.refs[f_idx].get();
+            ov::npuw::util::permute(funcall._closure[closure_idx], p.second);
+        });
+    }
+
     // Now add new closure tensors
     for (auto &&v : ctx.closure_views) {
         ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {

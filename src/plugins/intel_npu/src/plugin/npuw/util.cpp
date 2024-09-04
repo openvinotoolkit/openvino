@@ -1438,17 +1438,39 @@ void ov::npuw::util::transpose(ov::Tensor &t) {
 
     const auto IN_ROWS = shape[0] * shape[1];
     const auto IN_COLS = shape[2];
-
     for (std::size_t i = 0; i < IN_ROWS; i++) {
         for (std::size_t j = 0; j < IN_COLS; j++) {
             uint8_t value = tread_4b(t, i, j, IN_COLS);
             twrite_4b(tnew, value, j, i, IN_ROWS);
         }
     }
-
     t = std::move(tnew);
 }
 
+void ov::npuw::util::permute(ov::Tensor &t, const std::vector<std::size_t> &axes) {
+    ov::Shape shape = t.get_shape();
+    NPUW_ASSERT(shape.size() == 3); // Yes, so far only transpose 3D tensors
+    NPUW_ASSERT(t.get_element_type() == ov::element::i4); // And, yes, 4bit only!
+
+    if (axes[0] == 2 && axes[1] == 0 && axes[2] == 1) {
+        transpose(t);
+    } else if (axes[0] == 0 && axes[1] == 2 && axes[2] == 1) {
+        ov::Shape tshape = { shape[0], shape[2], shape[1] };
+        ov::Tensor tnew(t.get_element_type(), tshape);
+
+        for (std::size_t p = 0; p < shape[0]; p++) {
+            for (std::size_t r = 0; r < shape[1]; r++) {
+                for (std::size_t c = 0; c < shape[2]; c++) {
+                    uint8_t value = tread_4b(t, p*shape[1] + r, c, shape[2]);
+                    twrite_4b(tnew, value, p*shape[2] + c, r, shape[1]);
+                }
+            }
+        }
+        t = std::move(tnew);
+    } else {
+        NPUW_ASSERT(false && "Not supported yet");
+    }
+}
 
 namespace {
 
