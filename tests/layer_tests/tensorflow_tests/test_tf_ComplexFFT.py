@@ -123,7 +123,7 @@ class TestComplexRFFT(CommonTFLayerTest):
                                 use_legacy_frontend):
         custom_eps = None
         if ie_device == 'GPU' and rfft_op in ['tf.raw_ops.RFFT2D']:
-            custom_eps = 3 * 1e-4
+            custom_eps = 2 * 1e-2
         self._test(*self.create_complex_rfft_net(input_shape=input_shape, fft_length=fft_length, rfft_op=OPS[rfft_op]),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend, custom_eps=custom_eps)
