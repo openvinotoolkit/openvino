@@ -234,6 +234,7 @@ void program::init_program() {
         _compilation_context = program::make_compilation_context(_config);
 
 
+    _layout_optimizer = cldnn::make_unique<layout_optimizer>();
     size_t impls_cache_capacity = _impls_cache_capacity;
     GPU_DEBUG_IF(debug_config->impls_cache_capacity >= 0) {
         impls_cache_capacity = debug_config->impls_cache_capacity;
@@ -550,8 +551,8 @@ void program::pre_optimize_graph(bool is_internal) {
         apply_opt_pass<prepare_quantization>();
     }
 
-    layout_optimizer lo(output_size_handling_enabled);
-    set_layout_optimizer_attributes(lo);
+    _layout_optimizer = cldnn::make_unique<layout_optimizer>(output_size_handling_enabled);
+    set_layout_optimizer_attributes(*_layout_optimizer);
 
     reorder_factory rf;
     if (optimize_data) {
@@ -564,7 +565,7 @@ void program::pre_optimize_graph(bool is_internal) {
             apply_opt_pass<prepare_primitive_fusing_through>();
         }
 
-        apply_opt_pass<pre_replace_deconv>(lo);
+        apply_opt_pass<pre_replace_deconv>();
 
         apply_opt_pass<reorder_transfer>();
 
@@ -573,12 +574,12 @@ void program::pre_optimize_graph(bool is_internal) {
 #else
         {
 #endif
-            apply_opt_pass<prepare_primitive_fusing>(lo);
+            apply_opt_pass<prepare_primitive_fusing>();
         }
 
-        apply_opt_pass<select_preferred_formats>(lo);
+        apply_opt_pass<select_preferred_formats>();
 
-        apply_opt_pass<reorder_inputs>(lo, rf);
+        apply_opt_pass<reorder_inputs>(rf);
         // Ideally this should be done before fusing to simplify logic and make the pass more powerful,
         // but after format selection to select correct alignment.
         // Unfortunately those passes currently happen in reverse order.
@@ -589,7 +590,7 @@ void program::pre_optimize_graph(bool is_internal) {
 
     apply_opt_pass<prepare_padding>(output_size_handling_enabled);
 
-    apply_opt_pass<remove_redundant_reorders>(lo, optimize_data);
+    apply_opt_pass<remove_redundant_reorders>(optimize_data);
 
     // try to fuse buffers (i.e. depth_concat in bfyx format) after padding calculations
     if (optimize_data) {
@@ -601,7 +602,7 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // Check fusing primitives based on preferred format or layout optimization
     if (optimize_data) {
-        apply_opt_pass<fuse_primitives_with_layout>(lo);
+        apply_opt_pass<fuse_primitives_with_layout>();
     }
 
     // add optimization attributes for onednn primitives
@@ -621,8 +622,6 @@ void program::post_optimize_graph(bool is_internal) {
     apply_opt_pass<post_input_reorder>();
 
     reorder_factory rf;
-    layout_optimizer lo;
-    set_layout_optimizer_attributes(lo);
 
     bool optimize_data = _config.get_property(ov::intel_gpu::optimize_data);
 
@@ -630,7 +629,7 @@ void program::post_optimize_graph(bool is_internal) {
         apply_opt_pass<post_optimize_weights>(rf);
     }
 
-    apply_opt_pass<remove_redundant_reorders>(lo, false, true);  // TODO: do we need it at this place also?
+    apply_opt_pass<remove_redundant_reorders>(false, true);  // TODO: do we need it at this place also?
 
     auto partial_build = _config.get_property(ov::intel_gpu::partial_build_program);
 #ifdef GPU_DEBUG_CONFIG
@@ -644,7 +643,7 @@ void program::post_optimize_graph(bool is_internal) {
     }
 
     if (optimize_data)
-        apply_opt_pass<remove_redundant_reorders>(lo, false, true, true); // pass to remove output reorders while all others graph optimizations were done
+        apply_opt_pass<remove_redundant_reorders>(false, true, true); // pass to remove output reorders while all others graph optimizations were done
 
     // update inner program input/output primitive mappings
     apply_opt_pass<update_inner_program_io_map>();
