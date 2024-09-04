@@ -46,14 +46,14 @@ class Filter {
     }
 
     // param: GraphData[]
-    static getKpis(graphDataArr) {
-        var kpis = []
+    static getParameters(graphDataArr) {
+        var parameters = []
         graphDataArr.filter((data) => {
             for (var key in data.Parameters) {
-                if (!kpis.includes(Graph.capitalizeFirstLetter(key))) kpis.push(Graph.capitalizeFirstLetter(key))
+                if (!parameters.includes(Graph.capitalizeFirstLetter(key))) parameters.push(Graph.capitalizeFirstLetter(key))
             }
         })
-        return kpis;
+        return parameters;
     }
 
     // param: GraphData[]
@@ -144,7 +144,6 @@ class Graph {
                 array.push([obj])
             }
         })
-        
         return array;
 
     }
@@ -207,16 +206,33 @@ $(document).ready(function () {
     function showModal() {
         $('body').css('overflow', 'hidden');
 
-        fetch('../_static/benchmarks_files/graph-data.json')
+        fetch('../_static/benchmarks_files/graph-data-ov.json')
             .then((response) => response.json())
-            .then((json) => {
+            .then((jsonData) => {
+                if(validateJson(jsonData) ===  true);
                 fetch('../_static/benchmarks_files/graph-config.json')
                     .then((configResponse) => configResponse.json())
                     .then((appConfig) => {
-                        renderModal(json, appConfig)
+                        renderModal(jsonData, appConfig)
                     })
             });
+    }
 
+    function validateJson(json) {
+        fetch('../_static/benchmarks_files/schema/graph-data-schema.json')
+            .then((jsonSchema) => jsonSchema.json())
+            .then((jsonSchema) => {
+                const ajv = new ajv7.default({ strict: false});
+
+                const validate = ajv.compile(jsonSchema);
+                json.forEach((benchmark) => {
+                    const valid = validate(benchmark);
+                    // if (!valid) console.log(validate.errors);
+                    // console.log(valid);
+                    return valid;
+                });                
+            })
+        return false;
     }
 
     function getSelectedNetworkModels() {
@@ -303,17 +319,19 @@ $(document).ready(function () {
             modal.find('#modal-display-graphs').hide();
             modal.find('.ietype-column input').first().prop('checked', true);
 
-            const kpiLabels = Filter.getKpis(graph).map((kpi) => createCheckMark(kpi, 'kpi', true));
+            const kpiLabels = Filter.getParameters(graph).map((parameter) => createCheckMark(parameter, 'kpi', false));
             modal.find('.kpi-column').append(kpiLabels);
 
             $('body').prepend(modal);
+
             preselectDefaultSettings(graph, modal, appConfig);
 
             //is not generic solution :(
             if (appConfig.DefaultSelections.platformTypes?.data?.includes('Select All')) {
                 selectAllCheckboxes(iefilter);
-                renderClientPlatforms(graph, modal);
+                
             };
+            renderClientPlatforms(graph, modal);
 
             $('.clear-all-btn').on('click', clearAll);
             $('#build-graphs-btn').on('click', () => {
@@ -330,8 +348,7 @@ $(document).ready(function () {
             });
 
             modal.find('.models-selectall input').on('click', function () {
-                if ($(this).prop('checked'))
-                    selectAllCheckboxes(models);
+                if ($(this).prop('checked')) selectAllCheckboxes(models);
                 else deSelectAllCheckboxes(models);
                 
                 renderClientPlatforms(graph, modal)
@@ -363,9 +380,9 @@ $(document).ready(function () {
             modal.find('.models-column input').on('click', () => renderClientPlatforms(graph, modal));
             modal.find('.ietype-column input').on('click', () => renderClientPlatforms(graph, modal));
             modal.find('.ietype-selectall input').on('click', () => renderClientPlatforms(graph, modal));
-            modal.find('.platforms-column').on('click', () => enabledKpis(graph, getSelectedClientPlatforms()));
+            modal.find('.platforms-column').on('click', () => enableParmeters(graph, getSelectedClientPlatforms()));
 
-            modal.find('.kpi-column input').on('click', validateThroughputSelection);
+            modal.find('.kpi-column input').on('click', validatePrecisionSelection);
             modal.find('input').on('click', validateSelections);
 
             var modalFilters = document.getElementById("modal-filters");
@@ -388,49 +405,60 @@ $(document).ready(function () {
         });
     }
 
-    function validateThroughputSelection() {
+    function validatePrecisionSelection() {
         const precisions = $('.precisions-column').find('input')
-        if (getSelectedKpis().includes('Throughput') || getSelectedKpis().includes('Latency')) {
-            precisions.prop('disabled', false);
-        }
-        else {
-            precisions.prop('disabled', false);
-        }
+        precisions.prop('disabled', false);
     }
 
     function clearAll() {
         $('.modal-content-grid-container input:checkbox').each((index, object) => $(object).prop('checked', false));
-        validateThroughputSelection();
+        validatePrecisionSelection();
         validateSelections();
     }
 
-    //do not change this
     function preselectDefaultSettings(graph, modal, appConfig) {
+
         const defaultSelections = appConfig.DefaultSelections;
+    
+        selectDefaultPlatformType(defaultSelections.platformTypes, graph, modal);
+    
+        applyPlatformFilters(defaultSelections.platformFilters, modal, graph);
+    
+        clearAllSettings(defaultSelections);
 
-        if (defaultSelections.platformTypes) {
-            const type = defaultSelections.platformTypes.data[0];
-            $(`input[data-ietype="${type}"]`).prop('checked', true);
-            renderClientPlatforms(graph, modal);
-        }
-
-        if (defaultSelections.platformFilters) {
-            const filters = modal.find('.selectable-box-container').children('.selectable-box');
-            filters.removeClass('selected');
-            defaultSelections.platformFilters.data.forEach(selection => {
-                filters.filter(`[data-${defaultSelections.platformFilters.name}="${selection}"]`).addClass('selected');
-            });
-            renderClientPlatforms(graph, modal);
-        }
+        validateSelections();
+        validatePrecisionSelection();
+    }
+    
+    function selectDefaultPlatformType(platformTypes, graph, modal) {
+        if (!platformTypes) return;
+    
+        const type = platformTypes.data[0];
+        $(`input[data-ietype="${type}"]`).prop('checked', true);
+        renderClientPlatforms(graph, modal);
+    }
+    
+    function applyPlatformFilters(platformFilters, modal, graph) {
+        if (!platformFilters) return;
+    
+        const filters = modal.find('.selectable-box-container').children('.selectable-box');
+        filters.removeClass('selected');
+    
+        platformFilters.data.forEach(selection => {
+            filters.filter(`[data-${platformFilters.name}="${selection}"]`).addClass('selected');
+        });
+    
+        renderClientPlatforms(graph, modal);
+    }
+    
+    function clearAllSettings(defaultSelections) {
         clearAll();
-        for (setting in defaultSelections) {
-            let name = defaultSelections[setting].name;
-            defaultSelections[setting].data.forEach(selection => {
+        Object.keys(defaultSelections).forEach(setting => {
+            const { name, data } = defaultSelections[setting];
+            data.forEach(selection => {
                 $(`input[data-${name}="${selection}"]`).prop('checked', true);
             });
-        }
-        validateThroughputSelection();
-        validateSelections();
+        });
     }
 
     function filterClientPlatforms(graph, ietypes) {
@@ -448,16 +476,16 @@ $(document).ready(function () {
 
         const clientPlatforms = platformNames.map((platform) => createCheckMark(platform, 'platform', true));
         
-        var enabledPlatforms = filterPlatforms(graph, getSelectedIeTypes(), getSelectedNetworkModels())
-        selectCheckboxesFromList(clientPlatforms, enabledPlatforms);
+        var enabledPlatforms = filterPlatforms(graph, getSelectedIeTypes(), getSelectedNetworkModels());
+        enableCheckBoxes(clientPlatforms, enabledPlatforms);
         modal.find('.platforms-column').append(clientPlatforms);
 
-        enabledKpis(graph, getSelectedClientPlatforms());
+        enableParmeters(graph, getSelectedClientPlatforms());
         modal.find('.platforms-column input').on('click', validateSelections);
     }
 
-    function enabledKpis(graph, clientPlatforms) {
-        var allKpis = Filter.getKpis(graph);
+    function enableParmeters(graph, clientPlatforms) {
+        var allKpis = Filter.getParameters(graph);
 
         allKpis.forEach((kpi) => {
             $(`input[data-kpi="${Graph.capitalizeFirstLetter(kpi)}"]`).prop('disabled', true);
@@ -488,7 +516,7 @@ $(document).ready(function () {
         });
     }
 
-    function selectCheckboxesFromList(items, enabledItems) {
+    function enableCheckBoxes(items, enabledItems) {
         items.forEach((item) => {            
             item.find(':input').prop('disabled', true);
             enabledItems.forEach((platform) => {
@@ -547,7 +575,6 @@ $(document).ready(function () {
                 ul.firstChild.remove();
             }
 
-            // Reuse the built-in legendItems generator
             const items = chart.legend.legendItems;
             items.forEach(item => {
                 const li = document.createElement('li');
@@ -700,6 +727,7 @@ $(document).ready(function () {
             });
             return config;
         });
+        
         // get the client platform labels and create labels for all the graphs
         var labels = Graph.getPlatformNames(model);
         var labelsContainer = $('<div>');

@@ -912,10 +912,7 @@ div.highlight {
     cursor: pointer;
     float: left;
 }
-.show-filter {
-    cursor: pointer;
-    float: right;
-}
+
 .close:hover,
 .close:focus {
     color: black;
@@ -990,6 +987,21 @@ div.highlight {
 
 .arrow-back-icon {
     content: url('media/arrow-back.svg');
+}
+
+.filters-label {
+    position: absolute;
+    font-weight: 400;
+    font-size: small;
+    /* top: -2px; */
+    right: 0px;
+    width: 90px;
+}
+
+.show-filter {
+    cursor: pointer;
+    position: relative;
+    float: right;
 }
 
 .show-filters-icon {

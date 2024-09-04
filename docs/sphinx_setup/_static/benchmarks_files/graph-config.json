@@ -58,16 +58,12 @@
         "platformTypes": {
             "name": "ietype",
             "data": [
-                "Select All",
-                "Mobile Platforms (Intel® Atom™) CPU",
                 "Client Platforms (Intel® Core™)"
             ]
         },
         "platforms": {
             "name": "platform",
             "data": [
-                "Intel 1 CPU-only",
-                "Intel 2 CPU-only"
             ]
         },
         "platformFilters": {
