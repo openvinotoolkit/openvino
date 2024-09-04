@@ -27,9 +27,10 @@ KERNEL(lstm_seq)(
 #endif
 )
 {
-    __local INPUT1_TYPE_VEC hiddencache[HBLOCK_NUM];
     #ifdef SEQUENCE 
         #if MAX_SEQ_LEN > 1
+            __local INPUT1_TYPE_VEC hiddencache_parity[HBLOCK_NUM];
+            __local INPUT1_TYPE_VEC hiddencache_nonparity[HBLOCK_NUM];
             INPUT3_TYPE_VEC r_block[NUM_HIDDEN_TO_DO][GATE_NUM][HBLOCK_NUM];
         #endif
     #endif    
@@ -51,23 +52,16 @@ KERNEL(lstm_seq)(
             #endif
         #endif
         #if MAX_SEQ_LEN > 1
-            barrier(CLK_LOCAL_MEM_FENCE);
-            unroll_for(uint l=0;l<NUM_HIDDEN_TO_DO;++l) { //kernel responsible for HIDDEN_SIZE
-                const uint hidden_idx = glocal_idx*NUM_HIDDEN_TO_DO + l;
-                if (hidden_idx >= HIDDEN_SIZE) {
-                    continue;
-                }
-                if(hidden_idx % VEC_SIZE == 0)
-                {
-                    #ifdef SEQUENCE
-                        if(i==0){
-                            hiddencache[hidden_idx / VEC_SIZE] = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, 0, hidden_idx, 0)]);
-                        } else {
-                            hiddencache[hidden_idx / VEC_SIZE] = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, hidden_idx)]);
-                        }
-                    #else
-                        hiddencache[hidden_idx / VEC_SIZE] = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, hidden_idx, 0)]);
-                    #endif
+            if(i==0){
+                unroll_for(uint l=0;l<NUM_HIDDEN_TO_DO;++l) { //kernel responsible for HIDDEN_SIZE
+                    const uint hidden_idx = glocal_idx*NUM_HIDDEN_TO_DO + l;
+                    if (hidden_idx >= HIDDEN_SIZE) {
+                        continue;
+                    }
+                    if(hidden_idx % VEC_SIZE == 0)
+                    {
+                        hiddencache_parity[hidden_idx / VEC_SIZE] = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, 0, hidden_idx, 0)]);
+                    }
                 }
             }
             barrier(CLK_LOCAL_MEM_FENCE);
@@ -93,7 +87,7 @@ KERNEL(lstm_seq)(
                         #if SEQUENCE && MAX_SEQ_LEN > 1
                             r_block[l][k][j] = READ_VEC(0, &R[r_index]);
                             r_index += VEC_SIZE;
-                            hidden_result += dot(hiddencache[j], r_block[l][k][j]);
+                            hidden_result += dot(hiddencache_parity[j], r_block[l][k][j]);
                         #else
                             INPUT3_TYPE_VEC r_block = READ_VEC(0, &R[r_index]);
                             r_index += VEC_SIZE;
@@ -104,7 +98,11 @@ KERNEL(lstm_seq)(
                     }else{
                         #ifdef SEQUENCE
                             #if MAX_SEQ_LEN > 1
-                                hidden_result += dot(hiddencache[j], r_block[l][k][j]);
+                                if(i%2==0){
+                                    hidden_result += dot(hiddencache_parity[j], r_block[l][k][j]);
+                                } else {
+                                    hidden_result += dot(hiddencache_nonparity[j], r_block[l][k][j]);
+                                }
                             #endif
                         #endif
                     }
@@ -158,8 +156,38 @@ KERNEL(lstm_seq)(
                     cell_state[OUTPUT1_GET_INDEX(b, hidden_idx, 0, 0)] = temp_cell_state[l];
                 #endif
             } else {
-                #ifdef SEQUENCE
-                    hidden_history[OUTPUT_GET_INDEX(b, 0, cur_history_idx, hidden_idx)] = gate_output[3]*ACTIVATION_H(temp_cell_state[l], ACTIVATION_PARAMS_H);
+                #if MAX_SEQ_LEN > 1
+                    OUTPUT_TYPE history_val = gate_output[3]*ACTIVATION_H(temp_cell_state[l], ACTIVATION_PARAMS_H);
+                        if(i%2 == 0){
+                            if(hidden_idx%VEC_SIZE == 0){
+                                hiddencache_nonparity[hidden_idx/VEC_SIZE].s0 = history_val;
+                            } else if(hidden_idx%VEC_SIZE == 1) {
+                                hiddencache_nonparity[hidden_idx/VEC_SIZE].s1 = history_val;
+                            #if VEC_SIZE == 4
+                                } else if(hidden_idx%VEC_SIZE == 2) {
+                                    hiddencache_nonparity[hidden_idx/VEC_SIZE].s2 = history_val;
+                                } else {
+                                    hiddencache_nonparity[hidden_idx/VEC_SIZE].s3 = history_val;
+                                }
+                            #else //VEC_SIZE == 4
+                                }
+                            #endif
+                        } else {
+                            if(hidden_idx%VEC_SIZE == 0){
+                                hiddencache_parity[hidden_idx/VEC_SIZE].s0 = history_val;
+                            } else if(hidden_idx%VEC_SIZE == 1) {
+                                hiddencache_parity[hidden_idx/VEC_SIZE].s1 = history_val;
+                            #if VEC_SIZE == 4
+                                } else if(hidden_idx%VEC_SIZE == 2) {
+                                    hiddencache_parity[hidden_idx/VEC_SIZE].s2 = history_val;
+                                } else {
+                                    hiddencache_parity[hidden_idx/VEC_SIZE].s3 = history_val;
+                                }
+                            #else
+                                }
+                            #endif //VEC_SIZE == 4
+                        }
+                    hidden_history[OUTPUT_GET_INDEX(b, 0, cur_history_idx, hidden_idx)] = history_val;
                 #endif
             }
         }
