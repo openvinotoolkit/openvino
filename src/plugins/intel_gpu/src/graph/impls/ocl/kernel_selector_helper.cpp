@@ -1222,8 +1222,7 @@ void set_default_params(const kernel_impl_params& param_info, kernel_selector::b
 
                 for (auto& dep : desc.dep_data) {
                     if (dep.dep_type == kernel_selector::DepType::UNDEFINED) {
-                        dep.dep_type    = kernel_selector::DepType::ORIGINAL;
-                        break;
+                        dep.dep_type = kernel_selector::DepType::ORIGINAL;
                     }
                 }
             }
