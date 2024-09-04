@@ -747,7 +747,7 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
     if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
-        && !is_weight_with_small_ofm(fc_params, output_f) && !is_weight_with_large_ifm(fc_params)
+        && output_f >= 10240 && !is_weight_with_large_ifm(fc_params)
         && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_iyx_osv64)
         && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)) {
         // Large N + Small K case to use [osv64] + TILE_OFM 4 for batch 1
