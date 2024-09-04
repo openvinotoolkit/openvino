@@ -47,7 +47,8 @@ U4BlockRepack::U4BlockRepack(bool is_symmetrical) {
         std::make_shared<Matcher>(m_reshape2, "ov::frontend::pytorch::pass::U4BlockRepack"),
         [=](Matcher& m) {
             auto& pattern_to_output = m.get_pattern_value_map();
-            auto constant = std::dynamic_pointer_cast<v0::Constant>(pattern_to_output[m_constant].get_node_shared_ptr());
+            auto constant =
+                std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output[m_constant].get_node_shared_ptr());
             if (!constant)
                 return false;
             auto reshape1 = pattern_to_output[m_reshape1].get_node_shared_ptr();
