@@ -70,14 +70,8 @@ public:
           pfnGraphGetArgumentMetadata(_impl->pfnGraphGetArgumentMetadata),
           pfnGetArgumentProperties2(_impl->pfnGetArgumentProperties2),
           // version 1.2
-          pfnGetArgumentProperties3(_impl->pfnGetArgumentProperties3),
-          // version 1.3
-          pfnQueryNetworkCreate(_impl->pfnQueryNetworkCreate),
-          pfnQueryNetworkDestroy(_impl->pfnQueryNetworkDestroy),
-          pfnQueryNetworkGetSupportedLayers(_impl->pfnQueryNetworkGetSupportedLayers),
-          // version 1.4
-          pfnBuildLogGetString(_impl->pfnBuildLogGetString) {
-        // version 1.5
+          pfnGetArgumentProperties3(_impl->pfnGetArgumentProperties3) {
+        // version 1.3
         // wrappers replace pointers
     }
     ~ze_graph_dditable_ext_decorator() = default;
@@ -105,12 +99,31 @@ public:
     ze_pfnGraphGetArgumentProperties_ext_3_t pfnGetArgumentProperties3;
 
     // version 1.3
-    ze_pfnGraphQueryNetworkCreate_ext_t pfnQueryNetworkCreate;
-    ze_pfnGraphQueryNetworkDestroy_ext_t pfnQueryNetworkDestroy;
-    ze_pfnGraphQueryNetworkGetSupportedLayers_ext_t pfnQueryNetworkGetSupportedLayers;
+    ze_result_t ZE_APICALL pfnQueryNetworkCreate(ze_context_handle_t hContext,
+                                                 ze_device_handle_t hDevice,
+                                                 const ze_graph_desc_t* desc,
+                                                 ze_graph_query_network_handle_t* phGraphQueryNetwork) {
+        throwWhenUnsupported("pfnQueryNetworkCreate", ZE_GRAPH_EXT_VERSION_1_3);
+        return _impl->pfnQueryNetworkCreate(hContext, hDevice, desc, phGraphQueryNetwork);
+    }
+
+    ze_result_t ZE_APICALL pfnQueryNetworkDestroy(ze_graph_query_network_handle_t hGraphQueryNetworkk) {
+        throwWhenUnsupported("pfnQueryNetworkDestroy", ZE_GRAPH_EXT_VERSION_1_3);
+        return _impl->pfnQueryNetworkDestroy(hGraphQueryNetworkk);
+    }
+
+    ze_result_t ZE_APICALL pfnQueryNetworkGetSupportedLayers(ze_graph_query_network_handle_t hGraphQueryNetwork,
+                                                             size_t* pSize,
+                                                             char* pSupportedLayers) {
+        throwWhenUnsupported("pfnQueryNetworkGetSupportedLayers", ZE_GRAPH_EXT_VERSION_1_3);
+        return _impl->pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork, pSize, pSupportedLayers);
+    }
 
     // version 1.4
-    ze_pfnGraphBuildLogGetString_ext_t pfnBuildLogGetString;
+    ze_result_t ZE_APICALL pfnBuildLogGetString(ze_graph_handle_t hGraph, uint32_t* pSize, char* pBuildLog) {
+        throwWhenUnsupported("pfnBuildLogGetString", ZE_GRAPH_EXT_VERSION_1_4);
+        return _impl->pfnBuildLogGetString(hGraph, pSize, pBuildLog);
+    }
 
     // version 1.5
     ze_result_t ZE_APICALL pfnCreate2(ze_context_handle_t hContext,
@@ -146,9 +159,8 @@ public:
 
 /**
  * @brief Command Queue function wrappers
- * @details Use original Command Queue functions pointers from driver for function from within lower driver versions.
- * Use function wrappers for function from within higher driver versions in order to throw when loaded driver is older
- * than required
+ * @details Use function wrappers for function from within higher driver versions in order to throw when loaded driver
+ * is older than required
  */
 struct ze_command_queue_npu_dditable_ext_decorator final {
 private:
@@ -190,10 +202,8 @@ public:
 };
 
 /**
- * @brief Graph profiling function wrappers
+ * @brief Graph profiling function pointers
  * @details Use original Graph profiling functions pointers from driver for function from within lower driver versions.
- * Use function wrappers for function from within higher driver versions in order to throw when loaded driver is older
- * than required
  */
 struct ze_graph_profiling_ddi_table_ext_decorator final {
 private:
