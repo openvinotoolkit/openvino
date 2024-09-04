@@ -80,7 +80,7 @@ protected:
         }
     }
 
-    static int gcd(int a, int b) {
+    static size_t gcd(size_t a, size_t b) {
         while (a != b) {
             if (a > b) {
                 a -= b;
@@ -91,18 +91,18 @@ protected:
         return a;
     }
 
-    static size_t get_num_hidden_kernels(int hidden_size, int max_work_group_size) {
+    static size_t get_num_hidden_kernels(size_t hidden_size, size_t max_work_group_size) {
         if (max_work_group_size >= hidden_size) {
             return static_cast<size_t>(hidden_size);
         } else {
-            int gcd_result = gcd(max_work_group_size, hidden_size);
-            int minimal_number_when_gcd_low = 16;
+            size_t gcd_result = gcd(max_work_group_size, hidden_size);
+            size_t minimal_number_when_gcd_low = 16;
             if (gcd_result < minimal_number_when_gcd_low) {
                 if (minimal_number_when_gcd_low < max_work_group_size && minimal_number_when_gcd_low < hidden_size) {
-                    return static_cast<size_t>(minimal_number_when_gcd_low);
+                    return minimal_number_when_gcd_low;
                 }
             }
-            return static_cast<size_t>(minimal_number_when_gcd_low);
+            return gcd_result;
         }
     }
 };

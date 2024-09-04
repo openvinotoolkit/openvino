@@ -105,14 +105,14 @@ KernelsData LSTMKernelBase::GetCommonKernelsData(const Params& params, bool sequ
     }
     size_t num_hidden_kernels;
     if (sequential) {
-        num_hidden_kernels = get_num_hidden_kernels(out.X().v, static_cast<int>(params.engineInfo.maxWorkGroupSize));
+        num_hidden_kernels = get_num_hidden_kernels(out.X().v, static_cast<size_t>(params.engineInfo.maxWorkGroupSize));
     } else {
-        num_hidden_kernels = get_num_hidden_kernels(out.Feature().v, static_cast<int>(params.engineInfo.maxWorkGroupSize));
+        num_hidden_kernels = get_num_hidden_kernels(out.Feature().v, static_cast<size_t>(params.engineInfo.maxWorkGroupSize));
     }
     auto cldnnJit = GetJitConstants(orgParams, sequential, num_hidden_kernels);
     auto entryPoint = GetEntryPoint(kernelName, orgParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
-    kernel.params.workGroups.global = {static_cast<size_t>(num_hidden_kernels), out.Batch().v, 1};
+    kernel.params.workGroups.global = {num_hidden_kernels, out.Batch().v, 1};
     if (bfyx && ((sequential && static_cast<int>(orgParams.inputs[0].Feature().v) == 1) || !sequential)) {
         size_t expected_local_hidden = 8;
         long unsigned int local_hidden = static_cast<unsigned int>(std::min(expected_local_hidden, num_hidden_kernels));
