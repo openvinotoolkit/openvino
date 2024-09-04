@@ -4,66 +4,72 @@
 
 const { addon: ov } = require('../..');
 const assert = require('assert');
-const { describe, it } = require('node:test');
+const { describe, it, beforeEach } = require('node:test');
 
-const core = new ov.Core();
+describe('ov.Core tests', () => {
 
-it('Core.setProperty()', () => {
-  const tmpDir = '/tmp';
+  let core = null;
+  beforeEach(() => {
+    core = new ov.Core();
+  });
 
-  core.setProperty({ 'CACHE_DIR': tmpDir });
+  it('Core.setProperty()', () => {
+    const tmpDir = '/tmp';
 
-  const cacheDir = core.getProperty('CACHE_DIR');
+    core.setProperty({ 'CACHE_DIR': tmpDir });
 
-  assert.equal(cacheDir, tmpDir);
-});
+    const cacheDir = core.getProperty('CACHE_DIR');
 
-it('Core.setProperty(\'CPU\')', () => {
-  const tmpDir = '/tmp';
+    assert.equal(cacheDir, tmpDir);
+  });
 
-  core.setProperty('CPU', { 'CACHE_DIR': tmpDir });
+  it('Core.setProperty(\'CPU\')', () => {
+    const tmpDir = '/tmp';
 
-  const cacheDir = core.getProperty('CPU', 'CACHE_DIR');
+    core.setProperty('CPU', { 'CACHE_DIR': tmpDir });
 
-  assert.equal(cacheDir, tmpDir);
-});
+    const cacheDir = core.getProperty('CPU', 'CACHE_DIR');
 
-it('Core.getProperty(\'CPU\', \'SUPPORTED_PROPERTIES\') is Array', () => {
-  const supportedPropertiesArray = core.getProperty('CPU', 'SUPPORTED_PROPERTIES');
+    assert.equal(cacheDir, tmpDir);
+  });
 
-  assert.ok(Array.isArray(supportedPropertiesArray));
-});
+  it('Core.getProperty(\'CPU\', \'SUPPORTED_PROPERTIES\') is Array', () => {
+    const supportedPropertiesArray = core.getProperty('CPU', 'SUPPORTED_PROPERTIES');
 
-it('Core.setProperty(\'CPU\', { \'NUM_STREAMS\': 5 })', () => {
-  const streams = 5;
+    assert.ok(Array.isArray(supportedPropertiesArray));
+  });
 
-  core.setProperty('CPU', { 'NUM_STREAMS': streams });
-  const result = core.getProperty('CPU', 'NUM_STREAMS');
+  it('Core.setProperty(\'CPU\', { \'NUM_STREAMS\': 5 })', () => {
+    const streams = 5;
 
-  assert.equal(result, streams);
-});
+    core.setProperty('CPU', { 'NUM_STREAMS': streams });
+    const result = core.getProperty('CPU', 'NUM_STREAMS');
 
-it('Core.setProperty(\'CPU\', { \'INFERENCE_NUM_THREADS\': 3 })', () => {
-  const threads = 3;
+    assert.equal(result, streams);
+  });
 
-  core.setProperty('CPU', { 'INFERENCE_NUM_THREADS': threads });
-  const result = core.getProperty('CPU', 'INFERENCE_NUM_THREADS');
+  it('Core.setProperty(\'CPU\', { \'INFERENCE_NUM_THREADS\': 3 })', () => {
+    const threads = 3;
 
-  assert.equal(result, threads);
-});
+    core.setProperty('CPU', { 'INFERENCE_NUM_THREADS': threads });
+    const result = core.getProperty('CPU', 'INFERENCE_NUM_THREADS');
 
-it('Core.addExtension() with empty parameters', () => {
-  assert.throws(
-    () => core.addExtension(),
-    /addExtension method applies one argument of string type/
-  );
-});
+    assert.equal(result, threads);
+  });
 
-it('Core.addExtension(\'not_exists\') with non-existed library', () => {
-  const notExistsExt = 'not_exists';
+  it('Core.addExtension() with empty parameters', () => {
+    assert.throws(
+      () => core.addExtension(),
+      /addExtension method applies one argument of string type/
+    );
+  });
 
-  assert.throws(
-    () => core.addExtension(notExistsExt),
-    /Cannot load library 'not_exists'/
-  );
+  it('Core.addExtension(\'not_exists\') with non-existed library', () => {
+    const notExistsExt = 'not_exists';
+
+    assert.throws(
+      () => core.addExtension(notExistsExt),
+      /Cannot load library 'not_exists'/
+    );
+  });
 });

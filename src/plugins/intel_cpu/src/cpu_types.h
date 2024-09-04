@@ -67,6 +67,8 @@ enum class Type {
     ScatterUpdate,
     ScatterElementsUpdate,
     ScatterNDUpdate,
+    StringTensorPack,
+    StringTensorUnpack,
     Interpolate,
     Reduce,
     Broadcast,
@@ -127,6 +129,7 @@ enum class Type {
     CausalMaskPreprocess,
     LLMMLP,
     QKVProjection,
+    RMS
 };
 
 enum class Algorithm {
@@ -201,6 +204,8 @@ enum class Algorithm {
     EltwiseBitwiseNot,
     EltwiseBitwiseOr,
     EltwiseBitwiseXor,
+    EltwiseBitwiseLeftShift,
+    EltwiseBitwiseRightShift,
 
     // FakeQuantize algorithms
     FQCommon,

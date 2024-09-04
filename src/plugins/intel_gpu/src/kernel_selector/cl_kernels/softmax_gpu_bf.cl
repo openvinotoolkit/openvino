@@ -35,6 +35,9 @@
 
 #endif
 
+#if !IS_DYNAMIC
+__attribute__((reqd_work_group_size(LWS, 1, 1)))
+#endif
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL (softmax_gpu_continuous_bfyx)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -87,6 +90,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
 
     INPUT0_TYPE my_chunk[STACK_SIZE];
     INPUT0_TYPE my_sum = UNIT_VAL_ZERO;
+    INPUT0_TYPE my_maximum = -UNIT_VAL_MAX;
 
     __local INPUT0_TYPE lg_storage[SLM_SIZE];
 
@@ -108,6 +112,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
             unroll_for (int j = 0; j < OPT_BLOCK_SIZE; j++)
             {
                 my_chunk[input_idx+j] = vec_tmp[j];
+                my_maximum = max(my_maximum, vec_tmp[j]);
             }
         }
 
@@ -115,6 +120,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         {
             BLOCK_TYPE vec_tmp = BLOCK_READ(input, aligned_data_offset + input_idx * get_sub_group_size());
             my_chunk[input_idx] = vec_tmp;
+            my_maximum = max(my_maximum, vec_tmp);
         }
     }
 #else
@@ -125,11 +131,13 @@ KERNEL (softmax_gpu_continuous_bfyx)(
             BLOCK_TYPE vec_tmp = BLOCK_READ(input, aligned_data_offset + input_idx * get_sub_group_size());
 #if SUBGROUP_BLOCK_SIZE == 1
             my_chunk[input_idx] = vec_tmp;
+            my_maximum = max(my_maximum, vec_tmp);
 #else
             unroll_for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++)
             {
                 INPUT0_TYPE tmp = vec_tmp[j];
                 my_chunk[input_idx+j] = tmp;
+                my_maximum = max(my_maximum, tmp);
             }
 #endif
         }
@@ -138,29 +146,23 @@ KERNEL (softmax_gpu_continuous_bfyx)(
 
     for (; input_idx < items_num; input_idx++)
     {
-        my_chunk[input_idx] = input[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()];
+        INPUT0_TYPE tmp = input[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()];
+        my_chunk[input_idx] = tmp;
+        my_maximum = max(my_maximum, tmp);
     }
 
     if (in_data_set_idx < aligned_offset)
     {
         INPUT0_TYPE tmp = input[data_set_offset + in_data_set_idx];
         my_chunk[input_idx++] = tmp;
+        my_maximum = max(my_maximum, tmp);
     }
 
     if (in_data_set_idx < actual_leftovers)
     {
         INPUT0_TYPE tmp = input[leftover_idx];
         my_chunk[input_idx++] = tmp;
-    }
-
-    INPUT0_TYPE my_maximum = -UNIT_VAL_MAX;
-    {
-        const uint num_iters = input_idx;
-
-        for (uint j=0; j<num_iters; ++j)
-        {
-            my_maximum = max(my_maximum, my_chunk[j]);
-        }
+        my_maximum = max(my_maximum, tmp);
     }
 
     my_maximum = sub_group_reduce_max(my_maximum);
@@ -340,6 +342,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
             unroll_for (int j = 0; j < OPT_BLOCK_SIZE; j++)
             {
                 output[aligned_data_offset + get_sub_group_local_id() + (input_idx + j) * get_sub_group_size()] = vec_tmp[j];
+                my_maximum = max(my_maximum, vec_tmp[j]);
             }
         }
 
@@ -347,41 +350,29 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         {
             BLOCK_TYPE vec_tmp = BLOCK_READ(input, aligned_data_offset + input_idx * get_sub_group_size());
             output[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()] = vec_tmp;
+            my_maximum = max(my_maximum, vec_tmp);
         }
     }
 
     for (; input_idx < items_num; input_idx++)
     {
-        output[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()]
-        = input[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()];
+        INPUT0_TYPE tmp = input[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()];
+        output[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()] = tmp;
+        my_maximum = max(my_maximum, tmp);
     }
 
     if (in_data_set_idx < aligned_offset)
     {
         INPUT0_TYPE tmp = input[data_set_offset + in_data_set_idx];
         output[data_set_offset + in_data_set_idx] = tmp;
+        my_maximum = max(my_maximum, tmp);
     }
 
     if (in_data_set_idx < actual_leftovers)
     {
         INPUT0_TYPE tmp = input[leftover_idx];
         output[leftover_idx] = tmp;
-    }
-
-    INPUT0_TYPE my_maximum = -UNIT_VAL_MAX;
-    {
-        const uint num_iters = input_idx;
-
-        for (uint j=0; j<num_iters; ++j)
-        {
-            my_maximum = max(my_maximum, output[aligned_data_offset + get_sub_group_local_id() + j * get_sub_group_size()]);
-        }
-        if (in_data_set_idx < aligned_offset) {
-            my_maximum = max(my_maximum, output[data_set_offset + in_data_set_idx]);
-        }
-        if (in_data_set_idx < actual_leftovers) {
-            my_maximum = max(my_maximum, output[leftover_idx]);
-        }
+        my_maximum = max(my_maximum, tmp);
     }
 
     my_maximum = sub_group_reduce_max(my_maximum);

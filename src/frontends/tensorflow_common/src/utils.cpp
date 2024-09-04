@@ -30,6 +30,7 @@
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -560,6 +561,15 @@ shared_ptr<Node> hsv_to_rgb(const ov::Output<ov::Node>& h,
 
     // return concatenated RGB
     return rgb_adjust;
+}
+
+ov::Output<ov::Node> create_dense_tensor(const ov::Output<ov::Node>& indices,
+                                         const ov::Output<ov::Node>& shape,
+                                         const ov::Output<ov::Node>& values) {
+    auto zero_const = create_same_type_const_scalar<int32_t>(values, 0);
+    ov::Output<ov::Node> dense_tensor = std::make_shared<v3::Broadcast>(zero_const, shape);
+    dense_tensor = std::make_shared<v15::ScatterNDUpdate>(dense_tensor, indices, values);
+    return dense_tensor;
 }
 
 }  // namespace tensorflow
