@@ -15,7 +15,6 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -33,11 +32,15 @@ struct TypePrinter {
     static constexpr const char* name();
 };
 
-#define TYPE_PRINTER(type)                                    \
-    template <>                                               \
-    struct TypePrinter<type> {                                \
-        static constexpr bool hasName() { return true; }      \
-        static constexpr const char* name() { return #type; } \
+#define TYPE_PRINTER(type)                    \
+    template <>                               \
+    struct TypePrinter<type> {                \
+        static constexpr bool hasName() {     \
+            return true;                      \
+        }                                     \
+        static constexpr const char* name() { \
+            return #type;                     \
+        }                                     \
     };
 
 TYPE_PRINTER(bool)
@@ -355,8 +358,8 @@ public:
     void walk(std::function<void(const details::OptionConcept&)> cb) const;
 
 private:
-    std::unordered_map<std::string, details::OptionConcept> _impl;
-    std::unordered_map<std::string, std::string> _deprecated;
+    std::map<std::string, details::OptionConcept> _impl;
+    std::map<std::string, std::string> _deprecated;
 };
 
 template <class Opt>
@@ -380,7 +383,7 @@ void OptionsDesc::add() {
 class Config final {
 public:
     using ConfigMap = std::map<std::string, std::string>;
-    using ImplMap = std::unordered_map<std::string, std::shared_ptr<details::OptionValue>>;
+    using ImplMap = std::map<std::string, std::shared_ptr<details::OptionValue>>;
 
     explicit Config(const std::shared_ptr<const OptionsDesc>& desc);
 
