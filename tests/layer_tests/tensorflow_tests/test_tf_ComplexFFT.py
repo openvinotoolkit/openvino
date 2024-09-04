@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import platform
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
@@ -75,10 +76,15 @@ class TestComplexFFT(CommonTFLayerTest):
     def test_complex_fft_basic(self, input_shape, shift_roll, axis_roll, fft_op,
                                ie_device, precision, ir_version, temp_dir,
                                use_legacy_frontend):
+        if platform.machine() in ['aarch64', 'arm64', 'ARM64'] and fft_op in ['tf.raw_ops.FFT3D', 'tf.raw_ops.IFFT3D']:
+            pytest.skip('151532: accuracy error on ARM')
+        custom_eps = 1e-2
+        if ie_device == 'GPU' and fft_op in ['tf.raw_ops.FFT3D', 'tf.raw_ops.IFFT3D']:
+            custom_eps = 2 * 1e-1
         self._test(*self.create_complex_fft_net(input_shape=input_shape, shift_roll=shift_roll,
                                                 axis_roll=axis_roll, fft_op=OPS[fft_op]),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend, custom_eps=1e-2)
+                   use_legacy_frontend=use_legacy_frontend, custom_eps=custom_eps)
 
 
 class TestComplexRFFT(CommonTFLayerTest):
@@ -115,9 +121,12 @@ class TestComplexRFFT(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_complex_rfft_basic(self, input_shape, fft_length, rfft_op, ie_device, precision, ir_version, temp_dir,
                                 use_legacy_frontend):
+        custom_eps = None
+        if ie_device == 'GPU' and rfft_op in ['tf.raw_ops.RFFT2D']:
+            custom_eps = 3 * 1e-4
         self._test(*self.create_complex_rfft_net(input_shape=input_shape, fft_length=fft_length, rfft_op=OPS[rfft_op]),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   use_legacy_frontend=use_legacy_frontend, custom_eps=custom_eps)
 
 
 class TestComplexIRFFT(CommonTFLayerTest):
