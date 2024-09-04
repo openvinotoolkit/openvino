@@ -103,7 +103,7 @@ TEST(remove_redundant_reorders, optimize_fsv16_to_bfyx) {
     ASSERT_NE(prog, nullptr);
     auto& fc_node = prog->get_node("fc");
     auto fc_in_layout = fc_node.get_input_layouts();
-    ASSERT_EQ(fc_in_layout.front().data_padding.upper_size().feature[0], 0);
+    ASSERT_EQ(fc_in_layout.front().data_padding._upper_size[1], 0);
 }
 
 TEST(remove_redundant_reorders, skip_reorder_fusing_when_sibling_not_support_padding) {
