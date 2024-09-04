@@ -1,4 +1,4 @@
-name: Fedora 28 (RHEL 8), Python 3.8
+name: Fedora 29 (RHEL 8.4), Python 3.8
 on:
   workflow_dispatch:
   pull_request:
@@ -10,7 +10,7 @@ on:
 
 concurrency:
   # github.ref is not unique in post-commit
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-fedora-28
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-fedora-29
   cancel-in-progress: true
 
 permissions: read-all
@@ -63,7 +63,7 @@ jobs:
         id: handle_docker
         with:
           images: |
-            ov_build/fedora_28
+            ov_build/fedora_29
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -74,10 +74,10 @@ jobs:
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_28 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_29 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
-      os: 'fedora_28'
+      os: 'fedora_29'
       build-contrib: false
       build-debian-packages: false
       build-js: false
@@ -95,7 +95,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release
 
   Overall_Status:
-    name: ci/gha_overall_status_fedora_28
+    name: ci/gha_overall_status_fedora_29
     needs: [Smart_CI, Build]
     if: ${{ always() }}
     runs-on: ubuntu-latest

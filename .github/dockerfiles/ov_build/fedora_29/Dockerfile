@@ -1,18 +1,21 @@
-FROM openvinogithubactions.azurecr.io/dockerio/library/fedora:28
+FROM openvinogithubactions.azurecr.io/dockerio/library/fedora:29
 
 USER root
 
 RUN yum update -y && yum install -y \
     git \
     curl \
+    # To build Python from source
+    openssl-devel \
+    bzip2-devel \
+    libffi-devel \
+    zlib-devel \
+    wget \
+    make \
     tar \
-    wget
-
-# Install brew
-RUN wget -O brew_install.sh https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh
-ENV NONINTERACTIVE=1
-RUN chmod +x brew_install.sh && ./brew_install.sh
-ENV PATH="/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:$PATH"
+    gcc \
+    gcc-c++ \
+    xz
 
 # Install build dependencies
 ADD install_build_dependencies.sh /install_build_dependencies.sh
@@ -21,7 +24,12 @@ RUN chmod +x /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Setup Python
-RUN brew install python@3.8
+RUN cd /usr/src && \
+    wget https://www.python.org/ftp/python/3.8.9/Python-3.8.9.tar.xz && \
+    tar xvf Python-3.8.9.tar.xz
+RUN cd /usr/src/Python-3.8.9 && \
+    ./configure --enable-optimizations && \
+    make altinstall
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
@@ -48,5 +56,11 @@ ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 RUN python3.8 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
-# Setup Node
-RUN brew install node
+# Install Node
+ENV NODE_VERSION=21.7.3
+ENV NVM_DIR=/.nvm
+RUN mkdir -p $NVM_DIR
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+RUN . "$NVM_DIR/nvm.sh" && nvm install ${NODE_VERSION}
+ENV PATH="$NVM_DIR/versions/node/v${NODE_VERSION}/bin/:${PATH}"
+
