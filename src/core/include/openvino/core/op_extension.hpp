@@ -46,7 +46,7 @@ public:
     /**
      * @brief Destructor
      */
-    ~BaseOpExtension() override;
+    virtual ~BaseOpExtension() override;
 };
 
 namespace detail {
