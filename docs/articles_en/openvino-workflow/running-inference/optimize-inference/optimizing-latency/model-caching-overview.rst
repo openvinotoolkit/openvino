@@ -162,5 +162,5 @@ This property can currently only be set in ``compile_model``.
 
 .. important::
 
-   Now only cpu device supports this property. For those that don't, setting this property will perform normally
-   but will not encrypt/decrypt the model topology in cache.
+   Currently, this property is only supported by CPU plugin. For other HW plugins, setting this property will perform
+   normally but do not encrypt/decrypt the model topology in cache.
