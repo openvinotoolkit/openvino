@@ -22,7 +22,7 @@ jobs:
   rerun:
     name: Rerun Workflow
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}  # Run only for the failed workflows
-    runs-on: aks-linux-2-cores-8gb
+    runs-on: aks-linux-2-cores-8gb-staging
     permissions:
       actions: write
       contents: read
@@ -58,7 +58,7 @@ jobs:
   rerunner_tests:
     name: Rerunner Tests
     if: ${{ github.event_name == 'pull_request' }}
-    runs-on: aks-linux-2-cores-8gb
+    runs-on: aks-linux-2-cores-8gb-staging
     steps:
       - name: Checkout
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
