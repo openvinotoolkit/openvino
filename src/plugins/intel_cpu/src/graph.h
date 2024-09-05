@@ -10,6 +10,7 @@
 #include "node.h"
 #include "edge.h"
 #include "graph_context.h"
+#include "memory_control.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 
 #include <map>
@@ -40,6 +41,8 @@ public:
     };
 
     Graph() = default;
+    Graph(Graph&&) = default;
+    Graph& operator=(Graph&&) = default;
 
     ~Graph();
 
@@ -204,10 +207,6 @@ protected:
     // values mean increment it within each Infer() call
     int infer_count = -1;
 
-    bool reuse_io_tensors = true;
-
-    MemoryPtr memWorkspace;
-
     std::vector<NodePtr> graphNodes;
     std::vector<EdgePtr> graphEdges;
 
@@ -236,11 +235,21 @@ protected:
     friend std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph);
 
 private:
+    using event_t = void (Graph::*)(void);
+
+private:
+    void EnforceInferencePrecision();
+    void EnforceBF16();
+    void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
+    void insertConvert(EdgePtr& edge);
+    int GetNumaNodeId() const;
+
+private:
     // TODO: change std::map to std::unordered_map
     std::map<std::size_t, NodePtr> inputNodesMap;
     std::map<std::size_t, NodePtr> outputNodesMap;
 
-    std::unordered_map<std::size_t, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
+    std::unordered_map<std::size_t, ProxyMemoryBlockPtr> outputNodesMemBlocksMap;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
     // constantness of nodes in Infer methods and calls of
@@ -251,11 +260,7 @@ private:
     GraphContext::CPtr context;
     dnnl::stream m_stream;
 
-    void EnforceInferencePrecision();
-    void EnforceBF16();
-    void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
-    void insertConvert(EdgePtr& edge);
-    int GetNumaNodeId() const;
+    MemoryControl* m_pMemoryControl = nullptr;
 };
 
 using GraphPtr = std::shared_ptr<Graph>;
