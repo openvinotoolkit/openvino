@@ -14,8 +14,8 @@ namespace v0 {
 namespace {
 template <typename T>
 bool apply_allow_axis_skip(const Squeeze* const op,
-                        const std::unique_ptr<std::set<int64_t>>& unique_axes,
-                        const T& arg_shape) {
+                           const std::unique_ptr<std::set<int64_t>>& unique_axes,
+                           const T& arg_shape) {
     using DimType = typename T::value_type;
     int64_t i{-1};
 
@@ -132,6 +132,9 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
 
     const auto& deduced_output_shape = op->get_deduced_output_shape();
     if (deduced_output_shape.first && output_shape.rank().is_dynamic()) {
+        std::cout << "######### Squeeze shape infer: " << op->get_friendly_name()
+                  << ", output shape rank: " << output_shape.rank()
+                  << ", deduced shape rank: " << deduced_output_shape.second.get().rank() << std::endl;
         output_shape = deduced_output_shape.second.get();
     }
 
