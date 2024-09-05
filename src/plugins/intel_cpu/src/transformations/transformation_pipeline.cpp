@@ -36,6 +36,7 @@
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.hpp"
+#include "transformations/common_optimizations/mark_floatpoint_range.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
@@ -860,8 +861,10 @@ void Transformations::PostLpt() {
         ov::intel_cpu::DecomposeRMSNorm);
 
     // markup Rope Input when BF16/F16 inference.
-    if (one_of(inferencePrecision, ov::element::bf16, ov::element::f16))
+    if (one_of(inferencePrecision, ov::element::bf16, ov::element::f16)) {
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkRopeInputsToKeepInMixedPrecision);
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkFloatingPointRange);
+    }
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by Snippets.
     auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::SymbolicOptimizations, false);
