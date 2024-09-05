@@ -149,14 +149,14 @@ This property can currently only be set in ``compile_model``.
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet::
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.py
          :language: py
          :fragment: [ov:caching:part4]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet::
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
          :language: cpp
          :fragment: [ov:caching:part4]
 
