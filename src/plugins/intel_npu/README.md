@@ -174,6 +174,9 @@ The following properties are supported:
 | `ov::intel_npu::driver_version`/</br>`NPU_DRIVER_VERSION` | RO | NPU driver version (for both discrete/integrated NPU devices). | `N/A` | `N/A` |
 | `ov::intel_npu::compilation_mode_params`/</br>`NPU_COMPILATION_MODE_PARAMS` | RW | Set various parameters supported by the NPU compiler. (See bellow) | `<std::string>`| `N/A` |
 | `ov::intel_npu::turbo`/</br>`NPU_TURBO` | RW | Set Turbo mode on/off | `YES`/ `NO`| `NO` |
+| `ov::intel_npu::tiles`/</br>`NPU_TILES` | RW | Sets the number of npu tiles to compile the model for | `[0-]` | `-1` |
+| `ov::intel_npu::max_tiles`/</br>`NPU_MAX_TILES` | RW | Maximum number of tiles supported by the device we compile for. Can be set for offline compilation. If not set, it will be populated by driver.| `[0-]` | `[1-6] depends on npu platform` |
+| `ov::intel_npu::bypass_umd_caching`/</br>`NPU_BYPASS_UMD_CACHING` | RW | Bypass the caching of compiled models in UMD. | `YES`/ `NO`| `NO` |
 
 &nbsp;
 ### Performance Hint: Default Number of DPU Groups / DMA Engines
@@ -233,6 +236,19 @@ Supported values:
     compile_model(model, config);
 ```
 
+### ov::intel_npu::max_tiles and ov::intel_npu::tiles
+
+The max_tiles property is read-write to enable compiling models off-device.  
+When on NPU, max_tiles will return the number of tiles the device has.  
+Setting the number of tiles to compile for (via intel_npu::tiles), when on device,
+must be preceded by reading intel_npu::max_tiles first, to make sure that  
+``ov::intel_npu::tiles`` <= ``ov::intel_npu::max_tiles``  
+to avoid exceptions from the compiler.
+
+   Note that ``ov::intel_npu::tiles`` overrides the default number of tiles selected by the compiler based on performance hints
+   (``ov::hint::performance_mode``).
+   Any tile number other than 1 may be a problem for cross platform compatibility,
+   if not tested explicitly versus the max_tiles value.
 &nbsp;
 ## Stateful models
 

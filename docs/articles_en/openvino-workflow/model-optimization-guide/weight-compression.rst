@@ -7,10 +7,6 @@ Weight compression is a technique for enhancing the efficiency of models,
 especially those with large memory requirements. This method reduces the model's
 memory footprint, a crucial factor for Large Language Models (LLMs).
 
-Weight compression is a technique for enhancing the efficiency of models,
-especially those with large memory requirements. This method reduces the model's
-memory footprint, a crucial factor for Large Language Models (LLMs).
-
 Unlike full model quantization, where weights and activations are quantized,
 weight compression in `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__
 only targets the model's weights. This approach allows the activations to remain as

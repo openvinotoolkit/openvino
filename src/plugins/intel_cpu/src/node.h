@@ -658,7 +658,6 @@ protected:
     std::vector <NodePtr> fusedWith;
     std::vector <NodePtr> mergedWith;
 
-    std::vector <NodePtr> parallelWith;
     int curNumaNode = -1;
 
     void toNumaNode(int numaID);
@@ -738,7 +737,7 @@ protected:
                               impl_desc_type implType);
 
     void prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs);
-    void prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx);
+    virtual void prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx);
     void prepareMemory(dnnl::primitive_desc_iterator& itpd);
 
     MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryDescPtr srcWeightDesc = nullptr);
@@ -760,8 +759,10 @@ protected:
     virtual bool needShapeInfer() const;
     std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
     virtual IShapeInfer::Result shapeInfer() const;
+
+    void execute(dnnl::stream stream, int numaId);
     virtual void execute(dnnl::stream strm) = 0;
-    // TODO [DS] : make pure after all nodes will be support dynamic shapes
+    // TODO [DS] : make pure after all nodes support dynamic shapes
     virtual void executeDynamicImpl(dnnl::stream strm) {
         OPENVINO_THROW_NOT_IMPLEMENTED("[DS] executeDynamicImpl not implemented for node with type: ", getTypeStr());
     }
@@ -774,7 +775,7 @@ protected:
                                        NameFromType(getType()));
     }
 
-    MemoryPtr getScratchPadMem(const DnnlMemoryDescPtr& desc) {
+    MemoryPtr getScratchPadMem(const MemoryDescPtr& desc) {
         if (!scratchpadMem || !scratchpadMem->getDesc().isCompatible(*desc)) {
             scratchpadMem = context->getScratchPad(curNumaNode)->createScratchPadMem(desc);
         }
