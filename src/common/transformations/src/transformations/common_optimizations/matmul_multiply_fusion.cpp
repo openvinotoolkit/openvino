@@ -52,7 +52,7 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
         return nullptr;
     }
 
-    auto matmul_casted = std::dynamic_pointer_cast<ov::op::v0::MatMul>(matmul);
+    auto matmul_casted = ov::as_type_ptr<ov::op::v0::MatMul>(matmul);
     if (!matmul_casted) {
         return nullptr;
     }
@@ -158,8 +158,7 @@ pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& weights = pattern_map.at(weights_pattern);
         auto mul = pattern_map.at(mul_pattern).get_node_shared_ptr();
-        auto mul_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(mul_const_pattern).get_node_shared_ptr());
+        auto mul_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(mul_const_pattern).get_node_shared_ptr());
         if (!mul_const)
             return false;
         auto matmul = pattern_map.at(matmul_pattern).get_node_shared_ptr();
