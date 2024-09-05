@@ -1,4 +1,4 @@
-// ! [matcher_pass:ov_matcher_pass_py]
+# ! [matcher_pass:ov_matcher_pass_py]
 '''
 ``MatcherPass`` is used for pattern-based transformations.
 To create transformation you need:
@@ -100,4 +100,4 @@ print_model_ops(model)
 manager.run_passes(model)
 print_model_ops(model)
 
-// ! [matcher_pass:ov_matcher_pass_py]
+# ! [matcher_pass:ov_matcher_pass_py]

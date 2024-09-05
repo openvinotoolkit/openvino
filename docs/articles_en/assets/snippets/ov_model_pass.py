@@ -1,4 +1,4 @@
-// ! [model_pass:ov_model_pass_py]
+# ! [model_pass:ov_model_pass_py]
 
 '''
 ``ModelPass`` can be used as base class for transformation classes that take entire ``Model`` and proceed it.
@@ -51,4 +51,4 @@ class MyModelPass(ModelPass):
 manager = Manager()
 manager.register_pass(MyModelPass())
 manager.run_passes(get_relu_model())
-// ! [model_pass:ov_model_pass_py]
+# ! [model_pass:ov_model_pass_py]
