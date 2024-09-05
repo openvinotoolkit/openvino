@@ -61,8 +61,8 @@ std::shared_ptr<ov::Model> RoPETestLlama2StridedSlice::buildROPE_Llama2(int batc
                                                          {"new_axis_mask", {}},
                                                          {"shrink_axis_mask", {}},
                                                          {"ellipsis_mask", {}}});
-    auto squeeze_Squeeze = makeOP<ov::op::v0::Squeeze>({slice_Slice, 1}, {{"pytorch_dynamic_rank", false}});
-    auto squeeze_Squeeze_435 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze, 0}, {{"pytorch_dynamic_rank", false}});
+    auto squeeze_Squeeze = makeOP<ov::op::v0::Squeeze>({slice_Slice, 1}, {{"allow_axis_skip", false}});
+    auto squeeze_Squeeze_435 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze, 0}, {{"allow_axis_skip", false}});
     auto index_441_Gather = makeOP<ov::op::v8::Gather>({squeeze_Squeeze_435, pos_ids, 0}, {{"batch_dims", 0}});
     auto unsqueeze_Unsqueeze = makeOP<ov::op::v0::Unsqueeze>({index_441_Gather, 1});
     auto mul_Multiply =
@@ -106,8 +106,8 @@ std::shared_ptr<ov::Model> RoPETestLlama2StridedSlice::buildROPE_Llama2(int batc
                                                              {"new_axis_mask", {}},
                                                              {"shrink_axis_mask", {}},
                                                              {"ellipsis_mask", {}}});
-    auto squeeze_Squeeze_436 = makeOP<ov::op::v0::Squeeze>({slice_Slice_433, 1}, {{"pytorch_dynamic_rank", false}});
-    auto squeeze_Squeeze_437 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze_436, 0}, {{"pytorch_dynamic_rank", false}});
+    auto squeeze_Squeeze_436 = makeOP<ov::op::v0::Squeeze>({slice_Slice_433, 1}, {{"allow_axis_skip", false}});
+    auto squeeze_Squeeze_437 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze_436, 0}, {{"allow_axis_skip", false}});
     auto index_446_Gather = makeOP<ov::op::v8::Gather>({squeeze_Squeeze_437, pos_ids, 0}, {{"batch_dims", 0}});
     auto unsqueeze_Unsqueeze_447 = makeOP<ov::op::v0::Unsqueeze>({index_446_Gather, 1});
     auto mul_Multiply_463 =
@@ -370,7 +370,7 @@ std::shared_ptr<ov::Model> RoPETestQwen7bStridedSlice::buildROPE_QWen7b(bool spe
             makeOP<opset1::Reshape>({slice_Slice_470, ListConstruct_493_Concat}, {{"special_zero", false}});
     }
     auto ListUnpack_496_Split = makeOP<opset1::Split>({reshape_Reshape, -2}, {{"num_splits", 2}});
-    auto ListUnpack_496_Squeeze_0 = makeOP<opset1::Squeeze>({ListUnpack_496_Split->output(1), -2}, {{"pytorch_dynamic_rank", false}});
+    auto ListUnpack_496_Squeeze_0 = makeOP<opset1::Squeeze>({ListUnpack_496_Split->output(1), -2}, {{"allow_axis_skip", false}});
     auto Constant_296840_compressed = makeConst(element::f16,
                                                 ov::Shape({
                                                     1,
@@ -382,7 +382,7 @@ std::shared_ptr<ov::Model> RoPETestQwen7bStridedSlice::buildROPE_QWen7b(bool spe
     auto Constant_296840 = makeOP<opset1::Convert>({Constant_296840_compressed}, {{"destination_type", "f32"}});
     auto neg_Multiply_499 =
         makeOP<opset1::Multiply>({ListUnpack_496_Squeeze_0, Constant_296840}, {{"auto_broadcast", "numpy"}});
-    auto ListUnpack_496_Squeeze = makeOP<opset1::Squeeze>({ListUnpack_496_Split->output(0), -2}, {{"pytorch_dynamic_rank", false}});
+    auto ListUnpack_496_Squeeze = makeOP<opset1::Squeeze>({ListUnpack_496_Split->output(0), -2}, {{"allow_axis_skip", false}});
     auto cat_Concat = makeOP<opset1::Concat>({neg_Multiply_499, ListUnpack_496_Squeeze}, {{"axis", -1}});
     auto slice_Slice_449 = makeOP<opset1::StridedSlice>({sin_cache, ScatterUpdate_261437, {0ll, LLONG_MAX}, {1, 1}},
                                                         {{"begin_mask", {1, 0}},
@@ -762,8 +762,8 @@ std::shared_ptr<ov::Model> RoPETestLlama2Slice::buildROPE_Llama2(int batch,
     auto transpose_Transpose = makeOP<ov::op::v1::Transpose>({input, {0, 2, 1, 3}});
     auto slice_Unsqueeze_426 = makeOP<ov::op::v0::Unsqueeze>({pos_id_end, 0});
     auto slice_Slice = makeOP<ov::op::v8::Slice>({Constant582, {0}, slice_Unsqueeze_426, {1}, {2}});
-    auto squeeze_Squeeze = makeOP<ov::op::v0::Squeeze>({slice_Slice, 1}, {{"pytorch_dynamic_rank", false}});
-    auto squeeze_Squeeze_435 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze, 0}, {{"pytorch_dynamic_rank", false}});
+    auto squeeze_Squeeze = makeOP<ov::op::v0::Squeeze>({slice_Slice, 1}, {{"allow_axis_skip", false}});
+    auto squeeze_Squeeze_435 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze, 0}, {{"allow_axis_skip", false}});
     auto index_441_Gather = makeOP<ov::op::v8::Gather>({squeeze_Squeeze_435, pos_ids, 0}, {{"batch_dims", 0}});
     auto unsqueeze_Unsqueeze = makeOP<ov::op::v0::Unsqueeze>({index_441_Gather, 1});
     auto mul_Multiply =
@@ -787,8 +787,8 @@ std::shared_ptr<ov::Model> RoPETestLlama2Slice::buildROPE_Llama2(int batch,
     auto slice_Slice2 = makeOP<ov::op::v8::Slice>({transpose_Transpose, {0}, slice_Unsqueeze_452, {1}, {3}});
     auto cat_Concat = makeOP<ov::op::v0::Concat>({neg_Multiply, slice_Slice2}, {{"axis", -1}});
     auto slice_Slice_433 = makeOP<ov::op::v8::Slice>({Constant585, {0}, slice_Unsqueeze_426, {1}, {2}});
-    auto squeeze_Squeeze_436 = makeOP<ov::op::v0::Squeeze>({slice_Slice_433, 1}, {{"pytorch_dynamic_rank", false}});
-    auto squeeze_Squeeze_437 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze_436, 0}, {{"pytorch_dynamic_rank", false}});
+    auto squeeze_Squeeze_436 = makeOP<ov::op::v0::Squeeze>({slice_Slice_433, 1}, {{"allow_axis_skip", false}});
+    auto squeeze_Squeeze_437 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze_436, 0}, {{"allow_axis_skip", false}});
     auto index_446_Gather = makeOP<ov::op::v8::Gather>({squeeze_Squeeze_437, pos_ids, 0}, {{"batch_dims", 0}});
     auto unsqueeze_Unsqueeze_447 = makeOP<ov::op::v0::Unsqueeze>({index_446_Gather, 1});
     auto mul_Multiply_463 =
@@ -924,7 +924,7 @@ std::shared_ptr<ov::Model> RoPETestQwen7bSlice::buildROPE_Qwen7b(bool specialRes
             makeOP<opset1::Reshape>({slice_Slice_470, ListConstruct_493_Concat}, {{"special_zero", false}});
     }
     auto ListUnpack_496_Split = makeOP<opset1::Split>({reshape_Reshape, -2}, {{"num_splits", 2}});
-    auto ListUnpack_496_Squeeze_0 = makeOP<opset1::Squeeze>({ListUnpack_496_Split->output(1), -2}, {{"pytorch_dynamic_rank", false}});
+    auto ListUnpack_496_Squeeze_0 = makeOP<opset1::Squeeze>({ListUnpack_496_Split->output(1), -2}, {{"allow_axis_skip", false}});
     auto Constant_296840_compressed = makeConst(element::f16,
                                                 ov::Shape({
                                                     1,
@@ -936,7 +936,7 @@ std::shared_ptr<ov::Model> RoPETestQwen7bSlice::buildROPE_Qwen7b(bool specialRes
     auto Constant_296840 = makeOP<opset1::Convert>({Constant_296840_compressed}, {{"destination_type", "f32"}});
     auto neg_Multiply_499 =
         makeOP<opset1::Multiply>({ListUnpack_496_Squeeze_0, Constant_296840}, {{"auto_broadcast", "numpy"}});
-    auto ListUnpack_496_Squeeze = makeOP<opset1::Squeeze>({ListUnpack_496_Split->output(0), -2}, {{"pytorch_dynamic_rank", false}});
+    auto ListUnpack_496_Squeeze = makeOP<opset1::Squeeze>({ListUnpack_496_Split->output(0), -2}, {{"allow_axis_skip", false}});
     auto cat_Concat = makeOP<opset1::Concat>({neg_Multiply_499, ListUnpack_496_Squeeze}, {{"axis", -1}});
     auto slice_Slice_449 = makeOP<opset8::Slice>({sin_cache, slice_Unsqueeze_422, {LLONG_MAX}, {1}, {1}});
     auto mul_Multiply_503 = makeOP<opset1::Multiply>({cat_Concat, slice_Slice_449}, {{"auto_broadcast", "numpy"}});

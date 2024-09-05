@@ -431,7 +431,7 @@ class SqueezeAxesPyTorchDynamicRank : public ::testing::TestWithParam<SqueezeAxe
 protected:
     ov::PartialShape p_shape{}, exp_shape{};
     std::vector<int64_t> axes{};
-    bool pytorch_dynamic_rank{};
+    bool allow_axis_skip{};
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -476,13 +476,13 @@ TEST_P(SqueezeAxesPyTorchDynamicRank, squeeze_axes_dynamic_rank_param) {
     p_shape = std::get<0>(params);
     axes = std::get<1>(params);
     exp_shape = std::get<2>(params);
-    pytorch_dynamic_rank = std::get<3>(params);
+    allow_axis_skip = std::get<3>(params);
 
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, p_shape);
     auto axes_node = make_shared<ov::op::v0::Constant>(element::u64, Shape{axes.size()}, axes);
-    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node, pytorch_dynamic_rank);
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node, allow_axis_skip);
 
     EXPECT_EQ(squeeze->get_element_type(), element::f32);
     EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
-    EXPECT_EQ(squeeze->get_pytorch_dynamic_rank(), pytorch_dynamic_rank);
+    EXPECT_EQ(squeeze->get_allow_axis_skip(), allow_axis_skip);
 }

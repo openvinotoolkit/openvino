@@ -13,13 +13,13 @@ namespace op {
 namespace v0 {
 namespace {
 template <typename T>
-bool apply_torch_mode(const Squeeze* const op,
+bool apply_allow_axis_skip(const Squeeze* const op,
                       const std::unique_ptr<std::set<int64_t>>& unique_axes,
                       const T& arg_shape) {
     using DimType = typename T::value_type;
     int64_t i{-1};
 
-    return op->get_pytorch_dynamic_rank() &&
+    return op->get_allow_axis_skip() &&
            std::any_of(arg_shape.cbegin(), arg_shape.cend(), [&unique_axes, &i](const DimType& d) {
                ++i;
                // Squeeze result with dynamic rank if 1 is in range of selected dynamic dimension.
@@ -87,7 +87,7 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
         NODE_VALIDATION_CHECK(op, false);
     }
 
-    if (!arg_rank.is_static() || (unique_axes == nullptr) || apply_torch_mode(op, unique_axes, arg_shape)) {
+    if (!arg_rank.is_static() || (unique_axes == nullptr) || apply_allow_axis_skip(op, unique_axes, arg_shape)) {
         output_shape = PartialShape::dynamic();
     } else {
         output_shape.resize(0);

@@ -204,9 +204,9 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                     int64_t num_ones = in1_data.size();
                     if (num_ones == in0_rank.get_length() - output_shape.rank().get_length()) {
                         auto axes = ov::op::v0::Constant::create(element::i64, Shape{in1_data.size()}, in1_data);
-                        const auto torch = squeeze_op->get_pytorch_dynamic_rank();
+                        const auto axis_skip = squeeze_op->get_allow_axis_skip();
                         auto new_squeeze =
-                            std::make_shared<ov::op::v0::Squeeze>(op->get_input_source_output(0), axes, torch);
+                            std::make_shared<ov::op::v0::Squeeze>(op->get_input_source_output(0), axes, axis_skip);
                         op->output(0).replace(new_squeeze->output(0));
                         copy_runtime_info(op, new_squeeze);
                     }

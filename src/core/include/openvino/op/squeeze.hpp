@@ -27,8 +27,8 @@ public:
     ///
     /// \param data Input tensor with data
     /// \param axis The axis along which to squeeze the input tensor.
-    /// \param torch_mode Shape inference result dynamic rank if selected axis has 1 in range of its dynamic
-    Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool torch_mode = false);
+    /// \param axis_skip_mode Shape inference result dynamic rank if selected axis has 1 in range of its dynamic
+    Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool axis_skip_mode = false);
     Squeeze(const Output<Node>& data);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -43,14 +43,14 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool is_dynamic() const override;
-    bool get_pytorch_dynamic_rank() const;
+    bool get_allow_axis_skip() const;
 
     std::pair<bool, std::reference_wrapper<const ov::PartialShape>> get_deduced_output_shape() const;
     void set_deduced_output_shape(const ov::PartialShape& output_shapes);
 
 private:
     Output<Node> get_default_axes_input() const;
-    bool m_pytorch_dynamic_rank{}; // TODO: rananme
+    bool m_allow_axis_skip{};
     ov::PartialShape deduced_output_shape{};
     bool is_deduced_output_shape{};
 };
