@@ -138,3 +138,29 @@ To check in advance if a particular device supports model caching, your applicat
          :language: cpp
          :fragment: [ov:caching:part3]
 
+Set "cache_encryption_callbacks" config option to enable cache encryption
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+With model caching enabled, model topology in cache can be encrypted/decrypted when saving/loading model cache.
+This property can currently only be set in ``compile_model``.
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet::
+         :language: py
+         :fragment: [ov:caching:part4]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet::
+         :language: cpp
+         :fragment: [ov:caching:part4]
+
+.. important::
+
+   Now only cpu device supports this property. For those that don't, setting this property will perform normally
+   but will not encrypt/decrypt the model topology in cache.
