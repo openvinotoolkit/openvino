@@ -16,7 +16,7 @@ void CreateBucketizeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v3::Buck
     validate_inputs_count(op, {2});
 
     cldnn::bucketize_boundary boundary_status = cldnn::bucketize_boundary::dynamic;
-    if (op->get_input_partial_shape(0).is_static()) {
+    if (op->get_input_partial_shape(1).is_static()) {
         boundary_status = shape_size(op->get_input_shape(1)) == 0 ? cldnn::bucketize_boundary::empty
                                                                   : cldnn::bucketize_boundary::exists;
     }
