@@ -198,7 +198,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     // full dispatch pipeline.
     uint feature_mini_block = gid % DISPATCH_FSV;
     uint batch_mini_block = gid / DISPATCH_FSV % DISPATCH_BSV;
-     uint feature_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV) % (CEIL_DIV(TILE_OUT_F_NUM, OUTER_OFM * TILE_OFM * SIMD) / DISPATCH_FSV);
+    uint feature_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV) % (CEIL_DIV(TILE_OUT_F_NUM, OUTER_OFM * TILE_OFM * SIMD) / DISPATCH_FSV);
     uint batch_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV * CEIL_DIV(TILE_OUT_F_NUM, OUTER_OFM* TILE_OFM * SIMD) / DISPATCH_FSV);
 
 #if USE_SLM
@@ -650,6 +650,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     ACTIVATION_VEC_TYPE activated[TILE_B] = { };
     for (uint bi = 0; bi < TILE_B; ++bi) {
         activated[bi] = TO_ACTIVATION_VEC_TYPE(acc[bi]);
+#if OUTER_OFM > 1
+        acc[bi] = 0;
+#endif
     }
 
 #if BIAS_TERM
@@ -1035,9 +1038,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     ACTIVATION_VEC_TYPE activated[TILE_B] = { };
     for (uint bi = 0; bi < TILE_B; ++bi) {
         activated[bi] = TO_ACTIVATION_VEC_TYPE(acc[bi]);
-#if OUTER_OFM > 1
-        acc[bi] = 0;
-#endif
     }
 
 #if BIAS_TERM
