@@ -109,6 +109,8 @@ Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx
 
 Output<Node> get_input_as_i32(const NodeContext& context, size_t idx);
 
+Output<Node> get_input_concat_if_list(const NodeContext& context, size_t idx);
+
 std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const NodeContext& context,
                                                                       size_t lhs_idx,
                                                                       size_t rhs_idx);

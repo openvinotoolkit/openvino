@@ -6,6 +6,7 @@
 
 #include "op_table.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -149,8 +150,15 @@ std::shared_ptr<Node> get_node_axes_range(const NodeContext& context, const Outp
 };
 
 Output<Node> normalize_axis(const NodeContext& context, const Output<Node>& axis, const Output<Node>& rank) {
-    auto axis_rank = context.mark_node(std::make_shared<v1::Add>(axis, rank));
-    return context.mark_node(std::make_shared<v1::Mod>(axis_rank, rank));
+    auto axis_rank = std::make_shared<v1::Add>(axis, rank);
+    auto new_axis = std::make_shared<v1::Mod>(axis_rank, rank);
+
+    if (const auto axis_const = ov::util::get_constant_from_source(new_axis)) {
+        return context.mark_node(axis_const);
+    } else {
+        context.mark_nodes({axis_rank, new_axis});
+        return new_axis;
+    }
 }
 
 std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x, element::Type output_type) {
@@ -480,6 +488,26 @@ Output<Node> get_input_as_i32(const NodeContext& context, size_t idx) {
     auto x = context.get_input(static_cast<int>(idx));
     if (x.get_element_type() != element::i32) {
         x = context.mark_node(std::make_shared<ov::op::v0::Convert>(x, element::i32));
+    }
+    return x;
+}
+
+Output<Node> get_input_concat_if_list(const NodeContext& context, size_t idx) {
+    auto x = context.get_input(static_cast<int>(idx));
+    if (context.get_input_type(idx).is<type::List>() && cast_fw_node(x.get_node_shared_ptr(), "prim::ListConstruct")) {
+        auto elems = get_list_as_outputs(x);
+        OutputVector inputs;
+        auto zero = v0::Constant::create(element::i32, Shape{}, {0});
+        for (auto& elem : elems) {
+            auto unsqueezed_node = std::make_shared<v0::Unsqueeze>(elem, zero);
+            inputs.push_back(unsqueezed_node);
+        }
+        auto new_x = std::make_shared<v0::Concat>(inputs, 0);
+        new_x->set_friendly_name(x.get_node_shared_ptr()->get_friendly_name());
+        x = new_x;
+    }
+    if (const auto x_const = ov::util::get_constant_from_source(x)) {
+        return x_const;
     }
     return x;
 }
