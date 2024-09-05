@@ -38,7 +38,7 @@ using DCOFFParamRef = std::reference_wrapper<DCOFFParams>;
 
 struct ClosureRemap {
     std::vector<std::size_t> closure_remap;          // [new closure index] -> orig closure idx
-    std::vector<std::size_t> transpose_indices;      // Indices of tensors that require transposition
+    std::vector<std::size_t> transpose_indices;      // Indices of closure tensors that require transposition
     std::map<std::size_t, std::size_t> scale_remap;  // orig closure idx -> orig scale idx
     std::map<std::size_t, std::size_t> zerop_remap;  // orig closure idx -> orig asymm zero point idx
     ov::ParameterVector params_to_remove;

@@ -294,6 +294,7 @@ ov::Tensor transpose_f32(const ov::Tensor& tensor) {
 }
 
 ov::Tensor transpose_tensor(const ov::Tensor& tensor) {
+    LOG_DEBUG("Tensor Shape: " << tensor.get_shape());
     switch (tensor.get_element_type()) {
     case ov::element::u4:
         return transpose_u4(tensor);
@@ -411,51 +412,58 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
     std::vector<ov::Tensor> new_scales;
     std::vector<ov::Tensor> new_zerops;
 
+    // Create mappings from original indices to new indices
+    std::unordered_map<std::size_t, std::size_t> closure_to_new_index;
+    std::unordered_map<std::size_t, std::size_t> scale_to_new_index;
+    std::unordered_map<std::size_t, std::size_t> zerop_to_new_index;
+    
     // For a new_closure vector by rearranging the old one.  Also
     // reserve a new_scales vector to have the same size, filled with
     // empty tensors by default.
-    for (auto&& i : m.closure_remap) {
-        // Check if the index is marked for transposition
-        if (std::find(m.transpose_indices.begin(), m.transpose_indices.end(), i) != m.transpose_indices.end()) {
-            // Transpose the tensor before adding it to new_closure
-            new_closure.push_back(pattern_utils::transpose_tensor(fcall._closure[i]));
-        } else {
-            // Add the original tensor to new_closure
-            new_closure.push_back(fcall._closure[i]);
-        }
 
-        // Handle scale remap
-        auto scale_iter = m.scale_remap.find(i);
+    // Fill the new vectors and create the mappings
+    for (std::size_t i = 0; i < m.closure_remap.size(); ++i) {
+        auto orig_index = m.closure_remap[i];
+        new_closure.push_back(fcall._closure[orig_index]);
+        closure_to_new_index[orig_index] = i;
+
+        // Handle Scale remap
+        auto scale_iter = m.scale_remap.find(orig_index);
         if (scale_iter != m.scale_remap.end()) {
-            // Check if the scale index is marked for transposition
-            if (std::find(m.transpose_indices.begin(), m.transpose_indices.end(), scale_iter->second) !=
-                m.transpose_indices.end()) {
-                // Transpose the tensor before adding it to new_scales
-                new_scales.push_back(pattern_utils::transpose_tensor(fcall._closure[scale_iter->second]));
-            } else {
-                // Add the original tensor to new_scales
-                new_scales.push_back(fcall._closure[scale_iter->second]);
-            }
+            new_scales.push_back(fcall._closure[scale_iter->second]);
+            scale_to_new_index[scale_iter->second] = new_scales.size() - 1;
         } else {
             new_scales.push_back(ov::Tensor());
         }
 
-        // Handle zero point remap
-        auto zerop_iter = m.zerop_remap.find(i);
+        // Handle Zerop remap
+        auto zerop_iter = m.zerop_remap.find(orig_index);
         if (zerop_iter != m.zerop_remap.end()) {
-            // Check if the zero point index is marked for transposition
-            if (std::find(m.transpose_indices.begin(), m.transpose_indices.end(), zerop_iter->second) !=
-                m.transpose_indices.end()) {
-                // Transpose the tensor before adding it to new_zerops
-                new_zerops.push_back(pattern_utils::transpose_tensor(fcall._closure[zerop_iter->second]));
-            } else {
-                // Add the original tensor to new_zerops
-                new_zerops.push_back(fcall._closure[zerop_iter->second]);
-            }
+            new_zerops.push_back(fcall._closure[zerop_iter->second]);
+            zerop_to_new_index[zerop_iter->second] = new_zerops.size() - 1;
         } else {
-            // Add the zero point tensor from the closure remap
-            const auto& zerop = m.zero_points[i];
-            new_zerops.push_back(zerop);
+            new_zerops.push_back(m.zero_points[orig_index]);
+        }
+    }
+
+    // Transpose the concerned tensors
+    for (auto&& orig_index : m.transpose_indices) {
+        // Transpose closure tensors if needed
+        if (closure_to_new_index.count(orig_index)) {
+            std::size_t new_index = closure_to_new_index[orig_index];
+            new_closure[new_index] = pattern_utils::transpose_tensor(new_closure[new_index]);
+        }
+
+        // Transpose scale tensors if needed
+        if (scale_to_new_index.count(orig_index)) {
+            std::size_t new_index = scale_to_new_index[orig_index];
+            new_scales[new_index] = pattern_utils::transpose_tensor(new_scales[new_index]);
+        }
+
+        // Transpose zerop tensors if needed
+        if (zerop_to_new_index.count(orig_index)) {
+            std::size_t new_index = zerop_to_new_index[orig_index];
+            new_zerops[new_index] = pattern_utils::transpose_tensor(new_zerops[new_index]);
         }
     }
 
