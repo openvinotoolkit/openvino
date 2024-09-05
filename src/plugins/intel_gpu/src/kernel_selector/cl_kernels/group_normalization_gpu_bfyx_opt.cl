@@ -6,6 +6,9 @@
 #include "include/batch_headers/sub_group_block_read.cl"
 
 #ifdef GROUP_NORM_KERNEL_FEATURE_MEAN
+#if !IS_DYNAMIC
+__attribute__((reqd_work_group_size(LWS0, LWS1, LWS2)))
+#endif
 KERNEL(calc_mean_per_feature)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
@@ -126,6 +129,9 @@ KERNEL(calc_mean_per_feature)(
     }
 }
 #elif GROUP_NORM_KERNEL_GROUP_MEAN
+#if !IS_DYNAMIC
+__attribute__((reqd_work_group_size(LWS0, LWS1, LWS2)))
+#endif
 KERNEL(calc_mean_per_group)(
     __global ACCUMULATOR_TYPE* internal_mean
 ) {
@@ -148,6 +154,9 @@ KERNEL(calc_mean_per_group)(
     }
 }
 #elif GROUP_NORM_KERNEL_FEATURE_VAR
+#if !IS_DYNAMIC
+__attribute__((reqd_work_group_size(LWS0, LWS1, LWS2)))
+#endif
 KERNEL(calc_var_per_feature)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
@@ -280,6 +289,9 @@ KERNEL(calc_var_per_feature)(
     }
 }
 #elif GROUP_NORM_KERNEL_GROUP_VAR
+#if !IS_DYNAMIC
+__attribute__((reqd_work_group_size(LWS0, LWS1, LWS2)))
+#endif
 KERNEL(calc_var_per_group)(
     __global ACCUMULATOR_TYPE* internal_variance
 ) {
@@ -303,6 +315,9 @@ KERNEL(calc_var_per_group)(
     }
 }
 #elif GROUP_NORM_KERNEL_FINAL
+#if !IS_DYNAMIC
+__attribute__((reqd_work_group_size(LWS0, LWS1, LWS2)))
+#endif
 KERNEL(group_normalization_b_fs_yx_fsv16)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
