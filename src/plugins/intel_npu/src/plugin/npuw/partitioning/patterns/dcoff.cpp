@@ -68,6 +68,7 @@ void transpose_param_shape(std::shared_ptr<ov::op::v0::Parameter>& param) {
     auto partial_shape = param->get_partial_shape();
     NPUW_ASSERT(partial_shape.is_static());
     auto shape = partial_shape.to_shape();
+    LOG_DEBUG("Transposing the param" << param);
 
     // Check if the shape is 2D or 3D
     if (shape.size() == 2) {
@@ -82,7 +83,8 @@ void transpose_param_shape(std::shared_ptr<ov::op::v0::Parameter>& param) {
 
     // Set the new shape to the parameter
     param->set_partial_shape(ov::PartialShape(shape));
-    LOG_DEBUG("Modifying the shape of: " << param << " to " << param->get_partial_shape());
+    param->validate_and_infer_types();
+    LOG_DEBUG("Modifying the shape to: " << param);
 }
 
 inline uint8_t lo4(uint8_t x) {
@@ -884,7 +886,23 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode,
 
                 LOG_DEBUG("Reconnecting the Root...");
                 auto matched_reshpe = node_to_output.at(reshpe).get_node_shared_ptr();
+                LOG_DEBUG(matched_reshpe);
+                if (enable_transpose && need_transpose) {
+                        auto input_tensor = matched_reshpe->input_value(0);
+                        auto matched_param_shape = matched_paramA->get_shape();
+
+                        std::vector<int64_t> new_shape_pattern = {static_cast<int64_t>(matched_param_shape[0]), -1};
+
+                        auto new_shape_pattern_node = std::make_shared<ov::op::v0::Constant>(
+                            ov::element::i32, ov::Shape{2}, new_shape_pattern);
+
+                        // Create a new Reshape node with the input tensor and the new shape pattern
+                        auto new_reshape_node = std::make_shared<ov::op::v1::Reshape>(
+                            input_tensor, new_shape_pattern_node, false);
+                        ov::replace_node(matched_reshpe, new_reshape_node);
+                }
                 matched_reshpe->input(0).replace_source_output(matched_convrt);
+                LOG_DEBUG(matched_MM);
             }
             LOG_DEBUG("Done");
         }

@@ -1655,7 +1655,6 @@ void Partitioner::decompressionCutOff(const std::string& func_name) {
                                                                         std::ref(params_to));
 
         rewr.run_on_model(f._model);
-
         ov::pass::Validate val;
         val.run_on_model(f._model);
 
