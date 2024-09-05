@@ -884,9 +884,9 @@ void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs, const VectorDim
 void NormalizeL2::createPrimitive() {
     auto dstMemPtr = getDstMemoryAtPort(DATA);
     auto srcMemPtr = getSrcMemoryAtPort(DATA);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
+    if (!dstMemPtr)
         THROW_ERROR("can't get destination memory");
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
+    if (!srcMemPtr)
         THROW_ERROR("can't get input memory");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR("has nullable preferable primitive descriptor");

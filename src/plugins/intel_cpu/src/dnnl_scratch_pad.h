@@ -13,16 +13,16 @@ namespace ov {
 namespace intel_cpu {
 
 class DnnlScratchPad {
-    MemoryMngrPtr mgrPtr;
+    MemoryBlockPtr blockPtr;
     dnnl::engine eng;
 
 public:
     DnnlScratchPad(const dnnl::engine& eng, int numa_node = -1) : eng(eng) {
-        mgrPtr = std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>(numa_node));
+        blockPtr = std::make_shared<DnnlMemoryBlock>(make_unique<MemoryBlockWithReuse>(numa_node));
     }
 
     MemoryPtr createScratchPadMem(const MemoryDescPtr& md) {
-        return std::make_shared<Memory>(eng, md, mgrPtr);
+        return std::make_shared<Memory>(eng, md, blockPtr);
     }
 };
 

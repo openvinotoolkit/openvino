@@ -96,7 +96,7 @@ void prepare_padding::run(program& p) {
 
                     needed_upad.push_back(std::max(pe_y, upper_sizes[2]));
                     needed_upad.push_back(std::max(pe_x, upper_sizes[3]));
-                } {
+                } else {
                     needed_lpad.push_back(std::max(pb_x, lower_sizes[2]));
                     needed_upad.push_back(std::max(pb_x, upper_sizes[2]));
                 }

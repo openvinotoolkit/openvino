@@ -314,6 +314,7 @@ jobs:
             -DSELECTIVE_BUILD=ON \
             -DENABLE_TEMPLATE=OFF \
             -DENABLE_INTEL_GPU=OFF \
+            -DENABLE_INTEL_NPU=OFF \
             -DENABLE_OV_TF_FRONTEND=OFF \
             -DENABLE_OV_TF_LITE_FRONTEND=OFF \
             -DENABLE_OV_PADDLE_FRONTEND=OFF \
