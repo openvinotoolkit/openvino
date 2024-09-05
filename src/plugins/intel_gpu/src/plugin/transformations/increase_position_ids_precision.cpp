@@ -29,8 +29,8 @@ IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() {
     using namespace ov::pass::pattern;
     using ov::pass::pattern::op::Or;
 
-    auto gemm = wrap_type<ov::intel_gpu::op::Gemm>();
-    auto concat = wrap_type<ov::op::v0::Concat>({gemm, gemm});
+    auto gemm_or_matmul = wrap_type<ov::intel_gpu::op::Gemm, ov::op::v0::MatMul>();
+    auto concat = wrap_type<ov::op::v0::Concat>({gemm_or_matmul, gemm_or_matmul});
     auto sin = wrap_type<ov::op::v0::Sin>({concat});
     auto cos = wrap_type<ov::op::v0::Cos>({concat});
 
@@ -50,15 +50,15 @@ IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto gemm_node = std::dynamic_pointer_cast<ov::intel_gpu::op::Gemm>(pattern_map.at(gemm).get_node_shared_ptr());
+        auto matmul_node = std::dynamic_pointer_cast<ov::op::v0::MatMul>(pattern_map.at(gemm_or_matmul).get_node_shared_ptr());
         auto cos_node = std::dynamic_pointer_cast<ov::op::v0::Cos>(pattern_map.at(cos).get_node_shared_ptr());
         auto sin_node = std::dynamic_pointer_cast<ov::op::v0::Sin>(pattern_map.at(sin).get_node_shared_ptr());
 
-        if (!gemm_node || transformation_callback(gemm_node))
+        if (!matmul_node || transformation_callback(matmul_node))
             return false;
 
         const auto desired_et = ov::element::f32;
-        const auto original_et = gemm_node->get_output_element_type(0);
+        const auto original_et = matmul_node->get_output_element_type(0);
         if (original_et == desired_et)
             return false;
 
@@ -112,7 +112,7 @@ IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() {
             }
         };
 
-        bool is_changed = insert_converts_before_if_needed(gemm_node);
+        bool is_changed = insert_converts_before_if_needed(matmul_node);
 
         if (is_changed) {
             insert_converts_after_if_needed(cos_node);
