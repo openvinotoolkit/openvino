@@ -176,10 +176,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     _outputAllocator = std::make_shared<const zeroMemory::HostMemAllocator>(_initStructs);
     _inputAllocator =
-        (_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED)
-            ? std::make_shared<const zeroMemory::HostMemAllocator>(_initStructs,
-                                                                   ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED)
-            : _outputAllocator;
+        std::make_shared<const zeroMemory::HostMemAllocator>(_initStructs, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
 
     if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
         _batchSize = getBatchSize(_metadata);
@@ -260,14 +257,16 @@ void ZeroInferRequest::create_pipeline() {
 
     _logger.debug("ZeroInferRequest::create_pipeline - constructing pipeline");
     // Construct pipeline
-    _pipeline = makePipeline(_executorPtr,
-                             _config,
-                             _profilingPool,
-                             _profilingQuery,
-                             _npuProfiling,
-                             _inputTensorsData,
-                             _outputTensorsData,
-                             _numberOfCommandLists);
+
+    _pipeline = std::make_unique<Pipeline>(_config,
+                                           _executorPtr,
+                                           _profilingPool,
+                                           _profilingQuery,
+                                           _npuProfiling,
+                                           _inputTensorsData,
+                                           _outputTensorsData,
+                                           _numberOfCommandLists);
+
     _logger.debug("ZeroInferRequest::create_pipeline - SyncInferRequest completed");
 }
 

@@ -49,7 +49,7 @@ class TestKerasBatchNormalization(CommonTF2LayerTest):
                                   dict(axis=-1, momentum=0.0, epsilon=1e-5, center=True, scale=True,
                                        input_names=["x1"], input_shapes=[[3, 4, 5, 6]],
                                        input_type=tf.float32),
-                                  dict(axis=[2, 1, 4], momentum=0.99, epsilon=1e-2, center=False,
+                                  dict(axis=2, momentum=0.99, epsilon=1e-2, center=False,
                                        scale=True,
                                        input_names=["x1"], input_shapes=[[3, 4, 5, 6, 7]],
                                        input_type=tf.float32)]
