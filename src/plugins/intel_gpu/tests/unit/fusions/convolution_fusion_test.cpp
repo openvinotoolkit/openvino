@@ -685,6 +685,26 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale, ::testing::ValuesIn(std::
     convolution_test_params{ CASE_CONV_FP16_10, 2, 2, 3 },
 }));
 
+class conv_duplicated_connection : public ConvFusingTest {};
+TEST_P(conv_duplicated_connection, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_per_channel_layout(p))),
+        convolution("conv_prim", input_info("input"), "weights", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
+        eltwise("scale", { input_info("conv_prim"), input_info("conv_prim") }, eltwise_mode::prod),
+        reorder("reorder_bfyx", input_info("scale"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_duplicated_connection, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 3, 3 },
+}));
+
 class conv_fp32_bias : public ConvFusingTest {};
 TEST_P(conv_fp32_bias, basic) {
     auto p = GetParam();
