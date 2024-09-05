@@ -26,7 +26,7 @@ any training datasets or pipelines in the source DL framework.
 
 .. image:: ../../assets/images/quantization_picture.svg
 
-`Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__
+:doc:`Neural Network Compression Framework (NNCF) <../model-optimization>`
 provides a post-training quantization API, available in Python, that aims at reusing the code for
 model training or validation that is usually available with the model in the source framework,
 such as PyTorch or TensroFlow. The NNCF API is cross-framework and currently supports:
@@ -48,5 +48,6 @@ Additional Resources
 ####################
 
 * :doc:`Optimizing Models at Training Time <compressing-models-during-training>`
+* :doc:`Model Optimization - NNCF <../model-optimization>`
 * `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
 

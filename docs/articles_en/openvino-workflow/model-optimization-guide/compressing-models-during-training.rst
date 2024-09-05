@@ -1,5 +1,3 @@
-.. {#tmo_introduction}
-
 Compressing Models During Training
 ==================================
 
@@ -33,26 +31,8 @@ See the following Jupyter Notebooks for step-by-step examples showing how to add
 - `Quantization Aware Training with NNCF and PyTorch <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-aware-training>`__.
 - `Quantization Aware Training with NNCF and TensorFlow <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/tensorflow-quantization-aware-training>`__.
 
-Installation
-####################
-
-NNCF is open-sourced on `GitHub <https://github.com/openvinotoolkit/nncf>`__ and distributed as a separate package from OpenVINO. It is also available on PyPI. Install it to the same Python environment where PyTorch or TensorFlow is installed.
-
-Install from PyPI
-++++++++++++++++++++
-
-To install the latest released version via pip manager run the following command:
-
-.. code-block:: sh
-
-   pip install nncf
-
-
-To install the latest NNCF version from source, follow the instruction on `GitHub <https://github.com/openvinotoolkit/nncf#installation>`__.
-
-.. note::
-
-   NNCF does not have OpenVINO as an installation requirement. To deploy optimized models you should install OpenVINO separately.
+More detailed information about NNCF (e.g. installation guide) is present in the dedicated
+:doc:`NNCF article <../model-optimization>`.
 
 Working with NNCF
 ####################
@@ -60,7 +40,7 @@ Working with NNCF
 The figure below shows a common workflow of applying training-time compressions with NNCF. The NNCF optimizations are added to the TensorFlow or PyTorch training script, and then the model undergoes fine-tuning. The optimized model can then be exported to OpenVINO IR format for accelerated performance with OpenVINO Runtime.
 
 .. image:: ../../assets/images/nncf_workflow.svg
-
+   :align: center
 
 Training-Time Compression Methods
 +++++++++++++++++++++++++++++++++
@@ -104,6 +84,7 @@ Additional Resources
 ####################
 
 - :doc:`Quantizing Models Post-training <quantizing-models-post-training>`
+- :doc:`Model Optimization - NNCF <../model-optimization>`
 - `NNCF GitHub repository <https://github.com/openvinotoolkit/nncf>`__
 - `NNCF FAQ <https://github.com/openvinotoolkit/nncf/blob/develop/docs/FAQ.md>`__
 - `Quantization Aware Training with NNCF and PyTorch <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-aware-training>`__.
