@@ -1,4 +1,5 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu22.04
+ARG REGISTRY="docker.io"
+FROM ${REGISTRY}/nvidia/cuda:11.8.0-runtime-ubuntu22.04
 
 USER root
 

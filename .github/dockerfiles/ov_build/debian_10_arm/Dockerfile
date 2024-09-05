@@ -1,4 +1,5 @@
-FROM openvinogithubactions.azurecr.io/dockerio/library/debian:10.13
+ARG REGISTRY="docker.io"
+FROM ${REGISTRY}/library/debian:10.13
 
 USER root
 
