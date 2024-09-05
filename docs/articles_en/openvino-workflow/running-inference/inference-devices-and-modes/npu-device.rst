@@ -246,6 +246,21 @@ or
 
    core.compile_model(ov_model, "NPU", {ov::intel_npu::turbo(true)});
 
+**ov::intel_npu::max_tiles and ov::intel_npu::tiles**
+
+the ``max_tiles`` property is read-write to enable compiling models off-device. 
+When on NPU, ``max_tiles`` will return the number of tiles the device has.
+Setting the number of tiles to compile for (via ``intel_npu::tiles``), when on device,
+must be preceded by reading ``intel_npu::max_tiles`` first, to make sure that 
+``ov::intel_npu::tiles`` <= ``ov::intel_npu::max_tiles`` 
+to avoid exceptions from the compiler.
+
+.. note::
+
+   ``ov::intel_npu::tiles`` overrides the default number of tiles selected by the compiler based on performance hints
+   (``ov::hint::performance_mode``).
+   Any tile number other than 1 may be a problem for cross platform compatibility,
+   if not tested explicitly versus the max_tiles value.
 
 Limitations
 #############################
