@@ -54,6 +54,7 @@ public:
             isEmpty = true;
         }
         Subtract& setConstantPrecision(const ov::element::Type& precision);
+        Subtract& setAddConvert(bool value);
 
         std::vector<float> values;
         ov::element::Type outPrecision = ov::element::undefined;
@@ -81,13 +82,15 @@ public:
             const ov::Shape& constantShape,
             const bool toRemove = false,
             const size_t constantIndex = 1ul,
-            const ov::element::Type constantPrecision = ov::element::undefined);
+            const ov::element::Type constantPrecision = ov::element::undefined,
+            const bool addConvert = false);
         bool empty() const noexcept;
         bool equal(const DequantizationOperations::Multiply& value) const noexcept;
         bool operator==(const Multiply& value) const noexcept {
             return equal(value);
         }
         Multiply& setConstantPrecision(const ov::element::Type& precision);
+        Multiply& setAddConvert(bool value);
 
         std::vector<float> values;
         ov::element::Type outPrecision = ov::element::undefined;
@@ -95,6 +98,7 @@ public:
         bool constantShapeIsDefined = false;
         size_t constantIndex = 1ul;
         ov::element::Type constantPrecision = ov::element::undefined;
+        bool addConvert = false;
 
     private:
         bool isEmpty;
