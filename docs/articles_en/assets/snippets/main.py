@@ -12,8 +12,7 @@ from contextlib import redirect_stdout, redirect_stderr
 skip_snippets = ["main.py", "__init__.py", "utils.py", "ov_common.py", "ov_stateful_models_intro.py"]
 
 def import_python_modules(directory, subdirectory=""):
-    #for item in os.listdir(directory):
-    for item in ('ov_model_pass.py', 'ov_matcher_pass.py'):
+    for item in os.listdir(directory):
         if item.endswith('.py') and item not in skip_snippets:
             imported_item = item[:-3]
             if subdirectory != "":
