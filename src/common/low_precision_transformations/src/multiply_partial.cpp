@@ -45,9 +45,6 @@ bool MultiplyPartialTransformation::transform(TransformationContext& context, ov
         return false;
     }
 
-    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(multiply, defaultPrecisions, 0));
-    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(multiply, defaultPrecisions, 1));
-
     multiply = NetworkHelper::separateInStandaloneBranch(multiply, defaultPrecisions);
     auto newMultiply = multiply;
 

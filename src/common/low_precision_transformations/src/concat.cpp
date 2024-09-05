@@ -40,11 +40,11 @@ ConcatTransformation::ConcatTransformation(const Params& params) : LayerTransfor
 }
 
 bool ConcatTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
-    std::shared_ptr<ov::opset1::Concat> concat = ov::as_type_ptr<ov::opset1::Concat>(m.get_match_root());
-    if (!canBeTransformed(context, concat)) {
+    if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
 
+    const auto concat = ov::as_type_ptr<ov::opset1::Concat>(NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions));
     std::vector<FakeQuantizeDequantization> layerDequantizations;
     layerDequantizations.reserve(concat->get_input_size());
     for (size_t parentIndex = 0ul; parentIndex < concat->get_input_size(); parentIndex++) {

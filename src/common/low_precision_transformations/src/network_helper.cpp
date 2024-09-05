@@ -585,8 +585,12 @@ FakeQuantizeDequantization NetworkHelper::foldDequantization(const std::shared_p
 
 std::shared_ptr<ov::Node> NetworkHelper::separateInStandaloneBranch(std::shared_ptr<ov::Node> node,
     const std::vector<ov::element::Type>& defaultPrecisions) {
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node, defaultPrecisions);
-    if (dequantization.isShared() && !dequantization.empty()) {
+    auto inputs = node->input_values();
+    auto separate_branch = [&](size_t input_idx) {
+        const auto dequantization = NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(node, defaultPrecisions, input_idx));
+        if (dequantization.empty() || !dequantization.isShared())
+            return false;
+
         Output<Node> parent = dequantization.data;
         if (dequantization.convert != nullptr) {
             auto convert = dequantization.convert->clone_with_new_inputs({ parent });
@@ -619,22 +623,27 @@ std::shared_ptr<ov::Node> NetworkHelper::separateInStandaloneBranch(std::shared_
             parent = multiply->output(0);
         }
 
-        std::vector<Output<Node>> inputs = node->input_values();
         const auto originalParent = dequantization.multiply ?
             dequantization.multiply->shared_from_this() :
             dequantization.subtract->shared_from_this();
 
         const size_t inputIndex = NetworkHelper::getChildInputIndex(originalParent, node);
         inputs[inputIndex] = parent;
-        const std::shared_ptr<Node> newNode = node->clone_with_new_inputs(inputs);
-        copy_runtime_info(node, newNode);
-        replace_node(node, newNode);
-        newNode->set_friendly_name(node->get_friendly_name());
+        return true;
+    };
 
-        return newNode;
-    }
+    bool branch_separation_happened = false;
+    for (size_t i = 0; i < node->get_input_size(); ++i)
+        branch_separation_happened |= separate_branch(i);
 
-    return node;
+    if (!branch_separation_happened)
+        return node;
+
+    const auto newNode = node->clone_with_new_inputs(inputs);
+    copy_runtime_info(node, newNode);
+    replace_node(node, newNode);
+    newNode->set_friendly_name(node->get_friendly_name());
+    return newNode;
 }
 
 std::shared_ptr<ov::opset1::FakeQuantize> NetworkHelper::fuseConvert(const std::shared_ptr<ov::opset1::FakeQuantize>& fakeQuantize) {
