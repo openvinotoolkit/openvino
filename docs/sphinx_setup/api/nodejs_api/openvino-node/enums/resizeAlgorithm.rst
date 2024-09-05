@@ -3,7 +3,7 @@ Enumeration resizeAlgorithm
 
 .. rubric:: RESIZE_CUBIC
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -15,7 +15,7 @@ Enumeration resizeAlgorithm
 
 .. rubric:: RESIZE_LINEAR
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -27,7 +27,7 @@ Enumeration resizeAlgorithm
 
 .. rubric:: RESIZE_NEAREST
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 

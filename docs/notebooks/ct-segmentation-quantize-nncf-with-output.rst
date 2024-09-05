@@ -53,8 +53,8 @@ demonstration purposes, this tutorial will download one converted CT
 scan and use that scan for quantization and inference. For production
 purposes, use a representative dataset for quantizing the model.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `Settings <#settings>`__
@@ -85,12 +85,22 @@ Table of contents:
 
 -  `References <#references>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     import platform
-    
+
     %pip install -q "openvino>=2023.3.0" "monai>=0.9.1" "torchmetrics>=0.11.0" "nncf>=2.8.0" "opencv-python" torch tqdm --extra-index-url https://download.pytorch.org/whl/cpu
-    
+
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -118,9 +128,9 @@ Imports
     import zipfile
     from pathlib import Path
     from typing import Union
-    
+
     warnings.filterwarnings("ignore", category=UserWarning)
-    
+
     import cv2
     import matplotlib.pyplot as plt
     import monai
@@ -132,19 +142,19 @@ Imports
     from nncf.common.logging.logger import set_log_level
     from torchmetrics import F1Score as F1
     import requests
-    
-    
+
+
     set_log_level(logging.ERROR)  # Disables all NNCF info and warning messages
-    
+
     # Fetch `notebook_utils` module
     r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
-    
+    from notebook_utils import download_file, device_widget
+
     if not Path("./custom_segmentation.py").exists():
         download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/ct-segmentation-quantize/custom_segmentation.py")
     from custom_segmentation import SegmentationModel
-    
+
     if not Path("./async_pipeline.py").exists():
         download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/ct-segmentation-quantize/async_pipeline.py")
     from async_pipeline import show_live_inference
@@ -152,10 +162,10 @@ Imports
 
 .. parsed-literal::
 
-    2024-05-15 23:50:56.536543: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-15 23:50:56.573924: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-08-27 23:50:21.702393: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-27 23:50:21.736777: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-15 23:50:57.174238: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-08-27 23:50:22.325338: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -197,13 +207,13 @@ notebook <pytorch-monai-training.ipynb>`__.
     state_dict_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/kidney-segmentation-kits19/unet_kits19_state_dict.pth"
     state_dict_file = download_file(state_dict_url, directory="pretrained_model")
     state_dict = torch.load(state_dict_file, map_location=torch.device("cpu"))
-    
+
     new_state_dict = {}
     for k, v in state_dict.items():
         new_key = k.replace("_model.", "")
         new_state_dict[new_key] = v
     new_state_dict.pop("loss_function.pos_weight")
-    
+
     model = monai.networks.nets.BasicUNet(spatial_dims=2, in_channels=1, out_channels=1).eval()
     model.load_state_dict(new_state_dict)
 
@@ -217,6 +227,12 @@ notebook <pytorch-monai-training.ipynb>`__.
 .. parsed-literal::
 
     BasicUNet features: (32, 32, 64, 128, 256, 32).
+
+
+.. parsed-literal::
+
+    /tmp/ipykernel_71353/1592321960.py:3: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+      state_dict = torch.load(state_dict_file, map_location=torch.device("cpu"))
 
 
 
@@ -285,8 +301,8 @@ method to display the images in the expected orientation:
     def rotate_and_flip(image):
         """Rotate `image` by 90 degrees and flip horizontally"""
         return cv2.flip(cv2.rotate(image, rotateCode=cv2.ROTATE_90_CLOCKWISE), flipCode=1)
-    
-    
+
+
     class KitsDataset:
         def __init__(self, basedir: str):
             """
@@ -295,35 +311,35 @@ method to display the images in the expected orientation:
             with each subdirectory containing directories imaging_frames, with jpg images, and
             segmentation_frames with segmentation masks as png files.
             See [data-preparation-ct-scan](./data-preparation-ct-scan.ipynb)
-    
+
             :param basedir: Directory that contains the prepared CT scans
             """
             masks = sorted(BASEDIR.glob("case_*/segmentation_frames/*png"))
-    
+
             self.basedir = basedir
             self.dataset = masks
             print(f"Created dataset with {len(self.dataset)} items. " f"Base directory for data: {basedir}")
-    
+
         def __getitem__(self, index):
             """
             Get an item from the dataset at the specified index.
-    
+
             :return: (image, segmentation_mask)
             """
             mask_path = self.dataset[index]
             image_path = str(mask_path.with_suffix(".jpg")).replace("segmentation_frames", "imaging_frames")
-    
+
             # Load images with MONAI's LoadImage to match data loading in training notebook
             mask = LoadImage(image_only=True, dtype=np.uint8)(str(mask_path)).numpy()
             img = LoadImage(image_only=True, dtype=np.float32)(str(image_path)).numpy()
-    
+
             if img.shape[:2] != (512, 512):
                 img = cv2.resize(img.astype(np.uint8), (512, 512)).astype(np.float32)
                 mask = cv2.resize(mask, (512, 512))
-    
+
             input_image = np.expand_dims(img, axis=0)
             return input_image, mask
-    
+
         def __len__(self):
             return len(self.dataset)
 
@@ -341,10 +357,10 @@ kidney pixels to verify that the annotations look correct:
     image_data, mask = next(item for item in dataset if np.count_nonzero(item[1]) > 5000)
     # Remove extra image dimension and rotate and flip the image for visualization
     image = rotate_and_flip(image_data.squeeze())
-    
+
     # The data loader returns annotations as (index, mask) and mask in shape (H,W)
     mask = rotate_and_flip(mask)
-    
+
     fig, ax = plt.subplots(1, 2, figsize=(12, 6))
     ax[0].imshow(image, cmap="gray")
     ax[1].imshow(mask, cmap="gray");
@@ -422,7 +438,7 @@ this notebook.
 .. code:: ipython3
 
     fp32_ir_path = MODEL_DIR / Path("unet_kits19_fp32.xml")
-    
+
     fp32_ir_model = ov.convert_model(model, example_input=torch.ones(1, 1, 512, 512, dtype=torch.float32))
     ov.save_model(fp32_ir_model, str(fp32_ir_path))
 
@@ -435,7 +451,7 @@ this notebook.
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/monai/networks/nets/basic_unet.py:168: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/monai/networks/nets/basic_unet.py:168: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if x_e.shape[-i - 1] != x_0.shape[-i - 1]:
 
 
@@ -467,8 +483,8 @@ steps:
         """
         images, _ = data_item
         return images
-    
-    
+
+
     data_loader = torch.utils.data.DataLoader(dataset)
     calibration_dataset = nncf.Dataset(data_loader, transform_fn)
     quantized_model = nncf.quantize(
@@ -486,17 +502,9 @@ steps:
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -507,17 +515,9 @@ steps:
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -534,18 +534,18 @@ Convert quantized model to OpenVINO IR model and save it.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:337: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:340: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       return self._level_low.item()
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:345: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:348: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       return self._level_high.item()
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/monai/networks/nets/basic_unet.py:168: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/monai/networks/nets/basic_unet.py:168: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if x_e.shape[-i - 1] != x_0.shape[-i - 1]:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1116: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1303: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
     Tensor-likes are not close!
-    
-    Mismatched elements: 247888 / 262144 (94.6%)
-    Greatest absolute difference: 6.055658936500549 at index (0, 0, 158, 273) (up to 1e-05 allowed)
-    Greatest relative difference: 13834.454856259192 at index (0, 0, 343, 273) (up to 1e-05 allowed)
+
+    Mismatched elements: 251114 / 262144 (95.8%)
+    Greatest absolute difference: 3.779088854789734 at index (0, 0, 110, 259) (up to 1e-05 allowed)
+    Greatest relative difference: 18063.837693864687 at index (0, 0, 89, 42) (up to 1e-05 allowed)
       _check_trace(
 
 
@@ -570,7 +570,7 @@ Compare File Size
 
     fp32_ir_model_size = fp32_ir_path.with_suffix(".bin").stat().st_size / 1024
     quantized_model_size = int8_ir_path.with_suffix(".bin").stat().st_size / 1024
-    
+
     print(f"FP32 IR model size: {fp32_ir_model_size:.2f} KB")
     print(f"INT8 model size: {quantized_model_size:.2f} KB")
 
@@ -591,16 +591,8 @@ Select Inference Device
     core = ov.Core()
     # By default, benchmark on MULTI:CPU,GPU if a GPU is available, otherwise on CPU.
     device_list = ["MULTI:CPU,GPU" if "GPU" in core.available_devices else "AUTO"]
-    
-    import ipywidgets as widgets
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + device_list,
-        value=device_list[0],
-        description="Device:",
-        disabled=False,
-    )
-    
+
+    device = device_widget(device_list[0], added=device_list)
     device
 
 
@@ -621,7 +613,7 @@ Compare Metrics for the original model and the quantized model to be sure that t
 
     int8_compiled_model = core.compile_model(int8_ir_model, device.value)
     int8_f1 = compute_f1(int8_compiled_model, dataset)
-    
+
     print(f"FP32 F1: {fp32_f1:.3f}")
     print(f"INT8 F1: {int8_f1:.3f}")
 
@@ -668,18 +660,18 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
-    [ INFO ] 
+    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 8.68 ms
+    [ INFO ] Read model took 8.76 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [?,?,?,?]
@@ -693,7 +685,7 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.final_conv/aten::_convolution/Add) : f32 / [...] / [?,1,16..,16..]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 149.48 ms
+    [ INFO ] Compile model took 161.67 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -705,7 +697,7 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ]     AFFINITY: Affinity.CORE
     [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
     [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
-    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 0
+    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 32
     [ INFO ]     ENABLE_CPU_PINNING: True
     [ INFO ]     ENABLE_HYPER_THREADING: False
     [ INFO ]     EXECUTION_DEVICES: ['CPU']
@@ -728,9 +720,9 @@ be run in the notebook with ``! benchmark_app`` or
     [Step 9/11] Creating infer requests and preparing input tensors
     [ ERROR ] Input x is dynamic. Provide data shapes!
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 486, in main
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 486, in main
         data_queue = get_input_data(paths_to_input, app_inputs_info)
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/utils/inputs_filling.py", line 123, in get_input_data
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/utils/inputs_filling.py", line 123, in get_input_data
         raise Exception(f"Input {info.name} is dynamic. Provide data shapes!")
     Exception: Input x is dynamic. Provide data shapes!
 
@@ -747,18 +739,18 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
-    [ INFO ] 
+    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 10.82 ms
+    [ INFO ] Read model took 10.80 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,1,512,512]
@@ -772,7 +764,7 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.final_conv/aten::_convolution/Add) : f32 / [...] / [1,1,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 257.40 ms
+    [ INFO ] Compile model took 228.40 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model49
@@ -784,7 +776,7 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ]     AFFINITY: Affinity.CORE
     [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
     [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
-    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 0
+    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 32
     [ INFO ]     ENABLE_CPU_PINNING: True
     [ INFO ]     ENABLE_HYPER_THREADING: False
     [ INFO ]     EXECUTION_DEVICES: ['CPU']
@@ -806,20 +798,20 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 27.38 ms
+    [ INFO ] First inference took 30.97 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            959 iterations
-    [ INFO ] Duration:         15011.96 ms
+    [ INFO ] Count:            960 iterations
+    [ INFO ] Duration:         15012.20 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        15.40 ms
-    [ INFO ]    Average:       15.45 ms
-    [ INFO ]    Min:           15.18 ms
-    [ INFO ]    Max:           17.18 ms
-    [ INFO ] Throughput:   63.88 FPS
+    [ INFO ]    Median:        15.37 ms
+    [ INFO ]    Average:       15.43 ms
+    [ INFO ]    Min:           15.13 ms
+    [ INFO ]    Max:           17.61 ms
+    [ INFO ] Throughput:   63.95 FPS
 
 
 Visually Compare Inference Results
@@ -853,11 +845,11 @@ seed is displayed to enable reproducing specific runs of this cell.
     # to binary segmentation masks
     def sigmoid(x):
         return np.exp(-np.logaddexp(0, -x))
-    
-    
+
+
     num_images = 4
     colormap = "gray"
-    
+
     # Load FP32 and INT8 models
     core = ov.Core()
     fp_model = core.read_model(fp32_ir_path)
@@ -866,18 +858,18 @@ seed is displayed to enable reproducing specific runs of this cell.
     compiled_model_int8 = core.compile_model(int8_model, device_name=device.value)
     output_layer_fp = compiled_model_fp.output(0)
     output_layer_int8 = compiled_model_int8.output(0)
-    
+
     # Create subset of dataset
     background_slices = (item for item in dataset if np.count_nonzero(item[1]) == 0)
     kidney_slices = (item for item in dataset if np.count_nonzero(item[1]) > 50)
     data_subset = random.sample(list(background_slices), 2) + random.sample(list(kidney_slices), 2)
-    
+
     # Set seed to current time. To reproduce specific results, copy the printed seed
     # and manually set `seed` to that value.
     seed = int(time.time())
     random.seed(seed)
     print(f"Visualizing results with seed {seed}")
-    
+
     fig, ax = plt.subplots(nrows=num_images, ncols=4, figsize=(24, num_images * 4))
     for i, (image, mask) in enumerate(data_subset):
         display_image = rotate_and_flip(image.squeeze())
@@ -886,13 +878,13 @@ seed is displayed to enable reproducing specific runs of this cell.
         input_image = np.expand_dims(image, 0)
         res_fp = compiled_model_fp([input_image])
         res_int8 = compiled_model_int8([input_image])
-    
+
         # Process inference outputs and convert to binary segementation masks
         result_mask_fp = sigmoid(res_fp[output_layer_fp]).squeeze().round().astype(np.uint8)
         result_mask_int8 = sigmoid(res_int8[output_layer_int8]).squeeze().round().astype(np.uint8)
         result_mask_fp = rotate_and_flip(result_mask_fp)
         result_mask_int8 = rotate_and_flip(result_mask_int8)
-    
+
         # Display images, annotations, FP32 result and INT8 result
         ax[i, 0].imshow(display_image, cmap=colormap)
         ax[i, 1].imshow(target_mask, cmap=colormap)
@@ -904,7 +896,7 @@ seed is displayed to enable reproducing specific runs of this cell.
 
 .. parsed-literal::
 
-    Visualizing results with seed 1715809926
+    Visualizing results with seed 1724795489
 
 
 
@@ -920,7 +912,7 @@ To show live inference on the model in the notebook, we will use the
 asynchronous processing feature of OpenVINO.
 
 We use the ``show_live_inference`` function from `Notebook
-Utils <../utils-with-output.html>`__ to show live inference. This
+Utils <utils-with-output.html>`__ to show live inference. This
 function uses `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__\ ’s Async
 Pipeline and Model API to perform asynchronous inference. After
@@ -946,7 +938,7 @@ overlay of the segmentation mask on the original image/frame.
 .. code:: ipython3
 
     CASE = 117
-    
+
     segmentation_model = SegmentationModel(ie=core, model_path=int8_ir_path, sigmoid=True, rotate_and_flip=True)
     case_path = BASEDIR / f"case_{CASE:05d}"
     image_paths = sorted(case_path.glob("imaging_frames/*jpg"))
@@ -987,8 +979,8 @@ performs inference, and displays the results on the frames loaded in
 
 .. parsed-literal::
 
-    Loaded model to AUTO in 0.21 seconds.
-    Total time for 68 frames: 2.72 seconds, fps:25.33
+    Loaded model to AUTO in 0.15 seconds.
+    Total time for 68 frames: 2.37 seconds, fps:29.11
 
 
 References

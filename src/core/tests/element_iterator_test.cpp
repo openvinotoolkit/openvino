@@ -474,5 +474,103 @@ TEST(ElementIteratorTest, read_u6_from_tensor) {
     EXPECT_THAT(std::vector<int8_t>(iter, iter + t.get_size()), ElementsAre(1, 2, 3, 10, 3, 8, 7, 2, 1, 42, 4, 20));
 }
 
+// --- f4e2m1
+// nibbles are counted as [n1, n0]
+TEST(ElementIteratorTest, write_f4e2m1_data) {
+    constexpr auto elements_count = 16;
+    auto input_unpacked =
+        std::array<float4_e2m1, elements_count>{-0.5f, 0.0f, 0, 0, 1.0f, 6.0f, -1.0f, -4.0f, 0, 0, 0, 0, 0, 0, 0, 0};
+    auto output_packed = std::array<float4_e2m1, get_buffer_size(4, elements_count)>{};
+    auto iter = element::iterator<element::f4e2m1>(output_packed.data());
+
+    std::copy_n(input_unpacked.begin(), elements_count, iter);
+
+    EXPECT_EQ(std::vector<float4_e2m1>(iter, iter + elements_count),
+              std::vector<float4_e2m1>(
+                  {-.5f, 0.0f, 0.0f, 0.0f, 1.0f, 6.0f, -1.0f, -4.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}));
+}
+
+TEST(ElementIteratorTest, read_const_f4e2m1_data) {
+    constexpr auto elements_count = 16;
+    constexpr auto byte_size = get_buffer_size(4, elements_count);
+    constexpr auto input = std::array<int8_t, byte_size>{0x12,
+                                                         0x3a,
+                                                         static_cast<int8_t>(0xcf),
+                                                         static_cast<int8_t>(0xe4),
+                                                         0x79,
+                                                         static_cast<int8_t>(0xbd),
+                                                         0x08,
+                                                         0x56};
+    auto iter = element::iterator<element::f4e2m1>(input.data());
+
+    EXPECT_EQ(
+        std::vector<float4_e2m1>(iter, iter + elements_count),
+        std::vector<float4_e2m1>(
+            {1.0f, 0.5f, -1.0f, 1.5f, -6.0f, -2.0f, 2.0f, -4.0f, -0.5f, 6.0f, -3.0f, -1.5f, -0.0f, 0.0f, 4.0f, 3.0f}));
+}
+
+TEST(ElementIteratorTest, read_non_const_f4e2m1_data) {
+    constexpr auto elements_count = 16;
+    constexpr auto byte_size = get_buffer_size(4, elements_count);
+    auto input = std::array<int8_t, byte_size>{0x12,
+                                               0x3a,
+                                               static_cast<int8_t>(0xcf),
+                                               static_cast<int8_t>(0xe4),
+                                               0x79,
+                                               static_cast<int8_t>(0xbd),
+                                               0x08,
+                                               0x56};
+    auto iter = element::iterator<element::f4e2m1>(input.data());
+
+    EXPECT_EQ(
+        std::vector<float4_e2m1>(iter, iter + elements_count),
+        std::vector<float4_e2m1>(
+            {1.0f, 0.5f, -1.0f, 1.5f, -6.0f, -2.0f, 2.0f, -4.0f, -0.5f, 6.0f, -3.0f, -1.5f, -0.0f, 0.0f, 4.0f, 3.0f}));
+}
+
+TEST(ElementIteratorTest, read_f4e2m1_data_increment_decrement_iterator) {
+    auto input_packed = std::array<int8_t, 2>{0x12, 0x3a};
+    auto iter = element::iterator<element::f4e2m1>(input_packed.data() + 1);
+
+    EXPECT_EQ(*iter--, -1.0f);  // 2nd byte 1st nibble
+    EXPECT_EQ(*iter++, 0.5f);   // 1st byte 2nd nibble
+    EXPECT_EQ(*++iter, 1.5f);   // 2nd byte 2nd nibble
+    EXPECT_EQ(*iter--, 1.5f);   // 2nd byte 2nd nibble
+    EXPECT_EQ(*--iter, 0.5f);   // 1st byte 2nd nibble
+    EXPECT_EQ(*--iter, 1.0f);   // 1st byte 1st nibble
+}
+
+TEST(ElementIteratorTest, read_f4e2m1_data_iterator_with_offset) {
+    auto input = std::array<int8_t, 5>{0x42, 0x3a, 0x61, 0x79, 0x5b};
+    auto iter = element::iterator<element::f4e2m1>(input.data() + 1);
+
+    EXPECT_EQ(*iter, -1.0f);               // 2nd byte 1st nibble
+    EXPECT_EQ(*(iter - 2), 1.0f);          // 1st byte 1st nibble
+    EXPECT_EQ(*(iter + 7), 3.0f);          // 5th byte 2nd nibble
+    EXPECT_EQ(*(iter + 6), -1.5f);         // 5th byte 1st nibble
+    EXPECT_EQ(*(iter - 1), 2.0f);          // 1st byte 2nd nibble
+    EXPECT_EQ(*std::prev(iter, 1), 2.0f);  // 1st byte 2nd nibble
+    EXPECT_EQ(*std::next(iter, 2), 0.5f);  // 3rd byte 1st nibble
+}
+
+TEST(ElementIteratorTest, f4e2m1_value_to_output_stream) {
+    constexpr auto value = static_cast<int8_t>(0x19);
+    auto iter = element::iterator<element::f4e2m1>(&value);
+
+    std::stringstream s;
+    s << *iter;
+
+    EXPECT_EQ(s.str(), "-0.5");
+}
+
+TEST(ElementIteratorTest, read_f4e2m1_from_tensor) {
+    auto input = std::array<int8_t, 5>{0x42, 0x3a, 0x61, 0x79, 0x5b};
+    auto t = ov::Tensor(element::f4e2m1, Shape{10, 1, 1}, input.data());
+    auto iter = element::iterator<element::f4e2m1>(t.data<float4_e2m1>());
+
+    EXPECT_EQ(std::vector<float4_e2m1>(iter, iter + t.get_size()),
+              std::vector<float4_e2m1>({1.0f, 2.0f, -1.0f, 1.5f, 0.5f, 4.0f, -0.5f, 6.0f, -1.5f, 3.0f}));
+}
+
 }  // namespace test
 }  // namespace ov

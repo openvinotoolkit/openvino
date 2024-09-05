@@ -14,8 +14,8 @@ Additionally, you can also upload a video file.
    work. However, you can still do inference on a video in the final
    step.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `The model <#the-model>`__
@@ -33,6 +33,16 @@ Table of contents:
 -  `Run <#run>`__
 
    -  `Run Live Pose Estimation <#run-live-pose-estimation>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 .. code:: ipython3
 
@@ -140,16 +150,7 @@ using OpenVINO.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = utils.device_widget()
     
     device
 

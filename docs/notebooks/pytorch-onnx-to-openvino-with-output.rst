@@ -33,8 +33,8 @@ plant, sheep, sofa, train, tv monitor**
 More information about the model is available in the `torchvision
 documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Preparation <#preparation>`__
 
@@ -66,6 +66,16 @@ Table of contents:
 -  `Performance Comparison <#performance-comparison>`__
 -  `References <#references>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     # Install openvino package
@@ -74,13 +84,6 @@ Table of contents:
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    googleapis-common-protos 1.63.0 requires protobuf!=3.20.0,!=3.20.1,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0.dev0,>=3.19.5, but you have protobuf 5.26.1 which is incompatible.
-    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 5.26.1 which is incompatible.
-    tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 5.26.1 which is incompatible.
-    tensorflow-metadata 1.14.0 requires protobuf<4.21,>=3.20.3, but you have protobuf 5.26.1 which is incompatible.
-    tf2onnx 1.16.1 requires protobuf~=3.20, but you have protobuf 5.26.1 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -118,13 +121,7 @@ Imports
     
     open("notebook_utils.py", "w").write(r.text)
     
-    from notebook_utils import (
-        segmentation_map_to_image,
-        viz_result_image,
-        SegmentationMap,
-        Label,
-        download_file,
-    )
+    from notebook_utils import segmentation_map_to_image, viz_result_image, SegmentationMap, Label, download_file, device_widget
 
 Settings
 ~~~~~~~~
@@ -366,14 +363,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -566,9 +556,9 @@ performance.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.040 seconds per image, FPS: 24.97
-    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 55.35
-    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.029 seconds per image, FPS: 34.17
+    PyTorch model on CPU: 0.039 seconds per image, FPS: 25.82
+    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 55.39
+    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.028 seconds per image, FPS: 35.83
 
 
 **Show Device Information**

@@ -29,7 +29,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -72,13 +72,13 @@ jobs:
 
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           path: 'openvino'
           submodules: 'true'
 
       - name: Clone test models
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           repository: 'openvinotoolkit/testdata'
           path: 'testdata'
@@ -169,7 +169,9 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
             -DENABLE_PROFILING_ITT=ON `
             -DSELECTIVE_BUILD=COLLECT `
+            -DENABLE_FASTER_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
+            -DCMAKE_TOOLCHAIN_FILE=${{ env.ONECORE_TOOLCHAIN }} `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
@@ -190,7 +192,7 @@ jobs:
 
       - name: Build C++ samples - OpenVINO build tree
         run: |
-          cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
+          cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples -DCMAKE_TOOLCHAIN_FILE=${{ env.ONECORE_TOOLCHAIN }}
           cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
 
       - name: Build C samples - OpenVINO install tree
@@ -200,13 +202,13 @@ jobs:
       - name: Ctest - OpenVINO unit tests
         shell: cmd
         run: |
-          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin;${{ env.BUILD_DIR }}\bin\Release
+          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
           ctest -C ${{ env.CMAKE_BUILD_TYPE }} --test-dir ${{ env.BUILD_DIR }} -V -L UNIT
 
       - name: Perform code tracing via ITT collector
         shell: cmd
         run: |
-          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin;${{ env.BUILD_DIR }}\bin\Release
+          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
 
           python3 ${{ env.OPENVINO_REPO }}\thirdparty\itt_collector\runtool\sea_runtool.py ^
           --bindir ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }} ^
@@ -235,7 +237,7 @@ jobs:
           Compress-Archive @compress
 
           $compress = @{
-            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.BUILD_DIR }}/bin/Release/ze_loader.dll", "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/openvino_template_extension.dll", "${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary", "${{ env.INSTALL_DIR }}/runtime/3rdparty/tbb"
+            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.BUILD_DIR }}/bin/${{ env.CMAKE_BUILD_TYPE }}/ze_loader.dll", "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/openvino_template_extension.dll", "${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary", "${{ env.INSTALL_DIR }}/runtime/3rdparty/tbb"
             CompressionLevel = "Optimal"
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_tests.zip"
           }
@@ -247,7 +249,7 @@ jobs:
 
       - name: Upload selective build statistics package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_selective_build_stat
           path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.zip
@@ -255,7 +257,7 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.zip
@@ -278,13 +280,13 @@ jobs:
 
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           path: 'openvino'
           submodules: 'true'
 
       - name: Clone test models
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           repository: 'openvinotoolkit/testdata'
           path: 'testdata'
@@ -292,7 +294,7 @@ jobs:
           ref: 'master'
 
       - name: Download selective build statistics package
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: openvino_selective_build_stat
           path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
@@ -319,6 +321,7 @@ jobs:
             -DENABLE_OV_TF_LITE_FRONTEND=OFF `
             -DENABLE_OV_PADDLE_FRONTEND=OFF `
             -DENABLE_OV_PYTORCH_FRONTEND=OFF `
+            -DENABLE_OV_JAX_FRONTEND=OFF `
             -DENABLE_OV_ONNX_FRONTEND=OFF `
             -DSELECTIVE_BUILD_STAT=${{ env.SELECTIVE_BUILD_STAT_DIR }}\*.csv `
             -S ${{ env.OPENVINO_REPO }} `
@@ -334,7 +337,7 @@ jobs:
       - name: Run with CC-ed runtime
         shell: cmd
         run: |
-          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin;${{ env.BUILD_DIR }}\bin\Release
+          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
           ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}\benchmark_app.exe -niter 1 -nireq 1 -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml -d CPU
 
   CPU_Functional_Tests:
@@ -354,7 +357,7 @@ jobs:
 
     steps:
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -363,7 +366,7 @@ jobs:
         run: Expand-Archive ${{ env.INSTALL_TEST_DIR }}/openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}"
 
       - name: Fetch setup_python action
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -396,7 +399,7 @@ jobs:
         timeout-minutes: 60
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         if: ${{ !cancelled() }}
         with:
           name: test-results-functional-cpu

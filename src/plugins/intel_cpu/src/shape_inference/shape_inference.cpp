@@ -111,6 +111,8 @@
 #include "squeeze_shape_inference.hpp"
 #include "static_shape.hpp"
 #include "strided_slice_shape_inference.hpp"
+#include "string_tensor_pack_shape_inference.hpp"
+#include "string_tensor_unpack_shape_inference.hpp"
 #include "tile_shape_inference.hpp"
 #include "topk_shape_inference.hpp"
 #include "transpose_shape_inference.hpp"
@@ -402,11 +404,16 @@ using IStaticShapeInferFactory =
 template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // opset15
+    _OV_OP_SHAPE_INFER_MASK_REG(op::v15::StringTensorUnpack, ShapeInferTA, util::bit::mask(0)),
+    _OV_OP_SHAPE_INFER_MASK_REG(op::v15::StringTensorPack, ShapeInferTA, util::bit::mask(0, 1)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset15::EmbeddingBagOffsets, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset15::EmbeddingBagPacked, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(op::v15::Col2Im, ShapeInferTA, util::bit::mask(1, 2)),
+    _OV_OP_SHAPE_INFER_MASK_REG(op::v15::ScatterNDUpdate, ShapeInferTA, util::bit::mask()),
     // opset14
     _OV_OP_SHAPE_INFER_MASK_REG(opset14::Inverse, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset14::MaxPool, ShapeInferPaddingTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset14::AvgPool, ShapeInferPaddingTA, util::bit::mask()),
     // opset13
     _OV_OP_SHAPE_INFER_MASK_REG(opset13::Multinomial, ShapeInferTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset13::ScaledDotProductAttention, ShapeInferTA, util::bit::mask(3, 5)),

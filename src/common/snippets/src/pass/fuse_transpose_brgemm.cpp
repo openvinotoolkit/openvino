@@ -7,7 +7,7 @@
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/snippets_isa.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -54,6 +54,20 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "FuseTransposeBrgemm")
         auto brgemm = ov::as_type_ptr<op::Brgemm>(m.get_match_root());
 
+        auto fuse_layouts = [](const std::vector<size_t>& layout_1, const std::vector<size_t>& layout_2) {
+            if (layout_1.empty())
+                return layout_2;
+            if (layout_2.empty())
+                return layout_1;
+            OPENVINO_ASSERT(layout_1.size() == layout_2.size(), "Fused layouts must have equal ranks");
+            std::vector<size_t> fused_layout(layout_1.size());
+            for (size_t i = 0; i < layout_1.size(); ++i) {
+                OPENVINO_ASSERT(layout_2[i] < layout_1.size(), "Fused layouts values mustn't exceed layout size");
+                fused_layout[i] = layout_1[layout_2[i]];
+            }
+            return fused_layout;
+        };
+
         // Transpose on the Brgemm's output
         if (!brgemm) {
             brgemm = ov::as_type_ptr<op::Brgemm>(m.get_match_root()->get_input_node_shared_ptr(0));
@@ -61,8 +75,10 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
             const auto& transpose_out = m.get_match_value();
             const auto& const_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose_out.get_node_shared_ptr()->get_input_node_shared_ptr(1));
             const auto& original_port = ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(brgemm_out);
-            original_port->set_shape(transpose_out.get_shape());
-            original_port->set_layout(const_order->cast_vector<size_t>());
+            original_port->set_shape(utils::pshape_to_vdims(transpose_out.get_partial_shape()));
+            const auto& out_layout = original_port->get_layout();
+            const auto& transpose_order = const_order->cast_vector<size_t>();
+            original_port->set_layout(fuse_layouts(out_layout, transpose_order));
             for (const auto& in : transpose_out.get_target_inputs())
                 in.replace_source_output(brgemm->output(0));
         }
@@ -75,8 +91,10 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
                 const auto& const_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
                 brgemm->set_argument(i, transpose->input_value(0));
                 const auto& original_port = ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(in);
-                original_port->set_shape(transpose->get_input_shape(0));
-                original_port->set_layout(const_order->cast_vector<size_t>());
+                const auto& in_layout = original_port->get_layout();
+                const auto& transpose_order = const_order->cast_vector<size_t>();
+                original_port->set_shape(utils::pshape_to_vdims(transpose->get_input_partial_shape(0)));
+                original_port->set_layout(fuse_layouts(transpose_order, in_layout));
             }
         }
 

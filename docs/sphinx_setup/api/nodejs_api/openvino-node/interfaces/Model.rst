@@ -32,7 +32,7 @@ Properties
 
 .. rubric:: inputs
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -44,7 +44,7 @@ Properties
 .. rubric:: outputs
 
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -60,7 +60,7 @@ Methods
 
 .. rubric:: getFriendlyName
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -79,7 +79,7 @@ Methods
 
 .. rubric:: getName
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -97,7 +97,7 @@ Methods
 
 .. rubric:: getOutputShape
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -113,7 +113,7 @@ Methods
 
 .. rubric:: getOutputSize
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -129,7 +129,7 @@ Methods
 
 .. rubric:: input
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -190,7 +190,7 @@ Methods
 
 .. rubric:: isDynamic
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -206,7 +206,7 @@ Methods
 
 .. rubric:: output
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -229,7 +229,7 @@ Methods
 .. rubric:: setFriendlyName
    :name: setFriendlyName
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 

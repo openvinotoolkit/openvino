@@ -29,6 +29,20 @@ MATCHER_P(MapContains, subMap, "Check if all the elements of the subMap are cont
 
 class AutoStartupFallback : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
+    static std::string getTestCaseNameCacheTest(testing::TestParamInfo<ConfigParams> obj) {
+        bool startup_fallback;
+        ov::AnyMap config;
+        std::tie(startup_fallback, config) = obj.param;
+        std::ostringstream result;
+        result << "_expected_disabling_cache_" << startup_fallback;
+        result << "_compiled_config_";
+        for (auto& item : config) {
+            result << item.first << "_" << item.second.as<std::string>() << "_";
+        }
+        auto name = result.str();
+        name.pop_back();
+        return name;
+    }
     void SetUp() override {
         plugin->set_device_name("AUTO");
         ON_CALL(*core,
@@ -36,7 +50,8 @@ public:
                               ::testing::Matcher<const std::string&>(_),
                               _))
             .WillByDefault(Return(mockExeNetwork));
-        metaDevices = {{ov::test::utils::DEVICE_CPU, {}, -1}, {ov::test::utils::DEVICE_GPU, {}, -1}};
+        metaDevices = {{ov::test::utils::DEVICE_CPU, {ov::cache_dir("test_dir")}, -1},
+                       {ov::test::utils::DEVICE_GPU, {ov::cache_dir("test_dir")}, -1}};
         ON_CALL(*plugin, parse_meta_devices(_, _)).WillByDefault(Return(metaDevices));
         ON_CALL(*plugin, get_valid_device)
             .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
@@ -67,10 +82,48 @@ TEST_P(AutoStartupFallback, propertytest) {
             .Times(1);
     }
 
-    ASSERT_NO_THROW(plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(plugin->compile_model(model, config));
 }
 
 const std::vector<ConfigParams> testConfigs = {ConfigParams{true, {{"ENABLE_STARTUP_FALLBACK", "YES"}}},
                                                ConfigParams{false, {{"ENABLE_STARTUP_FALLBACK", "NO"}}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_StartupFallback, AutoStartupFallback, ::testing::ValuesIn(testConfigs));
+
+using AutoLoadExeNetworkCacheDirSettingTest = AutoStartupFallback;
+TEST_P(AutoLoadExeNetworkCacheDirSettingTest, canDisableCacheDirSettingForCPUPlugin) {
+    // get Parameter
+    bool is_disable_cache_dir;
+    ov::AnyMap config;
+    std::tie(is_disable_cache_dir, config) = this->GetParam();
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)),
+                              _))
+        .Times(1);
+
+    if (is_disable_cache_dir) {
+        std::map<std::string, std::string> test_map = {{ov::cache_dir.name(), ""}};
+        EXPECT_CALL(*core,
+                    compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                                  ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
+                                  ::testing::Matcher<const ov::AnyMap&>(MapContains(test_map))))
+            .Times(1);
+    }
+
+    ASSERT_NO_THROW(plugin->compile_model(model, config));
+}
+
+const std::vector<ConfigParams> testCacheConfigs = {
+    ConfigParams{true, {ov::intel_auto::enable_startup_fallback(true)}},
+    ConfigParams{true, {ov::intel_auto::enable_runtime_fallback(true)}},
+    ConfigParams{true, {ov::intel_auto::enable_startup_fallback(true), ov::intel_auto::enable_runtime_fallback(false)}},
+    ConfigParams{false, {ov::intel_auto::enable_startup_fallback(false), ov::intel_auto::enable_runtime_fallback(true)}},
+    ConfigParams{true, {ov::intel_auto::enable_startup_fallback(true), ov::intel_auto::enable_runtime_fallback(true)}},
+    ConfigParams{false,
+                 {ov::intel_auto::enable_startup_fallback(false), ov::intel_auto::enable_runtime_fallback(false)}}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_disableCachingForCPUPlugin,
+                         AutoLoadExeNetworkCacheDirSettingTest,
+                         ::testing::ValuesIn(testCacheConfigs),
+                         AutoLoadExeNetworkCacheDirSettingTest::getTestCaseNameCacheTest);

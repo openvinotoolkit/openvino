@@ -16,8 +16,8 @@ Knowledge Graph Embeddings” (https://arxiv.org/abs/1707.01476). The
 sample dataset can be downloaded from:
 https://github.com/TimDettmers/ConvE/tree/master/countries/countries_S1
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Windows specific settings <#windows-specific-settings>`__
 -  `Import the packages needed for successful
@@ -48,6 +48,16 @@ Table of contents:
       app <#benchmark-the-converted-openvino-model-using-benchmark-app>`__
    -  `Conclusions <#conclusions>`__
    -  `References <#references>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 .. code:: ipython3
 
@@ -132,7 +142,7 @@ Import the packages needed for successful execution
     )
     
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 Settings: Including path to the serialized model files and input data files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -222,7 +232,7 @@ Download Model Checkpoint
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/notebooks/knowledge-graphs-conve/models/conve.pt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/knowledge-graphs-conve/models/conve.pt')
 
 
 
@@ -384,7 +394,7 @@ typical to use metrics such as Mean Reciprocal Rank, Hits@10 etc.
 
 .. parsed-literal::
 
-    Average time taken for inference: 0.6809830665588379 ms
+    Average time taken for inference: 1.1004706223805745 ms
     Mean accuracy of the model on the test dataset: 0.875
 
 
@@ -478,15 +488,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
-    
+    device = device_widget()
     device
 
 
@@ -494,7 +496,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
@@ -531,7 +533,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Average time taken for inference: 0.6866355737050375 ms
+    Average time taken for inference: 1.0703106721242268 ms
     Mean accuracy of the model on the test dataset: 0.10416666666666667
 
 
@@ -550,7 +552,7 @@ Determine the platform specific speedup obtained through OpenVINO graph optimiza
 
 .. parsed-literal::
 
-    Speedup with OpenVINO optimizations: 0.99 X
+    Speedup with OpenVINO optimizations: 1.03 X
 
 
 Benchmark the converted OpenVINO model using benchmark app
@@ -584,18 +586,18 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.4.0-16508-1d6e97cabaa
     [ INFO ] 
     [ INFO ] Device info:
-    [ INFO ] CPU
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] AUTO
+    [ INFO ] Build ................................. 2024.4.0-16508-1d6e97cabaa
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 5.32 ms
+    [ INFO ] Read model took 4.32 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     e1 (node: e1) : i64 / [...] / []
@@ -611,29 +613,38 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: aten::softmax/Softmax) : f32 / [...] / [1,271]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 66.93 ms
+    [ INFO ] Compile model took 50.59 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
-    [ INFO ]   NUM_STREAMS: 12
-    [ INFO ]   AFFINITY: Affinity.CORE
-    [ INFO ]   INFERENCE_NUM_THREADS: 24
-    [ INFO ]   PERF_COUNT: NO
-    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]   PERFORMANCE_HINT: THROUGHPUT
-    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]   ENABLE_CPU_PINNING: True
-    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
-    [ INFO ]   MODEL_DISTRIBUTION_POLICY: set()
-    [ INFO ]   ENABLE_HYPER_THREADING: True
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
-    [ INFO ]   CPU_DENORMALS_OPTIMIZATION: False
-    [ INFO ]   LOG_LEVEL: Level.NO
-    [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
-    [ INFO ]   DYNAMIC_QUANTIZATION_GROUP_SIZE: 0
-    [ INFO ]   KV_CACHE_PRECISION: <Type: 'float16'>
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
+    [ INFO ]   CPU:
+    [ INFO ]     AFFINITY: Affinity.CORE
+    [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 32
+    [ INFO ]     ENABLE_CPU_PINNING: True
+    [ INFO ]     ENABLE_HYPER_THREADING: True
+    [ INFO ]     EXECUTION_DEVICES: ['CPU']
+    [ INFO ]     EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]     INFERENCE_NUM_THREADS: 24
+    [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]     KV_CACHE_PRECISION: <Type: 'float16'>
+    [ INFO ]     LOG_LEVEL: Level.NO
+    [ INFO ]     MODEL_DISTRIBUTION_POLICY: set()
+    [ INFO ]     NETWORK_NAME: Model0
+    [ INFO ]     NUM_STREAMS: 12
+    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]     PERFORMANCE_HINT: THROUGHPUT
+    [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]     PERF_COUNT: NO
+    [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+    [ INFO ]   LOADED_FROM_CACHE: False
+    [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'e1'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'rel'!. This input will be filled with random values!
@@ -641,17 +652,17 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Fill input 'rel' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 10000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 1.44 ms
+    [ INFO ] First inference took 1.49 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            100644 iterations
-    [ INFO ] Duration:         10001.37 ms
+    [ INFO ] Count:            94800 iterations
+    [ INFO ] Duration:         10001.82 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1.02 ms
-    [ INFO ]    Average:       1.03 ms
-    [ INFO ]    Min:           0.65 ms
-    [ INFO ]    Max:           8.70 ms
-    [ INFO ] Throughput:   10063.02 FPS
+    [ INFO ]    Median:        1.08 ms
+    [ INFO ]    Average:       1.09 ms
+    [ INFO ]    Min:           0.74 ms
+    [ INFO ]    Max:           8.19 ms
+    [ INFO ] Throughput:   9478.27 FPS
 
 
 Conclusions

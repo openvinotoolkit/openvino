@@ -34,8 +34,8 @@ deployment:
 
    ovms_diagram
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Serving with OpenVINO Model
    Server <#serving-with-openvino-model-server>`__
@@ -58,10 +58,20 @@ Table of contents:
 
 -  `References <#references>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Serving with OpenVINO Model Server
 ----------------------------------
 
- OpenVINO Model Server (OVMS) is
+OpenVINO Model Server (OVMS) is
 a high-performance system for serving models. Implemented in C++ for
 scalability and optimized for deployment on Intel architectures, the
 model server uses the same architecture and API as TensorFlow Serving
@@ -79,7 +89,7 @@ To quickly start using OpenVINO™ Model Server, follow these steps:
 Step 1: Prepare Docker
 ----------------------
 
- Install `Docker
+Install `Docker
 Engine <https://docs.docker.com/engine/install/>`__, including its
 `post-installation <https://docs.docker.com/engine/install/linux-postinstall/>`__
 steps, on your development system. To verify installation, test it,
@@ -120,7 +130,7 @@ image and a message.
 Step 2: Preparing a Model Repository
 ------------------------------------
 
- The models need to be placed
+The models need to be placed
 and mounted in a particular directory structure and according to the
 following rules:
 
@@ -235,7 +245,7 @@ following rules:
 Step 3: Start the Model Server Container
 ----------------------------------------
 
- Pull and start the container:
+Pull and start the container:
 
 Searching for an available serving port in local.
 
@@ -705,7 +715,7 @@ available port on your system. For example:\ ``-p 9020:9000``
 Step 4: Prepare the Example Client Components
 ---------------------------------------------
 
- OpenVINO Model Server exposes
+OpenVINO Model Server exposes
 two sets of APIs: one compatible with ``TensorFlow Serving`` and another
 one, with ``KServe API``, for inference. Both APIs work on ``gRPC`` and
 ``REST``\ interfaces. Supporting two sets of APIs makes OpenVINO Model

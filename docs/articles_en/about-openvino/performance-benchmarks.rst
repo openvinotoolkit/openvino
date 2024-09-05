@@ -10,7 +10,7 @@ Performance Benchmarks
    :maxdepth: 1
    :hidden:
 
-   performance-benchmarks/generativeAI-benchmarks
+   Efficient LLMs for AI PC <performance-benchmarks/generative-ai-performance>
    performance-benchmarks/performance-benchmarks-faq
    OpenVINO Accuracy <performance-benchmarks/model-accuracy-int8-fp32>
    performance-benchmarks/getting-performance-numbers
@@ -23,7 +23,7 @@ selection of public neural networks and Intel® devices. The results may help yo
 hardware to use in your applications or plan AI workload for the hardware you have already
 implemented in your solutions. Click the buttons below to see the chosen benchmark data.
 For more detailed view of performance numbers for generative AI models, check the
-:doc:`Generative AI Benchmark Results <./performance-benchmarks/generativeAI-benchmarks>`
+:doc:`Generative AI Benchmark Results <./performance-benchmarks/generative-ai-performance>`
 
 .. grid:: 1 1 2 2
    :gutter: 4
@@ -56,10 +56,11 @@ Please visit the tabs below for more information on key performance indicators a
    .. tab-item:: Throughput
       :sync: throughput
 
-      Measures the number of inferences delivered within a latency threshold
-      (for example, number of Frames Per Second - FPS). When deploying a system with
-      deep learning inference, select the throughput that delivers the best trade-off
-      between latency and power for the price and performance that meets your requirements.
+      For Vision and NLP Models this measures the number of inferences delivered within a latency threshold
+      (for example, number of Frames Per Second - FPS). 
+      For GenAI (or Large Language Models) this measures the token rate after the first token aka. 2nd token 
+      throughput rate which is presented as tokens/sec. Please click on the "Workload Parameters" tab to 
+      learn more about input/output token lengths, etc. 
 
    .. tab-item:: Value
       :sync: value
@@ -86,7 +87,7 @@ Please visit the tabs below for more information on key performance indicators a
    .. tab-item:: Latency
       :sync: latency
 
-      This measures the synchronous execution of inference requests and is reported in
+      For Vision and NLP models this mhis measures the synchronous execution of inference requests and is reported in
       milliseconds. Each inference request (for example: preprocess, infer, postprocess) is
       allowed to complete before the next is started. This performance metric is relevant in
       usage scenarios where a single image input needs to be acted upon as soon as possible. An
@@ -94,6 +95,8 @@ Please visit the tabs below for more information on key performance indicators a
       single ultra sound scanning image or in real-time or near real-time applications for
       example an industrial robot's response to actions in its environment or obstacle avoidance
       for autonomous vehicles.
+      For Transformer models like Stable-Diffusion this measures the time it takes to convert the prompt
+      or input text into a finished image. It is presented in seconds. 
 
    .. tab-item:: Workload Parameters
       :sync: workloadparameters
@@ -127,21 +130,21 @@ For a listing of all platforms and configurations used for testing, refer to the
 
    .. grid-item::
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.1-platform_list.pdf
+      .. button-link:: ../_static/benchmarks_files/OV-2024.3-platform_list.pdf
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Hardware Platforms [PDF]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.1-system-info-detailed.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2024.3-system-info-detailed.xlsx
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Configuration Details [XLSX]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.1-Performance-Data.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2024.3-Performance-Data.xlsx
          :color: primary
          :outline:
          :expand:
@@ -199,25 +202,15 @@ connection is dedicated only to measuring performance.
 You can also test performance for your system yourself, following the guide on
 :doc:`getting performance numbers <performance-benchmarks/getting-performance-numbers>`.
 
-Performance of a particular application can also be evaluated virtually using
-`Intel® DevCloud for the Edge <https://devcloud.intel.com/edge/>`__.
-It is a remote development environment with access to Intel® hardware and the latest versions
-of the Intel® Distribution of the OpenVINO™ Toolkit. To learn more about it, visit
-`the website <https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/overview.html>`__
-or
-`create an account <https://www.intel.com/content/www/us/en/secure/forms/devcloud-enrollment/account-provisioning.html>`__.
-
-
 .. raw:: html
 
    <h2>Disclaimers</h2>
 
-
 * Intel® Distribution of OpenVINO™ toolkit performance results are based on release
-  2024.1, as of April 17, 2024.
+  2024.3, as of July 31, 2024.
 
 * OpenVINO Model Server performance results are based on release
-  2024.0, as of March 15, 2024.
+  2024.3, as of Aug. 19, 2024.
 
 The results may not reflect all publicly available updates. Intel technologies' features and
 benefits depend on system configuration and may require enabled hardware, software, or service
@@ -245,4 +238,4 @@ for non-Intel products.
 
    Results may vary. For more information, see
    :doc:`F.A.Q. <./performance-benchmarks/performance-benchmarks-faq>`
-   See :doc:`Legal Information <./additional-resources/legal-information>`.
+   See :doc:`Legal Information <./additional-resources/terms-of-use>`.

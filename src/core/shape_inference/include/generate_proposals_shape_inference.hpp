@@ -139,7 +139,7 @@ std::vector<TRShape> shape_infer(const GenerateProposals* op, const std::vector<
     }
 
     auto num_rois = Dimension(0, (num_batches * op->get_attrs().post_nms_count).get_max_length());
-    return {TRShape{num_rois, 4}, TRShape{num_rois}, TRShape{num_batches}};
+    return {TRShape{num_rois, 4}, TRShape{num_rois}, TRShape{std::move(num_batches)}};
 }
 
 }  // namespace v9

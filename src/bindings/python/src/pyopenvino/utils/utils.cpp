@@ -17,11 +17,41 @@
 #include "openvino/core/meta_data.hpp"
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
+#include "openvino/runtime/properties.hpp"
 
 using Version = ov::pass::Serialize::Version;
 
 namespace Common {
 namespace utils {
+
+PY_TYPE check_list_element_type(const py::list& list) {
+    PY_TYPE detected_type = PY_TYPE::UNKNOWN;
+
+    auto check_type = [&](PY_TYPE type) {
+        if (detected_type == PY_TYPE::UNKNOWN || detected_type == type) {
+            detected_type = type;
+            return;
+        }
+        OPENVINO_THROW("Incorrect attribute. Mixed types in the list are not allowed.");
+    };
+
+    for (const auto& it : list) {
+        // Check the type of elements in the list
+        if (py::isinstance<py::str>(it)) {
+            check_type(PY_TYPE::STR);
+        } else if (py::isinstance<py::int_>(it)) {
+            check_type(PY_TYPE::INT);
+        } else if (py::isinstance<py::float_>(it)) {
+            check_type(PY_TYPE::FLOAT);
+        } else if (py::isinstance<py::bool_>(it)) {
+            check_type(PY_TYPE::BOOL);
+        } else if (py::isinstance<ov::PartialShape>(it)) {
+            check_type(PY_TYPE::PARTIAL_SHAPE);
+        }
+    }
+
+    return detected_type;
+};
 
 // For complex structure if an element isn't map, then just cast it to OVAny
 py::object from_ov_any_no_leaves(const ov::Any& any) {
@@ -189,6 +219,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::streams::Num>());
     } else if (any.is<ov::Affinity>()) {
         return py::cast(any.as<ov::Affinity>());
+    } else if (any.is<ov::WorkloadType>()) {
+        return py::cast(any.as<ov::WorkloadType>());
     } else if (any.is<ov::CacheMode>()) {
         return py::cast(any.as<ov::CacheMode>());
     } else if (any.is<ov::device::UUID>()) {
@@ -221,7 +253,31 @@ py::object from_ov_any(const ov::Any& any) {
 std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string, py::object>& properties) {
     std::map<std::string, ov::Any> properties_to_cpp;
     for (const auto& property : properties) {
-        properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
+        if (property.first == ov::cache_encryption_callbacks.name()) {
+            auto property_value = property.second;
+            if (!py::isinstance<py::list>(property_value)) {
+                OPENVINO_THROW("The value type of ov::cache_encryption_callbacks property is expected list");
+            }
+            std::function<std::string(const std::string&)> encrypt_func =
+                [property_value](const std::string& in_str) -> std::string {
+                // Acquire GIL, execute Python function
+                py::gil_scoped_acquire acquire;
+                auto _list = property_value.cast<py::list>();
+                return _list[0](in_str).cast<std::string>();
+            };
+
+            std::function<std::string(const std::string&)> decrypt_func =
+                [property_value](const std::string& in_str) -> std::string {
+                // Acquire GIL, execute Python function
+                py::gil_scoped_acquire acquire;
+                auto _list = property_value.cast<py::list>();
+                return _list[1](in_str).cast<std::string>();
+            };
+            ov::EncryptionCallbacks encryption_callbacks{encrypt_func, decrypt_func};
+            properties_to_cpp[property.first] = encryption_callbacks;
+        } else {
+            properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
+        }
     }
     return properties_to_cpp;
 }
@@ -323,28 +379,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return {};
     } else if (py::isinstance<py::list>(py_obj)) {
         auto _list = py_obj.cast<py::list>();
-        enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE };
-        PY_TYPE detected_type = PY_TYPE::UNKNOWN;
-        for (const auto& it : _list) {
-            auto check_type = [&](PY_TYPE type) {
-                if (detected_type == PY_TYPE::UNKNOWN || detected_type == type) {
-                    detected_type = type;
-                    return;
-                }
-                OPENVINO_THROW("Incorrect attribute. Mixed types in the list are not allowed.");
-            };
-            if (py::isinstance<py::str>(it)) {
-                check_type(PY_TYPE::STR);
-            } else if (py::isinstance<py::int_>(it)) {
-                check_type(PY_TYPE::INT);
-            } else if (py::isinstance<py::float_>(it)) {
-                check_type(PY_TYPE::FLOAT);
-            } else if (py::isinstance<py::bool_>(it)) {
-                check_type(PY_TYPE::BOOL);
-            } else if (py::isinstance<ov::PartialShape>(it)) {
-                check_type(PY_TYPE::PARTIAL_SHAPE);
-            }
-        }
+
+        PY_TYPE detected_type = check_list_element_type(_list);
 
         if (_list.empty())
             return ov::Any(EmptyList());
@@ -392,6 +428,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::streams::Num>(py_obj);
     } else if (py::isinstance<ov::Affinity>(py_obj)) {
         return py::cast<ov::Affinity>(py_obj);
+    } else if (py::isinstance<ov::WorkloadType>(py_obj)) {
+        return py::cast<ov::WorkloadType>(py_obj);
     } else if (py::isinstance<ov::Tensor>(py_obj)) {
         return py::cast<ov::Tensor>(py_obj);
     } else if (py::isinstance<ov::Output<ov::Node>>(py_obj)) {
@@ -419,5 +457,45 @@ ov::Any py_object_to_any(const py::object& py_obj) {
     }
     OPENVINO_ASSERT(false, "Unsupported attribute type.");
 }
+std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback) {
+    auto callback_sp = std::shared_ptr<py::function>(new py::function(std::move(f_callback)), [](py::function* c) {
+        py::gil_scoped_acquire acquire;
+        delete c;
+    });
+    return callback_sp;
+}
 };  // namespace utils
 };  // namespace Common
+
+namespace pybind11 {
+namespace ov_extension {
+void conditional_keep_alive_impl(size_t Nurse,
+                                 size_t Patient,
+                                 size_t Condition,
+                                 detail::function_call& call,
+                                 handle ret) {
+    auto get_arg = [&](size_t n) {
+        if (n == 0) {
+            return ret;
+        }
+        if (n == 1 && call.init_self) {
+            return call.init_self;
+        }
+        if (n <= call.args.size()) {
+            return call.args[n - 1];
+        }
+        return handle();
+    };
+
+    const auto cd = get_arg(Condition);
+    if (!cd || !py::isinstance<py::bool_>(cd)) {
+        pybind11_fail("Could not activate conditional_keep_alive!");
+    }
+
+    if (cd.cast<bool>()) {
+        detail::keep_alive_impl(get_arg(Nurse), get_arg(Patient));
+    }
+}
+
+};  // namespace ov_extension
+};  // namespace pybind11

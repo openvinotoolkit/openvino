@@ -11,8 +11,8 @@ device is busy with inference, the application can perform other tasks
 in parallel (for example, populating inputs or scheduling other
 requests) rather than wait for the current inference to complete first.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `Prepare model and data
@@ -39,6 +39,16 @@ Table of contents:
    -  `Setting Callback <#setting-callback>`__
    -  `Test the performance with
       AsyncInferQueue <#test-the-performance-with-asyncinferqueue>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Imports
 -------
@@ -130,15 +140,7 @@ Select inference device
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
+    device = utils.device_widget(default="CPU")
     
     device
 
@@ -352,7 +354,7 @@ Test performance in Sync Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in sync mode: 43.35 fps
+    average throuput in sync mode: 60.84 fps
 
 
 Async Mode
@@ -491,7 +493,7 @@ Test the performance in Async Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in async mode: 73.97 fps
+    average throuput in async mode: 104.64 fps
 
 
 Compare the performance
@@ -634,5 +636,5 @@ Test the performance with ``AsyncInferQueue``
 
 .. parsed-literal::
 
-    average throughput in async mode with async infer queue: 111.33 fps
+    average throughput in async mode with async infer queue: 147.78 fps
 

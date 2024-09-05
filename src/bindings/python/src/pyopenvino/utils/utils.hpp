@@ -32,7 +32,11 @@ namespace py = pybind11;
 
 namespace Common {
 namespace utils {
+    enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE };
+
     struct EmptyList {};
+
+    PY_TYPE check_list_element_type(const py::list& list);
 
     py::object from_ov_any_no_leaves(const ov::Any& any);
 
@@ -58,5 +62,28 @@ namespace utils {
 
     ov::pass::Serialize::Version convert_to_version(const std::string& version);
 
+    std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback);
+
 }; // namespace utils
 }; // namespace Common
+
+namespace pybind11 {
+namespace ov_extension {
+    void conditional_keep_alive_impl(size_t Nurse, size_t Patient, size_t Condition, detail::function_call &call, handle ret);
+
+    // Keep patient alive while nurse lives
+    template <size_t Nurse, size_t Patient, size_t Condition>
+    struct conditional_keep_alive {};
+
+}; // namespace ov_extension
+
+    // Process a conditional_keep_alive call policy -- invokes conditional_keep_alive_impl during the the pre-call handler
+    template <size_t Nurse, size_t Patient, size_t Condition>
+    struct detail::process_attribute<ov_extension::conditional_keep_alive<Nurse, Patient, Condition>>
+        : public detail::process_attribute_default<ov_extension::conditional_keep_alive<Nurse, Patient, Condition>> {
+        static void precall(function_call &call) {
+            ov_extension::conditional_keep_alive_impl(Nurse, Patient, Condition, call, handle());
+        }
+    };
+
+}; // namespace pybind11

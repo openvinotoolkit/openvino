@@ -27,7 +27,7 @@ OpenVINO Extensibility Mechanism
 
 The Intel® Distribution of OpenVINO™ toolkit supports neural-network models trained with various frameworks, including
 TensorFlow, PyTorch, ONNX, TensorFlow Lite, and PaddlePaddle. The list of supported operations is different for each of the supported frameworks.
-To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <../about-openvino/compatibility-and-support/supported-operations-framework-frontend>`.
+To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <../about-openvino/compatibility-and-support/supported-operations>`.
 
 Custom operations, which are not included in the list, are not recognized by OpenVINO out-of-the-box. The need for custom operation may appear in two cases:
 
@@ -146,13 +146,13 @@ This macro should have a vector of all OpenVINO Extensions as an argument.
 
 Based on that, the declaration of an extension class might look like the following:
 
-.. doxygensnippet:: ./src/core/template_extension/new/ov_extension.cpp
+.. doxygensnippet:: src/core/template_extension/ov_extension.cpp
    :language: cpp
    :fragment: [ov_extension:entry_point]
 
 2. Configure the build of your extension library, using the following CMake script:
 
-.. doxygensnippet:: ./src/core/template_extension/new/CMakeLists.txt
+.. doxygensnippet:: src/core/template_extension/CMakeLists.txt
    :language: cpp
    :fragment: [cmake:extension]
 

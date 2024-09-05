@@ -13,8 +13,8 @@ created, refer to the `TensorFlow to
 OpenVINO <tensorflow-classification-to-openvino-with-output.html>`__
 tutorial.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `Download the Model and data
@@ -23,6 +23,16 @@ Table of contents:
 -  `Load the Model <#load-the-model>`__
 -  `Load an Image <#load-an-image>`__
 -  `Do Inference <#do-inference>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 .. code:: ipython3
 
@@ -68,7 +78,7 @@ Imports
     
     open("notebook_utils.py", "w").write(r.text)
     
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 Download the Model and data samples
 -----------------------------------
@@ -115,15 +125,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 

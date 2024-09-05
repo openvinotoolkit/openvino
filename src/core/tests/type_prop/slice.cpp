@@ -1021,14 +1021,14 @@ TEST(type_prop, slice_v8_basic_const_inputs_out_axes_val) {
         std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
         OV_EXPECT_THROW(const auto op = make_slice_op_const_inputs(input_vals, data_shape, et),
                         NodeValidationFailure,
-                        HasSubstr("axis -20 out of the tensor rank range [-8, 7]"));
+                        HasSubstr("Axis -20 out of the tensor rank range [-8, 7]"));
     }
     {
         std::vector<int32_t> axes_val{2, 0, 9, 7, 1, 20, 6, 4};
         std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
         OV_EXPECT_THROW(const auto op = make_slice_op_const_inputs(input_vals, data_shape, et),
                         NodeValidationFailure,
-                        HasSubstr("axis 9 out of the tensor rank range [-8, 7]"));
+                        HasSubstr("Axis 9 out of the tensor rank range [-8, 7]"));
     }
 
     const auto data = std::make_shared<op::v0::Parameter>(et, data_shape);
@@ -1039,7 +1039,7 @@ TEST(type_prop, slice_v8_basic_const_inputs_out_axes_val) {
 
     OV_EXPECT_THROW(const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes),
                     NodeValidationFailure,
-                    HasSubstr("axis -15 out of the tensor rank range [-8, 7]"));
+                    HasSubstr("Axis -15 out of the tensor rank range [-8, 7]"));
 }
 
 TEST(type_prop, slice_v8_basic_const_inputs_step_zero) {

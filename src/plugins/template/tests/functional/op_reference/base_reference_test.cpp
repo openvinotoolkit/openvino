@@ -114,6 +114,7 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
         case ov::element::u64:
         case ov::element::f8e4m3:
         case ov::element::f8e5m2:
+        case ov::element::f8e8m0:
             ov::test::utils::compare(refBlob, outBlob, abs_threshold, threshold);
             break;
         case ov::element::string:
@@ -151,6 +152,13 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
     case ov::element::f8e5m2:
         ov::test::utils::compare_raw_data<ov::float8_e5m2, ov::float8_e5m2>(refBlob.data<const ov::float8_e5m2>(),
                                                                             outBlob.data<const ov::float8_e5m2>(),
+                                                                            actual_comparision_size,
+                                                                            threshold,
+                                                                            abs_threshold);
+        break;
+    case ov::element::f8e8m0:
+        ov::test::utils::compare_raw_data<ov::float8_e8m0, ov::float8_e8m0>(refBlob.data<const ov::float8_e8m0>(),
+                                                                            outBlob.data<const ov::float8_e8m0>(),
                                                                             actual_comparision_size,
                                                                             threshold,
                                                                             abs_threshold);
@@ -269,6 +277,13 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
                                                           abs_threshold);
         break;
     case ov::element::nf4:
+        ov::test::utils::compare_raw_data<int8_t, int8_t>(static_cast<const int8_t*>(refBlob.data()),
+                                                          static_cast<const int8_t*>(outBlob.data()),
+                                                          actual_comparision_size / 2,
+                                                          threshold,
+                                                          abs_threshold);
+        break;
+    case ov::element::f4e2m1:
         ov::test::utils::compare_raw_data<int8_t, int8_t>(static_cast<const int8_t*>(refBlob.data()),
                                                           static_cast<const int8_t*>(outBlob.data()),
                                                           actual_comparision_size / 2,

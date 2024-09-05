@@ -42,7 +42,7 @@ std::vector<TRShape> shape_infer(const CTCGreedyDecoderSeqLen* op, const std::ve
                               "The first dimensions of input tensors must match.");
     }
 
-    return {TRShape{batch_size, time_size}, TRShape{batch_size}};
+    return {TRShape{batch_size, std::move(time_size)}, TRShape{batch_size}};
 }
 }  // namespace v6
 }  // namespace op

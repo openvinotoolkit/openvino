@@ -4,25 +4,25 @@ on:
   schedule:
     # at 00:00 on workdays
     - cron: '0 0 * * 1,2,3,4,5'
-#  pull_request:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
-#  push:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
-#    branches:
-#      - master
-#      - 'releases/**'
+  #pull_request:
+  #  paths-ignore:
+  #    - '**/docs/**'
+  #    - 'docs/**'
+  #    - '**/**.md'
+  #    - '**.md'
+  #    - '**/layer_tests_summary/**'
+  #    - '**/conformance/**'
+  #push:
+  #  paths-ignore:
+  #    - '**/docs/**'
+  #    - 'docs/**'
+  #    - '**/**.md'
+  #    - '**.md'
+  #    - '**/layer_tests_summary/**'
+  #    - '**/conformance/**'
+  #  branches:
+  #    - master
+  #    - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -42,7 +42,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -69,7 +69,7 @@ jobs:
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
-      MACOSX_DEPLOYMENT_TARGET: '10.12'
+      MACOSX_DEPLOYMENT_TARGET: '10.15'
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
       OPENVINO_REPO: ${{ github.workspace }}/openvino
@@ -80,13 +80,13 @@ jobs:
       BUILD_DIR: ${{ github.workspace }}/build
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           path: 'openvino'
           submodules: 'true'
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
@@ -131,7 +131,7 @@ jobs:
       #
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@c92f40bee50034e84c763e33b317c77adaa81c92 # v1.2.13
+        uses: hendrikmuhs/ccache-action@ed74d11c0b343532753ecead8a951bb09bb34bc9 # v1.2.14
         with:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
@@ -204,7 +204,7 @@ jobs:
 
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -212,7 +212,7 @@ jobs:
 
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -220,7 +220,7 @@ jobs:
 
       - name: Upload openvino js package
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_js_package
           path: ${{ env.INSTALL_DIR_JS }}

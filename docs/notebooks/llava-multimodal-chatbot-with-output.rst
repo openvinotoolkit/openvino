@@ -41,8 +41,8 @@ The tutorial consists from following steps:
 -  Prepare OpenVINO-based inference pipeline
 -  Run OpenVINO model
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `About model <#about-model>`__
 -  `Prerequisites <#prerequisites>`__
@@ -55,12 +55,11 @@ Table of contents:
       conversion <#prepare-helpers-for-model-conversion>`__
    -  `Convert and Optimize Model <#convert-and-optimize-model>`__
 
-      -  `Instantiate PyTorch model
-          <#instantiate-pytorch-model-uparrow#table-of-content>`__
-      -  `Compress Model weights to 4 and 8 bits using NNCF
-          <#compress-model-weights-to-4-and-8-bits-using-nncf-uparrow#table-of-content>`__
-      -  `Convert model to OpenVINO IR format
-          <#convert-model-to-openvino-ir-format-uparrow#table-of-content>`__
+      -  `Instantiate PyTorch model <#instantiate-pytorch-model>`__
+      -  `Compress Model weights to 4 and 8 bits using
+         NNCF <#compress-model-weights-to-4-and-8-bits-using-nncf>`__
+      -  `Convert model to OpenVINO IR
+         format <#convert-model-to-openvino-ir-format>`__
 
 -  `Prepare OpenVINO based inference
    pipeline <#prepare-openvino-based-inference-pipeline>`__
@@ -72,6 +71,16 @@ Table of contents:
    -  `Test model inference <#test-model-inference>`__
 
 -  `Interactive demo <#interactive-demo>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 About model
 -----------
@@ -118,16 +127,6 @@ Install required dependencies
     
     %pip install -q "torch>=2.1.0" "torchvision" "torchaudio" --index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.2.0" "nncf>=2.7.0"  "sentencepiece" "tokenizers>=0.12.1" "transformers>=4.37.2" "gradio>=4.19" "einops"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    
-    [notice] A new release of pip is available: 23.3.2 -> 24.0
-    [notice] To update, run: pip install --upgrade pip
-    Note: you may need to restart the kernel to use updated packages.
-
 
 .. code:: ipython3
 
@@ -505,8 +504,8 @@ Convert model to OpenVINO format and save it on disk.
 
 Let’s consider each step more deeply.
 
-Instantiate PyTorch model `:math:`\Uparrow` <#table-of-content>`__
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Instantiate PyTorch model
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
 
@@ -516,8 +515,8 @@ from `HuggingFace hub <https://huggingface.co/models>`__ during first
 run. It may takes some time and requires at least 13 Gb free space on
 disk.
 
-Compress Model weights to 4 and 8 bits using NNCF `:math:`\Uparrow` <#table-of-content>`__
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Compress Model weights to 4 and 8 bits using NNCF
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
 
@@ -559,8 +558,8 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
    **Note**: There is no speedup for INT4 compressed models on dGPU.
 
-Convert model to OpenVINO IR format `:math:`\Uparrow` <#table-of-content>`__
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Convert model to OpenVINO IR format
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
 
@@ -649,17 +648,17 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -677,17 +676,17 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -711,17 +710,17 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -737,17 +736,17 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -771,17 +770,17 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -829,6 +828,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             self.main_input_name = "input_ids"
             self.device = torch.device("cpu")
             self.num_pkv = 2
+            self._supports_cache_class = False
     
         def can_generate(self):
             """Returns True to validate the check that the model using `GenerationMixin.generate()` can indeed generate."""
@@ -1209,19 +1209,8 @@ Interactive demo
 
 .. code:: ipython3
 
-    import gradio as gr
     from threading import Event, Thread
     from transformers import TextIteratorStreamer
-    
-    title_markdown = """
-    # 🌋 LLaVA: Large Language and Vision Assistant
-    """
-    
-    tos_markdown = """
-    ### Terms of use
-    By using this service, users are required to agree to the following terms:
-    The service is a research preview intended for non-commercial use only. It only provides limited safety measures and may generate offensive content. It must not be used for any illegal, harmful, violent, racist, or sexual purposes. The service may collect user dialogue data for future research.
-    """
     
     conv = conv_templates[conv_mode].copy()
     conv.messages = []
@@ -1243,7 +1232,7 @@ Interactive demo
         return None, None, None
     
     
-    def user(message, history):
+    def handle_user_message(message, history):
         """
         callback function for updating user messages in interface on submit button click
     
@@ -1257,7 +1246,7 @@ Interactive demo
         return "", history + [[message, ""]]
     
     
-    def bot(image, history, temperature=0.2, top_p=0.7, max_new_tokens=1024):
+    def run_chatbot(image, history, temperature=0.2, top_p=0.7, max_new_tokens=1024):
         """
         callback function for running chatbot on submit button click
     
@@ -1329,87 +1318,26 @@ Interactive demo
             conv.messages[-1][-1] = partial_text
             history[-1][1] = partial_text
             yield history
+
+.. code:: ipython3
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llava-multimodal-chatbot/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo_llava
     
-    with gr.Blocks(title="LLaVA") as demo:
-        gr.Markdown(title_markdown)
+    demo = make_demo_llava(handle_user_message=handle_user_message, run_chatbot=run_chatbot, clear_history=clear_history)
     
-        with gr.Row():
-            with gr.Column():
-                imagebox = gr.Image(type="pil")
-                with gr.Accordion("Parameters", open=False, visible=True) as parameter_row:
-                    temperature = gr.Slider(
-                        minimum=0.0,
-                        maximum=1.0,
-                        value=0.2,
-                        step=0.1,
-                        interactive=True,
-                        label="Temperature",
-                    )
-                    top_p = gr.Slider(
-                        minimum=0.0,
-                        maximum=1.0,
-                        value=0.7,
-                        step=0.1,
-                        interactive=True,
-                        label="Top P",
-                    )
-                    max_output_tokens = gr.Slider(
-                        minimum=0,
-                        maximum=1024,
-                        value=512,
-                        step=64,
-                        interactive=True,
-                        label="Max output tokens",
-                    )
-    
-            with gr.Column(scale=3):
-                with gr.Column(scale=6):
-                    chatbot = gr.Chatbot(height=400)
-                    with gr.Row():
-                        with gr.Column(scale=8):
-                            textbox = gr.Textbox(
-                                show_label=False,
-                                placeholder="Enter text and press ENTER",
-                                visible=True,
-                                container=False,
-                            )
-                        with gr.Column(scale=1, min_width=60):
-                            submit_btn = gr.Button(value="Submit", visible=True)
-                    with gr.Row(visible=True) as button_row:
-                        clear_btn = gr.Button(value="🗑️  Clear history", interactive=True)
-    
-        gr.Markdown(tos_markdown)
-    
-        submit_event = textbox.submit(
-            fn=user,
-            inputs=[textbox, chatbot],
-            outputs=[textbox, chatbot],
-            queue=False,
-        ).then(
-            bot,
-            [imagebox, chatbot, temperature, top_p, max_output_tokens],
-            chatbot,
-            queue=True,
-        )
-        # Register listeners
-        clear_btn.click(clear_history, [textbox, imagebox, chatbot], [chatbot, textbox, imagebox])
-        submit_click_event = submit_btn.click(
-            fn=user,
-            inputs=[textbox, chatbot],
-            outputs=[textbox, chatbot],
-            queue=False,
-        ).then(
-            bot,
-            [imagebox, chatbot, temperature, top_p, max_output_tokens],
-            chatbot,
-            queue=True,
-        )
-    
-    # if you are launching remotely, specify server_name and server_port
-    # demo.launch(server_name='your server name', server_port='server port in int')
-    # Read more in the docs: https://gradio.app/docs/
     try:
         demo.queue(max_size=2).launch(debug=False)
     except Exception:
         demo.queue(max_size=2).launch(share=True, debug=False)
+    # if you are launching remotely, specify server_name and server_port
+    # demo.launch(server_name='your server name', server_port='server port in int')
+    # Read more in the docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

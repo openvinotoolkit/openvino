@@ -5,6 +5,7 @@
 #include "custom/single_layer_tests/classes/reduce.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
+#include "utils/filter_cpu_info.hpp"
 
 using namespace CPUTestUtils;
 
@@ -22,10 +23,6 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_dynamic_3dims = {
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_dynamic_2dims = {
     {{{2, 19, {1, 5}, {1, 10}}, {{2, 19, 2, 2}, {2, 19, 2, 9}}}},
-};
-
-std::vector<std::vector<ov::test::InputShape>> inputShapes_5D = {
-    {{{}, {{2, 19, 2, 2, 9}}}},
 };
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_6D = {
@@ -46,10 +43,7 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_SingleBatch = {
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nchw}, {nchw}, {}, {}),
-//NHWC layout is disabled on ARM due to accuracy issue: https://github.com/ARM-software/ComputeLibrary/issues/1044
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
-#endif
 };
 
 /* ================================ 1.1 No fusion - Arithmetic ================================ */

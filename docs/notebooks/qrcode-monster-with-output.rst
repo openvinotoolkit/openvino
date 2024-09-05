@@ -29,8 +29,8 @@ If you want to learn more about ControlNet and particularly on
 conditioning by pose, please refer to this
 `tutorial <controlnet-stable-diffusion-with-output.html>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Instantiating Generation
@@ -60,6 +60,16 @@ Table of contents:
 
 -  `Running Text-to-Image Generation with ControlNet Conditioning and
    OpenVINO <#running-text-to-image-generation-with-controlnet-conditioning-and-openvino>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 .. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/76463150/1a5978c6-e7a0-4824-9318-a3d8f4912c47
 
@@ -974,13 +984,8 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    is_gpu_device = "GPU" in device.value
-    to_quantize = widgets.Checkbox(
-        value=not is_gpu_device,
-        description="Quantization",
-        disabled=is_gpu_device,
-    )
-    
+    skip_for_device = "GPU" in device.value
+    to_quantize = widgets.Checkbox(value=not skip_for_device, description="Quantization", disabled=skip_for_device)
     to_quantize
 
 

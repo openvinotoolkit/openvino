@@ -194,7 +194,28 @@ typedef enum {
     F8E4M3,          //!< f8e4m3 element type
     F8E5M3,          //!< f8e5m2 element type
     STRING,          //!< string element type
+    F4E2M1,          //!< f4e2m1 element type
+    F8E8M0,          //!< f8e8m0 element type
 } ov_element_type_e;
+
+/**
+ * @brief encryption_func is a function pointer that encrypt or decrypt the input memory, example of this function is
+ * codec(const char* input, const size_t in_size, const char* output, size_t* out_size)
+ * This function needs to be called twice,
+ * the first call to obtain out_size (the size of output buffer), the second call to obtain output buffer.
+ * The first call output is nullptr, before the second call, the caller needs to apply for output
+ * memory based on the out_size returned by the first call.
+ * the memory of parameter output is allocated and released by the caller.
+ * @param input The pointer to the input buffer.
+ * @param in_size The size of input.
+ * @param output The pointer to the encrypted/decrypted buffer.
+ * @param out_size The size of output.
+ */
+typedef void (*encryption_func)(const char*, const size_t, char*, size_t*);
+typedef struct {
+    encryption_func encrypt_func;  // encryption function pointer
+    encryption_func decrypt_func;  // decryption function pointer
+} ov_encryption_callbacks;
 
 /**
  * @brief Print the error info.

@@ -20,8 +20,8 @@ steps:
    models.
 -  Compare performance of the original and quantized models.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `Settings <#settings>`__
@@ -35,6 +35,16 @@ Table of contents:
 -  `Compare Performance of the Original and Quantized
    Models <#compare-performance-of-the-original-and-quantized-models>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.3.0" "nncf>=2.7"
@@ -44,52 +54,49 @@ Table of contents:
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
     Looking in indexes: https://pypi.org/simple, https://download.pytorch.org/whl/cpu
-    Requirement already satisfied: datasets in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2.19.1)
-    Requirement already satisfied: torchmetrics>=0.11.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (1.4.0.post0)
-    Requirement already satisfied: torch>=2.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2.3.0+cpu)
-    Requirement already satisfied: filelock in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (3.14.0)
-    Requirement already satisfied: numpy>=1.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (1.23.5)
-    Requirement already satisfied: pyarrow>=12.0.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (16.1.0)
-    Requirement already satisfied: pyarrow-hotfix in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (0.6)
-    Requirement already satisfied: dill<0.3.9,>=0.3.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (0.3.8)
-    Requirement already satisfied: pandas in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (2.0.3)
-    Requirement already satisfied: requests>=2.19.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (2.31.0)
-    Requirement already satisfied: tqdm>=4.62.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (4.66.4)
-    Requirement already satisfied: xxhash in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (3.4.1)
-    Requirement already satisfied: multiprocess in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (0.70.16)
-    Requirement already satisfied: fsspec<=2024.3.1,>=2023.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from fsspec[http]<=2024.3.1,>=2023.1.0->datasets) (2024.3.1)
-    Requirement already satisfied: aiohttp in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (3.9.5)
-    Requirement already satisfied: huggingface-hub>=0.21.2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (0.23.0)
-    Requirement already satisfied: packaging in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (24.0)
-    Requirement already satisfied: pyyaml>=5.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (6.0.1)
-    Requirement already satisfied: lightning-utilities>=0.8.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torchmetrics>=0.11.0) (0.11.2)
-    Requirement already satisfied: typing-extensions in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torchmetrics>=0.11.0) (4.11.0)
-    Requirement already satisfied: sympy in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1.0) (1.12)
-    Requirement already satisfied: networkx in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1.0) (3.1)
-    Requirement already satisfied: jinja2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1.0) (3.1.4)
-    Requirement already satisfied: aiosignal>=1.1.2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->datasets) (1.3.1)
-    Requirement already satisfied: attrs>=17.3.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->datasets) (23.2.0)
-    Requirement already satisfied: frozenlist>=1.1.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->datasets) (1.4.1)
-    Requirement already satisfied: multidict<7.0,>=4.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->datasets) (6.0.5)
-    Requirement already satisfied: yarl<2.0,>=1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->datasets) (1.9.4)
-    Requirement already satisfied: async-timeout<5.0,>=4.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->datasets) (4.0.3)
-    Requirement already satisfied: setuptools in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from lightning-utilities>=0.8.0->torchmetrics>=0.11.0) (69.5.1)
-    Requirement already satisfied: charset-normalizer<4,>=2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests>=2.19.0->datasets) (3.3.2)
-    Requirement already satisfied: idna<4,>=2.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests>=2.19.0->datasets) (3.7)
-    Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests>=2.19.0->datasets) (2.2.1)
-    Requirement already satisfied: certifi>=2017.4.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests>=2.19.0->datasets) (2024.2.2)
-    Requirement already satisfied: MarkupSafe>=2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from jinja2->torch>=2.1.0) (2.1.5)
-    Requirement already satisfied: python-dateutil>=2.8.2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from pandas->datasets) (2.9.0.post0)
-    Requirement already satisfied: pytz>=2020.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from pandas->datasets) (2024.1)
-    Requirement already satisfied: tzdata>=2022.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from pandas->datasets) (2024.1)
-    Requirement already satisfied: mpmath>=0.19 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from sympy->torch>=2.1.0) (1.3.0)
-    Requirement already satisfied: six>=1.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from python-dateutil>=2.8.2->pandas->datasets) (1.16.0)
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Requirement already satisfied: datasets in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2.21.0)
+    Requirement already satisfied: torchmetrics>=0.11.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (1.4.1)
+    Requirement already satisfied: torch>=2.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2.2.2+cpu)
+    Requirement already satisfied: filelock in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (3.15.4)
+    Requirement already satisfied: numpy>=1.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (1.23.5)
+    Requirement already satisfied: pyarrow>=15.0.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (17.0.0)
+    Requirement already satisfied: dill<0.3.9,>=0.3.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (0.3.8)
+    Requirement already satisfied: pandas in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (2.0.3)
+    Requirement already satisfied: requests>=2.32.2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (2.32.3)
+    Requirement already satisfied: tqdm>=4.66.3 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (4.66.5)
+    Requirement already satisfied: xxhash in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (3.5.0)
+    Requirement already satisfied: multiprocess in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (0.70.16)
+    Requirement already satisfied: fsspec<=2024.6.1,>=2023.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from fsspec[http]<=2024.6.1,>=2023.1.0->datasets) (2024.6.1)
+    Requirement already satisfied: aiohttp in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (3.10.5)
+    Requirement already satisfied: huggingface-hub>=0.21.2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (0.24.6)
+    Requirement already satisfied: packaging in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (24.1)
+    Requirement already satisfied: pyyaml>=5.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from datasets) (6.0.2)
+    Requirement already satisfied: lightning-utilities>=0.8.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torchmetrics>=0.11.0) (0.11.6)
+    Requirement already satisfied: typing-extensions in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torchmetrics>=0.11.0) (4.12.2)
+    Requirement already satisfied: sympy in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1.0) (1.13.2)
+    Requirement already satisfied: networkx in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1.0) (3.1)
+    Requirement already satisfied: jinja2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1.0) (3.1.4)
+    Requirement already satisfied: aiohappyeyeballs>=2.3.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->datasets) (2.4.0)
+    Requirement already satisfied: aiosignal>=1.1.2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->datasets) (1.3.1)
+    Requirement already satisfied: attrs>=17.3.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->datasets) (24.2.0)
+    Requirement already satisfied: frozenlist>=1.1.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->datasets) (1.4.1)
+    Requirement already satisfied: multidict<7.0,>=4.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->datasets) (6.0.5)
+    Requirement already satisfied: yarl<2.0,>=1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->datasets) (1.9.4)
+    Requirement already satisfied: async-timeout<5.0,>=4.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->datasets) (4.0.3)
+    Requirement already satisfied: setuptools in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from lightning-utilities>=0.8.0->torchmetrics>=0.11.0) (74.0.0)
+    Requirement already satisfied: charset-normalizer<4,>=2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests>=2.32.2->datasets) (3.3.2)
+    Requirement already satisfied: idna<4,>=2.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests>=2.32.2->datasets) (3.8)
+    Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests>=2.32.2->datasets) (2.2.2)
+    Requirement already satisfied: certifi>=2017.4.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests>=2.32.2->datasets) (2024.7.4)
+    Requirement already satisfied: MarkupSafe>=2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from jinja2->torch>=2.1.0) (2.1.5)
+    Requirement already satisfied: python-dateutil>=2.8.2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from pandas->datasets) (2.9.0.post0)
+    Requirement already satisfied: pytz>=2020.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from pandas->datasets) (2024.1)
+    Requirement already satisfied: tzdata>=2022.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from pandas->datasets) (2024.1)
+    Requirement already satisfied: mpmath<1.4,>=1.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from sympy->torch>=2.1.0) (1.3.0)
+    Requirement already satisfied: six>=1.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from python-dateutil>=2.8.2->pandas->datasets) (1.16.0)
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -138,8 +145,6 @@ IR).
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-      warnings.warn(
     Some weights of the model checkpoint at facebook/wav2vec2-base-960h were not used when initializing Wav2Vec2ForCTC: ['wav2vec2.encoder.pos_conv_embed.conv.weight_g', 'wav2vec2.encoder.pos_conv_embed.conv.weight_v']
     - This IS expected if you are initializing Wav2Vec2ForCTC from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing Wav2Vec2ForCTC from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
@@ -159,12 +164,10 @@ IR).
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4371: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4664: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/wav2vec2/modeling_wav2vec2.py:588: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/wav2vec2/modeling_wav2vec2.py:627: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/wav2vec2/modeling_wav2vec2.py:871: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attn_output.size() != (bsz, self.num_heads, tgt_len, self.head_dim):
 
 
 Prepare LibriSpeech Dataset
@@ -183,7 +186,7 @@ dataset.
     from datasets import load_dataset
     
     
-    dataset = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation")
+    dataset = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation", trust_remote_code=True)
     test_sample = dataset[0]["audio"]
     
     
@@ -202,15 +205,6 @@ dataset.
     
     # apply preprocessing function to dataset and remove audio column, to save memory as we do not need it anymore
     dataset = dataset.map(map_to_input, batched=False, remove_columns=["audio"])
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/datasets/load.py:1486: FutureWarning: The repository for patrickvonplaten/librispeech_asr_dummy contains custom code which must be executed to correctly load the dataset. You can inspect the repository content at https://hf.co/datasets/patrickvonplaten/librispeech_asr_dummy
-    You can avoid this message in future by passing the argument `trust_remote_code=True`.
-    Passing `trust_remote_code=True` will be mandatory to load this dataset from the next major release of `datasets`.
-      warnings.warn(
-
 
 Run Quantization
 ----------------
@@ -281,10 +275,10 @@ steps:
 
 .. parsed-literal::
 
-    2024-05-16 01:43:49.238172: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-16 01:43:49.274173: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-08-28 05:27:38.233214: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-28 05:27:38.265448: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-16 01:43:49.840021: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-08-28 05:27:38.845755: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -294,17 +288,9 @@ steps:
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -315,29 +301,19 @@ steps:
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
 .. parsed-literal::
 
-    INFO:nncf:4 ignored nodes were found by name in the NNCFGraph
-    INFO:nncf:36 ignored nodes were found by name in the NNCFGraph
-    INFO:nncf:50 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:4 ignored nodes were found by names in the NNCFGraph
     INFO:nncf:Not adding activation input quantizer for operation: 2 __module.wav2vec2.feature_extractor.conv_layers.0.conv/aten::_convolution/Convolution
-    INFO:nncf:Not adding activation input quantizer for operation: 10 __module.wav2vec2.feature_extractor.conv_layers.1.conv/aten::_convolution/Convolution
-    INFO:nncf:Not adding activation input quantizer for operation: 12 __module.wav2vec2.feature_extractor.conv_layers.2.conv/aten::_convolution/Convolution
-    INFO:nncf:Not adding activation input quantizer for operation: 14 __module.wav2vec2.feature_extractor.conv_layers.3.conv/aten::_convolution/Convolution
+    INFO:nncf:Not adding activation input quantizer for operation: 5 __module.wav2vec2.feature_extractor.conv_layers.1.conv/aten::_convolution/Convolution
+    INFO:nncf:Not adding activation input quantizer for operation: 7 __module.wav2vec2.feature_extractor.conv_layers.2.conv/aten::_convolution/Convolution
+    INFO:nncf:Not adding activation input quantizer for operation: 9 __module.wav2vec2.feature_extractor.conv_layers.3.conv/aten::_convolution/Convolution
 
 
 
@@ -347,17 +323,9 @@ steps:
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -368,17 +336,9 @@ steps:
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -463,7 +423,7 @@ Next, make a prediction.
 
 .. parsed-literal::
 
-    ['A MAN SAID TO THE UNIVERSE SIR I EXIST']
+    ['']
 
 
 Validate model accuracy on dataset
@@ -538,7 +498,7 @@ quantized model.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchmetrics/utilities/prints.py:62: FutureWarning: Importing `WordErrorRate` from `torchmetrics` was deprecated and will be removed in 2.0. Import `WordErrorRate` from `torchmetrics.text` instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchmetrics/utilities/prints.py:62: FutureWarning: Importing `WordErrorRate` from `torchmetrics` was deprecated and will be removed in 2.0. Import `WordErrorRate` from `torchmetrics.text` instead.
       _future_warning(
 
 
@@ -564,7 +524,7 @@ quantized model.
 
     [PyTorch]       Word Error Rate: 0.0530
     [OpenVino FP16] Word Error Rate: 0.05304
-    [OpenVino INT8] Word Error Rate: 0.0548
+    [OpenVino INT8] Word Error Rate: 0.0852
 
 
 Compare Performance of the Original and Quantized Models
@@ -597,34 +557,34 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.4.0-16508-1d6e97cabaa
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.4.0-16508-1d6e97cabaa
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 26.00 ms
+    [ INFO ] Read model took 17.94 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
-    [ INFO ]     input_values , 46 (node: input_values) : f32 / [...] / [?,?]
+    [ INFO ]     45 , input_values (node: input_values) : f32 / [...] / [?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     logits (node: __module.lm_head/aten::linear/Add) : f32 / [...] / [?,?,32]
+    [ INFO ]     logits (node: __module.lm_head/aten::linear/Add) : f32 / [...] / [?,1..,32]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
-    [ INFO ] Reshaping model: '46': [1,30480]
-    [ INFO ] Reshape model took 63.56 ms
+    [ INFO ] Reshaping model: '45': [1,30480]
+    [ INFO ] Reshape model took 4.15 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
-    [ INFO ]     input_values , 46 (node: input_values) : f32 / [...] / [1,30480]
+    [ INFO ]     45 , input_values (node: input_values) : f32 / [...] / [1,30480]
     [ INFO ] Model outputs:
     [ INFO ]     logits (node: __module.lm_head/aten::linear/Add) : f32 / [...] / [1,95,32]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 529.68 ms
+    [ INFO ] Compile model took 487.21 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -636,7 +596,7 @@ models.
     [ INFO ]     AFFINITY: Affinity.CORE
     [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
     [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
-    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 0
+    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 32
     [ INFO ]     ENABLE_CPU_PINNING: True
     [ INFO ]     ENABLE_HYPER_THREADING: True
     [ INFO ]     EXECUTION_DEVICES: ['CPU']
@@ -657,21 +617,21 @@ models.
     [ INFO ]   LOADED_FROM_CACHE: False
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
-    [ WARNING ] No input files were given for input '46'!. This input will be filled with random values!
-    [ INFO ] Fill input '46' with random values 
+    [ WARNING ] No input files were given for input '45'!. This input will be filled with random values!
+    [ INFO ] Fill input '45' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 58.28 ms
+    [ INFO ] First inference took 69.78 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            5526 iterations
-    [ INFO ] Duration:         120202.85 ms
+    [ INFO ] Count:            5592 iterations
+    [ INFO ] Duration:         120144.14 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        130.44 ms
-    [ INFO ]    Average:       130.34 ms
-    [ INFO ]    Min:           62.86 ms
-    [ INFO ]    Max:           154.28 ms
-    [ INFO ] Throughput:   45.97 FPS
+    [ INFO ]    Median:        128.56 ms
+    [ INFO ]    Average:       128.75 ms
+    [ INFO ]    Min:           64.64 ms
+    [ INFO ]    Max:           234.93 ms
+    [ INFO ] Throughput:   46.54 FPS
 
 
 .. code:: ipython3
@@ -687,34 +647,34 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.4.0-16508-1d6e97cabaa
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.4.0-16508-1d6e97cabaa
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 32.51 ms
+    [ INFO ] Read model took 24.32 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
-    [ INFO ]     input_values , 46 (node: input_values) : f32 / [...] / [?,?]
+    [ INFO ]     45 , input_values (node: input_values) : f32 / [...] / [?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     logits (node: __module.lm_head/aten::linear/Add) : f32 / [...] / [?,?,32]
+    [ INFO ]     logits (node: __module.lm_head/aten::linear/Add) : f32 / [...] / [?,1..,32]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
-    [ INFO ] Reshaping model: '46': [1,30480]
-    [ INFO ] Reshape model took 65.31 ms
+    [ INFO ] Reshaping model: '45': [1,30480]
+    [ INFO ] Reshape model took 5.91 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
-    [ INFO ]     input_values , 46 (node: input_values) : f32 / [...] / [1,30480]
+    [ INFO ]     45 , input_values (node: input_values) : f32 / [...] / [1,30480]
     [ INFO ] Model outputs:
     [ INFO ]     logits (node: __module.lm_head/aten::linear/Add) : f32 / [...] / [1,95,32]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1271.03 ms
+    [ INFO ] Compile model took 1242.21 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -726,7 +686,7 @@ models.
     [ INFO ]     AFFINITY: Affinity.CORE
     [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
     [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
-    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 0
+    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 32
     [ INFO ]     ENABLE_CPU_PINNING: True
     [ INFO ]     ENABLE_HYPER_THREADING: True
     [ INFO ]     EXECUTION_DEVICES: ['CPU']
@@ -747,19 +707,19 @@ models.
     [ INFO ]   LOADED_FROM_CACHE: False
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
-    [ WARNING ] No input files were given for input '46'!. This input will be filled with random values!
-    [ INFO ] Fill input '46' with random values 
+    [ WARNING ] No input files were given for input '45'!. This input will be filled with random values!
+    [ INFO ] Fill input '45' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 55.80 ms
+    [ INFO ] First inference took 55.17 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            8310 iterations
-    [ INFO ] Duration:         120146.39 ms
+    [ INFO ] Count:            8178 iterations
+    [ INFO ] Duration:         120112.48 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        86.65 ms
-    [ INFO ]    Average:       86.61 ms
-    [ INFO ]    Min:           72.25 ms
-    [ INFO ]    Max:           117.05 ms
-    [ INFO ] Throughput:   69.17 FPS
+    [ INFO ]    Median:        87.88 ms
+    [ INFO ]    Average:       87.98 ms
+    [ INFO ]    Min:           43.26 ms
+    [ INFO ]    Max:           110.16 ms
+    [ INFO ] Throughput:   68.09 FPS
 

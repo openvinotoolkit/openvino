@@ -63,7 +63,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         supported_properties.reserve(ro_properties.size() + rw_properties.size());
         supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
-        return decltype(ov::supported_properties)::value_type(supported_properties);
+        return decltype(ov::supported_properties)::value_type(std::move(supported_properties));
     } else if (name == ov::enable_profiling) {
         return m_context->m_need_perf_counters;
     } else if (name == ov::hint::performance_mode) {
@@ -97,9 +97,11 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
             real = m_scheduler->m_compile_context[ACTUALDEVICE].
                 m_compiled_model->get_property(name).as<unsigned int>();
         } else {
-            std::unique_lock<std::mutex> lock(m_context->m_mutex);
-            auto device_info = m_scheduler->m_compile_context[ACTUALDEVICE].m_device_info;
-            lock.unlock();
+            DeviceInformation device_info;
+            {
+                std::lock_guard<std::mutex> lock(m_context->m_mutex);
+                device_info = m_scheduler->m_compile_context[ACTUALDEVICE].m_device_info;
+            }
             unsigned int optimal_batch_size = 0;
             unsigned int requests = 0;
             bool tput_enabled_in_plugin = false;

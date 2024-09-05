@@ -26,7 +26,6 @@ Install OpenVINO™ Runtime on Linux
    Use Docker <install-openvino-docker-linux>
    Use npm <install-openvino-npm>
 
-
 If you want to install OpenVINO™ Runtime on Linux, you have the following options:
 
 * :doc:`Install OpenVINO using an Archive File <install-openvino-archive-linux>`

@@ -5,8 +5,10 @@
 #include "mvn.hpp"
 #include "gtest/gtest.h"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/general_utils.h"
 
 using namespace CPUTestUtils;
+using namespace ov::intel_cpu;
 
 namespace ov {
 namespace test {
@@ -59,17 +61,6 @@ std::string MvnLayerCPUTest::getTestCaseName(testing::TestParamInfo<MvnLayerCPUT
     return result.str();
 }
 
-bool MvnLayerCPUTest::isSupportedTestCase() {
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    // "initAcrossChannels = false" is not supported by ACL for NHWC layout
-    if (!inFmts.empty() && (inFmts.front() == nwc ||
-                            inFmts.front() == nhwc ||
-                            inFmts.front() == ndhwc) &&
-        !acrossChanels) return false;
-#endif
-    return true;
-}
-
 void MvnLayerCPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
 
@@ -90,10 +81,6 @@ void MvnLayerCPUTest::SetUp() {
     bool normalizeVariance;
     double eps;
     std::tie(inputShapes, netPrecision, axes, acrossChanels, normalizeVariance, eps) = basicParamsSet;
-
-    if (!isSupportedTestCase()) {
-        GTEST_SKIP() << "Skip MVN test since such combination of parameters is not supported." << std::endl;
-    }
 
     init_input_shapes({inputShapes});
 
@@ -116,11 +103,10 @@ void MvnLayerCPUTest::SetUp() {
         mvn->set_reduction_axes(axes);
     }
 
-    rel_threshold = 0.015f;
-    if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::f16) {
-        //FIXME: ref and acl mvn implementation has accuracy issues on fp16 (#116344)
-        abs_threshold = .05f;
-        rel_threshold = 250.f;
+    rel_threshold = 5e-4;
+    if (one_of(additionalConfig[ov::hint::inference_precision.name()], ov::element::f16, ov::element::bf16)) {
+        rel_threshold = 1e-2;
+        abs_threshold = .03f;
     }
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
     updateSelectedType(getPrimitiveType(), netPrecision, configuration);
@@ -364,6 +350,43 @@ const std::vector<double>& epsilon() {
     return epsilon;
 }
 
+const std::vector<CPUSpecificParams>& cpuParams_4D() {
+    static const std::vector<CPUSpecificParams> cpuParams_4D = {
+        CPUSpecificParams({nchw}, {nchw}, {}, {}),
+        CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
+    };
+    return cpuParams_4D;
+}
+
+const std::vector<CPUSpecificParams>& cpuParams_5D() {
+    static const std::vector<CPUSpecificParams> cpuParams_5D = {
+            CPUSpecificParams({ncdhw}, {ncdhw}, {}, {}),
+            CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
+    };
+    return cpuParams_5D;
+}
+
+const std::vector<ElementType>& inpPrc() {
+    static const std::vector<ElementType> inpPrc = {
+            ElementType::i8,
+            ElementType::f32,
+    };
+    return inpPrc;
+}
+
+const std::vector<ElementType>& outPrc() {
+    static const std::vector<ElementType> outPrc = {
+            ElementType::f32,
+    };
+    return outPrc;
+}
+
+const std::vector<fusingSpecificParams>& fusingParamsSet() {
+    static const std::vector<fusingSpecificParams> fusingParamsSet = {
+            emptyFusingSpec,
+    };
+    return fusingParamsSet;
+}
 }  // namespace MVN
 }  // namespace test
 }  // namespace ov

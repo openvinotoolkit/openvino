@@ -11,12 +11,12 @@ namespace test {
 namespace snippets {
 
 typedef std::tuple<
-        std::vector<ov::Shape>,          // Input shapes
-        std::vector<int64_t>,            // Transpose Order
-        int64_t,                         // Softmax Axis
-        size_t,                          // Expected num nodes
-        size_t,                          // Expected num subgraphs
-        std::string                      // Target Device
+        std::vector<InputShape>,        // Input shapes
+        std::vector<int64_t>,           // Transpose Order
+        int64_t,                        // Softmax Axis
+        size_t,                         // Expected num nodes
+        size_t,                         // Expected num subgraphs
+        std::string                     // Target Device
 > TransposeSoftmaxParams;
 
 

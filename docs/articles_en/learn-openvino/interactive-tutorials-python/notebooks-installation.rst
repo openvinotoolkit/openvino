@@ -32,15 +32,17 @@ The table below lists the supported operating systems and Python versions.
 |                                     | (64-bit                        |
 |                                     | ) <https://www.python.org/>`__ |
 +=====================================+================================+
-| Ubuntu 18.04 LTS                    | 3.8, 3.9, 3.10. 3.11           |
+| Ubuntu 20.04 LTS, 64-bit            | 3.8, 3.9, 3.10. 3.11           |
 +-------------------------------------+--------------------------------+
-| Ubuntu 20.04 LTS                    | 3.8, 3.9, 3.10, 3.11           |
+| Ubuntu 22.04 LTS, 64-bit            | 3.8, 3.9, 3.10, 3.11           |
 +-------------------------------------+--------------------------------+
 | Red Hat Enterprise Linux 8          | 3.8, 3.9, 3.10, 3.11           |
 +-------------------------------------+--------------------------------+
-| macOS 12.6.x versions               | 3.8, 3.9, 3.10, 3.11           |
+| CentOS 7, 64 bit                    | 3.8, 3.9, 3.10, 3.11           |
 +-------------------------------------+--------------------------------+
-| Windows 10 Pro, Enterprise          | 3.8, 3.9, 3.10, 3.11           |
+| macOS 10.15.x versions or higher    | 3.8, 3.9, 3.10, 3.11           |
++-------------------------------------+--------------------------------+
+| Windows 10, 64-bit Pro, Enterprise  | 3.8, 3.9, 3.10, 3.11           |
 | or Education editions               |                                |
 +-------------------------------------+--------------------------------+
 | Windows Server 2016 or higher       | 3.8, 3.9, 3.10, 3.11           |
@@ -64,6 +66,7 @@ Installing prerequisites
          Run the installer by double clicking it. Follow the installation steps to set up the software.
 
          While installing, make sure you check the box to *add Python to system PATH*.
+         Also, it is recommended to use the installer option to disable the PATH length limit.
 
          .. note::
 
@@ -81,6 +84,12 @@ Installing prerequisites
 
          Run the installer by double clicking it. Follow the installation steps to set up the software.
 
+      4. (Optional) Install FFMPEG
+
+         Download FFMPEG binary from `here <https://ffmpeg.org/download.html>`__
+
+         Set FFMPEG's path (e.g., ``C:\ffmpeg\bin``) to the PATH environmental variable on Windows.
+
    .. tab-item:: Linux
       :sync: linux
 
@@ -96,7 +105,7 @@ Installing prerequisites
 
             sudo apt-get update
             sudo apt-get upgrade
-            sudo apt-get install python3-venv build-essential python3-dev git-all
+            sudo apt-get install python3-venv build-essential python3-dev git-all libgl1-mesa-dev ffmpeg
 
          For an Intel Integrated Graphics Card, you can install the `Intel Graphics Compute Runtime <https://github.com/intel/compute-runtime>`__ to enable inference on this device. The command for Ubuntu 20.04 is:
 
@@ -133,7 +142,8 @@ Installing prerequisites
          .. code-block:: sh
 
             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-            After you install it, follow the instructions from the Homebrew installation to set it up.
+
+         After you install it, follow the instructions from the Homebrew installation to set it up.
 
       3. **Install Python and dependencies**
 
@@ -142,6 +152,8 @@ Installing prerequisites
             brew install python@3.9
             brew install protobuf
 
+            # optional but recommended
+            brew install ffmpeg
 
          Run each step below in a terminal.
 
@@ -250,6 +262,56 @@ Installing prerequisites
          CMD /tmp/scripts/run
 
 
+   .. tab-item:: Amazon SageMaker
+      :sync: amazon-sagemaker
+
+      .. note::
+
+         An `AWS <https://console.aws.amazon.com/console/home?nc2=h_ct&src=header-signin>`__
+         account and access to
+         `Amazon SageMaker Studio <https://aws.amazon.com/sagemaker/studio/>`__
+         are required.
+
+      1. **Log into your Amazon SageMaker Studio Environment and** ``Add user``.
+
+         |amazon-studio-1|
+
+      2. **Choose desired user profile name**
+
+         |amazon-studio-2|
+
+      3. **Choose Jupyter Lab version 3.0**
+
+         |amazon-studio-3|
+
+      4. **Choose the remaining default setting and click "Submit" to add a user.**
+      5. **Launch the Amazon SageMaker Studio environment.**
+
+         Click "Open Studio" to start the environment:
+
+         |amazon-studio-4|
+
+         .. note::
+
+            You are using an ``ml.t3.medium`` instance, which is for free for
+            250 hours per month for the first 2 months on Studio notebook.
+
+      6. **Wait for a couple of minutes for your environment to load.**
+
+         You should be able to see the following screen:
+
+         |amazon-studio-5|
+
+      7. **Select a SageMaker image.**
+
+         Choose ``Data Science 3.0`` in "Select a SageMaker image" drop-down under
+         "Notebooks and compute resources".
+
+         Then, click **+** on "Image Terminal" to start a terminal session:
+
+         |amazon-studio-6|
+
+
 Installing notebooks
 ++++++++++++++++++++
 
@@ -294,6 +356,19 @@ Installing notebooks
 
             pip install -r requirements.txt
 
+
+            .. important::
+
+               In case of problems with accessing HuggingFace in PRC, set-up the networking
+               environment before you launch the notebooks:
+
+               .. code-block::
+
+                  pip install -U huggingface_hub
+                  set HF_ENDPOINT = https://hf-mirror.com
+
+               For more information, visit `HF-Mirror HuggingFace <https://hf-mirror.com>`__.
+
    .. tab-item:: Linux
       :sync: linux
 
@@ -332,6 +407,18 @@ Installing notebooks
          .. code-block:: sh
 
             pip install -r requirements.txt
+
+            .. important::
+
+               In case of problems with accessing HuggingFace in PRC, set-up the networking
+               environment before you launch the notebooks:
+
+               .. code-block::
+
+                  pip install -U huggingface_hub
+                  set HF_ENDPOINT = https://hf-mirror.com
+
+               For more information, visit `HF-Mirror HuggingFace <https://hf-mirror.com>`__.
 
    .. tab-item:: macOS
       :sync: macos
@@ -475,6 +562,69 @@ Installing notebooks
             While running the container on Windows and macOS, only CPU devices can be used. To access the iGPU, install the notebooks locally, following the instructions above.
 
 
+   .. tab-item:: Amazon SageMaker
+      :sync: amazon-sagemaker
+
+
+      **Use the terminal and follow the steps below.**
+
+      |amazon-studio-7|
+
+
+      1. **Install few system dependencies.**
+
+         .. code-block::
+
+            apt update
+            apt install build-essential -y
+            apt install libpython3.9-dev -y
+            apt install libgl1-mesa-glx -y
+
+      2. **Setup OpenVINO conda environment.**
+
+         .. code-block::
+
+            conda create --name openvino_env python=3.9
+            conda activate openvino_env
+            conda install ipykernel
+            set PATH="/anaconda/envs/openvino_env/bin;%PATH%"
+
+      3. **Setup OpenVINO Notebooks.**
+
+         .. code-block::
+
+            git clone https://github.com/openvinotoolkit/openvino_notebooks.git
+            cd openvino_notebooks
+            # Install OpenVINO and OpenVINO notebook Requirements
+            python -m pip install --upgrade pip
+            pip install -r requirements.txt
+
+      4. **Run the Notebooks**
+
+         * To run the notebooks, click the top level "openvino_notebooks" folder
+           and navigate to your example:
+
+           |amazon-studio-8|
+
+         * Choose "Image" - ``Data Science 3.0``,
+           "Kernel" - ``Python [conda env:openvino_env],``
+           "Instance type"- your desired compute instance.
+
+           |amazon-studio-9|
+
+           |amazon-studio-10|
+
+           |amazon-studio-11|
+
+           .. note::
+
+              Make sure you use the ``Python [conda env:openvino_env]``
+              environment (not ``Python 3``).
+
+         * Next, run the cells of the notebook. You may try other notebooks to
+           explore OpenVINO features and examples.
+
+
 Run the Notebooks
 #################
 
@@ -614,6 +764,27 @@ Additional Resources
 
 .. |ml-studio-2| image:: https://user-images.githubusercontent.com/15709723/117582205-b6f4d580-b0b5-11eb-9b83-eb2004ad9b19.png
 
-.. |docker-terminal-1| image:: https://user-images.githubusercontent.com/15709723/127793994-355e4d29-d131-432d-a12a-b08ca6131223.png
+.. |amazon-studio-1| image:: https://user-images.githubusercontent.com/4837253/199801883-7bb64ad2-bb7f-4477-ace1-25111d4fd43c.png
 
+.. |amazon-studio-2| image:: https://user-images.githubusercontent.com/4837253/199802173-8d65c851-604b-4b92-bafa-cae86b17d1ec.png
+
+.. |amazon-studio-3| image:: https://user-images.githubusercontent.com/4837253/199802353-14c17233-3dae-4649-bbfe-59b8a598450c.png
+
+.. |amazon-studio-4| image:: https://user-images.githubusercontent.com/4837253/199802726-97c85732-ff25-4cdd-ad6e-d491b4ed122b.png
+
+.. |amazon-studio-5| image:: https://user-images.githubusercontent.com/15709723/199784252-c8581c73-342a-4c70-9207-5543d7b87346.png
+
+.. |amazon-studio-6| image:: https://user-images.githubusercontent.com/4837253/199805717-5d102d27-e92e-4426-8d14-0484fd5ba24c.png
+
+.. |amazon-studio-7| image:: https://user-images.githubusercontent.com/4837253/199807022-3cc5dd9e-f9f0-445d-be5e-d429dc1b752c.png
+
+.. |amazon-studio-8| image:: https://user-images.githubusercontent.com/4837253/199810405-0f6748e1-d5f5-469e-8305-a96724dfffba.png
+
+.. |amazon-studio-9| image:: https://user-images.githubusercontent.com/4837253/199812540-c52ea429-9d53-4bdb-aec1-a0b8616c6fcc.png
+
+.. |amazon-studio-10| image:: https://user-images.githubusercontent.com/4837253/199812587-20c3e360-3a31-4032-b17a-8b242d6ccc26.png
+
+.. |amazon-studio-11| image:: https://user-images.githubusercontent.com/4837253/199812713-32074aa7-8190-43c8-815c-231542c7b286.png
+
+.. |docker-terminal-1| image:: https://user-images.githubusercontent.com/15709723/127793994-355e4d29-d131-432d-a12a-b08ca6131223.png
 

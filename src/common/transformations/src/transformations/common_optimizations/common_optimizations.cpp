@@ -92,6 +92,7 @@
 #include "transformations/op_conversions/convert_roi_align_v3_to_v9.hpp"
 #include "transformations/op_conversions/convert_roi_align_v9_to_v3.hpp"
 #include "transformations/op_conversions/convert_scatter_elements_update12_downgrade.hpp"
+#include "transformations/op_conversions/convert_scatter_nd_update15_downgrade.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/op_conversions/convert_softmax_downgrade.hpp"
 #include "transformations/op_conversions/convert_softmax_upgrade.hpp"
@@ -121,7 +122,7 @@
 
 bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
-    ov::pass::Manager manager(get_pass_config());
+    ov::pass::Manager manager(get_pass_config(), "CommonOptimizations");
     manager.set_per_pass_validation(false);
 
     using namespace ov::pass;
@@ -213,9 +214,9 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertDeformableConv8To1)
     REGISTER_PASS(manager, ConvertSoftMax8ToSoftMax1)
     REGISTER_DISABLED_PASS(manager, ConvertSoftMax1ToSoftMax8)
+    REGISTER_PASS(manager, ConvertMaxPool14ToMaxPool8)
     REGISTER_PASS(manager, ConvertMaxPool8ToMaxPool1)
     REGISTER_DISABLED_PASS(manager, ConvertMaxPool1ToMaxPool8)
-    REGISTER_PASS(manager, ConvertMaxPool14ToMaxPool8)
     REGISTER_PASS(manager, ConvertPriorBox8To0)
     REGISTER_DISABLED_PASS(manager, ConvertDetectionOutput1ToDetectionOutput8)
     REGISTER_PASS(manager, ConvertDetectionOutput8ToDetectionOutput1)
@@ -231,6 +232,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertAvgPool14ToAvgPool1)
     REGISTER_PASS(manager, ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3)
     REGISTER_PASS(manager, ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3)
+    REGISTER_PASS(manager, ConvertScatterNDUpdate15ToScatterNDUpdate3)
 
     auto fq_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
@@ -251,7 +253,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // because we cannot insert any MaxPools since they may prevent
     // other optimizations
     REGISTER_PASS(manager, StridesOptimization)
-    REGISTER_PASS(manager, SymbolicOptimizations)
     REGISTER_PASS(manager, Validate)
     manager.run_passes(f);
 

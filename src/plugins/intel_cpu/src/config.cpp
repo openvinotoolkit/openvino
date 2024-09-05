@@ -236,6 +236,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::dynamic_quantization_group_size.name()) {
             try {
+                fcDynamicQuantizationGroupSizeSetExplicitly = true;
                 fcDynamicQuantizationGroupSize = val.as<uint64_t>();
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ",
@@ -370,6 +371,14 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::hint::kv_cache_precision.name(),
                                ". Supported values: u8, bf16, f16, f32");
             }
+        } else if (key == ov::cache_encryption_callbacks.name()) {
+            try {
+                auto encryption_callbacks = val.as<EncryptionCallbacks>();
+                cacheEncrypt = encryption_callbacks.encrypt;
+                cacheDecrypt = encryption_callbacks.decrypt;
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value for property key ", ov::cache_encryption_callbacks.name());
+            }
         } else {
             OPENVINO_THROW("NotFound: Unsupported property ", key, " by CPU plugin.");
         }
@@ -388,6 +397,12 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 inferencePrecision = ov::element::bf16;
         } else {
             inferencePrecision = ov::element::undefined;
+        }
+    }
+    // disable dynamic quantization and kv quantization for best accuracy
+    if (executionMode == ov::hint::ExecutionMode::ACCURACY) {
+        if (!fcDynamicQuantizationGroupSizeSetExplicitly) {
+            fcDynamicQuantizationGroupSize = 0;
         }
     }
 

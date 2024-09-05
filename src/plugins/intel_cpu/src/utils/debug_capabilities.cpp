@@ -103,7 +103,7 @@ void DebugLogEnabled::break_at(const std::string & log) {
         std::cout << "[ DEBUG ] " << " Debug log breakpoint hit" << std::endl;
 #if defined(_MSC_VER)
         __debugbreak();
-#elif defined(__APPLE__) || defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#elif defined(__APPLE__) || defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
        __builtin_trap();
 #else
         asm("int3");
@@ -683,5 +683,10 @@ void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int 
 
 }   // namespace intel_cpu
 }   // namespace ov
+
+bool getEnvBool(const char* name) {
+    static const bool env = ov::util::getenv_bool(name);
+    return env;
+}
 
 #endif

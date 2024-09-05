@@ -18,8 +18,8 @@ and
 charlists are used. Both models are available on `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `Settings <#settings>`__
@@ -35,6 +35,16 @@ Table of contents:
 -  `Run Inference <#run-inference>`__
 -  `Process the Output Data <#process-the-output-data>`__
 -  `Print the Output <#print-the-output>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 .. code:: ipython3
 
@@ -78,7 +88,7 @@ Imports
     )
     
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 Settings
 --------
@@ -197,15 +207,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
-    
+    device = device_widget()
     device
 
 

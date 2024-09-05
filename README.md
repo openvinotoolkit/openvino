@@ -24,7 +24,7 @@ Check out the [OpenVINO Cheat Sheet](https://docs.openvino.ai/2024/_static/downl
 [Get your preferred distribution of OpenVINO](https://docs.openvino.ai/2024/get-started/install-openvino.html) or use this command for quick installation:
 
 ```sh
-pip install openvino
+pip install -U openvino
 ```
 
 Check [system requirements](https://docs.openvino.ai/2024/about-openvino/system-requirements.html) and [supported devices](https://docs.openvino.ai/2024/about-openvino/compatibility-and-support/supported-devices.html) for detailed information.
@@ -115,6 +115,7 @@ You can ask questions and get support on:
 * OpenVINO channels on the [Intel DevHub Discord server](https://discord.gg/7pVRxUwdWG).
 * The [`openvino`](https://stackoverflow.com/questions/tagged/openvino) tag on Stack Overflow\*.
 
+
 ## Additional Resources
 
 * [Product Page](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html)
@@ -122,6 +123,18 @@ You can ask questions and get support on:
 * [OpenVINO Blog](https://blog.openvino.ai/)
 * [OpenVINO™ toolkit on Medium](https://medium.com/@openvino)
 
+
+## Telemetry
+
+OpenVINO™ collects software performance and usage data for the purpose of improving OpenVINO™ tools.
+This data is collected directly by OpenVINO™ or through the use of Google Analytics 4.
+You can opt-out at any time by running the command:
+
+``` bash
+opt_in_out --opt_out
+```
+
+More Information is available at [OpenVINO™ Telemetry](https://docs.openvino.ai/2024/about-openvino/additional-resources/telemetry.html).
 
 ## License
 
