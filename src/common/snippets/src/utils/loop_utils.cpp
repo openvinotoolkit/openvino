@@ -4,9 +4,6 @@
 
 #include "snippets/utils/loop_utils.hpp"
 
-#include "snippets/lowered/loop_port.hpp"
-#include "snippets/op/buffer.hpp"
-#include "snippets/op/memory_access.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov {
