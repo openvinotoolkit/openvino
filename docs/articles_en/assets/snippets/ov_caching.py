@@ -44,8 +44,6 @@ caching_supported = 'EXPORT_IMPORT' in core.get_property(device_name, device.cap
 # ! [ov:caching:part3]
 
 # ! [ov:caching:part4]
-import openvino as ov
-from utils import get_path_to_model, get_temp_dir
 import base64
 
 def encrypt_base64(src):
@@ -54,14 +52,10 @@ def encrypt_base64(src):
 def decrypt_base64(src):
     return base64.b64decode(bytes(src, "utf-8"))
 
-def main():
-    device_name = 'CPU'
-    model_path = get_path_to_model()
-    path_to_cache_dir = get_temp_dir()
-    core = ov.Core()
-    config_cache = {}
-    config_cache["CACHE_ENCRYPTION_CALLBACKS"] = [encrypt_base64, decrypt_base64]
-    config_cache["CACHE_DIR"] = path_to_cache_dir
-    model = core.read_model(model=model_path)
-    compiled_model = core.compile_model(model=model, device_name=device_name, config=config_cache)
+core = ov.Core()
+core.set_property({props.cache_dir: path_to_cache_dir})
+config_cache = {}
+config_cache["CACHE_ENCRYPTION_CALLBACKS"] = [encrypt_base64, decrypt_base64]
+model = core.read_model(model=model_path)
+compiled_model = core.compile_model(model=model, device_name=device_name, config=config_cache)
 # ! [ov:caching:part4]
