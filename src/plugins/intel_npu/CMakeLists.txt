@@ -20,6 +20,21 @@ include(cmake/features.cmake)
 
 set(CMAKE_CXX_STANDARD 17)
 
+set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
+
+if(CMAKE_COMPILE_WARNING_AS_ERROR AND WIN32)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+        if(CMAKE_VERSION VERSION_LESS 3.24)
+            ov_add_compiler_flags(/WX)
+        endif()
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /WX")
+        set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /WX")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WX")
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        ov_add_compiler_flags(-Werror)
+    endif()
+endif()
+
 if(ENABLE_NPU_DEBUG_CAPS)
     add_compile_definitions(NPU_PLUGIN_DEVELOPER_BUILD)
 endif()
