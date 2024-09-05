@@ -98,13 +98,124 @@ jobs:
 
   CXX_Unit_Tests:
     name: C++ unit tests
-    needs: [ Docker, Build, Smart_CI ]
-    uses: ./.github/workflows/job_cxx_unit_tests.yml
-    with:
-      runner: 'aks-linux-4-cores-16gb'
+    needs: [Smart_CI, Docker, Build]
+    timeout-minutes: 30
+    runs-on: 'aks-linux-16-cores-32gb'
+    container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_29 }}
-      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+    defaults:
+      run:
+        shell: 'bash'
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      SOURCE_COMMAND: 'source'
+      SETUPVARS: 'setupvars.sh'
+    steps:
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
 
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables (Unix)
+        run: |
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+          echo "SETUPVARS_COMMAND=${{ env.SOURCE_COMMAND }} $GITHUB_WORKSPACE/install/${{ env.SETUPVARS }}" >> "$GITHUB_ENV"
+
+      - name: Extract OpenVINO packages (Unix)
+        run: |
+          pushd $INSTALL_DIR
+            tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
+          popd
+          pushd $INSTALL_TEST_DIR
+            tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
+          popd
+
+      #
+      # Tests
+      #
+
+      - name: OpenVINO Core Unit Tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).Core.test
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVCoreUT.xml
+
+      - name: OpenVINO Inference Functional Tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).inference.test
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_inference_functional_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceFunc.xml
+      
+      - name: OpenVINO Inference Unit Tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).inference.test
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_inference_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceUnit.xml
+
+      - name: Low Precision Transformations Tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).LP_transformations.test
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-LpTransformations.xml
+
+      - name: OpenVINO Conditional compilation tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).Core.test
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ConditionalCompilation.xml
+
+      - name: IR frontend tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).IR_FE.test
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-IRFrontend.xml
+
+      - name: Transformations func tests
+        if: ${{ fromJSON(needs.smart_ci.outputs.affected_components).transformations.test && runner.arch != 'ARM64' }} # Ticket: 126281
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
+
+      - name: CPU plugin unit tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTests.xml
+
+      - name: ov_subgraphs_dumper_tests tests
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_subgraphs_dumper_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_subgraphs_dumper_tests.xml
+
+      - name: Template OpImpl tests
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_op_conformance_tests --gtest_print_time=1 --device=TEMPLATE --gtest_filter=*OpImpl*--gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpImplTests.xml
+
+      - name: OpenVINO C API tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).C_API.test
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_capi_test --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpenVINOCAPITests.xml
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-cpp
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'warn'
+  
   Overall_Status:
     name: ci/gha_overall_status_fedora_29
     needs: [Smart_CI, Build, CXX_Unit_Tests]
