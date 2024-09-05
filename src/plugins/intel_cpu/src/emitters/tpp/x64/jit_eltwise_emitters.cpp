@@ -21,28 +21,16 @@ BinaryEltwiseTppEmitter::BinaryEltwiseTppEmitter(jit_generator* h, cpu_isa_t isa
     const auto N_in1 = static_cast<libxsmm_blasint>(*subtensor_in1.rbegin());
     const auto M_in1 = static_cast<libxsmm_blasint>(*++subtensor_in1.rbegin());
 
-    std::pair<bool, bool> n_bcast_flags, m_bcast_flags;
-    const auto N = get_broadcasted_dim(N_in0, N_in1, n_bcast_flags);
-    const auto M = get_broadcasted_dim(M_in0, M_in1, m_bcast_flags);
+    const auto N = std::max(N_in0, N_in1);
+    const auto M = std::max(M_in0, M_in1);
+    OV_CPU_JIT_EMITTER_ASSERT(std::min(N_in0, N_in1) == N || std::min(N_in0, N_in1) == 1, "Invalid subtensor broadcasting: N");
+    OV_CPU_JIT_EMITTER_ASSERT(std::min(M_in0, M_in1) == M || std::min(M_in0, M_in1) == 1, "Invalid subtensor broadcasting: M");
 
-    m_compile_flags = LIBXSMM_MELTW_FLAG_BINARY_NONE;
-    if (m_bcast_flags.first && n_bcast_flags.first) {
-        m_compile_flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_SCALAR_IN_0;
-    } else if (m_bcast_flags.first) {
-        m_compile_flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_COL_IN_0;
-    } else  if (n_bcast_flags.first) {
-        m_compile_flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_ROW_IN_0;
-    }
-    if (m_bcast_flags.second && n_bcast_flags.second) {
-        m_compile_flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_SCALAR_IN_1;
-    } else if (m_bcast_flags.second) {
-        m_compile_flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_COL_IN_1;
-    } else  if (n_bcast_flags.second) {
-        m_compile_flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_ROW_IN_1;
-    }
     const auto& binary_eltw_tpp = std::dynamic_pointer_cast<tpp::op::BinaryEltwiseTPP>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(binary_eltw_tpp, "Invalid TPP node type detected");
-    m_op_type = binary_eltw_tpp->get_op_type();
+    const auto& desc = binary_eltw_tpp->get_op_desc();
+    m_op_type = desc;
+    m_compile_flags = desc.get_flags();
     // Note: libxsmm implies column-major layout, so we have to swap M and N here
     m_shape = libxsmm_create_meltw_binary_shape(N, M,
                                                 io_strides[0], io_strides[1], io_strides[2],
@@ -99,13 +87,14 @@ UnaryEltwiseTppEmitter::UnaryEltwiseTppEmitter(jit_generator* h, cpu_isa_t isa, 
 
     const auto& unary_eltw_tpp = std::dynamic_pointer_cast<tpp::op::UnaryEltwiseTPP>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(unary_eltw_tpp, "Invalid TPP node type detected");
-    m_op_type = unary_eltw_tpp->get_op_type();
+    const auto& desc = unary_eltw_tpp->get_op_desc();
+    m_op_type = desc;
+    m_compile_flags = desc.get_flags();
     // Note: libxsmm implies column-major layout, so we have to swap M and N here
     m_shape = libxsmm_create_meltw_unary_shape(N, M,
                                                io_strides[0], io_strides[1],
                                                io_dtypes[0], io_dtypes[1],
                                                exec_dtype);
-    m_compile_flags = LIBXSMM_MELTW_FLAG_UNARY_NONE;
 }
 
 void UnaryEltwiseTppEmitter::execute_kernel(libxsmm_meltwfunction_unary eltwise_kernel, void *in0, void *out0) {
