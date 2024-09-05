@@ -12,6 +12,7 @@ In the next example we define transformation that searches for ``Relu`` layer an
 '''
 
 from openvino.runtime.passes import MatcherPass
+from snippets import get_model
 
 class PatternReplacement(MatcherPass):
     def __init__(self):
@@ -75,15 +76,6 @@ class PatternReplacement(MatcherPass):
         self.register_matcher(Matcher(relu, "PatternReplacement"), callback)
 
 
-def get_relu_model():
-    # Parameter->Relu->Result
-    param = ops.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
-    relu = ops.relu(param.output(0))
-    relu.set_friendly_name('relu')
-    res = ops.result(relu.output(0), name="result")
-    return Model([res], [param], "test")
-
-
 def print_model_ops(model):
     print('model ops : ')
     for op in model.get_ops():
@@ -95,7 +87,7 @@ manager = Manager()
 manager.register_pass(PatternReplacement())
 
 
-model = get_relu_model()
+model = get_model()
 print_model_ops(model)
 manager.run_passes(model)
 print_model_ops(model)
