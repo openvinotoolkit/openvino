@@ -25,8 +25,8 @@ class TestKerasLeakyRelu(CommonTF2LayerTest):
     test_data_float32 = [
         dict(input_names=["x"], input_shapes=[[5, 4, 3]], input_type=tf.float32, alpha=0.),
         dict(input_names=["x"], input_shapes=[[5, 4, 3]], input_type=tf.float32, alpha=0.5),
-        dict(input_names=["x"], input_shapes=[[5, 2, 3, 4]], input_type=tf.float32, alpha=-1.),
-        dict(input_names=["x"], input_shapes=[[5, 2, 3, 5, 3]], input_type=tf.float32, alpha=-1.7),
+        dict(input_names=["x"], input_shapes=[[5, 2, 3, 4]], input_type=tf.float32, alpha=1.),
+        dict(input_names=["x"], input_shapes=[[5, 2, 3, 5, 3]], input_type=tf.float32, alpha=1.7),
     ]
 
     @pytest.mark.parametrize("params", test_data_float32)

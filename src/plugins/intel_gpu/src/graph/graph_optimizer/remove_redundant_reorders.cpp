@@ -31,12 +31,13 @@ using namespace cldnn;
 #define LOG_NODE_REMOVAL(id)      GPU_DEBUG_LOG_PASS << __func__ << ":" << __LINE__  << ": remove node: " << (id) << std::endl;
 #define LOG_NODE_REPLACEMENT(id)  GPU_DEBUG_LOG_PASS << __func__ << ":" << __LINE__  << ": replace node: " << (id) << std::endl;
 
-remove_redundant_reorders::remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing, bool update_implementations,
+remove_redundant_reorders::remove_redundant_reorders(bool enable_reorder_fusing, bool update_implementations,
     bool remove_output_reorders)
-    : base_pass("remove_redundant_reorders"), lo(lo_ref), enable_reorder_fusing(enable_reorder_fusing), update_implementations(update_implementations),
+    : base_pass("remove_redundant_reorders"), enable_reorder_fusing(enable_reorder_fusing), update_implementations(update_implementations),
     remove_output_reorders(remove_output_reorders) {}
 
 void remove_redundant_reorders::run(program& p) {
+    auto& lo = p.get_layout_optimizer();
     auto update_implementation = [&](program_node& node) {
         if (!update_implementations)
             return;
@@ -279,38 +280,40 @@ void remove_redundant_reorders::run(program& p) {
             continue;
 
         auto o_layout = r_node.get_output_layout();
-        auto i_layout = r_node.get_input_layout(0);
+        const auto& i_layout = r_node.get_input_layout(0);
 
         // Optimize reorder b_fs_yx_fsv16 -> bfyx when spatials are equal to 1. In this case we can reinterpret buffer,
         // but pads need to be handled correctly.
         if (i_layout.format == format::b_fs_yx_fsv16 && o_layout.format == format::bfyx && !r_node.is_output() &&
             i_layout.spatial(0) == 1 && i_layout.spatial(1) == 1 &&
-            i_layout.data_padding.upper_size().spatial[0] == 0 && i_layout.data_padding.lower_size().spatial[0] == 0 &&
-            i_layout.data_padding.upper_size().spatial[1] == 0 && i_layout.data_padding.lower_size().spatial[1] == 0 &&
-            o_layout.data_padding.upper_size() == (tensor)0 && o_layout.data_padding.lower_size() == (tensor)0 &&
+            i_layout.data_padding._upper_size[2] == 0 && i_layout.data_padding._lower_size[2] == 0 &&
+            i_layout.data_padding._upper_size[3] == 0 && i_layout.data_padding._lower_size[3] == 0 &&
+            !o_layout.data_padding &&
             i_layout.data_type == o_layout.data_type &&
             !layout_optimizer::onednn_check_preferred_impl_type_of_users(r_node)) {
             // If the newly aligned pad is merged into output layout during post_optimize_graph phase
             // and then buffer is reinterpreted, user node cannot handle pad properly for kernel execution
             if (!update_implementations || (i_layout.feature() % 16 == 0 &&
-                i_layout.data_padding == padding() && o_layout.data_padding == padding()) || i_layout.batch() == 1) {
+                !i_layout.data_padding && !o_layout.data_padding) || i_layout.batch() == 1) {
                 r_node.can_be_optimized(true);
                 r_node.requires_reinterpret(true);
 
-                auto pad_lo = o_layout.data_padding.lower_size();
-                auto pad_hi = o_layout.data_padding.upper_size();
+                std::vector<int32_t> pad_lo(o_layout.data_padding._lower_size.begin(),
+                                            o_layout.data_padding._lower_size.begin() + o_layout.get_rank());
+                std::vector<int32_t> pad_hi(o_layout.data_padding._upper_size.begin(),
+                                            o_layout.data_padding._upper_size.begin() + o_layout.get_rank());
 
-                pad_lo.batch[0] = i_layout.data_padding.lower_size().batch[0];
-                pad_hi.batch[0] = i_layout.data_padding.upper_size().batch[0];
+                pad_lo[0] = i_layout.data_padding._lower_size[0];
+                pad_hi[0] = i_layout.data_padding._upper_size[0];
 
-                pad_lo.feature[0] = i_layout.data_padding.lower_size().feature[0];
-                pad_hi.feature[0] = i_layout.data_padding.upper_size().feature[0];
+                pad_lo[1] = i_layout.data_padding._lower_size[1];
+                pad_hi[1] = i_layout.data_padding._upper_size[1];
 
                 if (i_layout.feature() % 16 != 0) {
-                    pad_hi.feature[0] += 16 - i_layout.feature() % 16;
+                    pad_hi[1] += 16 - i_layout.feature() % 16;
                 }
 
-                r_node.merge_output_padding(padding{pad_lo.sizes(), pad_hi.sizes()});
+                r_node.merge_output_padding(padding{pad_lo, pad_hi});
                 continue;
             }
         }
@@ -472,7 +475,8 @@ void remove_redundant_reorders::run(program& p) {
         auto quantize_opt = usr->is_type<quantize>() &&
                             (dep.get_output_layout().format == format::b_fs_yx_fsv16 ||
                              dep.get_output_layout().format == format::bfyx ||
-                             (dep.get_output_layout().format == format::fs_b_yx_fsv32 && !lo.get_optimization_attributes().use_onednn_impls));
+                             (dep.get_output_layout().format == format::fs_b_yx_fsv32 &&
+                             !lo.get_optimization_attributes().use_onednn_impls));
 
         auto convert_color_opt = usr->is_type<convert_color>() && prim_desc->has_surface_input();
 
@@ -524,9 +528,10 @@ void remove_redundant_reorders::run(program& p) {
                         return false;
 
                     auto node_format = node->get_output_layout().format;
-                    for (size_t axis = 0; axis < node->get_input_layout(0).data_padding.lower_size().sizes(node_format).size(); axis++) {
+                    auto sizes_in_format = layout::format_sizes(node->get_input_layout(0).data_padding._lower_size, node_format);
+                    for (size_t axis = 0; axis < sizes_in_format.size(); axis++) {
                         if (!user->is_padding_supported(static_cast<int>(axis),
-                            node->get_input_layout(0).data_padding.lower_size().sizes(node_format)[axis]))
+                            sizes_in_format[axis]))
                             return false;
                     }
                 }

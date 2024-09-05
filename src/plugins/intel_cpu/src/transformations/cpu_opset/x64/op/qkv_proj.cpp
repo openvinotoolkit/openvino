@@ -16,6 +16,7 @@ void QKVProjectionNode::validate_and_infer_types() {
     const auto& ishape = get_input_partial_shape(0);
     const auto& itype = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this, ishape.rank().is_static() && ishape.rank() == 3, "feature shape rank must be 3");
+    NODE_VALIDATION_CHECK(this, itype.is_real(), "feature data type must be real");
 
     set_output_size(3);
 
