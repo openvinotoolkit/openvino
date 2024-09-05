@@ -63,7 +63,6 @@ public:
     MockIMemory(MemoryDescPtr desc) : m_pMemDesc(desc) {}
     MockIMemory(const MemoryDesc& desc) : m_pMemDesc(desc.clone()) {}
 
-    MOCK_METHOD(bool, isAllocated, (), (const, noexcept, override));
     MOCK_METHOD(MemoryDesc&, getDesc, (), (const, override));
     MOCK_METHOD(MemoryDescPtr, getDescPtr, (), (const, override));
 
@@ -73,7 +72,7 @@ public:
 
     MOCK_METHOD(void, redefineDesc, (MemoryDescPtr), (override));
     MOCK_METHOD(void, load, (const IMemory&, bool), (const, override));
-    MOCK_METHOD(MemoryMngrPtr, getMemoryMngr, (), (const, override));
+    MOCK_METHOD(MemoryBlockPtr, getMemoryBlock, (), (const, override));
 
     MOCK_METHOD(dnnl::memory, getPrimitive, (), (const, override));
     MOCK_METHOD(void, nullify, (), (override));

@@ -2017,10 +2017,10 @@ void MVN::MVNRefExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const
 void MVN::prepareParams() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW("Destination memory didn't allocate.");
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW("Input memory didn't allocate.");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW("Destination memory is undefined.");
+    if (!srcMemPtr || !srcMemPtr->isDefined())
+        OPENVINO_THROW("Input memory is undefined.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         OPENVINO_THROW("Preferable primitive descriptor is not set.");
 

@@ -91,14 +91,14 @@ void Unique::createPrimitive() {
 
 void Unique::prepareParams() {
     auto dataMemPtr = getSrcMemoryAtPort(IN_DATA);
-    if (!dataMemPtr || !dataMemPtr->isAllocated()) {
-        THROW_ERROR(" has not allocated input data memory.");
+    if (!dataMemPtr) {
+        THROW_ERROR(" has null input data memory.");
     }
     for (int i = 0; i < 4; i++) {
         if (definedOutputs[i]) {
             auto dstMemPtr = getDstMemoryAtPort(i);
-            if (!dstMemPtr || !dstMemPtr->isAllocated()) {
-                THROW_ERROR(" has not allocated output memory at port ", i);
+            if (!dstMemPtr) {
+                THROW_ERROR(" has null output memory at port ", i);
             }
         }
     }

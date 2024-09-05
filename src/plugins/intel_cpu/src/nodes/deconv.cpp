@@ -270,9 +270,9 @@ void Deconvolution::createDnnlCompatibleWeights() {
                                      Shape(dnnlCompatibleWeiDims),
                                      blockedDims,
                                      order);
-    // Create the memory with the edge memory mgr. In the case of the weight memory changes when inference,
+    // Create the memory with the edge memory block. In the case of the weight memory changes when inference,
     // dnnlCompatibleWeights memory would be updated automatically via update inform mechanism.
-    dnnlCompatibleWeights = std::make_shared<Memory>(getEngine(), desc, blob->getMemoryMngr());
+    dnnlCompatibleWeights = std::make_shared<Memory>(getEngine(), desc, blob->getMemoryBlock());
 }
 
 bool Deconvolution::canBeExecutedInInt8() const {
@@ -812,12 +812,12 @@ void Deconvolution::prepareParams() {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto wghMemPtr = getSrcMemoryAtPort(1);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW("Destination memory has not been allocated.");
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW("Input memory has not been allocated.");
-    if (!wghMemPtr || !wghMemPtr->isAllocated())
-        OPENVINO_THROW("Weight memory has not been allocated.");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW("Destination memory is undefined.");
+    if (!srcMemPtr || !srcMemPtr->isDefined())
+        OPENVINO_THROW("Input memory is undefined.");
+    if (!wghMemPtr || !wghMemPtr->isDefined())
+        OPENVINO_THROW("Weight memory is undefined.");
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         OPENVINO_THROW("Preferable primitive descriptor is not set for node ", getName(), ".");
@@ -869,8 +869,8 @@ void Deconvolution::prepareParams() {
 
     if (withBiases) {
         biasMemPtr = getSrcMemoryAtPort(biasPort);
-        if (!biasMemPtr || !biasMemPtr->isAllocated())
-            OPENVINO_THROW("Bias memory  memory didn't allocate.");
+        if (!biasMemPtr || !biasMemPtr->isDefined())
+            OPENVINO_THROW("Bias memory  memory is undefined.");
         biasDesc = biasMemPtr->getDescWithType<DnnlMemoryDesc>();
     }
     bool is1x1PaddingAsymmetric  = false;
@@ -1094,8 +1094,8 @@ std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
         OPENVINO_THROW("Can't get output spatial dims. Inputs number = ", getParentEdges().size());
     }
     const auto &shapeMemPtr = getSrcMemoryAtPort(2);
-    if (!shapeMemPtr || !shapeMemPtr->isAllocated()) {
-        OPENVINO_THROW("'output_shape' input memory is not allocated.");
+    if (!shapeMemPtr || !shapeMemPtr->isDefined()) {
+        OPENVINO_THROW("'output_shape' input memory is undefined.");
     }
     const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
     if (shapeMemPtr->getStaticDims()[0] != spDimsNum) {

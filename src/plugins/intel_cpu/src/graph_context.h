@@ -18,6 +18,8 @@ namespace node {
 class MemoryStatesRegister;
 } // namespace node
 
+class NetworkMemoryControl;
+
 class GraphContext {
 public:
     typedef std::shared_ptr<GraphContext> Ptr;
@@ -76,6 +78,10 @@ public:
         return memoryStatesRegister;
     }
 
+    const std::shared_ptr<NetworkMemoryControl>& getNetworkMemoryControl() const {
+        return networkMemoryControl;
+    }
+
 private:
     Config config;  // network-level config
 
@@ -97,6 +103,7 @@ private:
     int numNumaNodes = 1;
 
     std::shared_ptr<node::MemoryStatesRegister> memoryStatesRegister;
+    std::shared_ptr<NetworkMemoryControl> networkMemoryControl;
 };
 
 }  // namespace intel_cpu

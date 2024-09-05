@@ -99,7 +99,7 @@ private:
             resetSrcMemoryDataHandle = true;
             // create 2D memory without underlying buffer and reset to the actual memory in scope of 'execute' call
             m_primArgs[DNNL_ARG_SRC] =
-                dnnl::memory(primMemDesc->getDnnlDesc(), m_context->getEngine(), memory->getData());
+                dnnl::memory(primMemDesc->getDnnlDesc(), m_context->getEngine(), DNNL_MEMORY_NONE);
         }
     }
 
@@ -111,7 +111,7 @@ private:
             resetDstMemoryDataHandle = true;
             // create 2D memory without underlying buffer and reset to the actual memory in scope of 'execute' call
             m_primArgs[DNNL_ARG_DST] =
-                dnnl::memory(primMemDesc->getDnnlDesc(), m_context->getEngine(), memory->getData());
+                dnnl::memory(primMemDesc->getDnnlDesc(), m_context->getEngine(), DNNL_MEMORY_NONE);
         }
     }
 

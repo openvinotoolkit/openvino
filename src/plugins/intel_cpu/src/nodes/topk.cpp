@@ -1980,10 +1980,10 @@ void TopK::preset_params() {
 void TopK::prepareParams() {
     auto dstMemPtr = getDstMemoryAtPort(TOPK_DATA);
     auto srcMemPtr = getSrcMemoryAtPort(TOPK_DATA);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " has not allocated destination memory.");
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " has not allocate input memory.");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined destination memory.");
+    if (!srcMemPtr || !srcMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined input memory.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         OPENVINO_THROW(errorPrefix, " has nullable preferable primitive descriptor");
 

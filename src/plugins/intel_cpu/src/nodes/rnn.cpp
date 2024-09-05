@@ -1200,7 +1200,7 @@ Node::AttrPtr RNN::initPrimitiveAttr() {
 void RNN::prepareParams() {
     for (size_t i = 0; i < wIdx; i++) {
         auto memPtr = getSrcMemoryAtPort(i);
-        if (!memPtr || !memPtr->isAllocated())
+        if (!memPtr || !memPtr->isDefined())
             THROW_CPU_NODE_ERR("has uninitialized memory at port ", i);
     }
     if ((is_cell && DC != getParentEdgeAt(0)->getMemory().getDesc().getShape().getStaticDims()[1]) ||

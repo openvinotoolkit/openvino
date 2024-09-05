@@ -61,10 +61,10 @@ void GRN::prepareParams() {
     const auto& dataMemPtr = getSrcMemoryAtPort(0);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
 
-    if (!dataMemPtr || !dataMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " has not allocated input memory");
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " has not allocated output memory");
+    if (!dataMemPtr || !dataMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined input memory");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined output memory");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         OPENVINO_THROW(errorPrefix, " has unidentified preferable primitive descriptor");
 

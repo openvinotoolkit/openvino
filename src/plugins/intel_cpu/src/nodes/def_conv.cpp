@@ -1184,19 +1184,19 @@ void DeformableConvolution::prepareParams() {
     auto offMemPtr = getSrcMemoryAtPort(OFF_ID);
     auto weiMemPtr = getSrcMemoryAtPort(WEI_ID);
 
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
-    if (!offMemPtr || !offMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate offsets shape memory");
-    if (!weiMemPtr || !weiMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate weights memory");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined destination memory");
+    if (!srcMemPtr || !srcMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined input memory");
+    if (!offMemPtr || !offMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined offsets shape memory");
+    if (!weiMemPtr || !weiMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined weights memory");
 
     if (getOriginalInputsNumber() > 3) {
         auto modMemPtr = getSrcMemoryAtPort(MOD_ID);
-        if (!modMemPtr || !modMemPtr->isAllocated())
-            OPENVINO_THROW(errorPrefix, " did not allocate modulations memory");
+        if (!modMemPtr || !modMemPtr->isDefined())
+            OPENVINO_THROW(errorPrefix, " has undefined modulations memory");
     }
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
