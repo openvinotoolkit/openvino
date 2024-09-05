@@ -1,8 +1,6 @@
 # Copyright (C) 2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import defusedxml.ElementTree as ET
-
 from argparse import ArgumentParser
 from dataclasses import dataclass
 from pathlib import Path
@@ -10,7 +8,6 @@ from hashlib import sha256
 from utils.conformance_utils import get_logger, set_env_variable
 from utils.constants import PY_OPENVINO, LD_LIB_PATH_NAME
 from utils.file_utils import get_ov_path
-import defusedxml.ElementTree as ET
 
 import os
 import re
