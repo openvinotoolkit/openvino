@@ -14,8 +14,8 @@ namespace v0 {
 namespace {
 template <typename T>
 bool apply_allow_axis_skip(const Squeeze* const op,
-                      const std::unique_ptr<std::set<int64_t>>& unique_axes,
-                      const T& arg_shape) {
+                        const std::unique_ptr<std::set<int64_t>>& unique_axes,
+                        const T& arg_shape) {
     using DimType = typename T::value_type;
     int64_t i{-1};
 
