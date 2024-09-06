@@ -248,7 +248,7 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
                                                                    get_task_executor(),
                                                                    m_wait_executor,
                                                                    get_callback_executor());
-     if (m_has_sub_compiled_models) {
+    if (m_has_sub_compiled_models) {
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
         for (auto model : m_sub_compiled_models) {
             requests.push_back(model->create_infer_request());
