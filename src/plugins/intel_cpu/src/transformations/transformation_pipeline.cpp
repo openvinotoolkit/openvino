@@ -288,7 +288,7 @@ void Transformations::UpToLpt() {
         levels::int8_narrow_range
     };
 
-    const bool useLpt = enableLpt &&
+    const bool useLpt = config.lpTransformsMode == Config::LPTransformsMode::On &&
         LowPrecision::isFunctionQuantized(model, supported_fq_levels) &&
         CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Lpt);
 

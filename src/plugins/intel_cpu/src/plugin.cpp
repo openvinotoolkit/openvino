@@ -192,20 +192,6 @@ void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
     }
 }
 
-static bool shouldEnableLPT(const ov::AnyMap& modelConfig, const Config& engineConfig) {
-    const auto& enableLPT = modelConfig.find(ov::intel_cpu::lp_transforms_mode.name());
-    if (enableLPT == modelConfig.end())  // model config has higher priority
-        return engineConfig.lpTransformsMode == Config::LPTransformsMode::On;
-
-    try {
-        return enableLPT->second.as<bool>();
-    } catch (ov::Exception&) {
-        OPENVINO_THROW("Wrong value ",
-                       enableLPT->second.as<std::string>(),
-                       " for property key LP_TRANSFORMS_MODE. Expected values: YES/NO");
-    }
-}
-
 static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
     if (op::util::has_op_with_type<op::v1::Convolution>(model) ||
         op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model))
@@ -252,7 +238,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     auto config = orig_config;
     const std::shared_ptr<ov::Model> cloned_model = model->clone();
-    const bool enableLPT = shouldEnableLPT(config, engConfig);
     Config::ModelType modelType = getModelType(model);
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
 
@@ -260,7 +245,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
 
-    Transformations transformations(cloned_model, enableLPT, conf);
+    Transformations transformations(cloned_model, conf);
 
     transformations.UpToLpt();
 
@@ -531,17 +516,12 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     Config::ModelType modelType = getModelType(model);
     conf.readProperties(config, modelType);
 
-    const auto& lptProp = config.find(ov::intel_cpu::lp_transforms_mode.name());
-    const bool enableLPT =
-        (lptProp != config.end() && lptProp->second.as<bool>() == true) /* enabled in the orig_config*/
-        || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
-
     auto context = std::make_shared<GraphContext>(conf, fake_w_cache, false);
 
     auto supported = ov::get_supported_nodes(
         model,
         [&](std::shared_ptr<ov::Model>& model) {
-            Transformations transformation(model, enableLPT, engConfig);
+            Transformations transformation(model, conf);
             transformation.UpToLpt();
             transformation.PostLpt();
             transformation.Snippets();
