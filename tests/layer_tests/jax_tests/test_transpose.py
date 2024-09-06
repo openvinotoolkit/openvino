@@ -14,14 +14,18 @@ class TestTranspose(JaxLayerTest):
         inp = jnp.array(np.random.rand(*self.input_shape).astype(np.float32))
         return [inp]
 
-    def create_model(self,input_shape, permutation):
+    def create_model(self, input_shape, permutation):
         self.input_shape = input_shape
 
         def jax_transpose(inp):
             out = lax.transpose(inp, permutation)
             return out
 
-        return jax_transpose, None
+        expected_op = 'transpose'
+        if permutation == [0, 1, 2, 3]:
+            expected_op = None
+
+        return jax_transpose, None, expected_op
 
     @pytest.mark.parametrize("input_shape", [
         [7, 16, 11, 20],
@@ -34,6 +38,7 @@ class TestTranspose(JaxLayerTest):
         [3, 0, 1, 2], [3, 0, 2, 1], [3, 1, 0, 2], [3, 1, 2, 0], [3, 2, 0, 1], [3, 2, 1, 0],
     ])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     def test_transpose(self, ie_device, precision, ir_version, input_shape, permutation):
         self._test(*self.create_model(input_shape=input_shape, permutation=permutation),

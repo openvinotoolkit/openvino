@@ -105,7 +105,7 @@ protected:
 private:
     MemoryPtr assignedMem = nullptr;
     MemoryDescPtr extMemDesc = nullptr; // used for resize
-    ProxyMemoryMngrPtr memMngr = nullptr;
+    ProxyMemoryBlockPtr memBlock = nullptr;
 };
 
 class MemoryOutputStub : public MemoryOutputBase {
@@ -233,6 +233,7 @@ private:
 
     std::vector<PortMap> inputPortMap, outputPortMap;
     std::vector<std::shared_ptr<PortMapHelper>> beforeMappers, afterMappers;
+    ProxyMemoryBlockPtr memBlock = nullptr;
 };
 
 class MemoryInputSDPA : public MemoryInputBase {
