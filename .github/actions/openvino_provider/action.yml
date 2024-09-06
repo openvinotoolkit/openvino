@@ -57,6 +57,8 @@ runs:
 
     - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       with:
+        repository: 'openvinotoolkit/openvino'
+        ref: ${{ inputs.branch_name || github.base_ref || github.event.merge_group.base_ref || github.ref }}
         sparse-checkout: .github/actions
 
     # --- Post-commit case ---
@@ -66,7 +68,7 @@ runs:
       with:
         repository: 'openvinotoolkit/openvino'
         path: 'openvino'
-        ref: ${{ inputs.branch_name }}
+        ref: ${{ inputs.branch_name || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
     - name: Get OpenVINO HEAD commit
       id: get_openvino_head_commit
