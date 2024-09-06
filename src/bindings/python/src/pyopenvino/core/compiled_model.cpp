@@ -82,32 +82,27 @@ void regclass_CompiledModel(py::module m) {
                                      "`model_stream` must be an io.BytesIO object but " +
                                      (std::string)(py::repr(model_stream)) + "` provided");
             }
-            const auto model_stream_size = Common::utils::get_stream_size(model_stream);
             model_stream.attr("seek")(0);  // Always rewind stream!
             // std::stringstream cannot handle streams > 2GB, in that case we use std::fstream
-            if (model_stream_size > 2.0) {
+            // TODO: Determine model size after serialization
+            if (true) {
                 std::random_device rd;
                 std::mt19937 gen(rd());
                 std::uniform_int_distribution<> distr(1000, 9999);
                 std::string filename = "model_stream_" + std::to_string(distr(gen)) + ".txt";
-                std::fstream _stream(filename, std::ios::out | std::ios::binary);
 
-                OPENVINO_ASSERT(_stream.is_open(), "Failed to open temporary file for model stream");
-                const py::bytes data = model_stream.attr("read")();
-                std::string buffer = data.cast<std::string>();
-                _stream.write(buffer.c_str(), buffer.size());
-                _stream.close();
-
-                std::fstream _fstream(filename, std::ios::in | std::ios::binary);
+                std::fstream _fstream(filename, std::ios::out | std::ios::binary);
                 OPENVINO_ASSERT(_fstream.is_open(), "Failed to open temporary file for model stream");
+
+                // TODO: Assert all plugins' export_model functions work correctly for std::fstream and models > 2GB
                 self.export_model(_fstream);
                 _fstream.seekg(0, std::ios::beg);
-                std::string str((std::istreambuf_iterator<char>(_fstream)), std::istreambuf_iterator<char>());
-                _fstream.close();
-                model_stream.attr("flush")();
-                model_stream.attr("write")(py::bytes(str));
-                _fstream.close();
-
+                {
+                    std::string str((std::istreambuf_iterator<char>(_fstream)), std::istreambuf_iterator<char>());
+                    _fstream.close();
+                    model_stream.attr("flush")();
+                    model_stream.attr("write")(py::bytes(str));
+                }
                 if (std::remove(filename.c_str()) != 0) {
                     const std::string abs_path =
                         py::module_::import("os").attr("getcwd")().cast<std::string>() + "/" + filename;
