@@ -105,7 +105,6 @@ private:
 } // namespace
 
 bool MemoryOutputBase::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
-    DEBUG_POS << op->get_friendly_name() << std::endl;
     try {
         if (!one_of(op->get_type_info(),
                 ov::op::v3::Assign::get_type_info_static(),
@@ -121,7 +120,6 @@ bool MemoryOutputBase::isSupportedOperation(const std::shared_ptr<const ov::Node
 
 MemoryOutputBase::MemoryOutputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) , MemoryNode(op) {
-    DEBUG_POS << op->get_friendly_name() << std::endl;
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -138,7 +136,6 @@ MemoryOutputBase::MemoryOutputBase(const std::string id,
                                    const ov::element::Type& input_prc,
                                    const GraphContext::CPtr context) :
     Node(type, {input_shape}, {}, {input_prc}, {}, name, context), MemoryNode(id) {
-    DEBUG_POS << std::endl;
     isDynamic = input_shape.isDynamic();
     if (isDynamic) {
         shapeInference = PassThroughShapeInferFactory().makeShapeInfer();
@@ -638,7 +635,6 @@ void MemoryInput::PortMapHelper::execute(dnnl::stream& strm) {
     // if output shapes are changed,
     // after subgraph inference we should redefine out memory of 'If'
     redefineTo();
-    std::cout << "MemoryInput::PortMapHelper::execute srcMemPtr->getData()=" << srcMemPtr->getDataAs<int>()[0] << std::endl;
     ov::intel_cpu::cpu_convert(srcMemPtr->getData(),
                                dstMemPtrs.front()->getData(),
                                srcMemPtr->getDesc().getPrecision(),
@@ -700,7 +696,6 @@ void MemoryInput::createPrimitive() {
 }
 
 void MemoryInput::getSupportedDescriptors() {
-    DEBUG_POS << ovOp->get_friendly_name() << std::endl;
     if (haveSubgraph) {
         auto rvWithSubgraphOp = ov::as_type_ptr<ov::intel_cpu::ReadValueWithSubgraphNode>(ovOp);
         const std::shared_ptr<const ov::Model>& body = rvWithSubgraphOp->get_body();

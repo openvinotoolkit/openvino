@@ -1273,13 +1273,13 @@ void Graph::InferDynamic(SyncInferRequest* request, int numaId, UpdateStrategy&&
                 request->throw_if_canceled();
             try {
                 ExecuteNodeWithCatch(node, request, numaId);
-                if (!one_of(node->getType(), Type::MemoryOutput, Type::Output)) {
-                    std::cout << "Infer node:" << node->getName()
-                              << ", output=" << node->getDstMemoryAtPort(0)->getDataAs<int>()[0] << std::endl;
-                } else if (node->getType() == Type::Output) {
-                    std::cout << "Infer node:" << node->getName()
-                              << ", output=" << node->getSrcMemoryAtPort(0)->getDataAs<int>()[0] << std::endl;
-                }
+                // if (!one_of(node->getType(), Type::MemoryOutput, Type::Output)) {
+                //     std::cout << "Infer node:" << node->getName()
+                //               << ", output=" << node->getDstMemoryAtPort(0)->getDataAs<int>()[0] << std::endl;
+                // } else if (node->getType() == Type::Output) {
+                //     std::cout << "Infer node:" << node->getName()
+                //               << ", output=" << node->getSrcMemoryAtPort(0)->getDataAs<int>()[0] << std::endl;
+                // }
             } catch (const std::exception& exp) {
                 OPENVINO_THROW(node, exp.what());
             }
