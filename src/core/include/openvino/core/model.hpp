@@ -255,7 +255,6 @@ public:
     /// \brief Delete sink node from the list of sinks. Method doesn't delete node from graph.
     /// \param sink Sink to delete
     void remove_sink(const std::shared_ptr<ov::op::Sink>& sink);
-    void remove_const_sink(const std::shared_ptr<const ov::op::Sink>& sink);
 
     /// \brief Add new Result nodes to the list. Method doesn't validate graph, it should be
     /// done manually after all changes.

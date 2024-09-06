@@ -6,6 +6,7 @@
 #include <openvino/core/type.hpp>
 #include <openvino/op/util/assign_base.hpp>
 #include <openvino/op/util/read_value_base.hpp>
+#include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 
 using namespace ov::intel_cpu::node;
 
@@ -14,6 +15,8 @@ MemoryNode::MemoryNode(const std::shared_ptr<ov::Node>& op) {
         m_id = assignOp->get_variable_id();
     } else if (auto readValueOp = ov::as_type_ptr<ov::op::util::ReadValueBase>(op)) {
         m_id = readValueOp->get_variable_id();
+    } else if (auto readValueWithSubgraphOp = ov::as_type_ptr<ov::intel_cpu::ReadValueWithSubgraphNode>(op)) {
+        m_id = readValueWithSubgraphOp->get_variable_id();
     } else {
         OPENVINO_THROW("Unexpected ov::Node type: ", op->get_type_info().name, " in MemoryNode");
     }

@@ -58,13 +58,6 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &model, int sub
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert); // Need to clean up after the ConvertPrecision.
 
     CPU_REGISTER_PASS_COMMON(manager, MoveReadValueInputsToSubgraph);
-    CPU_SET_CALLBACK_COMMON(
-        manager,
-        [&](const std::shared_ptr<const ov::Node>& node) -> bool {
-            model->remove_const_sink(as_type_ptr<const op::Sink>(node));
-            return false;
-        },
-        MoveReadValueInputsToSubgraph);
     manager.run_passes(model);
 }
 

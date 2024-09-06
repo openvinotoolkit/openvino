@@ -138,6 +138,7 @@ void VariableStateDoubleBuffer::reset_impl() {
 
 void VariableStateDoubleBuffer::commit_impl() {
     buffer_num ^= 0x01;
+    std::cout << "=============== buffer_num=" << buffer_num << std::endl;
 }
 
 MemoryPtr VariableStateDoubleBuffer::input_mem() {
@@ -156,11 +157,51 @@ MemoryPtr VariableStateDoubleBuffer::internal_state_mem() const {
     return prime_mem();
 }
 
-VariableStateKVcache::VariableStateKVcache(
-    const std::string& name,
-    const MemoryDescPtr& external_desc,
-    const BlockedMemoryDescPtr& dense_internal_desc) :
-    VariableStateBase(name, external_desc), m_dense_internal_desc(dense_internal_desc) {
+VariableStateSingleBuffer::VariableStateSingleBuffer(const std::string& name,
+                                                     const MemoryPtr& external_buffer,
+                                                     const MemoryDescPtr& external_desc)
+    : VariableStateBase(name, external_desc) {
+    OPENVINO_ASSERT(external_buffer);
+    reset_prime_mem(external_buffer);
+    m_internal_desc = prime_mem()->getDescPtr();
+    auto&& shape = m_internal_desc->getShape();
+    // TODO what if by some reason we already have internal static state while the node is dynamic, is it even possible?
+
+    if (shape.isStatic()) {
+        prime_mem()->nullify();
+    } else {
+        // in the case of the original desc has dynamic shape we create an empty tensor
+        auto new_desc = to_static(m_internal_desc);
+        prime_mem()->redefineDesc(new_desc);
+    }
+}
+MemoryPtr VariableStateSingleBuffer::input_mem() {
+    return prime_mem();
+}
+MemoryPtr VariableStateSingleBuffer::output_mem() {
+    return prime_mem();
+}
+MemoryDescPtr VariableStateSingleBuffer::internal_desc() const {
+    return m_internal_desc;
+}
+
+void VariableStateSingleBuffer::reset_impl() {
+    auto new_desc = to_static(m_internal_desc);
+    if (m_internal_mem) {
+        m_internal_mem->redefineDesc(new_desc);
+        m_internal_mem->nullify();
+    }
+}
+
+MemoryPtr VariableStateSingleBuffer::internal_state_mem() const {
+    return prime_mem();
+}
+
+VariableStateKVcache::VariableStateKVcache(const std::string& name,
+                                           const MemoryDescPtr& external_desc,
+                                           const BlockedMemoryDescPtr& dense_internal_desc)
+    : VariableStateBase(name, external_desc),
+      m_dense_internal_desc(dense_internal_desc) {
     auto&& shape = external_desc->getShape();
 
     OPENVINO_ASSERT(shape.isDynamic(), "VariableStateKVcache is unexpectedly initalized with a static tensor");

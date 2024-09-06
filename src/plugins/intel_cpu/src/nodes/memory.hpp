@@ -4,12 +4,14 @@
 
 #pragma once
 
+#include <graph.h>
+
+#include <map>
+
 #include "input.h"
 #include "memory_state_base.h"
 #include "ov_optional.hpp"
 #include "proxy_mem_mgr.h"
-
-#include <map>
 
 namespace ov {
 namespace intel_cpu {
@@ -171,13 +173,24 @@ private:
 class MemoryInput : public MemoryInputBase {
 public:
     using MemoryInputBase::MemoryInputBase;
+
+    MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     void initOptimalPrimitiveDescriptor() override;
 
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
+    void getSupportedDescriptors() override;
+
     MemStatePtr makeState() const override;
+
+    void createPrimitive() override;
+
+    bool isHaveSubgraph() {
+        return haveSubgraph;
+    }
 
 private:
     void runStatic(dnnl::stream strm) override;
@@ -185,8 +198,41 @@ private:
     void assignStateHook() override {/*pass*/}
     bool needInitGraphProcessing() const;
 
+    void prepareBeforeMappers(const dnnl::engine& eng);
+    void prepareAfterMappers(const dnnl::engine& eng);
+    std::deque<MemoryPtr> getToMemories(const Node* node, const size_t port) const;
+
 private:
     ProxyMemoryMngrPtr memMngr = nullptr;
+
+    const std::shared_ptr<ov::Node> ovOp;
+    bool haveSubgraph = false;
+    ov::intel_cpu::Graph subGraph;
+    std::vector<std::deque<MemoryPtr>> inputMem;
+    std::deque<MemoryPtr> outputMem;
+
+    struct PortMap {
+        int from; /**< Index of external/internal out data */
+        int to;   /**< Index of external/internal in data */
+    };
+    class PortMapHelper {
+    public:
+        PortMapHelper(const MemoryPtr& from, const std::deque<MemoryPtr>& to, const dnnl::engine& eng);
+        ~PortMapHelper() = default;
+        void execute(dnnl::stream& strm);
+
+    private:
+        void redefineTo();
+
+        MemoryPtr srcMemPtr;
+        std::deque<MemoryPtr> dstMemPtrs;
+        std::deque<MemoryDescPtr> originalDstMemDescs;
+
+        ptrdiff_t size;
+    };
+
+    std::vector<PortMap> inputPortMap, outputPortMap;
+    std::vector<std::shared_ptr<PortMapHelper>> beforeMappers, afterMappers;
 };
 
 class MemoryInputSDPA : public MemoryInputBase {

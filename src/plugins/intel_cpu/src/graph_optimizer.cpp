@@ -183,6 +183,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     MatchSdpaKvCache(graph);
     graph.RemoveDroppedNodes();
 
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "ReplaceMemoryOutputWithMemoryOutputStub");
+    ReplaceMemoryOutputWithMemoryOutputStub(graph);
+    graph.RemoveDroppedNodes();
+
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "RemoveDroppedEdges");
     graph.RemoveDroppedEdges();
 }
@@ -3061,6 +3065,89 @@ void GraphOptimizer::RemoveConvertMemoryOutput(Graph &graph) {
             continue;
         }
         graph.DropNode(node);
+    }
+}
+
+void GraphOptimizer::ReplaceMemoryOutputWithMemoryOutputStub(Graph& graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSuitableMemInput = [](const NodePtr& node) -> bool {
+        if (Type::MemoryInput != node->getType()) {
+            return false;
+        }
+        auto memInput = std::dynamic_pointer_cast<node::MemoryInput>(node);
+        if (memInput) {
+            return memInput->isHaveSubgraph();
+        }
+
+        return false;
+    };
+
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        auto node = graphNodes[i];
+        if (!isSuitableMemInput(node)) {
+            continue;
+        }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(ReplaceMemoryOutputWithMemoryOutputStub);
+
+        auto memInputWithSubgraph = std::dynamic_pointer_cast<node::MemoryInput>(node);
+
+        // Find sibling MemoryOutput
+        std::shared_ptr<MemoryOutput> memOutput = nullptr;
+        bool isReplaced = false;
+        for (auto&& edge : node->getChildEdgesAtPort(0)) {
+            auto child = edge->getChild();
+            if (Type::MemoryOutput == child->getType()) {
+                memOutput = std::dynamic_pointer_cast<MemoryOutput>(child);
+                if (memOutput && memOutput->getId() == memInputWithSubgraph->getId()) {
+                    break;
+                }
+
+                auto memOutputStub = std::dynamic_pointer_cast<MemoryOutputStub>(child);
+                if (memOutputStub && memOutputStub->getId() == memInputWithSubgraph->getId()) {
+                    isReplaced = true;
+                    break;
+                }
+            }
+        }
+
+        if (isReplaced) {
+            continue;
+        }
+        if (memOutput == nullptr) {
+            OPENVINO_THROW("Can't find ", node->getName(), " corresponding sibling node.");
+        }
+
+        auto memInputNode = std::dynamic_pointer_cast<node::MemoryInputBase>(node);
+        OPENVINO_ASSERT(memInputNode, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
+
+        ov::optional<Shape> input_shape;
+        ov::optional<ov::element::Type> input_prc;
+
+        if (!node->getParentEdges().empty()) {
+            input_shape = ov::optional<Shape>(node->getInputShapeAtPort(0));
+            input_prc = ov::optional<ov::element::Type>(node->getOriginalInputPrecisionAtPort(0));
+        }
+
+        // Capture reference to the original mem output before graph transformations
+        auto& memOutputBase = memInputNode->getOutputNode();
+
+        // Create a stub memory output
+        auto memOutputStub = std::make_shared<MemoryOutputStub>(memOutputBase.getId(),
+                                                                memOutputBase.getName() + "_MemoryOutputStub",
+                                                                memOutputBase.getTypeStr(),
+                                                                memOutputBase.getInputShapeAtPort(0),
+                                                                memOutputBase.getOriginalInputPrecisionAtPort(0),
+                                                                graph.getGraphContext());
+
+        auto memOutputEdge = memOutputBase.getParentEdgeAt(0);
+        const auto inputNum = memOutputEdge->getInputNum();
+        graph.RemoveEdge(memOutputEdge);
+        graph.CreateEdge(node, memOutputStub, inputNum, 0);
+        graph.AddNode(memOutputStub);
+        std::cout << "** Replace " << node->getName() << " type from MemoryOutput to MemoryOutputStub .................."
+                  << std::endl;
     }
 }
 

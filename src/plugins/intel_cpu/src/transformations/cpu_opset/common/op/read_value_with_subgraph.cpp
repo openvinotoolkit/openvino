@@ -12,7 +12,11 @@ ov::intel_cpu::ReadValueWithSubgraphNode::ReadValueWithSubgraphNode(
     const std::shared_ptr<ov::op::util::Variable>& variable)
     : ov::intel_cpu::ReadValueWithSubgraphNode() {
     m_variable = variable;
-    // constructor_validate_and_infer_types();
+}
+
+std::string ov::intel_cpu::ReadValueWithSubgraphNode::get_variable_id() const {
+    OPENVINO_ASSERT(m_variable, "Variable is not initialized. Variable_id is unavailable");
+    return m_variable->get_info().variable_id;
 }
 
 void ov::intel_cpu::ReadValueWithSubgraphNode::set_input(const Output<Node>& value,

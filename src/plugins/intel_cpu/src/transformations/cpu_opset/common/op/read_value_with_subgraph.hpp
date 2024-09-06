@@ -18,6 +18,8 @@ public:
     ReadValueWithSubgraphNode();
     ReadValueWithSubgraphNode(const std::shared_ptr<ov::op::util::Variable>& variable);
 
+    std::string get_variable_id() const;
+
     void set_body(const std::shared_ptr<Model>& body) {
         m_bodies[0] = body;
     }
@@ -32,6 +34,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
+
 private:
     std::shared_ptr<Model> m_subgraph;
     std::shared_ptr<op::util::Variable> m_variable;
