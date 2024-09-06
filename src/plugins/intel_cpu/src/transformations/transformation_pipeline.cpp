@@ -556,9 +556,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                 // 2. GroupNormalizationDecomposition produce MVN, and MVN have a conditional pass MVN6Decomposition. If call MVN6Decomposition again after
                 //    snippets pipeline as well, where MVN is decomposed to simple ops, these simple ops will not tokenized into subgraph again.
                 // CVS-134277 to fully enable GN as snippets to disable this GroupNormalizationDecomposition entirly.
-                if (node->is_dynamic() || !one_of(inferencePrecision, element::f32, element::undefined) || snippetsMode == Config::SnippetsMode::Disable)
+                if (node->is_dynamic() || !one_of(inferencePrecision, element::f32, element::undefined) || config.snippetsMode == Config::SnippetsMode::Disable)
                     return false;
-                if (snippetsMode != Config::SnippetsMode::IgnoreCallback) {
+                if (config.snippetsMode != Config::SnippetsMode::IgnoreCallback) {
                     const auto group_norm = ov::as_type_ptr<const ov::op::v12::GroupNormalization>(node);
                     if (!group_norm || !implication(inferencePrecision == element::undefined, group_norm->get_element_type() == element::f32))
                         return false;
@@ -880,7 +880,7 @@ void Transformations::MainSnippets(void) {
         return false;
     };
 
-    if (snippetsMode == Config::SnippetsMode::Disable || !is_supported_isa())
+    if (config.snippetsMode == Config::SnippetsMode::Disable || !is_supported_isa())
         return;
 
     // TODO [123659] Implement common logic to split optimization and limitation conditions
@@ -1179,7 +1179,7 @@ void Transformations::PostSnippets(void) {
 }
 
 void Transformations::Snippets(void) {
-    const bool useSnippets = snippetsMode != Config::SnippetsMode::Disable &&
+    const bool useSnippets = config.snippetsMode != Config::SnippetsMode::Disable &&
         CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Snippets);
     if (!useSnippets)
         return;
