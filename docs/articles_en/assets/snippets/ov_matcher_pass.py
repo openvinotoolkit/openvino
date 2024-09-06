@@ -48,7 +48,7 @@ result
 relu
 new_relu
 
-In oder to run this script you need to export PYTHONPATH as the path to binary OpenVINO python models.
+In oder to run this script, you need to export PYTHONPATH as the path to binary OpenVINO python models.
 '''
 from openvino.runtime.passes import Manager, GraphRewrite, BackwardGraphRewrite, Serialize
 from openvino import Model, PartialShape
