@@ -1862,9 +1862,9 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
 
             const auto &interpShapeCalcMode = interpAttr.shape_calculation_mode;
             if (interpShapeCalcMode == ngInterpShapeCalcMode::SCALES) {
-                shapeCalcMode = InterpolateShapeCalcMode::scales;
+                interpAttrs.shapeCalcMode = InterpolateShapeCalcMode::scales;
             } else if (interpShapeCalcMode == ngInterpShapeCalcMode::SIZES) {
-                shapeCalcMode = InterpolateShapeCalcMode::sizes;
+                interpAttrs.shapeCalcMode = InterpolateShapeCalcMode::sizes;
             } else {
                 OPENVINO_THROW(errorPrefix, " has unsupported shape calculation mode");
             }
@@ -1925,14 +1925,14 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
 
             const auto &interpShapeCalcMode = interpAttr.shape_calculation_mode;
             if (interpShapeCalcMode == ngInterpShapeCalcMode::SCALES) {
-                shapeCalcMode = InterpolateShapeCalcMode::scales;
+                interpAttrs.shapeCalcMode = InterpolateShapeCalcMode::scales;
                 const auto scalesNode = std::dynamic_pointer_cast<const ov::op::v0::Constant>(interp->get_input_node_shared_ptr(SIZE_OR_SCALE_ID_V11));
                 if (scalesNode) {
                     scales = scalesNode->cast_vector<float>();
                     isScaleConstant = true;
                 }
             } else if (interpShapeCalcMode == ngInterpShapeCalcMode::SIZES) {
-                shapeCalcMode = InterpolateShapeCalcMode::sizes;
+                interpAttrs.shapeCalcMode = InterpolateShapeCalcMode::sizes;
             } else {
                 OPENVINO_THROW(errorPrefix, " has unsupported shape calculation mode");
             }
@@ -2074,7 +2074,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
     auto pushDesc = [&](LayoutType dataFormat, impl_desc_type implDetail, bool is_version11, bool useAclExecutor = false) {
         config.inConfs[DATA_ID].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA_ID)));
         if (is_version11) {
-            if (shapeCalcMode == InterpolateShapeCalcMode::sizes) {
+            if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes) {
                 config.inConfs[SIZE_OR_SCALE_ID_V11].setMemDesc(
                     creatorsMap.at(LayoutType::ncsp)->createSharedDesc(targetShapeType, getInputShapeAtPort(SIZE_OR_SCALE_ID_V11)));
             } else {
@@ -2198,7 +2198,7 @@ bool Interpolate::needShapeInfer() const {
     if (Node::inputShapesModified()) {
         return true;
     }
-    if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
+    if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales) {
         if (lastScales.empty()) {
             return true;
         }
@@ -2225,9 +2225,9 @@ bool Interpolate::needShapeInfer() const {
 void Interpolate::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 
-    const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : get_scale_id();
+    const size_t port = interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : get_scale_id();
     const auto &memory = getParentEdgeAt(port)->getMemory();
-    if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
+    if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales) {
         const float *scales = memory.getDataAs<const float>();
         lastScales.assign(scales, scales + memory.getDesc().getShape().getElementsCount());
     } else {
@@ -2261,27 +2261,27 @@ void Interpolate::prepareParams() {
     }
 
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined destination memory");
 
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
+    if (!srcMemPtr || !srcMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined input memory");
 
-    if (shapeCalcMode == InterpolateShapeCalcMode::sizes) {
+    if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes) {
         auto tsMemPtr = getSrcMemoryAtPort(TARGET_SHAPE_ID);
-        if (!tsMemPtr || !tsMemPtr->isAllocated())
-            OPENVINO_THROW(errorPrefix, " did not allocate target shape memory");
+        if (!tsMemPtr || !tsMemPtr->isDefined())
+            OPENVINO_THROW(errorPrefix, " has undefined target shape memory");
     } else {
         auto scaleMemPtr = getSrcMemoryAtPort(get_scale_id());
-        if (!scaleMemPtr || !scaleMemPtr->isAllocated())
-            OPENVINO_THROW(errorPrefix, " did not allocate scales memory");
+        if (!scaleMemPtr || !scaleMemPtr->isDefined())
+            OPENVINO_THROW(errorPrefix, " has undefined scales memory");
     }
 
     if (isAxesSpecified) {
         auto axesMemPtr = getSrcMemoryAtPort(get_axis_id());
-        if (!axesMemPtr || !axesMemPtr->isAllocated())
-            OPENVINO_THROW(errorPrefix, " did not allocate axes memory");
+        if (!axesMemPtr || !axesMemPtr->isDefined())
+            OPENVINO_THROW(errorPrefix, " has undefined axes memory");
     }
 
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
@@ -2307,7 +2307,7 @@ void Interpolate::prepareParams() {
         interpAttrs.layout = InterpolateLayoutType::by_channel;
     }
 
-    if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
+    if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales) {
         if (!isScaleConstant) {
             const auto& scalesMem = getParentEdgeAt(get_scale_id())->getMemory();
             const float* scalesData = scalesMem.getDataAs<const float>();
@@ -2377,10 +2377,10 @@ void Interpolate::prepareParams() {
 void Interpolate::createPrimitive() {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
+    if (!srcMemPtr)
+        OPENVINO_THROW(errorPrefix, " has null input memory");
+    if (!dstMemPtr)
+        OPENVINO_THROW(errorPrefix, " has null destination memory");
 
     if (dstMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         interpAttrs.layout = InterpolateLayoutType::planar;
@@ -2460,7 +2460,7 @@ std::vector<float> Interpolate::getScales(const VectorDims &srcDimPad, const Vec
         if (interpAttrs.mode == InterpolateMode::bilinear_pillow || interpAttrs.mode == InterpolateMode::bicubic_pillow) {
             fullScales[axis] = static_cast<float>(dstDim[axis]) / static_cast<float>(srcDimPad[axis]);
         } else {
-            fullScales[axis] = (shapeCalcMode == InterpolateShapeCalcMode::scales) ? scales[i] :
+            fullScales[axis] = (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales) ? scales[i] :
                                                                                      static_cast<float>(dstDim[axis]) / static_cast<float>(srcDimPad[axis]);
         }
     }

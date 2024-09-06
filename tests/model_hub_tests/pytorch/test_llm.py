@@ -7,7 +7,6 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from huggingface_hub.utils import HfHubHTTPError, LocalEntryNotFoundError
 from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 
 from models_hub_common.utils import retry
@@ -91,7 +90,7 @@ class TestLLMModel(TestTorchConvertModel):
         self.infer_timeout = 1800
         self.cuda_available, self.gptq_postinit = None, None
 
-    @retry(3, exceptions=(HfHubHTTPError, LocalEntryNotFoundError), delay=1)
+    @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, name, type):
         model = None
         example = None
@@ -120,12 +119,13 @@ class TestLLMModel(TestTorchConvertModel):
 
         example = t("Some input text to verify that model works.",
                     return_tensors='pt').__dict__['data']
-        if type != "gptj":
+        atype = type.replace("_gptq", "")
+        if atype not in ["gptj", "starcoder2", "mpt"]:
             pkv, am = self.get_pkv(model, t)
             example["past_key_values"] = pkv
             example["attention_mask"] = torch.cat(
                 [example["attention_mask"], am], -1)
-        if type not in ["opt", "falcon"]:
+        if atype not in ["opt", "falcon", "mbart_gptq", "mpt"]:
             ids = torch.cumsum(example["attention_mask"] != 0, dim=1) - 1
             example["position_ids"] = ids[:, -
                                           example["input_ids"].shape[1]:]
@@ -186,7 +186,7 @@ class TestLLMModel(TestTorchConvertModel):
         return pkv, for_pkv["attention_mask"]
 
     @pytest.mark.parametrize("type,name", [
-        ("opt", "katuni4ka/opt-125m-gptq"),
+        ("opt_gptq", "katuni4ka/opt-125m-gptq"),
         ("llama", "TinyLlama/TinyLlama-1.1B-Chat-v1.0"),
     ])
     @pytest.mark.precommit
@@ -196,14 +196,21 @@ class TestLLMModel(TestTorchConvertModel):
 
     @pytest.mark.parametrize("type,name", [
         ("falcon", "tiiuae/falcon-7b-instruct"),
-        ("gpt_neox", "EleutherAI/gpt-neox-20b"),
-        ("gpt_neox", "togethercomputer/RedPajama-INCITE-7B-Instruct"),
+        ("gemma", "beomi/gemma-ko-7b"),
+        ("gpt_neox", "databricks/dolly-v2-3b"),
         ("gpt_neox_japanese", "rinna/japanese-gpt-neox-3.6b"),
+        ("llama", "togethercomputer/LLaMA-2-7B-32K"),
+        ("mistral", "HuggingFaceH4/zephyr-7b-beta"),
+        ("mpt", "mosaicml/mpt-7b"),
         ("opt", "facebook/opt-1.3b"),
         ("phi", "microsoft/phi-2"),
         ("phi3", "microsoft/Phi-3-mini-4k-instruct"),
         ("qwen2", "Qwen/Qwen2-0.5B-Instruct"),
         ("stablelm", "stabilityai/stablelm-3b-4e1t"),
+        ("llama_gptq", "TheBloke/Llama-2-7B-Chat-GPTQ"),
+        ("bloom_gptq", "sbolouki/bloom-1b7-gptq"),
+        ("cohere_gptq", "shuyuej/aya-23-8B-GPTQ"),
+        ("mbart_gptq", "Shivam098/opt-translation"),
     ])
     @pytest.mark.nightly
     def test_convert_model_nightly(self, name, type, ie_device):
@@ -211,18 +218,20 @@ class TestLLMModel(TestTorchConvertModel):
 
     # too big for nightly
     @pytest.mark.parametrize("type,name", [
+        ("aquila", "BAAI/AquilaChat2-7B"),
         ("baichuan", "baichuan-inc/Baichuan2-7B-Base"),
         pytest.param("chatglm", "THUDM/chatglm3-6b",
                      marks=pytest.mark.xfail(reason="Accuracy validation failed")),
-        ("falcon", "tiiuae/falcon-7b-instruct"),
         ("fuyu", "ybelkada/fuyu-8b-sharded"),
-        ("gemma", "beomi/gemma-ko-7b"),
         ("gemma2", "SteelStorage/Tess-v2.5-Gemma-2-27B-alpha-st"),
-        ("llama", "togethercomputer/LLaMA-2-7B-32K"),
-        ("mistral", "HuggingFaceH4/zephyr-7b-beta"),
-        ("mpt", "mosaicml/mpt-7b"),
-        ("jais", "core42/jais-13b"),
+        ("gpt_neox", "togethercomputer/RedPajama-INCITE-7B-Instruct"),
+        ("gpt_neox", "EleutherAI/gpt-neox-20b"),
+        ("starcoder2", "cognitivecomputations/dolphincoder-starcoder2-7b"),
         ("persimmon", "adept/persimmon-8b-base"),
+        pytest.param("mistral_gptq", "TheBloke/em_german_leo_mistral-GPTQ",
+                     marks=pytest.mark.xfail(reason="GPTQ QUANT_TYPE=cuda is not supported")),
+        pytest.param("llama3_gptq", "TechxGenus/Meta-Llama-3-8B-GPTQ",
+                     marks=pytest.mark.xfail(reason="GPTQ QUANT_TYPE=cuda is not supported")),
     ])
     def test_convert_model_very_large(self, name, type, ie_device):
         self.run(model_name=name, model_link=type, ie_device=ie_device)

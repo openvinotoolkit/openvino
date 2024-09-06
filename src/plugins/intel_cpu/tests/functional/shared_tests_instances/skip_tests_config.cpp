@@ -176,7 +176,7 @@ std::vector<std::string> disabledTestPatterns() {
         // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
         R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
         // Issue: 123815 (Tests are sensintive to available thread count on testing machines)
-        R"(.*smoke_Snippets_MHA_.?D_SplitDimensionM.*)",
+        R"(.*smoke_Snippets_MHA_.?D_SplitDimensionM_static.*)",
         // Issue: 122356
         R"(.*NmsRotatedOpTest.*(SortDesc=True|Clockwise=False).*)",
         // Issue: 126095
@@ -308,6 +308,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_TestsROIAlign.*)",
         // Issue: 148527
         R"(.*Snippets.*MatMulTransposeB.*i8.*i8.*)",
+        // Issue: 136881
+        R"(.*smoke_CompareWithRefs_4D_BitwiseShift_overflow_i32_cast.*_eltwise_op_type=BitwiseLeft.*_model_type=.*(i16|u16).*)",
     };
 
     // fp32 floor for bf16 models: conversion issue

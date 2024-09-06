@@ -3,16 +3,18 @@
 //
 
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
-#include "transformations/tpp/x64/pass/lowered/brgemm_tpp_blocking.hpp"
+#ifdef SNIPPETS_LIBXSMM_TPP
+    #include "transformations/tpp/x64/pass/lowered/brgemm_tpp_blocking.hpp"
+#endif
 
 #include "lir_test_utils.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/tpp/x64/op/brgemm.hpp"
+#include "cpu/x64/cpu_isa_traits.hpp"
 
 namespace ov {
 namespace test {
@@ -24,14 +26,21 @@ using namespace ov::snippets;
 using BRGEMM_TYPE = intel_cpu::brgemm_utils::BRGEMM_TYPE;
 
 namespace {
-
-SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_size) {
+enum class BACKEND_TYPE{CPU, TPP};
+SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_size, BACKEND_TYPE backend = BACKEND_TYPE::CPU) {
     auto handlers = BrgemmBlockingBase::get_default_blocking_loop_handlers(work_amount, block_size);
+    switch (backend) {
 #ifdef SNIPPETS_LIBXSMM_TPP
-    handlers.register_pass<SpecificLoopIterType::FIRST_ITER, ov::intel_cpu::tpp::pass::BrgemmTPPBlocking::SetBrgemmBeta>();
-#else
-    handlers.register_pass<SpecificLoopIterType::FIRST_ITER, ov::intel_cpu::pass::BrgemmCPUBlocking::DummyPass>();
+        case BACKEND_TYPE::TPP:
+            handlers.register_pass<SpecificLoopIterType::FIRST_ITER, ov::intel_cpu::tpp::pass::BrgemmTPPBlocking::SetBrgemmBeta>();
+            break;
 #endif
+        case BACKEND_TYPE::CPU:
+            handlers.register_pass<SpecificLoopIterType::FIRST_ITER, ov::intel_cpu::pass::BrgemmCPUBlocking::DummyPass>();
+            break;
+        default:
+            OPENVINO_THROW("Unsupported code generator backend type");
+    }
     return handlers;
 }
 
@@ -39,7 +48,8 @@ void create_brgemm_loop_infos(const LinearIRPtr& linear_ir,
                               const ExpressionPtr& brgemm_expr,
                               size_t m = 0, size_t m_blk = 0,
                               size_t k = 0, size_t k_blk = 0,
-                              size_t n = 0, size_t n_blk = 0) {
+                              size_t n = 0, size_t n_blk = 0,
+                              BACKEND_TYPE backend = BACKEND_TYPE::CPU) {
     const bool k_block = k != 0 && k_blk != 0;
     const bool n_block = k != 0 && k_blk != 0;
     const bool m_block = m != 0 && m_blk != 0;
@@ -49,7 +59,7 @@ void create_brgemm_loop_infos(const LinearIRPtr& linear_ir,
                 std::vector<LoopPort>{LoopPort(brgemm_expr->get_input_port(0)),
                                       LoopPort(brgemm_expr->get_input_port(1), true, 1)},
                 std::vector<LoopPort>{LoopPort(brgemm_expr->get_output_port(0), false)},
-                get_k_loop_handlers(k, k_block));
+                get_k_loop_handlers(k, k_block, backend));
         linear_ir->get_loop_manager()->add_loop_info(loop_info);
     }
     if (n_block) {
@@ -110,11 +120,6 @@ void create_brgemm_with_copy_b_loop_infos(const LinearIRPtr& linear_ir,
 }
 } // namespace
 
-static const size_t m_blk = 32;
-static const size_t k_blk = 512;
-static const size_t n_blk = 64;
-static const size_t full_dim = ov::snippets::utils::get_full_dim_value();
-
 class BrgemmBlockingTest : public LoweredPassTestsF {
 public:
     BrgemmBlockingTest() : LoweredPassTestsF() {
@@ -123,10 +128,19 @@ public:
         comparator.enable(LIRComparator::LIRCmpValues::PORT_CONNECTORS);
         comparator.enable(LIRComparator::LIRCmpValues::LOOP_MANAGER);
     }
+
+protected:
+    size_t m_blk = 32;
+    size_t k_blk = 512;
+    size_t n_blk = 64;
+
+    static const size_t full_dim = ov::snippets::utils::get_full_dim_value();
 };
 class BrgemmCPUBlockingTest : public BrgemmBlockingTest {
 public:
-    BrgemmCPUBlockingTest() : BrgemmBlockingTest() {}
+    BrgemmCPUBlockingTest() : BrgemmBlockingTest() {
+        n_blk = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
+    }
 
     void SetUp() override {
         pipeline.register_pass<ov::intel_cpu::pass::BrgemmCPUBlocking>();
@@ -162,10 +176,38 @@ TEST_F(BrgemmCPUBlockingTest, Floating) {
     }
 }
 
+TEST_F(BrgemmCPUBlockingTest, Floating_LargeK) {
+    const ov::Dimension::value_type m = 384;
+    const ov::Dimension::value_type n = 384;
+    const ov::Dimension::value_type k = 2048;
+    const ov::PartialShape input_shape_a{1, 16, m, k};
+    const ov::PartialShape input_shape_b{1, 16, k, n};
+    const auto precision = ov::element::f32;
+    k_blk = 1024;
+
+    {
+        auto data_a = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_a);
+        auto data_b = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_b);
+        auto brgemm = linear_ir->push_node<BrgemmCPU>(data_a.second, data_b.second, BRGEMM_TYPE::STAND_ALONE);
+        init_expr_descriptors(*brgemm.first, {});
+        auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
+    }
+    {
+        auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
+        auto data_b = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_b);
+        auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, data_b.second, BRGEMM_TYPE::STAND_ALONE);
+        const auto& brgemm_expr = *brgemm.first;
+        init_expr_descriptors(brgemm_expr, {{m_blk, k_blk}, {k_blk, n_blk}, {m_blk, n_blk}});
+        create_brgemm_loop_infos(linear_ir_ref, brgemm_expr, m, m_blk, k, k_blk, n, n_blk);
+        brgemm_expr->set_loop_ids({2, 1, 0});
+        auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
+    }
+}
+
 TEST_F(BrgemmCPUBlockingTest, BlockingIsNotNeeded) {
-    const size_t m = 32;
-    const size_t k = 16;
-    const size_t n = 64;
+    const ov::Dimension::value_type m = 32;
+    const ov::Dimension::value_type k = 16;
+    const ov::Dimension::value_type n = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
     const ov::PartialShape input_shape_a{1, 16, m, k};
     const ov::PartialShape input_shape_b{1, 16, k, n};
     const auto precision = ov::element::f32;
@@ -188,9 +230,9 @@ TEST_F(BrgemmCPUBlockingTest, BlockingIsNotNeeded) {
 }
 
 TEST_F(BrgemmCPUBlockingTest, WithDataRepacking) {
-    const size_t m = 384;
-    const size_t k = 1024;
-    const size_t n = 384;
+    const ov::Dimension::value_type m = 384;
+    const ov::Dimension::value_type k = 1024;
+    const ov::Dimension::value_type n = 384;
     const ov::PartialShape input_shape_a{1, 16, m, k};
     const ov::PartialShape input_shape_b{1, 16, k, n};
     const auto precision_a = ov::element::u8;
@@ -223,9 +265,9 @@ TEST_F(BrgemmCPUBlockingTest, WithDataRepacking) {
 }
 
 TEST_F(BrgemmCPUBlockingTest, WithCompensations) {
-    const size_t m = 384;
-    const size_t k = 1024;
-    const size_t n = 384;
+    const ov::Dimension::value_type m = 384;
+    const ov::Dimension::value_type k = 1024;
+    const ov::Dimension::value_type n = 384;
     const ov::PartialShape input_shape_a{1, 16, m, k};
     const ov::PartialShape input_shape_b{1, 16, k, n};
     const auto precision = ov::element::i8;
@@ -258,9 +300,9 @@ TEST_F(BrgemmCPUBlockingTest, WithCompensations) {
 }
 
 TEST_F(BrgemmCPUBlockingTest, AMX) {
-    const size_t m = 384;
-    const size_t k = 1024;
-    const size_t n = 384;
+    const ov::Dimension::value_type m = 384;
+    const ov::Dimension::value_type k = 1024;
+    const ov::Dimension::value_type n = 384;
     const ov::PartialShape input_shape_a{1, 16, m, k};
     const ov::PartialShape input_shape_b{1, 16, k, n};
     const auto precision = ov::element::bf16;
@@ -328,7 +370,7 @@ TEST_F(BrgemmTPPBlockingTest, TPPFloating) {
                                                                    layout_a, layout_b, layout_c);
         const auto& brgemm_expr = *brgemm.first;
         init_expr_descriptors(brgemm_expr, {{m_blk, k_blk}, {k_blk, n_blk}, {m_blk, n_blk}}, {layout_a, layout_b, layout_c});
-        create_brgemm_loop_infos(linear_ir_ref, brgemm_expr, 384, m_blk, 1024, k_blk, 384, n_blk);
+        create_brgemm_loop_infos(linear_ir_ref, brgemm_expr, 384, m_blk, 1024, k_blk, 384, n_blk, BACKEND_TYPE::TPP);
         brgemm_expr->set_loop_ids({2, 1, 0});
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
     }

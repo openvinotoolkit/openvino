@@ -17,7 +17,7 @@ void fuse_primitives_with_layout::run(program& p) {
         auto out_layout = node.get_output_layout();
         // This condition refers to optimizied kernel EltwiseKernel_fs_b_yx_fsv32
         if (out_layout.data_type == data_types::f16 && out_layout.batch() > 1 &&
-            (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
+            (p.get_layout_optimizer().get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
             return false;
         }
 

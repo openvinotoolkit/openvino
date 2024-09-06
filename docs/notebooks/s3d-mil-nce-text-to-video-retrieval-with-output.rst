@@ -79,21 +79,21 @@ Prerequisites
 
     Note: you may need to restart the kernel to use updated packages.
     Looking in indexes: https://pypi.org/simple, https://storage.openvinotoolkit.org/simple/wheels/nightly
-    Requirement already satisfied: openvino-tokenizers in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2024.4.0.0.dev20240805)
-    Requirement already satisfied: openvino>=2024.2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2024.3.0)
+    Requirement already satisfied: openvino-tokenizers in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2024.4.0.0.dev20240827)
+    Requirement already satisfied: openvino>=2024.2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2024.3.0)
     Collecting openvino>=2024.2.0
-      Using cached https://storage.openvinotoolkit.org/wheels/nightly/openvino/openvino-2024.4.0.dev20240805-16249-cp38-cp38-manylinux2014_x86_64.whl (42.4 MB)
-    Requirement already satisfied: numpy<2.1.0,>=1.16.6 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2024.2.0) (1.24.4)
-    Requirement already satisfied: openvino-telemetry>=2023.2.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2024.2.0) (2024.1.0)
-    Requirement already satisfied: packaging in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2024.2.0) (24.1)
+      Using cached https://storage.openvinotoolkit.org/wheels/nightly/openvino/openvino-2024.4.0.dev20240827-16508-cp38-cp38-manylinux2014_x86_64.whl (42.8 MB)
+    Requirement already satisfied: numpy<2.1.0,>=1.16.6 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2024.2.0) (1.24.4)
+    Requirement already satisfied: openvino-telemetry>=2023.2.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2024.2.0) (2024.1.0)
+    Requirement already satisfied: packaging in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2024.2.0) (24.1)
     Installing collected packages: openvino
       Attempting uninstall: openvino
         Found existing installation: openvino 2024.3.0
         Uninstalling openvino-2024.3.0:
           Successfully uninstalled openvino-2024.3.0
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    openvino-dev 2024.3.0 requires openvino==2024.3.0, but you have openvino 2024.4.0.dev20240805 which is incompatible.
-    Successfully installed openvino-2024.4.0.dev20240805
+    openvino-dev 2024.3.0 requires openvino==2024.3.0, but you have openvino 2024.4.0.dev20240827 which is incompatible.
+    Successfully installed openvino-2024.4.0.dev20240827
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
@@ -102,12 +102,12 @@ Prerequisites
     Note: you may need to restart the kernel to use updated packages.
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     albucore 0.0.13 requires numpy<2,>=1.24.4, but you have numpy 1.23.5 which is incompatible.
-    albumentations 1.4.13 requires numpy>=1.24.4, but you have numpy 1.23.5 which is incompatible.
+    albumentations 1.4.14 requires numpy>=1.24.4, but you have numpy 1.23.5 which is incompatible.
     descript-audiotools 0.7.2 requires protobuf<3.20,>=3.9.2, but you have protobuf 3.20.3 which is incompatible.
     magika 0.5.1 requires numpy<2.0,>=1.24; python_version >= "3.8" and python_version < "3.9", but you have numpy 1.23.5 which is incompatible.
     mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
     mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
-    openvino-dev 2024.3.0 requires openvino==2024.3.0, but you have openvino 2024.4.0.dev20240805 which is incompatible.
+    openvino-dev 2024.3.0 requires openvino==2024.3.0, but you have openvino 2024.4.0.dev20240827 which is incompatible.
     paddleclas 2.5.2 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
     paddleclas 2.5.2 requires opencv-python==4.6.0.66, but you have opencv-python 4.10.0.84 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
@@ -133,10 +133,10 @@ Prerequisites
 
 .. parsed-literal::
 
-    2024-08-07 03:29:57.443298: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-08-07 03:29:57.478059: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-08-28 04:45:17.910961: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-28 04:45:17.945525: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-08-07 03:29:58.077349: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-08-28 04:45:18.554508: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Download the model
@@ -149,12 +149,8 @@ Download the model
 
 .. parsed-literal::
 
-    2024-08-07 03:30:05.390353: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-08-07 03:30:05.390389: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
-    2024-08-07 03:30:05.390393: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
-    2024-08-07 03:30:05.390522: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
-    2024-08-07 03:30:05.390538: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
-    2024-08-07 03:30:05.390541: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-08-28 04:45:23.744417: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
+    Skipping registering GPU devices...
 
 
 The model has 2 signatures, one for generating video embeddings and one
@@ -460,6 +456,11 @@ preset, ignored scope etc.) can be provided.
 
 
 
+.. parsed-literal::
+
+    Output()
+
+
 
 
 
@@ -481,51 +482,9 @@ preset, ignored scope etc.) can be provided.
 
 
 
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    INFO:nncf:39 ignored nodes were found by names in the NNCFGraph
-
-
-
 .. parsed-literal::
 
     Output()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
 
 
 

@@ -82,7 +82,7 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
 
 std::optional<size_t> ZeroInferRequest::getBatchSize(const NetworkMetadata& metadata) {
     if (!metadata.outputs.at(0).shapeFromIRModel.has_value()) {
-        _logger.warning("Batching on the plugin is not used, batching is handled by the compiler");
+        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
     }
 
@@ -99,7 +99,7 @@ std::optional<size_t> ZeroInferRequest::getBatchSize(const NetworkMetadata& meta
 
     const size_t candidateBatchSize = firstOutputShape[BATCH_AXIS].get_length();
     if (candidateBatchSize == 0 || candidateBatchSize == DEFAULT_BATCH_SIZE) {
-        _logger.warning("Batching on the plugin is not used, batching is handled by the compiler");
+        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
     }
 
@@ -129,11 +129,11 @@ std::optional<size_t> ZeroInferRequest::getBatchSize(const NetworkMetadata& meta
 
     if (!checkDescriptorsUseCandidateBatchSize(metadata.inputs) ||
         !checkDescriptorsUseCandidateBatchSize(metadata.outputs)) {
-        _logger.warning("Batching on the plugin is not used, batching is handled by the compiler");
+        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
     }
 
-    _logger.warning("Batching is handled by the plugin");
+    _logger.debug("Batching is handled by the plugin");
 
     return candidateBatchSize;
 }
@@ -176,10 +176,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     _outputAllocator = std::make_shared<const zeroMemory::HostMemAllocator>(_initStructs);
     _inputAllocator =
-        (_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED)
-            ? std::make_shared<const zeroMemory::HostMemAllocator>(_initStructs,
-                                                                   ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED)
-            : _outputAllocator;
+        std::make_shared<const zeroMemory::HostMemAllocator>(_initStructs, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
 
     if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
         _batchSize = getBatchSize(_metadata);
@@ -260,14 +257,16 @@ void ZeroInferRequest::create_pipeline() {
 
     _logger.debug("ZeroInferRequest::create_pipeline - constructing pipeline");
     // Construct pipeline
-    _pipeline = makePipeline(_executorPtr,
-                             _config,
-                             _profilingPool,
-                             _profilingQuery,
-                             _npuProfiling,
-                             _inputTensorsData,
-                             _outputTensorsData,
-                             _numberOfCommandLists);
+
+    _pipeline = std::make_unique<Pipeline>(_config,
+                                           _executorPtr,
+                                           _profilingPool,
+                                           _profilingQuery,
+                                           _npuProfiling,
+                                           _inputTensorsData,
+                                           _outputTensorsData,
+                                           _numberOfCommandLists);
+
     _logger.debug("ZeroInferRequest::create_pipeline - SyncInferRequest completed");
 }
 
@@ -395,7 +394,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             set_tensor_data(tensor._ptr, foundPort.idx, foundPort.is_input());
         } else {
             _logger.debug("ZeroInferRequest::set_tensor - set new remote tensor");
-            set_remote_tensor_data(remoteTensor, foundPort.idx, foundPort.is_input());
+            set_remote_tensor_data(std::move(remoteTensor), foundPort.idx, foundPort.is_input());
         }
     }
 }

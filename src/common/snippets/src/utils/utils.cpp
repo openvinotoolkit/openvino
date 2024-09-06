@@ -103,10 +103,21 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::Fake
 }
 
 bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2) {
-    if (d1 == d2 || d1 == 1 || is_dynamic_value(d2)) {
+    if (d1 == d2 || d1 == 1 || (is_dynamic_value(d1) && d2 != 1)) {
         dst = d2;
         return true;
-    } else if (d2 == 1 || is_dynamic_value(d1)) {
+    } else if (d2 == 1 || is_dynamic_value(d2)) {
+        dst = d1;
+        return true;
+    }
+    return false;
+}
+
+bool merge_dynamic_dim(size_t& dst, const size_t& d1, const size_t& d2) {
+    if (d1 == d2 || is_dynamic_value(d1)) {
+        dst = d2;
+        return true;
+    } else if (is_dynamic_value(d2)) {
         dst = d1;
         return true;
     }
@@ -314,6 +325,40 @@ int64_t get_dim_stride(const lowered::ExpressionPort& expr_port, size_t idx) {
         default: OPENVINO_THROW("Unsupported expression port type!");
     }
     return get_stride(dim_idx, expr_port.get_descriptor_ptr()->get_shape());
+}
+
+void visit_path(const lowered::ExpressionPtr& expr,
+                std::unordered_set<lowered::ExpressionPtr>& visited,
+                std::function<void(lowered::ExpressionPtr)> func,
+                bool visit_parent_path) {
+    std::deque<lowered::ExpressionPtr> exprs{expr};
+
+    auto continue_traversal = [&](const lowered::ExpressionPtr& expr) {
+        if (visited.count(expr) == 0) {
+            exprs.push_front(expr);
+            visited.insert(expr);
+        }
+    };
+
+    while (!exprs.empty()) {
+        auto curr_expr = exprs.front();
+        exprs.pop_front();
+        func(curr_expr);
+
+        if (visit_parent_path) {
+            for (const auto& input_connector : curr_expr->get_input_port_connectors()) {
+                const auto& parent_expr = input_connector->get_source().get_expr();
+                continue_traversal(parent_expr);
+            }
+        } else {
+            for (const auto& output_connector : curr_expr->get_output_port_connectors()) {
+                for (const auto& consumer : output_connector->get_consumers()) {
+                    const auto& consumer_expr = consumer.get_expr();
+                    continue_traversal(consumer_expr);
+                }
+            }
+        }
+    }
 }
 
 } // namespace utils

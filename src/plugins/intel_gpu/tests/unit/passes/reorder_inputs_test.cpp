@@ -68,8 +68,7 @@ TEST(reorder_inputs, propagation) {
     auto& conv1_node = prog_impl->get_node("conv1");
     auto& conv2_node = prog_impl->get_node("conv2");
 
-    layout_optimizer lo;
-    auto conv_pref = lo.get_preferred_format(conv1_node);
+    auto conv_pref = prog->get_layout_optimizer().get_preferred_format(conv1_node);
 
     ASSERT_EQ(conv1_node.get_output_layout().format.value, conv_pref);
     ASSERT_EQ(conv2_node.get_output_layout().format.value, conv_pref);
@@ -350,9 +349,8 @@ TEST(reorder_inputs, no_need_of_reorder_for_strided_slice) {
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto program = program::build_program(engine, topology, config, false, true);
-    layout_optimizer lo(true);
     reorder_factory rf;
-    program_wrapper::apply_opt_pass<reorder_inputs>(*program, lo, rf);
+    program_wrapper::apply_opt_pass<reorder_inputs>(*program, rf);
 
     ASSERT_NE(program, nullptr);
 
@@ -390,9 +388,8 @@ TEST(reorder_inputs, no_need_of_reorder_to_change_input_rank_for_rdft) {
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto program = program::build_program(engine, topology, config, false, true);
-    layout_optimizer lo(true);
     reorder_factory rf;
-    program_wrapper::apply_opt_pass<reorder_inputs>(*program, lo, rf);
+    program_wrapper::apply_opt_pass<reorder_inputs>(*program, rf);
 
     ASSERT_NE(program, nullptr);
 
@@ -434,9 +431,8 @@ TEST(reorder_inputs, add_reorder_between_single_output_type_node_and_multiple_us
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto program = program::build_program(engine, topology, config, false, true);
-    layout_optimizer lo(true);
     reorder_factory rf;
-    program_wrapper::apply_opt_pass<reorder_inputs>(*program, lo, rf);
+    program_wrapper::apply_opt_pass<reorder_inputs>(*program, rf);
 
     ASSERT_NE(program, nullptr);
 
