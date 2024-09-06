@@ -1160,22 +1160,7 @@ void Graph::InferStatic(SyncInferRequest* request) {
         auto _prof = MY_PROFILE_ARGS(node->getTypeStr(),
                                      {{"Name", node->getName()}, {"Impl", node->getPrimitiveDescriptorType()}});
 
-        bool needExecute = true;
-        if (!node->getStateName().empty()) {
-            auto states = request->query_state();
-            for (auto& state : states) {
-                if (state->get_name() == node->getStateName()) {
-                    auto vsb = reinterpret_cast<VariableStateBase*>(state._ptr.get());
-                    if (!vsb->is_reset_state()) {
-                        std::cout << "== Node: " << node->getName() << " doesn't need to be executed." << std::endl;
-                        needExecute = false;
-                    }
-                    break;
-                }
-            }
-        }
-        if (needExecute)
-            ExecuteNode(node, m_stream);
+        ExecuteNode(node, m_stream);
     }
 }
 
@@ -1397,23 +1382,14 @@ void Graph::InferDynamic(SyncInferRequest* request, UpdateStrategy&& update) {
             if (request)
                 request->throw_if_canceled();
             try {
-                bool needExecute = true;
-                if (!node->getStateName().empty()) {
-                    auto states = request->query_state();
-                    for (auto& state : states) {
-                        if (state->get_name() == node->getStateName()) {
-                            auto vsb = reinterpret_cast<VariableStateBase*>(state._ptr.get());
-                            if (!vsb->is_reset_state()) {
-                                std::cout << "== Node: " << node->getName() << " doesn't need to be executed."
-                                          << std::endl;
-                                needExecute = false;
-                            }
-                            break;
-                        }
-                    }
+                ExecuteNode(node, m_stream);
+                if (!one_of(node->getType(), Type::MemoryOutput, Type::Output)) {
+                    std::cout << "Infer node:" << node->getName()
+                              << ", output=" << node->getDstMemoryAtPort(0)->getDataAs<int>()[0] << std::endl;
+                } else if (node->getType() == Type::Output) {
+                    std::cout << "Infer node:" << node->getName()
+                              << ", output=" << node->getSrcMemoryAtPort(0)->getDataAs<int>()[0] << std::endl;
                 }
-                if (needExecute)
-                    ExecuteNode(node, m_stream);
             } catch (const std::exception& exp) {
                 OPENVINO_THROW(node, exp.what());
             }

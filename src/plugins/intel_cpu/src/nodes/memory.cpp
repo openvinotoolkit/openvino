@@ -614,7 +614,7 @@ void MemoryInput::PortMapHelper::execute(dnnl::stream& strm) {
     // if output shapes are changed,
     // after subgraph inference we should redefine out memory of 'If'
     redefineTo();
-
+    std::cout << "MemoryInput::PortMapHelper::execute srcMemPtr->getData()=" << srcMemPtr->getDataAs<int>()[0] << std::endl;
     ov::intel_cpu::cpu_convert(srcMemPtr->getData(),
                                dstMemPtrs.front()->getData(),
                                srcMemPtr->getDesc().getPrecision(),
@@ -755,7 +755,12 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
     //reshape output
     const auto& newDims = processInitGraph ? getSrcMemoryAtPort(0)->getStaticDims() : stateDims;
 
+    DEBUG_POS << " getDstMemoryAtPort(0)->getDataAs<int>()=" << getDstMemoryAtPort(0)->getDataAs<int>() << std::endl;
     redefineOutputMemory({newDims});
+    DEBUG_POS << " getDstMemoryAtPort(0)->getDataAs<int>()=" << getDstMemoryAtPort(0)->getDataAs<int>() << std::endl;
+    afterMappers.clear();
+    prepareAfterMappers(getEngine());
+    DEBUG_POS << " getDstMemoryAtPort(0)->getDataAs<int>()=" << getDstMemoryAtPort(0)->getDataAs<int>() << std::endl;
 
     // Subgraph infer
     if (haveSubgraph) {
@@ -769,6 +774,10 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
                 mapper->execute(strm);
 
             auto outputMem = getDstMemoryAtPort(0);
+            std::cout << "input = " << getSrcMemoryAtPort(0)->getDataAs<int32_t>()[0] << std::endl;
+            std::cout << "output = " << outputMem->getDataAs<int32_t>()[0] << std::endl;
+            std::cout << "outputMem->getShape()=" << outputMem->getShape().toPartialShape() << std::endl;
+            std::cout << "outputMem->getPrecision()=" << outputMem->getPrecision() << std::endl;
             // Same to Assign
             assignedMem->load(*outputMem);
         }
