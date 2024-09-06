@@ -5,6 +5,7 @@
 #include "conversion.hpp"
 
 #include "gtest/gtest.h"
+#include "internal_properties.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
@@ -63,7 +64,21 @@ void ConvertCPULayerTest::SetUp() {
     auto primitive = selectedType;
     if (primitive.empty())
         primitive = getPrimitiveType();
-    if (!isInOutPrecisionSupported(inPrc, outPrc))
+#if defined(OPENVINO_ARCH_ARM64)
+    if (inPrc == ov::element::u4 || inPrc == ov::element::i4) {
+        primitive = "ref";
+    } else if (shapes.first.is_static() &&
+        inPrc != ov::element::bf16 && outPrc != ov::element::bf16 &&
+        inPrc != ov::element::i32 && outPrc != ov::element::i32) { // Apply "jit" for the snippets cases
+        primitive = "jit";
+        if (shapes.first.rank().get_length() > 6) {
+            configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK));
+        }
+    } else {
+        primitive = "acl";
+    }
+#endif
+    if (primitive != "jit" && !isInOutPrecisionSupported(inPrc, outPrc))
         primitive = "ref";
 
     validate_out_prc();
