@@ -46,9 +46,7 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 ENV PATH="$SCCACHE_HOME:$PATH"
 
 # Use Python 3.8 as default
-# Using venv here because other methods to switch the default Python on break both system and wheels build
-RUN python3.8 -m venv venv
-ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
+RUN alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.8 1
 
 # Setup pip
 ENV PIP_VERSION="24.0"
