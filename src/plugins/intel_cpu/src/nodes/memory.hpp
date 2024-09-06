@@ -203,8 +203,6 @@ private:
     std::deque<MemoryPtr> getToMemories(const Node* node, const size_t port) const;
 
 private:
-    ProxyMemoryMngrPtr memMngr = nullptr;
-
     const std::shared_ptr<ov::Node> ovOp;
     bool haveSubgraph = false;
     ov::intel_cpu::Graph subGraph;
