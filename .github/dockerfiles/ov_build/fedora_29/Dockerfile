@@ -44,6 +44,11 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 
 ENV PATH="$SCCACHE_HOME:$PATH"
 
+# Use Python 3.8 as default
+# Using venv here because other methods to switch the default Python on break both system and wheels build
+RUN python3.8 -m venv venv
+ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
+
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
@@ -51,11 +56,6 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     rm -f get-pip.py
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
-
-# Use Python 3.8 as default
-# Using venv here because other methods to switch the default Python on break both system and wheels build
-RUN python3.8 -m venv venv
-ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
 # Install Node
 ENV NODE_VERSION=21.7.3
