@@ -776,15 +776,6 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
     }
 
     const bool processInitGraph = needInitGraphProcessing();
-    //reshape output
-    const auto& newDims = processInitGraph ? getSrcMemoryAtPort(0)->getStaticDims() : stateDims;
-
-    DEBUG_POS << " getDstMemoryAtPort(0)->getDataAs<int>()=" << getDstMemoryAtPort(0)->getDataAs<int>() << std::endl;
-    redefineOutputMemory({newDims});
-    DEBUG_POS << " getDstMemoryAtPort(0)->getDataAs<int>()=" << getDstMemoryAtPort(0)->getDataAs<int>() << std::endl;
-    afterMappers.clear();
-    prepareAfterMappers(getEngine());
-    DEBUG_POS << " getDstMemoryAtPort(0)->getDataAs<int>()=" << getDstMemoryAtPort(0)->getDataAs<int>() << std::endl;
 
     // Subgraph infer
     if (haveSubgraph) {
@@ -815,6 +806,10 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
                   << ", inputMem pdata = " << inputMem->getDataAs<int>()[0] << std::endl;
         return;
     }
+
+    //reshape output
+    const auto& newDims = processInitGraph ? getSrcMemoryAtPort(0)->getStaticDims() : stateDims;
+    redefineOutputMemory({newDims});
 
     //copy data when necessary
     auto src = processInitGraph ? getSrcMemoryAtPort(0) : assignedMem;
