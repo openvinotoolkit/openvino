@@ -22,11 +22,9 @@ class Transformations {
 public:
     Transformations(const std::shared_ptr<ov::Model>& initialModel,
                     const bool                        enableLpt,
-                    const ov::element::Type           inferencePrecision,
                     const Config&                     config)
         : model(initialModel),
           enableLpt(enableLpt),
-          inferencePrecision(inferencePrecision),
           config(config) {
             CPU_DEBUG_CAPS_MAYBE_UNUSED(this->config);
           }
@@ -39,7 +37,6 @@ public:
 private:
     std::shared_ptr<ov::Model> model;
     const bool    enableLpt;
-    const ov::element::Type inferencePrecision;
     const Config& config;
 
     void PreLpt(const std::vector<ov::element::Type>& defaultPrecisions);

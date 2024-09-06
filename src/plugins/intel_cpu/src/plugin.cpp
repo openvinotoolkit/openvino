@@ -206,14 +206,6 @@ static bool shouldEnableLPT(const ov::AnyMap& modelConfig, const Config& engineC
     }
 }
 
-static ov::element::Type getInferencePrecision(const ov::AnyMap& modelConfig,
-                                               const Config& engineConfig,
-                                               Config::ModelType modelType) {
-    Config tempConf = engineConfig;
-    tempConf.readProperties(modelConfig, modelType);
-    return tempConf.inferencePrecision;
-}
-
 static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
     if (op::util::has_op_with_type<op::v1::Convolution>(model) ||
         op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model))
@@ -262,14 +254,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     const std::shared_ptr<ov::Model> cloned_model = model->clone();
     const bool enableLPT = shouldEnableLPT(config, engConfig);
     Config::ModelType modelType = getModelType(model);
-    ov::element::Type inferencePrecision = getInferencePrecision(config, engConfig, modelType);
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
 
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
 
-    Transformations transformations(cloned_model, enableLPT, inferencePrecision, conf);
+    Transformations transformations(cloned_model, enableLPT, conf);
 
     transformations.UpToLpt();
 
@@ -550,7 +541,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     auto supported = ov::get_supported_nodes(
         model,
         [&](std::shared_ptr<ov::Model>& model) {
-            Transformations transformation(model, enableLPT, conf.inferencePrecision, engConfig);
+            Transformations transformation(model, enableLPT, engConfig);
             transformation.UpToLpt();
             transformation.PostLpt();
             transformation.Snippets();
