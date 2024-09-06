@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma GCC target("no-avx")
 #include "plugin.hpp"
 
 #include <fstream>
