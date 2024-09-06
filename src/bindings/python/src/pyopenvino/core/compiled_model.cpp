@@ -47,10 +47,12 @@ void regclass_CompiledModel(py::module m) {
         "export_model",
         [](ov::CompiledModel& self) {
             std::stringstream _stream;
-            self.export_model(_stream);
+            {
+                py::gil_scoped_release release;
+                self.export_model(_stream);
+            }
             return py::bytes(_stream.str());
         },
-        py::call_guard<py::gil_scoped_release>(),
         R"(
             Exports the compiled model to bytes/output stream.
 
