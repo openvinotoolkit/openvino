@@ -191,13 +191,11 @@ void MemoryOutputBase::initOptimalPrimitiveDescriptor() {
 }
 
 void MemoryOutputBase::execute(dnnl::stream strm) {
-    DEBUG_POS << std::endl;
     runStatic(strm);
     state->commit();
 }
 
 void MemoryOutputBase::executeDynamicImpl(dnnl::stream strm) {
-    DEBUG_POS << std::endl;
     runDynamic(strm);
     state->commit();
 }
@@ -759,6 +757,32 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
 
     redefineOutputMemory({newDims});
 
+    // Subgraph infer
+    if (haveSubgraph) {
+        if (processInitGraph) {
+            DEBUG_POS << "processInitGraph && haveSubgraph=1" << std::endl;
+            for (auto& mapper : beforeMappers)
+                mapper->execute(strm);
+            subGraph.ResetInferCount();
+            subGraph.Infer();
+            for (auto& mapper : afterMappers)
+                mapper->execute(strm);
+
+            auto outputMem = getDstMemoryAtPort(0);
+            // Same to Assign
+            assignedMem->load(*outputMem);
+        }
+
+        auto outputMem = getDstMemoryAtPort(0);
+        auto inputMem = getSrcMemoryAtPort(0);
+
+        std::cout << "*******Dynamic: outputMem pdata = " << outputMem->getDataAs<int>()[0]
+                  << ", assignedMem pdata = " << assignedMem->getDataAs<int>()[0]
+                  << ", assignedMem name = " << getAssignedState()->get_name()
+                  << ", inputMem pdata = " << inputMem->getDataAs<int>()[0] << std::endl;
+        return;
+    }
+
     //copy data when necessary
     auto src = processInitGraph ? getSrcMemoryAtPort(0) : assignedMem;
     auto dst = getDstMemoryAtPort(0);
@@ -814,24 +838,24 @@ void MemoryInput::runStatic(dnnl::stream strm) {
             //
             auto outputMem = getDstMemoryAtPort(0);
             assignedMem->load(*outputMem);
-            // getAssignedState()->commit();
-        } else {
-            // getAssignedState()->commit();
         }
-        std::cout << "*******assignedMem pdata = " << assignedMem->getDataAs<int>()[0] << std::endl;
         auto outputMem = getDstMemoryAtPort(0);
-        std::cout << "*******outputMem pdata = " << outputMem->getDataAs<int>()[0] << std::endl;
         auto inputMem = getSrcMemoryAtPort(0);
-        std::cout << "*******inputMem pdata = " << inputMem->getDataAs<int>()[0] << std::endl;
-        return;
-    }
 
-    // copy data when necessary
-    // auto src = processInitGraph ? getSrcMemoryAtPort(0) : assignedMem;
-    // auto dst = getDstMemoryAtPort(0);
-    // if (src->getData() != dst->getData()) {
-    //     dst->load(*src);
-    // }
+        std::cout << "*******Static: outputMem pdata = " << outputMem->getDataAs<int>()[0]
+                  << ", assignedMem pdata = " << assignedMem->getDataAs<int>()[0]
+                  << ", assignedMem name = " << getAssignedState()->get_name()
+                  << ", inputMem pdata = " << inputMem->getDataAs<int>()[0] << std::endl;
+
+        return;
+    } else {
+        // copy data when necessary
+        auto src = processInitGraph ? getSrcMemoryAtPort(0) : assignedMem;
+        auto dst = getDstMemoryAtPort(0);
+        if (src->getData() != dst->getData()) {
+            dst->load(*src);
+        }
+    }
 }
 
 void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
