@@ -8,6 +8,7 @@
 #include <cpu/x64/brgemm/brgemm.hpp>
 #include <cpu/x64/amx_tile_configure.hpp>
 #include "snippets/utils/utils.hpp"
+#include "emitters/plugin/x64/utils.hpp"
 #include "utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
@@ -39,32 +40,14 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
     OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_vdims(expr->get_input_port_descriptor(0)->get_shape()) &&
                               !snippets::utils::is_dynamic_vdims(expr->get_input_port_descriptor(1)->get_shape()),
                               "Jit emitter is called when the shapes are unknown");
-    auto get_cluster_id = [](const snippets::lowered::ExpressionPort& p) {
-        // Note: NewMemoryBuffer is used as a scratchpad and can't be dynamic, so we don't need to account for them here
-        if (const auto buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(p.get_expr()))
-            return buffer->get_cluster_id();
-        else
-            return SIZE_MAX;
-    };
-    m_memory_offsets = {brgemm_node->get_offset_a(), brgemm_node->get_offset_b(), brgemm_node->get_offset_c()};
-    if (with_scratchpad(brgemm_type))
-        m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
 
-    m_buffer_ids.assign(m_memory_offsets.size(), SIZE_MAX);
-    for (size_t i = 0; i < m_memory_offsets.size(); i++) {
-         if (snippets::utils::is_dynamic_value(m_memory_offsets[i])) {
-             switch (i) {
-                 case 0:
-                 case 1:
-                     m_buffer_ids[i] = get_cluster_id(expr->get_input_port_connector(i)->get_source());
-                     break;
-                 case 2:
-                     for (const auto& child : expr->get_output_port_connector(0)->get_consumers())
-                         if (!ov::is_type<snippets::op::LoopEnd>(child.get_expr()->get_node()))
-                             m_buffer_ids[i] = get_cluster_id(child);
-             }
-             OV_CPU_JIT_EMITTER_ASSERT(m_buffer_ids[i] != SIZE_MAX, "Dynamic offset requires a valid buffer ID");
-         }
+    m_memory_offsets = {brgemm_node->get_offset_a(), brgemm_node->get_offset_b(), brgemm_node->get_offset_c()};
+    m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0), m_memory_offsets[0]),
+                    utils::get_buffer_cluster_id(expr->get_input_port(1), m_memory_offsets[1]),
+                    utils::get_buffer_cluster_id(expr->get_output_port(0), m_memory_offsets[2])};
+    if (with_scratchpad(brgemm_type)) {
+        m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
+        m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_input_port(2), m_memory_offsets.back()));
     }
 }
 
@@ -104,7 +87,8 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     emit_brgemm_kernel_call(mem_ptrs_idxs, m_memory_offsets);
 }
 void jit_brgemm_emitter::emit_brgemm_kernel_call(const std::vector<size_t>& mem_ptrs_idxs, const std::vector<size_t>& mem_offsets) const {
-    internal_call_preamble();
+    JitSafeInternalCall safe_internal_caller(h, host_isa_);
+
     h->mov(h->rbp, reinterpret_cast<uint64_t>(BrgemmKernelExecutor::execute));
     auto reserved_stack_size = sizeof(BrgemmKernelExecutor::call_args);
     // Reserve memory on the stack
@@ -146,12 +130,9 @@ void jit_brgemm_emitter::emit_brgemm_kernel_call(const std::vector<size_t>& mem_
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_kernel_executor.get()));
     h->mov(abi_param2, h->rsp);
 
-    internal_call_rsp_align();
-    h->call(h->rbp);
-    internal_call_rsp_restore();
+    safe_internal_caller.call(h->rbp);
 
     h->add(h->rsp, reserved_stack_size);
-    internal_call_postamble();
 }
 
 }   // namespace intel_cpu

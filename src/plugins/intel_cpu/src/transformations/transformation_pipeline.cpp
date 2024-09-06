@@ -1124,17 +1124,19 @@ void Transformations::MainSnippets(void) {
 
     auto mm_supports_transpose_b = [this, ignoreCallback](const std::shared_ptr<const ov::Node>& n) {
         MAYBE_UNUSED(inferencePrecision);
-        const auto& b_shape = n->get_input_partial_shape(1);
-        if (!ignoreCallback || b_shape.is_dynamic())
+        if (!ignoreCallback)
             return false;
         // Note: BrgemmTPP doesn't support transposed KN natively
         // so we should extract transposes for the corresponding matmul nodes
 #if defined(SNIPPETS_LIBXSMM_TPP)
+        // TPP doesn't support dynamic shapes -> there will be BrgemmCPU node
+        if (n->is_dynamic())
+            return true;
         std::vector<std::vector<size_t>> layouts(3);
         const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
         OPENVINO_ASSERT(matmul, "ExplicitTransposeMatMulInputs callback must be called for matmul node");
         if (matmul->get_transpose_b()) {
-            std::vector<size_t> transposed_layout(b_shape.size());
+            std::vector<size_t> transposed_layout(n->get_input_partial_shape(1).size());
             std::iota(transposed_layout.begin(), transposed_layout.end(), 0);
             std::swap(*transposed_layout.rbegin(), *(transposed_layout.rbegin() + 1));
             layouts[1] = std::move(transposed_layout);
