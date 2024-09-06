@@ -65,7 +65,7 @@ void Graph::CreateGraph(NET &model, const GraphContext::CPtr context) {
 
     Init(model, context);
 
-    EmitExecutionGraph();
+    Activate();
 }
 
 void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
@@ -95,9 +95,9 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
         }
     }
 
-    ConfigureExecutionGraph();
+    Configure();
 
-    EmitExecutionGraph();
+    Activate();
 }
 
 template void Graph::CreateGraph(const std::shared_ptr<const ov::Model>&, const GraphContext::CPtr);
@@ -319,14 +319,13 @@ void Graph::Init(const std::shared_ptr<const ov::Model>& model,
 
     Replicate(model, inputConfigs, outputConfigs);
 
-    ConfigureExecutionGraph();
+    Configure();
 }
 
 static void UseExternalInputMemory(const std::map<std::size_t, NodePtr>& inputNodesMap,
                                    const std::vector<MemoryPtr>& memory) {
     for (size_t i = 0; i < memory.size(); i++) {
         const auto& node = inputNodesMap.at(i);
-        auto input = std::dynamic_pointer_cast<node::Input>(node);
 
         auto childEdges = node->getChildEdgesAtPort(0);
         for (const auto& childEdge : childEdges) {
@@ -341,7 +340,6 @@ static void UseExternalOutputMemory(const std::map<std::size_t, NodePtr>& output
                                     const std::vector<MemoryPtr>& memory) {
     for (size_t i = 0; i < memory.size(); i++) {
         const auto& node = outputNodesMap.at(i);
-        auto output = std::dynamic_pointer_cast<node::Input>(node);
 
         const auto& parentEdge = node->getParentEdgeAt(0);
         OPENVINO_ASSERT(parentEdge->getStatus() == Edge::Status::Uninitialized, "Unexpected edge status");
@@ -350,7 +348,7 @@ static void UseExternalOutputMemory(const std::map<std::size_t, NodePtr>& output
     }
 }
 
-void Graph::EmitExecutionGraph(const std::vector<MemoryPtr>& externalInputMemory,
+void Graph::Activate(const std::vector<MemoryPtr>& externalInputMemory,
                                const std::vector<MemoryPtr>& externalOutputMemory) {
     OPENVINO_ASSERT(status == Status::Initialized, "Invalid graph status");
 
@@ -378,7 +376,7 @@ void Graph::EmitExecutionGraph(const std::vector<MemoryPtr>& externalInputMemory
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
-void Graph::ConfigureExecutionGraph(bool optimize) {
+void Graph::Configure(bool optimize) {
     OPENVINO_ASSERT(status == Status::NotReady, "Invalid graph status");
 
     GraphOptimizer optimizer;
@@ -1078,7 +1076,7 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
     }
 }
 
-VecMemoryDescs Graph::getOutputMemoryDescriptors() {
+VecMemoryDescs Graph::getOutputMemoryDescriptors() const {
     OPENVINO_ASSERT(status == Status::Initialized, "Invalid graph status");
 
     VecMemoryDescs result;

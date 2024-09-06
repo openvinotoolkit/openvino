@@ -69,7 +69,7 @@ public:
     void PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output);
 
     // Returns Output nodes memory descriptors
-    VecMemoryDescs getOutputMemoryDescriptors();
+    VecMemoryDescs getOutputMemoryDescriptors() const;
 
     void Infer(SyncInferRequest* request = nullptr);
 
@@ -205,9 +205,9 @@ public:
               const std::vector<node::Input::OutputConfig>& outputConfigs = {});
 
     /**
-     * Emit execution graph using \p externalInputMemory and \p externalOutputMemory
+     * Activate execution graph using \p externalInputMemory and \p externalOutputMemory
      */
-    void EmitExecutionGraph(const std::vector<MemoryPtr>& externalInputMemory = {},
+    void Activate(const std::vector<MemoryPtr>& externalInputMemory = {},
                             const std::vector<MemoryPtr>& externalOutputMemory = {});
 
 protected:
@@ -237,7 +237,7 @@ protected:
                    const std::vector<node::Input::InputConfig>& inputConfigs = {},
                    const std::vector<node::Input::OutputConfig>& outputConfigs = {});
 
-    void ConfigureExecutionGraph(bool optimize = true);
+    void Configure(bool optimize = true);
 
     void InitNodes();
     void InitDescriptors();
