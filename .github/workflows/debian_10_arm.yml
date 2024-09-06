@@ -48,7 +48,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-16-cores-arm-docker-build
+    runs-on: aks-linux-16-cores-arm-docker-build-staging
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -73,7 +73,7 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_linux.yml
     with:
-      runner: 'aks-linux-16-cores-arm'
+      runner: 'aks-linux-16-cores-arm-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.debian_10_arm }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
