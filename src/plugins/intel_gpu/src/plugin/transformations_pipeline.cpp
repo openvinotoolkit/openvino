@@ -74,7 +74,7 @@
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/group_norm_composition.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
-#include "plugin/transformations/remove_unnecessary_pad.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -888,7 +888,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         // Remove Pad in front of MaxPool if both the pads_begin and pads_end are zero.
-        manager.register_pass<ov::intel_gpu::RemoveUnnecessaryPad>();
+        manager.register_pass<ov::pass::EliminatePad>();
 
         manager.run_passes(func);
     }
