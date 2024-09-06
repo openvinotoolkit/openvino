@@ -91,9 +91,7 @@ jobs:
             -DENABLE_SYSTEM_OPENCL=ON \
             -DENABLE_PYTHON_PACKAGING=ON \
             -DCPACK_GENERATOR=TGZ \
-            -DENABLE_INTEL_GPU=OFF \
-            -DENABLE_INTEL_NPU=OFF \
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DCMAKE_BUILD_TYPE=Release
 
   RPM_Packages:
