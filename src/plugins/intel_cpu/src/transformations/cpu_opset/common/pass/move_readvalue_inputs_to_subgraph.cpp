@@ -130,13 +130,25 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
 
         auto new_rv = std::make_shared<ov::intel_cpu::ReadValueWithSubgraphNode>(readvalue->get_variable());
 
+        auto is_in_subgraph = [&subgraph](std::shared_ptr<ov::Node> n) {
+            for (auto& sub : subgraph) {
+                if (n->get_friendly_name() == sub->get_friendly_name()) {
+                    return true;
+                }
+            }
+            return false;
+        };
         // Subgraph's input
         auto params = ParameterVector{};
         for (auto inp : inputs) {
             auto param = std::make_shared<ov::op::v0::Parameter>(inp->get_element_type(), inp->get_output_partial_shape(0));
             params.push_back(param);
             for (const auto& child : inp->get_output_target_inputs(0)) {
-                child.replace_source_output(param);
+                if (is_in_subgraph(child.get_node()->shared_from_this())) {
+                    std::cout << "-----> child.replace_source_output, child="
+                              << child.get_node()->shared_from_this()->get_friendly_name() << std::endl;
+                    child.replace_source_output(param);
+                }
             }
         }
 
