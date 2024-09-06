@@ -6,9 +6,9 @@
 
 #include <climits>
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/reshape.hpp"
 #include "utils.hpp"
 
