@@ -43,7 +43,7 @@ std::shared_ptr<Model> create_q_dq_function(const Shape& data_shape,
     const std::shared_ptr<Node> zero_point =
         ov::element::from<T>() == element::f32
             ? opset1::Constant::create(ov::element::from<T>(), zero_point_shape, zero_point_values)
-            : ov::as_type_ptr<Node>(std::make_shared<opset1::Convert>(
+            : std::dynamic_pointer_cast<Node>(std::make_shared<opset1::Convert>(
                   opset1::Constant::create(ov::element::from<T>(), zero_point_shape, zero_point_values),
                   element::f32));
     auto sub = std::make_shared<opset1::Subtract>(convert2, zero_point);
