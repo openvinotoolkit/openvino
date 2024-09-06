@@ -68,7 +68,7 @@ void transpose_param_shape(std::shared_ptr<ov::op::v0::Parameter>& param) {
     auto partial_shape = param->get_partial_shape();
     NPUW_ASSERT(partial_shape.is_static());
     auto shape = partial_shape.to_shape();
-    LOG_DEBUG("Transposing the param" << param);
+    LOG_DEBUG("Transposing the param: " << param);
 
     // Check if the shape is 2D or 3D
     if (shape.size() == 2) {
@@ -294,7 +294,6 @@ ov::Tensor transpose_f32(const ov::Tensor& tensor) {
 }
 
 ov::Tensor transpose_tensor(const ov::Tensor& tensor) {
-    LOG_DEBUG("Tensor Shape: " << tensor.get_shape());
     switch (tensor.get_element_type()) {
     case ov::element::u4:
         return transpose_u4(tensor);
@@ -408,65 +407,60 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
 }
 
 void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
-    std::vector<ov::Tensor> new_closure;
-    std::vector<ov::Tensor> new_scales;
-    std::vector<ov::Tensor> new_zerops;
+    std::vector<ov::Tensor> new_closure(m.closure_remap.size());
+    std::vector<ov::Tensor> new_scales(m.closure_remap.size());
+    std::vector<ov::Tensor> new_zerops(m.closure_remap.size());
 
     // Create mappings from original indices to new indices
     std::unordered_map<std::size_t, std::size_t> closure_to_new_index;
     std::unordered_map<std::size_t, std::size_t> scale_to_new_index;
     std::unordered_map<std::size_t, std::size_t> zerop_to_new_index;
-    
-    // For a new_closure vector by rearranging the old one.  Also
-    // reserve a new_scales vector to have the same size, filled with
-    // empty tensors by default.
 
     // Fill the new vectors and create the mappings
     for (std::size_t i = 0; i < m.closure_remap.size(); ++i) {
         auto orig_index = m.closure_remap[i];
-        new_closure.push_back(fcall._closure[orig_index]);
+        new_closure[i] = fcall._closure[orig_index];
         closure_to_new_index[orig_index] = i;
 
         // Handle Scale remap
         auto scale_iter = m.scale_remap.find(orig_index);
         if (scale_iter != m.scale_remap.end()) {
-            new_scales.push_back(fcall._closure[scale_iter->second]);
-            scale_to_new_index[scale_iter->second] = new_scales.size() - 1;
-        } else {
-            new_scales.push_back(ov::Tensor());
+            new_scales[i] = fcall._closure[scale_iter->second];
+            scale_to_new_index[scale_iter->second] = i;
         }
 
         // Handle Zerop remap
         auto zerop_iter = m.zerop_remap.find(orig_index);
         if (zerop_iter != m.zerop_remap.end()) {
-            new_zerops.push_back(fcall._closure[zerop_iter->second]);
-            zerop_to_new_index[zerop_iter->second] = new_zerops.size() - 1;
+            new_zerops[i] = fcall._closure[zerop_iter->second];
+            zerop_to_new_index[zerop_iter->second] = i;
         } else {
-            new_zerops.push_back(m.zero_points[orig_index]);
+            new_zerops[i] = m.zero_points[orig_index];
         }
     }
 
     // Transpose the concerned tensors
     for (auto&& orig_index : m.transpose_indices) {
         // Transpose closure tensors if needed
-        if (closure_to_new_index.count(orig_index)) {
-            std::size_t new_index = closure_to_new_index[orig_index];
-            new_closure[new_index] = pattern_utils::transpose_tensor(new_closure[new_index]);
+        auto closure_it = closure_to_new_index.find(orig_index);
+        if (closure_it != closure_to_new_index.end()) {
+            new_closure[closure_it->second] = pattern_utils::transpose_tensor(new_closure[closure_it->second]);
         }
 
         // Transpose scale tensors if needed
-        if (scale_to_new_index.count(orig_index)) {
-            std::size_t new_index = scale_to_new_index[orig_index];
-            new_scales[new_index] = pattern_utils::transpose_tensor(new_scales[new_index]);
+        auto scale_it = scale_to_new_index.find(orig_index);
+        if (scale_it != scale_to_new_index.end()) {
+            new_scales[scale_it->second] = pattern_utils::transpose_tensor(new_scales[scale_it->second]);
         }
 
         // Transpose zerop tensors if needed
-        if (zerop_to_new_index.count(orig_index)) {
-            std::size_t new_index = zerop_to_new_index[orig_index];
-            new_zerops[new_index] = pattern_utils::transpose_tensor(new_zerops[new_index]);
+        auto zerop_it = zerop_to_new_index.find(orig_index);
+        if (zerop_it != zerop_to_new_index.end()) {
+            new_zerops[zerop_it->second] = pattern_utils::transpose_tensor(new_zerops[zerop_it->second]);
         }
     }
 
+    // Update the Subgraph with the new vectors
     fcall._closure = std::move(new_closure);
     fcall._scales = std::move(new_scales);
     fcall._zerops = std::move(new_zerops);
@@ -705,16 +699,6 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
         ov::element::f16 == matched_paramC->get_element_type()) {
         LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << m_dcoff_type);
         matched_paramA->set_element_type(m_dcoff_type);
-
-        auto matched_MM = pattern_utils::get_root_matmul(m);
-        const bool need_transpose = pattern_utils::transpose_required(matched_MM);
-        if (m_enable_transpose && need_transpose) {
-            m_params_to.get().transpose_required.insert(matched_paramA);
-            m_params_to.get().transpose_required.insert(matched_paramC);
-            pattern_utils::transpose_param_shape(matched_paramA);
-            pattern_utils::transpose_param_shape(matched_paramC);
-            matched_MM->set_transpose_b(true);
-        }
 
         if (m_dcoff_mode == DCOffMode::CAST_SCALE) {
             NPUW_ASSERT(m_dcoff_type == ov::element::f16);
