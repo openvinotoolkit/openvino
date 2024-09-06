@@ -4,6 +4,10 @@
 
 #include "openvino/core/so_extension.hpp"
 
+ov::detail::SOExtension::~SOExtension() {
+    m_ext.reset();
+}
+
 const ov::Extension::Ptr& ov::detail::SOExtension::extension() const {
     return m_ext;
 }
