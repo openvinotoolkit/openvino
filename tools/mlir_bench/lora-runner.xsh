@@ -16,7 +16,7 @@ SIZES = [8, 16, 32, 64, 128, 256, 512, 1024]
 ITERATIONS = 100
 
 BENCH_RUNNER="tpp-run"
-BENCH_FLAGS=f"-entry-point-result=void -e entry -seed 123 -n {ITERATIONS}".split()
+RUNNER_FLAGS=f"-entry-point-result=void -e entry -seed 123 -n {ITERATIONS}".split()
 
 
 def build_lora_model(x_dyn_dim):
@@ -52,14 +52,16 @@ def main():
         model = build_lora_model(size)
         ov.save_model(model, model_xml)
 
+        BENCH_FLAGS=f"-m {model_xml} -d CPU -ip f32 -infer_precision f32 -hint none -nstreams 1 -nthreads 1".split()
+
         def do_it(env_str):
-            out = $(env @(env_str) benchmark_app -m @(model_xml) -d CPU -niter @(ITERATIONS) -hint none -nstreams 1 -nthreads 1)
-            match = re.search(r"Average: +(\d.*) ms", out)
+            out = $(env @(env_str) benchmark_app @(BENCH_FLAGS) -niter @(ITERATIONS))
+            match = re.search(r"Median: +(\d.*) ms", out)
             return float(match.group(1))
         no_mlir_averages.append(do_it("OV_MLIR=0"))
         mlir_averages.append(do_it("OV_MLIR=1"))
 
-        raw_kernel_secs = $(env OV_MLIR=1 OV_MLIR_TPP=1 OV_MLIR_DEBUG=1 benchmark_app -m @(model_xml) -d CPU -niter 1 -hint none -nstreams 1 -nthreads 1 2>&1 | awk '/Source MLIR:/{flag=1; next} /Target LLVM:/{flag=0} flag' | grep -vE '^[-]+$' | tpp-run @(BENCH_FLAGS))
+        raw_kernel_secs = $(env OV_MLIR=1 OV_MLIR_TPP=1 OV_MLIR_DEBUG=1 benchmark_app @(BENCH_FLAGS) -niter 1 2>&1 | awk '/Source MLIR:/{flag=1; next} /Target LLVM:/{flag=0} flag' | grep -vE '^[-]+$' | tpp-run @(RUNNER_FLAGS))
         no_ov_averages.append(float(raw_kernel_secs) * 1000)
 
     print("SIZES", SIZES)
