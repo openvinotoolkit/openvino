@@ -76,7 +76,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <[legacy]-supported-model-formats/[legacy]-convert-pytorch>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/pytorch-onnx-to-openvino-with-output.html>`__
+              and an example `tutorial <https://docs.openvino.ai/2024/notebooks/pytorch-onnx-to-openvino-with-output.html>`__
               on this topic.
 
    .. tab-item:: TensorFlow
@@ -122,7 +122,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <[legacy]-supported-model-formats/[legacy]-convert-tensorflow>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/tensorflow-to-openvino-with-output.html>`__
+              and an example `tutorial <https://docs.openvino.ai/2024/notebooks/tensorflow-to-openvino-with-output.html>`__
               on this topic.
 
             * The ``read_model()`` and ``compile_model()`` methods:
@@ -227,7 +227,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <[legacy]-supported-model-formats/[legacy]-convert-tensorflow>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/tflite-to-openvino-with-output.html>`__
+              and an example `tutorial <https://docs.openvino.ai/2024/notebooks/tflite-to-openvino-with-output.html>`__
               on this topic.
 
 
@@ -355,7 +355,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <[legacy]-supported-model-formats/[legacy]-convert-onnx>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/pytorch-onnx-to-openvino-with-output.html>`__
+              and an example `tutorial <https://docs.openvino.ai/2024/notebooks/pytorch-onnx-to-openvino-with-output.html>`__
               on this topic.
 
 
@@ -486,7 +486,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <[legacy]-supported-model-formats/[legacy]-convert-paddle>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/paddle-to-openvino-classification-with-output.html>`__
+              and an example `tutorial <https://docs.openvino.ai/2024/notebooks/paddle-to-openvino-classification-with-output.html>`__
               on this topic.
 
             * The ``read_model()`` method:

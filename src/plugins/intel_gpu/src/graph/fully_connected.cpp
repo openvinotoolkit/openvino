@@ -56,11 +56,11 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
 
     bool no_spatial_padding = true;
     // C++ 11 range loop shouldn't be used here because of incorrect iterator functionality in mutable_array_ref<>
-    for (size_t i = 0; i < input_layout.data_padding.lower_size().spatial.size(); ++i) {
-        no_spatial_padding &= (input_layout.data_padding.lower_size().spatial[i] == 0);
+    for (size_t i = 0; i < input_layout.get_spatial_rank(); ++i) {
+        no_spatial_padding &= (input_layout.data_padding._lower_size[2 + i] == 0);
     }
-    for (size_t i = 0; i < input_layout.data_padding.upper_size().spatial.size(); ++i) {
-        no_spatial_padding &= (input_layout.data_padding.upper_size().spatial[i] == 0);
+    for (size_t i = 0; i < input_layout.get_spatial_rank(); ++i) {
+        no_spatial_padding &= (input_layout.data_padding._upper_size[2 + i] == 0);
     }
 
     if (input_layout.data_type == data_types::f32 &&
@@ -73,7 +73,7 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
     if (input_layout.data_type == data_types::f16 &&
         input_layout.format == format::bfyx &&
         no_spatial_padding &&
-        input_pitches.batch[0] % 2 == 0 &&
+        input_pitches[0] % 2 == 0 &&
         input_layout.batch() != 16)
         return format::bfyx;
 
@@ -117,7 +117,7 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
     }
 
-    if (desc->input_size > 3) {
+    if (desc->input_size > 4) {
        input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
     }
     if (weights_pshape.size() != 2) {
@@ -127,6 +127,8 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     auto output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
     if (desc->input_size == 3) {
         output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
+    } else if (desc->input_size == 4) {
+        output_size = tensor(input_layout.batch(), input_layout.feature(), weights_layout.batch(), input_layout.spatial(1));
     }
     format output_format = get_preferred_format(node, impl_param);
 
@@ -181,12 +183,12 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
     // Allow padding only for feature and outermost dimmension
     auto can_apply_fake_alignment = true;
     if (input_shape.size() == 3)
-        can_apply_fake_alignment &= orig_input_layout.data_padding.lower_size().sizes()[1] == 0 &&
-                                    orig_input_layout.data_padding.upper_size().sizes()[1] == 0;
+        can_apply_fake_alignment &= orig_input_layout.data_padding._lower_size[1] == 0 &&
+                                    orig_input_layout.data_padding._upper_size[1] == 0;
 
     if (output_shape.size() == 3)
-        can_apply_fake_alignment &= orig_output_layout.data_padding.lower_size().sizes()[1] == 0 &&
-                                    orig_output_layout.data_padding.upper_size().sizes()[1] == 0;
+        can_apply_fake_alignment &= orig_output_layout.data_padding._lower_size[1] == 0 &&
+                                    orig_output_layout.data_padding._upper_size[1] == 0;
 
     for (auto& fused_desc : orig_impl_param.fused_desc) {
         if (fused_desc.has_outer_dep()) {
