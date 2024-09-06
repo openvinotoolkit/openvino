@@ -42,14 +42,6 @@ public:
           const GraphContext::CPtr context,
           OutputConfig config);
 
-    void setMemDesc(MemoryDescPtr memDesc) {
-        extMemDesc = memDesc;
-    }
-
-    void useParentMemoryDescForOutput() {
-        m_useParentMemoryDescForOutput = true;
-    }
-
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;

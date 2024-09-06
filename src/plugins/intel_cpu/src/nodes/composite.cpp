@@ -8,6 +8,7 @@
 #include "cpu_memory.h"
 #include "transformations/cpu_opset/common/op/submodel.hpp"
 #include "utils/debug_capabilities.h"
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -18,7 +19,7 @@ bool Composite::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
 }
 
 Composite::Composite(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, NgraphShapeInferFactory(op, FULL_PORT_MASK)) {
+    : Node(op, context, InternalDynShapeInferFactory()) {
     const auto& subModel = ov::as_type_ptr<SubModel>(op);
     OPENVINO_ASSERT(subModel, "Attempt to create SubGraph node from an invalid op type: ", op);
 
@@ -71,18 +72,22 @@ void Composite::createPrimitive() {
     }
 
     OPENVINO_ASSERT(getOriginalOutputsNumber() == m_graph.GetOutputNodesMap().size(),
-                    "Number of node inputs must be equal the number of inner graph's inputs");
+                    "Number of node outputs must be equal the number of inner graph's outputs");
 
     std::vector<MemoryPtr> outputMemory;
     for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
         outputMemory.emplace_back(getDstMemoryAtPort(i));
     }
 
-    m_graph.EmitExecutionGraph(inputMemory, outputMemory);
+    m_graph.Activate(inputMemory, outputMemory);
 }
 
 void Composite::execute(dnnl::stream) {
     m_graph.Infer();
+}
+
+void Composite::executeDynamicImpl(dnnl::stream strm) {
+    execute(strm);
 
     if (!inputShapesModified())
         return;
@@ -103,10 +108,6 @@ void Composite::execute(dnnl::stream) {
             }
         }
     }
-}
-
-void Composite::executeDynamicImpl(dnnl::stream strm) {
-    execute(strm);
 }
 
 }  // namespace node
