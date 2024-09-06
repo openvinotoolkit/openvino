@@ -12,12 +12,12 @@ namespace intel_cpu {
 /**
  * @brief A proxy object that additionally implements observer pattern
  */
-class ProxyMemoryMngr : public IMemoryMngrObserver {
+class ProxyMemoryBlock : public IMemoryBlockObserver {
 public:
-    ProxyMemoryMngr() : m_pOrigMngr(std::make_shared<MemoryMngrWithReuse>()), m_pMngr(m_pOrigMngr) {}
-    explicit ProxyMemoryMngr(std::shared_ptr<IMemoryMngr> pMngr) {
-        OPENVINO_ASSERT(pMngr, "Memory manager is uninitialized");
-        m_pMngr = pMngr;
+    ProxyMemoryBlock() : m_pOrigBlock(std::make_shared<MemoryBlockWithReuse>()), m_pMemBlock(m_pOrigBlock) {}
+    explicit ProxyMemoryBlock(std::shared_ptr<IMemoryBlock> pBlock) {
+        OPENVINO_ASSERT(pBlock, "Memory block is uninitialized");
+        m_pMemBlock = pBlock;
     }
 
     void* getRawPtr() const noexcept override;
@@ -28,26 +28,26 @@ public:
     void registerMemory(Memory* memPtr) override;
     void unregisterMemory(Memory* memPtr) override;
 
-    void setMemMngr(std::shared_ptr<IMemoryMngr> pMngr);
-    void setMemMngrResize(std::shared_ptr<IMemoryMngr> pMngr);
+    void setMemBlock(std::shared_ptr<IMemoryBlock> pBlock);
+    void setMemBlockResize(std::shared_ptr<IMemoryBlock> pBlock);
     void reset();
 
 private:
     void notifyUpdate();
 
-    // We keep the original MemMngr as may fallback to copy output.
-    std::shared_ptr<IMemoryMngr> m_pOrigMngr = nullptr;
-    std::shared_ptr<IMemoryMngr> m_pMngr = nullptr;
+    // We keep the original MemBlock as may fallback to copy output.
+    std::shared_ptr<IMemoryBlock> m_pOrigBlock = nullptr;
+    std::shared_ptr<IMemoryBlock> m_pMemBlock = nullptr;
 
     std::unordered_set<Memory*> m_setMemPtrs;
 
     // WA: resize stage might not work because there is no shape change,
-    // but the underlying actual memory manager changes.
+    // but the underlying actual memory block changes.
     size_t m_size = 0ul;
 };
 
-using ProxyMemoryMngrPtr = std::shared_ptr<ProxyMemoryMngr>;
-using ProxyMemoryMngrCPtr = std::shared_ptr<const ProxyMemoryMngr>;
+using ProxyMemoryBlockPtr = std::shared_ptr<ProxyMemoryBlock>;
+using ProxyMemoryBlockCPtr = std::shared_ptr<const ProxyMemoryBlock>;
 
 }   // namespace intel_cpu
 }   // namespace ov

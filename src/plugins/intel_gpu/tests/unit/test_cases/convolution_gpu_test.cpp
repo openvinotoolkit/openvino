@@ -2460,7 +2460,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_input_and_output_padding) {
             { 2, 1 },
             false,
             ov::op::PadType::EXPLICIT);
-    conv.output_paddings = { padding{ { 0,0,x_pad,y_pad }, 0 } };
+    conv.output_paddings = { padding{ { 0,0,y_pad,x_pad }, 0 } };
 
     topology topology(
         input_layout("input", input->get_layout()),
@@ -6012,7 +6012,10 @@ void blockedFormatZeroCheck(cldnn::memory::ptr out_mem) {
         batch_blocked = true;
     const int block_size = 16;
 
-    auto output_tensor = out_mem->get_layout().get_buffer_size();
+    const auto& padded_dims = out_mem->get_layout().get_padded_dims();
+    auto default_fmt = format::get_default_format(padded_dims.size(),
+                format::is_weights_format(out_mem->get_layout().format), format::is_grouped(out_mem->get_layout().format));
+    auto output_tensor = tensor(default_fmt, padded_dims);
     const int b = output_tensor.batch[0];
     const int f = output_tensor.feature[0];
     const int spatials = std::accumulate(output_tensor.spatial.begin(), output_tensor.spatial.end(), 1, std::multiplies<int>());
@@ -9189,18 +9192,18 @@ public:
 
         // Output padding
         auto p1 = std::make_shared<convolution>("convolution_no_relu", input_info("input0"), weights, bias, 1, stride_sizes[1], dilation_sizes[1], pad_sizes[1], pad_sizes[1], false, ov::op::PadType::EXPLICIT);
-        p1->output_paddings = {{ { 0, 0, 2, 4 }, { 0, 0, 0, 19 } }};
+        p1->output_paddings = {{ { 0, 0, 4, 2 }, { 0, 0, 19, 0 } }};
         all_layer_params.push_back(p1);
         auto p2 = std::make_shared<convolution>("convolution_no_relu", input_info("input0"), weights, bias, 1, stride_sizes[2], dilation_sizes[2], pad_sizes[2], pad_sizes[2], false, ov::op::PadType::EXPLICIT);
-        p2->output_paddings = {{ { 0, 0, 1, 0 }, { 0, 0, 13, 9 } }};
+        p2->output_paddings = {{ { 0, 0, 0, 1 }, { 0, 0, 9, 13 } }};
         all_layer_params.push_back(p2);
 
         // Input + Output padding
         auto p3 = std::make_shared<convolution>("convolution_no_relu", input_info("reorder0"), weights, bias, 1, stride_sizes[0], dilation_sizes[0], pad_sizes[0], pad_sizes[0], false, ov::op::PadType::EXPLICIT);
-        p3->output_paddings = {{ { 0, 0, 1, 5 }, { 0, 0, 19, 4 } }};
+        p3->output_paddings = {{ { 0, 0, 5, 1 }, { 0, 0, 4, 19 } }};
         all_layer_params.push_back(p3);
         auto p4 = std::make_shared<convolution>("convolution_no_relu", input_info("reorder0"), weights, bias, 1, stride_sizes[3], dilation_sizes[3], pad_sizes[3], pad_sizes[3], false, ov::op::PadType::EXPLICIT);
-        p4->output_paddings = {{ { 0, 0, 1, 2 }, { 0, 0, 3, 4 } }};
+        p4->output_paddings = {{ { 0, 0, 2, 1 }, { 0, 0, 4, 3 } }};
         all_layer_params.push_back(p4);
 
         return all_layer_params;
@@ -9340,7 +9343,10 @@ public:
         cldnn::mem_lock<Type> bias_mem(inputs[2], get_test_stream());
         cldnn::mem_lock<Type> output_mem(output, get_test_stream());
 
-        tensor output_buffer_size = output->get_layout().get_buffer_size();
+        const auto& padded_dims = output->get_layout().get_padded_dims();
+        auto default_fmt = format::get_default_format(padded_dims.size(),
+                    format::is_weights_format(output->get_layout().format), format::is_grouped(output->get_layout().format));
+        tensor output_buffer_size = tensor(default_fmt, padded_dims);
 
         // Initialized output with zeros.
         std::fill(output_mem.begin(), output_mem.end(), static_cast<Type>(0));
@@ -9351,8 +9357,8 @@ public:
                 for (int y = 0; y < output_size_y; y++) {
                     for (int x = 0; x < output_size_x; x++) {
                         int output_index = (b * output_buffer_size.feature[0] + out_f) * output_buffer_size.spatial[1] * output_buffer_size.spatial[0];
-                        tensor lower_output_padding = convolution->output_paddings[0].lower_size();
-                        output_index += (lower_output_padding.spatial[1] + y) * output_buffer_size.spatial[0] + lower_output_padding.spatial[0] + x;
+                        const auto& lower_output_padding = convolution->output_paddings[0]._lower_size;
+                        output_index += (lower_output_padding[2 + 0] + y) * output_buffer_size.spatial[0] + lower_output_padding[2 + 1] + x;
 
                         output_mem[output_index] += bias_mem[out_f];
                     }
@@ -9376,8 +9382,8 @@ public:
                             int output_yi = y;
                             int output_xi = x;
                             auto output_index = (output_bi * output_buffer_size.feature[0] + output_fi) * output_buffer_size.spatial[1] * output_buffer_size.spatial[0];
-                            tensor lower_output_padding = convolution->output_paddings[0].lower_size();
-                            output_index += (lower_output_padding.spatial[1] + output_yi) * output_buffer_size.spatial[0] + lower_output_padding.spatial[0] + output_xi;
+                            const auto& lower_output_padding = convolution->output_paddings[0]._lower_size;
+                            output_index += (lower_output_padding[2 + 0] + output_yi) * output_buffer_size.spatial[0] + lower_output_padding[2 + 1] + output_xi;
 
                             for (int kernel_y = 0; kernel_y < weights_size.spatial[1]; kernel_y++) {
                                 int input_yi = static_cast<int>(y * stride[0] - pad[0] + kernel_y * dilation[0]);
@@ -10465,6 +10471,8 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv16_no_bias) {
     auto outputs = network.execute();
 
     auto output_memory = outputs.at("conv").get_memory();
+    ov::intel_gpu::ImplementationDesc conv_impl_ref = { format::bfyx, "convolution_gpu_ref", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl_ref } }));
     auto output_memory_ref = calculate_ref(input, weights, config);
 
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());

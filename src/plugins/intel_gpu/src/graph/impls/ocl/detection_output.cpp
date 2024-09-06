@@ -55,8 +55,8 @@ public:
         detectOutParams.clip_after_nms = primitive->clip_after_nms;
         detectOutParams.conf_size_x = confidence_layout.get_padded_dims()[2];
         detectOutParams.conf_size_y = confidence_layout.get_padded_dims()[3];
-        detectOutParams.conf_padding_x = confidence_layout.data_padding.lower_size().spatial[0];
-        detectOutParams.conf_padding_y = confidence_layout.data_padding.lower_size().spatial[1];
+        detectOutParams.conf_padding_x = confidence_layout.data_padding._lower_size[2];
+        detectOutParams.conf_padding_y = confidence_layout.data_padding._lower_size[3];
 
         return params;
     }
