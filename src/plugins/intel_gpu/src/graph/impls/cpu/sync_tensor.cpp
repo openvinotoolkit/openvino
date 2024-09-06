@@ -299,10 +299,11 @@ public:
         clEnqueueCopyBuffer(queue, src, dst, 0, 0, size, 0, NULL, &ret);
         // auto event = ocl_stream.create_event(cl::Event(ret));
         // clFinish(queue);
+        clWaitForEvents(1, &ret);
         perf_dump_done(start, std::string("p2p copy host time for") + std::to_string(size) + std::string(" bytes"));
         // return usr_event;
-        return ocl_stream.create_event(cl::Event(ret));
-        // return stream.create_user_event(true);
+        // return ocl_stream.create_event(cl::Event(ret));
+        return stream.create_user_event(true);
     }
 
 private:
@@ -394,7 +395,7 @@ public:
 
             exit(1);
         }
-         std::cout << "get_or_create_kernel_if_possible: create_kernel->clBuildProgram " << kernelName << std::endl;
+        std::cout << "get_or_create_kernel_if_possible: create_kernel->clBuildProgram " << kernelName << std::endl;
         cl_kernel kernel = clCreateKernel(program, kernelName, &err);
         CHECK_OCL_ERROR_EXIT(err, "clCreateKernel failed");
         return kernel;
@@ -482,7 +483,7 @@ public:
         // clFinish(queue);
         // clWaitForEvents(1, &ret);
 
-        perf_dump_done(start, std::string("tensor add host time"), true);
+        perf_dump_done(start, std::string("tensor add host time"), false);
         return ocl_stream.create_event(cl::Event(ret));
         // return usr_event;
         // return stream.create_user_event(true);
@@ -558,6 +559,9 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                         {
                             std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
                             sub_mem_mgr->_memorys_table[id][idx].events[w_rank] = nullptr;
+                            // MUST release remote cl_mem, but it will cause remote map failed.
+                            // cl_mem remote_mem = static_cast<cl_mem>(sub_mem_mgr->_memorys_table[id][idx].remote_mem[w_rank]);
+                            // clReleaseMemObject(remote_mem); // MUST releas remote cl_mem to avoid OUT OF RESOURCE
                         }
                     }
                 }
@@ -569,7 +573,8 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
             auto end = perf_dump_start();
             std::chrono::duration<double, std::milli> duration = end - start;
             if (duration.count() > 10000) {
-                std::cout << "Warning: sync_tensor wait_p2p_done timeout..." << std::endl;
+                std::cout << "rank[" << w_rank << "]Error: sync_tensor wait_p2p_done timeout..." << std::endl;
+                exit(1);
             }
         }
         perf_dump_done(start,
@@ -602,7 +607,8 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
             auto end = perf_dump_start();
             std::chrono::duration<double, std::milli> duration = end - start;
             if (duration.count() > 10000) {
-                std::cout << "Warning: sync_tensor propagate_p2p_events timeout..." << std::endl;
+                std::cout << "rank[" << w_rank << "]Error: sync_tensor propagate_p2p_events timeout..." << std::endl;
+                exit(1);
             }
         }
 
@@ -645,7 +651,8 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
             auto end_1 = perf_dump_start();
             std::chrono::duration<double, std::milli> duration = end_1 - start_1;
             if (duration.count() > 10000) {
-                std::cout << "Warning: sync_tensor wait data ready timeout..." << std::endl;
+                std::cout << "rank[" << w_rank << "]Error: sync_tensor wait data ready timeout..." << std::endl;
+                exit(1);
             }
         }
         perf_dump_done(start_1,
@@ -693,6 +700,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                     {
                         std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
                         sub_mem_mgr->_memorys_table[id][idx].events[w_rank] = sync_event;
+                        // sub_mem_mgr->_memorys_table[id][idx].remote_mem[w_rank] = static_cast<void *>(dst_cl_buf);
                     }
                     if (0) {
                         std::lock_guard<std::mutex> lock(debug_mutex);
@@ -710,7 +718,8 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
             auto end_2 = perf_dump_start();
             std::chrono::duration<double, std::milli> duration = end_2 - start_2;
             if (duration.count() > 10000) {
-                std::cout << "Warning: sync_tensor p2p write timeout...." << std::endl;
+                std::cout << "rank[" << w_rank << "]Error: sync_tensor p2p write timeout..." << std::endl;
+                exit(1);
             }
         }
 
@@ -732,6 +741,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
 
         std::vector<cldnn::event::ptr> sync_events;
         if (instance.get_impl_params()->need_add) {
+            // All_reduce path
             auto start_3 = perf_dump_start();
             auto dst_mem = std::dynamic_pointer_cast<const ocl::gpu_buffer>(instance.output_memory_ptr(w_rank));
             auto dst_cl_buf = dst_mem->get_buffer().get();
@@ -763,8 +773,10 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                 dump_cl_buf(ocl_stream.get_cl_queue().get(), dst_cl_buf, dst_mem->count(), 0);
             }
         } else {
-            sync_events = propagate_p2p_events(sub_mem_mgr, id, w_size, w_rank);
-            // wait_p2p_done(sub_mem_mgr, id, w_size, w_rank);
+            // All_gather path
+            // P2P adopts sync write to avoid the problem of event cannot work across contexts
+            wait_p2p_done(sub_mem_mgr, id, w_size, w_rank);
+            // sync_events = propagate_p2p_events(sub_mem_mgr, id, w_size, w_rank);
         }
 
         if (pass_through_events) {
@@ -778,9 +790,9 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                        std::string("rank[") + std::to_string(w_rank) + std::string("] sync_tensor total"),
                        true);
 
-        for (auto& evt : sync_events) {
-             evt->wait();
-        }
+        // for (auto& evt : sync_events) {
+        //     evt->wait();
+        // }
 
         // This block MUST be put exactly at the end of this method.
         {
