@@ -572,25 +572,24 @@ static constexpr Property<ExecutionMode> execution_mode{"EXECUTION_MODE_HINT"};
  * quantization optimization is disabled.
  */
 namespace dynamic_quantization {
-struct GroupSize  {
-    using Base = std::tuple<uint64_t>;  //!< GroupSize is representable as uint64_t
-
-    constexpr GroupSize() : gs_num{0} {};
-
-    constexpr GroupSize(const uint64_t num_) : gs_num{num_} {}
-
+struct Mode  {
+    using Base = std::tuple<uint64_t>;  //!< Mode is representable as uint64_t
     constexpr operator uint64_t() const {
         return gs_num;
     }
 
     uint64_t gs_num = 0;
+
+    static constexpr Mode DISABLED() { return Mode(0); }
+    static constexpr Mode PER_TOKEN() { return Mode(UINT64_MAX); }
+    static constexpr Mode GROUPED(size_t group) { return Mode(group); }
+
+private:
+    constexpr Mode() : gs_num{0} {};
+    constexpr Mode(const uint64_t num_) : gs_num{num_} {}
 };
 
-static constexpr GroupSize PER_TOKEN{UINT64_MAX};
-
-static constexpr GroupSize DISABLED{0};
-
-static constexpr Property<GroupSize, PropertyMutability::RW> group_size{"DYNAMIC_QUANTIZATION_GROUP_SIZE"};
+static constexpr Property<Mode, ov::PropertyMutability::RW> mode{"DYNAMIC_QUANTIZATION_MODE"};
 
 } // namespace dynamic_quantization
 

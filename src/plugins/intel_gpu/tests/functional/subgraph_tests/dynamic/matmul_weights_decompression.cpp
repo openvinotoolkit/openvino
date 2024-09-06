@@ -283,7 +283,7 @@ protected:
 
         // test both new hint (dynamic_quantization::group_size) and old hint(dynamic_quantization_group_size)
         if (test_hint)
-            this->configuration.insert({ov::hint::dynamic_quantization::group_size(dyn_quan_group_size)});
+            this->configuration.insert({ov::hint::dynamic_quantization_group_size(dyn_quan_group_size)});
         else
             this->configuration.insert({ov::hint::dynamic_quantization_group_size(dyn_quan_group_size)});
     }

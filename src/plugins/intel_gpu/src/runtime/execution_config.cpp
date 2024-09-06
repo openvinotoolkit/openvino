@@ -58,6 +58,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::cache_mode, ov::CacheMode::OPTIMIZE_SPEED),
         std::make_tuple(ov::cache_encryption_callbacks, EncryptionCallbacks{}),
         std::make_tuple(ov::hint::dynamic_quantization_group_size, 0),
+        std::make_tuple(ov::hint::dynamic_quantization::mode, ov::hint::dynamic_quantization::Mode::DISABLED()),
         std::make_tuple(ov::intel_gpu::hint::enable_kernels_reuse, false),
 
         // Legacy API properties
@@ -202,8 +203,11 @@ void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
         set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
     }
 
-    GPU_DEBUG_IF(debug_config->enable_dynamic_quantize) {
-        set_property(ov::hint::dynamic_quantization::group_size(ov::hint::dynamic_quantization::PER_TOKEN));
+    GPU_DEBUG_IF(debug_config->dynamic_quantize_group_size != 0) {
+        if (debug_config->dynamic_quantize_group_size == -1)
+            set_property(ov::hint::dynamic_quantization::mode(ov::hint::dynamic_quantization::Mode::PER_TOKEN()));
+        else
+            set_property(ov::hint::dynamic_quantization::mode(ov::hint::dynamic_quantization::Mode::GROUPED(debug_config->dynamic_quantize_group_size)));
     }
 }
 

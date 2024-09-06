@@ -860,7 +860,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
 
-        auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
+        uint64_t dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization::mode);
+        if (dynamic_quantization_group_size == 0)
+            dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
+
         if (device_info.supports_immad) {
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 // per-token quantization is supported

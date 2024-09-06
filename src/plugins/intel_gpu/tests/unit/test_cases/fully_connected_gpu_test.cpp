@@ -1370,7 +1370,7 @@ public:
         auto config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::hint::dynamic_quantization::group_size(32));
+        config.set_property(ov::hint::dynamic_quantization::mode(ov::hint::dynamic_quantization::Mode::GROUPED(32)));
 
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
