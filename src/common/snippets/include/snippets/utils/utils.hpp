@@ -74,9 +74,21 @@ constexpr inline bool implication(bool cause, bool cond) {
 }
 
 template <typename T, typename U>
-inline T div_up(const T a, const U b) {
-    OPENVINO_ASSERT(b != 0, "Divider must not be zero");
-    return static_cast<T>((a + b - 1) / b);
+inline T div_up(const T lhs, const U rhs) {
+    OPENVINO_ASSERT(rhs != 0, "Divider must not be zero");
+    if (((std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value) && utils::is_dynamic_value(lhs)) ||
+        ((std::is_same<U, size_t>::value || std::is_same<U, int64_t>::value) && utils::is_dynamic_value(rhs)))
+        return utils::get_dynamic_value<T>();
+    return static_cast<T>((lhs + rhs - 1) / rhs);
+}
+
+template<typename T, typename U>
+inline T rnd_up(const T lhs, const U rhs) {
+    const T div_up_res = div_up(lhs, rhs);
+    if (((std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value) && utils::is_dynamic_value(div_up_res)) ||
+        ((std::is_same<U, size_t>::value || std::is_same<U, int64_t>::value) && utils::is_dynamic_value(rhs)))
+        return utils::get_dynamic_value<T>();
+    return div_up_res * rhs;
 }
 
 inline bool is_dynamic_vdims(const VectorDims& shape) {

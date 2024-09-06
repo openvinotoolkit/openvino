@@ -5,6 +5,7 @@
 #include "jit_tpp_emitter.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "transformations/tpp/x64/op/eltwise.hpp"
+#include "emitters/plugin/x64/utils.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -77,7 +78,7 @@ void TppEmitter::emit_code(const std::vector<size_t> &in, const std::vector<size
 }
 
 void TppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    internal_call_preamble();
+    JitSafeInternalCall safe_internal_caller(h);
     // Note: 4 args is currently enough for unary and binary ops.
     // To enable ternary ops, we will have to pass extra regs on stack for Windows,
     std::array<Xbyak::Reg64, 4> abi_params{abi_param1, abi_param2, abi_param3, abi_param4};
@@ -104,11 +105,7 @@ void TppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size
     for (int i = 0; i < num_kernel_args; i++)
         data_ptr_reg(Xmm(i), abi_params[i + 1], io_offsets[i]);
 
-    internal_call_rsp_align();
-    h->call(h->rbp);
-    internal_call_rsp_restore();
-
-    internal_call_postamble();
+    safe_internal_caller.call(h->rbp);
 }
 
 libxsmm_datatype TppEmitter::ov_to_xsmm_dtype(ov::element::Type_t elemet_type) {

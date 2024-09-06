@@ -9,6 +9,8 @@
 namespace ov {
 namespace intel_cpu {
 
+#ifdef CPU_DEBUG_CAPS
+
 // Usage
 // 1. Include this headfile where JIT kennels of CPU plugin are implemented for Register printing
 // 2. Invoke RegPrinter::print method. Here are some examples. Note that user friendly register name
@@ -87,6 +89,37 @@ private:
     static void restore_rsp(jit_generator &h);
     static constexpr size_t reg_len = 8;
     static constexpr size_t reg_cnt = 16;
+};
+#endif
+
+// The class can be used for safe inernal call in JIT kernels:
+// make preamble (in constructor), postamble (in desctructor) and safe call with RSP aligning
+class JitSafeInternalCall {
+public:
+    JitSafeInternalCall(dnnl::impl::cpu::x64::jit_generator* h);
+    ~JitSafeInternalCall();
+
+    void call(Xbyak::Reg64 reg) const;
+
+private:
+    JitSafeInternalCall() = default;
+
+    static dnnl::impl::cpu::x64::cpu_isa_t get_isa();
+
+    // align stack on 16-byte and allocate shadow space as ABI reqiures
+    // callee is responsible to save and restore `rbx`. `rbx` must not be changed after call callee.
+    void rsp_align() const;
+    void rsp_restore() const;
+
+    inline size_t get_max_vecs_count() const { return dnnl::impl::cpu::x64::isa_num_vregs(isa); }
+    inline size_t get_vec_length() const { return dnnl::impl::cpu::x64::isa_max_vlen(isa); }
+
+    dnnl::impl::cpu::x64::jit_generator* h {nullptr};
+    const dnnl::impl::cpu::x64::cpu_isa_t isa {dnnl::impl::cpu::x64::cpu_isa_t::isa_undef};
+
+    static constexpr int k_mask_size = 8;
+    static constexpr int k_mask_num = 8;
+    static constexpr int gpr_size = 8;
 };
 
 }   // namespace intel_cpu
