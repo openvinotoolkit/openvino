@@ -217,8 +217,7 @@ TEST(network_test, scratchpad_test) {
         return;
 
     // benchdnn parameters:
-    // --ip --engine=gpu:0 --dir=FWD_B --dt=f16:f16:f16 --stag=abcd --wtag=any --dtag=ab --attr-scratchpad=user
-    // mb16384ic768ih1iw1oc3072
+    // --ip --engine=gpu:0 --dir=FWD_B --dt=f16:f16:f16 --stag=abcd --wtag=any --dtag=ab --attr-scratchpad=user mb16384ic768ih1iw1oc3072
     layout in_layout{{16384, 768}, data_types::f16, format::bfyx};
     auto input_mem = engine.allocate_memory(in_layout);
     auto weights = engine.allocate_memory({{3072, 768}, data_types::f16, format::oiyx});
