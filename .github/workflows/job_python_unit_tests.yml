@@ -16,12 +16,15 @@ on:
         description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
         type: string
         required: true
+      python-version:
+        description: 'Python version to setup. E.g., "3.11"'
+        type: string
+        required: true
 
 permissions: read-all
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
-  PYTHON_VERSION: '3.11'
 
 jobs:
   Python_Unit_Tests:
@@ -77,10 +80,10 @@ jobs:
           sparse-checkout-cone-mode: false
           path: 'action_root'
 
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
+      - name: Setup Python ${{ inputs.python-version }}
         uses: ./action_root/.github/actions/setup_python
         with:
-          version: ${{ env.PYTHON_VERSION }}
+          version: ${{ inputs.python-version }}
           pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
           should-setup-pip-paths: ${{ runner.os == 'Linux' }}
           self-hosted-runner: ${{ runner.os == 'Linux' }}
