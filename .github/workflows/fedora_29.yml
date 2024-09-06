@@ -81,7 +81,7 @@ jobs:
       build-contrib: false
       build-debian-packages: false
       build-js: false
-      build-rpm-packages: false
+      build-rpm-packages: true
       cmake-options: |- 
             -G "Ninja" \
             -DENABLE_CPPLINT=OFF \
@@ -96,6 +96,63 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DCMAKE_BUILD_TYPE=Release
 
+  RPM_Packages:
+    name: RPM packages
+    needs: [Docker, Build]
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-4-cores-16gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_29 }}
+    env:
+      RPM_PACKAGES_DIR: /__w/openvino/packages/
+
+    steps:
+      - name: Download OpenVINO RPM packages
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: openvino_rpm_packages
+          path: ${{ env.RPM_PACKAGES_DIR }}
+
+      - name: Install RPM packages & check conflicts
+        run: |
+          tee > /tmp/openvino-2023.repo << EOF
+          [OpenVINO]
+          name=Intel(R) Distribution of OpenVINO 2023
+          baseurl=https://yum.repos.intel.com/openvino/2023
+          enabled=1
+          gpgcheck=1
+          repo_gpgcheck=1
+          gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          EOF
+
+          # install previous release version
+          mv /tmp/openvino-2023.repo /etc/yum.repos.d
+          yum install -y openvino
+
+          # install current version
+          yum install --allowerasing -y *.rpm
+        working-directory: ${{ env.RPM_PACKAGES_DIR }}
+
+      - name: Test RPM packages
+        run: |
+          /usr/share/openvino/samples/cpp/build_samples.sh
+          /usr/share/openvino/samples/c/build_samples.sh
+          ~/openvino_cpp_samples_build/intel64/Release/hello_query_device
+          python3 /usr/share/openvino/samples/python/hello_query_device/hello_query_device.py
+          python3 -c 'from openvino import Core; Core().get_property("CPU", "AVAILABLE_DEVICES")'
+          python3 -c 'from openvino import Core; Core().get_property("GPU", "AVAILABLE_DEVICES")'
+          python3 -c 'from openvino import Core; Core().get_property("AUTO", "SUPPORTED_PROPERTIES")'
+          python3 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_PROPERTIES")'
+          python3 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_PROPERTIES")'
+          python3 -c 'from openvino import Core; Core().get_property("BATCH", "SUPPORTED_PROPERTIES")'
+          python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 7'
+          benchmark_app --help
+          opt_in_out --help
+          ovc --help
+
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: [ Docker, Build, Smart_CI ]
@@ -106,8 +163,8 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
   
   Overall_Status:
-    name: ci/gha_overall_status_fedora_29
-    needs: [Smart_CI, Build, CXX_Unit_Tests]
+    name: ci/gha_overall_status_fedora
+    needs: [Smart_CI, Build, CXX_Unit_Tests, RPM_Packages]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
