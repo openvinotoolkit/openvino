@@ -124,13 +124,13 @@ efficientnet_es_pruned.in1k,None
 efficientnet_lite0.ra_in1k,None
 efficientnetv2_rw_s.ra2_in1k,None
 efficientnetv2_rw_t.ra2_in1k,None
-efficientvit_b0.r224_in1k,None
-efficientvit_b1.r224_in1k,None
-efficientvit_b2.r224_in1k,None
-efficientvit_b3.r224_in1k,None
-efficientvit_l1.r224_in1k,None
-efficientvit_l2.r224_in1k,None
-efficientvit_l3.r224_in1k,None
+efficientvit_b0.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
+efficientvit_b1.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
+efficientvit_b2.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
+efficientvit_b3.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
+efficientvit_l1.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
+efficientvit_l2.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
+efficientvit_l3.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
 efficientvit_m0.r224_in1k,None
 efficientvit_m1.r224_in1k,None
 efficientvit_m2.r224_in1k,None
