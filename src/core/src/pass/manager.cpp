@@ -58,7 +58,7 @@ public:
         std::set<std::string> off = {"0", "false", "off"};
         std::set<std::string> on = {"1", "true", "on"};
 
-        const auto& val_lower = ov::util::to_lower(var);
+        const auto& val_lower = ov::util::to_lower(val);
         if (off.count(val_lower)) {
             m_is_bool = true;
         } else if (on.count(val_lower)) {
