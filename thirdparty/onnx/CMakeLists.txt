@@ -44,21 +44,13 @@ foreach(_onnx_target onnx onnx_proto)
         $<TARGET_PROPERTY:protobuf::libprotobuf,INTERFACE_INCLUDE_DIRECTORIES>)
 endforeach()
 
-if(WIN32)
-    # from onnx==1.13.1 it requires C++17 when compiling on Windows
-    target_compile_features(onnx PRIVATE cxx_std_17)
+if(MINGW)
     # OPTIONAL is a reserved word for mingw at least
-    if(MINGW)
-        target_compile_definitions(onnx PRIVATE OPTIONAL=OPTIONAL_PLACEHOLDER)
-    endif()
+    target_compile_definitions(onnx PRIVATE OPTIONAL=OPTIONAL_PLACEHOLDER)
 endif()
 
-# WA to support old compiler version, removes unused header which may block build
-if(CMAKE_COMPILER_IS_GNUCXX AND LINUX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
-    file(READ onnx/onnx/defs/parser.cc CONTENT)
-    string(REPLACE "#include <string_view>" "" CONTENT "${CONTENT}")
-    file(WRITE onnx/onnx/defs/parser.cc "${CONTENT}")
-endif()
+# from onnx==1.13.1 it requires C++17 when compiling on Windows, and since onnx==1.16.0 on Linux
+target_compile_features(onnx_proto PUBLIC cxx_std_17)
 
 ov_disable_all_warnings(onnx onnx_proto)
 

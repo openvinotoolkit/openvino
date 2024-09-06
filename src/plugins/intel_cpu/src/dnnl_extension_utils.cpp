@@ -35,6 +35,8 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     case dnnl::memory::data_type::nf4:
     case dnnl::memory::data_type::s4:
     case dnnl::memory::data_type::u4:
+    case dnnl::memory::data_type::f8_e8m0:
+    case dnnl::memory::data_type::f4_e2m1:
         return 1;
     case dnnl::memory::data_type::undef:
         return 0;
@@ -66,6 +68,10 @@ dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::elem
             return memory::data_type::s4;
         case ov::element::u4:
             return memory::data_type::u4;
+        case ov::element::f8e8m0:
+            return memory::data_type::f8_e8m0;
+        case ov::element::f4e2m1:
+            return memory::data_type::f4_e2m1;
         case ov::element::undefined:
             return memory::data_type::undef;
         default: {
@@ -98,6 +104,10 @@ ov::element::Type DnnlExtensionUtils::DataTypeToElementType(const dnnl::memory::
             return ov::element::i4;
         case memory::data_type::u4:
             return ov::element::u4;
+        case memory::data_type::f8_e8m0:
+            return ov::element::f8e8m0;
+        case memory::data_type::f4_e2m1:
+            return ov::element::f4e2m1;
         case memory::data_type::undef:
             return ov::element::undefined;
         default: {
@@ -161,6 +171,18 @@ DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const_dnnl_memory_desc_t de
     }
 }
 
+static size_t sub_byte_data_type_multiplier(dnnl::memory::data_type dataType) {
+    switch (dataType) {
+    case dnnl::memory::data_type::nf4:
+    case dnnl::memory::data_type::s4:
+    case dnnl::memory::data_type::u4:
+    case dnnl::memory::data_type::f4_e2m1:
+        return 2;
+    default:
+        return 1;
+    }
+}
+
 size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const dnnl::memory::desc& desc) {
     auto tmpDesc = desc;
 
@@ -171,7 +193,8 @@ size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const dnnl::memory::desc& desc)
     if (size == DNNL_RUNTIME_SIZE_VAL)
         return MemoryDesc::UNDEFINED_SIZE;
 
-    size += offset0 * sizeOfDataType(tmpDesc.get_data_type());
+    size += div_up(offset0 * sizeOfDataType(tmpDesc.get_data_type()),
+                   sub_byte_data_type_multiplier(tmpDesc.get_data_type()));
     return size;
 }
 
@@ -256,8 +279,8 @@ bool DnnlExtensionUtils::isUnarySupportedAsPostOp(Algorithm alg) {
 #endif
 }
 
-std::string DnnlExtensionUtils::computeWeightsStringHash(const std::shared_ptr<const IMemory> memory,
-                                                         const std::shared_ptr<DnnlMemoryDesc> dstDesc) {
+std::string DnnlExtensionUtils::computeWeightsStringHash(const std::shared_ptr<const IMemory>& memory,
+                                                         const std::shared_ptr<DnnlMemoryDesc>& dstDesc) {
     const auto desc_hash = dnnl::impl::primitive_hashing::get_md_hash(*dstDesc->getDnnlDesc().get());
     return std::to_string(desc_hash) + "_" + std::to_string(reinterpret_cast<uint64_t>(memory->getData()));
 }

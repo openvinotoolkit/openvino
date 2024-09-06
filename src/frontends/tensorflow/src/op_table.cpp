@@ -14,8 +14,10 @@
 #include "openvino/op/atan.hpp"
 #include "openvino/op/atanh.hpp"
 #include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
 #include "openvino/op/bitwise_not.hpp"
 #include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/cos.hpp"
@@ -62,7 +64,6 @@
 #include "openvino/op/softplus.hpp"
 #include "openvino/op/softsign.hpp"
 #include "openvino/op/squared_difference.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tan.hpp"
 #include "openvino/op/tanh.hpp"
@@ -97,6 +98,7 @@ TF_OP_CONVERTER(translate_iterator_get_next_op);
 TF_OP_CONVERTER(translate_iterator_op);
 TF_OP_CONVERTER(translate_lookup_table_import_op);
 TF_OP_CONVERTER(translate_lookup_table_find_op);
+TF_OP_CONVERTER(translate_lookup_table_size_op);
 TF_OP_CONVERTER(translate_loop_cond_op);
 TF_OP_CONVERTER(translate_merge_op);
 TF_OP_CONVERTER(translate_mergev2checkpoint_op);
@@ -172,6 +174,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"BitwiseAnd", CreatorFunction(translate_binary_op<v13::BitwiseAnd>)},
         {"BitwiseOr", CreatorFunction(translate_binary_op<v13::BitwiseOr>)},
         {"BitwiseXor", CreatorFunction(translate_binary_op<v13::BitwiseXor>)},
+        {"RightShift", CreatorFunction(translate_binary_op<v15::BitwiseRightShift>)},
+        {"LeftShift", CreatorFunction(translate_binary_op<v15::BitwiseLeftShift>)},
         {"Div", CreatorFunction(translate_div_op)},
         {"Equal", CreatorFunction(translate_binary_op<v1::Equal>)},
         {"FloorMod", CreatorFunction(translate_binary_op<v1::FloorMod>)},
@@ -190,7 +194,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Pow", CreatorFunction(translate_binary_op<v1::Power>)},
         {"RealDiv", CreatorFunction(translate_binary_op<v1::Divide>)},
         {"SquaredDifference", CreatorFunction(translate_binary_op<v0::SquaredDifference>)},
-        {"Sub", CreatorFunction(translate_binary_op<v1::Subtract>)},
 
         // note: ReduceOp translator declaration for each op must to be added in reduce.cpp file
         {"Any", CreatorFunction(translate_direct_reduce_op<v1::ReduceLogicalOr>)},
@@ -216,6 +219,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"BatchMatMul", CreatorFunction(translate_batch_mat_mul_op)},
         {"BatchMatMulV2", CreatorFunction(translate_batch_mat_mul_op)},
         {"BatchMatMulV3", CreatorFunction(translate_batch_mat_mul_with_type_op)},
+        {"BatchMatrixInverse", CreatorFunction(translate_matrix_inverse_op)},
         {"BatchToSpaceND", CreatorFunction(translate_batch_to_space_nd_op)},
         {"BroadcastArgs", CreatorFunction(translate_broadcast_args_op)},
         {"BroadcastTo", CreatorFunction(translate_broadcast_to_op)},
@@ -301,6 +305,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"LookupTableImportV2", CreatorFunction(translate_lookup_table_import_op)},
         {"LookupTableInsert", CreatorFunction(translate_no_op)},
         {"LookupTableInsertV2", CreatorFunction(translate_no_op)},
+        {"LookupTableSize", CreatorFunction(translate_lookup_table_size_op)},
+        {"LookupTableSizeV2", CreatorFunction(translate_lookup_table_size_op)},
         {"LRN", CreatorFunction(translate_lrn_op)},
         {"MatMul", CreatorFunction(translate_mat_mul_op)},
         {"MatrixBandPart", CreatorFunction(translate_matrix_band_part_op)},
@@ -356,6 +362,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"RFFT", CreatorFunction(translate_rfft_op)},
         {"RFFT2D", CreatorFunction(translate_rfft_op)},
         {"RFFT3D", CreatorFunction(translate_rfft_op)},
+        {"RGBToHSV", CreatorFunction(translate_rgb_to_hsv_op)},
         {"Rint", CreatorFunction(translate_rint_op)},
         {"Roll", CreatorFunction(translate_roll_op)},
         {"Round", CreatorFunction(translate_round_op)},
@@ -363,7 +370,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SaveV2", CreatorFunction(translate_no_op)},
         {"ScatterNd", CreatorFunction(translate_scatter_nd_op)},
         {"SegmentSum", CreatorFunction(translate_segment_sum_op)},
-        {"SparseToDense", CreatorFunction(translate_sparse_to_dense_op)},
         {"Select", CreatorFunction(translate_select_op)},
         {"SelectV2", CreatorFunction(translate_select_v2_op)},
         {"Shape", CreatorFunction(translate_shape_op)},
@@ -374,6 +380,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Softmax", CreatorFunction(translate_softmax_op)},
         {"SpaceToDepth", CreatorFunction(translate_space_to_depth_op)},
         {"SparseReshape", CreatorFunction(translate_sparse_reshape_op)},
+        {"SparseTensorDenseAdd", CreatorFunction(translate_sparse_tensor_dense_add_op)},
+        {"SparseTensorDenseMatMul", CreatorFunction(translate_sparse_tensor_dense_mat_mul_op)},
+        {"SparseToDense", CreatorFunction(translate_sparse_to_dense_op)},
         {"Split", CreatorFunction(translate_split_op)},
         {"SplitV", CreatorFunction(translate_split_v_op)},
         {"StopGradient", CreatorFunction(translate_identity_op)},
@@ -385,6 +394,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"StatelessIf", CreatorFunction(translate_if_op)},
         {"StatelessWhile", CreatorFunction(translate_while_op)},
         {"StridedSlice", CreatorFunction(translate_strided_slice_op)},
+        {"Sub", CreatorFunction(translate_sub_op)},
         {"Switch", CreatorFunction(translate_switch_op)},
         {"TensorArrayCloseV3", CreatorFunction(translate_tensor_array_close_v3_op)},
         {"TensorArrayConcatV3", CreatorFunction(translate_tensor_array_concat_v3_op)},
@@ -403,6 +413,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"TensorListReserve", CreatorFunction(translate_tensor_list_reserve_op)},
         {"TensorListResize", CreatorFunction(translate_tensor_list_resize_op)},
         {"TensorListConcatV2", CreatorFunction(translate_tensor_list_concat_v2_op)},
+        {"TensorScatterUpdate", CreatorFunction(translate_tensor_scatter_update_op)},
         {"Tile", CreatorFunction(translate_tile_op)},
         {"ToBool", CreatorFunction(translate_tobool_op)},
         {"TopK", CreatorFunction(translate_top_k_op)},

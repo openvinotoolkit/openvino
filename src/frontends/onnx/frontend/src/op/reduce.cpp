@@ -164,7 +164,7 @@ ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node) {
 }
 
 ov::OutputVector reduce_l1(const ov::frontend::onnx::Node& node) {
-    return {make_ov_reduction_op<v4::ReduceL1>(node, node.get_ov_inputs().at(0), supported_types_v1)};
+    return {make_ov_reduction_op<v4::ReduceL1>(node, node.get_ov_inputs().at(0), supported_types_v2)};
 }
 
 ov::OutputVector reduce_l2(const ov::frontend::onnx::Node& node) {
@@ -230,6 +230,12 @@ ov::OutputVector reduce_l2(const Node& node) {
     return {make_ov_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), supported_types_v2)};
 }
 
+ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node) {
+    const auto exp_node = std::make_shared<v0::Exp>(node.get_ov_inputs().at(0));
+    const ov::Output<ov::Node> sum_node = make_ov_reduction_op<v1::ReduceSum>(node, exp_node, supported_types_v2);
+    return {std::make_shared<v0::Log>(sum_node)};
+}
+
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3)};
 }
@@ -242,15 +248,21 @@ ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMin>(node, node.get_ov_inputs().at(0), supported_types_v3)};
 }
 
+ov::OutputVector reduce_prod(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceProd>(node, node.get_ov_inputs().at(0), supported_types_v2)};
+}
+
 ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     return {onnx_reduce_sum_square(node, supported_types_v2)};
 }
 
 static bool register_multiple_translators(void) {
     ONNX_OP_M("ReduceL2", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_l2);
+    ONNX_OP_M("ReduceLogSumExp", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_log_sum_exp);
     ONNX_OP_M("ReduceMax", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_max);
     ONNX_OP_M("ReduceMean", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_mean);
     ONNX_OP_M("ReduceMin", {13, 17}, ai_onnx::opset_13::reduce_min);
+    ONNX_OP_M("ReduceProd", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_prod);
     ONNX_OP_M("ReduceSum", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_sum);
     ONNX_OP_M("ReduceSumSquare", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_sum_square);
     return true;
@@ -262,6 +274,13 @@ static bool registered = register_multiple_translators();
 namespace opset_18 {
 ov::OutputVector reduce_l2(const Node& node) {
     return {make_ov_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
+}
+
+ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node) {
+    const auto exp_node = std::make_shared<v0::Exp>(node.get_ov_inputs().at(0));
+    const ov::Output<ov::Node> sum_node =
+        make_ov_reduction_op<v1::ReduceSum>(node, exp_node, supported_types_v3, false);
+    return {std::make_shared<v0::Log>(sum_node)};
 }
 
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
@@ -282,17 +301,28 @@ ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Log>(sum_node)};
 }
 
+ov::OutputVector reduce_prod(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceProd>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
+}
+
 ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     return {onnx_reduce_sum_square(node, supported_types_v2, false)};
+}
+
+ov::OutputVector reduce_l1(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v4::ReduceL1>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
 
 static bool register_multiple_translators(void) {
     ONNX_OP_M("ReduceLogSum", OPSET_SINCE(18), ai_onnx::opset_18::reduce_log_sum);
     ONNX_OP_M("ReduceL2", OPSET_SINCE(18), ai_onnx::opset_18::reduce_l2);
+    ONNX_OP_M("ReduceLogSumExp", OPSET_SINCE(18), ai_onnx::opset_18::reduce_log_sum_exp);
     ONNX_OP_M("ReduceMax", OPSET_RANGE(18, 19), ai_onnx::opset_18::reduce_max);
     ONNX_OP_M("ReduceMean", OPSET_SINCE(18), ai_onnx::opset_18::reduce_mean);
     ONNX_OP_M("ReduceMin", {18, 19}, ai_onnx::opset_18::reduce_min);
+    ONNX_OP_M("ReduceProd", OPSET_SINCE(18), ai_onnx::opset_18::reduce_prod);
     ONNX_OP_M("ReduceSumSquare", OPSET_SINCE(18), ai_onnx::opset_18::reduce_sum_square);
+    ONNX_OP_M("ReduceL1", OPSET_SINCE(18), ai_onnx::opset_18::reduce_l1);
     return true;
 }
 

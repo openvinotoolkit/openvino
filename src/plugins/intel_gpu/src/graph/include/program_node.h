@@ -53,8 +53,6 @@ struct program_node {
     friend class pre_replace_deconv;                // to be removed when possible
     friend class prepare_primitive_fusing;          // to be removed when possible
     friend class prepare_quantization;              // to be removed when possible
-    friend class prepare_conv_eltw_fusing;          // to be removed when possible
-    friend class prepare_conv_eltw_read_write_opt;  // to be removed when possible
     friend class propagate_constants;               // to be removed when possible
 
     template <class PType>
@@ -70,7 +68,6 @@ public:
     virtual const primitive_id& id() const { return desc->id; }
     virtual primitive_type_id type() const { return desc->type; }
     virtual std::shared_ptr<NodeFuseParams> get_fuse_params() const { return nullptr; }
-    virtual bool generates_dynamic_output() const { return false; }
 
     virtual std::vector<size_t> get_shape_infer_dependencies() const {
         // Default impl will request all deps for shape infer
@@ -356,6 +353,8 @@ public:
     operator typed_program_node<To> const&() const {
         return as<To>();
     }
+
+    virtual std::set<size_t> get_lockable_input_ids() const;
 
     void add_dependant_shape_of_node(const program_node* node);
 

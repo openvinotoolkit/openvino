@@ -29,7 +29,8 @@ Expression::Expression(const std::shared_ptr<Node>& n, const std::shared_ptr<ISh
 
 Expression::Expression(const Expression& other) :
     std::enable_shared_from_this<Expression>(other), m_source_node(other.m_source_node), m_emitter(other.m_emitter),
-    m_loop_ids(other.m_loop_ids), m_shapeInference(other.m_shapeInference), m_need_shape_infer(other.m_need_shape_infer) {
+    m_loop_ids(other.m_loop_ids), m_shapeInference(other.m_shapeInference), m_need_shape_infer(other.m_need_shape_infer),
+    m_exec_num(other.m_exec_num) {
     auto clone_ports_descriptors = [](const std::vector<PortDescriptorPtr>& src, std::vector<PortDescriptorPtr>& dst) {
         dst.resize(src.size());
         for (size_t i = 0; i < src.size(); i++)
@@ -174,11 +175,11 @@ ExpressionPtr Expression::clone_with_new_inputs(const ExpressionMap& expr_map,
 }
 
 ExpressionPort Expression::get_input_port(size_t i) {
-    return ExpressionPort(this->shared_from_this(), ExpressionPort::Type::Input, i);
+    return ExpressionPort(shared_from_this(), ExpressionPort::Type::Input, i);
 }
 
 ExpressionPort Expression::get_output_port(size_t i) {
-    return ExpressionPort(this->shared_from_this(), ExpressionPort::Type::Output, i);
+    return ExpressionPort(shared_from_this(), ExpressionPort::Type::Output, i);
 }
 
 std::vector<ExpressionPort> Expression::get_input_ports() {

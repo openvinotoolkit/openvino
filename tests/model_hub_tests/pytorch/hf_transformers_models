@@ -2,7 +2,6 @@
 albert,albert/albert-base-v2
 align,kakaobrain/align-base,xfail,Compile error: AvgPool: Kernel after dilation has size (dim: 640) larger than the data shape after padding (dim: 9) at axis 0.
 altclip,BAAI/AltCLIP
-aquila,BAAI/AquilaCode-py
 audio-spectrogram-transformer,MIT/ast-finetuned-audioset-10-10-0.4593
 autoformer,huggingface/autoformer-tourism-monthly,xfail,Load error: mat1 and mat2 shapes cannot be multiplied
 bark,suno/bark,xfail,Load error: got an unexpected keyword argument 'input_ids'
@@ -22,7 +21,6 @@ blip_2_vision_model,ZinengTang/clip_last_layer_removed
 blip-2,Salesforce/blip2-opt-2.7b:language_projection
 blip-2,Salesforce/blip2-opt-2.7b:qformer
 blip-2,Salesforce/blip2-opt-2.7b:vision_model
-bloom,bigscience/bloom-560m
 bort,stefan-it/bort-full
 bridgetower,regisss/bridgetower-newyorker-a100-8x
 bros,naver-clova-ocr/bros-base-uncased
@@ -66,7 +64,7 @@ encoder_decoder,patrickvonplaten/bert2gpt2-cnn_dailymail-fp16,xfail,Load error: 
 encoder-decoder,raynardj/wenyanwen-chinese-translate-to-ancient
 ernie,nghuyong/ernie-3.0-base-zh
 ernie_m,MoritzLaurer/ernie-m-large-mnli-xnli
-esm,InstaDeepAI/nucleotide-transformer-2.5b-multi-species
+esm,InstaDeepAI/nucleotide-transformer-500m-human-ref
 f_t5,flax-community/ft5-cnn-dm
 fastspeech2_conformer,espnet/fastspeech2_conformer,xfail,Compile error: CPU plug-in doesn't support Tile operation with dynamic rank. Operation name: aten::repeat_interleave/Tile
 fastspeech2_conformer_with_hifigan,espnet/fastspeech2_conformer_with_hifigan,xfail,Compile error: CPU plug-in doesn't support Tile operation with dynamic rank. Operation name: __module.model/aten::repeat_interleave/Tile
@@ -79,9 +77,9 @@ fsmt,facebook/wmt19-en-ru,xfail,Trace error: Only tensors lists tuples of tensor
 funnel,funnel-transformer/small
 git,microsoft/git-large-coco,xfail,Trace error: We don't have an op for aten::full but it isn't a special case
 glpn,vinvino02/glpn-nyu
+gpt_bigcode,bigcode/tiny_starcoder_py
 gpt_neo,EleutherAI/gpt-neo-2.7B
 gpt2,openai-community/gpt2
-gptj,databricks/dolly-v1-6b
 gptsan-japanese,Tanrei/GPTSAN-japanese,xfail,Unsupported op aten::index_put_ prim::TupleConstruct prim::TupleUnpack
 graphormer,clefourrier/graphormer-base-pcqm4mv2,xfail,Load error: GraphormerForGraphClassification.forward() missing 6 required positional arguments: 'input_edges' 'attn_bias' 'in_degree' 'out_degree' 'spatial_pos' and 'attn_edge_type'
 grounding-dino,IDEA-Research/grounding-dino-base,xfail,Trace error: op->outputs().size() == 1 INTERNAL ASSERT FAILED
@@ -92,7 +90,7 @@ hubert,facebook/hubert-large-ls960-ft
 hybridbert,gokuls/bert_12_layer_model_v1
 ibert,DunnBC22/ibert-roberta-base-Abusive_Or_Threatening_Speech
 idefics,HuggingFaceM4/tiny-random-idefics,xfail,aten::einsum Different input dimensions indicated by the same labels for Einsum must be compatible
-imagegpt,hf-internal-testing/tiny-random-ImageGPTModel
+imagegpt,openai/imagegpt-small
 informer,huggingface/informer-tourism-monthly,xfail,Load error: mat1 and mat2 shapes cannot be multiplied
 instructblip,Salesforce/instructblip-vicuna-7b
 jukebox,openai/jukebox-1b-lyrics,xfail,Load error: Module [JukeboxModel] is missing the required "forward" function
@@ -109,7 +107,7 @@ levit,facebook/levit-128S,xfail,Trace error: Cannot insert a Tensor that require
 lilt,nielsr/lilt-xlm-roberta-base
 llama_with_landmark,Leooyii/Landmark_512_Slimpajama_1B
 longformer,allenai/longformer-base-4096
-longt5,pszemraj/long-t5-tglobal-base-16384-book-summary,xfail,Compile error: unsupported Einsum
+longt5,pszemraj/long-t5-tglobal-base-16384-book-summary,xfail,(CVS-148676) Compile error: unsupported Einsum
 luke,oshizo/sbert-jsnli-luke-japanese-base-lite
 lxmert,unc-nlp/lxmert-base-uncased
 m2m_100,facebook/nllb-200-distilled-600M
@@ -122,14 +120,13 @@ mbart,facebook/mbart-large-50-many-to-many-mmt
 mctct,speechbrain/m-ctc-t-large
 mega,Bingsu/mega-150m-arch,xfail,Trace error: Cannot insert a Tensor that requires grad as a constant
 megatron-bert,UFNLP/gatortron-base
-mgp-str,alibaba-damo/mgp-str-base,xfail,Compile error: unsupported Einsum
+mgp-str,alibaba-damo/mgp-str-base,xfail,(CVS-148676) Compile error: unsupported Einsum
 mobilebert,google/mobilebert-uncased
 mobilenet_v1,google/mobilenet_v1_0.75_192
 mobilenet_v2,google/mobilenet_v2_1.0_224
 mobilevit,apple/mobilevit-small
-mobilevitv2,apple/mobilevitv2-1.0-imagenet1k-256,xfail,Col2Im: Static shape inference lacks constant data on port 1
+mobilevitv2,apple/mobilevitv2-1.0-imagenet1k-256
 mpnet,sentence-transformers/all-mpnet-base-v2
-mpt,team-lucid/mptk-1b
 mra,uw-madison/mra-base-512-4
 mt5,csebuetnlp/mT5_multilingual_XLSum
 musicgen,facebook/musicgen-large
@@ -159,7 +156,7 @@ prophetnet,microsoft/prophetnet-large-uncased-squad-qg
 pvt,Zetatech/pvt-tiny-224
 rag,facebook/rag-token-nq,xfail,Load error: Make sure that `context_input_ids` are passed if no `retriever` is set.
 realm,google/realm-orqa-nq-openqa,xfail,Load error: 'NoneType' object is not callable
-reformer,google/reformer-enwik8,xfail,Load error: index out of range in self
+reformer,google/reformer-enwik8,xfail,Trace error: _Map_base::at
 regnet,facebook/regnet-x-002
 rembert,google/rembert
 resnet,microsoft/resnet-50
@@ -171,7 +168,7 @@ rt_detr,rafaelpadilla/porting_rt_detr,xfail,Trace error: Only tensors lists tupl
 rwkv,RWKV/rwkv-4-169m-pile
 sam,facebook/sam-vit-huge
 scibert,Goutham-Vignesh/ContributionSentClassification-scibert
-seamless_m4t,facebook/hf-seamless-m4t-large
+seamless_m4t,facebook/hf-seamless-m4t-medium
 segformer,mattmdjaga/segformer_b2_clothes
 seg-ment-tation,NiCy/seg-ment-tation
 sew,anton-l/sew-mid-100k-ft-keyword-spotting
@@ -180,12 +177,10 @@ siglip,google/siglip-base-patch16-224
 siglip_vision_model,bczhou/TinyLLaVA-3.1B-SigLIP
 speech_to_text,facebook/s2t-small-librispeech-asr
 speech_to_text_2,pirxus/s2t2_decoder_base
-speech-encoder-decoder,facebook/wav2vec2-xls-r-2b-22-to-16
+speech-encoder-decoder,facebook/wav2vec2-xls-r-300m-en-to-15
 speecht5,microsoft/speecht5_tts,xfail,Unsupported op aten::bernoulli
 splinter,tau/splinter-base-qass
 squeezebert,typeform/squeezebert-mnli
-stablelm,pansophic/rocket-3B
-starcoder2,cognitivecomputations/dolphincoder-starcoder2-7b
 superpoint,stevenbucaille/superpoint,xfail,Unsupported prim::TupleConstruct prim::TupleUnpack
 swiftformer,MBZUAI/swiftformer-xs
 swin,microsoft/swin-tiny-patch4-window7-224
@@ -198,6 +193,7 @@ tapas,google/tapas-base-finetuned-wtq
 tapex,nielsr/tapex-large
 time_series_transformer,huggingface/time-series-transformer-tourism-monthly
 timesformer,facebook/timesformer-base-finetuned-k400
+trajectory_transformer,CarlCochet/trajectory-transformer-halfcheetah-medium-v2
 transfo-xl,transfo-xl/transfo-xl-wt103,xfail,Load error: type_as() missing 1 required positional arguments: "other"
 tvlt,ZinengTang/tvlt-base,xfail,Load error: Matching task requires labels
 tvp,Intel/tvp-base,xfail,Load error: 'NoneType' object has no attribute 'dtype'

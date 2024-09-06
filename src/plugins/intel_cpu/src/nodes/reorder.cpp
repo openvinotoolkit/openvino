@@ -184,10 +184,10 @@ void Reorder::prepareParams() {
 
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        THROW_CPU_NODE_ERR("has unallocated destination memory object.");
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        THROW_CPU_NODE_ERR("has unallocated input memory object.");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        THROW_CPU_NODE_ERR("has undefined destination memory object.");
+    if (!srcMemPtr || !srcMemPtr->isDefined())
+        THROW_CPU_NODE_ERR("has undefined input memory object.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_CPU_NODE_ERR("does not have preferable primitive descriptor.");
 
@@ -243,30 +243,25 @@ void Reorder::prepareParams() {
         }
     }
     if (!canUseNcsp2Nspc && !canUseNspc2Ncsp) {
-        if (!dstMemPtr || !dstMemPtr->isAllocated())
-            THROW_CPU_NODE_ERR("has unallocated destination memory object.");
-        if (!srcMemPtr || !srcMemPtr->isAllocated())
-            THROW_CPU_NODE_ERR("has unallocated input memory object.");
+        if (!dstMemPtr || !dstMemPtr->isDefined())
+            THROW_CPU_NODE_ERR("has undefined destination memory object.");
+        if (!srcMemPtr || !srcMemPtr->isDefined())
+            THROW_CPU_NODE_ERR("has undefined input memory object.");
         if (getSelectedPrimitiveDescriptor() == nullptr)
             THROW_CPU_NODE_ERR("does not have preferable primitive descriptor.");
 
-        createReorderPrimitive(srcMemPtr->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), srcMemPtr->getData(),
-                               dstMemPtr->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), dstMemPtr->getData());
+        createReorderPrimitive(srcMemPtr->getDescWithType<DnnlMemoryDesc>(),
+                               dstMemPtr->getDescWithType<DnnlMemoryDesc>());
     }
 }
 
-void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
-                                     void* srcPtr,
-                                     const dnnl::memory::desc& dstDesc,
-                                     void* dstPtr) {
+void Reorder::createReorderPrimitive(const DnnlMemoryDescPtr& srcDesc, const DnnlMemoryDescPtr& dstDesc) {
     auto selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD)
         THROW_CPU_NODE_ERR("does not have preferable primitive descriptor.");
 
     const auto engine = getEngine();
-    src_blocked = std::make_shared<Memory>(engine, DnnlExtensionUtils::makeDescriptor(srcDesc), srcPtr, false);
-    dst_blocked = std::make_shared<Memory>(engine, DnnlExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
-    auto src_desc = src_blocked->getPrimitive().get_desc();
+    auto src_desc = srcDesc->getDnnlDesc();
     if (!src_permutation.empty()) {
         CPU_NODE_ASSERT(src_permutation.size() == static_cast<size_t>(src_desc.get_ndims()),
                         "src_permutation size (",
@@ -282,7 +277,7 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
         src_desc = src_desc.permute_axes(src_permutation);
     }
 
-    auto dst_desc = dst_blocked->getPrimitive().get_desc();
+    auto dst_desc = dstDesc->getDnnlDesc();
 
     // TODO: We should keep shape consistency for const and expected shape for node.
     //       If it requires reshape operation it should explicitly injected into graph.
@@ -295,17 +290,13 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
     // perform such conversion if the source tensor can be reshaped to the destination rank. This is
     // useful in situations when rank in IR does not much rank that is required by the oneDNN primitive,
     // but the input tensor can be reshaped (e.g. weights for grouped convolutions, biases etc.)
-    if (src_blocked->getDesc().hasLayoutType(LayoutType::ncsp) &&
-        src_blocked->getShape().getRank() != dst_blocked->getShape().getRank()) {
-        const auto newDims = dst_blocked->getStaticDims();
+    if (srcDesc->hasLayoutType(LayoutType::ncsp) && srcDesc->getShape().getRank() != dstDesc->getShape().getRank()) {
+        const auto newDims = dstDesc->getShape().getStaticDims();
         const auto newFormat = DnnlExtensionUtils::GetPlainFormatByRank(newDims.size());
 
-        auto newDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
-                                            src_blocked->getDataType(),
-                                            newFormat);
-        src_blocked = std::make_shared<Memory>(getEngine(), DnnlExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
-
-        src_desc = src_blocked->getPrimitive().get_desc();
+        src_desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
+                                      DnnlExtensionUtils::ElementTypeToDataType(srcDesc->getPrecision()),
+                                      newFormat);
     }
 
     DEBUG_LOG("CreateReorderPrimitive is called for node", getName(), " src desc: ", src_desc, " dst_desc: ", dst_desc);
@@ -498,7 +489,7 @@ void Reorder::reorderData(const IMemory &input, const IMemory &output, MultiCach
                 //we probably could not make the reorder because there is no one supporting this precision conversion
                 //lets try to convert data first using cpu_convert
                 auto data = static_cast<const uint8_t *>(input.getData());
-                tmpBuff.resize(input.getSize());
+                tmpBuff.resize(output.getSize());
 
                 const auto outPrc = DnnlExtensionUtils::DataTypeToElementType(output.getDataType());
                 cpu_convert(data, tmpBuff.data(), DnnlExtensionUtils::DataTypeToElementType(input.getDataType()),

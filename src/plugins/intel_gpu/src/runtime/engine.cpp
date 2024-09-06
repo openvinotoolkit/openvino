@@ -62,7 +62,7 @@ namespace cldnn {
 engine::engine(const device::ptr device)
     : _device(device) {}
 
-device_info engine::get_device_info() const {
+const device_info& engine::get_device_info() const {
     return _device->get_info();
 }
 
@@ -252,6 +252,11 @@ void engine::subtract_memory_used(uint64_t bytes, allocation_type type) {
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type, const device::ptr device) {
     std::shared_ptr<cldnn::engine> ret;
     switch (engine_type) {
+#ifdef OV_GPU_WITH_SYCL
+    case engine_types::sycl:
+        ret = ocl::create_sycl_engine(device, runtime_type);
+        break;
+#endif  // OV_GPU_WITH_SYCL
     case engine_types::ocl:
         ret = ocl::create_ocl_engine(device, runtime_type);
         break;

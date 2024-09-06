@@ -61,8 +61,9 @@ Supported configurations:
      ```
   3. After the build process finishes, export the newly built Python libraries to the user environment variables:
      ```
-     set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python;%PYTHONPATH%
+     set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python;<openvino_repo>/tools/ovc;%PYTHONPATH%
      set OPENVINO_LIB_PATHS=<openvino_repo>/bin/<arch>/Release;<openvino_repo>/temp/tbb/bin
+     set PATH=<openvino_repo>/tools/ovc/openvino/tools/ovc:%PATH%
      ```
      or install the wheel with pip:
      ```

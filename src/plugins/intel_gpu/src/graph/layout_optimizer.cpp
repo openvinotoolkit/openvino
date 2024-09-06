@@ -5,7 +5,6 @@
 #include "layout_optimizer.h"
 #include "primitive_inst.h"
 #include "program_helpers.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "data_inst.h"
 #include "reorder_inst.h"
@@ -1389,22 +1388,25 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
 bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
     auto input_layout = node.get_dependencies().front().first->get_output_layout();
     auto in_padding = input_layout.data_padding;
-    auto out_padding = node.get_output_layout().data_padding;
+    auto output_layout = node.get_output_layout();
+    auto out_padding = output_layout.data_padding;
     // Check if padding exists
     if (node.get_preferred_impl_type() == impl_types::onednn && (in_padding || out_padding)) {
         // Check spatial padding
         bool no_spatial_padding = true;
-        for (size_t i = 0; i < in_padding.lower_size().spatial.size(); ++i) {
-            no_spatial_padding &= (in_padding.lower_size().spatial[i] == 0);
+        auto input_spatial_rank = input_layout.get_spatial_rank();
+        auto output_spatial_rank = output_layout.get_spatial_rank();
+        for (size_t i = 0; i < input_spatial_rank; ++i) {
+            no_spatial_padding &= (in_padding._lower_size[2 + i] == 0);
         }
-        for (size_t i = 0; i < in_padding.upper_size().spatial.size(); ++i) {
-            no_spatial_padding &= (in_padding.upper_size().spatial[i] == 0);
+        for (size_t i = 0; i < input_spatial_rank; ++i) {
+            no_spatial_padding &= (in_padding._upper_size[2 + i] == 0);
         }
-        for (size_t i = 0; i < out_padding.lower_size().spatial.size(); ++i) {
-            no_spatial_padding &= (out_padding.lower_size().spatial[i] == 0);
+        for (size_t i = 0; i < output_spatial_rank; ++i) {
+            no_spatial_padding &= (out_padding._lower_size[2 + i] == 0);
         }
-        for (size_t i = 0; i < out_padding.upper_size().spatial.size(); ++i) {
-            no_spatial_padding &= (out_padding.upper_size().spatial[i] == 0);
+        for (size_t i = 0; i < output_spatial_rank; ++i) {
+            no_spatial_padding &= (out_padding._upper_size[2 + i] == 0);
         }
 
         // Onednn supports outer padding of batch axis (first element offset) if its format is 'bxxx'
@@ -1412,18 +1414,10 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
         auto out_fmt = node.get_output_layout().format;
         if (format::is_multi_blocked(input_layout.format) || format::is_multi_blocked(out_fmt) ||
             input_layout.format.dims_order()[0] != 0 || out_fmt.dims_order()[0] != 0) {
-            for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
-                no_batch_padding &= (in_padding.lower_size().batch[i] == 0);
-            }
-            for (size_t i = 0; i < in_padding.upper_size().batch.size(); ++i) {
-                no_batch_padding &= (in_padding.upper_size().batch[i] == 0);
-            }
-            for (size_t i = 0; i < out_padding.lower_size().batch.size(); ++i) {
-                no_batch_padding &= (out_padding.lower_size().batch[i] == 0);
-            }
-            for (size_t i = 0; i < out_padding.upper_size().batch.size(); ++i) {
-                no_batch_padding &= (out_padding.upper_size().batch[i] == 0);
-            }
+            no_batch_padding &= (in_padding._lower_size[0] == 0);
+            no_batch_padding &= (in_padding._upper_size[0] == 0);
+            no_batch_padding &= (out_padding._lower_size[0] == 0);
+            no_batch_padding &= (out_padding._upper_size[0] == 0);
         }
         return (no_spatial_padding && no_batch_padding);
     }
@@ -1713,8 +1707,9 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             }
         }
 
-        // oneDNN doesn't support asymmetric weights quantization
-        if (node.is_type<convolution>() && node.as<convolution>().weights_zero_points_term())
+        // oneDNN only supports asymmetric weights quantization by scalar zero-points
+        if (node.is_type<convolution>() && node.as<convolution>().weights_zero_points_term() &&
+            node.as<convolution>().weights_zero_points().get_output_layout().count() != 1)
             impl_candidate = impl_types::ocl;
 
         preferred_impl = impl_candidate;
@@ -1944,10 +1939,14 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             if (idx == prim_input) {
                 src_fmt = onednn::find_data_format(prim_desc.src_desc());
             } else if (idx == prim_weights) {
-                src_fmt = format::custom;
+                src_fmt = format::any;
             } else {  // Dep for fused post ops
                 src_fmt = onednn::find_data_format(prim_desc.dst_desc());
             }
+
+            // WA: Avoid b_fs_yx_fsv2 because Onednn tag aBcd2b is not declared.
+            if (src_fmt == format::b_fs_yx_fsv2)
+                src_fmt = format::byxf;
 
             // WA: shallow convolution needs to set input format by bfyx.
             //     onednn recommended byxf for input format. It will insert reorder before shallow conv.
@@ -1981,6 +1980,9 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             node.set_preferred_input_fmt(idx, src_fmt);
 
             auto dst_fmt = onednn::find_data_format(prim_desc.dst_desc());
+            // WA: Avoid b_fs_yx_fsv2 because Onednn tag aBcd2b is not declared.
+            if (dst_fmt == format::b_fs_yx_fsv2)
+                dst_fmt = format::byxf;
             // Errata: Best impl for shallow input conv with zero-point ops is ocl:xe_lp.
             if (node.is_type<convolution>() && src_fmt == format::bfyx) {
                 auto& conv = node.as<convolution>();
@@ -2036,69 +2038,6 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             }
             GPU_DEBUG_LOG << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(target_format) << " --> " << fmt_to_str(target_format)
                           << " For index : " << idx << std::endl;
-        }
-        bool disable_permute_fuse_onednn_gemm = false;
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->disable_onednn_permute_fusion == 1)
-            disable_permute_fuse_onednn_gemm = true;
-        // Optimized out permute from permute-gemm pattern. i.e. permute -> gemm
-        if (node.is_type<gemm>() && !disable_permute_fuse_onednn_gemm && node.get_program().get_config().get_property(ov::intel_gpu::optimize_data)) {
-            // Only the formats below support permute opt out in gemm and permute pattern. For other formats, need to check the gemm performance.
-            for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
-                if (node.get_dependency(idx).is_type<permute>()) {
-                    auto& pnode = node.get_dependency(idx);
-                    if (pnode.has_fused_primitives()) {
-                        continue;
-                    }
-                    auto input_lay = pnode.get_dependency(0).get_output_layout();
-                    auto output_lay = pnode.get_output_layout();
-                    bool can_fuse_permute = input_lay.compatible(output_lay) ||
-                                            ((input_lay.is_dynamic() || output_lay.is_dynamic()) &&
-                                             format::is_default_format(input_lay.format) &&
-                                             format::is_default_format(output_lay.format) && pnode.get_users().size() == 1);
-                    const auto& permute_order = pnode.get_kernel_impl_params()->typed_desc<permute>()->permute_order;
-                    std::vector<size_t> order(std::begin(permute_order), std::end(permute_order));
-                    format fmt = format::bfyx;
-                    if (can_fuse_permute && gemm_inst::is_fusable_permute_input_order_onednn(order, fmt)) {
-                        pnode.init_preferred_fmt(1, 1);
-                        pnode.set_preferred_output_fmt(0, format(static_cast<format::type>(fmt)));
-                        pnode.can_be_optimized(true);
-                        node.set_preferred_input_fmt(idx, format(static_cast<format::type>(fmt)));
-                        GPU_DEBUG_TRACE_DETAIL << pnode.id() << " is fused to onednn gemm user : " << node.id() << std::endl;
-                        GPU_DEBUG_TRACE_DETAIL << "    permute order : ";
-                        GPU_DEBUG_CODE(for (const auto& o : permute_order) GPU_DEBUG_TRACE_DETAIL << o << " "; GPU_DEBUG_TRACE_DETAIL << std::endl;)
-                    }
-               }
-            }
-            // gemm -> permute
-            if (node.get_users().size() == 1 && node.get_users().front()->is_type<permute>() && !node.has_fused_primitives()) {
-                auto& pnode = node.get_users().front()->as<permute>();
-                if (!pnode.has_fused_primitives()) {
-                    auto input_lay = pnode.get_dependency(0).get_output_layout();
-                    auto output_lay = pnode.get_output_layout();
-                    bool can_fuse_permute = input_lay.compatible(output_lay) ||
-                                            ((input_lay.is_dynamic() || output_lay.is_dynamic()) &&
-                                             format::is_default_format(input_lay.format) &&
-                                             format::is_default_format(output_lay.format) && pnode.get_users().size() == 1);
-                    format fmt = format::bfyx;
-                    auto impl_param = pnode.get_kernel_impl_params();
-                    auto desc = impl_param->typed_desc<permute>();
-                    auto permute_order = desc->permute_order;
-                    std::vector<size_t> order(std::begin(permute_order), std::end(permute_order));
-                    if (can_fuse_permute && gemm_inst::is_fusable_permute_output_order_onednn(order, fmt)) {
-                        node.set_preferred_output_fmt(0, format(static_cast<format::type>(fmt)));
-                        pnode.init_preferred_fmt(1, 1);
-                        pnode.set_preferred_input_fmt(0, format(static_cast<format::type>(fmt)));
-                        // tmp :: to fix
-                        format out_fmt = format::bfyx;
-                        pnode.set_preferred_output_fmt(0, format(static_cast<format::type>(out_fmt)));
-                        pnode.can_be_optimized(true);
-                        GPU_DEBUG_TRACE_DETAIL << pnode.id() << " is fused to onednn gemm pred : " << node.id() << std::endl;
-                        GPU_DEBUG_TRACE_DETAIL << "    permute order : ";
-                        GPU_DEBUG_CODE(for (const auto& o : permute_order) GPU_DEBUG_TRACE_DETAIL << o << " "; GPU_DEBUG_TRACE_DETAIL << std::endl;)
-                    }
-                }
-            }
         }
     }
 }
