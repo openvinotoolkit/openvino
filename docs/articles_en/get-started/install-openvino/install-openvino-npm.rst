@@ -28,7 +28,7 @@ Install Intel® Distribution of OpenVINO™ Toolkit from npm Registry
    .. tab-item:: Software Requirements
       :sync: software-requirements
 
-      `Node.js version 20.5.1 and higher <https://nodejs.org/en/download/>`__
+      `Node.js version 21.0.0 and higher <https://nodejs.org/en/download/>`__
 
 
 Installing OpenVINO Node.js

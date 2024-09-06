@@ -9,7 +9,7 @@ Interface OutputTensorInfo
    }
 
 * **Defined in:**
-  `addon.ts:530 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L530>`__
+  `addon.ts:581 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L581>`__
 
 
 Methods
@@ -31,7 +31,7 @@ Methods
    * **Returns** :doc:`InputTensorInfo <InputTensorInfo>`
 
    * **Defined in:**
-     `addon.ts:531 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L531>`__
+     `addon.ts:582 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L582>`__
 
 .. rubric:: setLayout
 
@@ -48,5 +48,5 @@ Methods
    * **Returns:** :doc:`InputTensorInfo <InputTensorInfo>`
 
    * **Defined in:**
-     `addon.ts:532 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L532>`__
+     `addon.ts:583 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L583>`__
 
