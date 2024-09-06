@@ -36,10 +36,6 @@ def test_get_runtime_model(device):
     assert isinstance(runtime_model, Model)
 
 
-@pytest.mark.skipif(
-    condition=sys.version_info >= (3, 12),
-    reason="Fails on any Linux platform with Python 3.12. Ticket CVS-133903",
-)
 def test_export_import(device):
     core = Core()
 
@@ -58,10 +54,6 @@ def test_export_import(device):
     assert np.argmax(res[new_compiled.outputs[0]]) == 531
 
 
-@pytest.mark.skipif(
-    condition=sys.version_info >= (3, 12),
-    reason="Fails on any Linux platform with Python 3.12. Ticket CVS-133903",
-)
 def test_export_import_with_encryption(device):
     core = Core()
 

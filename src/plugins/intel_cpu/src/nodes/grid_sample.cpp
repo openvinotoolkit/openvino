@@ -182,14 +182,14 @@ void GridSample::createPrimitive() {
 
 void GridSample::prepareParams() {
     auto dataMemPtr = getSrcMemoryAtPort(IN_DATA);
-    if (!dataMemPtr || !dataMemPtr->isAllocated())
-        THROW_CPU_NODE_ERR("has not allocated input data memory.");
+    if (!dataMemPtr || !dataMemPtr->isDefined())
+        THROW_CPU_NODE_ERR("has undefined input data memory.");
     auto gridMemPtr = getSrcMemoryAtPort(IN_GRID);
-    if (!gridMemPtr || !gridMemPtr->isAllocated())
-        THROW_CPU_NODE_ERR("has not allocated input grid memory.");
+    if (!gridMemPtr || !gridMemPtr->isDefined())
+        THROW_CPU_NODE_ERR("has undefined input grid memory.");
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        THROW_CPU_NODE_ERR("has not allocated output memory.");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        THROW_CPU_NODE_ERR("has undefined output memory.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor.");
 

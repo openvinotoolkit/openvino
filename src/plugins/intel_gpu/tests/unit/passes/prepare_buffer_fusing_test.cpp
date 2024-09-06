@@ -651,7 +651,8 @@ TEST(prepare_buffer_fusing, in_place_crop_static) {
 
     std::vector<float> out1 = { 13.f, 58.f, -51.f, -108.f, -11.f, -62.f, 57.f, 100.f };
     std::vector<float> out2 = { 18.5f, -18.f, 1.f, -4.f, -8.5f, 6.f, 13.f, 8.f };
-    std::vector<float> out3 = { 13.f, 58.f, -51.f, -108.f, 18.5f, -18.f, 1.f, -4.f, -11.f, -62.f, 57.f, 100.f, -8.5f, 6.f, 13.f, 8.f };
+    std::vector<float> out3 = { 13.f, 58.f, -51.f, -108.f,     18.5f, -18.f, 1.f, -4.f,
+                                -11.f, -62.f, 57.f, 100.f,    -8.5f, 6.f, 13.f, 8.f };
 
     topology topology(
         input_layout("input", input_mem->get_layout()),
@@ -683,20 +684,20 @@ TEST(prepare_buffer_fusing, in_place_crop_static) {
     auto output = outputs.at("output1").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    for (size_t i = 0; i < out1.size(); i++)
-        ASSERT_EQ(output_ptr[i], out1[i]);
-
     auto output_2 = outputs.at("output2").get_memory();
     cldnn::mem_lock<float> output_ptr_2(output_2, get_test_stream());
-
-    for (size_t i = 0; i < out2.size(); i++)
-        ASSERT_EQ(output_ptr_2[i], out2[i]);
 
     auto output_3 = outputs.at("output3").get_memory();
     cldnn::mem_lock<float> output_ptr_3(output_3, get_test_stream());
 
     for (size_t i = 0; i < out3.size(); i++)
         ASSERT_EQ(output_ptr_3[i], out3[i]);
+
+    for (size_t i = 0; i < out1.size(); i++)
+        ASSERT_EQ(output_ptr[i], out1[i]);
+
+    for (size_t i = 0; i < out2.size(); i++)
+        ASSERT_EQ(output_ptr_2[i], out2[i]);
 }
 
 TEST(prepare_buffer_fusing, in_place_crop_dynamic) {
