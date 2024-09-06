@@ -77,6 +77,14 @@ bool Multinomial::needPrepareParams() const {
     return true;
 }
 
+void Multinomial::createPrimitive() {
+    if (!m_const_inputs[NUM_SAMPLES_PORT]) {
+        CPU_NODE_ASSERT(isDynamicNode(), "is static while the samples input is a variable");
+        return; // avoid reading non initialized data from the NUM_SAMPLES_PORT input
+    }
+    Node::createPrimitive();
+}
+
 void Multinomial::prepareParams() {
     const auto& probs_shape = getParentEdgeAt(PROBS_PORT)->getMemory().getStaticDims();
     const auto& num_samples_shape = getParentEdgeAt(NUM_SAMPLES_PORT)->getMemory().getStaticDims();
