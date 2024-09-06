@@ -51,7 +51,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
             if (node.is_output() ||
                 node.has_fused_primitives() ||
                 (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type) ||
-                impl_params->get_input_layout(0).has_dynamic_pad())
+                impl_params->get_input_layout(0).data_padding.is_dynamic())
                 return;
 
             // TODO: For now, all permutes with dynamic shape are applied.

@@ -200,10 +200,10 @@ void Transpose::createPrimitive() {
 
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(INPUT_DATA_IDX);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW("Destination memory was not allocated.");
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW("Input memory was not allocated.");
+    if (!dstMemPtr)
+        OPENVINO_THROW("Destination memory is null.");
+    if (!srcMemPtr)
+        OPENVINO_THROW("Input memory is null.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         OPENVINO_THROW("Preferable primitive descriptor was not set.");
 
