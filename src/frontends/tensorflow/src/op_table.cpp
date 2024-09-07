@@ -202,7 +202,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Max", CreatorFunction(translate_direct_reduce_op<v1::ReduceMax>)},
         {"Mean", CreatorFunction(translate_direct_reduce_op<v1::ReduceMean>)},
         {"Min", CreatorFunction(translate_direct_reduce_op<v1::ReduceMin>)},
-        {"Prod", CreatorFunction(translate_direct_reduce_op<v1::ReduceProd>)},
+        {"Prod", CreatorFunction(translate_prod_op)},
         {"Sum", CreatorFunction(translate_direct_reduce_op<v1::ReduceSum>)},
 
         // Separate translators:
