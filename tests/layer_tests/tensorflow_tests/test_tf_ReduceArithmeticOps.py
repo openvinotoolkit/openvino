@@ -60,8 +60,6 @@ class TestComplexProd(CommonTFLayerTest):
         inputs_data = {}
         inputs_data['param_real:0'] = np.random.randint(-10, 10, x_shape).astype(np.float32)
         inputs_data['param_imag:0'] = np.random.randint(-10, 10, x_shape).astype(np.float32)
-        print("Real: ",inputs_data['param_real:0'])
-        print("Imag: ",inputs_data['param_imag:0'])
 
         return inputs_data
 
