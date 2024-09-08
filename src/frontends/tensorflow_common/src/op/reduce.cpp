@@ -5,7 +5,9 @@
 #include "common_op_table.hpp"
 #include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/logical_and.hpp"
 #include "openvino/op/reduce_l2.hpp"
 #include "openvino/op/reduce_logical_and.hpp"
 #include "openvino/op/reduce_logical_or.hpp"
@@ -14,6 +16,7 @@
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
@@ -69,10 +72,17 @@ OutputVector translate_prod_op(const NodeContext& node) {
         auto real_part = make_shared<v8::Gather>(input, gather_index_real, minus_one);
         auto imag_part = make_shared<v8::Gather>(input, gather_index_imag, minus_one);
 
-        auto const_two = create_same_type_const_scalar<float>(real_part, 2.0f);
+        auto const_zero = create_same_type_const_scalar<float>(real_part, 0.0f);
+        auto is_real_part_zero = make_shared<v1::Equal>(real_part, const_zero);
+        auto is_imag_part_zero = make_shared<v1::Equal>(imag_part, const_zero);
+
+        auto is_complex_number_zero = make_shared<v1::LogicalAnd>(is_real_part_zero, is_imag_part_zero);
 
         Output<Node> r, theta;
         std::tie(r, theta) = complex_rectangular_to_polar(real_part, imag_part);
+
+        //theta for 0+0j will be nan but to make formula work properly it should be 0
+        theta = make_shared<v1::Select>(is_complex_number_zero, const_zero, theta);
 
         // formula = e^( j * k ) * (r_0 * r_1 * ... * r_n)
         // k = theta_0 + theta_1 + ... + theta_n
