@@ -1120,7 +1120,7 @@ KERNEL(fc)(
 #endif
 ) {
 #if USE_SLM
-    #if DYNAMIC_QUANTIZE
+    #if DYNAMIC_QUANTIZE && (TILE_OFM == 2)
         __local int dq_wei_local_mem[SIMD * TILE_OFM * SIMD];
     #else
         __local ACCUMULATOR_TYPE wei_local_mem[TILE_IFM * SIMD * TILE_OFM * SIMD];
@@ -1262,7 +1262,7 @@ KERNEL(fc)(
         #endif
         );
     } else {
-        #if USE_SLM && DYNAMIC_QUANTIZE
+        #if USE_SLM && DYNAMIC_QUANTIZE && (TILE_OFM == 2)
             FUNC_CALL(fc_bf_tiled_kernel_dyn_quan)(
                 OPTIONAL_SHAPE_INFO_TENSOR
                 input,
@@ -1309,7 +1309,7 @@ KERNEL(fc)(
         #endif
     }
 #else
-    #if USE_SLM && DYNAMIC_QUANTIZE
+    #if USE_SLM && DYNAMIC_QUANTIZE && (TILE_OFM == 2)
         FUNC_CALL(fc_bf_tiled_kernel_dyn_quan)(
             OPTIONAL_SHAPE_INFO_TENSOR
             input,
