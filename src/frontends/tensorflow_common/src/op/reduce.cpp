@@ -81,7 +81,7 @@ OutputVector translate_prod_op(const NodeContext& node) {
         Output<Node> r, theta;
         std::tie(r, theta) = complex_rectangular_to_polar(real_part, imag_part);
 
-        //theta for 0+0j will be nan but to make formula work properly it should be 0
+        // theta for 0+0j will be nan but to make formula work properly it should be 0
         theta = make_shared<v1::Select>(is_complex_number_zero, const_zero, theta);
 
         // formula = e^( j * k ) * (r_0 * r_1 * ... * r_n)
