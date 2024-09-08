@@ -68,7 +68,7 @@ class TestComplexProd(CommonTFLayerTest):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             param_real = tf.compat.v1.placeholder(tf.float32, shape, 'param_real')
-            param_imag = tf.compat.v1.placeholder(tf.float32,shape, 'param_imag')
+            param_imag = tf.compat.v1.placeholder(tf.float32, shape, 'param_imag')
 
             complex = tf.raw_ops.Complex(real=param_real, imag=param_imag)
 
