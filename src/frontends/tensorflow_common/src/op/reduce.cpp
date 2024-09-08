@@ -44,6 +44,7 @@ OutputVector translate_direct_reduce_op(const NodeContext& node) {
                        "REDUCE_ANY",
                        "REDUCE_MAX",
                        "REDUCE_MIN",
+                       "REDUCE_PROD",
                        "SUM"});
     auto input = node.get_input(0);
     auto axis = node.get_input(1);
@@ -54,7 +55,7 @@ OutputVector translate_direct_reduce_op(const NodeContext& node) {
 }
 
 OutputVector translate_prod_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"Prod", "REDUCE_PROD"}, true);
+    default_op_checks(node, 2, {"Prod"}, true);
     auto input = node.get_input(0);
     auto axis = node.get_input(1);
     auto keep_dims = node.get_attribute<bool>("keep_dims", false);
