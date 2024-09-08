@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 from common.tf_layer_test_class import CommonTFLayerTest
 
+rng = np.random.default_rng(475912)
 
 class TestReduceArithmeticOps(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
@@ -58,8 +59,8 @@ class TestComplexProd(CommonTFLayerTest):
         assert 'param_imag:0' in inputs_info, "Test error: inputs_info must contain `param_imag`"
         x_shape = inputs_info['param_real:0']
         inputs_data = {}
-        inputs_data['param_real:0'] = np.random.randint(-10, 10, x_shape).astype(np.float32)
-        inputs_data['param_imag:0'] = np.random.randint(-10, 10, x_shape).astype(np.float32)
+        inputs_data['param_real:0'] = rng.integers(-10, 10, x_shape).astype(np.float32)
+        inputs_data['param_imag:0'] = rng.integers(-10, 10, x_shape).astype(np.float32)
 
         return inputs_data
 
