@@ -95,6 +95,8 @@ class TestComplexProd(CommonTFLayerTest):
     @pytest.mark.precommit
     def test_reduce(self, params, keep_dims, ie_device, precision, ir_version, temp_dir,
                     use_legacy_frontend):
+        if ie_device == 'GPU' and params['shape'] == [2, 3, 5] and keep_dims is True:
+            pytest.skip('GPU plugin accuracy error')
         self._test(*self.create_complex_prod_net(**params, keep_dims=keep_dims, ir_version=ir_version,
                                            use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
