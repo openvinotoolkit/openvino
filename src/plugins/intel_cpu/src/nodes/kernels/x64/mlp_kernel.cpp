@@ -168,6 +168,93 @@ void MKernel::tile_config_M(TileConfig& tile_cfg, int M) {
                     });
 }
 
+void MKernel_1x2::generate() {
+    Xbyak::Reg64 reg_A_addr = abi_param2;
+    Xbyak::Reg64 reg_A_stride = abi_param3;
+    Xbyak::Reg64 reg_B_addr = abi_param4;
+    Xbyak::Reg64 reg_C_addr = abi_param5;
+    Xbyak::Reg64 reg_C_stride = abi_param6;
+
+    Xbyak::Reg64 reg_ktiles = rax;
+    Xbyak::Reg64 reg_B_stride = r10;
+    // Xbyak::Reg64 reg_prefetch = r12;
+
+    Xbyak::Tmm tmmC00 = tmm0;
+    Xbyak::Tmm tmmC01 = tmm1;
+    Xbyak::Tmm tmmA0 = tmm4;
+    Xbyak::Tmm tmmB0 = tmm6;
+    Xbyak::Tmm tmmB1 = tmm7;
+
+    Xbyak::Label loop_over_ktiles;
+    Xbyak::Label skip_load;
+
+    {
+        auto reg_tmp = reg_B_stride;
+
+        mov(reg_A_addr, ptr[abi_param1 + offsetof(call_args, pA)]);
+        mov(reg_A_stride, ptr[abi_param1 + offsetof(call_args, strideA)]);
+        mov(reg_B_addr, ptr[abi_param1 + offsetof(call_args, pB)]);
+        mov(reg_C_addr, ptr[abi_param1 + offsetof(call_args, pC)]);
+        mov(reg_C_stride, ptr[abi_param1 + offsetof(call_args, strideC)]);
+        mov(reg_ktiles, ptr[abi_param1 + offsetof(call_args, k_tiles)]);
+
+        mov(reg_tmp, ptr[abi_param1 + offsetof(call_args, do_accumulation)]);
+        // new: bit0: 0-skip load from mem, 1-load from mem; bit1: 0-skip tilezero, 1-tilezero; bit2: 0-skip store, 1-store
+        mov(abi_param1, reg_tmp);
+        and_(reg_tmp, 1);
+        jz(skip_load);
+        {
+            tileloadd(tmmC00, ptr[reg_C_addr + reg_C_stride]);
+            tileloadd(tmmC01, ptr[reg_C_addr + reg_C_stride + 64]);
+        }
+        L(skip_load);
+        mov(reg_tmp, abi_param1);
+        and_(reg_tmp, 2);
+        Xbyak::Label skip_zero;
+        jz(skip_zero);
+        {
+            tilezero(tmmC00);
+            tilezero(tmmC01);
+        }
+        L(skip_zero);
+    }
+
+    mov(reg_B_stride, 64);
+
+    auto const_A_steps = 64;
+
+    align(64, false);
+    L(loop_over_ktiles);
+    {
+        //                B: 1x2 tiles
+        // A : 2x1 tiles  C: 2x2 tiles
+        tileloadd(tmmA0, ptr[reg_A_addr + reg_A_stride]);
+        tileloadd(tmmB0, ptr[reg_B_addr + reg_B_stride]);
+        lea(reg_B_addr, ptr[reg_B_addr + 1024]);
+
+        tdpbf16ps(tmmC00, tmmA0, tmmB0);
+
+        tileloadd(tmmB1, ptr[reg_B_addr + reg_B_stride]);
+        tdpbf16ps(tmmC01, tmmA0, tmmB1);
+
+        lea(reg_A_addr, ptr[reg_A_addr + const_A_steps]);
+        lea(reg_B_addr, ptr[reg_B_addr + 1024]);
+    }
+    dec(reg_ktiles);
+    jnz(loop_over_ktiles, T_NEAR);
+
+    and_(abi_param1, 4);
+    Xbyak::Label skip_store;
+    jz(skip_store);
+    {
+        tilestored(ptr[reg_C_addr + reg_C_stride], tmmC00);
+        tilestored(ptr[reg_C_addr + reg_C_stride + 64], tmmC01);
+    }
+    L(skip_store);
+
+    ret();
+}
+
 class FP16ToBF16Kernel : public dnnl::impl::cpu::x64::jit_generator {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(FP16ToBF16Kernel)

@@ -59,6 +59,9 @@ public:
         if (M_hint == 0) {
             m_prefetch_Blines = 0;
         } else {
+            // next block size: 32 * N * sizeof(ov::bfloat16),
+            // call number: N / 32 * M / 32
+            // each call needs fetch: 32 * N * sizeof(ov::bfloat16) / (N / 32 * M / 32) = 32 * 1024 * sizeof(ov::bfloat16) / M
             m_prefetch_Blines = 32768 * sizeof(ov::bfloat16) / 64 / M_hint;
         }
 
@@ -115,6 +118,18 @@ public:
              bool do_accumulation);
 };
 
+class MKernel_1x2 : public dnnl::impl::cpu::x64::jit_generator {
+public:
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(MKernel_1x2)
+
+    using call_args = MKernel::call_args;
+
+    MKernel_1x2() : jit_generator("MKernel_1x2") {
+        create_kernel();
+    }
+
+    void generate() override;
+};
 
 struct Work {
     std::vector<PlainTensor> weights;  // ov::bfloat16 weights for current thread
@@ -209,35 +224,71 @@ struct Work {
         auto pC = reinterpret_cast<uint8_t*>(m_C.ptr_v());
 
         pA += k0 * sizeof(ov::bfloat16);
-        bool do_accumulation = false;
 
-        for (int ki = 0; ki < num_blk_K; ki++) {
-            PlainTensor& blockB = weights[ki];
-            PlainTensor& blockB1 = weights[(ki + 1) < num_blk_K ? (ki + 1) : ki];
-            if (Mbody) {
-                m_tile_configer.do_config(&m_tcfg[0]);
-                mkernel.run(Mbody,
-                            pA + ki * blk_K_size * sizeof(ov::bfloat16),
-                            strideA,
-                            blockB,
-                            pC,
-                            C_stride_bytes,
-                            reinterpret_cast<uint8_t*>(blockB1.ptr_v()),
-                            do_accumulation);
-            }
+        if (M > 16 || num_blk_K ==1) {
+            bool do_accumulation = false;
+            for (int ki = 0; ki < num_blk_K; ki++) {
+                PlainTensor& blockB = weights[ki];
+                PlainTensor& blockB1 = weights[(ki + 1) < num_blk_K ? (ki + 1) : ki];
+                if (Mbody) {
+                    m_tile_configer.do_config(&m_tcfg[0]);
+                    mkernel.run(Mbody,
+                                pA + ki * blk_K_size * sizeof(ov::bfloat16),
+                                strideA,
+                                blockB,
+                                pC,
+                                C_stride_bytes,
+                                reinterpret_cast<uint8_t*>(blockB1.ptr_v()),
+                                do_accumulation);
+                }
 
-            if (Mtails) {
-                m_tile_configer.do_config(&m_tcfg[Mtails]);
-                mkernel.run(Mtails,
-                            pA + ki * blk_K_size * sizeof(ov::bfloat16) + Mbody * strideA,
-                            strideA,
-                            blockB,
-                            pC + Mbody * C_stride_bytes,
-                            C_stride_bytes,
-                            reinterpret_cast<uint8_t*>(blockB1.ptr_v()),
-                            do_accumulation);
+                if (Mtails) {
+                    m_tile_configer.do_config(&m_tcfg[Mtails]);
+                    mkernel.run(Mtails,
+                                pA + ki * blk_K_size * sizeof(ov::bfloat16) + Mbody * strideA,
+                                strideA,
+                                blockB,
+                                pC + Mbody * C_stride_bytes,
+                                C_stride_bytes,
+                                reinterpret_cast<uint8_t*>(blockB1.ptr_v()),
+                                do_accumulation);
+                }
+                do_accumulation = true;
             }
-            do_accumulation = true;
+        } else {
+            static MKernel_1x2 jit;
+            PlainTensor& blockB = weights[0];
+            // number of blocks in N dimension (in unit of 32 columns)
+            auto num_blkN = static_cast<int>(blockB.size(0));
+            auto strideB = blockB.stride_bytes(0);
+            m_tile_configer.do_config(&m_tcfg[Mtails]);
+            // original: bit0: 0-tilezero+skip load from mem, 1-tilezero+load from mem; tilestore
+            // new: bit0: 0-skip load from mem, 1-load from mem; bit1: 0-skip tilezero, 1-tilezero; bit2: 0-skip store, 1-store
+            // if M > 32, firstK: 1 1 0(store, tilezero, skip load),      the otherK except last: 1 0 1(store, skip tilezero, load) lastK: 1 0 1
+            // else,      firstK: 0 1 0(skip store, tilezero, skip load), the otherK except last: 0 0 0(skip all),                  lastK: 1 0 0(store, skip tile zero, skip load)
+            int do_accumulation;
+
+            MKernel::call_args args;
+            args.k_tiles = blk_K_size / 32;
+            args.strideA = strideA;
+            args.strideC = C_stride_bytes;
+            args.M = Mtails;
+            for (int ni = 0; ni < num_blkN; ni++) {
+                args.pC = pC + ni * 32 * sizeof(float);
+                do_accumulation = 0b010;
+                for (int ki = 0; ki < num_blk_K; ki++) {
+                    PlainTensor& blockB = weights[ki];
+                    args.pA = pA + ki * blk_K_size * sizeof(ov::bfloat16);
+                    args.pB = blockB.ptr<uint8_t>() + ni * strideB;
+                    args.do_accumulation = do_accumulation;
+                    // prefetch next N block. In memory bound, it seems no prefetch will be better.
+                    // args.prefetch = args.pB + (ni == num_blkN - 1 ? 0 : strideB);
+                    // args.prefetch = args.pB;
+                    // [M, K] * [K, N]: [1..32, 256] * [256, 32]
+                    jit(&args);
+                    do_accumulation = (ki == num_blk_K - 2) ? 0b100 : 0;
+                }
+            }
         }
         m_tile_configer.do_config(nullptr);
     }
