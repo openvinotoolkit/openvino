@@ -1,12 +1,10 @@
-.. {#openvino_docs_ops_activation_GELU_2}
-
 GELU
 ====
 
 
 
 .. meta::
-  :description: Learn about Gelu-2 - an element-wise, activation operation, which 
+  :description: Learn about Gelu-2 - an element-wise, activation operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Gelu-2*
@@ -28,7 +26,7 @@ where Φ(x) is the Cumulative Distribution Function for Gaussian Distribution.
 
 Additionally, the *Gelu* function may be approximated as follows:
 
-.. math:: 
+.. math::
 
    Gelu(x) \approx 0.5\cdot x\cdot \left(1 + \tanh\left[\sqrt{2/\pi} \cdot (x + 0.044715 \cdot x^3)\right]\right)
 

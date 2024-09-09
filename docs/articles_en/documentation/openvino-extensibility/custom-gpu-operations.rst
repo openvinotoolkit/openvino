@@ -1,5 +1,3 @@
-.. {#openvino_docs_Extensibility_UG_GPU}
-
 How to Implement Custom GPU Operations
 ======================================
 

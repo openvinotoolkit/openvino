@@ -1,5 +1,3 @@
-.. {#openvino_sample_hello_classification}
-
 Hello Classification Sample
 ===========================
 

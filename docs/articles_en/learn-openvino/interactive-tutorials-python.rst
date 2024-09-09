@@ -1,5 +1,3 @@
-.. {#tutorials}
-
 Interactive Tutorials (Python)
 ==============================
 

@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_infrastructure_Parameter_1}
-
 Parameter
 =========
 
 
 .. meta::
-  :description: Learn about Parameter-1 - an infrastructure operation, which 
+  :description: Learn about Parameter-1 - an infrastructure operation, which
                 can be performed to specify input to the model.
 
 **Versioned name**: *Parameter-1*

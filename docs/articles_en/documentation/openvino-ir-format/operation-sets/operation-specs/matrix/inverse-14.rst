@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_matrix_Inverse_14}
-
 Inverse
 =======
 
@@ -55,7 +53,7 @@ This operation uses LU decomposition with partial pivoting to compute the invers
 
 .. note::
 
-   To compute the inverse of :math:`A`, given its LU decomposition, it is enough to solve a set of n simple linear equations. 
+   To compute the inverse of :math:`A`, given its LU decomposition, it is enough to solve a set of n simple linear equations.
    A simple linear equation is of the form :math:`Ax=b`, where x and b are vectors, and x is the solution of the equation. The goal is to compute x, such that it is the i-th column of matrix :math:`A^{-1}`. To do so, let b be a vector of zeros, except for i-th spot that has a value of one (Then b is an i-th column of matrix I).
    It is easy to notice that the x-vectors create the matrix :math:`A^{-1}`, and the b-vectors create the Identity matrix.
 
@@ -99,10 +97,10 @@ Algorithm pseudocode:
 * *adjoint*
 
   * **Description**: Modifies the return value of the operation. If true, the operation returns the adjoint (conjugate transpose) of the input matrices instead of finding the inverse.
-  * **Range of values**: `true`, `false` 
+  * **Range of values**: `true`, `false`
 
     * ``true`` - output adjoint matrix.
-    * ``false`` - output inverse matrix. 
+    * ``false`` - output inverse matrix.
 
   * **Type**: `bool`
   * **Default value**: `false`

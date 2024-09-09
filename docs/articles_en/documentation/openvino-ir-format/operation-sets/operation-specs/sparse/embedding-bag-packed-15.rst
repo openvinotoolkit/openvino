@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_sparse_EmbeddingBagPacked_15}
-
 EmbeddingBagPacked
 =====================
 
@@ -26,7 +24,7 @@ Operation is equivalent to *gather_op = Gather(emb_table, indices, axis=0)* foll
 
 * *reduction*
 
-  * **Description**: reduction mode. 
+  * **Description**: reduction mode.
   * **Range of values**:
 
     * sum - compute weighted sum, using corresponding values of ``per_sample_weights`` as weights if provided.

@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_infrastructure_ReadValue_6}
-
 ReadValue
 =========
 

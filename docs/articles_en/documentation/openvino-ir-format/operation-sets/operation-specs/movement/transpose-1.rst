@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_movement_Transpose_1}
-
 Transpose
 =========
 

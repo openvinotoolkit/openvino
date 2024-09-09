@@ -1,5 +1,3 @@
-.. {#openvino_sample_throughput_benchmark}
-
 Throughput Benchmark Sample
 ===========================
 

@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_arithmetic_CumSum_3}
-
 CumSum
 ======
 

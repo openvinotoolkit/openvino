@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_detection_DetectionOutput_1}
-
 DetectionOutput
 ===============
 
 
 .. meta::
-  :description: Learn about DetectionOutput-1 - an object detection operation, which 
+  :description: Learn about DetectionOutput-1 - an object detection operation, which
                 can be performed on three mandatory and two additional input tensors in OpenVINO.
 
 **Versioned name**: *DetectionOutput-1*
@@ -109,7 +107,7 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 
   * **Description**: *decrease_label_id* flag that denotes how to perform NMS.
   * **Range of values**:
-    
+
     * false - perform NMS like in Caffe.
     * true - perform NMS like in Apache MxNet.
   * **Type**: ``boolean``
@@ -160,7 +158,7 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="DetectionOutput" ... >
        <data background_label_id="1" code_type="caffe.PriorBoxParameter.CENTER_SIZE" confidence_threshold="0.019999999552965164" input_height="1" input_width="1" keep_top_k="200" nms_threshold="0.44999998807907104" normalized="true" num_classes="2" share_location="true" top_k="200" variance_encoded_in_target="false" clip_after_nms="false" clip_before_nms="false" objectness_score="0" decrease_label_id="false"/>
        <input>

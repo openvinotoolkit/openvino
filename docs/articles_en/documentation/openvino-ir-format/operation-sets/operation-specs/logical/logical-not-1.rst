@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_logical_LogicalNot_1}
-
 LogicalNot
 ==========
 
 
 .. meta::
-  :description: Learn about LogicalNot-1 - an element-wise, logical binary 
+  :description: Learn about LogicalNot-1 - an element-wise, logical binary
                 operation, which can be performed on a single input tensor.
 
 **Versioned name**: *LogicalNot-1*

@@ -1,5 +1,3 @@
-.. {#openvino_docs_install_guides_installing_openvino_linux_header}
-
 Install OpenVINO™ Runtime on Linux
 ====================================
 

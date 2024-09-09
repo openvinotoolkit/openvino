@@ -1,5 +1,3 @@
-.. {#openvino_docs_ov_plugin_dg_async_infer_request}
-
 Asynchronous Inference Request
 ==============================
 
@@ -29,8 +27,8 @@ Class Fields
 * ``m_cancel_callback`` - a callback which allows to interrupt the execution
 * ``m_wait_executor`` - a task executor that waits for a response from a device about device tasks completion
 
-.. note::  
-   
+.. note::
+
    If a plugin can work with several instances of a device, ``m_wait_executor`` must be device-specific. Otherwise, having a single task executor for several devices does not allow them to work in parallel.
 
 AsyncInferRequest()
@@ -53,8 +51,8 @@ The stages are distributed among two task executors in the following way:
 * You need at least two executors to overlap compute tasks of a CPU and a remote device the plugin works with. Otherwise, CPU and device tasks are executed serially one by one.
 * ``wait_pipeline`` is sent to ``m_wait_executor``, which works with the device.
 
-.. note::  
-   
+.. note::
+
    ``m_callback_executor`` is also passed to the constructor and it is used in the base ov::IAsyncInferRequest class, which adds a pair of ``callback_executor`` and a callback function set by the user to the end of the pipeline.
 
 ~AsyncInferRequest()

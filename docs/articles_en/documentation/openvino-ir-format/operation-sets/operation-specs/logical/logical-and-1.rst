@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_logical_LogicalAnd_1}
-
 LogicalAnd
 ==========
 
 
 .. meta::
-  :description: Learn about LogicalAnd-1 - an element-wise, logical binary 
+  :description: Learn about LogicalAnd-1 - an element-wise, logical binary
                 operation, which can be performed on two required input tensors.
 
 **Versioned name**: *LogicalAnd-1*

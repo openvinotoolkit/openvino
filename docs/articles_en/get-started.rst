@@ -1,5 +1,3 @@
-.. {#get_started}
-
 GET STARTED
 ===========
 

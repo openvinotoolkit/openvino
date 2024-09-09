@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_sequence_GRUSequence_5}
-
 GRUSequence
 ===========
 

@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_detection_PriorBoxClustered_1}
-
 PriorBoxClustered
 =================
 

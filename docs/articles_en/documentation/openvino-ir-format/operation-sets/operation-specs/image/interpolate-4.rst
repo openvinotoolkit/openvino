@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_image_Interpolate_4}
-
 Interpolate
 ===========
 

@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_matrix_MatMul_1}
-
 MatMul
 ======
 
 
 .. meta::
-  :description: Learn about MatMul-1 - a matrix multiplication operation, 
+  :description: Learn about MatMul-1 - a matrix multiplication operation,
                 which can be performed on two required input tensors.
 
 **Versioned name**: *MatMul-1*

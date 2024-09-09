@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_Python_API}
-
 [LEGACY] Convert Models Represented as Python Objects
 =============================================================
 

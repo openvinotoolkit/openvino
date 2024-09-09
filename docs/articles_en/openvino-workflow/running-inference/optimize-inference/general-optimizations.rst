@@ -1,5 +1,3 @@
-.. {#openvino_docs_deployment_optimization_guide_common}
-
 General Optimizations
 =====================
 

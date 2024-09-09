@@ -1,5 +1,3 @@
-.. {#weight_compression}
-
 Weight Compression
 ==================
 

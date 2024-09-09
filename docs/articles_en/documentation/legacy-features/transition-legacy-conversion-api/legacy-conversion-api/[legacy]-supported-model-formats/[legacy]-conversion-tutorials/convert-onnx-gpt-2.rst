@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_GPT2}
-
 Converting an ONNX GPT-2 Model
 ==============================
 

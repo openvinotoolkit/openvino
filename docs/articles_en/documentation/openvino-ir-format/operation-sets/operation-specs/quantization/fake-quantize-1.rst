@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_quantization_FakeQuantize_1}
-
 FakeQuantize
 ============
 
 
 .. meta::
-  :description: Learn about FakeQuantize-1 - a quantization operation, which can 
+  :description: Learn about FakeQuantize-1 - a quantization operation, which can
                 be performed on five required input tensors.
 
 **Versioned name**: *FakeQuantize-1*
@@ -14,14 +12,14 @@ FakeQuantize
 
 **Short description**: *FakeQuantize* is element-wise linear quantization of floating-point input values into a discrete set of floating-point values.
 
-**Detailed description**: Input and output ranges as well as the number of levels of quantization 
-are specified by dedicated inputs and attributes. There can be different limits for each element or 
-groups of elements (channels) of the input tensors. Otherwise, one limit applies to all elements. 
-It depends on shape of inputs that specify limits and regular broadcasting rules applied for input tensors. 
-The output of the operator is a floating-point number of the same type as the input tensor. 
-In general, there are four values that specify quantization for each element: *input_low*, *input_high*, *output_low*, *output_high*. 
-*input_low* and *input_high* attributes specify the input range of quantization. All input values that are 
-outside this range are clipped to the range before actual quantization. *output_low* and *output_high* 
+**Detailed description**: Input and output ranges as well as the number of levels of quantization
+are specified by dedicated inputs and attributes. There can be different limits for each element or
+groups of elements (channels) of the input tensors. Otherwise, one limit applies to all elements.
+It depends on shape of inputs that specify limits and regular broadcasting rules applied for input tensors.
+The output of the operator is a floating-point number of the same type as the input tensor.
+In general, there are four values that specify quantization for each element: *input_low*, *input_high*, *output_low*, *output_high*.
+*input_low* and *input_high* attributes specify the input range of quantization. All input values that are
+outside this range are clipped to the range before actual quantization. *output_low* and *output_high*
 specify minimum and maximum quantized values at the output.
 
 *Fake* in *FakeQuantize* means the output tensor is of the same floating point type as an input tensor, not integer type.
@@ -64,7 +62,7 @@ Each element of the output is defined as the result of the following expression:
 
 * **1**: `X` - tensor of type *T_F* and arbitrary shape. **Required.**
 * **2**: `input_low` - tensor of type *T_F* with minimum limit for input value. The shape must be broadcastable to the shape of *X*. **Required.**
-* **3**: `input_high` - tensor of type *T_F* with maximum limit for input value. Can be the same as `input_low` for binarization. 
+* **3**: `input_high` - tensor of type *T_F* with maximum limit for input value. Can be the same as `input_low` for binarization.
   The shape must be broadcastable to the shape of *X*. **Required.**
 * **4**: `output_low` - tensor of type *T_F* with minimum quantized value. The shape must be broadcastable to the shape of *X*. **Required.**
 * **5**: `output_high` - tensor of type *T_F* with maximum quantized value. The shape must be broadcastable to the of *X*. **Required.**

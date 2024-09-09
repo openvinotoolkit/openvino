@@ -1,29 +1,27 @@
-.. {#openvino_docs_ops_comparison_Greater_1}
-
 Greater
 =======
 
 
 .. meta::
-  :description: Learn about Greater-1 - an element-wise, comparison operation, which 
+  :description: Learn about Greater-1 - an element-wise, comparison operation, which
                 can be performed on two given tensors in OpenVINO.
 
 **Versioned name**: *Greater-1*
 
 **Category**: *Comparison binary*
 
-**Short description**: *Greater* performs element-wise comparison operation with two 
+**Short description**: *Greater* performs element-wise comparison operation with two
 given tensors applying broadcast rules specified in the ``auto_broadcast`` attribute.
 
 **Detailed description**
-Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if 
-their shapes are different and ``auto_broadcast`` attribute is not ``none``. 
+Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if
+their shapes are different and ``auto_broadcast`` attribute is not ``none``.
 Broadcasting is performed according to ``auto_broadcast`` value.
 
 After broadcasting, *Greater* does the following with the input tensors *a* and *b*:
 
-.. math:: 
-   
+.. math::
+
    o_{i} = a_{i} > b_{i}
 
 
@@ -33,11 +31,11 @@ After broadcasting, *Greater* does the following with the input tensors *a* and 
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
-  * 
+  *
     * *none* - no auto-broadcasting is allowed, all input shapes should match
     * *numpy* - numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`
     * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`.
-  
+
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
@@ -49,7 +47,7 @@ After broadcasting, *Greater* does the following with the input tensors *a* and 
 
 **Outputs**
 
-* **1**: The result of element-wise *Greater* operation applied to the input tensors. 
+* **1**: The result of element-wise *Greater* operation applied to the input tensors.
   A tensor of type *T_BOOL* and  shape equal to broadcasted shape of two inputs.
 
 **Types**

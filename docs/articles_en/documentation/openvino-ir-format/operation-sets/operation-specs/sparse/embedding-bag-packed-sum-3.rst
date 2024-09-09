@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_sparse_EmbeddingBagPackedSum_3}
-
 EmbeddingBagPackedSum
 =====================
 

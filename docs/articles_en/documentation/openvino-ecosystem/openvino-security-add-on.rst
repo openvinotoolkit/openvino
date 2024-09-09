@@ -1,5 +1,3 @@
-.. {#ovsa_get_started}
-
 OpenVINO™ Security Add-on
 ===========================
 

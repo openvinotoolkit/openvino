@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Asinh_3}
-
 Asinh
 =====
 
 
 .. meta::
-  :description: Learn about Asinh-3 - an element-wise, arithmetic operation, which 
+  :description: Learn about Asinh-3 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Asinh-3*
@@ -17,7 +15,7 @@ Asinh
 **Detailed description**: *Asinh* performs element-wise inverse hyperbolic sine operation on a given input tensor, based on the following mathematical formula:
 
 .. math::
-   
+
    a_{i} = asinh(a_{i})
 
 **Attributes**: *Asinh* operation has no attributes.
@@ -38,7 +36,7 @@ Asinh
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="Asinh">
        <input>
            <port id="0">

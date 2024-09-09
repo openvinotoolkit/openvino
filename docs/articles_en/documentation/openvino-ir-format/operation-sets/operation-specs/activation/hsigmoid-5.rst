@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_activation_HSigmoid_5}
-
 HSigmoid
 ========
 
 
 .. meta::
-  :description: Learn about HSigmoid-5 - an element-wise, activation operation, which 
+  :description: Learn about HSigmoid-5 - an element-wise, activation operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *HSigmoid-5*

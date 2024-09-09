@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_type_StringTensorUnpack_15}
-
 StringTensorUnpack
 ===================
 
@@ -11,7 +9,7 @@ StringTensorUnpack
 
 **Category**: *Type*
 
-**Short description**: *StringTensorUnpack* operation transforms a given batch of strings into three tensors - two storing begin 
+**Short description**: *StringTensorUnpack* operation transforms a given batch of strings into three tensors - two storing begin
 and end indices of the strings and another containing the concatenated string data, respectively.
 
 **Detailed description**
@@ -34,12 +32,12 @@ The operator will transform the tensor into three outputs:
     * ``symbols`` contains concatenated string data encoded in utf-8 bytes, interpretable using ``begins`` and ``ends``.
     * ``symbols.shape`` is equal to ``[13]``, because it's the length of concatenated ``input`` strings.
 
-When defining *begins* and *ends*, the notation ``[a, b)`` is used. This means that the range starts with ``a`` and includes all values up to, 
+When defining *begins* and *ends*, the notation ``[a, b)`` is used. This means that the range starts with ``a`` and includes all values up to,
 but not including, ``b``. That is why in the example given the length of "IntelOpenVINO" is 12, but *ends* vector contains 13.
 
 **Inputs**
-  
-* **1**: ``data`` - ND tensor of type *string*. **Required.** 
+
+* **1**: ``data`` - ND tensor of type *string*. **Required.**
 
 **Outputs**
 

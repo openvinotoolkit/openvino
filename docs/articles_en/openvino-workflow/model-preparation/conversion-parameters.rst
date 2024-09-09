@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_Converter_UG_Conversion_Options}
-
 Conversion Parameters
 =====================
 

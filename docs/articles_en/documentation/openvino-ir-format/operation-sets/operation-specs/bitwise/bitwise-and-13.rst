@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_bitwise_BitwiseAnd_13}
-
 BitwiseAnd
 ==========
 

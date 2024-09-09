@@ -1,5 +1,3 @@
-.. {#openvino_docs_Extensibility_UG_Frontend_Extensions}
-
 Frontend Extensions
 ===================
 

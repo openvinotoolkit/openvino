@@ -1,5 +1,3 @@
-.. {#Supported_Model_Formats_MO_DG}
-
 [LEGACY] Supported Model Formats
 =====================================
 

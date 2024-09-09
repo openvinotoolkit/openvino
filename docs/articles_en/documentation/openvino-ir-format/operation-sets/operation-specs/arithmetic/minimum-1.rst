@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Minimum_1}
-
 Minimum
 =======
 
 
 .. meta::
-  :description: Learn about Minimum-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Minimum-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Minimum-1*

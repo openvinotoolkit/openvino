@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_image_I420toRGB_8}
-
 I420toRGB
 =========
 

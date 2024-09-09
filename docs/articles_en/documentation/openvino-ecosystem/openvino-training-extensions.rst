@@ -1,5 +1,3 @@
-.. {#ote_documentation}
-
 OpenVINO™ Training Extensions
 ===============================
 

@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_generation_Multinomial_13}
-
 Multinomial
 ===========
 

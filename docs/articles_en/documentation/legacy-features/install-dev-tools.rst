@@ -1,5 +1,3 @@
-.. {#openvino_docs_install_guides_install_dev_tools}
-
 Install OpenVINO™ Development Tools
 =====================================
 

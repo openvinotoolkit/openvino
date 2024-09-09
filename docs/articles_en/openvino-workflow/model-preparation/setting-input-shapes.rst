@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model}
-
 Setting Input Shapes
 ====================
 

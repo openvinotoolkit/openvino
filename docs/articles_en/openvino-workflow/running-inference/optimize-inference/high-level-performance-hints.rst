@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_Performance_Hints}
-
 High-level Performance Hints
 ============================
 

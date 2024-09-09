@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Mod_1}
-
 Mod
 ===
 
 
 .. meta::
-  :description: Learn about Mod-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Mod-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Mod-1*

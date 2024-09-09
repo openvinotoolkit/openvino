@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_arithmetic_Tanh_1}
-
 Tanh
 ====
 

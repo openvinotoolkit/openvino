@@ -1,5 +1,3 @@
-.. {#openvino_docs_performance_int8_vs_fp32}
-
 Model Accuracy
 ==============
 
@@ -206,7 +204,7 @@ the table for more information.
 
 .. list-table:: Model Accuracy for VNNI-FP16, VNNI-INT8, VNNI-INT4 and MTL-INT4 (Core Ultra)
    :header-rows: 1
-   
+
    * - OpenVINO™  Model name
      - dataset
      - Metric Name
@@ -245,10 +243,10 @@ the table for more information.
    * - Stable-Diffusion-V2-1
      - LIAON-5B
      - CLIP
-     - 
-     - 
-     - 
-     - 
+     -
+     -
+     -
+     -
 
 Notes: For all accuracy metrics a "-", (minus sign), indicates an accuracy drop.
 For perplexity (ppl) the values do not indicate a deviation from a reference but are the actual measured

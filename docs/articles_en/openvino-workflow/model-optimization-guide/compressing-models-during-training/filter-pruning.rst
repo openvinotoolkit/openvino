@@ -1,5 +1,3 @@
-.. {#filter_pruning}
-
 Filter Pruning of Convolutional Models
 ======================================
 

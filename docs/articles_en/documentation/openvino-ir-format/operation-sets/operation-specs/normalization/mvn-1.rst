@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_normalization_MVN_1}
-
 MVN
 ===
 
 
 .. meta::
-  :description: Learn about MVN-1 - a normalization operation, which can be 
+  :description: Learn about MVN-1 - a normalization operation, which can be
                 performed on a single input tensor.
 
 **Versioned name**: *MVN-1*
@@ -90,7 +88,7 @@ where :math:`\sigma_{k}^2` is the variance calculated based on mean value, :math
   * **Type**: ``double``
   * **Required**: *yes*
 
-* 
+*
 
   .. important::
 

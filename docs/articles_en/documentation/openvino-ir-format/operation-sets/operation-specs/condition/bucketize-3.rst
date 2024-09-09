@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_condition_Bucketize_3}
-
 Bucketize
 =========
 
 
 .. meta::
-  :description: Learn about Bucketize-3 - an element-wise, condition operation, which 
+  :description: Learn about Bucketize-3 - an element-wise, condition operation, which
                 can be performed on two given tensors in OpenVINO.
 
 **Versioned name**: *Bucketize-3*
@@ -60,7 +58,7 @@ For example, if the first input tensor is ``[[3, 50], [10, -1]]`` and the second
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="Bucketize">
        <input>
            <port id="0">

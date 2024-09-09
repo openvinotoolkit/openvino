@@ -1,5 +1,3 @@
-.. {#openvino_docs_deploy_local_distribution}
-
 Libraries for Local Distribution
 ================================
 

@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_signals_IRDFT_9}
-
 Inverse Discrete complex-to-real Fourier Transformation (IRDFT)
 ===============================================================
 

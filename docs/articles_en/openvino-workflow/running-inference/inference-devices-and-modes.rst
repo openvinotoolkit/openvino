@@ -1,5 +1,3 @@
-.. {#openvino_docs_Runtime_Inference_Modes_Overview}
-
 Inference Devices and Modes
 ============================
 

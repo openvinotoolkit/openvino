@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_activation_HardSigmoid_1}
-
 HardSigmoid
 ===========
 
 
 .. meta::
-  :description: Learn about HardSigmoid-1 - an element-wise, activation operation, which 
+  :description: Learn about HardSigmoid-1 - an element-wise, activation operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *HardSigmoid-1*
@@ -18,7 +16,7 @@ HardSigmoid
 
 **Mathematical Formulation**
 
-For each element from the input tensor calculates corresponding 
+For each element from the input tensor calculates corresponding
 element in the output tensor with the following formula:
 
 .. math::

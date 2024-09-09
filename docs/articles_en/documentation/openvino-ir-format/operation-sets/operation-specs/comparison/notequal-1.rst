@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_comparison_NotEqual_1}
-
 NotEqual
 ========
 
 
 .. meta::
-  :description: Learn about LessEqual-1 - an element-wise, comparison operation, which 
+  :description: Learn about LessEqual-1 - an element-wise, comparison operation, which
                 can be performed on two given tensors in OpenVINO.
 
 **Versioned name**: *NotEqual-1*

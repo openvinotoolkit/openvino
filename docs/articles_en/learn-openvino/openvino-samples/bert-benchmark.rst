@@ -1,5 +1,3 @@
-.. {#openvino_sample_bert_benchmark}
-
 Bert Benchmark Python Sample
 ============================
 

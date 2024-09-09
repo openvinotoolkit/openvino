@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_lpt_step4_cleanup}
-
 Step 4. Cleanup Transformations
 ===============================
 

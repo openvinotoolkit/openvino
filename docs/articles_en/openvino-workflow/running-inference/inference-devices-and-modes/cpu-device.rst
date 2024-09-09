@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_supported_plugins_CPU}
-
 CPU Device
 ==========
 
