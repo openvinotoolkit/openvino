@@ -42,3 +42,20 @@ import openvino.properties.device as device
 # Find 'EXPORT_IMPORT' capability in supported capabilities
 caching_supported = 'EXPORT_IMPORT' in core.get_property(device_name, device.capabilities)
 # ! [ov:caching:part3]
+
+# ! [ov:caching:part4]
+import base64
+
+def encrypt_base64(src):
+    return base64.b64encode(bytes(src, "utf-8"))
+
+def decrypt_base64(src):
+    return base64.b64decode(bytes(src, "utf-8"))
+
+core = ov.Core()
+core.set_property({props.cache_dir: path_to_cache_dir})
+config_cache = {}
+config_cache["CACHE_ENCRYPTION_CALLBACKS"] = [encrypt_base64, decrypt_base64]
+model = core.read_model(model=model_path)
+compiled_model = core.compile_model(model=model, device_name=device_name, config=config_cache)
+# ! [ov:caching:part4]
