@@ -124,7 +124,7 @@ jobs:
       #
 
       - name: Python API Tests
-        if: ${{ fromJSON(inputs.affected-components).Python_API.test }}
+        if: always()
         run: |
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
@@ -133,7 +133,7 @@ jobs:
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Model Optimizer unit tests
-        if: fromJSON(inputs.affected-components).MO.test
+        if: always()
         run: |
           if [[ "${{ runner.os }}" == "Linux" ]] && [[ "${{ runner.arch }}" != "ARM64" ]]; then
             # required for MxNet
@@ -146,9 +146,7 @@ jobs:
               --ignore-glob="**/mo/unit_tests/mo/front/mxnet/**"
 
       - name: Python ONNX operators tests
-        if: (fromJSON(inputs.affected-components).Python_API.test ||
-             fromJSON(inputs.affected-components).ONNX_FE.test) &&
-             runner.arch != 'ARM64' # Ticket: 123325
+        if: always()
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
@@ -156,7 +154,7 @@ jobs:
             --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py
 
       - name: OVC unit tests
-        if: fromJSON(inputs.affected-components).MO.test
+        if: always()
         run: python3 -m pytest -s ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
 
       - name: Install Python Layer tests dependencies
@@ -165,7 +163,7 @@ jobs:
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
 
       - name: MO Python API Tests
-        if: fromJSON(inputs.affected-components).MO.test
+        if: always()
         run: |
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
@@ -183,7 +181,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: OVC Python API Tests
-        if: fromJSON(inputs.affected-components).MO.test
+        if: always()
         run: |
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           export PYTHONPATH=${INSTALL_TEST_DIR}/python
@@ -201,22 +199,21 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: Python Frontend tests
-        if: fromJSON(inputs.affected-components).PyTorch_FE.test ||
-            fromJSON(inputs.affected-components).PDPD_FE.test
+        if: always()
         run: |
           # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       - name: PyTorch Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287, 142196
+        if: always()
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
 
       - name: PyTorch torch.export Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287
+        if: always()
         run: |
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit_torch_export --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
@@ -225,7 +222,7 @@ jobs:
           PYTORCH_TRACING_MODE: EXPORT
 
       - name: PyTorch torch.compile TORCHFX Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' }} # Ticket: 126287
+        if: always()
         run: |
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_fx_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
@@ -234,7 +231,7 @@ jobs:
           PYTORCH_TRACING_MODE: TORCHFX
 
       - name: ONNX Layer Tests
-        if: fromJSON(inputs.affected-components).ONNX_FE.test
+        if: always()
         run: |
           # requires 'unit_tests' from 'tools/mo'
           export PYTHONPATH=${INSTALL_TEST_DIR}/mo:$PYTHONPATH
@@ -244,14 +241,14 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: JAX Layer Tests - TF FE
-        if: ${{ fromJSON(inputs.affected-components).TF_FE.test && runner.arch != 'ARM64' && runner.os != 'macOS' }}
+        if: always()
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
       
       - name: JAX Layer Tests - JAX FE
-        if: ${{ fromJSON(inputs.affected-components).JAX_FE.test && runner.arch != 'ARM64' && runner.os != 'macOS' }}
+        if: always()
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit_jax_fe --junitxml=${INSTALL_TEST_DIR}/TEST-jax_fe.xml
         env:
           TEST_DEVICE: CPU
@@ -259,14 +256,14 @@ jobs:
           JAX_TRACE_MODE: JAXPR
 
       - name: TensorFlow Lite Layer Tests - TFL FE
-        if: fromJSON(inputs.affected-components).TFL_FE.test
+        if: always()
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
-        if: fromJSON(inputs.affected-components).TF_FE.test
+        if: always()
         run: python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/test_tf_Roll.py --use_legacy_frontend --ir_version=10 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_Roll.xml
         env:
           TEST_DEVICE: CPU
@@ -282,7 +279,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: Clone API snippets
-        if: runner.os != 'macOS'
+        if: always()
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: docs/articles_en/assets/snippets
@@ -290,7 +287,7 @@ jobs:
           submodules: 'false'
 
       - name: Docs Python snippets
-        if: runner.os != 'macOS'
+        if: always()
         run: |
           # to find 'snippets' module in docs
           export PYTHONPATH=${OPENVINO_REPO}/docs/articles_en/assets
@@ -299,7 +296,7 @@ jobs:
           python3 ${OPENVINO_REPO}/docs/articles_en/assets/snippets/main.py
 
       - name: Python API Tests -- numpy>=2.0.0
-        if: ${{ fromJSON(inputs.affected-components).Python_API.test }}
+        if: always()
         run: |
           python3 -m pip uninstall -y numpy
           python3 -m pip install "numpy>=2.0.0,<2.1.0"
