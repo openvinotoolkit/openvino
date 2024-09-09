@@ -1410,6 +1410,8 @@ void ov::npuw::util::to_f32(const ov::Tensor& in, ov::Tensor& out) {
 void ov::npuw::util::to_f16(ov::Tensor& t) {
     ov::Shape shape = t.get_shape();
     NPUW_ASSERT(t.get_element_type() == ov::element::f32);
+    NPUW_ASSERT(t.get_size() % 8 == 0);
+    NPUW_ASSERT(t.is_continuous());
 
     ov::Tensor tnew(ov::element::f16, shape);
 
