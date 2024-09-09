@@ -361,7 +361,7 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
                     if (!isReorderRequired(parentDesc, curDesc)) {
                         estimate += 1;
                     } else {
-                        estimate += ov::shape_size<ov::intel_cpu::VectorDims>(curDesc->getShape().getStaticDims());
+                        estimate += ov::shape_size<ov::intel_cpu::VectorDims>(curDesc->getShape().getMinDims());
                     }
                 }
 
