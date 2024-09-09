@@ -42,6 +42,7 @@
 #include "openvino/op/ctc_greedy_decoder_seq_len.hpp"
 #include "openvino/op/ctc_loss.hpp"
 #include "openvino/op/cum_sum.hpp"
+#include "openvino/op/decodeimg.hpp"
 #include "openvino/op/deformable_convolution.hpp"
 #include "openvino/op/deformable_psroi_pooling.hpp"
 #include "openvino/op/depth_to_space.hpp"

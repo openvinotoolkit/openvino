@@ -66,6 +66,7 @@ OP_CONVERTER_NAMED(translate_ctc_greedy_decoder_op);
 OP_CONVERTER(translate_ctc_loss_op);
 OP_CONVERTER(translate_cumsum_op);
 OP_CONVERTER(translate_crop_and_resize_op);
+OP_CONVERTER(translate_decodejpeg_op);
 OP_CONVERTER(translate_depth_to_space_op);
 OP_CONVERTER(translate_depthwise_conv_2d_native_op);
 OP_CONVERTER(translate_div_no_nan_op);

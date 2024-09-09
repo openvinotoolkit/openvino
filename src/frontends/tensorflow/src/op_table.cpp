@@ -20,6 +20,7 @@
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/cosh.hpp"
+#include "openvino/op/decodeimg.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/erf.hpp"
@@ -242,6 +243,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"CTCLoss", CreatorFunction(translate_ctc_loss_op)},
         {"Cumsum", CreatorFunction(translate_cumsum_op)},
         {"DivNoNan", CreatorFunction(translate_div_no_nan_op)},
+        {"DecodeJpeg", CreatorFunction(translate_decodejpeg_op)},
         {"DepthToSpace", CreatorFunction(translate_depth_to_space_op)},
         {"DepthwiseConv2dNative", CreatorFunction(translate_depthwise_conv_2d_native_op)},
         {"DynamicPartition", CreatorFunction(translate_dynamic_partition_op)},
