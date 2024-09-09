@@ -1561,6 +1561,11 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
 }
 
 void Partitioner::optimize(const std::string& func_name) {
+    if (!cfg.get<::intel_npu::NPUW_DQ>()) {
+        LOG_VERB("No optimizations will be done to  " << func_name << " in model " << model->get_friendly_name() << "...");
+        return;
+    }
+
     LOG_VERB("Optimize function " << func_name << " in model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
 
