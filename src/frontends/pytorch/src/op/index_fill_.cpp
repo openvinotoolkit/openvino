@@ -23,7 +23,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_index_copy_(const NodeContext& context) {
+OutputVector translate_index_fill_(const NodeContext& context) {
     // aten::index_fill_(self, dim, index, value) → Tensor
     num_inputs_check(context, 4, 4);
     auto input = context.get_input(0);
