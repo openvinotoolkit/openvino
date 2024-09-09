@@ -158,7 +158,7 @@ jobs:
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.fedora_29 }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_29 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
   
   Overall_Status:
