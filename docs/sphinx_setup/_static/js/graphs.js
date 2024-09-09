@@ -209,30 +209,12 @@ $(document).ready(function () {
         fetch('../_static/benchmarks_files/graph-data-ov.json')
             .then((response) => response.json())
             .then((jsonData) => {
-                if(validateJson(jsonData) ===  true);
                 fetch('../_static/benchmarks_files/graph-config.json')
                     .then((configResponse) => configResponse.json())
                     .then((appConfig) => {
                         renderModal(jsonData, appConfig)
                     })
             });
-    }
-
-    function validateJson(json) {
-        fetch('../_static/benchmarks_files/schema/graph-data-schema.json')
-            .then((jsonSchema) => jsonSchema.json())
-            .then((jsonSchema) => {
-                const ajv = new ajv7.default({ strict: false});
-
-                const validate = ajv.compile(jsonSchema);
-                json.forEach((benchmark) => {
-                    const valid = validate(benchmark);
-                    // if (!valid) console.log(validate.errors);
-                    // console.log(valid);
-                    return valid;
-                });                
-            })
-        return false;
     }
 
     function getSelectedNetworkModels() {
