@@ -69,14 +69,17 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
     auto jit = MakeBaseParamsJitConstants(params);
 
     if (params.conf.broadcast_axis != -1) {
+        jit.AddConstant(MakeJitConstant("BROADCAST_GROUP_SIZE", params.conf.group_size));
         jit.AddConstant(MakeJitConstant("DO_BROADCAST_KEY_VALUE", GetBroadcastInputStr(params.inputs[0].GetDims().size(),
                                                                                        params.conf.broadcast_axis,
                                                                                        params.conf.group_size)));
     }
 
     jit.AddConstant(MakeJitConstant("IS_CAUSAL", params.conf.is_causal));
-    jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", params.inputs.size() > 3));
-    jit.AddConstant(MakeJitConstant("HAS_SCALE_INPUT", params.inputs.size() > 4));
+    if (!params.conf.is_paged_attention) {
+        jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", params.inputs.size() > 3));
+        jit.AddConstant(MakeJitConstant("HAS_SCALE_INPUT", params.inputs.size() > 4));
+    }
 
     auto is_default_order = [](const std::vector<int64_t>& order) {
         for (size_t i = 0; i < order.size(); i++)
@@ -111,8 +114,10 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
         jit.AddConstant(MakeJitConstant("INPUT2_DIMS_ORDER", GetDimsOrder(params.input2_order)));
 
     TransposedDimensionAccessHelperJit dims_q(params.inputs[0], params.input0_order);
+    const auto num_heads = params.conf.is_paged_attention ? std::to_string(params.conf.heads_num) : dims_q.f();
     jit.AddConstant(MakeJitConstant("TARGET_SEQ_LEN", dims_q.y()));
-    jit.AddConstant(MakeJitConstant("NUM_HEADS", dims_q.f()));
+    jit.AddConstant(MakeJitConstant("NUM_HEADS", num_heads));
+    jit.AddConstant(MakeJitConstant("NUM_KV_HEADS", params.conf.kv_heads_num));
 
     TransposedDimensionAccessHelperJit dims_k(params.inputs[1], params.input1_order);
     jit.AddConstant(MakeJitConstant("SOURCE_SEQ_LEN", dims_k.y()));

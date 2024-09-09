@@ -54,10 +54,10 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 .. code:: ipython3
 
     import platform
-
+    
     # Install required packages
     %pip install -q "openvino>=2023.1.0" "nncf>=2.6.0" torch torchvision tqdm --extra-index-url https://download.pytorch.org/whl/cpu
-
+    
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -73,12 +73,12 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     # Set the data and model directories
     DATA_DIR = Path("data")
     MODEL_DIR = Path("model")
     model_repo = "pytorch-cifar-models"
-
+    
     DATA_DIR.mkdir(exist_ok=True)
     MODEL_DIR.mkdir(exist_ok=True)
 
@@ -97,10 +97,10 @@ Model preparation stage has the following steps:
 .. code:: ipython3
 
     import sys
-
+    
     if not Path(model_repo).exists():
         !git clone https://github.com/chenyaofo/pytorch-cifar-models.git
-
+    
     sys.path.append(model_repo)
 
 
@@ -110,15 +110,15 @@ Model preparation stage has the following steps:
     remote: Enumerating objects: 282, done.[K
     remote: Counting objects: 100% (281/281), done.[K
     remote: Compressing objects: 100% (96/96), done.[K
-    remote: Total 282 (delta 135), reused 269 (delta 128), pack-reused 1[K
-    Receiving objects: 100% (282/282), 9.22 MiB | 19.06 MiB/s, done.
+    remote: Total 282 (delta 135), reused 269 (delta 128), pack-reused 1 (from 1)[K
+    Receiving objects: 100% (282/282), 9.22 MiB | 22.15 MiB/s, done.
     Resolving deltas: 100% (135/135), done.
 
 
 .. code:: ipython3
 
     from pytorch_cifar_models import cifar10_mobilenetv2_x1_0
-
+    
     model = cifar10_mobilenetv2_x1_0(pretrained=True)
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
@@ -136,11 +136,11 @@ can be found on this
 .. code:: ipython3
 
     import openvino as ov
-
+    
     model.eval()
-
+    
     ov_model = ov.convert_model(model, input=[1, 3, 32, 32])
-
+    
     ov.save_model(ov_model, MODEL_DIR / "mobilenet_v2.xml")
 
 Prepare Dataset
@@ -159,7 +159,7 @@ Preprocessing for model obtained from training
     import torch
     from torchvision import transforms
     from torchvision.datasets import CIFAR10
-
+    
     transform = transforms.Compose(
         [
             transforms.ToTensor(),
@@ -183,7 +183,7 @@ Preprocessing for model obtained from training
 
 .. parsed-literal::
 
-    100%|██████████| 170498071/170498071 [00:07<00:00, 23330025.64it/s]
+    100%|██████████| 170498071/170498071 [00:07<00:00, 23597971.56it/s]
 
 
 .. parsed-literal::
@@ -221,13 +221,13 @@ model during quantization, in our case, to pick input tensor from pair
 .. code:: ipython3
 
     import nncf
-
-
+    
+    
     def transform_fn(data_item):
         image_tensor = data_item[0]
         return image_tensor.numpy()
-
-
+    
+    
     quantization_dataset = nncf.Dataset(val_loader, transform_fn)
 
 
@@ -255,10 +255,10 @@ about supported parameters can be found on this
 
 .. parsed-literal::
 
-    2024-08-07 01:32:24.138376: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-08-07 01:32:24.169715: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-08-28 02:38:36.128317: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-28 02:38:36.160156: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-08-07 01:32:24.698117: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-08-28 02:38:36.699848: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -275,25 +275,9 @@ about supported parameters can be found on this
 
 
 
-
-
-
-
-
-
-
-
 .. parsed-literal::
 
     Output()
-
-
-
-
-
-
-
-
 
 
 
@@ -325,8 +309,8 @@ Compare Accuracy of the Original and Quantized Models
 
     from tqdm.notebook import tqdm
     import numpy as np
-
-
+    
+    
     def test_accuracy(ov_model, data_loader):
         correct = 0
         total = 0
@@ -347,7 +331,7 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -355,7 +339,7 @@ select device from dropdown list for running inference using OpenVINO
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -372,7 +356,7 @@ select device from dropdown list for running inference using OpenVINO
     core = ov.Core()
     compiled_model = core.compile_model(ov_model, device.value)
     optimized_compiled_model = core.compile_model(quant_ov_model, device.value)
-
+    
     orig_accuracy = test_accuracy(compiled_model, val_loader)
     optimized_accuracy = test_accuracy(optimized_compiled_model, val_loader)
 
@@ -430,18 +414,18 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.4.0-16508-1d6e97cabaa
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.4.0-16508-1d6e97cabaa
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 9.70 ms
+    [ INFO ] Read model took 9.60 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,32,32]
@@ -455,7 +439,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Model outputs:
     [ INFO ]     x.17 (node: aten::linear/Add) : f32 / [...] / [1,10]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 189.30 ms
+    [ INFO ] Compile model took 175.13 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model2
@@ -489,20 +473,20 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values
+    [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 3.28 ms
+    [ INFO ] First inference took 3.12 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            88644 iterations
-    [ INFO ] Duration:         15002.69 ms
+    [ INFO ] Count:            88164 iterations
+    [ INFO ] Duration:         15002.32 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1.84 ms
-    [ INFO ]    Average:       1.84 ms
-    [ INFO ]    Min:           1.38 ms
-    [ INFO ]    Max:           8.47 ms
-    [ INFO ] Throughput:   5908.54 FPS
+    [ INFO ]    Median:        1.85 ms
+    [ INFO ]    Average:       1.86 ms
+    [ INFO ]    Min:           1.40 ms
+    [ INFO ]    Max:           9.58 ms
+    [ INFO ] Throughput:   5876.69 FPS
 
 
 .. code:: ipython3
@@ -517,18 +501,18 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.4.0-16508-1d6e97cabaa
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.4.0-16508-1d6e97cabaa
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 14.71 ms
+    [ INFO ] Read model took 15.06 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,32,32]
@@ -542,7 +526,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Model outputs:
     [ INFO ]     x.17 (node: aten::linear/Add) : f32 / [...] / [1,10]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 272.85 ms
+    [ INFO ] Compile model took 252.04 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model2
@@ -576,20 +560,20 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values
+    [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 1.82 ms
+    [ INFO ] First inference took 1.66 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            166368 iterations
-    [ INFO ] Duration:         15001.25 ms
+    [ INFO ] Count:            167052 iterations
+    [ INFO ] Duration:         15001.55 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1.01 ms
-    [ INFO ]    Average:       1.04 ms
-    [ INFO ]    Min:           0.72 ms
-    [ INFO ]    Max:           7.14 ms
-    [ INFO ] Throughput:   11090.28 FPS
+    [ INFO ]    Median:        1.00 ms
+    [ INFO ]    Average:       1.03 ms
+    [ INFO ]    Min:           0.68 ms
+    [ INFO ]    Max:           9.14 ms
+    [ INFO ] Throughput:   11135.65 FPS
 
 
 Compare results on four pictures
@@ -614,7 +598,7 @@ Compare results on four pictures
     ]
     all_pictures = []
     all_labels = []
-
+    
     # Get all pictures and their labels.
     for i, batch in enumerate(val_loader):
         all_pictures.append(batch[0].numpy())
@@ -623,8 +607,8 @@ Compare results on four pictures
 .. code:: ipython3
 
     import matplotlib.pyplot as plt
-
-
+    
+    
     def plot_pictures(indexes: list, all_pictures=all_pictures, all_labels=all_labels):
         """Plot 4 pictures.
         :param indexes: a list of indexes of pictures to be displayed.
@@ -637,19 +621,19 @@ Compare results on four pictures
             assert idx < 10000, "Cannot get such index, there are only 10000"
             pic = np.rollaxis(all_pictures[idx].squeeze(), 0, 3)
             images.append(pic)
-
+    
             labels.append(labels_names[all_labels[idx]])
-
+    
         f, axarr = plt.subplots(1, 4)
         axarr[0].imshow(images[0])
         axarr[0].set_title(labels[0])
-
+    
         axarr[1].imshow(images[1])
         axarr[1].set_title(labels[1])
-
+    
         axarr[2].imshow(images[2])
         axarr[2].set_title(labels[2])
-
+    
         axarr[3].imshow(images[3])
         axarr[3].set_title(labels[3])
 
@@ -672,12 +656,12 @@ Compare results on four pictures
 .. code:: ipython3
 
     indexes_to_infer = [7, 12, 15, 20]  # To plot, specify 4 indexes.
-
+    
     plot_pictures(indexes_to_infer)
-
+    
     results_float = infer_on_pictures(compiled_model, indexes_to_infer)
     results_quanized = infer_on_pictures(optimized_compiled_model, indexes_to_infer)
-
+    
     print(f"Labels for picture from float model : {results_float}.")
     print(f"Labels for picture from quantized model : {results_quanized}.")
 

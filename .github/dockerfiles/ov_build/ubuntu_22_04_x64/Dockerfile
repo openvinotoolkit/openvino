@@ -1,4 +1,5 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
+ARG REGISTRY="docker.io"
+FROM ${REGISTRY}/library/ubuntu:22.04
 
 USER root
 
