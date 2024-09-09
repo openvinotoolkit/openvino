@@ -14,13 +14,13 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/validate.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "plugin.hpp"
 #include "util.hpp"
-#include "openvino/pass/validate.hpp"
 
 // required for get_properties_per_device()
 #include <intel_npu/al/config/config.hpp>

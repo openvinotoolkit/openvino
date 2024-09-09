@@ -1407,20 +1407,20 @@ void ov::npuw::util::to_f32(const ov::Tensor& in, ov::Tensor& out) {
     }
 }
 
-inline uint8_t tread_4b(const ov::Tensor &t, std::size_t r, std::size_t c, std::size_t COLS) {
-    const uint8_t *tdata = static_cast<uint8_t*>(t.data());
-    const uint8_t *trow  = tdata + r*COLS/2;
-    const uint8_t *telem = trow + c/2;
+inline uint8_t tread_4b(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
+    const uint8_t* tdata = static_cast<uint8_t*>(t.data());
+    const uint8_t* trow = tdata + r * COLS / 2;
+    const uint8_t* telem = trow + c / 2;
     if (c % 2 == 0) {
         return lo4(*telem);
     }
     return hi4(*telem);
 }
 
-inline void twrite_4b(ov::Tensor &t, uint8_t value, std::size_t r, std::size_t c, std::size_t COLS) {
-    uint8_t *tdata = static_cast<uint8_t*>(t.data());
-    uint8_t *trow  = tdata + r*COLS / 2;
-    uint8_t *telem = trow + c/2;
+inline void twrite_4b(ov::Tensor& t, uint8_t value, std::size_t r, std::size_t c, std::size_t COLS) {
+    uint8_t* tdata = static_cast<uint8_t*>(t.data());
+    uint8_t* trow = tdata + r * COLS / 2;
+    uint8_t* telem = trow + c / 2;
     if (c % 2 == 0) {
         *telem = (hi4(*telem) << 4) | lo4(value);
     } else {
@@ -1428,12 +1428,12 @@ inline void twrite_4b(ov::Tensor &t, uint8_t value, std::size_t r, std::size_t c
     }
 }
 
-void ov::npuw::util::transpose(ov::Tensor &t) {
+void ov::npuw::util::transpose(ov::Tensor& t) {
     ov::Shape shape = t.get_shape();
-    NPUW_ASSERT(shape.size() == 3); // Yes, so far only transpose 3D tensors
+    NPUW_ASSERT(shape.size() == 3);  // Yes, so far only transpose 3D tensors
     NPUW_ASSERT(t.get_element_type() == ov::element::i4);
 
-    ov::Shape tshape = { shape[2], shape[0], shape[1] };
+    ov::Shape tshape = {shape[2], shape[0], shape[1]};
     ov::Tensor tnew(t.get_element_type(), tshape);
 
     const auto IN_ROWS = shape[0] * shape[1];
@@ -1447,22 +1447,22 @@ void ov::npuw::util::transpose(ov::Tensor &t) {
     t = std::move(tnew);
 }
 
-void ov::npuw::util::permute(ov::Tensor &t, const std::vector<std::size_t> &axes) {
+void ov::npuw::util::permute(ov::Tensor& t, const std::vector<std::size_t>& axes) {
     ov::Shape shape = t.get_shape();
-    NPUW_ASSERT(shape.size() == 3); // Yes, so far only transpose 3D tensors
-    NPUW_ASSERT(t.get_element_type() == ov::element::i4); // And, yes, 4bit only!
+    NPUW_ASSERT(shape.size() == 3);                        // Yes, so far only transpose 3D tensors
+    NPUW_ASSERT(t.get_element_type() == ov::element::i4);  // And, yes, 4bit only!
 
     if (axes[0] == 2 && axes[1] == 0 && axes[2] == 1) {
         transpose(t);
     } else if (axes[0] == 0 && axes[1] == 2 && axes[2] == 1) {
-        ov::Shape tshape = { shape[0], shape[2], shape[1] };
+        ov::Shape tshape = {shape[0], shape[2], shape[1]};
         ov::Tensor tnew(t.get_element_type(), tshape);
 
         for (std::size_t p = 0; p < shape[0]; p++) {
             for (std::size_t r = 0; r < shape[1]; r++) {
                 for (std::size_t c = 0; c < shape[2]; c++) {
-                    uint8_t value = tread_4b(t, p*shape[1] + r, c, shape[2]);
-                    twrite_4b(tnew, value, p*shape[2] + c, r, shape[1]);
+                    uint8_t value = tread_4b(t, p * shape[1] + r, c, shape[2]);
+                    twrite_4b(tnew, value, p * shape[2] + c, r, shape[1]);
                 }
             }
         }
@@ -1474,57 +1474,57 @@ void ov::npuw::util::permute(ov::Tensor &t, const std::vector<std::size_t> &axes
 
 namespace {
 
-void slice_3d_0(const ov::Tensor &t, ov::Tensor &view, std::size_t idx) {
+void slice_3d_0(const ov::Tensor& t, ov::Tensor& view, std::size_t idx) {
     // Slice 3D tensor over 0th dimension: [A,B,C] -> [(A/N),B,C]
     // Take (A/N)*idx'th row and copy (A/N) lines
 
     const ov::Shape orig_shape = t.get_shape();
     const ov::Shape view_shape = view.get_shape();
-    const uint8_t *src_data = static_cast<uint8_t*>(t.data());
-    uint8_t *dst_data = static_cast<uint8_t*>(view.data());
+    const uint8_t* src_data = static_cast<uint8_t*>(t.data());
+    uint8_t* dst_data = static_cast<uint8_t*>(view.data());
 
     const auto type = t.get_element_type();
     if (type == ov::element::i4 || type == ov::element::u4) {
-        src_data += idx * orig_shape[1]*orig_shape[2]/2;
-        std::copy_n(src_data, orig_shape[1]*orig_shape[2], dst_data);
+        src_data += idx * orig_shape[1] * orig_shape[2] / 2;
+        std::copy_n(src_data, orig_shape[1] * orig_shape[2], dst_data);
     } else {
-        src_data += idx * orig_shape[1]*orig_shape[2]*type.size();
-        std::copy_n(src_data, orig_shape[1]*orig_shape[2]*type.size(), dst_data);
+        src_data += idx * orig_shape[1] * orig_shape[2] * type.size();
+        std::copy_n(src_data, orig_shape[1] * orig_shape[2] * type.size(), dst_data);
     }
 }
 
-void slice_3d_1(const ov::Tensor &t, ov::Tensor &view, std::size_t idx) {
+void slice_3d_1(const ov::Tensor& t, ov::Tensor& view, std::size_t idx) {
     // Slice 3D tensor over 1st dimension: [A,B,C] -> [A,(B/N),C]
     // Copy A planes of size [(B/N),C]
 
     const ov::Shape orig_shape = t.get_shape();
     const ov::Shape view_shape = view.get_shape();
-    const uint8_t *src_data = static_cast<uint8_t*>(t.data());
-    uint8_t *dst_data = static_cast<uint8_t*>(view.data());
+    const uint8_t* src_data = static_cast<uint8_t*>(t.data());
+    uint8_t* dst_data = static_cast<uint8_t*>(view.data());
 
     const auto type = t.get_element_type();
     if (type == ov::element::i4 || type == ov::element::u4) {
         for (std::size_t j = 0; j < orig_shape[0]; j++) {
-            const uint8_t *src_plane_start = src_data + j*(orig_shape[1]*orig_shape[2])/2;
-            const uint8_t *src_row_start = src_plane_start + idx*orig_shape[2]/2;
+            const uint8_t* src_plane_start = src_data + j * (orig_shape[1] * orig_shape[2]) / 2;
+            const uint8_t* src_row_start = src_plane_start + idx * orig_shape[2] / 2;
 
-            uint8_t *dst_plane_start = dst_data + j*view_shape[1]*view_shape[2]/2;
-            std::copy_n(src_row_start, view_shape[1]*view_shape[2]/2, dst_plane_start);
+            uint8_t* dst_plane_start = dst_data + j * view_shape[1] * view_shape[2] / 2;
+            std::copy_n(src_row_start, view_shape[1] * view_shape[2] / 2, dst_plane_start);
         }
     } else {
         for (std::size_t j = 0; j < orig_shape[0]; j++) {
-            const uint8_t *src_plane_start = src_data + j*(orig_shape[1]*orig_shape[2])*type.size();
-            const uint8_t *src_row_start = src_plane_start + idx*orig_shape[2]*type.size();
+            const uint8_t* src_plane_start = src_data + j * (orig_shape[1] * orig_shape[2]) * type.size();
+            const uint8_t* src_row_start = src_plane_start + idx * orig_shape[2] * type.size();
 
-            uint8_t *dst_plane_start = dst_data + j*view_shape[1]*view_shape[2]*type.size();
-            std::copy_n(src_row_start, view_shape[1]*view_shape[2]*type.size(), dst_plane_start);
+            uint8_t* dst_plane_start = dst_data + j * view_shape[1] * view_shape[2] * type.size();
+            std::copy_n(src_row_start, view_shape[1] * view_shape[2] * type.size(), dst_plane_start);
         }
     }
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
-ov::Tensor ov::npuw::util::slice(const ov::Tensor &t, std::size_t axis, std::size_t splits, std::size_t idx) {
+ov::Tensor ov::npuw::util::slice(const ov::Tensor& t, std::size_t axis, std::size_t splits, std::size_t idx) {
     ov::Shape orig_shape = t.get_shape();
     NPUW_ASSERT(orig_shape.size() == 3);
 
@@ -1533,9 +1533,14 @@ ov::Tensor ov::npuw::util::slice(const ov::Tensor &t, std::size_t axis, std::siz
 
     ov::Tensor view(t.get_element_type(), view_shape);
     switch (axis) {
-    case 0: slice_3d_0(t, view, idx); break;
-    case 1: slice_3d_1(t, view, idx); break;
-    default: NPUW_ASSERT(false && "Slice over this axis is not supported yet");
+    case 0:
+        slice_3d_0(t, view, idx);
+        break;
+    case 1:
+        slice_3d_1(t, view, idx);
+        break;
+    default:
+        NPUW_ASSERT(false && "Slice over this axis is not supported yet");
     }
     return view;
 }

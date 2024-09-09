@@ -9,13 +9,13 @@
 #include "intel_npu/al/config/npuw.hpp"
 #include "online/compiler.hpp"
 #include "online/utils/utils.hpp"  // getMetaDesc
+#include "openvino/core/parallel.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
-#include "openvino/core/parallel.hpp"
 #include "patterns/dcoff.hpp"
 #include "patterns/opt.hpp"
 
@@ -279,7 +279,7 @@ public:
     void matchResults(const std::string& func_name);
     void createFunction(const std::string& func_name);
     void matchRepeatedSubgraphs(const std::string& func_name);
-    void optimize(const std::string &func_name);
+    void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
 
     // Final steps
@@ -1562,7 +1562,8 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
 
 void Partitioner::optimize(const std::string& func_name) {
     if (!cfg.get<::intel_npu::NPUW_DQ>()) {
-        LOG_VERB("No optimizations will be done to  " << func_name << " in model " << model->get_friendly_name() << "...");
+        LOG_VERB("No optimizations will be done to  " << func_name << " in model " << model->get_friendly_name()
+                                                      << "...");
         return;
     }
 
@@ -1580,7 +1581,7 @@ void Partitioner::optimize(const std::string& func_name) {
     // Add new parameters where required
     std::set<ov::npuw::patterns::opt::Context::PPtr> to_delete;
     std::vector<ov::npuw::patterns::opt::Context::PPtr> new_params;
-    for (auto &&v : ctx.closure_views) {
+    for (auto&& v : ctx.closure_views) {
         to_delete.insert(v.first.first);
         new_params.push_back(v.second);
     }
@@ -1589,7 +1590,7 @@ void Partitioner::optimize(const std::string& func_name) {
 
     // Transpose tensors where required
     auto& func_group = all_functions.at(func_name);
-    for (auto &&p : ctx.closures_to_transpose) {
+    for (auto&& p : ctx.closures_to_transpose) {
         auto param_idx = f._model->get_parameter_index(p);
         auto closure_idx = param_idx - f._param_offset;
         ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
@@ -1600,7 +1601,7 @@ void Partitioner::optimize(const std::string& func_name) {
 
     // Permute tensors where required. FIXME: The above snippet can be
     // generalized to this one.
-    for (auto &&p : ctx.closures_to_permute) {
+    for (auto&& p : ctx.closures_to_permute) {
         auto param_idx = f._model->get_parameter_index(p.first);
         auto closure_idx = param_idx - f._param_offset;
         ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
@@ -1610,7 +1611,7 @@ void Partitioner::optimize(const std::string& func_name) {
     }
 
     // Now add new closure tensors
-    for (auto &&v : ctx.closure_views) {
+    for (auto&& v : ctx.closure_views) {
         ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
             auto& funcall = func_group.refs[f_idx].get();
             auto& orig_param = v.first.first;
@@ -1626,10 +1627,10 @@ void Partitioner::optimize(const std::string& func_name) {
 
     // Store the indices of parameters to delete. Remap closures, then delete parameters
     std::set<std::size_t> idx_to_delete;
-    for (auto &&now_delete : to_delete) {
+    for (auto&& now_delete : to_delete) {
         idx_to_delete.insert(f._model->get_parameter_index(now_delete));
     }
-    for (auto &&fref : func_group.refs) {
+    for (auto&& fref : func_group.refs) {
         auto& funcall = fref.get();
         std::vector<ov::Tensor> new_closure;
         for (std::size_t cidx = 0; cidx < funcall._closure.size(); cidx++) {
@@ -1639,7 +1640,7 @@ void Partitioner::optimize(const std::string& func_name) {
         }
         funcall._closure = std::move(new_closure);
     }
-    for (auto &&now_delete : to_delete) {
+    for (auto&& now_delete : to_delete) {
         f._model->remove_parameter(now_delete);
     }
     f._model->validate_nodes_and_infer_types();

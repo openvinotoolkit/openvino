@@ -84,14 +84,14 @@ DQMatMulCWi::DQMatMulCWi() {
             auto mm_readers = matched_matmul->output(0).get_target_inputs();
 
             // Introduce a Reshape to alter Scale factor's shape
-            auto new_dims = std::vector<std::size_t>{ qcoeff_shape[1], qcoeff_shape[0] };
+            auto new_dims = std::vector<std::size_t>{qcoeff_shape[1], qcoeff_shape[0]};
             auto new_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, new_dims);
             auto new_reshape = std::make_shared<ov::op::v1::Reshape>(matched_node_qcoeff, new_const, false);
 
             // Reconnect Multiply's both inputs. Drop all outputs
             matched_node_muls->input(0).replace_source_output(matched_matmul);
             matched_node_muls->input(1).replace_source_output(new_reshape);
-            for (auto &&r : matched_node_muls->output(0).get_target_inputs()) {
+            for (auto&& r : matched_node_muls->output(0).get_target_inputs()) {
                 matched_node_muls->output(0).remove_target_input(r);
             }
 
@@ -99,7 +99,7 @@ DQMatMulCWi::DQMatMulCWi() {
             matched_node_cvtm->input(0).replace_source_output(matched_node_muls);
 
             // Reconnect MatMul's old readers to Convert(Multiply)
-            for (auto &&r : mm_readers) {
+            for (auto&& r : mm_readers) {
                 r.replace_source_output(matched_node_cvtm);
             }
         }
@@ -109,7 +109,7 @@ DQMatMulCWi::DQMatMulCWi() {
     register_matcher(std::make_shared<opp::Matcher>(qmm, "OptDQMatMulCWi"), std::move(callback));
 }
 
-Context::PPtr Context::view(PPtr orig_param, const View &v) {
+Context::PPtr Context::view(PPtr orig_param, const View& v) {
     // FIXME: Assumed called only once
     auto key = std::make_pair(orig_param, v);
     auto iter = closure_views.find(key);
@@ -118,17 +118,16 @@ Context::PPtr Context::view(PPtr orig_param, const View &v) {
     }
 
     auto view_shape = orig_param->output(0).get_shape();
-    view_shape[v.axis] /= v.splits; // FIXME: handle rounding here
+    view_shape[v.axis] /= v.splits;  // FIXME: handle rounding here
     auto view_param = std::make_shared<ov::op::v0::Parameter>(orig_param->get_element_type(), view_shape);
 
     closure_views[key] = view_param;
     return view_param;
 }
 
-void Context::permute(PPtr orig_param, const Context::Axes &order) {
+void Context::permute(PPtr orig_param, const Context::Axes& order) {
     closures_to_permute[orig_param] = order;
 }
-
 
 // FROM:
 //     ???(Act) -------------------------------------------->
@@ -175,24 +174,20 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
         auto act_shape = matched_out_mmi.get_shape();
 
-        if (ov::element::i4 == matched_qweight->get_element_type() &&
-            qcoeff_shape.size() == 3 &&
-            qweight_shape.size() == 3 &&
-            act_shape.size() == 3 &&
-            qcoeff_shape[0] == qweight_shape[0] &&
-            qcoeff_shape[1] == 1 &&
-            qcoeff_shape[2] == qweight_shape[2] &&
-            !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b()) {
+        if (ov::element::i4 == matched_qweight->get_element_type() && qcoeff_shape.size() == 3 &&
+            qweight_shape.size() == 3 && act_shape.size() == 3 && qcoeff_shape[0] == qweight_shape[0] &&
+            qcoeff_shape[1] == 1 && qcoeff_shape[2] == qweight_shape[2] && !matched_matmul->get_transpose_a() &&
+            !matched_matmul->get_transpose_b()) {
             // Mark W closure to transpose, and transpose the respective parameter
             ctx.get().permute(matched_qweight, {0, 2, 1});
 
-            ov::Shape tw_shape = { qweight_shape[0], qweight_shape[2], qweight_shape[1] };
+            ov::Shape tw_shape = {qweight_shape[0], qweight_shape[2], qweight_shape[1]};
             matched_qweight->set_partial_shape(tw_shape);
             matched_qweight->validate_and_infer_types();
 
             // Reshape the Act to group format
             const auto NSPLIT = qweight_shape[0];
-            std::vector<std::size_t> rshp_act_v = { NSPLIT, act_shape[1], act_shape[2]/NSPLIT };
+            std::vector<std::size_t> rshp_act_v = {NSPLIT, act_shape[1], act_shape[2] / NSPLIT};
             auto rshp_act_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, rshp_act_v);
             auto rshp_act = std::make_shared<ov::op::v1::Reshape>(matched_out_mmi, rshp_act_c, false);
 
@@ -203,7 +198,7 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
             auto split_s = std::make_shared<ov::op::v1::Split>(matched_qcoeff, split_axis, NSPLIT);
 
             // Do the CW MM for every split
-            std::vector<std::shared_ptr<ov::Node> > to_concat;
+            std::vector<std::shared_ptr<ov::Node>> to_concat;
             for (std::size_t i = 0; i < NSPLIT; i++) {
                 auto a_f16 = std::make_shared<ov::op::v0::Convert>(split_a->output(i), ov::element::f16);
                 auto w_f16 = std::make_shared<ov::op::v0::Convert>(split_w->output(i), ov::element::f16);
@@ -213,20 +208,20 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
                 to_concat.push_back(s_f32);
             }
 
-            std::vector<ov::Output<ov::Node> > reduce;
+            std::vector<ov::Output<ov::Node>> reduce;
             reduce.push_back(std::make_shared<ov::op::v1::Add>(to_concat[0], to_concat[1]));
-            for (std::size_t i = 1; i < NSPLIT-1; i++) {
-                reduce.push_back(std::make_shared<ov::op::v1::Add>(reduce[i-1], to_concat[i+1]));
+            for (std::size_t i = 1; i < NSPLIT - 1; i++) {
+                reduce.push_back(std::make_shared<ov::op::v1::Add>(reduce[i - 1], to_concat[i + 1]));
             }
             auto sum = reduce.back();
 
             // Now.. Reconnect the matmul readers to the new output (reducesum)
-            for (auto &&r : matched_matmul->output(0).get_target_inputs()) {
+            for (auto&& r : matched_matmul->output(0).get_target_inputs()) {
                 r.replace_source_output(sum);
             }
             return true;  // root has changed
         }
-        return false; // did nothing here
+        return false;  // did nothing here
     };
     register_matcher(std::make_shared<opp::Matcher>(qmm, "OptDQMatMulGQi"), std::move(callback));
 }
