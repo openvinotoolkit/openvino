@@ -372,14 +372,16 @@ TEST(fully_connected_gpu, no_biases_fc_i32) {
 }
 
 TEST(fully_connected_gpu, no_biases_4d_input) {
+    auto& engine = get_test_engine();
+    if (engine.get_device_info().supports_immad)
+        return;
+
     //  Input  : 1x256x256x384
     //  Output : 1x256x256x1536
     //  Weights: 1536x384x1x1
 
     const int32_t input_b = 1, input_f = 256, input_y = 256, input_x = 384,     // size of the whole input buffer
                   weight_b = 1536, weight_f = 384, weight_y = 1, weight_x = 1;  // size of the whole weights buffer
-
-    auto& engine = get_test_engine();
 
     auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { input_b, input_f, input_x, input_y } });
     auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, weight_f, weight_x, weight_y } });
@@ -438,8 +440,6 @@ TEST(fully_connected_gpu, no_biases_4d_input_immad) {
     topology.add(fc);
 
     ExecutionConfig config = get_test_default_config(engine);
-    // ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "fc_prim_immad", impl_types::onednn };
-    // config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl} }));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input_prim);

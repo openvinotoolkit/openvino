@@ -119,7 +119,7 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
     }
 
-    if (desc->input_size > 3 || (!supports_immad && desc->input_size > 4)) {
+    if ((supports_immad && desc->input_size > 3) || desc->input_size > 4) {
        input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
     }
     if (weights_pshape.size() != 2) {
