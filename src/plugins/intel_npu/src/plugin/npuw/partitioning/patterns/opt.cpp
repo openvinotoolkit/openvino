@@ -31,6 +31,10 @@ namespace npuw {
 namespace patterns {
 namespace opt {
 
+void Context::permute(PPtr orig_param, const Context::Axes& order) {
+    closures_to_permute[orig_param] = order;
+}
+
 namespace opp = ov::pass::pattern;
 
 // FROM:
@@ -107,26 +111,6 @@ DQMatMulCWi::DQMatMulCWi() {
         return true;  // root has changed
     };
     register_matcher(std::make_shared<opp::Matcher>(qmm, "OptDQMatMulCWi"), std::move(callback));
-}
-
-Context::PPtr Context::view(PPtr orig_param, const View& v) {
-    // FIXME: Assumed called only once
-    auto key = std::make_pair(orig_param, v);
-    auto iter = closure_views.find(key);
-    if (iter != closure_views.end()) {
-        return iter->second;
-    }
-
-    auto view_shape = orig_param->output(0).get_shape();
-    view_shape[v.axis] /= v.splits;  // FIXME: handle rounding here
-    auto view_param = std::make_shared<ov::op::v0::Parameter>(orig_param->get_element_type(), view_shape);
-
-    closure_views[key] = view_param;
-    return view_param;
-}
-
-void Context::permute(PPtr orig_param, const Context::Axes& order) {
-    closures_to_permute[orig_param] = order;
 }
 
 // FROM:
