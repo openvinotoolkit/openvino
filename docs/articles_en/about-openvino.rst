@@ -17,7 +17,7 @@ and hardware solutions it supports.
 
 OpenVINO (Open Visual Inference and Neural network Optimization) is an open-source software
 toolkit designed to optimize, accelerate, and deploy deep learning models for user applications.
-OpenVINO was developed by Intel to work efficiently on a wide range of Intel hardware platforms,
+OpenVINO is actively developed by Intel® to work efficiently on a wide range of Intel® hardware platforms,
 including CPUs (x86 and Arm), GPUs, and NPUs.
 
 
