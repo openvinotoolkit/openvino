@@ -166,6 +166,16 @@ ov::Output<ov::Node> create_dense_tensor(const ov::Output<ov::Node>& indices,
                                          const ov::Output<ov::Node>& shape,
                                          const ov::Output<ov::Node>& values);
 
+ov::Output<ov::Node> atan2_op(const ov::Output<ov::Node>& y, const ov::Output<ov::Node>& x);
+
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> complex_rectangular_to_polar(
+    const ov::Output<ov::Node>& real_part,
+    const ov::Output<ov::Node>& imag_part);
+
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> complex_polar_to_rectangular(
+    const ov::Output<ov::Node>& real_part,
+    const ov::Output<ov::Node>& imag_part);
+
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

@@ -1,0 +1,45 @@
+{
+    "$id": "https://example.com/person.schema.json",
+    "title": "Benchmarking platform",
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "required": [
+      "Platform",
+      "Model",
+      "PlatformType",
+      "Parameters"
+    ],
+    "properties": {
+      "Platform": {
+        "description": "The name of platform",
+        "type": "string"
+      },
+      "Model": {
+        "description": "Name of the AI model",
+        "type": "string"
+      },
+      "PlatformType": {
+        "description": "Type of platform type",
+        "type": "string"
+      },
+      "Parameters": {
+        "description": "Type of Parameters",
+        "type": "object",
+        "minProperties": 1,
+        "propertyNames": {
+          "pattern": "([\\w ]+)",
+          "items": {
+            "Precisions": {
+              "description": "The name of Precisions array",
+              "type": "object"
+            },
+            "Unit": {
+              "description": "The name of Unit object",
+              "type": "object"
+            }
+          },
+          "required": ["Precisions","Unit"]
+        }
+      }
+    }
+  }
