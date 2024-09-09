@@ -238,6 +238,8 @@ void attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
         attn_quant_mt<float, uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp);
     } else if (k_src.get_precision() == ov::element::bf16 && k_dst.get_precision() == ov::element::u8) {
         attn_quant_mt<ov::bfloat16, uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp);
+    } else if (k_src.get_precision() == ov::element::f16 && k_dst.get_precision() == ov::element::u8) {
+        attn_quant_mt<ov::float16, uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp);
     } else {
         OPENVINO_THROW("unsupport src type: ", k_src.get_precision(), ", dst type: ", k_dst.get_precision(), " in attn_quantkv");
     }
@@ -252,6 +254,8 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
         paged_attn_quant_mt<float, uint8_t>(k_src, v_src, k_dst, v_dst, slot_mapping);
     } else if (k_src.get_precision() == ov::element::bf16 && k_dst.get_precision() == ov::element::u8) {
         paged_attn_quant_mt<ov::bfloat16, uint8_t>(k_src, v_src, k_dst, v_dst, slot_mapping);
+    } else if (k_src.get_precision() == ov::element::f16 && k_dst.get_precision() == ov::element::u8) {
+        paged_attn_quant_mt<ov::float16, uint8_t>(k_src, v_src, k_dst, v_dst, slot_mapping);
     } else {
         OPENVINO_THROW("unsupport src type: ", k_src.get_precision(), ", dst type: ", k_dst.get_precision(), " in paged_attn_quantkv");
     }

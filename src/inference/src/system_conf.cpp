@@ -90,6 +90,10 @@ bool with_cpu_x86_bfloat16() {
     return get_cpu_info().has(Xbyak::util::Cpu::tAVX512_BF16);
 }
 
+bool with_cpu_x86_avx512_core_bf16() {
+    return get_cpu_info().has(Xbyak::util::Cpu::tAVX512_BF16);
+}
+
 bool with_cpu_x86_avx512_core_fp16() {
     return get_cpu_info().has(Xbyak::util::Cpu::tAVX512_FP16);
 }
@@ -107,7 +111,9 @@ bool with_cpu_x86_avx512_core_amx_fp16() {
 }
 
 bool with_cpu_x86_avx512_core_amx() {
-    return with_cpu_x86_avx512_core_amx_int8() || with_cpu_x86_avx512_core_amx_bf16();
+    return with_cpu_x86_avx512_core_amx_int8() ||
+           with_cpu_x86_avx512_core_amx_bf16() ||
+           with_cpu_x86_avx512_core_amx_fp16();
 }
 
 bool with_cpu_neon_fp16() {
