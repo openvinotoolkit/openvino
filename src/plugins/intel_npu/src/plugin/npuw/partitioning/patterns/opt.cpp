@@ -35,6 +35,10 @@ void Context::permute(PPtr orig_param, const Context::Axes& order) {
     closures_to_permute[orig_param] = order;
 }
 
+void Context::to_f16(PPtr orig_param) {
+    closures_to_f16.insert(orig_param);
+}
+
 namespace opp = ov::pass::pattern;
 
 // FROM:
@@ -162,16 +166,23 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
         auto act_shape = matched_out_mmi.get_shape();
         auto out_shape = matched_node_matmul->output(0).get_shape();
 
-        if (ov::element::i4 == matched_qweight->get_element_type() && qcoeff_shape.size() == 3 &&
+        if (ov::element::i4 == matched_qweight->get_element_type() &&
+            ov::element::f32 == matched_qcoeff->get_element_type() && qcoeff_shape.size() == 3 &&
             qweight_shape.size() == 3 && act_shape.size() == 3 && qcoeff_shape[0] == qweight_shape[0] &&
             qcoeff_shape[1] == 1 && qcoeff_shape[2] == qweight_shape[2] && !matched_matmul->get_transpose_a() &&
             !matched_matmul->get_transpose_b()) {
             // Mark W closure to transpose, and transpose the respective parameter
             ctx.get().permute(matched_qweight, {0, 2, 1});
 
+            // Mark S closure to be lowered fo f16
+            ctx.get().to_f16(matched_qcoeff);
+
             ov::Shape tw_shape = {qweight_shape[0], qweight_shape[2], qweight_shape[1]};
             matched_qweight->set_partial_shape(tw_shape);
             matched_qweight->validate_and_infer_types();
+
+            matched_qcoeff->set_element_type(ov::element::f16);
+            matched_qcoeff->validate_and_infer_types();
 
             // Reshape the Act to group format
             const auto NSPLIT = qweight_shape[0];
@@ -195,13 +206,12 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
 
             // Now concat and scale the result
             auto concat = std::make_shared<ov::op::v0::Concat>(to_concat, 0);
-            auto m_f32 = std::make_shared<ov::op::v0::Convert>(concat, ov::element::f32);
-            auto s_f32 = std::make_shared<ov::op::v1::Multiply>(m_f32, matched_qcoeff);
+            auto s_f16 = std::make_shared<ov::op::v1::Multiply>(concat, matched_qcoeff);
 
             // Now reshape to a better shape, ReduceSum, and reshape to the right size again
             std::vector<std::size_t> rshp_ccat_v = {1, NSPLIT, 1, qweight_shape[2]};
             auto rshp_ccat_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, rshp_ccat_v);
-            auto rshp_ccat = std::make_shared<ov::op::v1::Reshape>(s_f32, rshp_ccat_c, false);
+            auto rshp_ccat = std::make_shared<ov::op::v1::Reshape>(s_f16, rshp_ccat_c, false);
 
             auto reduce_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1);
             auto reduce = std::make_shared<ov::op::v1::ReduceSum>(rshp_ccat, reduce_axis, true);
@@ -209,9 +219,12 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
             auto rshp_out_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, out_shape);
             auto rshp_out = std::make_shared<ov::op::v1::Reshape>(reduce, rshp_out_c, false);
 
+            // Convert the result to f32 to maintain the graph contracts. FIXME should be avoided
+            auto out = std::make_shared<ov::op::v0::Convert>(rshp_out, ov::element::f32);
+
             // Now.. Reconnect the matmul readers to the new output (reducesum)
             for (auto&& r : matched_matmul->output(0).get_target_inputs()) {
-                r.replace_source_output(rshp_out);
+                r.replace_source_output(out);
             }
             return true;  // root has changed
         }

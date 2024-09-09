@@ -1589,6 +1589,16 @@ void Partitioner::optimize(const std::string& func_name) {
         });
     }
 
+    // Convert tensors where required
+    for (auto&& p : ctx.closures_to_f16) {
+        auto param_idx = f._model->get_parameter_index(p);
+        auto closure_idx = param_idx - f._param_offset;
+        ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+            auto& funcall = func_group.refs[f_idx].get();
+            ov::npuw::util::to_f16(funcall._closure[closure_idx]);
+        });
+    }
+
     LOG_VERB("Done");
 }
 

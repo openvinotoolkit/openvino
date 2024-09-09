@@ -27,8 +27,11 @@ struct Context {
     using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
 
     using Axes = std::vector<std::size_t>;
-    void permute(PPtr orig_param, const Axes& order);
     std::map<PPtr, Axes> closures_to_permute;
+    void permute(PPtr orig_param, const Axes& order);
+
+    std::set<PPtr> closures_to_f16;
+    void to_f16(PPtr orig_param);
 
     using Ref = std::reference_wrapper<Context>;
 };

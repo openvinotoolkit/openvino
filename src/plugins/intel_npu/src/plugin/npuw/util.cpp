@@ -1407,6 +1407,27 @@ void ov::npuw::util::to_f32(const ov::Tensor& in, ov::Tensor& out) {
     }
 }
 
+void ov::npuw::util::to_f16(ov::Tensor& t) {
+    ov::Shape shape = t.get_shape();
+    NPUW_ASSERT(t.get_element_type() == ov::element::f32);
+
+    ov::Tensor tnew(ov::element::f16, shape);
+
+    const float *psrc = t.data<float>();
+    uint8_t *pdst = static_cast<uint8_t*>(tnew.data());
+
+    for (std::size_t i = 0; i < t.get_size() / 8; i++) {
+        __m256 vsrc = _mm256_loadu_ps(psrc);
+        __m128i vout = _mm256_cvtps_ph(vsrc, _MM_FROUND_TO_NEAREST_INT);
+        __m128i* pout = reinterpret_cast<__m128i*>(pdst);
+        _mm_storeu_si128(pout, vout);
+        psrc += 8; // offset in sizeof(float)
+        pdst += (8*2); // offset in bytes
+    }
+
+    t = std::move(tnew);
+}
+
 inline uint8_t tread_4b(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
     const uint8_t* tdata = static_cast<uint8_t*>(t.data());
     const uint8_t* trow = tdata + r * COLS / 2;
