@@ -134,7 +134,7 @@ private:
 class Profiler {
 public:
     /**
-    * @brief Profiler class helps to analyze Transformations execution times, visualize/serialize ov model after all
+     * @brief Profiler class helps to analyze Transformations execution times, visualize/serialize ov model after all
      * or for dedicated Transformations.
      *
      *  There are 3 environment variables which can be set for Transformations debugging:
@@ -172,7 +172,7 @@ public:
      *      export OV_ENABLE_SERIALIZE_TRACING=true
      *      export OV_ENABLE_SERIALIZE_TRACING="Pass1,Pass2,Pass3"
      *
-    */
+     */
     explicit Profiler(std::string manager_name)
         : m_visualize("OV_ENABLE_VISUALIZE_TRACING"),
           m_serialize("OV_ENABLE_SERIALIZE_TRACING"),
@@ -237,7 +237,7 @@ public:
         static size_t viz_index = 0;
         if (m_visualize.is_enabled()) {
             const auto& _visualize = [&]() {
-                const auto &file_name = gen_file_name(model->get_name(), pass_name, viz_index++);
+                const auto& file_name = gen_file_name(model->get_name(), pass_name, viz_index++);
                 ov::pass::VisualizeTree vt(file_name + ".svg");
                 vt.run_on_model(model);
             };
@@ -245,8 +245,8 @@ public:
             if (m_visualize.is_bool()) {
                 _visualize();
             } else {
-                const auto &filter_tokens = split_by_delimiter(m_visualize.get_str(), ',');
-                for (const auto &token: filter_tokens) {
+                const auto& filter_tokens = split_by_delimiter(m_visualize.get_str(), ',');
+                for (const auto& token : filter_tokens) {
                     if (pass_name.find(token) != std::string::npos) {
                         _visualize();
                         return;
@@ -260,7 +260,7 @@ public:
         static size_t serialize_index = 0;
         if (m_serialize.is_enabled()) {
             const auto& _serialize = [&]() {
-                const auto &file_name = gen_file_name(model->get_name(), pass_name, serialize_index++);
+                const auto& file_name = gen_file_name(model->get_name(), pass_name, serialize_index++);
                 ov::pass::Serialize serialize(file_name + ".xml", file_name + ".bin");
                 serialize.run_on_model(model);
             };
@@ -268,8 +268,8 @@ public:
             if (m_serialize.is_bool()) {
                 _serialize();
             } else {
-                const auto &filter_tokens = split_by_delimiter(m_serialize.get_str(), ',');
-                for (const auto &token: filter_tokens) {
+                const auto& filter_tokens = split_by_delimiter(m_serialize.get_str(), ',');
+                for (const auto& token : filter_tokens) {
                     if (pass_name.find(token) != std::string::npos) {
                         _serialize();
                         return;
@@ -298,7 +298,7 @@ private:
             res.push_back(str.substr(0, pos));
             str.erase(0, pos + 1);
         }
-        if (pos != str.size()-1) {
+        if (pos != str.size() - 1) {
             res.push_back(str);
         }
         return res;
