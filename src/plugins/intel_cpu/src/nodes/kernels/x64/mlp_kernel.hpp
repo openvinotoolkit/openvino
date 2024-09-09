@@ -260,7 +260,6 @@ struct Work {
             PlainTensor& blockB = weights[0];
             // number of blocks in N dimension (in unit of 32 columns)
             auto num_blkN = static_cast<int>(blockB.size(0));
-            auto strideB = blockB.stride_bytes(0);
             m_tile_configer.do_config(&m_tcfg[Mtails]);
             // original: bit0: 0-tilezero+skip load from mem, 1-tilezero+load from mem; tilestore
             // new: bit0: 0-skip load from mem, 1-load from mem; bit1: 0-skip tilezero, 1-tilezero; bit2: 0-skip store, 1-store
@@ -269,7 +268,6 @@ struct Work {
             int do_accumulation;
 
             MKernel::call_args args;
-            args.k_tiles = blk_K_size / 32;
             args.strideA = strideA;
             args.strideC = C_stride_bytes;
             args.M = Mtails;
@@ -278,8 +276,9 @@ struct Work {
                 do_accumulation = 0b010;
                 for (int ki = 0; ki < num_blk_K; ki++) {
                     PlainTensor& blockB = weights[ki];
+                    args.k_tiles = blockB.m_dims[1] / 32 / 32;
                     args.pA = pA + ki * blk_K_size * sizeof(ov::bfloat16);
-                    args.pB = blockB.ptr<uint8_t>() + ni * strideB;
+                    args.pB = blockB.ptr<uint8_t>() + ni * blockB.stride_bytes(0);
                     args.do_accumulation = do_accumulation;
                     // prefetch next N block. In memory bound, it seems no prefetch will be better.
                     // args.prefetch = args.pB + (ni == num_blkN - 1 ? 0 : strideB);
