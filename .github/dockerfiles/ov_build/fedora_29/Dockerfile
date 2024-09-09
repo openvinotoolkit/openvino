@@ -49,6 +49,7 @@ ENV PATH="$SCCACHE_HOME:$PATH"
 # Use Python 3.8 as default
 RUN python3.8 -m venv venv
 ENV PATH="/venv/bin:$PATH"
+RUN alternatives --install /usr/bin/python python /usr/bin/python3.8 10
 
 # Setup pip
 ENV PIP_VERSION="24.0"
