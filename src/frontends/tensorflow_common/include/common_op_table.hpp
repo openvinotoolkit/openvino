@@ -175,6 +175,7 @@ OP_CONVERTER(translate_tensor_list_stack_op);
 OP_CONVERTER(translate_tensor_list_resize_op);
 OP_CONVERTER(translate_tensor_list_concat_v2_op);
 OP_CONVERTER(translate_tensor_scatter_update_op);
+OP_CONVERTER(translate_tensor_scatter_add_op);
 OP_CONVERTER(translate_tile_op);
 OP_CONVERTER(translate_tobool_op);
 OP_CONVERTER_NAMED(translate_top_k_op);
