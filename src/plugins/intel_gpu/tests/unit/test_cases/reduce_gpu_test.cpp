@@ -1936,7 +1936,7 @@ public:
             topology.add(red);
             ExecutionConfig config = get_test_default_config(engine);
             config.set_property(ov::intel_gpu::optimize_data(true));
-            ov::intel_gpu::ImplementationDesc reduce_impl = {input_format, kernel_name};
+            ov::intel_gpu::ImplementationDesc reduce_impl = {input_format, kernel_name, impl_types::ocl};
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reduce", reduce_impl}}));
             cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
             network->set_input_data("input", input_mem);
