@@ -24,6 +24,9 @@ including CPUs (x86 and Arm), GPUs, and NPUs.
 Features
 ##############################################################
 
+One of the main purposes of the OpenVINO toolkit is to streamline integration and deployment of
+deep learning models. Yet its feature set is much wider, offering various optimization and implementation options.
+
 To learn about the main properties of OpenVINO, see the :doc:`Key Features <about-openvino/key-features>`.
 
 Architecture
