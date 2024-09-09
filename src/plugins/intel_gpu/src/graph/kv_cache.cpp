@@ -83,6 +83,9 @@ int32_t kv_cache_inst::get_prealloc_iter_num() {
 }
 
 void kv_cache_inst::update_shape_info_tensor(const kernel_impl_params& params) {
+    if (!_shape_info_memory) {
+        allocate_shape_info_memory();
+    }
     mem_lock<int32_t> lock(_shape_info_memory, _network.get_stream());
     auto shape_info_ptr = lock.data();
     size_t offset = 0;

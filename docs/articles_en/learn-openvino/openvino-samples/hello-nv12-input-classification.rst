@@ -1,5 +1,3 @@
-.. {#openvino_sample_hello_nv12_input_classification}
-
 Hello NV12 Input Classification Sample
 ======================================
 

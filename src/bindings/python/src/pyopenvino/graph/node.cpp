@@ -440,12 +440,6 @@ void regclass_graph_Node(py::module m) {
         util::DictAttributeDeserializer dict_deserializer(attr_dict, variables);
         self->visit_attributes(dict_deserializer);
     });
-    node.def("validate", [](const std::shared_ptr<ov::Node>& self) {
-        Common::utils::deprecation_warning("validate",
-                                           "2024.4",
-                                           "Please use 'constructor_validate_and_infer_types' method instead.");
-        return self->constructor_validate_and_infer_types();
-    });
     node.def("constructor_validate_and_infer_types", [](const std::shared_ptr<ov::Node>& self) {
         return self->constructor_validate_and_infer_types();
     });
