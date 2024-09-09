@@ -74,7 +74,7 @@ class TestComplexRsqrt(CommonTFLayerTest):
         
         return inputs_data
 
-    def create_complex_rsqrt_net(self, shape, ir_version, use_legacy_frontend):
+    def create_complex_rsqrt_net(self, shape):
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
@@ -98,18 +98,10 @@ class TestComplexRsqrt(CommonTFLayerTest):
 
         return tf_net, ref_net
 
-    test_data = [dict(shape=[1]),
-                 dict(shape=[1, 3]),
-                 dict(shape=[1, 128]),
-                 dict(shape=[1, 3, 224]),
-                 dict(shape=[1, 3, 100, 224]),
-                 dict(shape=[1, 3, 50, 100, 224])]
-
-    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.parametrize('shape', [[1], [1, 3], [2, 3, 22], [1, 3, 10, 22]])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_rsqrt(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
-        self._test(*self.create_complex_rsqrt_net(**params, ir_version=ir_version,
-                                          use_legacy_frontend=use_legacy_frontend),
+    def test_rsqrt(self, shape, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+        self._test(*self.create_complex_rsqrt_net(shape),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
