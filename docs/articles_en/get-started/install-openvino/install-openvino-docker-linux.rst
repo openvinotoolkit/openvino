@@ -20,6 +20,12 @@ You can get started easily with pre-built and published docker images, which are
 * `Red Hat Ecosystem Catalog (runtime image) <https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3>`__
 * `Red Hat Ecosystem Catalog (development image) <https://catalog.redhat.com/software/containers/intel/openvino-dev/613a450dc9bc35f21dc4a1f7>`__
 
+.. note::
+
+   The Ubuntu20 and Ubuntu22 Docker images (runtime and development) now include the tokenizers
+   and GenAI CPP modules. The development versions of these images also have the Python modules
+   for these components pre-installed.
+
 You can use the `available Dockerfiles on GitHub <https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles>`__
 or generate a Dockerfile with your settings via `DockerHub CI framework <https://github.com/openvinotoolkit/docker_ci/>`__,
 which can generate a Dockerfile, build, test, and deploy an image using the Intel® Distribution of OpenVINO™ toolkit.
@@ -56,6 +62,4 @@ More information about Docker CI for Intel® Distribution of OpenVINO™ toolset
 * `Get Started with DockerHub CI for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__
 * `Using OpenVINO™ Toolkit containers with GPU accelerators <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/accelerators.md>`__
 * `Dockerfiles with Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/dockerfiles/README.md>`__
-
-
 
