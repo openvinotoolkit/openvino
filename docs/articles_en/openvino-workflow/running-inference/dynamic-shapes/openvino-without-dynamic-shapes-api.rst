@@ -1,12 +1,10 @@
-.. {#openvino_docs_OV_UG_NoDynamicShapes}
-
 When Dynamic Shapes API is Not Applicable
 =========================================
 
 
 .. meta::
-   :description: The methods to emulate dynamic shapes are applied only if the 
-                 native dynamic shape API does not work or does not perform 
+   :description: The methods to emulate dynamic shapes are applied only if the
+                 native dynamic shape API does not work or does not perform
                  as expected.
 
 

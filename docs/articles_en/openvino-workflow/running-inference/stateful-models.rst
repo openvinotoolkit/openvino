@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_stateful_models_intro}
-
 Stateful models and State API
 ==============================
 
