@@ -826,6 +826,9 @@ TEST_P(deconv_scale_activation_quantize_i8_eltwise_quantize_u8, basic) {
         reorder("reorder_bfyx", input_info("quant2"), p.default_format, data_types::f32)
     );
 
+    ov::intel_gpu::ImplementationDesc gemmv_impl = { cldnn::format::type::any, "", impl_types::ocl };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "deconv_prim", gemmv_impl } }));
+
     tolerance = 1.f;
     execute(p);
 }

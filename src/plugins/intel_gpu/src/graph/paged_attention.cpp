@@ -143,10 +143,6 @@ void paged_attention_inst::on_execute() {
     }
 }
 
-void paged_attention_inst::update_shape_info_tensor(const kernel_impl_params& params) {
-    parent::update_shape_info_tensor(params);
-}
-
 paged_attention_inst::typed_primitive_inst(network& network, const paged_attention_node& node)
     : parent(network, node) {
     const auto desc = node.get_primitive();

@@ -813,6 +813,7 @@ void program::apply_needed_padding(program_node& node, program_node& prev_node, 
 
         auto r_prim = std::make_shared<reorder>("reorder_input_" + node.id(), prev_node.id(), target_layout);
         add_intermediate(r_prim, node, 0);
+        get_or_create(r_prim).recalc_output_layouts(false);
         return;
     }
 

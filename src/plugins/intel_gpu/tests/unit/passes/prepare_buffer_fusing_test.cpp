@@ -408,6 +408,12 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch2) {
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplForcingMap forcing_map = {
+        {"reorder1", ov::intel_gpu::ImplementationDesc{format::any, "", impl_types::onednn}},
+        {"reorder2", ov::intel_gpu::ImplementationDesc{format::any, "", impl_types::onednn}}
+    };
+    config.set_property(ov::intel_gpu::force_implementations(forcing_map));
+
     auto prog = program::build_program(engine, topology, config, false, false);
     ASSERT_NE(prog, nullptr);
     auto& concat_node_p = prog->get_node("concat");

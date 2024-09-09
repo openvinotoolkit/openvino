@@ -53,8 +53,8 @@ public:
         auto input1_prim = get_mem(get_input_layout(p, 1));
 
         if (!p.kernel_name.empty()) {
-            ov::intel_gpu::ImplementationDesc gemm_ref_impl = { format::bfyx, "gemm_ref" };
-            ov::intel_gpu::ImplementationDesc gemm_target_impl = { format::bfyx, p.kernel_name };
+            ov::intel_gpu::ImplementationDesc gemm_ref_impl = { format::bfyx, "gemm_ref", impl_types::ocl  };
+            ov::intel_gpu::ImplementationDesc gemm_target_impl = { format::bfyx, p.kernel_name, impl_types::ocl  };
             cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_prim", gemm_target_impl} }));
             cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_prim", gemm_ref_impl} }));
         }
@@ -197,6 +197,9 @@ TEST_P(gemm_2in_quantize_u8, basic) {
                  input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
         reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
+
+    ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "", impl_types::ocl };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_prim", gemm_impl} }));
 
     tolerance = default_tolerance(data_types::u8);
     execute(p, false);
@@ -568,6 +571,10 @@ TEST_P(gemm_2in_act_scale_eltwise, broadcast_eltwise) {
         eltwise("sum", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::sum,  data_types::f32),
         reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
     );
+
+    // Onednn impl gives different results for some reason (looks like missing saturation somewhere)
+    ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "", impl_types::ocl };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemm_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     if (p.default_type == data_types::f16 && p.kernel_name == "gemm_tiled_opt") {

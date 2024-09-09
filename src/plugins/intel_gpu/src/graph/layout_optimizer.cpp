@@ -1434,18 +1434,6 @@ bool layout_optimizer::is_primitive_implemented_for_onednn(program_node& node) {
     return false;
 }
 
-bool layout_optimizer::onednn_check_preferred_impl_type_of_users(program_node& node) {
-    if (node.get_users().size() == 0)
-        return false;
-
-    for (auto& user : node.get_users()) {
-        if (user->get_preferred_impl_type() == impl_types::onednn)
-            return true;
-    }
-
-    return false;
-}
-
 impl_types layout_optimizer::get_forced_impl_type_by_config(program_node& node) {
 #ifdef GPU_DEBUG_CONFIG
     GPU_DEBUG_GET_INSTANCE(debug_config);

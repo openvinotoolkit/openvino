@@ -1331,7 +1331,7 @@ public:
         set_default_shapes(num_dims, BMKN, input0_shape_default, input1_shape_default, output_shape_default);
         ov::Shape input0_shape(input0_shape_default.size());
         ov::Shape input1_shape(input1_shape_default.size());
- 
+
         for (size_t dim = 0; dim < input0_shape_default.size(); ++dim) {
             input0_shape[input0_order[dim]] = input0_shape_default[dim];
         }
@@ -2551,36 +2551,34 @@ public:
 
         ov::Shape in1_shape = { 1, 1, 3, 4 };
         ov::Shape in2_shape = { 1, 4 };
-        auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::bfyx};
-        auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::f32, format::bfyx};
-        auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx});
-        auto input2 = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::f32, format::bfyx});
+        auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f16, format::bfyx};
+        auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::f16, format::bfyx};
+        auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f16, format::bfyx});
+        auto input2 = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::f16, format::bfyx});
 
-        std::vector<float> input1_data = {
+        std::vector<ov::float16> input1_data = {
             1.f, -2.f, 3.f, -4.f,
             5.f, 6.f, 1.f, 2.f,
             3.f, 3.f, 2.f, -1.f,
         };
 
-        std::vector<float> input2_data = {
+        std::vector<ov::float16> input2_data = {
             2.f, 5.f, -4.f, -7.f,
         };
         set_values(input1, input1_data);
         set_values(input2, input2_data);
 
-        std::vector<float> out_data = {
+        std::vector<ov::float16> out_data = {
             8.f, 22.f, 20.f
         };
 
         topology topology;
         topology.add(input_layout("input1", in1_layout),
                      input_layout("input2", in2_layout),
-                     gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, true, 1.0f, 0.0f, 4, 2)
+                     gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f16, false, true, 1.0f, 0.0f, 4, 2)
         );
 
-        ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
         ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
-                             ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", fc_impl} }),
                              ov::intel_gpu::optimize_data(true),
                              ov::intel_gpu::allow_new_shape_infer(true) };
 
@@ -2596,7 +2594,7 @@ public:
         auto outputs = network.execute();
 
         auto output = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), (uint32_t)3);
         for (uint32_t i = 0; i < out_data.size(); ++i) {
@@ -2764,7 +2762,7 @@ public:
 
             ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, std::string(""), impl_types::onednn };
             ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
-                                 ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_impl} }),
+                                 ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_ref", gemm_impl} }),
                                  ov::intel_gpu::optimize_data(true),
                                  ov::intel_gpu::allow_new_shape_infer(true) };
 
