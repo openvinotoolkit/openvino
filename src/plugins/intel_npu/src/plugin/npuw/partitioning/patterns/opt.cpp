@@ -190,13 +190,13 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
                 auto a_f16 = std::make_shared<ov::op::v0::Convert>(split_a->output(i), ov::element::f16);
                 auto w_f16 = std::make_shared<ov::op::v0::Convert>(split_w->output(i), ov::element::f16);
                 auto m_f16 = std::make_shared<ov::op::v0::MatMul>(a_f16, w_f16, false, true);
-                auto m_f32 = std::make_shared<ov::op::v0::Convert>(m_f16, ov::element::f32);
-                to_concat.push_back(m_f32);
+                to_concat.push_back(m_f16);
             }
 
             // Now concat and scale the result
             auto concat = std::make_shared<ov::op::v0::Concat>(to_concat, 0);
-            auto s_f32 = std::make_shared<ov::op::v1::Multiply>(concat, matched_qcoeff);
+            auto m_f32 = std::make_shared<ov::op::v0::Convert>(concat, ov::element::f32);
+            auto s_f32 = std::make_shared<ov::op::v1::Multiply>(m_f32, matched_qcoeff);
 
             // Now reshape to a better shape, ReduceSum, and reshape to the right size again
             std::vector<std::size_t> rshp_ccat_v = {1, NSPLIT, 1, qweight_shape[2]};
