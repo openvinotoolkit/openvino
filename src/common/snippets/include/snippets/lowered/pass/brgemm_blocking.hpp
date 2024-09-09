@@ -32,7 +32,14 @@ protected:
      * @param brgemm_expr Brgemm expression
      * @return tuple in format (m_block, n_block, k_block)
      */
-    virtual std::tuple<size_t, size_t, size_t> get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr);
+    virtual std::tuple<size_t, size_t, size_t> get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const;
+    /**
+     * @interface get_brgemm_dimensions
+     * @brief Extract current dimensions M,N,K of `brgemm_expr`
+     * @param brgemm_expr Brgemm expression
+     * @return tuple in format (M, N, K)
+     */
+    static std::tuple<size_t, size_t, size_t> get_brgemm_dimensions(const ov::snippets::lowered::ExpressionPtr& brgemm_expr);
     /**
      * @interface mark_blocking_loops
      * @brief Covers brgemm with blocking loops. Also should calculate optimal blocking parameters inside.
@@ -48,26 +55,34 @@ protected:
     static bool blocking_loop_exists(const snippets::lowered::LoopManagerPtr& loop_manager,
                                      const ov::snippets::lowered::ExpressionPtr& brgemm_expr);
 
-    static void mark_m_blocking(const snippets::lowered::LoopManagerPtr& loop_manager,
-                                snippets::lowered::LinearIR::constExprIt loop_begin,
-                                snippets::lowered::LinearIR::constExprIt loop_end,
-                                const std::vector<snippets::lowered::LoopPort>& entries,
-                                const std::vector<snippets::lowered::LoopPort>& exits,
-                                size_t block_size_m);
+    void mark_m_blocking(const snippets::lowered::LoopManagerPtr& loop_manager,
+                         snippets::lowered::LinearIR::constExprIt loop_begin,
+                         snippets::lowered::LinearIR::constExprIt loop_end,
+                         const std::vector<snippets::lowered::LoopPort>& entries,
+                         const std::vector<snippets::lowered::LoopPort>& exits,
+                         size_t block_size_m);
 
-    static void mark_n_blocking(const snippets::lowered::LoopManagerPtr& loop_manager,
-                                snippets::lowered::LinearIR::constExprIt loop_begin,
-                                snippets::lowered::LinearIR::constExprIt loop_end,
-                                const std::vector<snippets::lowered::LoopPort>& entries,
-                                const std::vector<snippets::lowered::LoopPort>& exits,
-                                size_t block_size_n);
+    void mark_n_blocking(const snippets::lowered::LoopManagerPtr& loop_manager,
+                         snippets::lowered::LinearIR::constExprIt loop_begin,
+                         snippets::lowered::LinearIR::constExprIt loop_end,
+                         const std::vector<snippets::lowered::LoopPort>& entries,
+                         const std::vector<snippets::lowered::LoopPort>& exits,
+                         size_t block_size_n);
 
-    static void mark_k_blocking(const snippets::lowered::LoopManagerPtr& loop_manager,
-                                snippets::lowered::LinearIR::constExprIt loop_begin,
-                                snippets::lowered::LinearIR::constExprIt loop_end,
-                                const std::vector<snippets::lowered::LoopPort>& entries,
-                                const std::vector<snippets::lowered::LoopPort>& exits,
-                                size_t block_size_k);
+    void mark_k_blocking(const snippets::lowered::LoopManagerPtr& loop_manager,
+                         snippets::lowered::LinearIR::constExprIt loop_begin,
+                         snippets::lowered::LinearIR::constExprIt loop_end,
+                         const std::vector<snippets::lowered::LoopPort>& entries,
+                         const std::vector<snippets::lowered::LoopPort>& exits,
+                         size_t block_size_k);
+
+    virtual SpecificIterationHandlers get_m_loop_handlers(size_t work_amount, size_t block_size) const;
+    virtual SpecificIterationHandlers get_n_loop_handlers(size_t work_amount, size_t block_size) const;
+    virtual SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_size) const;
+
+    virtual size_t get_default_m_blk(size_t m) const;
+    virtual size_t get_default_n_blk(size_t n) const;
+    virtual size_t get_default_k_blk(size_t k) const;
 };
 
 /**

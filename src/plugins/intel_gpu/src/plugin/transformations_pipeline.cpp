@@ -58,6 +58,7 @@
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
+#include "plugin/transformations/decompose_reduce_scalar_output.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
@@ -70,7 +71,9 @@
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/group_norm_composition.hpp"
+#include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -406,6 +409,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
         manager.register_pass<ov::pass::TransposeMatMul>();
         manager.register_pass<ov::pass::ConvertPad12ToPad1, false>();
+        manager.register_pass<DecomposeReduceForScalarOutput>();
 
         precisions_map int_convert_precision_map {
                 {ov::element::i64, ov::element::i32},
@@ -777,6 +781,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
     {
         ov::pass::Manager manager("GPU:PostLPT");
+        manager.set_per_pass_validation(false);
 
         // Other ops support eltwise fusions
         const std::vector<DiscreteTypeInfo> allowed_data_movement_ops = {
@@ -789,7 +794,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::op::v1::Broadcast::get_type_info_static(),
             ov::op::v3::Broadcast::get_type_info_static(),
         };
-        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>(allowed_data_movement_ops);
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
 
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
@@ -827,7 +832,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::RMSFusion>();
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
-        manager.register_pass<ov::intel_gpu::TransposeFusion>();
+        manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);
 
         if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();
@@ -837,15 +842,42 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::SwiGLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
+
+        // This pass should be done after asymmetric quantization matching as it can move zp subtraction upper in the graph
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovPerChannel>();
+
         manager.register_pass<ov::intel_gpu::ConvertStridedSlicesToVariadicSplit>();
 
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
-        manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);
+        manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size, device_info.supports_immad);
 
         manager.register_pass<ov::pass::RoPEFusion>();
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
+
+        manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
+        // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
+        manager.register_pass<ov::pass::Validate>();
+
+        auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
+        if (device_info.supports_immad) { // XXX: 1048576 is considered per-token
+            pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
+                if (root->get_input_node_shared_ptr(0)->get_element_type() == ov::element::Type_t::f32) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  Dynamic quantization is turned off because input type is not supported" << std::endl;
+                    return true;
+                }
+
+                auto weight_shape = root->get_input_partial_shape(1);
+                const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
+                if (innermost_size < 32) {
+                    GPU_DEBUG_TRACE << "Dynamic quantization: shape is too small " << innermost_size << " / " << dynamic_quantization_group_size << std::endl;
+                    return true;
+                }
+                return false;
+            });
+            manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size);
+        }
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation

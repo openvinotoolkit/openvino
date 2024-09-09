@@ -22,6 +22,30 @@ on:
         description: 'OS that is used for building in the form of "ubuntu_20_04"'
         type: string
         required: true
+      arch:
+        description: 'Target architecture'
+        type: string
+        default: 'x86_64'
+        required: false
+      cmake-options:
+        description: 'A string of options passed to CMake'
+        type: string
+        required: true
+      build-js:
+        description: 'Whether to build OpenVINO JS Bindings'
+        type: boolean
+        required: false
+        default: true
+      build-debian-packages:
+        description: 'Whether to build Debian packages'
+        type: boolean
+        required: false
+        default: true
+      build-contrib:
+        description: 'Whether to build OpenVINO Contrib'
+        type: boolean
+        required: false
+        default: true
 
 permissions: read-all
 
@@ -40,7 +64,6 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
-      CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
@@ -55,11 +78,11 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
-      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_x86_64_Release
+      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}_Release
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '/__w/openvino/openvino/manifest.yml'
-      PRODUCT_TYPE: public_linux_${{ inputs.os }}_release
+      PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -69,7 +92,7 @@ jobs:
 
       # Ticket: 139627
       - name: Checkout the latest OneDNN for GPU in nightly
-        if: ${{ inputs.event-name == 'schedule' }}
+        if: ${{ inputs.event-name == 'schedule' && inputs.os == 'ubuntu_20_04' }} # GPU tests are enabled only on U20
         working-directory: ${{ env.OPENVINO_REPO }}/src/plugins/intel_gpu/thirdparty/onednn_gpu
         run: |
           git fetch origin
@@ -113,13 +136,7 @@ jobs:
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
 
           # For running ONNX frontend unit tests
-          if [[ ${{ inputs.os }} == 'ubuntu_24_04' ]]; then
-            # Should be removed after https://github.com/openvinotoolkit/openvino/pull/24242 is merged
-            export CMAKE_GENERATOR="Unix Makefiles"
-            python3 -m pip install --force-reinstall --no-cache-dir -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
-          else
-            python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
-          fi
+          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
 
           # For running TensorFlow frontend unit tests
           python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow/tests/requirements.txt
@@ -137,17 +154,7 @@ jobs:
       - name: CMake configure - OpenVINO
         run: |
           cmake \
-            -G "${{ env.CMAKE_GENERATOR }}" \
-            -DENABLE_CPPLINT=OFF \
-            -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_TESTS=ON \
-            -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_OPENCL=ON \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
-            -DCPACK_GENERATOR=TGZ \
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
-            -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
+            ${{ inputs.cmake-options }} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
@@ -188,6 +195,7 @@ jobs:
           popd
 
       - name: Build Debian packages
+        if: ${{ inputs.build-debian-packages }}
         run: |
           # Ubuntu 24 does not allow using the system Python directly so 
           # we have to use Python from the virtual environment created in Docker
@@ -205,6 +213,7 @@ jobs:
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target package
 
       - name: Cmake & Build - OpenVINO Contrib
+        if: ${{ inputs.build-contrib }}
         run: |
           cmake \
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
@@ -214,7 +223,7 @@ jobs:
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: CMake configure, build and install - OpenVINO JS API
-        if: ${{ fromJSON(inputs.affected-components).JS_API }}
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
         run: |
           cmake -UTBB* -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -S ${OPENVINO_REPO} -B ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel
@@ -224,7 +233,7 @@ jobs:
       # Upload build artifacts and logs
       #
       - name: Upload build logs
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         if: always()
         with:
           name: build_logs
@@ -233,15 +242,15 @@ jobs:
 
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
 
       - name: Upload openvino js package
-        if: ${{ fromJSON(inputs.affected-components).JS_API }}
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_js_package
           path: ${{ env.INSTALL_DIR_JS }}
@@ -249,15 +258,15 @@ jobs:
 
       - name: Upload openvino developer package
         if: ${{ always() }}
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_developer_package
           path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
           if-no-files-found: 'error'
 
       - name: Upload openvino debian packages
-        if: ${{ always() }}
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        if: ${{ inputs.build-debian-packages }}
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_debian_packages
           path: ${{ env.BUILD_DIR }}/*.deb
@@ -265,7 +274,7 @@ jobs:
 
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz

@@ -365,9 +365,9 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
                             " Could not find an allocated edge to resolve in-place for node: ",
                             getName());
 
-            auto baseMemMngr = (*itr)->getMemory().getMemoryMngr();
-            auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr);
-            auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().inConfs[i].getMemDesc(), memMngr);
+            auto baseMemBlock = (*itr)->getMemory().getMemoryBlock();
+            auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock);
+            auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().inConfs[i].getMemDesc(), memBlock);
             parentEdge->reuse(newMem);
         }
     }
@@ -378,15 +378,15 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
             if (inplaceInpIndx < 0)
                 continue;
 
-            auto baseMemMngr = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryMngr();
-            auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr);
+            auto baseMemBlock = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryBlock();
+            auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock);
             const auto& childEdges = getChildEdgesAtPort(i);
 
             for (auto& childEdge : childEdges) {
                 OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
                                 " Unexpected inplace resolve call to an allocated edge: ",
                                 childEdge->name());
-                auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().outConfs[i].getMemDesc(), memMngr);
+                auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().outConfs[i].getMemDesc(), memBlock);
                 childEdge->reuse(newMem);
             }
         }
@@ -396,9 +396,10 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
 MemoryDescPtr Node::getBaseMemDescAtInputPort(size_t portNum) const {
     if (auto primDesc = getSelectedPrimitiveDescriptor()) {
         const auto& inConfs = primDesc->getConfig().inConfs;
-        if (inConfs.size() < portNum) {
-            OPENVINO_THROW("Can't get input memory desc at port: ", portNum, ", incorrect port number");
-        }
+        OPENVINO_ASSERT(portNum < inConfs.size(),
+                        "Can't get input memory desc at port: ",
+                        portNum,
+                        ", incorrect port number");
         return inConfs[portNum].getMemDesc();
     }
     OPENVINO_THROW("Can't get input memory desc, primitive descriptor is not selected");
@@ -407,9 +408,10 @@ MemoryDescPtr Node::getBaseMemDescAtInputPort(size_t portNum) const {
 MemoryDescPtr Node::getBaseMemDescAtOutputPort(size_t portNum) const {
     if (auto primDesc = getSelectedPrimitiveDescriptor()) {
         const auto& outConfs = primDesc->getConfig().outConfs;
-        if (outConfs.size() < portNum) {
-            OPENVINO_THROW("Can't get output memory desc at port: ", portNum, ", incorrect port number");
-        }
+        OPENVINO_ASSERT(portNum < outConfs.size(),
+                        "Can't get output memory desc at port: ",
+                        portNum,
+                        ", incorrect port number");
         return outConfs[portNum].getMemDesc();
     }
     OPENVINO_THROW("Can't get output memory desc, primitive descriptor is not selected");
@@ -543,6 +545,17 @@ std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape &di
     return {memory::format_tag::any};
 }
 
+static void fetchRawMemory(const MemoryPtr& mem) {
+    // TODO: conceptually fetchRawMemory is a very bad solution
+    if (mem->getDesc().getPrecision() == element::string) {
+        return;
+    }
+    auto block = mem->getMemoryBlock();
+    if (mem->isDefined()) {
+        block->resize(mem->getSize());
+    }
+}
+
 void Node::updateShapes() {
     OPENVINO_ASSERT(isDynamicNode(),
                     "Node::updateShapes() is called to a static shape node of type: ",
@@ -554,6 +567,26 @@ void Node::updateShapes() {
                 auto result = shapeInfer();
                 if (ShapeInferStatus::success == result.status) {
                     redefineOutputMemory(result.dims);
+                }
+            } else {
+                //guard check for internal dynamic nodes to avoid possible overestimation of the required memory size
+                if (shapeInference && FULL_PORT_MASK == shapeInference->get_port_mask())
+                    return;
+
+                for (auto&& edge : getChildEdges()) {
+                    auto edge_ptr = edge.lock();
+                    CPU_NODE_ASSERT(edge_ptr, " has null edge");
+                    if (edge_ptr->inPlace(Edge::LOOK_UP)) {
+                        continue;
+                    }
+
+                    auto mem = edge_ptr->getMemoryPtr();
+                    CPU_NODE_ASSERT(mem, " has null output memory");
+
+                    if (mem->getShape().hasZeroDims()) {
+                        continue;
+                    }
+                    fetchRawMemory(mem);
                 }
             }
         } catch (const std::exception& exp) {
@@ -582,18 +615,25 @@ void Node::updateDynamicParams() {
     }
 }
 
+void Node::execute(const dnnl::stream strm, int numaId) {
+    if (isDynamicNode()) {
+        return executeDynamic(strm, numaId);
+    } else {
+        return executeStatic(strm, numaId);
+    }
+}
+
 void Node::executeStatic(const dnnl::stream strm, int numaId) {
-    if (numaId >= 0)
-        toNumaNode(numaId);
+    toNumaNode(numaId);
     execute(strm);
 }
 
 void Node::executeDynamic(dnnl::stream strm, int numaId) {
     if (isExecutable()) {
-        if (numaId >= 0)
-            toNumaNode(numaId);
+        toNumaNode(numaId);
         executeDynamicImpl(strm);
     }
+
     updateLastInputDims();
 }
 
@@ -629,6 +669,9 @@ void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_
 
     const auto& curr_desc = edges[0]->getMemory().getDesc();
     if (curr_desc.getShape().isStatic() && curr_desc.getShape().getStaticDims() == new_shape) {
+        for (auto&& edge : edges) {
+            fetchRawMemory(edge->getMemoryPtr());
+        }
         return;
     }
 
@@ -920,6 +963,9 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
 }
 
 void Node::toNumaNode(int numaNodeID) {
+    if (numaNodeID < 0)
+        return;
+
     return toNumaNodeImpl(numaNodeID);
 }
 
@@ -1496,7 +1542,7 @@ bool Node::isInputTensorAtPortEmpty(size_t port) const {
     auto edge = getParentEdgeAt(port);
     if (one_of(edge->getStatus(), Edge::Status::Allocated, Edge::Status::Validated)) {
         auto&& mem = edge->getMemory();
-        if (mem.isAllocated()) {
+        if (mem.isDefined()) {
             return mem.getShape().hasZeroDims();
         }
     }
@@ -1511,7 +1557,7 @@ bool Node::isOutputTensorAtPortEmpty(size_t port) const {
         return outputShapes[port].hasZeroDims();
     }
     auto&& mem = getChildEdgeAt(port)->getMemory();
-    if (mem.isAllocated()) {
+    if (mem.isDefined()) {
         return mem.getShape().hasZeroDims();
     }
     return false;

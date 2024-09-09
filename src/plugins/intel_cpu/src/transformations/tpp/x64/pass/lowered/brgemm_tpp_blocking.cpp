@@ -18,25 +18,36 @@ namespace tpp {
 namespace pass {
 using namespace ov::snippets::utils;
 
-std::tuple<size_t, size_t, size_t> BrgemmTPPBlocking::get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
-    const auto& in_0_desc = brgemm_expr->get_input_port_descriptor(0);
-    const auto& in_1_desc = brgemm_expr->get_input_port_descriptor(1);
-    const auto& out_desc = brgemm_expr->get_output_port_descriptor(0);
+bool BrgemmTPPBlocking::SetBrgemmBeta::run(ov::snippets::lowered::LinearIR& linear_ir,
+                                           ov::snippets::lowered::LinearIR::constExprIt begin,
+                                           ov::snippets::lowered::LinearIR::constExprIt end) {
+    for (auto expr_it = begin; expr_it != end; ++expr_it) {
+        if (const auto brgemm = ov::as_type_ptr<ov::intel_cpu::tpp::op::BrgemmTPP>(expr_it->get()->get_node()))
+            brgemm->set_beta(0);
+    }
+    return true;
+}
 
-    const auto& in_0_planar_dims = get_planar_vdims(in_0_desc->get_shape(), in_0_desc->get_layout());
-    const auto& in_1_planar_dims = get_planar_vdims(in_1_desc->get_shape(), in_1_desc->get_layout());
-    const auto& out_preordered_dims = get_preordered_vdims(out_desc->get_shape(), out_desc->get_layout());
+std::shared_ptr<snippets::lowered::pass::PassBase> BrgemmTPPBlocking::SetBrgemmBeta::merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) {
+    return !other || ov::is_type<SetBrgemmBeta>(other) ? std::make_shared<SetBrgemmBeta>() : nullptr;
+}
 
-    const auto& m = *++out_preordered_dims.rbegin();
-    const auto& n = *out_preordered_dims.rbegin();
-    const auto& k = *in_0_planar_dims.rbegin();
-    OPENVINO_ASSERT(k == *++in_1_planar_dims.rbegin(), "Brgemm input descriptors have different K dimension value.");
+std::tuple<size_t, size_t, size_t> BrgemmTPPBlocking::get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
+    size_t m, n, k;
+    std::tie(m, n, k) = get_brgemm_dimensions(brgemm_expr);
     OPENVINO_ASSERT(!is_dynamic_value(m) && !is_dynamic_value(n) && !is_dynamic_value(n), "BrgemmTPP doesn't support dynamic shapes");
 
-    const auto block_size_m = std::min<size_t>(32, m);
-    const auto block_size_n = std::min<size_t>(64, n);
-    const auto block_size_k = k > 1024 ? 1024 : k > 512 ? 512 : k;
-    return std::make_tuple(block_size_m, block_size_n, block_size_k);
+    size_t m_blk, n_blk, k_blk;
+    std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
+
+    auto get_projected_blk = [](const size_t dim, const size_t blk) { return ov::snippets::utils::is_full_dim_value(blk) ? dim : blk; };
+    return std::make_tuple(get_projected_blk(m, m_blk), get_projected_blk(n, n_blk), get_projected_blk(k, k_blk));
+}
+
+ov::snippets::lowered::SpecificIterationHandlers BrgemmTPPBlocking::get_k_loop_handlers(size_t work_amount, size_t block_size) const {
+    ov::snippets::lowered::SpecificIterationHandlers handlers = ov::snippets::lowered::pass::BrgemmBlockingBase::get_k_loop_handlers(work_amount, block_size);
+    handlers.register_pass<ov::snippets::lowered::SpecificLoopIterType::FIRST_ITER, SetBrgemmBeta>();
+    return handlers;
 }
 } // namespace pass
 } // namespace tpp

@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <common_test_utils/test_common.hpp>
+#include <memory_desc/cpu_blocked_memory_desc.h>
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "dummy_node.hpp"
@@ -74,7 +75,8 @@ protected:
         OPENVINO_ASSERT(shape.size() == 4 || shape.size() == 3,
                         "MergeTransposeReorderCPUTest doesn't support shape", shape,
                         ". Only 4D and 3D shapes are supported");
-        m_context = std::make_shared<GraphContext>(Config(), nullptr, false);
+        Config conf;
+        m_context = std::make_shared<GraphContext>(conf, nullptr, false);
         const auto replication_result = CreateModelAndReplicate(shape,
                                                                 params.firstNodeLayout,
                                                                 params.firstNodeInplaceDirection,
@@ -306,3 +308,94 @@ INSTANTIATE_TEST_SUITE_P(smoke_Run_MergeTransposeReorderWithReshape,
                                             ::testing::ValuesIn(test_params_with_reshape)));
 
 }  // namespace
+
+TEST(MergeTransposeReorder, smoke_InplaceConflict) {
+    /*  Initial graph:
+                  Parameter(Layout: nspc)
+                   /                 \
+                Reshape             Dummy1(Layout: nspc, LOOK_UP INPLACE)
+                   |                   |
+               Transpose             Result1
+                   |
+               Dummy0(LOOK_UP INPLACE)
+                   |
+                Result0
+
+        In CreateGraph():
+            1. Reorder will be inserted between Parameter -> Reshape to convert layout
+            2. Reorder -> Reshape -> Transpose will be merged to Reorder
+            3. Reorder will be inserted between Parameter -> Dummy1 by ResolveComplexInplaceConflicts()
+                   Parameter
+                   /       \
+                Reorder   Reorder
+                   |         |
+                Dummy0    Dummy1
+                   |         |
+                Result0   Result1
+    */
+    Config conf;
+    conf.rtCacheCapacity = 100;
+    auto context = std::make_shared<GraphContext>(conf, nullptr, false);
+
+    std::unique_ptr<Graph> graph = std::unique_ptr<Graph>(new Graph());
+
+    const ov::Shape testShape{1, 8, 8, 8};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 8, 8, 8})};
+
+    auto shape_constant = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32, ov::Shape{3}, std::vector<int64_t>{1, 8, 64});
+    auto reshape_node = std::make_shared<ov::op::v1::Reshape>(params[0], shape_constant, true);
+    auto order_constant = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
+    auto transpose_node = std::make_shared<ov::op::v1::Transpose>(reshape_node, order_constant);
+
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose_node),
+                             std::make_shared<ov::op::v0::Result>(params[0])};
+
+    auto nspcCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
+    auto inDesc = nspcCreator->createSharedDesc(ov::element::Type_t::f32, ov::intel_cpu::Shape(ov::intel_cpu::VectorDims{1, 8, 8, 8}));
+    auto inputNode = std::make_shared<node::Input>(inDesc->clone(), "Input0", "Parameter", context);
+
+    auto shapeConst = std::make_shared<node::Input>(shape_constant, context);
+    auto reshapeNode = std::make_shared<node::Reshape>(reshape_node, context);
+    auto orderConst = std::make_shared<node::Input>(order_constant, context);
+    auto transposeNode = std::make_shared<node::Transpose>(transpose_node, context);
+    auto dummyNode0 = std::make_shared<cpu_unit_test::DummyNode>(
+        ov::Shape{1, 64, 8}, ov::element::Type_t::f32, "Dummy0", "DummyNode", context, LayoutType::ncsp, Edge::LOOK::LOOK_UP, true);
+    auto outputNode0 = std::make_shared<node::Input>(results[0], context);
+
+    auto dummyNode1 = std::make_shared<cpu_unit_test::DummyNode>(
+        ov::Shape{1, 8, 8, 8}, ov::element::Type_t::f32, "Dummy1", "DummyNode", context, LayoutType::nspc, Edge::LOOK::LOOK_UP, true);
+    auto outputNode1 = std::make_shared<node::Input>(results[1], context);
+
+    std::vector<NodePtr> graphNodes;
+    std::vector<EdgePtr> graphEdges;
+    std::unordered_set<NodePtr> nodesSet;
+    auto addEdge = [&](const NodePtr& parent, const NodePtr& child, size_t parentPort, size_t childPort) -> void {
+        auto edge = std::make_shared<Edge>(parent, child, parentPort, childPort);
+        child->addEdge(edge);
+        graphEdges.push_back(edge);
+        nodesSet.insert(parent);
+        nodesSet.insert(child);
+    };
+
+    addEdge(inputNode, dummyNode1, 0, 0);
+    addEdge(dummyNode1, outputNode1, 0, 0);
+
+    addEdge(inputNode, reshapeNode, 0, 0);
+    addEdge(shapeConst, reshapeNode, 0, 1);
+    addEdge(reshapeNode, transposeNode, 0, 0);
+    addEdge(orderConst, transposeNode, 0, 1);
+    addEdge(transposeNode, dummyNode0, 0, 0);
+    addEdge(dummyNode0, outputNode0, 0, 0);
+
+    for (auto &node : nodesSet) graphNodes.emplace_back(node);
+
+    graph->CreateGraph(graphNodes, graphEdges, context, "test_graph");
+    auto expected_reorder_node0 = dummyNode0->getParentEdgeAt(0)->getParent();
+    auto expected_reorder_node1 = dummyNode1->getParentEdgeAt(0)->getParent();
+
+    ASSERT_EQ(expected_reorder_node0->getType(), Type::Reorder);
+    ASSERT_EQ(expected_reorder_node1->getType(), Type::Reorder);
+    auto merged_reorder = std::dynamic_pointer_cast<node::Reorder>(expected_reorder_node0);
+    ASSERT_TRUE(merged_reorder != nullptr);
+    ASSERT_TRUE(merged_reorder->getOptimized());
+}

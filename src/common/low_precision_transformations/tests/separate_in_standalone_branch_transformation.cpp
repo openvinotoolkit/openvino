@@ -85,7 +85,13 @@ public:
         const auto createReferenceFunction = [](
             const ov::element::Type precision,
             const ov::Shape& inputShape,
-            const ov::builder::subgraph::DequantizationOperations& dequantization) -> std::shared_ptr<ov::Model> {
+            ov::builder::subgraph::DequantizationOperations dequantization) -> std::shared_ptr<ov::Model> {
+            // Note: separateInStandaloneBranch normalizes dequantization so constant indexes become equal to 1
+            if (!dequantization.subtract.empty())
+                dequantization.subtract.constantIndex = 1;
+            if (!dequantization.multiply.empty())
+                dequantization.multiply.constantIndex = 1;
+
             const std::shared_ptr<ov::op::v0::Parameter> input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
             const auto relu = std::make_shared<ov::op::v0::Relu>(input);
 
@@ -118,7 +124,7 @@ public:
         std::tie(shapes, testValues) = obj.param;
 
         std::stringstream ss;
-        ss << shapes << "_" << "_" << testValues;
+        ss << shapes << "_" << testValues;
         return ss.str();
     }
 };
@@ -133,7 +139,6 @@ TEST_P(SeparateInStandaloneBranchTransformation, CompareFunctions) {
 
 const std::vector<ov::Shape> shapes = {
     { 1, 3, 9, 9 },
-    { 4, 3, 9, 9 }
 };
 
 std::vector<SeparateInStandaloneBranchTransformationTestValues> testValues = {
@@ -155,7 +160,16 @@ std::vector<SeparateInStandaloneBranchTransformationTestValues> testValues = {
             { {127.f}, ov::element::f32, {}, true, 1ul, ov::element::u8, true},
             { 0.02f }
         }
-    }
+    },
+    {
+        LayerTransformation::createParamsU8U8(),
+        ov::element::u8,
+        {
+            ov::element::f32,
+            { {127.f}, ov::element::f32, {}, false, 0ul},
+            { {0.02f}, ov::element::f32, {}, false, 0ul }
+        }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(

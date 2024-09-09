@@ -38,6 +38,16 @@ the process is the same.
 
 -  `Caching a Model <#caching-a-model>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     # Required imports. Please execute this cell first.
@@ -53,7 +63,7 @@ the process is the same.
 
     open("notebook_utils.py", "w").write(r.text)
 
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 
 .. parsed-literal::
@@ -103,14 +113,7 @@ inference using this widget
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices,
-        value=core.available_devices[0],
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -119,7 +122,7 @@ inference using this widget
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU',), value='CPU')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
@@ -194,7 +197,7 @@ notebooks.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -243,7 +246,7 @@ points to the filename of an ONNX model.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.onnx')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.onnx')
 
 
 
@@ -303,7 +306,7 @@ without any conversion step. Pass the filename with extension to
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/openvino-api/model/inference.pdiparams')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/openvino-api/model/inference.pdiparams')
 
 
 
@@ -347,7 +350,7 @@ TensorFlow models saved in frozen graph format can also be passed to
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.pb')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.pb')
 
 
 
@@ -418,7 +421,7 @@ PyTorch Model
 `PyTorch <https://pytorch.org/>`__ models can not be directly passed to
 ``core.read_model``. ``ov.Model`` for model objects from this framework
 can be obtained using ``ov.convert_model`` API. You can find more
-details in `pytorch-to-openvino <../pytorch-to-openvino>`__ notebook. In
+details in `pytorch-to-openvino <pytorch-to-openvino-with-output.html>`__ notebook. In
 this tutorial we will use
 `resnet18 <https://pytorch.org/vision/main/models/generated/torchvision.models.resnet18.html>`__
 model form torchvision library. After conversion model using
@@ -484,7 +487,7 @@ Information about the inputs and outputs of the model are in
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -690,7 +693,7 @@ produced data as values.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -879,7 +882,7 @@ input shape.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.bin')
 
 
 
@@ -1031,7 +1034,7 @@ the cache.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -1061,7 +1064,7 @@ the cache.
 
 .. parsed-literal::
 
-    Loading the network to the CPU device took 0.17 seconds.
+    Loading the network to the AUTO device took 0.16 seconds.
 
 
 After running the previous cell, we know the model exists in the cache
@@ -1079,5 +1082,5 @@ measure the time it takes now.
 
 .. parsed-literal::
 
-    Loading the network to the CPU device took 0.08 seconds.
+    Loading the network to the AUTO device took 0.08 seconds.
 
