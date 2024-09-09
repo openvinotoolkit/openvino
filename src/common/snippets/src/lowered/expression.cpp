@@ -32,12 +32,14 @@ Expression::Expression(const Expression& other) :
     std::enable_shared_from_this<Expression>(other), m_source_node(other.m_source_node), m_emitter(other.m_emitter),
     m_loop_ids(other.m_loop_ids), m_shapeInference(other.m_shapeInference), m_need_shape_infer(other.m_need_shape_infer),
     m_exec_num(other.m_exec_num) {
-    m_input_port_descriptors = {};
-    m_output_port_descriptors = {};
     // Note that connectors are not filled on purpose, since you need a shared pointer to this to initialize them,
     // which is not available in constructor. Also, an expression copy is rarely expected to use the same connectors.
     m_input_port_connectors = {};
     m_output_port_connectors = {};
+    // The copy ctor is used only in `clone_with_new_inputs`. This method is responsible for initialization of
+    // input port connectors and input port descriptors - they must be consistent.
+    m_input_port_descriptors = {};
+    m_output_port_descriptors = {};
     validate_attributes();
 }
 
@@ -132,7 +134,7 @@ void Expression::set_loop_ids(const std::vector<size_t>& loops) {
 }
 
 void Expression::update_port_attributes(const std::shared_ptr<Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
-                                   const std::vector<PortDescriptorPtr>& new_in_descs, const std::vector<PortDescriptorPtr>& new_out_descs) {
+                                        const std::vector<PortDescriptorPtr>& new_in_descs, const std::vector<PortDescriptorPtr>& new_out_descs) {
     OPENVINO_ASSERT(m_source_node->get_type_info() == new_node->get_type_info(), "Can't clone expression for a new node with incompatible type");
     m_source_node = new_node;
     OPENVINO_ASSERT(new_inputs.size() == new_in_descs.size(), "Can't create Expression with new inputs: invalid number of input port connectors passed");

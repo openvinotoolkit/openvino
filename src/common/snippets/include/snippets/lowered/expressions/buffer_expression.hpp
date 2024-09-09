@@ -18,7 +18,7 @@ class LoopManager;
 /**
  * @interface BufferExpression
  * @brief This is a base class for memory storage.
- *        Notes that Buffer should be a single consumer for operation output port
+ *        Note that Buffer should be a single consumer for operation output port
  * @param m_allocation_size - memory size for allocation in bytes. Dynamic value means undefined size.
  * @param m_offset - offset in common Buffer scratchpad
  * @param m_reg_group - number of register group. The Buffers from the same register group will have the same GPR

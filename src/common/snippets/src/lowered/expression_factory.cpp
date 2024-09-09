@@ -29,7 +29,7 @@ std::shared_ptr<Expression> ExpressionFactory::build(const std::shared_ptr<Node>
         return create(perf_counter, inputs, m_shape_infer_factory);
 #endif
     }
-    return create<>(n, inputs, m_shape_infer_factory);
+    return create(n, inputs, m_shape_infer_factory);
 }
 
 void ExpressionFactory::create_expression_outputs(const ExpressionPtr& expr) {

@@ -35,7 +35,7 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
     constExprIt last_param = m_expressions.end();
     for (const auto& n : get_ordered_ops(model)) {
         constExprIt insertion_pos = m_expressions.end();
-        const auto expr = get_expr_factory()->build<>(n, get_expression_inputs_by_node(n));
+        const auto expr = get_expr_factory()->build(n, get_expression_inputs_by_node(n));
 
         // Scalar should be on the Linear IR beginning after Parameters to have valid expression order after Loop passes.
         // After these passes we must call pass MoveScalarToConsumer() to have a correct accuracy.
@@ -97,7 +97,7 @@ void update_consumers_and_regs(const ExpressionPtr& new_expr, const std::vector<
 ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& new_inputs,
                                           const std::vector<size_t>& loop_ids, bool update_loop_ports,
                                           const std::vector<std::set<ExpressionPort>>& consumers) {
-    const auto new_expr = get_expr_factory()->build<>(n, new_inputs);
+    const auto new_expr = get_expr_factory()->build(n, new_inputs);
     update_consumers_and_regs(new_expr, consumers);
     new_expr->set_loop_ids(loop_ids);
 
@@ -265,7 +265,7 @@ LinearIR::exprIt LinearIR::insert(LinearIR::constExprIt pos, const NodeVector& n
 }
 
 LinearIR::exprIt LinearIR::insert(LinearIR::constExprIt pos, const std::shared_ptr<Node>& n) {
-    const auto& expr = get_expr_factory()->build<>(n, get_expression_inputs_by_node(n));
+    const auto& expr = get_expr_factory()->build(n, get_expression_inputs_by_node(n));
     register_expression(expr, m_config.m_manual_build_support, get_inserted_expr_exec_num(pos));
     return m_expressions.insert(pos, expr);
 }
