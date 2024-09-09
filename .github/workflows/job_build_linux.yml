@@ -236,12 +236,11 @@ jobs:
       - name: Build RPM packages
         if: ${{ inputs.build-rpm-packages }}
         run: |
-          [[ ${{ inputs.os }} == "fedora_29" ]] && python_exec=/venv/bin/python3 || python_exec=/usr/bin/python3
           cmake -UTBB* \
                 -DCPACK_GENERATOR=RPM \
                 -DENABLE_SYSTEM_TBB=ON \
+                -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_TESTS=OFF \
-                -DPython3_EXECUTABLE=$python_exec \
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel --target package --verbose
 
