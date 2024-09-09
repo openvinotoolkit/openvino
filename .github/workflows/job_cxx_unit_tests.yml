@@ -214,7 +214,7 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_util_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_util_tests.xml
 
       - name: OpenVINO C API tests
-        if: ${{ fromJSON(inputs.affected-components).C_API.test &&  }}
+        if: fromJSON(inputs.affected-components).C_API.test
         run: |
           ${{ env.SETUPVARS_COMMAND }}
           ${{ env.INSTALL_TEST_DIR }}/ov_capi_test --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpenVINOCAPITests.xml
