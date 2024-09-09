@@ -244,12 +244,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
+    conf.readProperties(config, modelType);
 
     Transformations transformations(cloned_model, conf);
 
     transformations.UpToLpt();
 
-    conf.readProperties(config, modelType);
     calculate_streams(conf, cloned_model);
 
     if (!conf.cacheEncrypt || !conf.cacheDecrypt) {
