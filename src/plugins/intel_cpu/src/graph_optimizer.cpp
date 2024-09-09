@@ -3146,8 +3146,8 @@ void GraphOptimizer::ReplaceMemoryOutputWithMemoryOutputStub(Graph& graph) {
         graph.RemoveEdge(memOutputEdge);
         graph.CreateEdge(node, memOutputStub, inputNum, 0);
         graph.AddNode(memOutputStub);
-        std::cout << "** Replace " << node->getName() << " type from MemoryOutput to MemoryOutputStub .................."
-                  << std::endl;
+        // std::cout << "** Replace " << node->getName() << " type from MemoryOutput to MemoryOutputStub .................."
+        //           << std::endl;
     }
 }
 

@@ -156,11 +156,11 @@ MemoryInputBase& MemoryOutputBase::getInputNode() {
 }
 
 void MemoryOutputBase::getSupportedDescriptors() {
-    DEBUG_POS << std::endl;
+    // DEBUG_POS << std::endl;
 }
 
 void MemoryOutputBase::initSupportedPrimitiveDescriptors() {
-    DEBUG_POS << std::endl;
+    // DEBUG_POS << std::endl;
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -181,7 +181,7 @@ void MemoryOutputBase::initSupportedPrimitiveDescriptors() {
 }
 
 void MemoryOutputBase::initOptimalPrimitiveDescriptor() {
-    DEBUG_POS << std::endl;
+    // DEBUG_POS << std::endl;
     // Mimic the parent node memory desc to avoid extra reorder
     auto parentEdge = getParentEdgeAt(0);
     auto parent = parentEdge->getParent();
@@ -329,12 +329,12 @@ bool MemoryOutputStub::isSupportedOperation(const std::shared_ptr<const ov::Node
 }
 
 void MemoryOutputStub::runStatic(dnnl::stream strm) {
-    DEBUG_POS << std::endl;
+    // DEBUG_POS << std::endl;
     //nothing to do
 }
 
 void MemoryOutputStub::runDynamic(dnnl::stream strm) {
-    DEBUG_POS << std::endl;
+    // DEBUG_POS << std::endl;
     //nothing to do
 }
 
@@ -366,7 +366,7 @@ void MemoryOutputStub::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr
 }
 
 bool MemoryInputBase::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
-    DEBUG_POS << op->get_friendly_name() << std::endl;
+    // DEBUG_POS << op->get_friendly_name() << std::endl;
     try {
         if (!one_of(op->get_type_info(),
                     ov::op::v3::ReadValue::get_type_info_static(),
@@ -599,7 +599,7 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
 
 
 void MemoryInput::prepareBeforeMappers(const dnnl::engine& eng) {
-    DEBUG_POS << ovOp->get_friendly_name() << std::endl;
+    // DEBUG_POS << ovOp->get_friendly_name() << std::endl;
     for (auto& map_rule : inputPortMap) {
         auto fromMem = getSrcMemoryAtPort(map_rule.from);
         auto& toMems = inputMem[map_rule.to];
@@ -619,7 +619,7 @@ void MemoryInput::prepareBeforeMappers(const dnnl::engine& eng) {
 
 MemoryInput::PortMapHelper::PortMapHelper(const MemoryPtr &from, const std::deque<MemoryPtr>& to,
                                            const dnnl::engine& eng) : srcMemPtr(from), dstMemPtrs(to) {
-    DEBUG_POS << std::endl;
+    // DEBUG_POS << std::endl;
     size = 0;
     if (srcMemPtr->getDesc().isDefined())
         size = srcMemPtr->getShape().getElementsCount();
@@ -631,7 +631,7 @@ MemoryInput::PortMapHelper::PortMapHelper(const MemoryPtr &from, const std::dequ
 }
 
 void MemoryInput::PortMapHelper::execute(dnnl::stream& strm) {
-    DEBUG_POS << std::endl;
+    // DEBUG_POS << std::endl;
     // if output shapes are changed,
     // after subgraph inference we should redefine out memory of 'If'
     redefineTo();
@@ -643,7 +643,7 @@ void MemoryInput::PortMapHelper::execute(dnnl::stream& strm) {
 }
 
 void MemoryInput::PortMapHelper::redefineTo() {
-    DEBUG_POS << std::endl;
+    // DEBUG_POS << std::endl;
     const auto &currDesc = dstMemPtrs.front()->getDesc();
     if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != srcMemPtr->getStaticDims()) {
         // TODO : check the entire dstMemPtrs usage considering the proper memory sharing
@@ -657,7 +657,7 @@ void MemoryInput::PortMapHelper::redefineTo() {
     }
 }
 void MemoryInput::prepareAfterMappers(const dnnl::engine& eng) {
-    DEBUG_POS << ovOp->get_friendly_name() << std::endl;
+    // DEBUG_POS << ovOp->get_friendly_name() << std::endl;
     for (auto& map_rule : outputPortMap) {
         auto toMems = getToMemories(this, map_rule.from);
         auto& fromMem = outputMem[map_rule.to];
@@ -676,7 +676,7 @@ void MemoryInput::prepareAfterMappers(const dnnl::engine& eng) {
 }
 
 std::deque<MemoryPtr> MemoryInput::getToMemories(const Node* node, const size_t port) const {
-    DEBUG_POS << ovOp->get_friendly_name() << std::endl;
+    // DEBUG_POS << ovOp->get_friendly_name() << std::endl;
     std::deque<MemoryPtr> memories;
     for (auto edge : node->getChildEdgesAtPort(port))
         memories.push_back(edge->getMemoryPtr());
@@ -684,7 +684,7 @@ std::deque<MemoryPtr> MemoryInput::getToMemories(const Node* node, const size_t 
 }
 
 void MemoryInput::createPrimitive() {
-    DEBUG_POS << ovOp->get_friendly_name() << std::endl;
+    // DEBUG_POS << ovOp->get_friendly_name() << std::endl;
     MemoryInputBase::createPrimitive();
     const auto& eng = getEngine();
     prepareBeforeMappers(eng);
@@ -746,7 +746,7 @@ void MemoryInput::getSupportedDescriptors() {
 }
 
 void MemoryInput::runDynamic(dnnl::stream strm) {
-    DEBUG_POS << ovOp->get_friendly_name() << std::endl;
+    // DEBUG_POS << ovOp->get_friendly_name() << std::endl;
     auto assignedMem = getAssignedState()->input_mem();
 
     OPENVINO_ASSERT(assignedMem,
@@ -775,7 +775,7 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
     // Subgraph infer
     if (haveSubgraph) {
         if (processInitGraph) {
-            DEBUG_POS << "processInitGraph && haveSubgraph=1" << std::endl;
+            // DEBUG_POS << "processInitGraph && haveSubgraph = 1" << std::endl;
             for (auto& mapper : beforeMappers)
                 mapper->execute(strm);
             subGraph.ResetInferCount();
@@ -784,10 +784,10 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
                 mapper->execute(strm);
 
             auto outputMem = getDstMemoryAtPort(0);
-            std::cout << "input = " << getSrcMemoryAtPort(0)->getDataAs<int32_t>()[0] << std::endl;
-            std::cout << "output = " << outputMem->getDataAs<int32_t>()[0] << std::endl;
-            std::cout << "outputMem->getShape()=" << outputMem->getShape().toPartialShape() << std::endl;
-            std::cout << "outputMem->getPrecision()=" << outputMem->getPrecision() << std::endl;
+            // std::cout << "input = " << getSrcMemoryAtPort(0)->getDataAs<int32_t>()[0] << std::endl;
+            // std::cout << "output = " << outputMem->getDataAs<int32_t>()[0] << std::endl;
+            // std::cout << "outputMem->getShape()=" << outputMem->getShape().toPartialShape() << std::endl;
+            // std::cout << "outputMem->getPrecision()=" << outputMem->getPrecision() << std::endl;
             // Same to Assign
             assignedMem->load(*outputMem);
         }
@@ -795,10 +795,10 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
         auto outputMem = getDstMemoryAtPort(0);
         auto inputMem = getSrcMemoryAtPort(0);
 
-        std::cout << "*******Dynamic: outputMem pdata = " << outputMem->getDataAs<int>()[0]
-                  << ", assignedMem pdata = " << assignedMem->getDataAs<int>()[0]
-                  << ", assignedMem name = " << getAssignedState()->get_name()
-                  << ", inputMem pdata = " << inputMem->getDataAs<int>()[0] << std::endl;
+        // std::cout << "*******Dynamic: outputMem pdata = " << outputMem->getDataAs<int>()[0]
+        //           << ", assignedMem pdata = " << assignedMem->getDataAs<int>()[0]
+        //           << ", assignedMem name = " << getAssignedState()->get_name()
+        //           << ", inputMem pdata = " << inputMem->getDataAs<int>()[0] << std::endl;
         return;
     }
 
@@ -850,7 +850,7 @@ void MemoryInput::runStatic(dnnl::stream strm) {
     // Subgraph infer
     if (haveSubgraph) {
         if (processInitGraph) {
-            DEBUG_POS << "processInitGraph && haveSubgraph=1" << std::endl;
+            // DEBUG_POS << "processInitGraph && haveSubgraph=1" << std::endl;
             for (auto& mapper : beforeMappers)
                 mapper->execute(strm);
             subGraph.ResetInferCount();
@@ -865,10 +865,10 @@ void MemoryInput::runStatic(dnnl::stream strm) {
         auto outputMem = getDstMemoryAtPort(0);
         auto inputMem = getSrcMemoryAtPort(0);
 
-        std::cout << "*******Static: outputMem pdata = " << outputMem->getDataAs<int>()[0]
-                  << ", assignedMem pdata = " << assignedMem->getDataAs<int>()[0]
-                  << ", assignedMem name = " << getAssignedState()->get_name()
-                  << ", inputMem pdata = " << inputMem->getDataAs<int>()[0] << std::endl;
+        // std::cout << "*******Static: outputMem pdata = " << outputMem->getDataAs<int>()[0]
+        //           << ", assignedMem pdata = " << assignedMem->getDataAs<int>()[0]
+        //           << ", assignedMem name = " << getAssignedState()->get_name()
+        //           << ", inputMem pdata = " << inputMem->getDataAs<int>()[0] << std::endl;
 
         return;
     } else {
@@ -882,7 +882,7 @@ void MemoryInput::runStatic(dnnl::stream strm) {
 }
 
 void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
-    DEBUG_POS << ovOp->get_friendly_name() << std::endl;
+    // DEBUG_POS << ovOp->get_friendly_name() << std::endl;
     if (!(look & Edge::LOOK_UP)) {
         Node::resolveInPlaceEdges(look);
         return;
@@ -937,16 +937,16 @@ MemStatePtr MemoryInput::makeState() const {
 MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : MemoryInputBase::MemoryInputBase(op, context),
       ovOp(op) {
-    DEBUG_POS << ovOp->get_friendly_name() << std::endl;
+    // DEBUG_POS << ovOp->get_friendly_name() << std::endl;
     auto rvWithSubgraph = ov::as_type_ptr<ov::intel_cpu::ReadValueWithSubgraphNode>(op);
     if (rvWithSubgraph) {
         haveSubgraph = true;
     }
-    DEBUG_POS << "haveSubgraph=" << haveSubgraph << std::endl;
+    // DEBUG_POS << "haveSubgraph=" << haveSubgraph << std::endl;
 }
 
 bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
-    DEBUG_POS << op->get_friendly_name() << std::endl;
+    // DEBUG_POS << op->get_friendly_name() << std::endl;
     try {
         if (!one_of(op->get_type_info(), ov::intel_cpu::ReadValueWithSubgraphNode::get_type_info_static())) {
             errorMessage = "Node is not an instance of ReadValueWithSubgraphNode from the operation set ov::intel_cpu.";
