@@ -34,19 +34,19 @@ namespace opt {
 namespace opp = ov::pass::pattern;
 
 // FROM:
-//     Param(Act) ------------------------------------------->
-//     Const(W) -> Convert(f16) -> Multiply -> Convert(f32) -> MatMul
-//     Const(S) ----------------->
+//     ???(Act) --------------------------------------------->
+//     Param(W) -> Convert(f16) -> Multiply -> Convert(f32) -> MatMul
+//     Param(S) ----------------->
 //
 // TO:
-//     Param(Act) -Convert(f16) ->
-//     Const(W) -> Convert(f16) -> MatMul -> Multiply -> Convert(f32)
-//     Const(S) -> Reshape ---------------->
+//     ???(Act) -> Convert(f16) ->
+//     Param(W) -> Convert(f16) -> MatMul -> Multiply -> Convert(f32)
+//     Param(S) -> Reshape ---------------->
 //
 
 DQMatMulCWi::DQMatMulCWi() {
-    auto qweight = opp::wrap_type<ov::op::v0::Constant>();
-    auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
+    auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
     auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
@@ -61,11 +61,8 @@ DQMatMulCWi::DQMatMulCWi() {
         auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
         auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
 
-        NPUW_ASSERT(ov::op::util::is_constant(matched_node_qweight));
-        NPUW_ASSERT(ov::op::util::is_constant(matched_node_qcoeff));
-
-        auto matched_qweight = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qweight);
-        auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qcoeff);
+        auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
+        auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
         auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
 
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
