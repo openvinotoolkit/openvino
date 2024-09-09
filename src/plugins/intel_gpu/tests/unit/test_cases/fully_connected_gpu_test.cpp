@@ -1620,6 +1620,8 @@ public:
 
             auto config = get_test_default_config(engine);
             config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            ov::intel_gpu::ImplementationDesc fc_impl = { in_layout.format, "", impl_types::ocl };
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "fc_prim1", fc_impl }, { "fc_prim2", fc_impl }  }));
 
             network network(engine, topology, config);
             network.set_input_data("input", input_mem);
@@ -1856,7 +1858,7 @@ public:
         auto input_mem = engine.allocate_memory({ {1, 2, 4}, data_types::f32, format::bfyx });
         auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::u8, format::bfyx });
         auto bias_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
-        auto scale_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ {8, 1}, data_types::f32, format::bfyx });
 
         set_values(input_mem, { -0.5f, 2.0f, 0.5f, 1.0f,
                                 0.5f, -2.0f, -0.5f, -1.0f });
@@ -1897,7 +1899,7 @@ public:
         ov::PartialShape expected_shape{1, 2, 8};
         ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
 
-        std::vector<float> expected_result = {19.f, 40.f, 69.f, 54.f, 83.f, 48.f, 37.f, -2.f, -17.f, -44.f, -63.f, -62.f, -73.f, -60.f, -23.f, -14.f };
+        std::vector<float> expected_result = {19.f, 82.f, -63.f, -120.f, 24.5f, -19.5f, 37.f, -5.f, -17.f, -86.f, 69.f, 112.f, -14.5f, 7.5f, -23.f, -11.f };
 
         for (size_t i = 0; i < expected_result.size(); i++) {
             ASSERT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
