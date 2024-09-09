@@ -132,9 +132,9 @@ protected:
      * @brief Update Loop informations in LinearIR: Unified and ExpandedLoopInfo
      * @param linear_ir LinearIR
      */
-    void update_loop_info(const lowered::LinearIRCPtr& linear_ir) const;
-    void update_expanded_loop_info(const lowered::ExpandedLoopInfoPtr& expanded_loop_info,
-                                   LoopInfoRuntimeParamsMap& initializated_info_map) const;
+    static void update_loop_info(const lowered::LinearIRCPtr& linear_ir);
+    static void update_expanded_loop_info(const lowered::ExpandedLoopInfoPtr& expanded_loop_info,
+                                          LoopInfoRuntimeParamsMap& initializated_info_map);
     /**
      * @brief Update Buffer scratchpad size and offsets if needed
      *        Note: `update_loop_info` must be called before
@@ -159,18 +159,8 @@ protected:
 
     class MHAParallelWAOptimizer {
     public:
-        MHAParallelWAOptimizer(RuntimeConfigurator* configurator);
-        /**
-         * @brief Inits MHAParallelWAOptimizer: computes optimizer parameters which should be set at compilation stage
-         * @param linear_ir LinearIR
-         */
-        void init(const ov::snippets::lowered::LinearIRCPtr& linear_ir);
-        /**
-         * @brief Checks if optimizer is enabled
-         * @todo Ticket 148891: when RuntimeConfigurator::update will be rewritten on PassPipeline, this method should be removed
-         * We will not just register MHAParallelWAOptimizer in case if it is not needed
-         */
-        bool enabled() const;
+        MHAParallelWAOptimizer() = default;
+        MHAParallelWAOptimizer(const ov::snippets::lowered::LinearIRCPtr& linear_ir, RuntimeConfigurator* configurator);
         /**
          * @brief Checks if the current master shape can be optimized, and if yes, updates all the necessary runtime information
          * @return status if the optimization is applied
@@ -178,6 +168,13 @@ protected:
         bool optimize();
 
     private:
+        /**
+         * @brief Checks if optimizer is enabled
+         * @todo Ticket 148891: when RuntimeConfigurator::update will be rewritten on PassPipeline, this method should be removed
+         * We will not just register MHAParallelWAOptimizer in case if it is not needed
+         */
+        bool enabled() const;
+
         static std::unordered_set<snippets::lowered::ExpressionPtr> find_applicable_brgemms(const ov::snippets::lowered::LinearIRCPtr& linear_ir);
         static std::unordered_set<size_t> find_unsqueezed_params(
             const ov::snippets::lowered::LinearIRCPtr& linear_ir,
@@ -205,7 +202,6 @@ protected:
     std::vector<size_t> m_io_data_sizes = {};
     // [cluster_id -> buffer expressions ]
     std::map<size_t, std::set<lowered::ExpressionPtr>> m_dynamic_buffer_clusters = {};
-    std::vector<size_t> m_ordered_loop_ids = {};
 
     std::vector<ov::snippets::VectorDims> m_latest_shapes = {};
 };

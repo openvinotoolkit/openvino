@@ -37,8 +37,7 @@ std::string RuntimeConfig::to_string() const {
 #endif
 
 RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c)
-    : m_optimizer(this),
-      m_config(std::move(c)) {
+    : m_config(std::move(c)) {
     OPENVINO_ASSERT(m_config, "Runtime config is nullptr!");
 }
 
@@ -64,29 +63,12 @@ void RuntimeConfigurator::initialization(const lowered::LinearIRCPtr& linear_ir)
     m_latest_shapes.resize(m_io_num);
     m_config->io_data_offsets.resize(m_io_num);
     m_config->tile_rank = linear_ir->get_config().m_loop_depth;
-    m_optimizer.init(linear_ir);
-
-    // InnerSplittedLoops should be inited after OuterSplittedLoops
-    const auto& loop_map = linear_ir->get_loop_manager()->get_map();
-    m_ordered_loop_ids.clear();
-    m_ordered_loop_ids.reserve(loop_map.size());
-    std::vector<size_t> loops_must_be_last;
-    for (const auto& p : loop_map) {
-        const auto loop_id = p.first;
-        const auto& expanded_loop_info = ov::as_type_ptr<lowered::ExpandedLoopInfo>(p.second);
-        OPENVINO_ASSERT(expanded_loop_info, "UpdateLoopInfo expects ExpandedLoopInfo in LoopManager");
-        const auto& unified_loop_info = expanded_loop_info->get_unified_loop_info();
-        auto& collection = ov::is_type<lowered::InnerSplittedUnifiedLoopInfo>(unified_loop_info) ? loops_must_be_last : m_ordered_loop_ids;
-        collection.push_back(loop_id);
-    }
-    m_ordered_loop_ids.insert(m_ordered_loop_ids.end(), loops_must_be_last.cbegin(), loops_must_be_last.cend());
+    m_optimizer = MHAParallelWAOptimizer(linear_ir, this);
 }
 
 void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
     m_config->master_shape = linear_ir->get_master_shape();
-
-    if (linear_ir->is_dynamic())
-        update_loop_info(linear_ir);
+    update_loop_info(linear_ir);
 
     if (!m_optimizer.optimize()) {
         // If the optimization was not applied, offsets are updated using shapes from descriptors
@@ -95,12 +77,10 @@ void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
         m_latest_shapes = std::move(shapes);
     }
 
-    if (linear_ir->is_dynamic()) {
-        // Update KernelExecutor Table should be before `update_buffer_scratchpad_size`
-        // because `ComputeAllocationSize` depends on subtensors which are updated in the table
-        get_kernel_executor_table()->update_state(linear_ir);
-        update_buffer_scratchpad_size(linear_ir);
-    }
+    // Update KernelExecutor Table should be before `update_buffer_scratchpad_size`
+    // because `ComputeAllocationSize` depends on subtensors which are updated in the table
+    get_kernel_executor_table()->update_state(linear_ir);
+    update_buffer_scratchpad_size(linear_ir);
 }
 
 void RuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) {
@@ -184,7 +164,7 @@ void RuntimeConfigurator::init_buffer_info(const lowered::LinearIRCPtr& linear_i
 }
 
 void RuntimeConfigurator::update_expanded_loop_info(const lowered::ExpandedLoopInfoPtr& expanded_loop_info,
-                                                    LoopInfoRuntimeParamsMap& initialized_info) const {
+                                                    LoopInfoRuntimeParamsMap& initialized_info) {
     const auto& current_unified_loop_info = expanded_loop_info->get_unified_loop_info();
 
     OPENVINO_ASSERT(initialized_info.count(current_unified_loop_info) > 0, "UnifiedLoopInfo must be updated before ExpandedLoopInfo");
@@ -222,7 +202,7 @@ void RuntimeConfigurator::update_expanded_loop_info(const lowered::ExpandedLoopI
     expanded_loop_info->update_finalization_offsets(updated_finalization_offsets);
 }
 
-void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_ir) const {
+void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_ir) {
     LoopInfoRuntimeParamsMap initialized_info;
     auto updater = [&](const lowered::LoopInfoPtr& loop_info) {
         if (const auto unified_loop_info = ov::as_type_ptr<lowered::UnifiedLoopInfo>(loop_info)) {
@@ -364,12 +344,12 @@ RuntimeConfigurator::UnifiedLoopInfoRtParams RuntimeConfigurator::get_loop_runti
 
 const size_t RuntimeConfigurator::MHAParallelWAOptimizer::m_dim_idx = 1;
 
-RuntimeConfigurator::MHAParallelWAOptimizer::MHAParallelWAOptimizer(RuntimeConfigurator* configurator)
+RuntimeConfigurator::MHAParallelWAOptimizer::MHAParallelWAOptimizer(
+    const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+    RuntimeConfigurator* configurator)
     : configurator(configurator) {
     OPENVINO_ASSERT(configurator != nullptr, "Configurator is nullptr");
-}
 
-void RuntimeConfigurator::MHAParallelWAOptimizer::init(const lowered::LinearIRCPtr& linear_ir) {
     if (linear_ir->get_config().m_enable_domain_optimization || !linear_ir->is_dynamic())
         return;
 
@@ -400,6 +380,7 @@ bool RuntimeConfigurator::MHAParallelWAOptimizer::enabled() const {
 }
 
 bool RuntimeConfigurator::MHAParallelWAOptimizer::optimize() {
+    OPENVINO_ASSERT(configurator != nullptr, "Configurator is nullptr");
     if (!enabled())
         return false;
 
