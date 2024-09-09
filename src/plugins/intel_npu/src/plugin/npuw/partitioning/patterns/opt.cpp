@@ -124,10 +124,13 @@ DQMatMulCWi::DQMatMulCWi() {
 //     S:   [32,  1,11008]
 //                                         [1, 1 ,128]   x
 // TO:                                     [1,11K,128]T  =
-//                 [32,1,128]              [1, 1 ,11K]
-//     ???(Act)  -> Reshape > Split(/32) ->[to(f16) ->                                 ]} x32
-//     Param(W*) -----------> Split(/32) ->[to(f16) -> MatMul -> to(f32) ->            ]} Reduce(Add)
-//     Param(S)  -------------Split(/32) ->[------------------------------> Multiply ->]}
+//                 [32,1,128]              [1, 1 ,11K]                      [32,1,11K]
+//     ???(Act)  -> Reshape > Split(/32) ->[to(f16) ->                     ]}
+//     Param(W*) -----------> Split(/32) ->[to(f16) -> MatMul -> to(f32) ->]} Concat ->
+//     Param(S)  ---------------------------------------------------------------------> Multiply
+//                                                                                     Reshape(1,a,b,c)
+//                                                                                     ReduceSum(1)
+//                                                                                     Reshape(a,b,c)
 //
 // WHERE:
 //     W* : [32,11008,128]
@@ -157,6 +160,7 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
         auto qweight_shape = matched_qweight->output(0).get_shape();
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
         auto act_shape = matched_out_mmi.get_shape();
+        auto out_shape = matched_node_matmul->output(0).get_shape();
 
         if (ov::element::i4 == matched_qweight->get_element_type() && qcoeff_shape.size() == 3 &&
             qweight_shape.size() == 3 && act_shape.size() == 3 && qcoeff_shape[0] == qweight_shape[0] &&
@@ -179,7 +183,6 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
             auto split_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
             auto split_a = std::make_shared<ov::op::v1::Split>(rshp_act, split_axis, NSPLIT);
             auto split_w = std::make_shared<ov::op::v1::Split>(matched_qweight, split_axis, NSPLIT);
-            auto split_s = std::make_shared<ov::op::v1::Split>(matched_qcoeff, split_axis, NSPLIT);
 
             // Do the CW MM for every split
             std::vector<std::shared_ptr<ov::Node>> to_concat;
@@ -188,20 +191,27 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
                 auto w_f16 = std::make_shared<ov::op::v0::Convert>(split_w->output(i), ov::element::f16);
                 auto m_f16 = std::make_shared<ov::op::v0::MatMul>(a_f16, w_f16, false, true);
                 auto m_f32 = std::make_shared<ov::op::v0::Convert>(m_f16, ov::element::f32);
-                auto s_f32 = std::make_shared<ov::op::v1::Multiply>(m_f32, split_s->output(i));
-                to_concat.push_back(s_f32);
+                to_concat.push_back(m_f32);
             }
 
-            std::vector<ov::Output<ov::Node>> reduce;
-            reduce.push_back(std::make_shared<ov::op::v1::Add>(to_concat[0], to_concat[1]));
-            for (std::size_t i = 1; i < NSPLIT - 1; i++) {
-                reduce.push_back(std::make_shared<ov::op::v1::Add>(reduce[i - 1], to_concat[i + 1]));
-            }
-            auto sum = reduce.back();
+            // Now concat and scale the result
+            auto concat = std::make_shared<ov::op::v0::Concat>(to_concat, 0);
+            auto s_f32 = std::make_shared<ov::op::v1::Multiply>(concat, matched_qcoeff);
+
+            // Now reshape to a better shape, ReduceSum, and reshape to the right size again
+            std::vector<std::size_t> rshp_ccat_v = {1, NSPLIT, 1, qweight_shape[2]};
+            auto rshp_ccat_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, rshp_ccat_v);
+            auto rshp_ccat = std::make_shared<ov::op::v1::Reshape>(s_f32, rshp_ccat_c, false);
+
+            auto reduce_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1);
+            auto reduce = std::make_shared<ov::op::v1::ReduceSum>(rshp_ccat, reduce_axis, true);
+
+            auto rshp_out_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, out_shape);
+            auto rshp_out = std::make_shared<ov::op::v1::Reshape>(reduce, rshp_out_c, false);
 
             // Now.. Reconnect the matmul readers to the new output (reducesum)
             for (auto&& r : matched_matmul->output(0).get_target_inputs()) {
-                r.replace_source_output(sum);
+                r.replace_source_output(rshp_out);
             }
             return true;  // root has changed
         }
