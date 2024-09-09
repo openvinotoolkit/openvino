@@ -19,7 +19,7 @@ typedef std::tuple<
 > EltwiseTwoResultsParams;
 
 class EltwiseTwoResults : public testing::WithParamInterface<ov::test::snippets::EltwiseTwoResultsParams>,
-                   virtual public ov::test::SnippetsTestsCommon {
+                   virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::EltwiseTwoResultsParams> obj);
 

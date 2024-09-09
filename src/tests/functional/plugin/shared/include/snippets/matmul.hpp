@@ -19,7 +19,7 @@ typedef std::tuple<
 > MatMulParams;
 
 class MatMul : public testing::WithParamInterface<ov::test::snippets::MatMulParams>,
-               virtual public ov::test::SnippetsTestsCommon {
+               virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::MatMulParams> obj);
 

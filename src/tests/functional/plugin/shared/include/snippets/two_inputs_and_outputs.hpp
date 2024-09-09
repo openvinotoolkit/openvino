@@ -18,7 +18,7 @@ typedef std::tuple<
 > TwoInputsAndOutputsParams;
 
 class TwoInputsAndOutputs : public testing::WithParamInterface<ov::test::snippets::TwoInputsAndOutputsParams>,
-                             virtual public ov::test::SnippetsTestsCommon {
+                             virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::TwoInputsAndOutputsParams> obj);
 
