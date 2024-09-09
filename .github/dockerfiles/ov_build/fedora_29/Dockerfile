@@ -27,12 +27,12 @@ RUN chmod +x /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Setup Python
-#RUN cd /usr/src && \
-#    wget https://www.python.org/ftp/python/3.8.9/Python-3.8.9.tar.xz && \
-#    tar xvf Python-3.8.9.tar.xz
-#RUN cd /usr/src/Python-3.8.9 && \
-#    ./configure --enable-optimizations --enable-loadable-sqlite-extensions && \
-#    make altinstall
+RUN cd /usr/src && \
+    wget https://www.python.org/ftp/python/3.8.9/Python-3.8.9.tar.xz && \
+    tar xvf Python-3.8.9.tar.xz
+RUN cd /usr/src/Python-3.8.9 && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions && \
+    make altinstall
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
@@ -47,17 +47,14 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 ENV PATH="$SCCACHE_HOME:$PATH"
 
 # Use Python 3.8 as default
-# RUN alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.8 1
+RUN alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.8 10
+RUN alternatives --install /usr/bin/python python /usr/local/bin/python3.8 10
 
 # Setup pip
 ENV PIP_VERSION="24.0"
-RUN curl https://bootstrap.pypa.io/pip/3.7/get-pip.py -o get-pip.py && \
-    python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    rm -f get-pip.py \
-
-# RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-#    python3.8 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-#    rm -f get-pip.py
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    python3.8 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    rm -f get-pip.py
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 
