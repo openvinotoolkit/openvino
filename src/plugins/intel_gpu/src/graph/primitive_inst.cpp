@@ -132,6 +132,14 @@ bool has_any_cpu_user_not_shape_of(const std::list<const program_node*>& users) 
     }
     return false;
 }
+
+bool is_onednn_with_reordered_weights(program_node const& node) {
+    if (node.get_preferred_impl_type() == impl_types::onednn &&
+        (node.is_type<fully_connected>() || node.is_type<convolution>() || node.is_type<deconvolution>())) {
+        return true;
+    }
+    return false;
+}
 }  // namespace
 
 bool is_any_user_cpu(const std::list<const program_node*>& users) {
@@ -1018,7 +1026,7 @@ bool primitive_inst::update_impl(bool use_async_compilation) {
 
             if (cached_impl) {
                 // Keep dynamic impl in memory and replace current impl with static one
-                if (is_current_impl_dynamic)
+                if (is_current_impl_dynamic && !is_onednn_with_reordered_weights(get_node()))
                     _dynamic_impl = std::move(_impl);
                 _impl = cached_impl->clone();
                 GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
@@ -1857,7 +1865,8 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
         _impl->set_node_params(node);
         if (_impl->is_dynamic() && !_impl->is_cpu()) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": initialize impl with dynamic impl " << _impl->get_kernel_name() << std::endl;
-            _dynamic_impl = _impl->clone();
+            if (!is_onednn_with_reordered_weights(get_node()))
+                _dynamic_impl = _impl->clone();
             const int64_t shape_elements = node.get_total_shape_info_size();
             _shape_info_memory = _network.get_engine().allocate_memory(layout{{shape_elements}, data_types::i32, format::bfyx});
         }
