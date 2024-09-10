@@ -119,7 +119,7 @@ void RMSNormLayerCPUTest::SetUp() {
 
 TEST_P(RMSNormLayerCPUTest, CompareWithRefs) {
     run();
-    CheckNumberOfNodesWithType(compiledModel, "RMS", m_rms_decomposed ? 0 : 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, "RMS", m_rms_decomposed ? 0 : 1);
 }
 
 }  // namespace test
