@@ -132,7 +132,7 @@ KernelsData DynamicQuantizeKernelOpt::GetKernelsData(const Params& params) const
 }
 
 KernelsPriority DynamicQuantizeKernelOpt::GetKernelsPriority(const Params& /*params*/) const {
-    return FORCE_PRIORITY_2;
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
 bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
