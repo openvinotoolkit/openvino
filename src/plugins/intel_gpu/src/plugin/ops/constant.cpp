@@ -146,7 +146,6 @@ static bool is_btiwise(Node* node) {
 static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Constant>& op) {
     ov::Shape constDims = op->get_shape();
     auto constUsers = op->get_output_target_inputs(0);
-    std::cout << "CreateConstantOp : constDims : " << constDims.to_string() << std::endl;
     std::unordered_map<std::shared_ptr<ov::op::v0::Constant>, ConstProperties> consts = {
         {op, {false}}
     };
@@ -202,8 +201,6 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
     // Also check if constant users is a backprop convolution - in that case O and I need to be swapped.
     for (auto& node : constUsers) {
         auto outOp = node.get_node();
-        std::cout << "CreateConstantOp : " << outOp->get_friendly_name() << " size : " << constUsers.size() << std::endl;
-        std::cout << "    " << outOp->get_output_shape(0).to_string() << std::endl;
         if (auto castedOp = dynamic_cast<ov::op::v0::Concat*>(outOp)) {
             if (castedOp->get_axis() == 0) {
                 consts[op].needsBatchInterpretation = constDims.size() == 1;
