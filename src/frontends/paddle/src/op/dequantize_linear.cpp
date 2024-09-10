@@ -3,10 +3,10 @@
 //
 
 #include "default_opset.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "utils/common.hpp"
 
 namespace ov {
 namespace frontend {
@@ -45,7 +45,7 @@ NamedOutputs dequantize_linear(const NodeContext& node) {
 
     const auto& x_shape = x.get_partial_shape();
     PADDLE_OP_CHECK(node, x_shape.rank().is_static(), "Rank of input tensor must be static");
-    axis = normalize_axis(axis, x_shape.rank().get_length());
+    axis = ov::util::normalize_axis(axis, x_shape.rank().get_length());
 
     const auto& input_type = x.get_element_type();
     const auto& output_type = ov::element::f32;

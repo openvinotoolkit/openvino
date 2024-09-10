@@ -3,10 +3,10 @@
 //
 
 #include "default_opset.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "utils/common.hpp"
 
 namespace ov {
 namespace frontend {
@@ -53,7 +53,11 @@ std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> get_output_band
         output_high = std::make_shared<default_opset::Constant>(data_type, ov::Shape{1}, 255);
         break;
     default:
-        throw ov::Exception("Unsupported element type for QuantizeLinear");
+        OPENVINO_ASSERT(false,
+                        "Unsupported element type for QuantizeLinear: destination_type = ",
+                        destination_type,
+                        ", data_type = ",
+                        data_type);
     }
 
     return std::make_tuple(output_low, output_high);
@@ -101,7 +105,7 @@ NamedOutputs quantize_linear(const NodeContext& node) {
 
     const auto& x_shape = x.get_partial_shape();
     PADDLE_OP_CHECK(node, x_shape.rank().is_static(), "Rank of input tensor must be static");
-    axis = normalize_axis(axis, x_shape.rank().get_length());
+    axis = ov::util::normalize_axis(axis, x_shape.rank().get_length());
 
     const auto& destination_type = y_zero_point.get_element_type();
     const auto& data_type = x.get_element_type();
