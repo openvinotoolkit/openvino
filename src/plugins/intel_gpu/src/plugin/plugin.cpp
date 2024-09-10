@@ -581,17 +581,23 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
 
     if (name == ov::intel_gpu::device_total_mem_size) {
         if (contexts_for_tp.size() > 1) {
-            uint64_t max_global_mem_size_tp = 0;
-            for (auto& item : contexts_for_tp) {
+            uint64_t min_global_mem_size_tp = 0;
+            for (auto context = contexts_for_tp.begin(); context != contexts_for_tp.end(); ++context) {
                 auto iter_tp = m_device_map.find(std::to_string(cldnn::device_query::device_id));
                 if (iter_tp == m_device_map.end())
-                    iter_tp = m_device_map.find(item.first);
+                    iter_tp = m_device_map.find(context->first);
                 if (iter_tp == m_device_map.end())
                     iter_tp = m_device_map.begin();
-                auto device_tp = iter_tp->second;
-                max_global_mem_size_tp += device_tp->get_info().max_global_mem_size;
+                auto global_mem_size = iter_tp->second->get_info().max_global_mem_size;
+                if (context == contexts_for_tp.begin()) {
+                    min_global_mem_size_tp =  global_mem_size;
+                } else {
+                    if (global_mem_size <  min_global_mem_size_tp) {
+                        min_global_mem_size_tp = global_mem_size;
+                    }
+                }
             }
-            return decltype(ov::intel_gpu::device_total_mem_size)::value_type {max_global_mem_size_tp};;
+            return decltype(ov::intel_gpu::device_total_mem_size)::value_type {min_global_mem_size_tp * contexts_for_tp.size()};;
         }
         return decltype(ov::intel_gpu::device_total_mem_size)::value_type {device_info.max_global_mem_size};
     } else if (name == ov::device::type) {
@@ -637,14 +643,19 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
     } else if (name == ov::intel_gpu::memory_statistics) {
         if (contexts_for_tp.size() > 1) {
             std::map<std::string, uint64_t> memory_statistics_tp;
-            for (auto& item : contexts_for_tp) {
-                for (auto& memory_statistics_item : item.second->get_engine().get_memory_statistics()) {
+            for (auto& context : contexts_for_tp) {
+                for (auto& memory_statistics_item : context.second->get_engine().get_memory_statistics()) {
                     if (memory_statistics_tp.find(memory_statistics_item.first) != memory_statistics_tp.end()) {
-                        memory_statistics_tp[memory_statistics_item.first] += memory_statistics_item.second;
+                        if (memory_statistics_item.second > memory_statistics_tp[memory_statistics_item.first]) {
+                            memory_statistics_tp[memory_statistics_item.first] = memory_statistics_item.second;
+                        }
                     } else {
                         memory_statistics_tp.insert({memory_statistics_item.first, memory_statistics_item.second});
                     }
                 }
+            }
+            for (auto& memory_item : memory_statistics_tp) {
+                memory_item.second *= contexts_for_tp.size();
             }
             return decltype(ov::intel_gpu::memory_statistics)::value_type {memory_statistics_tp};;
         }

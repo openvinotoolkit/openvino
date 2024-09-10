@@ -49,6 +49,17 @@ std::shared_ptr<ov::Node> PATensorParallelFusion::find_first_fc_before_pa(std::s
     return find_first_fc_before_pa(cur_node);
 }
 
+void PATensorParallelFusion::find_first_fcs_before_pa(std::shared_ptr<ov::Node> root_node) {
+    has_visited_fc.clear();
+    vector_visited_fc.clear();
+    for (size_t i = 0; i < 3; i++) {
+        auto first_fc_before_pa = find_first_fc_before_pa(root_node->get_input_node_shared_ptr(i));
+        if (has_visited_fc.insert(first_fc_before_pa).second) {
+            vector_visited_fc.push_back(first_fc_before_pa);
+        }
+    }
+}
+
 std::shared_ptr<ov::Node> PATensorParallelFusion::find_first_fc_after_pa(std::shared_ptr<ov::Node> root_node) {
     const auto& users = root_node->get_users();
     if (users.size() != 1)
@@ -278,6 +289,7 @@ PATensorParallelFusion::PATensorParallelFusion(size_t world_size, size_t world_r
             replace_node(add_node, new_add);
         };
         auto pa_sync_concat = [&]() {
+            std::cout << "Can't do all-reduce after PA" << std::endl;
             std::shared_ptr<ov::intel_gpu::op::SyncTensor> sync_node =
                 std::make_shared<ov::intel_gpu::op::SyncTensor>(m_pa->output(0),
                                                                 world_size,
@@ -324,38 +336,44 @@ PATensorParallelFusion::PATensorParallelFusion(size_t world_size, size_t world_r
         };
 
         if (m_pa) {
-            has_visited.clear();
-            vector_visited.clear();
-            auto first_fc_before_pa = find_first_fc_before_pa(m_pa->get_input_node_shared_ptr(0));
-            find_ops_in_fc_to_pa(first_fc_before_pa);
             int half_head_num = m_pa->get_input_node_shared_ptr(3)->get_output_partial_shape(0)[1].get_length();
             int head_size = m_pa->get_input_node_shared_ptr(3)->get_output_partial_shape(0)[2].get_length();
-            for (size_t i = 0; i < vector_visited.size(); i++) {
-                auto cur_node = vector_visited[i];
-                if (ov::is_type<ov::intel_gpu::op::FullyConnected>(cur_node) ||
-                    ov::is_type<ov::intel_gpu::op::FullyConnectedCompressed>(cur_node)) {
-                    auto new_fc = split_fc(cur_node, op::TP_MODE::ALL_GATHERQKV).first;
-                    new_fc->set_friendly_name(cur_node->get_friendly_name());
-                    new_fc->get_rt_info().insert({"splitted", true});
-                    copy_runtime_info(cur_node, new_fc);
-                    replace_node(cur_node, new_fc);
-                    continue;
-                }
-                if (ov::is_type<ov::op::v1::VariadicSplit>(cur_node)) {
-                    std::vector<int64_t> orig_n_sizes;
-                    for (int i = 0; i < 3; i++) {
-                        orig_n_sizes.push_back(2560);
+            find_first_fcs_before_pa(m_pa);
+            for (size_t j = 0; j < vector_visited_fc.size(); j++) {
+                has_visited.clear();
+                vector_visited.clear();
+                find_ops_in_fc_to_pa(vector_visited_fc[j]);
+                for (size_t i = 0; i < vector_visited.size(); i++) {
+                    auto cur_node = vector_visited[i];
+                    if (ov::is_type<ov::intel_gpu::op::FullyConnected>(cur_node) ||
+                        ov::is_type<ov::intel_gpu::op::FullyConnectedCompressed>(cur_node)) {
+                        std::shared_ptr<ov::Node> new_fc = nullptr;
+                        if (vector_visited_fc.size() > 1)
+                            new_fc = split_fc(cur_node, op::TP_MODE::ALL_GATHERH).first;
+                        else
+                            new_fc = split_fc(cur_node, op::TP_MODE::ALL_GATHERQKV).first;
+                        new_fc->set_friendly_name(cur_node->get_friendly_name());
+                        new_fc->get_rt_info().insert({"splitted", true});
+                        copy_runtime_info(cur_node, new_fc);
+                        replace_node(cur_node, new_fc);
+                        continue;
                     }
-                    new_variadicsplit_node(cur_node, orig_n_sizes);
-                    continue;
-                }
-                if (ov::is_type<ov::op::v1::Reshape>(cur_node)) {
-                    new_reshape_node(cur_node, half_head_num, head_size);
-                    continue;
-                }
-                if (ov::is_type<ov::op::v1::Add>(cur_node)) {
-                    new_add_node(cur_node);
-                    continue;
+                    if (ov::is_type<ov::op::v1::VariadicSplit>(cur_node)) {
+                        std::vector<int64_t> orig_n_sizes;
+                        for (int i = 0; i < 3; i++) {
+                            orig_n_sizes.push_back(2560);
+                        }
+                        new_variadicsplit_node(cur_node, orig_n_sizes);
+                        continue;
+                    }
+                    if (ov::is_type<ov::op::v1::Reshape>(cur_node)) {
+                        new_reshape_node(cur_node, half_head_num, head_size);
+                        continue;
+                    }
+                    if (ov::is_type<ov::op::v1::Add>(cur_node)) {
+                        new_add_node(cur_node);
+                        continue;
+                    }
                 }
             }
             std::shared_ptr<ov::Node> first_fc_after_pa = find_first_fc_after_pa(m_pa);
@@ -365,6 +383,7 @@ PATensorParallelFusion::PATensorParallelFusion(size_t world_size, size_t world_r
                 if (compressed_fc && (compressed_fc->get_input_node_shared_ptr(3)->get_shape()[1] % 2 != 0)) {
                     auto scale_node_dims = compressed_fc->get_input_node_shared_ptr(3)->get_shape()[1];
                     if ((scale_node_dims != 1 && scale_node_dims % 2 != 0)) {
+                        std::cout << "skip shape: " << compressed_fc->get_input_node_shared_ptr(3)->get_shape() << std::endl;
                         pa_sync_concat();
                         return true;
                     }

@@ -106,7 +106,6 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                 //ov::serialize(model_clone, "./model_clone_original.xml");
                 //ov::serialize(model_clone, "./model_pa_o.xml", "./model_pa_o.bin");
                 ov::pass::Manager manager;
-
                 const char* env = getenv("OV_TP_ALLREDUCE_TEST");
                 if (env) {
                     std::cout << "Notice: GPU TP allReduce test only!" << std::endl;
@@ -114,22 +113,25 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                     manager.run_passes(model_clone);
                 } else {
                     bool has_pa_op = false;
+                    std::set<std::string> kvcache_op;
                     for (const auto& op : model_clone->get_ops()) {
                         if (std::dynamic_pointer_cast<ov::op::PagedAttentionExtension>(op)) {
                             has_pa_op = true;
-                            break;
+                            kvcache_op.insert(
+                                op->inputs()[3].get_source_output().get_node_shared_ptr()->get_friendly_name());
+                            kvcache_op.insert(
+                                op->inputs()[4].get_source_output().get_node_shared_ptr()->get_friendly_name());
                         }
                     }
-
                     if (has_pa_op) {
                         std::map<size_t, ov::PartialShape> shapes;
                         const auto& params = model_clone->get_parameters();
                         for (size_t input_id = 0; input_id < params.size(); input_id++) {
                             const auto& param = params[input_id];
                             shapes[input_id] = param->get_output_partial_shape(0);
-                            if (param->get_friendly_name().find("_cache") != std::string::npos) {
-                                auto head_num = shapes[input_id][1];
-                                shapes[input_id][1] = head_num / config.get_context_for_tp().size();
+                            if (kvcache_op.count(param->get_friendly_name())) {
+                                auto heads_num = shapes[input_id][1];
+                                shapes[input_id][1] = heads_num / config.get_context_for_tp().size();
                             }
                         }
                         model_clone->reshape(shapes);
@@ -140,9 +142,14 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                     manager.run_passes(model_clone);
                 }
                 // ov::serialize(model_clone, "integrated_vllm_pa_p2p_concat_bs_" + std::to_string(i) + ".xml");
-                m_sub_compiled_models.push_back(std::make_shared<CompiledModel>(
-                    model_clone, plugin, m_config.get_context_for_tp()[i].as<RemoteContextImpl::Ptr>(), configs_for_tp[i], m_sub_memory_manager));
-                GPU_DEBUG_TRACE_DETAIL << "sub models for TP created, rank " << configs_for_tp[i].streamsRankTable[i][0] << std::endl;
+                m_sub_compiled_models.push_back(
+                    std::make_shared<CompiledModel>(model_clone,
+                                                    plugin,
+                                                    m_config.get_context_for_tp()[i].as<RemoteContextImpl::Ptr>(),
+                                                    configs_for_tp[i],
+                                                    m_sub_memory_manager));
+                GPU_DEBUG_TRACE_DETAIL << "sub models for TP created, rank " << configs_for_tp[i].streamsRankTable[i][0]
+                                       << std::endl;
             };
             sub_tasks.push_back(std::bind(compile_tp_model, i));
         }
