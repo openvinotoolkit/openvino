@@ -9,6 +9,8 @@
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
+#include "logging.hpp"
+
 namespace ov {
 namespace npuw {
 namespace util {
@@ -53,6 +55,41 @@ void to_f32(const ov::Tensor& in, ov::Tensor& out);
 void to_f16(ov::Tensor& t);
 void transpose(ov::Tensor& t);
 void permute(ov::Tensor& t, const std::vector<std::size_t>& axes);
+
+namespace at {
+template <template<typename, typename> class M, class K, class V>
+struct Impl {
+    M<K, V> *m = nullptr;
+    explicit Impl(M<K, V> *pM) : m(pM) {}
+
+    V& at(const K& k) {
+        const auto iter = m->find(k);
+        if (iter == m->end()) {
+            std::stringstream ss;
+            ss << "Key " << k << " is not found in a map of type " << typeid(m).name();
+            const auto msg = ss.str();
+            LOG_ERROR(msg);
+            throw std::out_of_range(msg);
+        }
+        return iter->second;
+    }
+
+    const V& at(const K& k) const {
+        return const_cast<Impl*>(this)->at(k);
+    }
+};
+
+template <template<typename, typename> class M, class K, class V>
+Impl<M, K, V> _(M<K, V> *pM) {
+    return Impl<M, K, V>(pM);
+}
+
+template <template<typename, typename> class M, class K, class V>
+Impl<M, K, V> _(std::shared_ptr< M<K, V> > pM) {
+    return Impl<M, K, V>(pM.get());
+}
+
+} // namespace at
 
 }  // namespace util
 }  // namespace npuw
