@@ -31,6 +31,19 @@ using namespace cldnn;
 #define LOG_NODE_REMOVAL(id)      GPU_DEBUG_LOG_PASS << __func__ << ":" << __LINE__  << ": remove node: " << (id) << std::endl;
 #define LOG_NODE_REPLACEMENT(id)  GPU_DEBUG_LOG_PASS << __func__ << ":" << __LINE__  << ": replace node: " << (id) << std::endl;
 
+namespace {
+
+bool does_any_user_have_impl_type(program_node& node, impl_types impl) {
+    for (auto& user : node.get_users()) {
+        if (user->get_preferred_impl_type() == impl)
+            return true;
+    }
+
+    return false;
+}
+
+}  // namespace
+
 remove_redundant_reorders::remove_redundant_reorders(bool enable_reorder_fusing, bool update_implementations,
     bool remove_output_reorders)
     : base_pass("remove_redundant_reorders"), enable_reorder_fusing(enable_reorder_fusing), update_implementations(update_implementations),
@@ -290,7 +303,7 @@ void remove_redundant_reorders::run(program& p) {
             i_layout.data_padding._upper_size[3] == 0 && i_layout.data_padding._lower_size[3] == 0 &&
             !o_layout.data_padding &&
             i_layout.data_type == o_layout.data_type &&
-            !layout_optimizer::onednn_check_preferred_impl_type_of_users(r_node)) {
+            !does_any_user_have_impl_type(r_node, impl_types::onednn)) {
             // If the newly aligned pad is merged into output layout during post_optimize_graph phase
             // and then buffer is reinterpreted, user node cannot handle pad properly for kernel execution
             if (!update_implementations || (i_layout.feature() % 16 == 0 &&

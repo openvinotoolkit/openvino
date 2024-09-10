@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ}
-
 [LEGACY] Model Optimizer Frequently Asked Questions
 ===========================================================
 
