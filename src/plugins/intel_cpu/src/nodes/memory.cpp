@@ -804,6 +804,7 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
 
     //reshape output
     const auto& newDims = processInitGraph ? getSrcMemoryAtPort(0)->getStaticDims() : stateDims;
+
     redefineOutputMemory({newDims});
 
     //copy data when necessary

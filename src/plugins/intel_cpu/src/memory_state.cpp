@@ -138,7 +138,6 @@ void VariableStateDoubleBuffer::reset_impl() {
 
 void VariableStateDoubleBuffer::commit_impl() {
     buffer_num ^= 0x01;
-    std::cout << "=============== buffer_num=" << buffer_num << std::endl;
 }
 
 MemoryPtr VariableStateDoubleBuffer::input_mem() {
