@@ -193,12 +193,19 @@ PagedAttentionSplitInput::PagedAttentionSplitInput(size_t world_size, size_t ran
                                                                         4096,
                                                                         new_pa->get_element_type(),
                                                                         ov::intel_gpu::op::TP_MODE::ALL_REDUCE);
-            sync_node->set_friendly_name(new_pa->get_friendly_name() + "_TP");
-
+            sync_node->set_friendly_name(new_pa->get_friendly_name() + "_TP_slice_pa");
+#if 1
+            // auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node->outputs(), -1);
+            // concat_node->set_friendly_name(new_pa->get_friendly_name() + "_ALLGATHER");
+            copy_runtime_info(m_pa, sync_node);
+            replace_node(m_pa, sync_node);
+            m_pa->get_users()[0]->input(0).replace_source_output(sync_node->output(0));
+#else
             auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node->outputs(), -1);
             concat_node->set_friendly_name(new_pa->get_friendly_name() + "_ALLGATHER");
             copy_runtime_info(m_pa, concat_node);
             replace_node(m_pa, concat_node);
+#endif
             m_pa->clear_control_dependencies();
         }
         return true;

@@ -17,7 +17,7 @@ class SyncTensor : public ov::op::Op {
 public:
     OPENVINO_OP("SYNCTENSOR", "gpu_opset");
     SyncTensor() = default;
-    SyncTensor(const size_t world_size);
+    SyncTensor(const size_t world_size, const TP_MODE tp_mode = TP_MODE::ALL_GATHERH);
 
     SyncTensor(const Output<Node>& input,
             const size_t world_size,
@@ -29,6 +29,10 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
     TP_MODE get_tp_mode() const { return m_tp_mode; }
+    size_t get_world_size() const {
+        return m_world_size;
+    }
+
 protected:
     size_t m_world_size;
     int m_split_dimension;

@@ -283,12 +283,19 @@ PATensorParallelFusion::PATensorParallelFusion(size_t world_size, size_t world_r
                                                                 world_size,
                                                                 m_pa->get_output_partial_shape(0)[-1].get_length(),
                                                                 ov::element::f16);
-            sync_node->set_friendly_name(m_pa->get_friendly_name() + "_TP");
+            sync_node->set_friendly_name(m_pa->get_friendly_name() + "_TP_pa");
 
+#if 1
+            // auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node->outputs(), -1);
+            // concat_node->set_friendly_name(m_pa->get_friendly_name() + "_ALLGATHER");
+            copy_runtime_info(m_pa, sync_node);
+            m_pa->get_users()[0]->input(0).replace_source_output(sync_node->output(0));
+#else
             auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node->outputs(), -1);
             concat_node->set_friendly_name(m_pa->get_friendly_name() + "_ALLGATHER");
             copy_runtime_info(m_pa, concat_node);
             m_pa->get_users()[0]->input(0).replace_source_output(concat_node->output(0));
+#endif
         };
         auto fc_after_pa_sync = [&](std::shared_ptr<ov::Node>& fc_node) {
             std::map<int, std::shared_ptr<ov::Node>> org_users;

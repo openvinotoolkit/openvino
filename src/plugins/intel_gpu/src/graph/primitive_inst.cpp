@@ -265,8 +265,21 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
         ev = get_network().get_stream().create_user_event(true);
         if (get_node().is_type<sync_tensor>()) {
             auto w_rank = get_network().get_program()->get_config().subStreamExecConfig.get_rank()[0];
-            // auto w_size = get_network().get_program()->get_config().get_context_for_tp().size();
-            _outputs[w_rank] = mem_new;
+            auto w_size = get_network().get_program()->get_config().get_context_for_tp().size();
+            if (_outputs.size() == w_size + 1) {
+                // All gather, need concat
+                // _outputs[w_rank + 1] = mem_new;
+                std::cout << "set_output_memory(sync_tensor gather): old = "
+                          << _outputs[0]->get_layout().get_shape().to_string()
+                          << ", new = " << mem_new->get_layout().get_shape().to_string() << std::endl;
+                _outputs[0] = mem_new;
+            } else {
+                // All reduce
+                std::cout << "set_output_memory(sync_tensor reduce): old = "
+                          << _outputs[w_rank]->get_layout().get_shape().to_string()
+                          << ", new = " << mem_new->get_layout().get_shape().to_string() << std::endl;
+                _outputs[w_rank] = mem_new;
+            }
         } else {
             _outputs[idx] = mem_new;
         }
@@ -756,7 +769,8 @@ event::ptr primitive_inst::realloc_if_needed() {
             auto seq_axis =
                 static_cast<int32_t>(desc->concat_axis >= 0 ? desc->concat_axis : shape_rank + desc->concat_axis);
             prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], false, i, tmp_prealloc_count, seq_axis);
-        } else {
+        } else if (!_node->is_type<sync_tensor>()) {
+            // Sync_tensor doesn't need predict_preallocation_shape
             prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], can_reuse_buffer, i, tmp_prealloc_count);
         }
         if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * (dt_sizes_in_B[i]))) {
@@ -802,6 +816,14 @@ event::ptr primitive_inst::realloc_if_needed() {
                                    << " Current buffer_size=" << _max_output_layout_count[i]
                                    << " Requested buffer_size=" << updated_layouts[i].get_linear_size()
                                    << std::endl;
+#if 0
+            if (_node->is_type<sync_tensor>()) {
+                std::cout << " sync_tensor outputs[" << i << "] "
+                          << " Current buffer_size=" << _max_output_layout_count[i]
+                          << " Requested buffer_size=" << updated_layouts[i].get_linear_size()
+                          << ", shape = " << updated_params.get_output_layout(i).get_shape().to_string() << std::endl;
+            }
+#endif
             _outputs[i] = allocate_output(_network.get_engine(),
                                           _network.get_memory_pool(),
                                           *_node,
@@ -2199,6 +2221,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     }
     if (_node.is_type<sync_tensor>()) {
         alloc_type = allocation_type::cl_mem;
+        // std::cout << "Sync_tensor allocate: shape = " << layout.get_shape().to_string() << ", impl_params.layout["
+        //          << idx << "] = " << out_layout.get_shape().to_string() << std::endl;
     }
 
     if (is_internal) {

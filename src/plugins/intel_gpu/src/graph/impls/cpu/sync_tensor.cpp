@@ -6,6 +6,8 @@
 #include <CL/cl.h>
 #include <CL/cl_ext.h>
 
+#include <algorithm>
+
 #include "impls/registry/implementation_map.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "openvino/core/parallel.hpp"
@@ -501,6 +503,176 @@ private:
     cl_kernel kernels[KERNEL_DATA_TYPE_NUM];
 };
 
+class concat_mem {
+public:
+    concat_mem() : buf(nullptr), width(0), height(0), type(ov::element::f16) {}
+    concat_mem(cl_mem _buf, size_t _w, size_t _h, size_t _stride, ov::element::Type _type)
+        : buf(_buf),
+          width(_w),
+          height(_h),
+          stride(_stride),
+          type(_type) {}
+    concat_mem(concat_mem& other) {
+        buf = other.buf;
+        width = other.width;
+        height = other.height;
+        stride = other.stride;
+        type = other.type;
+    }
+    bool operator==(const concat_mem& other) const {
+        return width == other.height && height == other.height && stride == other.stride;
+    }
+
+    void print() const {
+        size_t data_size = 0;
+        auto err = clGetMemObjectInfo(buf, CL_MEM_SIZE, sizeof(size_t), &data_size, NULL);
+        CHECK_OCL_ERROR(err, "clGetMemObjectInfo - CL_MEM_SIZE failed");
+        std::cout << "width = " << width << ", height = " << height << ", stride = " << stride
+                  << ", type = " << type.to_string() << " -- actual_size = " << data_size << std::endl;
+    }
+
+    cl_mem buf;
+    size_t width;
+    size_t height;
+    size_t stride;
+    ov::element::Type type;
+};
+
+class simple_ocl_concat {
+public:
+    simple_ocl_concat() {}
+    ~simple_ocl_concat() {}
+
+    bool validate(std::vector<std::shared_ptr<concat_mem>>& src, std::shared_ptr<concat_mem>& dst) {
+        size_t total_height = 0, total_width = 0;
+        for (auto& s : src) {
+            total_height += s->height;
+            total_width += s->width;
+            if (!s->buf)
+                return false;
+            if (s->type != dst->type)
+                return false;
+        }
+        if (!dst->buf)
+            return false;
+
+        concat_mode = -1;
+        if (total_height == (dst->height & (~0x1))  && src[0]->width == dst->width) {
+            // Vertical concat
+            concat_mode = 0;
+            if (total_height != dst->height) {  // Need fix
+                std::lock_guard<std::mutex> lock(debug_mutex);
+                print(src, dst);
+            }
+        } else if (total_width == dst->width /*&& src[0]->height <= dst->height*/) {// fake alignment issue
+            // Horizontal concat
+            concat_mode = 1;
+            if (src[0]->height != dst->height || src[1]->height != dst->height) { // Need fix
+                std::lock_guard<std::mutex> lock(debug_mutex);
+                print(src, dst);
+                auto actual_height = std::min(src[0]->height, dst->height);
+                actual_height = std::min(src[1]->height, actual_height);
+                src[0]->height = src[1]->height = dst->height = actual_height;
+            }
+        } else {
+            return false;
+        }
+        return true;
+    }
+
+    std::vector<cldnn::event::ptr> concat(cldnn::stream& stream,
+                                          std::vector<std::shared_ptr<concat_mem>>& src,
+                                          std::shared_ptr<concat_mem>& dst) {
+        const auto start = perf_dump_start();
+        auto& ocl_stream = downcast<ocl::ocl_stream>(stream);
+        auto queue = ocl_stream.get_cl_queue().get();
+
+        if (!validate(src, dst)) {
+            std::cout << "simple_ocl_concat::validate failed due to src/dst mismatch." << std::endl;
+            std::lock_guard<std::mutex> lock(debug_mutex);
+            print(src, dst);
+            exit(1);
+        }
+
+        size_t src_rec[3] = {0, 0, 0};
+        size_t dst_rec[3] = {0, 0, 0};
+        std::vector<cldnn::event::ptr> sync_events;
+        if (concat_mode == 0) {
+            // Vertical concat
+            // size_t offset = 0, data_size = 0;
+            cl_event event;
+            for (size_t i = 0; i < src.size(); i++) {
+                size_t rect[3] = {src[i]->width, src[i]->height, 1};
+                clEnqueueCopyBufferRect(queue,
+                                        src[i]->buf,
+                                        dst->buf,
+                                        src_rec,
+                                        dst_rec,
+                                        rect,
+                                        src[i]->stride,
+                                        src[i]->height * src[i]->stride,
+                                        dst->stride,
+                                        dst->stride * dst->width,
+                                        0,
+                                        nullptr,
+                                        &event);
+                dst_rec[1] += src[i]->height;
+                // clWaitForEvents(1, &event);
+                sync_events.emplace_back(ocl_stream.create_event(cl::Event(event)));
+            }
+        } else if (concat_mode == 1) {
+            // Horizontal concat
+            cl_event event;
+            for (size_t i = 0; i < src.size(); i++) {
+                size_t rect[3] = {src[i]->width, src[i]->height, 1};
+                clEnqueueCopyBufferRect(queue,
+                                        src[i]->buf,
+                                        dst->buf,
+                                        src_rec,
+                                        dst_rec,
+                                        rect,
+                                        src[i]->stride,
+                                        src[i]->height * src[i]->stride,
+                                        dst->stride,
+                                        dst->stride * dst->width,
+                                        0,
+                                        nullptr,
+                                        &event);
+                dst_rec[0] += src[i]->width;
+                // clWaitForEvents(1, &event);
+                sync_events.emplace_back(ocl_stream.create_event(cl::Event(event)));
+            }
+        } else {
+            std::cout << "ocl_concat failed: incorrect concat mode!" << std::endl;
+            exit(1);
+        }
+
+        if (0) {
+            for (auto& event : sync_events)
+                event->wait();
+            sync_events.clear();
+        }
+
+        perf_dump_done(start, std::string("tensor_concat"), true);
+        // return sync_events.size() > 1 ? stream.group_events(sync_events) : stream.create_user_event(true);
+        return sync_events;
+    }
+
+    void print(const std::vector<std::shared_ptr<concat_mem>>& src, const std::shared_ptr<concat_mem>& dst) {
+        for (size_t i = 0; i < src.size(); i++) {
+            std::cout << " src[" << i << "]: ";
+            src[i]->print();
+        }
+        std::cout << " dst[0]: ";
+        dst->print();
+        std::cout << std::endl;
+    }
+
+private:
+    // 0 - vertical concat; 1 - horizontal concat
+    int concat_mode;
+};
+
 static ocl_p2p_helper p2p_helper_instances[4];  // max substream number
 static simple_ocl_add adder_instances[4];
 
@@ -623,6 +795,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
 
         auto w_rank = instance.get_network().get_program()->get_config().subStreamExecConfig.get_rank()[0];
         auto w_size = instance.get_network().get_program()->get_config().get_context_for_tp().size();
+        auto is_all_reduce = instance.get_impl_params()->need_add == true;
         auto start = perf_dump_start();
         if (!pass_through_events) {
             for (auto e : events) {
@@ -663,7 +836,17 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
         auto& ocl_stream = downcast<ocl::ocl_stream>(stream);
         auto local_context = ocl_stream.get_engine().get_cl_context().get();
         // sub_mem_mgr->_memorys_table[id][w_rank].send_buf = instance.output_memory(w_rank).buffer_ptr();
-        sub_mem_mgr->_memorys_table[id][w_rank].recv_bufs = instance.get_output_memorys();
+        if (is_all_reduce) {
+            sub_mem_mgr->_memorys_table[id][w_rank].recv_bufs = instance.get_output_memorys();
+        } else {
+            OPENVINO_ASSERT(w_size + 1 == instance.get_output_memorys().size(),
+                            "All gather need additional buffer for concat result!");
+            auto& recv_bufs = sub_mem_mgr->_memorys_table[id][w_rank].recv_bufs;
+            recv_bufs.clear();
+            for (size_t i = 1; i < instance.get_output_memorys().size(); i++) {
+                recv_bufs.emplace_back(instance.get_output_memorys()[i]);
+            }
+        }
         sub_mem_mgr->_memorys_table[id][w_rank].flag = true;
 
         if (0) {
@@ -681,8 +864,12 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
         wait_list[w_rank] = 0;  // no need to wait for itself
         size_t data_size = 0;
         event::ptr sync_event = nullptr;
+        //auto src_cl_buf =
+        //    std::dynamic_pointer_cast<const ocl::gpu_buffer>(instance.output_memory_ptr(w_rank))->get_buffer().get();
         auto src_cl_buf =
-            std::dynamic_pointer_cast<const ocl::gpu_buffer>(instance.output_memory_ptr(w_rank))->get_buffer().get();
+            std::dynamic_pointer_cast<const ocl::gpu_buffer>(sub_mem_mgr->_memorys_table[id][w_rank].recv_bufs[w_rank])
+                ->get_buffer()
+                .get();
         while (true) {
             int wait_size = 0;
             for (int idx = 0; idx < static_cast<int>(w_size); idx++) {
@@ -740,7 +927,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
         }
 
         std::vector<cldnn::event::ptr> sync_events;
-        if (instance.get_impl_params()->need_add) {
+        if (is_all_reduce) {
             // All_reduce path
             auto start_3 = perf_dump_start();
             auto dst_mem = std::dynamic_pointer_cast<const ocl::gpu_buffer>(instance.output_memory_ptr(w_rank));
@@ -777,6 +964,61 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
             // P2P adopts sync write to avoid the problem of event cannot work across contexts
             wait_p2p_done(sub_mem_mgr, id, w_size, w_rank);
             // sync_events = propagate_p2p_events(sub_mem_mgr, id, w_size, w_rank);
+            //
+            // concat process
+            // auto dst_mem = std::dynamic_pointer_cast<const ocl::gpu_buffer>(instance.output_memory_ptr(w_size));
+            // auto type = dst_mem->get_layout().data_type;
+            auto concat = std::make_shared<simple_ocl_concat>();
+            std::vector<std::shared_ptr<concat_mem>> src_mem;
+            std::shared_ptr<concat_mem> dst_mem;
+            for (size_t idx = 0; idx < w_size + 1; idx++) {
+                auto mem = std::dynamic_pointer_cast<const ocl::gpu_buffer>(instance.output_memory_ptr(idx));
+                auto cl_buf = mem->get_buffer().get();
+                ov::element::Type element_type = mem->get_layout().data_type;
+                auto element_size = element_type.size();
+                // auto& layout = mem->get_layout();
+                auto layout = instance.get_output_layout(idx);
+                auto shape = layout.get_shape();
+                auto width = shape[-1] * element_size;
+                auto stride = shape[-1] * element_size; // Need no pad?
+                auto height = ov::shape_size(shape) / shape[-1];
+                if (0) {
+                    std::lock_guard<std::mutex> lock(debug_mutex);
+                    std::cout << "tensor_sync concat: rank[" << w_rank << "]: layout.shape[" << idx
+                              << "] = " << layout.get_partial_shape().to_string() << std::endl;
+                }
+                if (idx == 0) {
+                    dst_mem = std::make_shared<concat_mem>(cl_buf, width, height, stride, element_type);
+                } else {
+                    auto _src = std::make_shared<concat_mem>(cl_buf, width, height, stride, element_type);
+                    src_mem.emplace_back(_src);
+                }
+            }
+            if (0) {
+                std::lock_guard<std::mutex> lock(debug_mutex);
+                concat->print(src_mem, dst_mem);
+            }
+            sync_events = concat->concat(stream, src_mem, dst_mem);
+            if (0) {
+                std::lock_guard<std::mutex> lock(debug_mutex);
+                std::cout << "tensor_sync concat: rank[" << w_rank << "] done" << std::endl;
+            }
+            if (0) {
+                std::lock_guard<std::mutex> lock(debug_mutex);
+                auto element_size = dst_mem->type.size();
+                for (size_t i = 0; i < src_mem.size(); i++) {
+                    printf("Concat input memory %ld (rank=%d):\n", i, w_rank);
+                    dump_cl_buf(ocl_stream.get_cl_queue().get(),
+                                src_mem[i]->buf,
+                                src_mem[i]->width / element_size * src_mem[i]->height,
+                                0);
+                }
+                printf("Concat output memory (rank=%d):\n", w_rank);
+                dump_cl_buf(ocl_stream.get_cl_queue().get(),
+                            dst_mem->buf,
+                            dst_mem->width / element_size * dst_mem->height,
+                            0);
+            }
         }
 
         if (pass_through_events) {
