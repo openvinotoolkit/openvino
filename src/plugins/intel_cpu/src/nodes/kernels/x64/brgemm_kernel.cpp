@@ -38,7 +38,6 @@ BrgemmKernel::BrgemmKernel(size_t M,
     // blocking M
     M_blk = matmulOptimalM;
     M_tail = M % M_blk;
-    brgVnniFactor = 4 / inType.size();
 
     if (inType != ov::element::bf16 && inType != ov::element::f32 && inType != ov::element::f16)
         THROW_ERROR("brgemm kernel only supports f16, bf16, f32");
@@ -58,6 +57,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
         srcType = ov::element::f32;
         weiType = ov::element::f32;
     }
+    brgVnniFactor = 4 / weiType.size();
 
     /*
                 AVX?    AMX?
@@ -119,14 +119,14 @@ BrgemmKernel::BrgemmKernel(size_t M,
 
     auto& brgemmCtx0 = brgCtxs[brg0BaseIdx];
 
-    if ((brgemmCtx0.is_with_amx && K_tail) && is_f16) {
+    if ((brgemmCtx0.is_with_amx && K_tail) || is_f16) {
         // AMX_BF16 needs to copy tail
         // TODO: fp16 needs to copy all
         init_brgemm_copy_a(brgCopyAKernel,
                            K,
                            K_blk,
                            K_tail,
-                           is_f16? K : K_blk, // TODO: AMX_FP16
+                           is_f16 ? K : K_blk, // TODO: AMX_FP16
                            brgemmCtx0.dt_in0,
                            false,
                            lda * inType.size());
@@ -394,7 +394,7 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
             auto& brgemmCtx = brgCtxs[getBrgIdx(mIdx, k, n)];
             if (brgemmCtx.K != 0 && brgemmCtx.N != 0 && brgemmCtx.M != 0) {
                 // TODO: AMX_FP16
-                auto local_a_ptr = inType == ov::element::f16 ? ptr_scartch_a : (k > 0 ? ptr_a_tail : ptr_A);
+                auto local_a_ptr = inType == ov::element::f16 ? ptr_scartch_a : (k > 0 ? ptr_scartch_a : ptr_A);
                 auto B_stride = (k * count_K + n * count_N * brgVnniFactor) * weiType.size();
                 auto weight_ptr = ptr_scartch_b + B_stride;
                 auto C_stride = n * count_N * ov::element::f32.size();
@@ -432,11 +432,11 @@ void BrgemmKernel::executeGemm(void* a, void* b, void* c, void* wsp, void* scrat
     }
 }
 void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
-                                std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
-                                const void* pin0,
-                                const void* pin1,
-                                void* pout,
-                                void* wsp) {
+                              std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
+                              const void* pin0,
+                              const void* pin1,
+                              void* pout,
+                              void* wsp) {
     if (ctx.is_with_amx)
         amx_tile_configure(ctx.palette);
     if (ctx.is_with_comp) {
