@@ -141,8 +141,7 @@ To check in advance if a particular device supports model caching, your applicat
 Set "cache_encryption_callbacks" config option to enable cache encryption
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-With model caching enabled, model topology in cache can be encrypted/decrypted when saving/loading model cache.
-This property can currently only be set in ``compile_model``.
+When model caching is enabled, the model topology can be encrypted when saving to the cache and decrypted when loading from the cache. This property can currently be set only in ``compile_model``.
 
 .. tab-set::
 
