@@ -151,6 +151,7 @@
 REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(LWS0, LWS1, SIMD)))
 KERNEL(convolution)(
+    OPTIONAL_SHAPE_INFO_ARG
     const __global  INPUT0_TYPE  *input,
     __global        OUTPUT_TYPE  *output,
     const __global  FILTER_TYPE  *weights
