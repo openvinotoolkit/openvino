@@ -161,5 +161,4 @@ When model caching is enabled, the model topology can be encrypted when saving t
 
 .. important::
 
-   Currently, this property is only supported by CPU plugin. For other HW plugins, setting this property will perform
-   normally but do not encrypt/decrypt the model topology in cache.
+   Currently, this property is supported only by the CPU plugin. For other HW plugins, setting this property will not encrypt/decrypt the model topology in cache and will not affect performance. 
