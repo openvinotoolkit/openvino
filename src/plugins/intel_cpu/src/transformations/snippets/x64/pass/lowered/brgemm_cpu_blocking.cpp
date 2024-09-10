@@ -35,7 +35,7 @@ LinearIR::constExprIt BrgemmCPUBlocking::move_new_memory_buffer(LinearIR& linear
     const auto& brgemm_expr = brgemm_it->get();
     const auto wsp_expr = brgemm_expr->get_input_port_connector(2)->get_source().get_expr();
     const auto wsp_buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(wsp_expr);
-    OPENVINO_ASSERT(wsp_buffer && wsp_buffer->get_input_count() == 0, "Incorrect Scratchpad buffer for Brgemm AMX");
+    OPENVINO_ASSERT(wsp_buffer && wsp_buffer->is_independent_memory(), "Incorrect Scratchpad buffer for Brgemm AMX");
     // If scratchpad with temp memory is not explicitly before Brgemm, need to move to there.
     if (wsp_expr != *std::prev(brgemm_it)) {
         const auto wsp_it = linear_ir.find(wsp_expr);

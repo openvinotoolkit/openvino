@@ -49,6 +49,9 @@ public:
     // Returns True, if allocation size is known. Otherwise returns False - allocation size is undefined
     bool is_defined() const;
 
+    // Returns True, if the memory is independent - expression doesn't have parents (source)
+    bool is_independent_memory() const { return get_input_count() == 0; }
+
 protected:
     BufferExpression(const BufferExpression& other);
     BufferExpression(const std::shared_ptr<Node>& n, const std::shared_ptr<IShapeInferSnippetsFactory>& factory);
