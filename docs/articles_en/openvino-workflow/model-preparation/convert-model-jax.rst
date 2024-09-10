@@ -1,4 +1,4 @@
-(Experimental) Converting a JAX/Flax Model
+Converting a JAX/Flax Model (Experimental)
 ==========================================
 
 
@@ -7,13 +7,13 @@
                  JAX/Flax format to the OpenVINO Model.
 
 
-``openvino.convert_model`` function supports the following JAX/Flax model object types:
+The ``openvino.convert_model`` function supports the following JAX/Flax model object types:
 
 * ``jax._src.core.ClosedJaxpr``
 * ``flax.linen.Module``
 
-``jax._src.core.ClosedJaxpr`` object is created by tracing Python function using ``jax.make_jaxpr`` function.
-Here is an example of ``jax._src.core.ClosedJaxpr`` object creation and conversion to OpenVINO model:
+The ``jax._src.core.ClosedJaxpr`` object is created by tracing a Python function using the ``jax.make_jaxpr`` function.
+Here is an example of ``jax._src.core.ClosedJaxpr`` object creation and conversion to an OpenVINO model:
 
 .. code-block:: py
    :force:
@@ -67,13 +67,13 @@ Here is an example of the simplest ``flax.linen.Module`` model conversion:
 
 
 When using ``flax.linen.Module`` as an input model, ``openvino.convert_model`` requires the
-``example_input`` parameter to be specified. Internally, it triggers the model tracing during
-the model conversion process, using the capabilities  of the ``jax.make_jaxpr`` function.
+``example_input`` parameter to be specified. Internally, it triggers model tracing during
+the model conversion process, using the capabilities of the ``jax.make_jaxpr`` function.
 
 The ``__call__`` method of ``flax.linen.Module`` object can also have extra custom flags
-(like ``training``) in the input signature. In this case, it is required to create a helper function
-which has an input signature without any extra custom flags and parameters not related to input data.
-Here is an example of handling such case below:
+, like ``training``, in the input signature. In this case, it is required to create a helper function
+that has an input signature without any extra custom flags or parameters, not related to input data.
+Here is an example of handling such a case:
 
 .. code-block:: py
    :force:
@@ -113,21 +113,20 @@ Here is an example of handling such case below:
 
 .. note::
 
-   In the examples above the ``openvino.save_model`` function is not used because there are no
-   JAX-specific details regarding the usage of this function. In all examples, the converted
-   OpenVINO model can be saved to IR by calling ``ov.save_model(ov_model, 'model.xml')`` as usual.
+   The resulting OpenVINO IR model can be saved to drive with no additional, JAX-specific steps. 
+   Use the standard ``ov.save_model(ov_model,'model.xml')`` command. 
 
 Exporting a JAX/Flax Model to TensorFlow SavedModel Format
 ##########################################################
 
-An alternative method of converting JAX/Flax models is exporting a JAX/Flax model to TensorFlow SavedModel format
-with ``jax.experimental.jax2tf.convert`` first and then converting the resulting SavedModel directory to OpenVINO Model
-with ``openvino.convert_model``. It can be considered as a backup solution if a model cannot be
-converted directly from JAX/Flax to OpenVINO as described in the chapters above.
+An alternative method of converting JAX/Flax models is exporting them to the TensorFlow SavedModel format
+first, with ``jax.experimental.jax2tf.convert``,  and then converting the resulting SavedModel directory to OpenVINO IR,
+with ``openvino.convert_model``. It can be considered a backup solution, if a model cannot be
+converted directly, as described previously.
 
 1. Refer to the `JAX and TensorFlow interoperation <https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md>`__
    guide to learn how to export models from JAX/Flax to TensorFlow SavedModel format.
-2. Follow :doc:`Convert a TensorFlow model <convert-model-tensorflow>` chapter to produce OpenVINO model.
+2. Follow :doc:`Convert a TensorFlow model <convert-model-tensorflow>` chapter to produce an OpenVINO IR model.
 
 Here is an illustration of using these two steps together:
 
@@ -172,6 +171,6 @@ Here is an illustration of using these two steps together:
 
 .. note::
 
-   As of version 0.4.15, it is requred to pass ``native_serialization=False`` parameter
-   into ``jax2tf.convert`` for graph serialization mode. Without this option, the created TensorFlow
-   function will contain the embedded StableHLO modules that are not handled by OpenVINO TensorFlow Frontend.
+   As of version 0.4.15, it is required to pass the ``native_serialization=False`` parameter
+   into ``jax2tf.convert`` for graph serialization mode. Without it, the created TensorFlow
+   function will contain the embedded StableHLO modules that are not handled by the OpenVINO TensorFlow Frontend.

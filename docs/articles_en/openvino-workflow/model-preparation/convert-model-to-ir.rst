@@ -590,7 +590,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  * ``jax._src.core.ClosedJaxpr``
                  * ``flax.linen.Module``
 
-            * Converion of ``jax._src.core.ClosedJaxpr`` object
+            * Conversion of the ``jax._src.core.ClosedJaxpr`` object
 
               .. code-block:: py
                  :force:
@@ -611,7 +611,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  ov_model = ov.convert_model(jaxpr)
                  compiled_model = ov.compile_model(ov_model, "AUTO")
 
-            * Converion of ``flax.linen.Module`` object
+            * Conversion of the ``flax.linen.Module`` object
 
               .. code-block:: py
                  :force:
@@ -644,14 +644,14 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  ov_model = ov.convert_model(module, example_input=example_input)
                  compiled_model = ov.compile_model(ov_model, "AUTO")
 
-            For more details on conversion, refer to the :doc:`guide <convert-model-jax>`.
+            For more details on conversion, refer to the :doc:`conversion guide <convert-model-jax>`.
 
 
 
 These are basic examples, for detailed conversion instructions, see the individual guides on
 :doc:`PyTorch <convert-model-pytorch>`, :doc:`ONNX <convert-model-onnx>`,
 :doc:`TensorFlow <convert-model-tensorflow>`, :doc:`TensorFlow Lite <convert-model-tensorflow-lite>`,
-:doc:`PaddlePaddle <convert-model-paddle>` and :doc:`JAX/Flax <convert-model-jax>`.
+:doc:`PaddlePaddle <convert-model-paddle>`, and :doc:`JAX/Flax <convert-model-jax>`.
 
 Refer to the list of all supported conversion options in :doc:`Conversion Parameters <conversion-parameters>`.
 
@@ -670,7 +670,7 @@ IR Conversion Benefits
      especially useful for large models, like Llama2-7B.
 
 | **Saving to IR to avoid large dependencies in inference code**
-|    Frameworks such as TensorFlow, PyTorch and JAX/Flax tend to be large dependencies for applications
+|    Frameworks such as TensorFlow, PyTorch, and JAX/Flax tend to be large dependencies for applications
      running inference (multiple gigabytes). Converting models to OpenVINO IR removes this
      dependency, as OpenVINO can run its inference with no additional components.
      This way, much less disk space is needed, while loading and compiling usually takes less
