@@ -1,7 +1,7 @@
 -c ../constraints.txt
 h5py
-tensorflow>=1.15.5,<2.18.0; platform_system != 'darwin'
-tensorflow>=1.15.5,<2.18.0,!=2.13.1; platform_system == 'darwin'  # Explanation: 151865
+tensorflow>=1.15.5,<2.18.0; platform_system != 'darwin' or python_version != '3.8'
+tensorflow>=1.15.5,<2.18.0,!=2.13.1; platform_system == 'darwin' and python_version == '3.8'  # Explanation: 151865
 numpy>=1.16.6,<1.27
 networkx
 defusedxml
