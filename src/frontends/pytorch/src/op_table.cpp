@@ -110,6 +110,7 @@ OP_CONVERTER(translate_im2col);
 OP_CONVERTER(translate_index);
 OP_CONVERTER(translate_index_add);
 OP_CONVERTER(translate_index_copy_);
+OP_CONVERTER(translate_index_fill_);
 OP_CONVERTER(translate_index_put_);
 OP_CONVERTER(translate_index_select);
 OP_CONVERTER(translate_instance_norm);
