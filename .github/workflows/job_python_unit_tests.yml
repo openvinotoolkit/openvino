@@ -174,7 +174,7 @@ jobs:
             export LD_PRELOAD=${GOMP_LIB}
           fi
 
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
