@@ -416,12 +416,24 @@ void remove_redundant_reorders::run(program& p) {
             if (input.get_users().size() != 1)
                 continue;
 
+            auto all_dependencies_constant = [](cldnn::program_node& node) {
+                auto dependencies_size = node.get_dependencies().size();
+                bool dependencies_constant = true ? dependencies_size > 0 : false;
+                if (dependencies_constant) {
+                    for (size_t i = 0; i < dependencies_size; i++) {
+                        if (!node.get_dependency(i).is_constant()) {
+                            dependencies_constant = false;
+                        }
+                    }
+                }
+                return dependencies_constant;
+            };
             bool same_data_type = input.get_output_layout().data_type == output_layout.data_type;
             bool allowed_dt_conversion_fuse =
                 (input.is_type<one_hot>() || input.is_type<permute>() || input.is_type<mvn>() ||
                  input.is_type<concatenation>() || input.is_type<depth_to_space>() || input.is_type<region_yolo>() ||
                  input.is_type<detection_output>() || input.is_type<gather>() || input.is_type<broadcast>() ||
-                 input.is_type<select>() || input.is_type<eltwise>());
+                 input.is_type<select>() || input.is_type<eltwise>()) && !all_dependencies_constant(input);
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
