@@ -125,7 +125,7 @@ with ``jax.experimental.jax2tf.convert`` first and then converting the resulting
 with ``openvino.convert_model``. It can be considered as a backup solution if a model cannot be
 converted directly from JAX/Flax to OpenVINO as described in the above chapters.
 
-1. Refer to the `JAX and TensorFlow interoperation https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md>`__
+1. Refer to the `JAX and TensorFlow interoperation <https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md>`__
    guide to learn how to export models from JAX to SavedModel format.
 2. Follow :doc:`Convert a TensorFlow model <convert-model-tensorflow>` chapter to produce OpenVINO model.
 
@@ -165,10 +165,10 @@ Here is an illustration of using these two steps together:
                              input_signature=[tf.TensorSpec(shape=[2, 3], dtype=tf.float32)])
    tf_module = tf.Module()
    tf_module.f = tf_function
-   tf.saved_model.save(tf_module, 'saved_model')
+   tf.saved_model.save(tf_module, './saved_model')
 
    # 2. Convert to OpenVINO
-   ov_model = ov.convert_model('saved_model')
+   ov_model = ov.convert_model('./saved_model')
 
 .. note::
 
