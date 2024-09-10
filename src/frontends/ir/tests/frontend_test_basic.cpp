@@ -356,6 +356,92 @@ TEST_P(IRFrontendMMapTests, model_with_weights_reading_from_disk) {
     EXPECT_TRUE(res.valid) << res.message;
 }
 
+TEST_P(IRFrontendMMapTests, model_with_lp_weights_reading_from_disk) {
+    std::string xmlModel = R"V0G0N(
+<?xml version="1.0" ?>
+<net name="Model" version="11">
+	<layers>
+		<layer id="0" name="A" type="Parameter" version="opset1">
+			<data shape="" element_type="u4" />
+			<output>
+				<port id="0" precision="U4" names="" />
+			</output>
+		</layer>
+		<layer id="1" name="my_const" type="Const" version="opset1">
+			<data element_type="u4" shape="" offset="0" size="1" />
+			<output>
+				<port id="0" precision="U4" />
+			</output>
+		</layer>
+		<layer id="2" name="Add_4" type="Add" version="opset1">
+			<data auto_broadcast="numpy" />
+			<input>
+				<port id="0" precision="U4" />
+				<port id="1" precision="U4" />
+			</input>
+			<output>
+				<port id="2" precision="U4" />
+			</output>
+		</layer>
+		<layer id="3" name="Result_5" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="U4" />
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0" />
+		<edge from-layer="1" from-port="0" to-layer="2" to-port="1" />
+		<edge from-layer="2" from-port="2" to-layer="3" to-port="0" />
+	</edges>
+	<rt_info />
+</net>
+)V0G0N";
+
+    std::vector<unsigned char> buffer(1, 0);
+    auto buffer_ptr = reinterpret_cast<uint8_t*>(buffer.data());
+    buffer_ptr[0] = 0x18;
+    auto t = ov::Tensor(ov::element::u4, ov::Shape{}, buffer.data());
+
+    createTemporalModelFile(xmlModel, buffer);
+
+    std::shared_ptr<ov::Model> model;
+
+    ov::Core new_core;
+    new_core.set_property(ov::enable_mmap(GetParam()));
+    OV_ASSERT_NO_THROW(model = new_core.read_model(xmlFileName, binFileName));
+    ASSERT_TRUE(!!model);
+
+    std::shared_ptr<ov::Model> modelRef;
+    {
+        auto parameter = std::make_shared<ov::opset1::Parameter>(ov::element::u4, ov::Shape{});
+        parameter->set_friendly_name("A");
+        auto constant = std::make_shared<ov::opset1::Constant>(t);
+        constant->set_friendly_name("my_const");
+        auto transpose = std::make_shared<ov::opset1::Add>(parameter, constant);
+        transpose->set_friendly_name("Add_4");
+        auto result = std::make_shared<ov::opset1::Result>(transpose);
+        result->set_friendly_name("Result_5");
+        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+    }
+
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::NAMES)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(model, modelRef);
+    EXPECT_TRUE(res.valid) << res.message;
+
+    for (auto&& op : model->get_ops()) {
+        if (auto c = ov::as_type<ov::op::v0::Constant>(op.get())) {
+            const auto v = c->get_vector<uint8_t>();
+            EXPECT_EQ(v[0], 0x08);
+        }
+    }
+}
+
 INSTANTIATE_TEST_SUITE_P(EnableMMapPropery, IRFrontendMMapTests, ::testing::Bool());
 
 TEST_F(IRFrontendTests, model_without_weights_reading_from_disk) {

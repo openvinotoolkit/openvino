@@ -286,11 +286,23 @@ public:
     ///
     /// @tparam T Output vector type which byte size must be less or equal of byte size of Constant's precision.
     /// @return Vector of N elements of Type T.
-    template <typename T>
+    template <typename T, typename std::enable_if<!std::is_same<bool, T>::value>::type* = nullptr>
     std::vector<T> get_vector() const {
         const auto p = get_data_ptr<T>();
         OPENVINO_ASSERT(p != nullptr, "Cannot create vector! Buffer is not allocated.");
-        return std::vector<T>(p, p + (get_byte_size() / sizeof(T)));
+        auto v = std::vector<T>(p, p + (get_byte_size() / sizeof(T)));
+        if (!m_alloc_buffer_on_visit_attributes) {
+            set_unused_bits(v.data(), shape_size(m_shape));
+        }
+        return v;
+    }
+
+    template <typename T, typename std::enable_if<std::is_same<bool, T>::value>::type* = nullptr>
+    std::vector<T> get_vector() const {
+        const auto p = get_data_ptr<T>();
+        OPENVINO_ASSERT(p != nullptr, "Cannot create vector! Buffer is not allocated.");
+        auto v = std::vector<T>(p, p + (get_byte_size() / sizeof(T)));
+        return v;
     }
 
     /// \brief Return the Constant's value as a vector cast to type T
@@ -410,7 +422,7 @@ public:
     void alloc_buffer_on_visit_attributes(bool val);
 
     /// @brief Get view on constant data as tensor.
-    /// @return OV::Tensor with constant data.
+    /// @return ov::Tensor with constant data.
     const Tensor get_tensor_view() const;
 
     /// @return Constant's strides in bytes.
@@ -420,6 +432,8 @@ private:
     Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
 
     size_t get_num_elements_to_cast(const int64_t n) const;
+
+    void set_unused_bits(void* buffer, size_t num_elements) const;
 
 #ifdef __clang__
 #    pragma clang diagnostic push

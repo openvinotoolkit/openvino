@@ -1160,6 +1160,26 @@ TEST(constant, uint4_vector_broadcast) {
     const auto second_byte = p[1];
     EXPECT_EQ(0x11, first_byte);
     EXPECT_EQ(0x01, second_byte);
+
+    const auto vector = c.get_vector<uint8_t>();
+    EXPECT_EQ(vector[0], 0x11);
+    EXPECT_EQ(vector[1], 0x01);
+}
+
+TEST(constant, uint4_get_vector_from_one_element) {
+    auto c = std::make_shared<op::v0::Constant>(element::u4, Shape{1}, 9);
+    auto v = c->get_vector<uint8_t>();
+
+    ASSERT_EQ(v.size(), 1);
+    EXPECT_EQ(v[0], 0x09);
+}
+
+TEST(constant, uint4_get_vector_from_scalar) {
+    auto c = std::make_shared<op::v0::Constant>(element::u4, Shape{}, 8);
+    auto v = c->get_vector<uint8_t>();
+
+    ASSERT_EQ(v.size(), 1);
+    EXPECT_EQ(v[0], 0x08);
 }
 
 TEST(constant, uint4_input_value_validation) {
