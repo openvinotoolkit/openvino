@@ -195,18 +195,16 @@ ResampleKernelBase::DispatchData ResampleKernelPilRef::SetDefaultForKernel(Kerne
 static void SetKernelArguments(const resample_params& params, ResampleKernelPilRef::KernelId kernelId,
                                cldnn::arguments_desc& arguments,
                                std::vector<std::size_t>& internalBufferSizes) {
-    auto inputHorizontalSizeWithPadding = getInputHorizontalSize(params, true);
-    auto inputVerticalSizeWithPadding = getInputVerticalSize(params, true);
-    auto outputHorizontalSize = getOutputHorizontalSize(params);
-    auto outputVerticalSize = getOutputVerticalSize(params);
-    float scale = static_cast<float>(inputHorizontalSizeWithPadding) / outputHorizontalSize;
-    float filter_scale = std::max(1.f, scale);
-    float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
-    int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
-
     /* maximum number of coeffs */
     switch (kernelId) {
     case ResampleKernelPilRef::eCalcHorizontalCoefficients: {
+        auto inputHorizontalSizeWithPadding = getInputHorizontalSize(params, true);
+        auto outputHorizontalSize = getOutputHorizontalSize(params);
+        float scale = static_cast<float>(inputHorizontalSizeWithPadding) / outputHorizontalSize;
+        float filter_scale = std::max(1.f, scale);
+        float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
+        int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
+
         arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0}); // coefficients
         internalBufferSizes.push_back(outputHorizontalSize * ksize * sizeof(float));
         arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1}); // bounds
@@ -228,6 +226,13 @@ static void SetKernelArguments(const resample_params& params, ResampleKernelPilR
         break;
     }
     case ResampleKernelPilRef::eCalcVerticalCoefficients: {
+        auto inputVerticalSizeWithPadding = getInputVerticalSize(params, true);
+        auto outputVerticalSize = getOutputVerticalSize(params);
+        float scale = static_cast<float>(inputVerticalSizeWithPadding) / outputVerticalSize;
+        float filter_scale = std::max(1.f, scale);
+        float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
+        int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
+
         internalBufferSizes.push_back(outputVerticalSize * ksize * sizeof(float)); // coefficients
         internalBufferSizes.push_back(outputVerticalSize * 2 * sizeof(int));       // bounds
         if (NeedHorizontalPass(params)) {
@@ -269,12 +274,10 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
         MakeJitConstant("STAGE_CALC_VERTICAL_COEFFICIENTS", static_cast<int>(eCalcVerticalCoefficients)),
         MakeJitConstant("STAGE_RESAMPLE_VERTICAL", static_cast<int>(eResampleVertical)),
     });
-    auto inputHorizontalSizeWithPadding = getInputHorizontalSize(params, true);
-    auto inputVerticalSizeWithPadding = getInputVerticalSize(params, true);
-    auto outputHorizontalSize = getOutputHorizontalSize(params);
-    auto outputVerticalSize = getOutputVerticalSize(params);
     switch (id) {
         case eCalcHorizontalCoefficients: {
+            auto inputHorizontalSizeWithPadding = getInputHorizontalSize(params, true);
+            auto outputHorizontalSize = getOutputHorizontalSize(params);
             float scale = static_cast<float>(inputHorizontalSizeWithPadding) / outputHorizontalSize;
             float filter_scale = std::max(1.f, scale);
             float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
@@ -292,6 +295,8 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
             break;
         }
         case eResampleHorizontal: {
+            auto inputHorizontalSizeWithPadding = getInputHorizontalSize(params, true);
+            auto outputHorizontalSize = getOutputHorizontalSize(params);
             float scale = static_cast<float>(inputHorizontalSizeWithPadding) / outputHorizontalSize;
             float filter_scale = std::max(1.f, scale);
             float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
@@ -317,11 +322,12 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
             break;
         }
         case eCalcVerticalCoefficients: {
+            auto inputVerticalSizeWithPadding = getInputVerticalSize(params, true);
+            auto outputVerticalSize = getOutputVerticalSize(params);
             float scale = static_cast<float>(inputVerticalSizeWithPadding) / outputVerticalSize;
             float filter_scale = std::max(1.f, scale);
             float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
             int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
-            auto outputVerticalSize = ExtractDim(params.outputs[0], params.axes[eVertical]).v;
             jit_constants.AddConstants({MakeJitConstant("IN_DIM_BEGIN", 0.f),
                 MakeJitConstant("IN_DIM_END", static_cast<float>(inputVerticalSizeWithPadding)),
                 MakeJitConstant("IN_DIM_SIZE", static_cast<int>(inputVerticalSizeWithPadding)),
@@ -335,6 +341,8 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
             break;
         }
         case eResampleVertical: {
+            auto inputVerticalSizeWithPadding = getInputVerticalSize(params, true);
+            auto outputVerticalSize = getOutputVerticalSize(params);
             float scale = static_cast<float>(inputVerticalSizeWithPadding) / outputVerticalSize;
             float filter_scale = std::max(1.f, scale);
             float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
