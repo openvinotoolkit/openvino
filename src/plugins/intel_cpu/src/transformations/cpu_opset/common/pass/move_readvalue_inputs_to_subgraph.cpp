@@ -15,6 +15,7 @@
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
+#include "transformations/cpu_opset/common/op/submodel.hpp"
 
 ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
     MATCHER_SCOPE(MoveReadValueInputsToSubgraph);
@@ -158,12 +159,27 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         // auto assign_subgraph = corresponding_assign->clone_with_new_inputs({rv_subgraph});
         auto output = std::make_shared<ov::op::v0::Result>(last_node);
         auto func = std::make_shared<Model>(ov::ResultVector({output}), params);
+#if USE_SUBMODEL
+        std::cout << "------1: " << std::endl;
+        auto submodel = std::make_shared<SubModel>(func);
+        std::cout << "------2: " << std::endl;
+        for (size_t i = 0; i < inputs.size(); i++) {
+            submodel->set_invariant_input(params[i], inputs[i]->output(0));
+        }
+        std::cout << "------3: " << std::endl;
+        // submodel->set_body_outputs({output});
+        std::cout << "------4: " << std::endl;
+
+        new_rv->set_submodel(submodel);
+        std::cout << "------5: " << std::endl;
+#else
         new_rv->set_body(func);
 
         for (size_t i = 0; i < inputs.size(); i++) {
             new_rv->set_input(inputs[i]->output(0), params[i]);
         }
         new_rv->set_output(output);
+#endif
 
         // Replace ReadValue with ov::intel_cpu::ReadValueWithSubgraphNode
         ov::replace_node(readvalue, new_rv);

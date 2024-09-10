@@ -698,6 +698,9 @@ void MemoryInput::createPrimitive() {
 void MemoryInput::getSupportedDescriptors() {
     if (haveSubgraph) {
         auto rvWithSubgraphOp = ov::as_type_ptr<ov::intel_cpu::ReadValueWithSubgraphNode>(ovOp);
+#if USE_SUBMODEL
+        // rvWithSubgraphOp->get_submodel()->
+#else
         const std::shared_ptr<const ov::Model>& body = rvWithSubgraphOp->get_body();
         subGraph.CreateGraph(body, context);
 
@@ -714,7 +717,7 @@ void MemoryInput::getSupportedDescriptors() {
             }
         }
 
-        const auto &outMap = subGraph.GetOutputNodesMap();
+        const auto& outMap = subGraph.GetOutputNodesMap();
         for (const auto& out : rvWithSubgraphOp->get_body()->get_results()) {
             auto outNode = outMap.find(rvWithSubgraphOp->get_body()->get_result_index(out));
             if (outNode != outMap.end()) {
@@ -740,6 +743,7 @@ void MemoryInput::getSupportedDescriptors() {
             inputPortMap.emplace_back(
                 PortMap{static_cast<int>(desc->m_input_index), static_cast<int>(body_input_index)});
         }
+#endif
     } else {
         MemoryInputBase::getSupportedDescriptors();
     }
@@ -775,19 +779,22 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
     // Subgraph infer
     if (haveSubgraph) {
         if (processInitGraph) {
-            // DEBUG_POS << "processInitGraph && haveSubgraph = 1" << std::endl;
+            DEBUG_POS << "processInitGraph && haveSubgraph = 1" << std::endl;
+#if USE_SUBMODEL
+#else
             for (auto& mapper : beforeMappers)
                 mapper->execute(strm);
             subGraph.ResetInferCount();
             subGraph.Infer();
             for (auto& mapper : afterMappers)
                 mapper->execute(strm);
+#endif
 
             auto outputMem = getDstMemoryAtPort(0);
-            // std::cout << "input = " << getSrcMemoryAtPort(0)->getDataAs<int32_t>()[0] << std::endl;
-            // std::cout << "output = " << outputMem->getDataAs<int32_t>()[0] << std::endl;
-            // std::cout << "outputMem->getShape()=" << outputMem->getShape().toPartialShape() << std::endl;
-            // std::cout << "outputMem->getPrecision()=" << outputMem->getPrecision() << std::endl;
+            std::cout << "input = " << getSrcMemoryAtPort(0)->getDataAs<int32_t>()[0] << std::endl;
+            std::cout << "output = " << outputMem->getDataAs<int32_t>()[0] << std::endl;
+            std::cout << "outputMem->getShape()=" << outputMem->getShape().toPartialShape() << std::endl;
+            std::cout << "outputMem->getPrecision()=" << outputMem->getPrecision() << std::endl;
             // Same to Assign
             assignedMem->load(*outputMem);
         }
@@ -851,14 +858,16 @@ void MemoryInput::runStatic(dnnl::stream strm) {
     // Subgraph infer
     if (haveSubgraph) {
         if (processInitGraph) {
-            // DEBUG_POS << "processInitGraph && haveSubgraph=1" << std::endl;
+            DEBUG_POS << "processInitGraph && haveSubgraph=1" << std::endl;
+#if USE_SUBMODEL
+#else
             for (auto& mapper : beforeMappers)
                 mapper->execute(strm);
             subGraph.ResetInferCount();
             subGraph.Infer();
             for (auto& mapper : afterMappers)
                 mapper->execute(strm);
-
+#endif
             //
             auto outputMem = getDstMemoryAtPort(0);
             assignedMem->load(*outputMem);
@@ -938,12 +947,12 @@ MemStatePtr MemoryInput::makeState() const {
 MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : MemoryInputBase::MemoryInputBase(op, context),
       ovOp(op) {
-    // DEBUG_POS << ovOp->get_friendly_name() << std::endl;
+    DEBUG_POS << ovOp->get_friendly_name() << std::endl;
     auto rvWithSubgraph = ov::as_type_ptr<ov::intel_cpu::ReadValueWithSubgraphNode>(op);
     if (rvWithSubgraph) {
         haveSubgraph = true;
     }
-    // DEBUG_POS << "haveSubgraph=" << haveSubgraph << std::endl;
+    DEBUG_POS << "haveSubgraph=" << haveSubgraph << std::endl;
 }
 
 bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
