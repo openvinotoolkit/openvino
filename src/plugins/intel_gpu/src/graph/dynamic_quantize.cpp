@@ -41,10 +41,10 @@ std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(const layout &a
 template std::vector<layout> dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(const layout &act_layout, uint64_t group_size);
 
 template<typename ShapeType>
-std::vector<layout> dynamic_quantize_inst::calc_output_layouts(dynamic_quantize_node const& /*node*/, const kernel_impl_params& impl_param) {
+std::vector<layout> dynamic_quantize_inst::calc_output_layouts(dynamic_quantize_node const& node, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<dynamic_quantize>();
     const auto& input_layout = impl_param.get_input_layout();
-    return __calc_output_layouts<ov::PartialShape>(input_layout, UINT64_MAX /* TODO: handle group_size here */);
+    return __calc_output_layouts<ov::PartialShape>(input_layout, node.get_primitive()->group_size);
 }
 
 template std::vector<layout> dynamic_quantize_inst::calc_output_layouts<ov::PartialShape>(dynamic_quantize_node const& node,

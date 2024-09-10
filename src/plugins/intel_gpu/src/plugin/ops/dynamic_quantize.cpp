@@ -19,7 +19,6 @@ static void CreateDynamicQuantizeOp(ProgramBuilder& p, const std::shared_ptr<ov:
     for (size_t i = 0; i < group_sizes.size() - 1; i++)
         OPENVINO_ASSERT(group_sizes[i] == 1, "Not supported group size at ", i, ": ", group_sizes[i]);
 
-    OPENVINO_ASSERT(group_sizes.back() == UINT64_MAX, "Not supported group size: ", group_sizes.back());
     auto prim = cldnn::dynamic_quantize(primitive_name,
                                 inputs[0],
                                 op->get_group_sizes().back(),
