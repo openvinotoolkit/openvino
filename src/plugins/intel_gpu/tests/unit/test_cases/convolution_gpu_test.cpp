@@ -1752,6 +1752,8 @@ TEST(convolution_f16_fw_gpu, convolution_big_size_weights) {
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
+        ov::intel_gpu::ImplementationDesc conv_impl = {format::any, "", impl_types::ocl};
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", conv_impl} }));
 
         network network(engine, topology, config);
 
@@ -5722,7 +5724,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
     }
 
     ExecutionConfig config = get_test_default_config(engine);
-    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "convolution_gpu_bfyx_to_fs_byx_fsv32" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "convolution_gpu_bfyx_to_fs_byx_fsv32", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
@@ -10648,6 +10650,9 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
             input_layout("input", in_layout),
             data("weights", weights),
             convolution("conv", input_info("input"), "weights", no_bias, groups_num, p.stride, p.dilation, p.pad_begin, p.pad_end, is_grouped));
+
+        ov::intel_gpu::ImplementationDesc conv_impl = { in_layout.format, "convolution_gpu_ref", impl_types::ocl };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl } }));
 
         network network_ref(engine, topology_ref, config);
         network_ref.set_input_data("input", input);
