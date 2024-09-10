@@ -126,15 +126,15 @@ protected:
         std::vector<int64_t> ptr_increments;
         std::vector<int64_t> finalization_offsets;
     };
-    static UnifiedLoopInfoRtParams compute_runtime_params(const lowered::UnifiedLoopInfoPtr& unified_loop_info);
+    static UnifiedLoopInfoRtParams get_loop_runtime_params(const lowered::UnifiedLoopInfoPtr& unified_loop_info);
     using LoopInfoRuntimeParamsMap = std::unordered_map<lowered::UnifiedLoopInfoPtr, UnifiedLoopInfoRtParams>;
     /**
      * @brief Update Loop informations in LinearIR: Unified and ExpandedLoopInfo
      * @param linear_ir LinearIR
-     * @param initializated_info_map Reference on a map [LoopInfo->RuntimeParams].
-     * Can be used to pass in the method loop infos which were already initialized, e.g. by parallel domain optimization
      */
-    void update_loop_info(const lowered::LinearIRCPtr& linear_ir, LoopInfoRuntimeParamsMap& initializated_info_map) const;
+    static void update_loop_info(const lowered::LinearIRCPtr& linear_ir);
+    static void update_expanded_loop_info(const lowered::ExpandedLoopInfoPtr& expanded_loop_info,
+                                          LoopInfoRuntimeParamsMap& initializated_info_map);
     /**
      * @brief Update Buffer scratchpad size and offsets if needed
      *        Note: `update_loop_info` must be called before
@@ -157,58 +157,41 @@ protected:
      */
     std::vector<std::vector<size_t>> extract_layouts() const;
 
-    class ParallelWAOptimizer {
+    class MHAParallelWAOptimizer {
     public:
+        MHAParallelWAOptimizer() = default;
+        MHAParallelWAOptimizer(const ov::snippets::lowered::LinearIRCPtr& linear_ir, RuntimeConfigurator* configurator);
         /**
-         * @brief Inits ParallelWAOptimizer: computes optimizer parameters which should be set at compilation stage
-         * @param linear_ir LinearIR
-         * @param io_descs Input/output descriptors which are used for optimizer parameters initialization
-         * @param in_num Number of inputs. It is needed to distinguish input and output shapes/layouts
+         * @brief Checks if the current master shape can be optimized, and if yes, updates all the necessary runtime information
+         * @return status if the optimization is applied
          */
-        void init(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-                  const std::vector<snippets::lowered::PortDescriptorPtr>& io_descs,
-                  size_t in_num);
+        bool optimize();
+
+    private:
         /**
          * @brief Checks if optimizer is enabled
          * @todo Ticket 148891: when RuntimeConfigurator::update will be rewritten on PassPipeline, this method should be removed
-         * We will not just register ParallelWAOptimizer in case if it is not needed
+         * We will not just register MHAParallelWAOptimizer in case if it is not needed
          */
-        bool enabled();
-        /**
-         * @brief Checks if the current master shape can be optimized, and if yes, updates all the necessary runtime information
-         * @param master_shape Master shape
-         * @param map Loop info -> Runtime params map which will be passed in "update_loop_info"
-         * the map is filled with updated loops_to_split loops: "new_m" work amount is set for them, and runtime params are updated correspondingly
-         * @param shapes Vector which is filled with the split shapes
-         * @param layouts Vector which is filled with the split layouts
-         * @param in_num Number of inputs. It is needed to distinguish input and output shapes/layouts
-         * @return status if the optimization is applied
-         */
-        void optimize(ov::snippets::VectorDims& master_shape,
-                      ov::snippets::RuntimeConfigurator::LoopInfoRuntimeParamsMap& map,
-                      std::vector<ov::snippets::VectorDims>& shapes,
-                      std::vector<std::vector<size_t>>& layouts,
-                      size_t in_num);
-
-    private:
-        void update_master_shape(ov::snippets::VectorDims& master_shape, size_t new_batch_dim, size_t new_kernel_dim);
-        void update_split_loops_info(ov::snippets::RuntimeConfigurator::LoopInfoRuntimeParamsMap& map, size_t new_kernel_dim);
-        void update_shapes(std::vector<ov::snippets::VectorDims>& shapes, size_t new_batch_dim, size_t new_kernel_dim);
-        void update_layouts(std::vector<std::vector<size_t>>& layouts);
+        bool enabled() const;
 
         static std::unordered_set<snippets::lowered::ExpressionPtr> find_applicable_brgemms(const ov::snippets::lowered::LinearIRCPtr& linear_ir);
         static std::unordered_set<size_t> find_unsqueezed_params(
             const ov::snippets::lowered::LinearIRCPtr& linear_ir,
             const std::unordered_set<snippets::lowered::ExpressionPtr>& brgemms);
-        static std::unordered_set<ov::snippets::lowered::UnifiedLoopInfoPtr> find_loops_to_split(
+        static std::unordered_set<ov::snippets::lowered::ExpandedLoopInfoPtr> find_loops_to_split(
             const ov::snippets::lowered::LinearIRCPtr& linear_ir,
             const std::unordered_set<size_t>& unsqueezed_params);
 
-        std::unordered_set<ov::snippets::lowered::UnifiedLoopInfoPtr> loops_to_split{};
+        RuntimeConfigurator* configurator = nullptr;
+
+        std::unordered_set<ov::snippets::lowered::ExpandedLoopInfoPtr> loops_to_split{};
         std::unordered_set<size_t> unsqueezed_params{};
         std::vector<std::vector<size_t>> optimized_layouts{};
         std::vector<size_t> m_dim_idces{};
         size_t concurrency = 0;
+
+        static const size_t m_dim_idx;
     } m_optimizer;
 
     std::shared_ptr<RuntimeConfig> m_config = nullptr;
@@ -219,7 +202,6 @@ protected:
     std::vector<size_t> m_io_data_sizes = {};
     // [cluster_id -> buffer expressions ]
     std::map<size_t, std::set<lowered::ExpressionPtr>> m_dynamic_buffer_clusters = {};
-    std::vector<size_t> m_ordered_loop_ids = {};
 
     std::vector<ov::snippets::VectorDims> m_latest_shapes = {};
 };
