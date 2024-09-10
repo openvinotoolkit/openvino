@@ -16,8 +16,8 @@ namespace op {
  * @interface Buffer
  * @brief This is a class for memory storage.
  *        The buffers can have source (called as "IntermediateMemory") and can be without source (called as "NewMemory").
- *        First one contains memory which was stored by source -> these buffers propagate output shape and element type from parents.
- *        Second one has passed `element_type` and `shape` by user - these attributes describe Buffer with independent empty memory.
+ *        First one contains memory which was stored by source -> these buffers propagate output shape and element type from parents to output.
+ *        Second one has passed `element_type` and `shape` by user - these attributes describe independent empty memory.
  *        The both behaviors are implemented via the corresponding classes which are derived from the class "Buffer::BaseImpl".
  *        It allows user to work with only the class "op::Buffer" - all needed logic is implemented in the field `m_impl`.
  * @ingroup snippets
@@ -56,6 +56,7 @@ private:
     class BaseImpl {
     public:
         BaseImpl() = default;
+        virtual ~BaseImpl() = default;
         virtual size_t get_allocation_size() const = 0;
         virtual std::shared_ptr<BaseImpl> clone() const = 0;
         virtual void validate_and_infer_types(Buffer* buffer) const = 0;
