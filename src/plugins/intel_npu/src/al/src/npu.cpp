@@ -71,6 +71,10 @@ std::map<ov::element::Type, float> IDevice::getGops() const {
     OPENVINO_THROW("Get DEVICE_GOPS is not supported");
 }
 
+compilerVersion IDevice::getCompilerVersion() const {
+    OPENVINO_THROW("Get compiler version is not supported with this backend");
+}
+
 ov::SoPtr<ov::IRemoteTensor> IDevice::createRemoteTensor(std::shared_ptr<ov::IRemoteContext>,
                                                          const ov::element::Type&,
                                                          const ov::Shape&,

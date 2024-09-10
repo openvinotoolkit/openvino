@@ -181,8 +181,6 @@ Plugin::Plugin()
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
 
-    registerOptions(*_options, {1, 2, 3});
-
     // parse env_variables to get LOG_LEVEL if needed
     _globalConfig.parseEnvVars();
     Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
@@ -208,11 +206,22 @@ Plugin::Plugin()
 
     OV_ITT_TASK_CHAIN(PLUGIN, itt::domains::NPUPlugin, "Plugin::Plugin", "NPUBackends");
     _backends = std::make_shared<NPUBackends>(backendRegistry, _globalConfig);
-    OV_ITT_TASK_NEXT(PLUGIN, "registerOptions");
-    _backends->registerOptions(*_options);
+
+    /// Fetch CID version and create properties list
+    OV_ITT_TASK_NEXT(PLUGIN, "FetchCompilerVer");
+    compilerVersion cid_ver = {0, 0, 0};
+    auto device = _backends->getDevice();
+    if (device) {
+        cid_ver = device->getCompilerVersion();
+    }
+    printf("\n\n[CSOKADBG]CID version major %d minor %d \n\n", cid_ver.vclMajor, cid_ver.vclMinor);
 
     OV_ITT_TASK_NEXT(PLUGIN, "Metrics");
     _metrics = std::make_unique<Metrics>(_backends);
+
+    OV_ITT_TASK_NEXT(PLUGIN, "registerOptions");
+    registerOptions(*_options, cid_ver);
+    _backends->registerOptions(*_options);
 
     // parse again env_variables after backend is initialized to get backend proprieties
     _globalConfig.parseEnvVars();
