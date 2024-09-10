@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_comparison_IsInf_10}
-
 IsInf
 =====
 
