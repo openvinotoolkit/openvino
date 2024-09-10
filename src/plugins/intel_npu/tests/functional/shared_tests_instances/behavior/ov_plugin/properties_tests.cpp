@@ -134,8 +134,14 @@ const std::vector<ov::AnyMap> IncorrectMutablePropertiesWrongValueTypes = {
     {{ov::num_streams.name(), "one"}},
 };
 
-const std::vector<ov::AnyMap> IncorrectInexistingProperties = {
-    {{ov::affinity.name(), ov::Affinity::HYBRID_AWARE}},
+const std::vector<ov::AnyMap> IncorrectInexistingProperties1 = {
+    {{ov::hint::enable_cpu_pinning.name(), false}},
+    {{ov::intel_cpu::denormals_optimization.name(), true}},
+    {{ov::intel_gpu::hint::host_task_priority.name(), ov::hint::Priority::LOW}},
+    {{ov::intel_gpu::hint::queue_throttle.name(), ov::intel_gpu::hint::ThrottleLevel::HIGH}}};
+
+const std::vector<ov::AnyMap> IncorrectInexistingProperties2 = {
+    {{ov::hint::enable_cpu_pinning.name(), true}},
     {{ov::intel_cpu::denormals_optimization.name(), true}},
     {{ov::intel_gpu::hint::host_task_priority.name(), ov::hint::Priority::LOW}},
     {{ov::intel_gpu::hint::queue_throttle.name(), ov::intel_gpu::hint::ThrottleLevel::HIGH}}};
@@ -151,7 +157,15 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(IncorrectImmutableProperties +
                                                                 IncorrectMutablePropertiesWrongValueTypes +
-                                                                IncorrectInexistingProperties)),
+                                                                IncorrectInexistingProperties1)),
+                         (ov::test::utils::appendPlatformTypeTestName<OVPropertiesIncorrectTests>));
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
+                         OVPropertiesIncorrectTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(IncorrectImmutableProperties +
+                                                                IncorrectMutablePropertiesWrongValueTypes +
+                                                                IncorrectInexistingProperties2)),
                          (ov::test::utils::appendPlatformTypeTestName<OVPropertiesIncorrectTests>));
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
