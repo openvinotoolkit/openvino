@@ -53,6 +53,12 @@ struct DimensionAccessHelperJit : virtual DimensionAccessHelperBase {
                     pad_before_after_sizes.push_back(toCodeString(d.pad.before));
                     pad_before_after_sizes.push_back(toCodeString(d.pad.after));
                 }
+
+                if (d.pad.is_dynamic || d.is_dynamic) {
+                    dims_padded.push_back(true);
+                } else {
+                    dims_padded.push_back(false);
+                }
             }
         }
     }
@@ -76,6 +82,7 @@ struct DimensionAccessHelperJit : virtual DimensionAccessHelperBase {
 
     std::vector<std::string> dims_sizes;
     std::vector<std::string> pad_before_after_sizes;
+    std::vector<bool> dims_padded;
 };
 
 std::vector<size_t> GetImageSizes(const kernel_selector::WeightsTensor& dimensions, const WeightsLayout layout);

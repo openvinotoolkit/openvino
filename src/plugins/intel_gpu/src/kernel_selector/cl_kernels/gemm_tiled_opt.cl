@@ -200,14 +200,14 @@ KERNEL(gemm_tiled_opt)(
 #endif // TRANSPOSE_INPUT0
 #if TRANSPOSE_INPUT1 == TRANSPOSE_X_LAST
     const __global INPUT1_TYPE* b_ptr = input1 + batch_offset_input1;
-    #if HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
+    #if HAS_DYNAMIC_K_PADDING || INPUT1_HAS_PADDING
         const uint input1_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, 1, tile_n_offset) - batch_offset_input1;
     #else
         const uint input1_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR 0, 0, 0, 0, 1, 0);
     #endif
 #elif TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
     const __global INPUT1_TYPE* b_ptr = input1 + batch_offset_input1;
-    #if HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
+    #if HAS_DYNAMIC_K_PADDING || INPUT1_HAS_PADDING
         const uint input1_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, 0, (tile_n_offset + 1)) - batch_offset_input1;
         const uint input1_offset1 = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (TILE_K), tile_n_offset) - batch_offset_input1;
     #else
