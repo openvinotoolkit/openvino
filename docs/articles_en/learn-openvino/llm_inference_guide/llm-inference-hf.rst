@@ -165,7 +165,7 @@ parameters.
    such as ``meta-llama/Llama-2-7b`` or ``Qwen/Qwen-7B-Chat``. These parameters are used by
    default only when ``bits=4`` is specified in the config.
 
-   For more details on compression options, refer to the correspoding `Optimum documentation <https://huggingface.co/docs/optimum/en/intel/openvino/optimization#4-bit>`__.
+   For more details on compression options, refer to the corresponding `Optimum documentation <https://huggingface.co/docs/optimum/en/intel/openvino/optimization#4-bit>`__.
    For native NNCF weight quantization options, refer to :doc:`weight compression guide <../../openvino-workflow/model-optimization-guide/weight-compression>`.
 
    OpenVINO also supports 4-bit models from Hugging Face `Transformers <https://github.com/huggingface/transformers>`__
