@@ -123,7 +123,7 @@ Exporting a JAX/Flax Model to TensorFlow SavedModel Format
 An alternative method of converting JAX/Flax models is exporting a JAX/Flax model to TensorFlow SavedModel format
 with ``jax.experimental.jax2tf.convert`` first and then converting the resulting SavedModel directory to OpenVINO Model
 with ``openvino.convert_model``. It can be considered as a backup solution if a model cannot be
-converted directly from JAX/Flax to OpenVINO as described in the above chapters.
+converted directly from JAX/Flax to OpenVINO as described in the chapters above.
 
 1. Refer to the `JAX and TensorFlow interoperation <https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md>`__
    guide to learn how to export models from JAX/Flax to TensorFlow SavedModel format.
