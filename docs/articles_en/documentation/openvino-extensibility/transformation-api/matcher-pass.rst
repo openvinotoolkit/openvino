@@ -1,5 +1,3 @@
-.. {#openvino_docs_Extensibility_UG_matcher_pass}
-
 OpenVINO Matcher Pass
 =====================
 
@@ -17,10 +15,21 @@ Template for MatcherPass transformation class
    :language: cpp
    :fragment: [graph_rewrite:template_transformation_hpp]
 
-.. doxygensnippet:: docs/articles_en/assets/snippets/template_pattern_transformation.cpp
-   :language: cpp
-   :fragment: [graph_rewrite:template_transformation_cpp]
+.. tab-set::
 
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/template_pattern_transformation.cpp
+         :language: cpp
+         :fragment: [graph_rewrite:template_transformation_cpp]
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_matcher_pass.py
+         :language: py
+         :fragment: [matcher_pass:ov_matcher_pass_py]
 
 To use ``ov::pass::MatcherPass``, you need to complete these steps:
 

@@ -1,24 +1,22 @@
-.. {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch}
-
 [LEGACY] Converting a PyTorch Model
 ============================================
 
 
-.. meta:: 
-   :description: Learn how to convert a model from the 
-                 PyTorch format to the OpenVINO Intermediate Representation. 
+.. meta::
+   :description: Learn how to convert a model from the
+                 PyTorch format to the OpenVINO Intermediate Representation.
 
 
 .. danger::
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Converting a PyTorch Model <../../../../../openvino-workflow/model-preparation/convert-model-pytorch>` article. 
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Converting a PyTorch Model <../../../../../openvino-workflow/model-preparation/convert-model-pytorch>` article.
 
 This page provides instructions on how to convert a model from the PyTorch format to the OpenVINO IR format.
 
 The conversion is a required step to run inference using OpenVINO API.
-It is not required if you choose to work with OpenVINO under the PyTorch framework, 
+It is not required if you choose to work with OpenVINO under the PyTorch framework,
 using its :doc:`torch.compile feature <../../../../../openvino-workflow/torch-compile>`.
 
 Converting a PyTorch model with PyTorch Frontend
@@ -33,7 +31,7 @@ To convert a PyTorch model to the OpenVINO IR format, use the OVC API (supersedi
    import torchvision
    import torch
    from openvino.tools.mo import convert_model
-   
+
    model = torchvision.models.resnet50(weights='DEFAULT')
    ov_model = convert_model(model)
 
@@ -43,7 +41,7 @@ Following PyTorch model formats are supported:
 * ``torch.jit.ScriptModule``
 * ``torch.jit.ScriptFunction``
 
-Converting certain PyTorch models may require model tracing, which needs the ``example_input`` 
+Converting certain PyTorch models may require model tracing, which needs the ``example_input``
 parameter to be set, for example:
 
 .. code-block:: py
@@ -52,7 +50,7 @@ parameter to be set, for example:
    import torchvision
    import torch
    from openvino.tools.mo import convert_model
-   
+
    model = torchvision.models.resnet50(weights='DEFAULT')
    ov_model = convert_model(model, example_input=torch.randn(1, 3, 100, 100))
 
@@ -64,9 +62,9 @@ parameter to be set, for example:
 * ``list`` or ``tuple`` with tensors (``openvino.runtime.Tensor`` / ``torch.Tensor`` / ``np.ndarray``)
 * ``dictionary`` where key is the input name, value is the tensor (``openvino.runtime.Tensor`` / ``torch.Tensor`` / ``np.ndarray``)
 
-Sometimes ``convert_model`` will produce inputs of the model with dynamic rank or dynamic type. 
+Sometimes ``convert_model`` will produce inputs of the model with dynamic rank or dynamic type.
 Such model may not be supported by the hardware chosen for inference. To avoid this issue,
-use the ``input`` argument of ``convert_model``. For more information, refer to :doc:`Convert Models Represented as Python Objects <../[legacy]-convert-models-as-python-objects>`. 
+use the ``input`` argument of ``convert_model``. For more information, refer to :doc:`Convert Models Represented as Python Objects <../[legacy]-convert-models-as-python-objects>`.
 
 .. important::
 
@@ -82,7 +80,7 @@ It is also possible to export a PyTorch model to ONNX and then convert it to Ope
 
 PyTorch models are defined in Python. To export them, use the ``torch.onnx.export()`` method. The code to
 evaluate or test the model is usually provided with its code and can be used for its initialization and export.
-The export to ONNX is crucial for this process, but it is covered by PyTorch framework, therefore, It will not be covered here in detail. 
+The export to ONNX is crucial for this process, but it is covered by PyTorch framework, therefore, It will not be covered here in detail.
 For more information, refer to the `Exporting PyTorch models to ONNX format <https://pytorch.org/docs/stable/onnx.html>`__ guide.
 
 To export a PyTorch model, you need to obtain the model as an instance of ``torch.nn.Module`` class and call the ``export`` function.

@@ -22,7 +22,7 @@ bool ReduceBaseTransformation::transform(TransformationContext& context, ov::pas
     }
 
     const auto reduce = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
-    auto dequantization = NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(reduce, defaultPrecisions));
+    auto dequantization = NetworkHelper::getDequantization(reduce, defaultPrecisions);
 
     // prepare dequantization to propagate
     changeDequantizationValues(reduce, dequantization);

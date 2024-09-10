@@ -6,11 +6,13 @@
 
 #define GET_INDEX(prefix, ORDER) CAT(prefix, _GET_INDEX)(ORDER)
 
-KERNEL(concatenation_gpu_ref)(__global INPUT0_TYPE* input,
-                              __global OUTPUT_TYPE* output,
-                              uint output_offset_in_concat_axis
+KERNEL(concatenation_gpu_ref)(
+    OPTIONAL_SHAPE_INFO_ARG
+    __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output,
+    uint output_offset_in_concat_axis
 #if HAS_FUSED_OPS_DECLS
-                              , FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
 #endif
 )
 {
@@ -22,7 +24,7 @@ KERNEL(concatenation_gpu_ref)(__global INPUT0_TYPE* input,
 #endif
     const uint d3 = (uint)get_global_id(2); // B
 
-    for (size_t d0 = 0; d0 < INPUT0_SIZES[INPUT_DIM_0]; ++d0) // X
+    for (size_t d0 = 0; d0 < INPUT0_SIZE_X; ++d0) // X
     {
         uint input_offset = GET_INDEX(INPUT0, INPUT_DIMS_ORDER);
         uint output_offset = GET_INDEX(OUTPUT, OUTPUT_DIMS_ORDER);

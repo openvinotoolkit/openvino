@@ -126,6 +126,7 @@ OP_CONVERTER(translate_ones_like_op);
 OP_CONVERTER(translate_pack_op);
 OP_CONVERTER(translate_pad_op);
 OP_CONVERTER(translate_padv2_op);
+OP_CONVERTER(translate_prod_op);
 OP_CONVERTER(translate_range_op);
 OP_CONVERTER(translate_rank_op);
 OP_CONVERTER(translate_random_uniform_op);
