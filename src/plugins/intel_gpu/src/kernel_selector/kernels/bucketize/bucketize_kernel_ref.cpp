@@ -97,13 +97,9 @@ bool BucketizeKernelRef::Validate(const Params& params) const {
 
 JitConstants BucketizeKernelRef::GetJitConstants(const bucketize_params& kernel_params) const {
     auto jit_constants = MakeBaseParamsJitConstants(kernel_params);
-
     if (kernel_params.with_right_bound) {
         jit_constants.AddConstant(MakeJitConstant("WITH_RIGHT_BOUND", true));
     }
-
-    jit_constants.AddConstant(MakeJitConstant("IS_BOUNDARY_EMPTY", kernel_params.is_boundary_empty));
-
     return jit_constants;
 }
 

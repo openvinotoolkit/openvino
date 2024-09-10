@@ -30,12 +30,6 @@ struct bucketize_impl : typed_primitive_impl_ocl<bucketize> {
         params.with_right_bound = primitive->with_right_bound;
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
 
-        if (primitive->boundary_status == cldnn::bucketize_boundary::dynamic) {
-            params.is_boundary_empty = ov::shape_size(impl_param.get_input_layout(1).get_shape()) == 0 ? true : false;
-        } else {
-            params.is_boundary_empty = primitive->boundary_status == cldnn::bucketize_boundary::empty ? true : false;
-        }
-
         return params;
     }
 };

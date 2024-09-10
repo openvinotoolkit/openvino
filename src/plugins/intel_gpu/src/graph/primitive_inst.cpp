@@ -7,7 +7,6 @@
 #include "data_inst.h"
 #include "mutable_data_inst.h"
 #include "reorder_inst.h"
-#include "bucketize_inst.hpp"
 #include "input_layout_inst.h"
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
