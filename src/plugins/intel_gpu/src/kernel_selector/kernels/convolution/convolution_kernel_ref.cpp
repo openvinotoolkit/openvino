@@ -126,6 +126,12 @@ bool ConvolutionKernel_Ref::Validate(const Params& params) const {
     if (input_type == output_type && input_type != Datatype::UINT8 && input_type != Datatype::INT8)
         return true;
 
+    // For fp model, some convolutions may not be compressed to fp16 depending on the transformation policy,
+    // and those convolutions may have the fused nodes which is of fp16.
+    // Convolution needs to support for this case.
+    if (input_type == Datatype::F32 && output_type == Datatype::F16)
+        return true;
+
     // (u)int8 input + fp weights
     if (weights_type == WeightsType::F32 || weights_type == WeightsType::F16)
         return true;
