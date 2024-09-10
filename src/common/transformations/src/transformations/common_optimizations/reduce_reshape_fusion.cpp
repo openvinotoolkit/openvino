@@ -25,8 +25,7 @@ ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
     const auto reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
         {pattern::any_input(), reduce_axes},
         pattern::consumers_count(1));
-    const auto reshape =
-        pattern::wrap_type<ov::op::v1::Reshape>({reduce, pattern::any_input()}, pattern::has_static_shape());
+    const auto reshape = pattern::wrap_type<ov::op::v1::Reshape>({reduce, pattern::any_input()});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();

@@ -350,7 +350,7 @@ pass::EliminateReduceReshape::EliminateReduceReshape() {
     MATCHER_SCOPE(EliminateReduceReshape);
     using namespace pass::pattern;
     auto axes = wrap_type<ov::op::v0::Constant>();
-    auto reduce_pattern = wrap_type<ov::op::util::ArithmeticReductionKeepDims>({any_input(), axes});
+    auto reduce_pattern = wrap_type<ov::op::util::ReductionBase>({any_input(), axes});
     auto requested_shape_pattern = wrap_type<ov::op::v0::Constant>();
     auto reshape_pattern =
         wrap_type<ov::op::v1::Reshape>({reduce_pattern, requested_shape_pattern}, consumers_count(1));
@@ -361,7 +361,7 @@ pass::EliminateReduceReshape::EliminateReduceReshape() {
         auto reduce_node = pattern_map.at(reduce_pattern);
 
         auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(reshape_node);
-        auto reduce = ov::as_type_ptr<ov::op::util::ArithmeticReductionKeepDims>(reduce_node);
+        auto reduce = ov::as_type_ptr<ov::op::util::ReductionBase>(reduce_node);
         if (!reshape || !reduce) {
             return false;
         }
@@ -387,6 +387,7 @@ pass::EliminateReduceReshape::EliminateReduceReshape() {
                          (axes.count(i) && requested_shape_vec[i] == 1));
         }
 
+        // if the number of dyn dims here is equal to 0 or 1, we can unambiguously define output shape
         if (cnt_dyn <= 1) {
             return replace_output_update_name(reshape->output(0), reshape->input_value(0));
         } else {
