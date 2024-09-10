@@ -52,6 +52,10 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
             return false;
         }
 
+        if (!src.get_element_type().is_real()) {
+            return false;
+        }
+
         OutputVector args = {src};
         OutputVector outputs;
         size_t hidden_size = 0;

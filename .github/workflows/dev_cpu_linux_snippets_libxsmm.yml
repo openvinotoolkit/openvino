@@ -192,9 +192,65 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
+  CPU_Unit_Tests:
+    name: C++ CPU unit tests
+    needs: [ Docker, Build, Smart_CI ]
+    timeout-minutes: 30
+    runs-on: aks-linux-8-cores-32gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+    steps:
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
+        run: |
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+          echo "SETUPVARS_COMMAND=source $GITHUB_WORKSPACE/install/setupvars.sh" >> "$GITHUB_ENV"
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd $INSTALL_DIR
+            tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
+          popd
+
+          pushd $INSTALL_TEST_DIR
+            tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
+          popd
+
+      - name: Snippets func tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_snippets_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-SnippetsFuncTests.xml
+
+      - name: CPU plugin unit tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTests.xml
+
   CPU_Functional_Tests:
     name: CPU functional tests
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.title, 'GHA-SNIPPETS') }}
     needs: [ Docker, Build, Smart_CI ]
     timeout-minutes: 30
     runs-on: aks-linux-8-cores-32gb
@@ -265,7 +321,7 @@ jobs:
           # Needed as ze_loader.so is under INSTALL_TEST_DIR
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
 
-          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_filter=*smoke_Snippets* --gtest_print_time=1
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_filter=*smoke_Snippets*:*smoke_MHA* --gtest_print_time=1
         timeout-minutes: 25
 
       - name: Upload Test Results

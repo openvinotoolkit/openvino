@@ -222,6 +222,19 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
+    // WA: LPT don't expect Convert on dequantization scale: the convert is usually folded at the previous transformation pipeline steps.
+    // However, such subgraphs may arise on Matmul weights since decompression handling logic keeps these subgraphs unchanged
+    // TODO: remove this logic when
+    //       1. CompressedMatmul is implemented
+    //       2. Or convert on scales is supported across the whole LPT pipeline
+    if (auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(layer->get_input_node_shared_ptr(1))) {
+        if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(mul->get_input_node_shared_ptr(1))) {
+            if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(convert->get_input_node_shared_ptr(0))) {
+                auto new_constant = foldConvert(constant, convert->get_destination_type());
+                ov::replace_node_update_name(convert, new_constant);
+            }
+        }
+    }
     const auto dequantization2 = NetworkHelper::getDequantization(layer, defaultPrecisions, 1);
     if (!dequantization2.empty()) {
         if ((updatePrecisions && !dequantization2.isLowPrecision())) {

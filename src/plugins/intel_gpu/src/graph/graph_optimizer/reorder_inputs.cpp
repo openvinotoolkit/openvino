@@ -9,10 +9,8 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_helpers.h"
-#include "mvn_inst.h"
 #include "to_string_utils.h"
 #include "pooling_inst.h"
-#include "reshape_inst.h"
 #include "fully_connected_inst.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -26,15 +24,14 @@
 #include <list>
 #include <map>
 #include <set>
-#include <tuple>
 
 using namespace cldnn;
 
 // ToDo remove friendship relation from program
 
-reorder_inputs::reorder_inputs(layout_optimizer& lo_ref, reorder_factory& rf_ref) : base_pass("reorder_inputs"), _lo(lo_ref), _rf(rf_ref) {}
+reorder_inputs::reorder_inputs(reorder_factory& rf_ref) : base_pass("reorder_inputs"), _rf(rf_ref) {}
 
-void reorder_inputs::run(program& p) { run(p, _lo, _rf); }
+void reorder_inputs::run(program& p) { run(p, _rf); }
 
 namespace {
 
@@ -681,8 +678,10 @@ void insert_reorders(program& p, const std::map<program_node*, format::type>& fm
 
 }  // namespace
 
-void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) {
+void reorder_inputs::run(program& p, reorder_factory& rf) {
     GPU_DEBUG_GET_INSTANCE(debug_config);
+
+    auto& lo = p.get_layout_optimizer();
 
     auto fmt_map = get_preferred_formats(p, lo);
 
@@ -757,6 +756,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
 
                 if (new_input.first) {
                     p.add_intermediate(new_input.first, detection_output_node, i, !new_input.second);
+                    detection_output_node.recalc_output_layouts();
                 }
             }
         }
@@ -771,6 +771,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                 layout{ input_layout.get_partial_shape(), input_layout.data_type, new_format });
             if (reorder.first) {
                 p.add_intermediate(reorder.first, deconv_node, 0, !reorder.second);
+                deconv_node.recalc_output_layouts();
             }
         }
 
@@ -894,6 +895,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
             if (new_input.first) {
                p.add_intermediate(new_input.first, fc_node, 0, !new_input.second);
+               fc_node.recalc_output_layouts();
             }
         }
 
@@ -920,39 +922,19 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             auto new_input = rf.get_reorder(input->id(), dep.second, input_layout, new_layout);
             if (new_input.first) {
                p.add_intermediate(new_input.first, pooling_node, 0);
-            }
-        }
-    };
-
-    const auto reorder_input_concat = [&p, &rf](typed_program_node<concatenation>& concat_node) {
-        auto output_layout = concat_node.get_output_layout();
-        // Iterate over all dependencies of the concat node
-        for (size_t i = 0; i < concat_node.get_dependencies().size(); ++i) {
-            auto dep = concat_node.get_dependency_with_port(i);
-            const auto& input = dep.first;
-            auto input_layout = input->get_output_layout();
-            // Change input data type of concat node from input format to output format
-            if (input_layout.format != output_layout.format) {
-                auto new_layout = input_layout;
-                new_layout.format = output_layout.format;
-                auto new_input = rf.get_reorder(input->id(), dep.second, input_layout, new_layout);
-                if (new_input.first) {
-                    p.add_intermediate(new_input.first, concat_node, i);
-                    concat_node.get_dependency_with_port(i).first->recalc_output_layout();
-                }
+               pooling_node.recalc_output_layouts();
             }
         }
     };
 
     for (auto& prim : p.get_processing_order()) {
-        program_helpers::do_for_types<detection_output, deconvolution, convolution, fully_connected, pooling, concatenation>(
+        program_helpers::do_for_types<detection_output, deconvolution, convolution, fully_connected, pooling>(
             *prim,
             reorder_input_detection_output,
             reorder_input_and_weights_deconvolution,
             reorder_convolution,
             reorder_input_fully_connected,
-            reorder_input_pooling,
-            reorder_input_concat);
+            reorder_input_pooling);
     }
 
     for (auto n : p.get_processing_order()) {

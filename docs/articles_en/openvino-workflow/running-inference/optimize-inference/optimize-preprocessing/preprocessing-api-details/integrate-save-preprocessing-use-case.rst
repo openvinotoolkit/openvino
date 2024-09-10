@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_Preprocess_Usecase_save}
-
 Use Case - Integrate and Save Preprocessing Steps Into IR
 =========================================================
 
