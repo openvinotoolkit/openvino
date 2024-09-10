@@ -53,8 +53,8 @@ the ``ov::Core::compile_model()`` method:
          :fragment: [compile_model_default]
 
 
-Supported Inference Data Types
-###########################################################
+Supported Model Precision
+#########################
 
 CPU plugin supports the following data types as inference precision of internal primitives:
 
@@ -63,9 +63,12 @@ CPU plugin supports the following data types as inference precision of internal 
   - ``f32`` (Intel® x86-64, Arm®)
   - ``bf16`` (Intel® x86-64)
   - ``f16`` (Intel® x86-64, Arm®)
+  - ``MXFP4`` (Intel® x86-64)
+
 - Integer data types:
 
   - ``i32`` (Intel® x86-64, Arm®)
+
 - Quantized data types:
 
   - ``u8`` (Intel® x86-64)
@@ -96,6 +99,7 @@ CPU plugin supports the following floating-point data types as inference precisi
 - ``f32`` (Intel® x86-64, Arm®)
 - ``bf16`` (Intel® x86-64)
 - ``f16`` (Intel® x86-64, Arm®)
+- ``MXFP4`` (Intel® x86-64)
 
 The default floating-point precision of a CPU primitive is ``f32``. To support the ``f16`` OpenVINO IR on platforms that do not natively support ``float16``, the plugin internally converts
 all the ``f16`` values to ``f32``, and all calculations are performed using the native precision of ``f32``.
@@ -118,6 +122,8 @@ For more details about the ``bfloat16`` format, see
 the `BFLOAT16 – Hardware Numerics Definition white paper <https://software.intel.com/content/dam/develop/external/us/en/documents/bf16-hardware-numerics-definition-white-paper.pdf>`__.
 To check if the CPU device can support the half-precision data type, use the :doc:`query device properties interface <query-device-properties>`
 to query ``ov::device::capabilities`` property, which should contain ``FP16`` or ``BF16`` in the list of CPU capabilities:
+
+For more details about the ``MXFP4`` format, see the :ref:`Weight Compression <mxfp4_support>` article.
 
 
 .. tab-set::
