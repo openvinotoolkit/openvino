@@ -345,9 +345,6 @@ public:
     const std::string &getName() const {
         return name;
     }
-    const std::string& getStateName() const {
-        return stateName;
-    }
 
     void addOriginalLayer(const std::string& layerName);
 
@@ -823,7 +820,6 @@ private:
     std::string typeStr;
     Type type;
     int execIndex = -1;
-    std::string stateName;
 
     std::string typeToStr(Type type);
 

@@ -258,9 +258,6 @@ public:
     /// \returns A const reference to the node's friendly name.
     const std::string& get_friendly_name() const;
 
-    void set_state_name(const std::string& name);
-    const std::string& get_state_name() const;
-
     virtual bool is_dynamic() const;
     size_t get_instance_id() const {
         return m_instance_id;
@@ -436,7 +433,6 @@ private:
     std::vector<std::shared_ptr<Node>> m_control_dependencies;
     size_t m_instance_id{m_next_instance_id.fetch_add(1)};
     std::string m_friendly_name;
-    std::string m_state_name;
     mutable std::string m_unique_name;
     mutable std::atomic_bool m_name_changing{false};
     static std::atomic<size_t> m_next_instance_id;

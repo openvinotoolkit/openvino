@@ -60,8 +60,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op,
       name(op->get_friendly_name()),
       typeStr(op->get_type_name()),
       type(TypeFromName(op->get_type_name())),
-      profiling(op->get_friendly_name()),
-      stateName(op->get_state_name()) {
+      profiling(op->get_friendly_name()) {
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto &shape = op->get_input_partial_shape(i);
         if (shape.rank().is_dynamic()) {

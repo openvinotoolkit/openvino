@@ -288,13 +288,6 @@ const std::string& ov::Node::get_friendly_name() const {
     return m_friendly_name;
 }
 
-void ov::Node::set_state_name(const std::string& name) {
-    m_state_name = name;
-}
-const std::string& ov::Node::get_state_name() const {
-    return m_state_name;
-}
-
 const std::string& ov::Node::get_name() const {
     AtomicGuard lock(m_name_changing);
     if (m_unique_name.empty())
