@@ -94,17 +94,15 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
         jit.AddConstants({
             MakeJitConstant("LWS", lws_0),
             MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
-            MakeJitConstant("DATA_SET_SIZE", data_set_size),
             MakeJitConstant("DATA_SETS_COUNT", data_set_count),
+            MakeJitConstant("DATA_SET_SIZE", data_set_size),
         });
     } else {
         jit.AddConstants({
-            MakeJitConstant("ITEMS_NUM", dispatchData.itemsNum),
             MakeJitConstant("LWS", dispatchData.lws[0]),
             MakeJitConstant("SLM_SIZE", dispatchData.lws[0]),
             MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
             MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
-            MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
         });
     }
     auto activation_dt = GetActivationType(params);
