@@ -56,11 +56,14 @@ void transpose(ov::Tensor& t);
 void permute(ov::Tensor& t, const std::vector<std::size_t>& axes);
 
 namespace at {
-template <template <typename, typename> class M, class K, class V>
+template <class M>
 struct Impl {
-    M<K, V>* m = nullptr;
-    explicit Impl(M<K, V>* pM) : m(pM) {}
+    using V = typename M::mapped_type;
 
+    M * m = nullptr;
+    explicit Impl(M* pM) : m(pM) {}
+
+    template<typename K>
     V& at(const K& k) {
         const auto iter = m->find(k);
         if (iter == m->end()) {
@@ -73,19 +76,20 @@ struct Impl {
         return iter->second;
     }
 
+    template<typename K>
     const V& at(const K& k) const {
         return const_cast<Impl*>(this)->at(k);
     }
 };
 
-template <template <typename, typename> class M, class K, class V>
-Impl<M, K, V> _(M<K, V>* pM) {
-    return Impl<M, K, V>(pM);
+template <typename M>
+Impl<M> _(M* pM) {
+    return Impl<M>(pM);
 }
 
-template <template <typename, typename> class M, class K, class V>
-Impl<M, K, V> _(std::shared_ptr<M<K, V>> pM) {
-    return Impl<M, K, V>(pM.get());
+template <typename M>
+Impl<M> _(std::shared_ptr<M> pM) {
+    return Impl<M>(pM.get());
 }
 
 }  // namespace at
