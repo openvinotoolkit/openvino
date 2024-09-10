@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_Model_Representation}
-
 Model Representation in OpenVINO™ Runtime
 ===========================================
 

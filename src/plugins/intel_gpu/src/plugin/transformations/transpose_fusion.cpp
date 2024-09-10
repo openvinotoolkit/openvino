@@ -52,6 +52,13 @@ bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_imm
         {3, 0, 1, 2},
     };
 
+    const auto expected_dims_num = 4;
+    const auto original_dims_num = transpose_order.size();
+    if (original_dims_num < expected_dims_num) {
+        transpose_order.resize(expected_dims_num);
+        std::iota(transpose_order.begin() + original_dims_num, transpose_order.end(), original_dims_num);
+    }
+
     if (!cldnn::one_of(transpose_order, allowed_orders))
         return false;
 
