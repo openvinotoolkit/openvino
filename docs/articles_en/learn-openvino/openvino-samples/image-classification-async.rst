@@ -1,5 +1,3 @@
-.. {#openvino_sample_image_classification_async}
-
 Image Classification Async Sample
 =================================
 
