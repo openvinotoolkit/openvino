@@ -35,10 +35,6 @@ protected:
 
 class TransposeMatMulFQ : public TransposeMatMul {
 protected:
-    void SetUp() override {
-        TransposeMatMul::SetUp();
-        abs_threshold = 5e-6;
-    }
     void init_subgraph(const std::vector<ov::element::Type>& types) override;
 };
 

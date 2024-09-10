@@ -121,6 +121,34 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulFQ, MatMulFQ,
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MatMul::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulEltwiseChain, MatMulEltwiseChain,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(input_shapes),
+                             ::testing::ValuesIn(precisions()),
+                             ::testing::Values(MatMulType::MatMul),
+                             ::testing::Values(1), // MatMul
+                             ::testing::Values(1), // Tokenized MatMul
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         MatMul::getTestCaseName);
+
+std::vector<std::vector<ov::test::InputShape>> matmul_cascade_shapes{
+    {
+        {PartialShape{-1, -1, -1, -1}, {{2, 1, 32, 2500}, {1, 3, 80, 700}, {2, 1, 32, 2500}}},
+        {PartialShape{-1, -1, -1, -1}, {{1, 2, 2500, 128}, {1, 3, 700, 150}, {1, 2, 2500, 128}}},
+        {PartialShape{-1, -1, -1, -1}, {{1, 1, 128, 64}, {1, 3, 150, 128}, {1, 1, 128, 64}}},
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulEltwiseChainCascade, MatMulEltwiseChainCascade,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(matmul_cascade_shapes),
+                             ::testing::ValuesIn(precisions()),
+                             ::testing::Values(MatMulType::MatMul),
+                             ::testing::Values(1), // MatMul
+                             ::testing::Values(1), // Tokenized MatMul
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         MatMul::getTestCaseName);
+
 std::vector<std::vector<ov::test::InputShape>> fc_input_shapes{
     {
         {PartialShape{-1, -1, -1, 2500}, {{2, 1, 32, 2500}, {1, 3, 80, 2500}}},
@@ -130,7 +158,7 @@ std::vector<std::vector<ov::test::InputShape>> fc_input_shapes{
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnected, MatMul,
                          ::testing::Combine(
-                             ::testing::ValuesIn(input_shapes),
+                             ::testing::ValuesIn(fc_input_shapes),
                              ::testing::ValuesIn(precisions(false)),
                              ::testing::Values(MatMulType::FullyConnected),
                              ::testing::Values(1), // MatMul
@@ -140,7 +168,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnected, MatMul,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedFQ, MatMulFQ,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(input_shapes),
+                                 ::testing::ValuesIn(fc_input_shapes),
                                  ::testing::ValuesIn(precisions()),
                                  ::testing::Values(MatMulType::FullyConnected),
                                  ::testing::Values(1), // MatMul;
@@ -148,6 +176,33 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedFQ, MatMulFQ,
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MatMul::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedEltwiseChain, MatMulEltwiseChain,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(fc_input_shapes),
+                             ::testing::ValuesIn(precisions()),
+                             ::testing::Values(MatMulType::FullyConnected),
+                             ::testing::Values(1), // MatMul
+                             ::testing::Values(1), // Tokenized MatMul
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         MatMul::getTestCaseName);
+
+std::vector<std::vector<ov::test::InputShape>> fc_cascade_shapes{
+    {
+        {PartialShape{-1, -1, -1, 2500}, {{2, 1, 32, 2500}, {1, 3, 80, 2500}, {2, 1, 32, 2500}}},
+        {PartialShape{}, {{2500, 128}}},
+        {PartialShape{}, {{128, 64}}},
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedEltwiseChainCascade, MatMulEltwiseChainCascade,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(fc_cascade_shapes),
+                             ::testing::ValuesIn(precisions()),
+                             ::testing::Values(MatMulType::FullyConnected),
+                             ::testing::Values(2), // 2 MatMuls
+                             ::testing::Values(2), // Tokenized MatMuls
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         MatMul::getTestCaseName);
 
 const auto& transpose_b_shapes = STATIC_SHAPES(
     {{3, 3, 64, 64}, {3, 3, 64, 64}},

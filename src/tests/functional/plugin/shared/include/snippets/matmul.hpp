@@ -70,6 +70,16 @@ protected:
     void init_subgraph(const std::vector<ov::element::Type>& types) override;
 };
 
+class MatMulEltwiseChain : public MatMul {
+protected:
+    void init_subgraph(const std::vector<ov::element::Type>& types) override;
+};
+
+class MatMulEltwiseChainCascade : public MatMul {
+protected:
+    void init_subgraph(const std::vector<ov::element::Type>& types) override;
+};
+
 } // namespace snippets
 } // namespace test
 } // namespace ov

@@ -324,6 +324,69 @@ std::shared_ptr<ov::Model> MatMulsQuantizedSoftmaxFunction::initOriginal() const
     return std::make_shared<ov::Model>(NodeVector{fq3}, params);
 }
 
+std::shared_ptr<ov::Model> MatMulEltwiseChainFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    ParameterVector params{data0};
+    auto data1 = build_mm_second_input(precision, input_shapes[1], matmul_type, params);
+
+    const auto matmul = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
+        std::vector<element::Type>{element::f32, element::f32},
+        std::vector<element::Type>{element::f32},
+        ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(data1, element::f32).get());
+
+    auto scale = ov::test::utils::make_constant(precision, {});
+    auto mul = std::make_shared<ov::op::v1::Multiply>(matmul, scale);
+
+    ov::Shape bias_shape(matmul->get_output_partial_shape(0).size(), 1);
+    auto OC = *matmul->get_output_partial_shape(0).rbegin();
+    if (OC.is_static())
+        bias_shape.back() = OC.get_length();
+    auto bias = ov::test::utils::make_constant(precision, bias_shape);
+    auto bias_op = std::make_shared<op::v1::Add>(mul, bias);
+
+    auto add = std::make_shared<op::v1::Add>(matmul, bias_op);
+    return std::make_shared<ov::Model>(NodeVector{add}, params);
+}
+
+std::shared_ptr<ov::Model> MatMulEltwiseChainCascadeFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    ParameterVector params{data0};
+    auto data1 = build_mm_second_input(precision, input_shapes[1], matmul_type, params);
+    auto data2 = build_mm_second_input(precision, input_shapes[2], matmul_type, params);
+
+    const auto matmul1 = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
+        std::vector<element::Type>{element::f32, element::f32},
+        std::vector<element::Type>{element::f32},
+        ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(data1, element::f32).get());
+
+    auto build_eltwise_chain = [&](const ov::Output<ov::Node>& out) {
+        auto scale = ov::test::utils::make_constant(precision, {});
+        auto mul = std::make_shared<ov::op::v1::Multiply>(out, scale);
+
+        ov::Shape bias_shape(out.get_partial_shape().size(), 1);
+        auto OC = *out.get_partial_shape().rbegin();
+        if (OC.is_static())
+            bias_shape.back() = OC.get_length();
+        auto bias = ov::test::utils::make_constant(precision, bias_shape);
+        auto bias_op = std::make_shared<op::v1::Add>(mul, bias);
+        return bias_op;
+    };
+
+    auto eltwise_chain_1 = build_eltwise_chain(matmul1);
+    auto add = std::make_shared<op::v1::Add>(matmul1, eltwise_chain_1);
+
+    const auto matmul2 = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
+        std::vector<element::Type>{element::f32, element::f32},
+        std::vector<element::Type>{element::f32},
+        ov::op::TemporaryReplaceOutputType(add, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(data2, element::f32).get());
+
+    auto eltwise_chain_2 = build_eltwise_chain(matmul2);
+    return std::make_shared<ov::Model>(NodeVector{eltwise_chain_2}, params);
+}
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

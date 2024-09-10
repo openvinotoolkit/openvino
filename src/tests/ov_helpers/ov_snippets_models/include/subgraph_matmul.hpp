@@ -116,7 +116,7 @@ public:
     }
 
     std::set<size_t> get_constant_input_idces() const override {
-        return matmul_type == MatMulType::FullyConnected ? std::set<size_t>{1, 2} : MatMulFunctionBase::get_constant_input_idces();
+        return matmul_type == MatMulType::FullyConnected ? std::set<size_t>{1, 2} : std::set<size_t>{};
     }
 
 protected:
@@ -190,7 +190,51 @@ public:
     }
 
     std::set<size_t> get_constant_input_idces() const override {
-        return matmul_type == MatMulType::FullyConnected ? std::set<size_t>{1, 2} : MatMulFunctionBase::get_constant_input_idces();
+        return matmul_type == MatMulType::FullyConnected ? std::set<size_t>{1, 2} : std::set<size_t>{};
+    }
+
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
+//         MatMul
+//           |   |
+//           |  Eltwise chain
+//            \     /
+//              Add
+class MatMulEltwiseChainFunction : public MatMulFunctionBase {
+public:
+    explicit MatMulEltwiseChainFunction(const std::vector<PartialShape>& inputShapes,
+                                const std::vector<ov::element::Type>& precisions,
+                                MatMulType type)
+        : MatMulFunctionBase(inputShapes, type, precisions) {
+        OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
+    }
+
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
+//         MatMul
+//           |   |
+//           |  Eltwise chain
+//            \     /
+//              Add
+//               |
+//             MatMul
+//               |
+//        Eltwise chain
+class MatMulEltwiseChainCascadeFunction : public MatMulFunctionBase {
+public:
+    explicit MatMulEltwiseChainCascadeFunction(const std::vector<PartialShape>& inputShapes,
+                                               const std::vector<ov::element::Type>& precisions,
+                                               MatMulType type)
+        : MatMulFunctionBase(inputShapes, type, precisions) {
+        OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
+    }
+
+    std::set<size_t> get_constant_input_idces() const override {
+        return matmul_type == MatMulType::FullyConnected ? std::set<size_t>{1, 2} : std::set<size_t>{};
     }
 
 protected:

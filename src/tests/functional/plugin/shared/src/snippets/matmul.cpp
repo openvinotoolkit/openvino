@@ -97,6 +97,18 @@ void MatMulsQuantizedSoftmax::init_subgraph(const std::vector<ov::element::Type>
     filter_shape_info(f.get_constant_input_idces(), inputDynamicShapes, targetStaticShapes);
 }
 
+void MatMulEltwiseChain::init_subgraph(const std::vector<ov::element::Type>& types) {
+    auto f = ov::test::snippets::MatMulEltwiseChainFunction(inputDynamicShapes, types, matmul_type);
+    function = f.getOriginal();
+    filter_shape_info(f.get_constant_input_idces(), inputDynamicShapes, targetStaticShapes);
+}
+
+void MatMulEltwiseChainCascade::init_subgraph(const std::vector<ov::element::Type>& types) {
+    auto f = ov::test::snippets::MatMulEltwiseChainCascadeFunction(inputDynamicShapes, types, matmul_type);
+    function = f.getOriginal();
+    filter_shape_info(f.get_constant_input_idces(), inputDynamicShapes, targetStaticShapes);
+}
+
 TEST_P(MatMul, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
@@ -137,6 +149,18 @@ TEST_P(MatMulsQuantized, CompareWithRefImpl) {
 TEST_P(MatMulsQuantizedSoftmax, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     abs_threshold = 4e-6;
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MatMulEltwiseChain, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MatMulEltwiseChainCascade, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }

@@ -80,6 +80,7 @@ TEST_P(TransposeMatMul, CompareWithRefImpl) {
 
 TEST_P(TransposeMatMulFQ, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    abs_threshold = 5e-6;
     run();
     validateNumSubgraphs();
 }
