@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_sparse_EmbeddingBagOffsets_15}
-
 EmbeddingBagOffsets
 ======================
 
@@ -68,7 +66,7 @@ EmbeddingBagOffsets is an equivalent to following NumPy snippet:
 
 * *reduction*
 
-  * **Description**: reduction mode. 
+  * **Description**: reduction mode.
   * **Range of values**:
 
     * sum - compute weighted sum, using corresponding values of ``per_sample_weights`` as weights if provided.

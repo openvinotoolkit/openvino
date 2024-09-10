@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_sequence_CTCLoss_4}
-
 CTCLoss
 =======
 
