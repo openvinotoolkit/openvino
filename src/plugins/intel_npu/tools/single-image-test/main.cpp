@@ -1395,7 +1395,7 @@ void nameIOTensors(std::shared_ptr<ov::Model> model) {
     for (std::size_t id = 0ul; id < inputInfo.size(); ++id) {
         auto ii = inputInfo[id];
         if (ii.get_names().empty()) {
-            ii.add_names({"input_" + std::to_string(ii.get_index())});
+            ii.add_names({"input_" + std::to_string(ii.get_index()) + "_" + std::to_string(id)});
         }
     }
 
@@ -1403,7 +1403,7 @@ void nameIOTensors(std::shared_ptr<ov::Model> model) {
     for (std::size_t id = 0ul; id < outputInfo.size(); ++id) {
         auto oi = outputInfo[id];
         if (oi.get_names().empty()) {
-            oi.add_names({"output_" + std::to_string(oi.get_index())});
+            oi.add_names({"output_" + std::to_string(oi.get_index()) + "_" + std::to_string(id)});
         }
     }
 }
