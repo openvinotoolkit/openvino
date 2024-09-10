@@ -897,16 +897,21 @@ void Transformations::MainSnippets(void) {
     size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
     if (concurrency == 0)
         concurrency = parallel_get_max_threads();
+
+    // Runtime caching should be enabled in case of dynamic Subgraphs in CPU Plugin: to reduce overheads of ShapeInference and CodeGeneration
+    // If runtime cache capacity is zero, it means that rtCache won't be used and
+    // we shouldn't tokenize dynamic Subgraphs - it will lead to performance degradations
+    bool is_dynamic_mha_token_enabled = config.rtCacheCapacity != 0;
 #if defined(OPENVINO_ARCH_ARM64)
     // ARM has 32 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters, 1 platform register,
     // 3 registers for temporary use, and 2 stack related registers, it has 23 remaining registers.
     size_t data_ptr_gpr_count = 23;
-    bool is_dynamic_mha_token_enabled = false;
+    // ARM doesn't even support MHA yet
+    is_dynamic_mha_token_enabled = false;
 #else
     // X64 has 16 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters,
     // and 2 stack related registers, it has 11 remaining registers.
     size_t data_ptr_gpr_count = 11;
-    bool is_dynamic_mha_token_enabled = true;
 #endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
