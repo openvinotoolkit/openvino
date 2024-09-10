@@ -77,6 +77,14 @@ CommonDispatchData DynamicQuantizeKernelRef::SetDefault(const dynamic_quantize_p
     auto y_size = group_sizes[2] == 1 ? params.outputs[0].Y().v : 1;
     auto x_size = group_sizes[3] == 1 ? params.outputs[0].X().v : 1;
 
+    // TODO: mingyuki: update condition properly
+    OPENVINO_ASSERT(params.group_size == UINT64_MAX || params.outputs[0].Y().v % params.group_size == 0,
+        "Tensor size should be divisible by group size: ", params.outputs[0].Y().v);
+
+    // TODO: mingyuki: update logic properly
+    // uint32_t ngroups;
+    // ngroups = params.group_size == UINT64_MAX ? 1 : params.outputs[0].Y().v / params.group_size;
+
     dispatchData.gws = {batch_size * feature_size, y_size, x_size};
     dispatchData.lws = {1, 1, 1};
 

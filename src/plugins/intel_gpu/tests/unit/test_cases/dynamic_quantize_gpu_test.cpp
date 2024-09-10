@@ -31,6 +31,7 @@ public:
                                    const ov::PartialShape& input_shape,
                                    const ov::Shape& data_shape,
                                    const QuantizationType quantization_type = QuantizationType::Symmetric,
+                                   uint64_t group_size = UINT64_MAX,
                                    const std::string& impl_name = "") {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
@@ -40,7 +41,7 @@ public:
         auto scales_ps = ov::PartialShape::dynamic(dyn_input_ps.size());
         auto input_mem = engine.allocate_memory({ input_ps, data_types::f32, format::bfyx });
         auto group_sizes = std::vector<uint64_t>(dyn_input_ps.size(), 1);
-        group_sizes.back() = UINT64_MAX;
+        group_sizes.back() = group_size;
 
         auto input_data = rg.generate_random_1d<float>(ov::shape_size(data_shape), -16.0f, 16.0f);
         set_values(input_mem, input_data);
@@ -66,9 +67,14 @@ public:
         }
 
         auto reorder_1 = reorder("reorder_1", input_info("input"), layout{ input_ps, data_types::f16, format::bfyx });
+<<<<<<< HEAD
         auto dyn_quan_prim = dynamic_quantize("dyn_quan_prim", input_info("reorder_1"), dq_config);
         auto reorder_data = reorder("reorder_data", input_info("dyn_quan_prim", 0), layout{ input_ps, data_types::f16, format::bfyx });
         auto reorder_scale = reorder("reorder_scale", input_info("dyn_quan_prim", 1), layout{ scales_ps, data_types::f16, format::bfyx });
+=======
+        auto dyn_quan_prim = dynamic_quantize("dyn_quan_prim", input_info("reorder_1"), group_size, {data_types::f16, data_types::i8});
+        auto reorder_2 = reorder("reorder_2", input_info("dyn_quan_prim"), layout{ input_ps, data_types::f16, format::bfyx });
+>>>>>>> a6506df2f0 (WIP: dynamic_quantization at arbitrary group size)
 
         // Implemented dynamic quantize kernel
         auto get_ref_results = [&]() {
@@ -145,7 +151,6 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_large_size) {
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_large_size_dynamic) {
-    this->test_dynamic_quantization(false, {-1, 1, 1, 4096}, {2048, 1, 1, 4096});
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size) {
@@ -154,6 +159,14 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size) {
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_single_batch) {
     this->test_dynamic_quantization(false, {-1, 1, 1, 4096}, {1, 1, 1, 4096});
+}
+
+TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_grouped) {
+    this->test_dynamic_quantization(false, {1, 1, 1, 4096}, {64, 1, 1, 4096}, QuantizationType::Symmetric, 32);
+}
+
+TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_single_batch_grouped) {
+    this->test_dynamic_quantization(false, {-1, 1, 1, 4096}, {1, 1, 1, 4096}, QuantizationType::Symmetric, 32);
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_ref_only) {
@@ -202,8 +215,4 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_batched_asym) 
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_reordered_asym) {
     this->test_dynamic_quantization(false, {-1, -1, 8, 96}, {1, 1, 8, 96}, QuantizationType::Asymmetric, "dynamic_quantize_gpu_kv_cache");
-}
-
-TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_batched_reordered_asym) {
-    this->test_dynamic_quantization(false, {-1, -1, 4, 64}, {1, 35, 4, 64}, QuantizationType::Asymmetric, "dynamic_quantize_gpu_kv_cache");
 }

@@ -34,7 +34,9 @@ struct dynamic_quantize_impl : typed_primitive_impl_ocl<dynamic_quantize> {
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+        const auto& primitive = impl_param.typed_desc<dynamic_quantize>();
         auto params = get_default_params<kernel_selector::dynamic_quantize_params>(impl_param, is_shape_agnostic);
+        params.group_size = primitive->group_size;
         params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
 
         // In Some model, the feature size could be dynamic in input0.

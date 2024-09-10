@@ -22,11 +22,6 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
     GPU_DEBUG_GET_INSTANCE(debug_config);
     using namespace ov::pass::pattern;
 
-    // per-token quantization is supported
-    if (group_size != UINT64_MAX) {
-        GPU_DEBUG_TRACE << "Dynamic quantization is disabled " << group_size << std::endl;
-        return;
-    }
     auto is_dynamic = [](const ov::Output<ov::Node>& output) -> bool {
         bool is_dynamic = output.get_node_shared_ptr()->get_output_partial_shape(0).is_dynamic();
         size_t num_inputs = output.get_node_shared_ptr()->get_input_size();
