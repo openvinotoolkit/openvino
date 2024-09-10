@@ -13,6 +13,7 @@ Convert to OpenVINO IR
    Convert from ONNX <convert-model-onnx>
    Convert from TensorFlow Lite <convert-model-tensorflow-lite>
    Convert from PaddlePaddle <convert-model-paddle>
+   Convert from JAX/Flax <convert-model-jax>
 
 
 
@@ -572,12 +573,85 @@ used by OpenVINO, typically obtained by converting models of supported framework
               For details on the conversion, refer to the
               :doc:`article <convert-model-paddle>`.
 
+   .. tab-item:: JAX/Flax
+      :sync: torch
+
+      .. tab-set::
+
+         .. tab-item:: Python
+            :sync: py
+
+            The ``convert_model()`` method is the only method applicable to JAX/Flax models.
+
+            .. dropdown:: List of supported formats:
+
+               * **Python objects**:
+
+                 * ``jax._src.core.ClosedJaxpr``
+                 * ``flax.linen.Module``
+
+            * Conversion of the ``jax._src.core.ClosedJaxpr`` object
+
+              .. code-block:: py
+                 :force:
+
+                 import jax
+                 import jax.numpy as jnp
+                 import openvino as ov
+
+                 # let user have some JAX function
+                 def jax_func(x, y):
+                     return jax.lax.tanh(jax.lax.max(x, y))
+
+                 # use example inputs for creation of ClosedJaxpr object
+                 x = jnp.array([1.0, 2.0])
+                 y = jnp.array([-1.0, 10.0])
+                 jaxpr = jax.make_jaxpr(jax_func)(x, y)
+
+                 ov_model = ov.convert_model(jaxpr)
+                 compiled_model = ov.compile_model(ov_model, "AUTO")
+
+            * Conversion of the ``flax.linen.Module`` object
+
+              .. code-block:: py
+                 :force:
+
+                 import flax.linen as nn
+                 import jax
+                 import jax.numpy as jnp
+                 import openvino as ov
+
+                 # let user have some Flax module
+                 class SimpleDenseModule(nn.Module):
+                     features: int
+
+                     @nn.compact
+                     def __call__(self, x):
+                         return nn.Dense(features=self.features)(x)
+
+                 module = SimpleDenseModule(features=4)
+
+                 # create example_input used in training
+                 example_input = jnp.ones((2, 3))
+
+                 # prepare parameters to initialize the module
+                 # they can be also loaded from a disk
+                 # using pickle, flax.serialization for deserialization
+                 key = jax.random.PRNGKey(0)
+                 params = module.init(key, example_input)
+                 module = module.bind(params)
+
+                 ov_model = ov.convert_model(module, example_input=example_input)
+                 compiled_model = ov.compile_model(ov_model, "AUTO")
+
+            For more details on conversion, refer to the :doc:`conversion guide <convert-model-jax>`.
+
 
 
 These are basic examples, for detailed conversion instructions, see the individual guides on
 :doc:`PyTorch <convert-model-pytorch>`, :doc:`ONNX <convert-model-onnx>`,
 :doc:`TensorFlow <convert-model-tensorflow>`, :doc:`TensorFlow Lite <convert-model-tensorflow-lite>`,
-and :doc:`PaddlePaddle <convert-model-paddle>`.
+:doc:`PaddlePaddle <convert-model-paddle>`, and :doc:`JAX/Flax <convert-model-jax>`.
 
 Refer to the list of all supported conversion options in :doc:`Conversion Parameters <conversion-parameters>`.
 
@@ -596,7 +670,7 @@ IR Conversion Benefits
      especially useful for large models, like Llama2-7B.
 
 | **Saving to IR to avoid large dependencies in inference code**
-|    Frameworks such as TensorFlow and PyTorch tend to be large dependencies for applications
+|    Frameworks such as TensorFlow, PyTorch, and JAX/Flax tend to be large dependencies for applications
      running inference (multiple gigabytes). Converting models to OpenVINO IR removes this
      dependency, as OpenVINO can run its inference with no additional components.
      This way, much less disk space is needed, while loading and compiling usually takes less
