@@ -1,0 +1,161 @@
+// Copyright (C) 2018-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "cmath"
+#include "core/operator_set.hpp"
+#include "exceptions.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
+#include "utils/reshape.hpp"
+
+using namespace ov::op;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace com_microsoft {
+namespace opset_1 {
+ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
+    const auto inputs = node.get_ov_inputs();
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 3, "Minimum 3 inputs are required. Got: ", inputs.size());
+    const auto& a = inputs[0];
+    const auto& b_quantized = inputs[1];
+    const auto& scales = inputs[2];
+    ov::Output<ov::Node> zero_points;
+    ov::Output<ov::Node> group_idx;
+    ov::Output<ov::Node> bias;
+    const auto K = node.get_attribute_value<int64_t>("K");
+    const auto N = node.get_attribute_value<int64_t>("N");
+    const auto accuracy_level = node.get_attribute_value<int64_t>("accuracy_level");
+    const auto block_size = node.get_attribute_value<int64_t>("block_size");
+    const auto bits = node.get_attribute_value<int64_t>("bits", 4);
+
+    const uint64_t n_blocks_per_col = (K + block_size - 1) / block_size;
+    const auto blob_size = static_cast<int64_t>(ceil(block_size * bits / 8));
+
+    CHECK_VALID_NODE(node,
+                     dynamic_cast<v0::Constant*>(b_quantized.get_node()) != nullptr,
+                     "MatMulNBits limitation: accepting only a constant as a B input");
+    CHECK_VALID_NODE(node,
+                     a.get_element_type() == ov::element::f16 || a.get_element_type() == ov::element::f32,
+                     "Unsupported input A type, accepted FP16, FP32, got: ",
+                     a.get_element_type());
+    CHECK_VALID_NODE(
+        node,
+        b_quantized.get_element_type() == ov::element::u8 || b_quantized.get_element_type() == ov::element::i32,
+        "Unsupported input B type, accepted FP16, FP32, got: ",
+        b_quantized.get_element_type());
+
+    CHECK_VALID_NODE(node,
+                     block_size >= 16 && (block_size % 2 == 0),
+                     "Wrong block size, should be >=16 and be a power of 2, got: ",
+                     block_size);
+    CHECK_VALID_NODE(node, accuracy_level >= 0 && accuracy_level <= 4, "Unsupported accuracy level: ", accuracy_level);
+
+    if (inputs.size() > 3) {
+        zero_points = inputs[3];
+        CHECK_VALID_NODE(node,
+                         zero_points.get_element_type() == ov::element::u8 ||
+                             zero_points.get_element_type() == ov::element::i32 ||
+                             zero_points.get_element_type() == ov::element::f32 ||
+                             zero_points.get_element_type() == ov::element::f16,
+                         "Unsupported input zero_points type, accepted U8, I32, FP16, FP32, got: ",
+                         zero_points.get_element_type());
+    }
+
+    if (inputs.size() > 4) {
+        group_idx = inputs[4];
+        CHECK_VALID_NODE(node,
+                         group_idx.get_element_type() == ov::element::i32,
+                         "Unsupported input group_idx type, accepted I32, got: ",
+                         group_idx.get_element_type());
+    }
+
+    if (inputs.size() > 5) {
+        bias = inputs[5];
+        CHECK_VALID_NODE(node,
+                         bias.get_element_type() == a.get_element_type(),
+                         "Unsupported input bias type, must be equal to input A type, got: ",
+                         bias.get_element_type());
+        CHECK_VALID_NODE(node,
+                         bias.get_partial_shape() == PartialShape{N},
+                         "Wrong bias shape, expected [",
+                         N,
+                         "], got: ",
+                         bias.get_partial_shape());
+    }
+
+    ov::Output<ov::Node> scaled_b;
+
+    {
+        const auto b_const = std::dynamic_pointer_cast<v0::Constant>(b_quantized.get_node_shared_ptr());
+        ov::Output<ov::Node> b;
+        ov::Output<ov::Node> reshape_b;
+        ov::Output<ov::Node> zero_point;
+        switch (bits) {
+        case 2:
+            b = std::make_shared<v0::Constant>(
+                ov::element::u2,
+                Shape{static_cast<uint64_t>(N), n_blocks_per_col, static_cast<uint64_t>(blob_size) * 4},
+                b_const->get_data_ptr());
+            reshape_b = op::util::reshape(b, Shape{static_cast<size_t>(N), static_cast<size_t>(blob_size * 4)});
+            zero_point = std::make_shared<v0::Constant>(a.get_element_type(), Shape{}, 2);
+            break;
+        case 4:
+            b = std::make_shared<v0::Constant>(
+                ov::element::u4,
+                Shape{static_cast<uint64_t>(N), n_blocks_per_col, static_cast<uint64_t>(blob_size) * 2},
+                b_const->get_data_ptr());
+            reshape_b = op::util::reshape(b, Shape{static_cast<size_t>(N), static_cast<size_t>(blob_size * 2)});
+            zero_point = std::make_shared<v0::Constant>(a.get_element_type(), Shape{}, 8);
+            break;
+        default:
+            FRONT_END_THROW("Unsupported bits count");
+            break;
+        }
+
+        // Possible issue with slice implementation, had to move convertion before slice, instead of slicing uint4
+        const auto converted_b = std::make_shared<v1::ConvertLike>(reshape_b, a);
+
+        // Removing unused items in case block is bigger than column count
+        const auto zero_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 0);
+        const auto one_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 1);
+        const auto elements_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, static_cast<int32_t>(K));
+        const auto axis_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 1);
+        const auto slice_b =
+            std::make_shared<v8::Slice>(converted_b, zero_const, elements_const, one_const, axis_const);
+
+        // Transpose matrix
+        const auto transposed_shape =
+            std::make_shared<v0::Constant>(ov::element::i64, Shape{2}, std::vector<int64_t>{1, 0});
+        const auto transposed_b = std::make_shared<v1::Transpose>(slice_b, transposed_shape);
+
+        // If no zero-points provided - we generate default, depends on data size
+        if (!zero_points.get_node_shared_ptr()) {
+            zero_points = std::make_shared<v1::Broadcast>(zero_point, std::make_shared<v0::ShapeOf>(transposed_b));
+        }
+        const auto sub_b = std::make_shared<v1::Subtract>(transposed_b, zero_points);
+
+        // Scaling
+        scaled_b = std::make_shared<v1::Multiply>(sub_b, scales);
+    }
+
+    return {std::make_shared<v0::MatMul>(a, scaled_b)};
+}
+
+ONNX_OP("MatMulNBits", OPSET_SINCE(1), com_microsoft::opset_1::matmulnbits, MICROSOFT_DOMAIN);
+
+}  // namespace opset_1
+}  // namespace com_microsoft
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

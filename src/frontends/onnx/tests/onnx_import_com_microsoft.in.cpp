@@ -1300,3 +1300,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_pad_1d) {
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits) {
+    const auto model = convert_model("com.microsoft/matmulnbits.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    test_case.add_expected_output<float>(Shape{3, 3},
+                                         {31.25f, 28.125f, 24.f, 78.75f, 75.625f, 72.f, 126.25f, 123.125f, 120.f});
+
+    test_case.run();
+}
