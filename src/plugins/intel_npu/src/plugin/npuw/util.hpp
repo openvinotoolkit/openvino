@@ -60,10 +60,10 @@ template <class M>
 struct Impl {
     using V = typename M::mapped_type;
 
-    M * m = nullptr;
+    M* m = nullptr;
     explicit Impl(M* pM) : m(pM) {}
 
-    template<typename K>
+    template <typename K>
     V& at(const K& k) {
         const auto iter = m->find(k);
         if (iter == m->end()) {
@@ -76,7 +76,7 @@ struct Impl {
         return iter->second;
     }
 
-    template<typename K>
+    template <typename K>
     const V& at(const K& k) const {
         return const_cast<Impl*>(this)->at(k);
     }
