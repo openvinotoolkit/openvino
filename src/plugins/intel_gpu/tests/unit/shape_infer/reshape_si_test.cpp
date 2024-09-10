@@ -33,7 +33,7 @@ struct reshape_test_params {
 inline padding get_pad(format fmt, std::vector<int64_t> axes, bool is_dynamic) {
     std::vector<int32_t> lower(fmt.dimension(), 0);
     std::vector<int32_t> upper(fmt.dimension(), 0);
-    std::vector<int32_t> mask(fmt.dimension(), 0);
+    padding::DynamicDimsMask mask; // empty mask resetted
 
     auto start_pad_val = 13;
     for (auto& axis : axes) {
@@ -45,7 +45,7 @@ inline padding get_pad(format fmt, std::vector<int64_t> axes, bool is_dynamic) {
         start_pad_val += 5;
     }
 
-    return padding(tensor(fmt, lower, 0).sizes(), tensor(fmt, upper, 0).sizes(), 0.0f, tensor(fmt, mask, 0));
+    return padding(lower, upper, mask);
 }
 
 class reshape_test_two_inputs : public testing::TestWithParam<reshape_test_params> {};
@@ -223,12 +223,12 @@ INSTANTIATE_TEST_SUITE_P(smoke, squeeze_test,
             layout{ov::PartialShape{}, data_types::f32, format::bfyx}
         },
         {
-            layout{ov::PartialShape{1, 1, 10, 20, 30}, data_types::f32, format::bfzyx, get_pad(format::bfyx, {2, 3}, true)},
+            layout{ov::PartialShape{1, 1, 10, 20, 30}, data_types::f32, format::bfzyx, get_pad(format::bfzyx, {3, 4}, true)},
             layout{ov::PartialShape{1}, data_types::i64, format::bfyx}, {1}, ov::PartialShape::dynamic(4),
             layout{ov::PartialShape{1, 10, 20, 30}, data_types::f32, format::bfyx, get_pad(format::bfyx, {2, 3}, true)},
         },
         {
-            layout{ov::PartialShape{1, 1, 10, 1, 30}, data_types::f32, format::bfzyx, get_pad(format::bfyx, {2, 3}, true)},
+            layout{ov::PartialShape{1, 1, 10, 1, 30}, data_types::f32, format::bfzyx, get_pad(format::bfzyx, {3, 4}, true)},
             layout{ov::PartialShape{1}, data_types::i64, format::bfyx}, {3}, ov::PartialShape::dynamic(4),
             layout{ov::PartialShape{1, 1, 10, 30}, data_types::f32, format::bfyx}, // pad is removed
         }

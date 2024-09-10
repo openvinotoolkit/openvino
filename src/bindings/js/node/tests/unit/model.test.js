@@ -4,45 +4,56 @@
 
 const { addon: ov } = require('../..');
 const assert = require('assert');
-const { describe, it } = require('node:test');
-const { getModelPath } = require('./utils.js');
-const testXml = getModelPath().xml;
-const core = new ov.Core();
-const model = core.readModelSync(testXml);
-const clonedModel = model.clone();
+const { describe, it, before, beforeEach } = require('node:test');
+const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
 
-describe('Node.js Model.isDynamic()', () => {
-  it('should return a boolean value indicating if the model is dynamic', () => {
-    const result = model.isDynamic();
-    assert.strictEqual(
-      typeof result,
-      'boolean',
-      'isDynamic() should return a boolean value'
-    );
+describe('ov.Model tests', () => {
+
+  let testXml = null;
+  let core = null;
+  let model = null;
+
+  before(async () => {
+    await isModelAvailable(testModels.testModelFP32);
+    testXml = getModelPath().xml;
+    core = new ov.Core();
   });
 
-  it('should not accept any arguments', () => {
-    assert.throws(
-      () => {
-        model.isDynamic('unexpected argument');
-      },
-      /^Error: isDynamic\(\) does not accept any arguments\.$/,
-      'Expected isDynamic to throw an error when called with arguments'
-    );
+  beforeEach(() => {
+    model = core.readModelSync(testXml);
   });
 
-  it('returns false for a static model', () => {
-    const expectedStatus = false;
-    assert.strictEqual(
-      model.isDynamic(),
-      expectedStatus,
-      'Expected isDynamic to return false for a static model'
-    );
-  });
-});
+  describe('Model.isDynamic()', () => {
+    it('should return a boolean value indicating if the model is dynamic', () => {
+      const result = model.isDynamic();
+      assert.strictEqual(
+        typeof result,
+        'boolean',
+        'isDynamic() should return a boolean value'
+      );
+    });
 
-describe('Node.js getFriendlyName() / setFriendlyName()', () => {
-  describe('getFriendlyName()', () => {
+    it('should not accept any arguments', () => {
+      assert.throws(
+        () => {
+          model.isDynamic('unexpected argument');
+        },
+        /^Error: isDynamic\(\) does not accept any arguments\.$/,
+        'Expected isDynamic to throw an error when called with arguments'
+      );
+    });
+
+    it('returns false for a static model', () => {
+      const expectedStatus = false;
+      assert.strictEqual(
+        model.isDynamic(),
+        expectedStatus,
+        'Expected isDynamic to return false for a static model'
+      );
+    });
+  });
+
+  describe('Model.getFriendlyName()', () => {
     it('returns the unique name of the model if no friendly name is set', () => {
       const expectedName = 'test_model';
       assert.strictEqual(model.getFriendlyName(), expectedName);
@@ -54,11 +65,7 @@ describe('Node.js getFriendlyName() / setFriendlyName()', () => {
       );
     });
   });
-  describe('setFriendlyName()', () => {
-    it('sets a friendly name for the model', () => {
-      assert.doesNotThrow(() => model.setFriendlyName('MyFriendlyName'));
-    });
-
+  describe('Model.setFriendlyName()', () => {
     it('throws an error when called without a string argument', () => {
       assert.throws(
         () => model.setFriendlyName(),
@@ -91,87 +98,90 @@ describe('Node.js getFriendlyName() / setFriendlyName()', () => {
 
     it('handles setting an empty string as a friendly name', () => {
       assert.doesNotThrow(() => model.setFriendlyName(''));
-      assert.strictEqual(model.getFriendlyName(), 'Model1');
+      assert.strictEqual(model.getFriendlyName(), model.getName());
     });
   });
-});
 
-describe('Model.getOutputSize()', () => {
+  describe('Model.getOutputSize()', () => {
 
-  it('should return a number indicating number of outputs for the model', () => {
-    const result = model.getOutputSize();
-    assert.strictEqual(typeof result, 'number', 'getOutputSize() should return a number');
+    it('should return a number indicating number of outputs for the model', () => {
+      const result = model.getOutputSize();
+      assert.strictEqual(typeof result, 'number', 'getOutputSize() should return a number');
+    });
+
+    it('should not accept any arguments', () => {
+      assert.throws(() => {
+        model.getOutputSize('unexpected argument');
+      }, /^Error: getOutputSize\(\) does not accept any arguments\.$/, 'Expected getOutputSize to throw an error when called with arguments');
+    });
+
+    it('should return 1 for the default model', () => {
+      assert.strictEqual(model.getOutputSize(), 1, 'Expected getOutputSize to return 1 for the default model');
+    });
   });
 
-  it('should not accept any arguments', () => {
-    assert.throws(() => {
-      model.getOutputSize('unexpected argument');
-    }, /^Error: getOutputSize\(\) does not accept any arguments\.$/, 'Expected getOutputSize to throw an error when called with arguments');
+  describe('Model.getOutputElementType()', () => {
+    it('should return a string for the element type ', () => {
+      const result = model.getOutputElementType(0);
+      assert.strictEqual(typeof result, 'string',
+        'getOutputElementType() should return a string');
+    });
+
+    it('should accept a single integer argument', () => {
+      assert.throws(() => {
+        model.getOutputElementType();
+      }, /'getOutputElementType' method called with incorrect parameters/,
+      'Should throw when called without arguments');
+
+      assert.throws(() => {
+        model.getOutputElementType('unexpected argument');
+      }, /'getOutputElementType' method called with incorrect parameters/,
+      'Should throw on non-number argument');
+
+      assert.throws(() => {
+        model.getOutputElementType(0, 1);
+      }, /'getOutputElementType' method called with incorrect parameters/,
+      'Should throw on multiple arguments');
+
+      assert.throws(() => {
+        model.getOutputElementType(3.14);
+      }, /'getOutputElementType' method called with incorrect parameters/,
+      'Should throw on non-integer number');
+    });
+
+    it('should return a valid element type for the default model', () => {
+      const elementType = model.getOutputElementType(0);
+      assert.ok(typeof elementType === 'string' && elementType.length > 0,
+        `Expected a non-empty string, got ${elementType}`);
+    });
+
+    it('should throw an error for out-of-range index', () => {
+      const outputSize = model.getOutputSize();
+      assert.throws(
+        () => { model.getOutputElementType(outputSize); },
+        /^Error: /,
+        'Should throw for out-of-range index'
+      );
+    });
   });
 
-  it('should return 1 for the default model', () => {
-    assert.strictEqual(model.getOutputSize(), 1, 'Expected getOutputSize to return 1 for the default model');
-  });
-});
+  describe('Model.clone()', () => {
+    it('should return an object of type model', () => {
+      const clonedModel = model.clone();
+      assert.ok(clonedModel instanceof ov.Model, 'clone() should return a model');
+    });
 
-describe('Model.getOutputElementType()', () => {
-  it('should return a string for the element type ', () => {
-    const result = model.getOutputElementType(0);
-    assert.strictEqual(typeof result, 'string',
-      'getOutputElementType() should return a string');
-  });
+    it('should return a model that is a clone of the calling model', () => {
+      const clonedModel = model.clone();
+      assert.deepStrictEqual(clonedModel, model, 'Cloned Model should be exactly equal to the calling model');
+    });
 
-  it('should accept a single integer argument', () => {
-    assert.throws(() => {
-      model.getOutputElementType();
-    }, /'getOutputElementType' method called with incorrect parameters/,
-     'Should throw when called without arguments');
-
-    assert.throws(() => {
-      model.getOutputElementType('unexpected argument');
-    }, /'getOutputElementType' method called with incorrect parameters/,
-    'Should throw on non-number argument');
-
-    assert.throws(() => {
-      model.getOutputElementType(0, 1);
-    }, /'getOutputElementType' method called with incorrect parameters/,
-    'Should throw on multiple arguments');
-
-    assert.throws(() => {
-      model.getOutputElementType(3.14);
-    }, /'getOutputElementType' method called with incorrect parameters/,
-    'Should throw on non-integer number');
+    it('should not accept any arguments', () => {
+      assert.throws(
+        () => model.clone('Unexpected argument').then(),
+        /'clone' method called with incorrect parameters./
+      );
+    });
   });
 
-  it('should return a valid element type for the default model', () => {
-    const elementType = model.getOutputElementType(0);
-    assert.ok(typeof elementType === 'string' && elementType.length > 0,
-      `Expected a non-empty string, got ${elementType}`);
-  });
-
-  it('should throw an error for out-of-range index', () => {
-    const outputSize = model.getOutputSize();
-    assert.throws(
-      () => { model.getOutputElementType(outputSize); },
-      /^Error: /,
-      'Should throw for out-of-range index'
-    );
-  });
-});
-
-describe('Model.clone()', () => {
-  it('should return an object of type model', () => {
-    assert.ok(clonedModel instanceof ov.Model, 'clone() should return a model');
-  });
-
-  it('should return a model that is a clone of the calling model', () => {
-    assert.deepStrictEqual(clonedModel, model, "Cloned Model should be exactly equal to the calling model");
-  });
-  
-  it('should not accept any arguments', () => {
-    assert.throws(
-      () => model.clone("Unexpected argument").then(),
-      /'clone' method called with incorrect parameters./
-    );
-  });
 });

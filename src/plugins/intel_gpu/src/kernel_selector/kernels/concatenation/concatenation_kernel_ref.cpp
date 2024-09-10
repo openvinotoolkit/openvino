@@ -58,6 +58,7 @@ ParamsKey ConcatenationKernelRef::GetSupportedKey() const {
     k.EnableConcatAxis(ConcatAxis::BATCH);
     k.EnableConcatKernelPerInput();
     k.EnableDifferentTypes();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 

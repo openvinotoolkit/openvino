@@ -1,4 +1,5 @@
-FROM openvinogithubactions.azurecr.io/dockerio/library/fedora:33
+ARG REGISTRY="docker.io"
+FROM ${REGISTRY}/library/fedora:33
 
 USER root
 

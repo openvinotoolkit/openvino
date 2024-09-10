@@ -53,6 +53,7 @@ struct primitive_impl {
     virtual ~primitive_impl() = default;
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
+    virtual std::set<size_t> get_lockable_internal_buffers() const { return {}; }
     virtual void set_node_params(const program_node&) {}
     virtual const std::string& get_type_info() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
@@ -385,6 +386,7 @@ protected:
                                               bool reset_mem = true,
                                               bool runtime_alloc = false);
     memory::ptr allocate_internal_buffer(size_t idx, bool reset = true);
+    void allocate_shape_info_memory();
     static std::vector<primitive_inst*> build_exec_deps(
         std::vector<std::pair<primitive_inst*, int32_t>> const& mem_deps);
     int32_t get_index_in_deps(memory::cptr arg) const;

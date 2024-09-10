@@ -32,7 +32,14 @@ protected:
      * @param brgemm_expr Brgemm expression
      * @return tuple in format (m_block, n_block, k_block)
      */
-    virtual std::tuple<size_t, size_t, size_t> get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr);
+    virtual std::tuple<size_t, size_t, size_t> get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const;
+    /**
+     * @interface get_brgemm_dimensions
+     * @brief Extract current dimensions M,N,K of `brgemm_expr`
+     * @param brgemm_expr Brgemm expression
+     * @return tuple in format (M, N, K)
+     */
+    static std::tuple<size_t, size_t, size_t> get_brgemm_dimensions(const ov::snippets::lowered::ExpressionPtr& brgemm_expr);
     /**
      * @interface mark_blocking_loops
      * @brief Covers brgemm with blocking loops. Also should calculate optimal blocking parameters inside.
@@ -72,6 +79,10 @@ protected:
     virtual SpecificIterationHandlers get_m_loop_handlers(size_t work_amount, size_t block_size) const;
     virtual SpecificIterationHandlers get_n_loop_handlers(size_t work_amount, size_t block_size) const;
     virtual SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_size) const;
+
+    virtual size_t get_default_m_blk(size_t m) const;
+    virtual size_t get_default_n_blk(size_t n) const;
+    virtual size_t get_default_k_blk(size_t k) const;
 };
 
 /**

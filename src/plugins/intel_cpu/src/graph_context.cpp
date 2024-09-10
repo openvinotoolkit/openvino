@@ -4,6 +4,7 @@
 #include "dnnl_types.h"
 #include "graph_context.h"
 #include "nodes/memory.hpp"
+#include "memory_control.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -18,7 +19,8 @@ GraphContext::GraphContext(const Config& config,
       isGraphQuantizedFlag(isGraphQuantized),
       streamExecutor(streamExecutor),
       subMemoryManager(sub_memory_manager),
-      memoryStatesRegister(std::make_shared<node::MemoryStatesRegister>()) {
+      memoryStatesRegister(std::make_shared<node::MemoryStatesRegister>()),
+      networkMemoryControl(std::make_shared<NetworkMemoryControl>()) {
     rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
     // primitive/executors can be shared across sub-stream
     // but scratch pad cannot be shared.

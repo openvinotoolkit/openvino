@@ -1,11 +1,5 @@
-.. {#weight_compression}
-
 Weight Compression
 ==================
-
-Weight compression is a technique for enhancing the efficiency of models,
-especially those with large memory requirements. This method reduces the model's
-memory footprint, a crucial factor for Large Language Models (LLMs).
 
 Weight compression is a technique for enhancing the efficiency of models,
 especially those with large memory requirements. This method reduces the model's
@@ -230,7 +224,7 @@ is installed in your environment by running the following command:
 
 .. code-block:: python
 
-  pip install optimum[openvino,nncf]
+  pip install optimum[openvino]
 
 The first example loads a pre-trained Hugging Face model using the Optimum Intel API,
 compresses it to INT4 using NNCF, and then executes inference with a text phrase.
@@ -254,12 +248,13 @@ from Optimum Intel instead of NNCF to compress the model to INT8_ASYM.
 
       # Load model from Hugging Face
       model_id = "HuggingFaceH4/zephyr-7b-beta"
-      model = OVModelForCausalLM.from_pretrained(model_id, export=True)
+      model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=False, compile=False)
 
       # Compress to INT4 Symmetric
-      model.model = compress_weights(model.model,  mode=CompressWeightsMode.INT4_SYM)
+      model.model = compress_weights(model.model, mode=CompressWeightsMode.INT4_SYM)
 
       # Inference
+      model.compile()
       tokenizer = AutoTokenizer.from_pretrained(model_id)
       pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
       phrase = "The weather is"

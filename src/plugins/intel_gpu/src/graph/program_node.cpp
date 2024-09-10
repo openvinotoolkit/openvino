@@ -38,7 +38,7 @@ static size_t get_shape_data_size(const layout& l) {
         return 0;
 
     size_t size = layout::max_rank(); // all dimenstions are stored
-    auto dynamic_pad = l.data_padding.get_dynamic_pad_dims().sizes(format::get_default_format(layout::max_rank()));
+    const auto& dynamic_pad = l.data_padding._dynamic_dims_mask;
     for (size_t j = 0; j < layout::max_rank(); ++j) {
         if (dynamic_pad[j] == 1) {
             size += 2; // lower + upper
@@ -525,6 +525,20 @@ bool program_node::is_fused_dep(size_t dep_idx) const {
     return false;
 }
 
+std::set<size_t> program_node::get_lockable_input_ids() const {
+    const auto impl = get_selected_impl();
+    const bool has_cpu_impl = get_preferred_impl_type() == impl_types::cpu || (impl && impl->is_cpu());
+    if (has_cpu_impl) {
+        std::set<size_t> dependencies_indexes;
+        for (size_t i = 0; i < get_dependencies().size(); i++)
+            dependencies_indexes.insert(i);
+
+        return dependencies_indexes;
+    } else {
+        return {};
+    }
+}
+
 std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
     std::map<size_t, memory::ptr> mem_deps;
     for (auto& i : get_shape_infer_dependencies()) {
@@ -594,10 +608,13 @@ bool program_node::is_padding_supported(int axis, int padding) const {
 }
 
 bool program_node::is_padded_spatial(size_t idx) const {
-    auto lower_size = get_output_layout(idx).data_padding.lower_size();
-    auto upper_size = get_output_layout(idx).data_padding.upper_size();
-    return std::any_of(lower_size.spatial.begin(), lower_size.spatial.end(), [](const tensor::value_type& el) { return el != 0; }) ||
-        std::any_of(upper_size.spatial.begin(), upper_size.spatial.end(), [](const tensor::value_type& el) { return el != 0; });
+    auto& layout = get_output_layout(idx);
+    const auto& lower_size = layout.data_padding._lower_size;
+    const auto& upper_size = layout.data_padding._upper_size;
+    return std::any_of(std::begin(lower_size) + 2, std::begin(lower_size) + layout.get_spatial_rank() - 1,
+                        [](const tensor::value_type& el) { return el != 0; }) ||
+           std::any_of(std::begin(upper_size) + 2, std::begin(upper_size) + layout.get_spatial_rank() - 1,
+                        [](const tensor::value_type& el) { return el != 0; });
 }
 
 void program_node::set_selected_impl(std::unique_ptr<primitive_impl> impl) {

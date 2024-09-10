@@ -96,6 +96,11 @@ DequantizationOperations::Subtract& DequantizationOperations::Subtract::setConst
     return *this;
 }
 
+DequantizationOperations::Subtract& DequantizationOperations::Subtract::setAddConvert(bool value) {
+    addConvert = value;
+    return *this;
+}
+
 DequantizationOperations::Multiply::Multiply() :
     isEmpty(true),
     outPrecision(ov::element::undefined),
@@ -129,13 +134,15 @@ DequantizationOperations::Multiply::Multiply(
     const ov::Shape& constantShape,
     const bool toRemove,
     const size_t constantIndex,
-    ov::element::Type constantPrecision) :
+    ov::element::Type constantPrecision,
+    const bool addConvert) :
     isEmpty(false),
     values(values),
     outPrecision(outPrecision),
     constantShape(constantShape),
     constantIndex(constantIndex),
     constantPrecision(constantPrecision),
+    addConvert(addConvert),
     constantShapeIsDefined(true) {
 }
 
@@ -166,6 +173,11 @@ DequantizationOperations::Multiply& DequantizationOperations::Multiply::setConst
     return *this;
 }
 
+DequantizationOperations::Multiply& DequantizationOperations::Multiply::setAddConvert(bool value) {
+    addConvert = value;
+    return *this;
+}
+
 DequantizationOperations::DequantizationOperations() {}
 
 DequantizationOperations::DequantizationOperations(
@@ -179,9 +191,11 @@ DequantizationOperations::DequantizationOperations(
 
 void DequantizationOperations::setPrecision(const ov::element::Type& type) noexcept {
     convert.outPrecision = type;
-    subtract.constantPrecision = type;
+    if (!subtract.addConvert)
+        subtract.constantPrecision = type;
     subtract.outPrecision = type;
-    multiply.constantPrecision = type;
+    if (!multiply.addConvert)
+        multiply.constantPrecision = type;
     multiply.outPrecision = type;
 }
 

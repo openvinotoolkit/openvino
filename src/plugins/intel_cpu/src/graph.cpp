@@ -44,8 +44,6 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include "common/primitive_desc_iface.hpp"
 
-#include "openvino/runtime/memory_solver.hpp"
-
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/core/parallel.hpp"
 
@@ -56,9 +54,6 @@
 using namespace dnnl;
 namespace ov {
 namespace intel_cpu {
-
-typedef std::unordered_set<EdgePtr> edge_cluster_t;
-typedef std::vector<edge_cluster_t> edge_clusters_t;
 
 Graph::~Graph() {
     CPU_DEBUG_CAP_ENABLE(summary_perf(*this));
@@ -92,7 +87,6 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
     m_stream = dnnl::stream(getEngine());
 
     this->_name = std::move(name);
-    this->reuse_io_tensors = false;
 
     this->graphNodes = graphNodes;
     this->graphEdges = graphEdges;
@@ -118,7 +112,6 @@ template void Graph::CreateGraph(const std::shared_ptr<const ov::Model>&, const 
 void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "Graph::Replicate", "ov::Model");
     this->_name = model->get_friendly_name();
-    this->reuse_io_tensors = false;
 
     // Map data object onto producer node
     std::map<std::shared_ptr<ov::Node>, NodePtr> op2node;
@@ -330,6 +323,10 @@ void Graph::InitGraph(bool optimize) {
 
     SortTopologically();
 
+    ResolveComplexInplaceConflicts();
+
+    SortTopologically();
+
     const bool hasDynNodes = ProcessDynNodes();
     const auto syncNodesInds = hasDynNodes ? IdentifySyncPoints(graphNodes) : std::vector<size_t>{};
 
@@ -470,19 +467,17 @@ void Graph::CreatePrimitivesAndExecConstants() const {
             continue;
         }
 
-        VERBOSE(node, getConfig().debugCaps.verbose);
-
         if (context->getWeightsCache()) {
             auto sharedOutputs = acquireSharedOutputs(node);
 
             if (std::get<0>(sharedOutputs) || std::get<1>(sharedOutputs)) {
-                ExecuteNode(node, m_stream);
+                ExecuteNodeWithCatch(node);
 
                 for (auto & output : std::get<2>(sharedOutputs))
                     output->valid(true);
             }
         } else {
-            ExecuteNode(node, m_stream);
+            ExecuteNodeWithCatch(node);
         }
     }
 }
@@ -644,53 +639,8 @@ static inline bool isConstOutput(EdgePtr edge) {
     return edge->getParent()->isConstant() && !edge->getChild()->isConstant();
 }
 
-static edge_clusters_t findEdgeClusters(const std::vector<EdgePtr> & graphEdges) {
-    typedef std::unordered_map<EdgePtr, size_t> edge_cluster_idx_map_t;
-
-    edge_clusters_t edge_clusters;
-    edge_cluster_idx_map_t edge_cluster_indices;
-
-    for (auto &edge : graphEdges) {
-        auto edge_it = edge_cluster_indices.find(edge);
-        if (edge_it != edge_cluster_indices.end())
-            continue;   // edge is visited
-
-        size_t cluster_idx = edge_clusters.size();
-        EdgePtr last_shared_edge = nullptr;
-
-        // find cluster index
-        for (auto shared_edge = edge->getSharedEdge(std::nothrow);
-            shared_edge;
-            shared_edge = shared_edge->getSharedEdge(std::nothrow)) {
-            auto shared_edge_it = edge_cluster_indices.find(shared_edge);
-            if (shared_edge_it != edge_cluster_indices.end()) {
-                cluster_idx = shared_edge_it->second;
-                last_shared_edge = shared_edge;
-                break;
-            }
-        }
-
-        // add shared edges to cluster
-        edge_cluster_indices.emplace(edge, cluster_idx);
-
-        if (cluster_idx == edge_clusters.size())
-            edge_clusters.emplace_back(edge_cluster_t { edge });
-        else
-            edge_clusters[cluster_idx].emplace(edge);
-
-        for (auto shared_edge = edge->getSharedEdge(std::nothrow);
-            shared_edge != last_shared_edge;
-            shared_edge = shared_edge->getSharedEdge(std::nothrow)) {
-            edge_cluster_indices.emplace(shared_edge, cluster_idx);
-            edge_clusters[cluster_idx].emplace(shared_edge);
-        }
-    }
-
-    return edge_clusters;
-}
-
 void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
-    edge_clusters_t edge_clusters = findEdgeClusters(graphEdges);
+    edgeClusters edge_clusters = MemoryControl::findEdgeClusters(graphEdges);
 
     size_t remaining_edge_clusters_count = edge_clusters.size();
 
@@ -707,7 +657,7 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
 
             // Special allocation for string tensors
             if (edge->getDesc().getPrecision() == element::string && edge->getStatus() == Edge::Status::NeedAllocation) {
-                StringMemory::StringMemoryMngrPtr mngr;
+                StringMemory::StringMemoryBlockPtr memBlcok;
                 if (edge->getParent()->isConstant()) {
                     if (edge->getParent()->getType() == Type::Input) {
                         auto constNode = static_cast<node::Input *>(edge->getParent().get());
@@ -718,11 +668,11 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
                     auto stringMemory = dynamic_cast<StringMemory *>(edge->getMemoryPtr().get());
                     OPENVINO_ASSERT(stringMemory, "[CPU] Edge between nodes '",
                             edge->getParent()->getName(), "' and '", edge->getChild()->getName(), "' must have StringMemory.");
-                    mngr = stringMemory->getStringMemoryMngrPtr();
+                    memBlcok = stringMemory->getStringMemoryBlockPtr();
                 } else {
                     auto memory = std::make_shared<StringMemory>(getEngine(), edge->getDesc());
                     edge->reuse(memory);
-                    mngr = memory->getStringMemoryMngrPtr();
+                    memBlcok = memory->getStringMemoryBlockPtr();
                 }
                 for (auto& edge_c : cluster) {
                     if (edge_c == edge) {
@@ -730,7 +680,7 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
                     }
                     OPENVINO_ASSERT(edge_c->getDesc().getPrecision() == element::string, "All edges in the cluster must be string.");
                     if (edge_c->getStatus() == Edge::Status::NotAllocated) {
-                        auto memory = std::make_shared<StringMemory>(getEngine(), edge_c->getDesc(), mngr);
+                        auto memory = std::make_shared<StringMemory>(getEngine(), edge_c->getDesc(), memBlcok);
                         edge_c->reuse(memory);
                     } else {
                         OPENVINO_THROW("[CPU] String tensors allocation in the cluster. Edge between nodes '", edge_c->getParent()->getName(), "' and '",
@@ -762,77 +712,108 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
         }
     }
 
-    const int64_t alignment = 32;  // 32 bytes
+    // Markup the memory regions
+    std::vector<MemoryRegion> memoryRegions;
+    memoryRegions.reserve(remaining_edge_clusters_count);
 
-    // Markup the boxes
-    std::vector<ov::MemorySolver::Box> definedBoxes;
-    std::vector<ov::MemorySolver::Box> undefinedBoxes;
-    for (size_t i = 0; i < remaining_edge_clusters_count; i++) {
-        ov::MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, static_cast<int64_t>(i) };
+    for (size_t i = 0; i < remaining_edge_clusters_count; ++i) {
+        MemoryRegion reg = {std::numeric_limits<int>::max(),
+                            0,
+                            0,
+                            static_cast<int64_t>(i),
+                            MemoryRegion::RegionType::VARIABLE,
+                            MemoryRegion::AllocType::UNKNOWN};
+
         int64_t boxSize = 0;
+        bool isConst = false, isOutput = false, isInput = false;
         for (auto &edge : edge_clusters[i]) {
-            int e_start = edge->getParent()->execIndex;
-            int e_finish = edge->getChild()->execIndex;
+            int e_start = edge->getParent()->getExecIndex();
+            int e_finish = edge->getChild()->getExecIndex();
 
-            if (boxSize != -1 && edge->getDesc().isDefined()) {
-                int64_t e_size = edge->getDesc().getCurrentMemSize();  // size in bytes (from the beginning of data to the last element)
+            auto&& desc = edge->getDesc();
+
+            if (boxSize != -1 && desc.isDefined()) {
+                int64_t e_size = desc.getCurrentMemSize();  // size in bytes (from the beginning of data to the last element)
                 boxSize = std::max(e_size, boxSize);
             } else {
                 boxSize = -1;
             }
 
-            box.start = std::min(e_start, box.start);
-            box.finish = std::max(e_finish, box.finish);
-        }
+            reg.start = std::min(e_start, reg.start);
+            reg.finish = std::max(e_finish, reg.finish);
 
-        // Constant data are filled once on load.
-        // So we need it untouchable during all execution time
-        // -1 is a place holder for a max timestamp.
-        bool isConst = false, isOutput = false, isInput = false;
-        for (auto &edge : edge_clusters[i]) {
+            auto allocType =
+                desc.getPrecision() == element::string ? MemoryRegion::AllocType::STRING : MemoryRegion::AllocType::POD;
+
+            if (reg.alloc_type != allocType && MemoryRegion::AllocType::UNKNOWN != reg.alloc_type) {
+                OPENVINO_THROW("Different allocation types in the same memory region");
+            }
+            reg.alloc_type = allocType;
+
             isConst  |= isConstOutput(edge);
             isOutput |= edge->getChild()->getType() == Type::Output;
             isInput  |= edge->getParent()->getType() == Type::Input;
         }
 
-        if (reuse_io_tensors) {
-            if (isInput | isConst) box.start = 0;
-            if (isOutput | isConst) box.finish = -1;
-        } else {
-            if (isInput  | isOutput | isConst) {
-                box.start = 0;
-                box.finish = -1;
+        reg.size = boxSize;
+
+        if (isConst) {
+            reg.type = MemoryRegion::RegionType::CONSTANT;
+        } else if (isInput) {
+            if (isOutput) {
+                reg.type = MemoryRegion::RegionType::IO;
+            } else {
+                reg.type = MemoryRegion::RegionType::INPUT;
             }
+        } else if (isOutput) {
+            reg.type = MemoryRegion::RegionType::OUTPUT;
         }
 
-        if (boxSize != -1) {
-            box.size = div_up(boxSize, alignment);
-            definedBoxes.push_back(box);
-        } else {
-            box.size = boxSize;
-            undefinedBoxes.push_back(box);
-        }
+        memoryRegions.push_back(reg);
     }
 
-    // Process defined boxes (static shapes)
-    ov::MemorySolver staticMemSolver(definedBoxes);
-    size_t total_size = static_cast<size_t>(staticMemSolver.solve()) * alignment;
+    // special processing of the dynamic output edges
+    auto it = std::remove_if(memoryRegions.begin(), memoryRegions.end(), [&](const MemoryRegion& region) {
+        if (region.size >= 0 || !one_of(region.type, MemoryRegion::RegionType::OUTPUT, MemoryRegion::RegionType::IO)) {
+            return false;
+        }
+        bool result = false;
+        for (auto& edge : edge_clusters[region.id]) {
+            auto child = edge->getChild();
+            if (child->getType() == Type::Output && edge->getStatus() == Edge::Status::NeedAllocation) {
+                auto proxyMemBlock = std::make_shared<ProxyMemoryBlock>();
+                DEBUG_LOG("ProxyMemoryBlock ", proxyMemBlock, " ", this);
+                edge->allocate(proxyMemBlock);
 
-    memWorkspace = std::make_shared<Memory>(getEngine(), DnnlBlockedMemoryDesc(ov::element::i8, Shape(VectorDims{total_size})));
+                // Store the output memory blocks.
+                // So that, the infer requests can be able to access them.
+                int count = 0;
+                for (auto& output : outputNodesMap) {
+                    if (output.second == child) {
+                        outputNodesMemBlocksMap[output.first] = proxyMemBlock;
+                        count++;
+                    }
+                }
+                // sometimes there are unused output ports.
+                OPENVINO_ASSERT(count <= 1, "CPU plugin cannot find output node. count ", count);
+                result = true;
+            }
+        }
+        return result;
+    });
 
-    if (edge_clusters.empty())
-        return;
+    memoryRegions.erase(it, memoryRegions.end());
 
-    auto* workspace_ptr = static_cast<int8_t*>(memWorkspace->getData());
+    //Set up the memory control subsystem.
+    this->m_pMemoryControl = &(getGraphContext()->getNetworkMemoryControl()->createMemoryControlUnit(syncNodesInds));
+    auto memoryBlocks = m_pMemoryControl->insert(memoryRegions);
 
-    for (const auto& box : definedBoxes) {
+    // attach all the not yet allocated edges to the memory contol
+    for (auto&& item : memoryBlocks) {
         int count = 0;
-        for (auto& edge : edge_clusters[box.id]) {
+        for (auto&& edge : edge_clusters[item.first]) {
             if (edge->getStatus() == Edge::Status::NeedAllocation) {
-                int64_t offset = staticMemSolver.get_offset(box.id);
-                // !! Fallback to individual memory allocation !!
-                // if you like to check infer without reuse just call this function without arguments.
-                edge->allocate(workspace_ptr + offset * alignment);  // alignment in byte
+                edge->allocate(item.second);
 
                 // TODO: WA for some test (like strided_slice_test) which use tensors with
                 //       shapes {0}. And it is implicitly converted into {1} tensor.
@@ -846,92 +827,7 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
         OPENVINO_ASSERT(count == 1);
     }
 
-    //Process undefined boxes (dynamic shapes)
-    if (!undefinedBoxes.empty()) {
-        // Use proxy memory manager for output edges
-        for (const auto& box : undefinedBoxes) {
-            for (auto& edge : edge_clusters[box.id]) {
-                const auto child = edge->getChild();
-                if (child->getType() == Type::Output &&
-                    edge->getStatus() == Edge::Status::NeedAllocation) {
-                    auto proxyMemMngr =
-                        std::make_shared<ProxyMemoryMngr>();
-                    DEBUG_LOG("ProxyMemoryMngr ", proxyMemMngr, " ", this);
-                    edge->allocate(proxyMemMngr);
-
-                    // Store the output memory managers.
-                    // So that, the infer requests can be able to access them.
-                    int count = 0;
-                    for (auto &output : outputNodesMap) {
-                        if (output.second == child) {
-                            outputNodesMemMngrMap[output.first] = proxyMemMngr;
-                            count++;
-                        }
-                    }
-                    // sometimes there are unused output ports.
-                    OPENVINO_ASSERT(count <= 1, "CPU plugin cannot find output node. count ", count);
-                }
-            }
-        }
-
-        if (!syncNodesInds.empty()) {
-            //We have to extend the lifespan of tensors that are crossing a sync point border in order to save
-            //the intermediate computation results from possible loss due to the tensor resize
-            for (auto& box : undefinedBoxes) {
-                if (-1 == box.finish) {
-                    continue;
-                }
-                auto itr_upper = std::upper_bound(syncNodesInds.begin(), syncNodesInds.end(), box.finish, [](int y, int x) { return y <= x;});
-                auto itr_lower = std::lower_bound(syncNodesInds.begin(), syncNodesInds.end(), box.start);
-                if (itr_lower != itr_upper) { // across sections
-                    if (itr_upper == syncNodesInds.end()) {
-                        box.finish = -1;
-                    } else {
-                        box.finish = *itr_upper;
-                    }
-                }
-            }
-        }
-
-        ov::MemorySolver::normalize_boxes(undefinedBoxes);
-
-        std::vector<std::vector<ov::MemorySolver::Box>> groups; //groups of nonoverlapping boxes
-        constexpr bool enableMemReuse = true; // set false to disable mem reuse for debug purposes
-        if (enableMemReuse) {
-            groups.push_back({undefinedBoxes.front()});
-            for (size_t i = 1; i < undefinedBoxes.size(); ++i) {
-                const auto& box = undefinedBoxes[i];
-                bool groupFound = false;
-                for (auto& group : groups) {
-                    const auto& lastBox = group.back();
-                    if (lastBox.start > box.finish || lastBox.finish < box.start) {
-                        group.push_back(box);
-                        groupFound = true;
-                        break;
-                    }
-                }
-
-                if (!groupFound) {
-                    groups.push_back({box});
-                }
-            }
-        } else {
-            for (auto& box : undefinedBoxes) {
-                groups.push_back({box});
-            }
-        }
-        for (auto& group : groups) {
-            auto grpMemMngr =
-                std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>());
-            for (auto& box : group) {
-                for (auto& edge : edge_clusters[box.id]) {
-                    if (edge->getStatus() == Edge::Status::NeedAllocation) {
-                        edge->allocate(grpMemMngr);
-                    }
-                }
-            }
-        }
-    }
+    m_pMemoryControl->allocateMemory();
 
     // Resolve all other edges with status NotAllocated and in-place
     for (auto& cluster : edge_clusters) {
@@ -955,7 +851,7 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
                     } else {
                         auto sharedEdge = edge->getSharedEdge();
                         auto sharedEdgeParent = sharedEdge->getParent();
-                        edge->allocate(sharedEdge->getMemoryPtr()->getMemoryMngr());
+                        edge->allocate(sharedEdge->getMemoryPtr()->getMemoryBlock());
                         DEBUG_LOG(*edge, " sharedEdge with ", *sharedEdge);
                     }
                 }
@@ -1000,13 +896,6 @@ bool Graph::ProcessDynNodes() {
     const bool containsDynamicNodes = std::any_of(graphNodes.begin(), graphNodes.end(), [](const NodePtr& node) {
         return node->isDynamicNode();
     });
-    // In case of dynamic shapes, tensors may be resized due to the shapes variations.
-    // If the input tensor is included to memory reuse, it means that its memory manager is shared with other tensors in the graph, which in turn may cause data
-    // loss when one of the tensors down the graph requests mem resize, while the input data have not been yet read by the consumers. To avoid such situations
-    // we disable io mem reuse for the case of dynamic shapes.
-    if (containsDynamicNodes) {
-        this->reuse_io_tensors = false;
-    }
 
     return containsDynamicNodes;
 }
@@ -1121,14 +1010,9 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
     }
 }
 
-void Graph::InferStatic(SyncInferRequest* request) {
+void Graph::InferStatic(SyncInferRequest* request, int numaId) {
     for (const auto& node : m_executableGraphNodes) {
-        VERBOSE(node, getConfig().debugCaps.verbose);
-        PERF(node, getConfig().collectPerfCounters);
-
-        if (request)
-            request->throw_if_canceled();
-        ExecuteNode(node, m_stream);
+        ExecuteNodeWithCatch(node, request, numaId);
     }
 }
 
@@ -1333,47 +1217,52 @@ public:
 #endif
 } // namespace
 
+/* group all the profiling macros into a single one
+ * to avoid cluttering a core logic */
+#define VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(ittScope, node, config) \
+    VERBOSE(node, config.debugCaps.verbose); \
+    PERF(node, config.collectPerfCounters); \
+    DUMP(node, config.debugCaps, infer_count); \
+    OV_ITT_SCOPED_TASK(ittScope, node->profiling.execute); \
+    DEBUG_LOG(*node);
+
+inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, int numaId) const {
+    if (request)
+        request->throw_if_canceled();
+
+    node->execute(m_stream, numaId);
+}
+
+inline void Graph::ExecuteNodeWithCatch(const NodePtr& node, SyncInferRequest* request, int numaId) const {
+    VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(itt::domains::intel_cpu, node, getConfig());
+
+    try {
+        ExecuteNode(node, request, numaId);
+    } catch (const std::exception& exp) {
+        OPENVINO_THROW(*node, exp.what());
+    }
+}
+
 template<typename UpdateStrategy>
-void Graph::InferDynamic(SyncInferRequest* request, UpdateStrategy&& update) {
+void Graph::InferDynamic(SyncInferRequest* request, int numaId, UpdateStrategy&& update) {
     size_t inferCounter = 0;
     for (auto stopIndx : m_executableSyncNodesInds) {
         update(stopIndx);
 
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = m_executableGraphNodes[inferCounter];
-            VERBOSE(node, getConfig().debugCaps.verbose);
-            PERF(node, getConfig().collectPerfCounters);
 
-            if (request)
-                request->throw_if_canceled();
-            try {
-                ExecuteNode(node, m_stream);
-            } catch (const std::exception& exp) {
-                OPENVINO_THROW(node, exp.what());
-            }
+            ExecuteNodeWithCatch(node, request, numaId);
         }
     }
 }
 
-inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const {
-    DUMP(node, getConfig().debugCaps, infer_count);
-    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
-    DEBUG_LOG(*node);
-    // TODO: 132954 workaround for latency
-    int numaID = GetNumaNodeId();
-    if (node->isDynamicNode()) {
-        node->executeDynamic(stream, numaID);
-    } else {
-        node->executeStatic(stream, numaID);
-    }
-}
-
-int Graph::GetNumaNodeId() const {
+static int GetNumaNodeId(const GraphContext::CPtr& context) {
     int numaNodeId = -1;
 #if defined(__x86_64__) && defined(__linux__)
-    if ((getGraphContext()->getCPUStreamExecutor()) &&
-        (getConfig().hintPerfMode == ov::hint::PerformanceMode::LATENCY)) {
-        numaNodeId = getGraphContext()->getCPUStreamExecutor()->get_numa_node_id();
+    if ((context->getCPUStreamExecutor()) &&
+        (context->getConfig().hintPerfMode == ov::hint::PerformanceMode::LATENCY)) {
+        numaNodeId = context->getCPUStreamExecutor()->get_numa_node_id();
     }
 #endif
     return numaNodeId;
@@ -1381,16 +1270,25 @@ int Graph::GetNumaNodeId() const {
 
 void Graph::Infer(SyncInferRequest* request) {
     DEBUG_LOG("Infer graph: ", GetName(), ". Status: ", static_cast<int>(status));
+    const int numaId = GetNumaNodeId(context);
+
+    if (!m_pMemoryControl) {
+        OPENVINO_THROW("Memory control unit is not initilized in graph: ", GetName());
+    }
+
+    if (!m_pMemoryControl->allocated()) {
+        m_pMemoryControl->allocateMemory();
+    }
 
     switch (status) {
     case Status::ReadyDynamic:
-        InferDynamic(request, UpdateNodes(m_executableGraphNodes));
+        InferDynamic(request, numaId, UpdateNodes(m_executableGraphNodes));
         break;
     case Status::ReadyDynamicSeq:
-        InferDynamic(request, UpdateNodesSeq(m_executableGraphNodes));
+        InferDynamic(request, numaId, UpdateNodesSeq(m_executableGraphNodes));
         break;
     case Status::ReadyStatic:
-        InferStatic(request);
+        InferStatic(request, numaId);
         break;
     default:
         OPENVINO_ASSERT(IsReady(), "Wrong state of the ov::intel_cpu::Graph. Topology is not ready: ", static_cast<int>(status));
