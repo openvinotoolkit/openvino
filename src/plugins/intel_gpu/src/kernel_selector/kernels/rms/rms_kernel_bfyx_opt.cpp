@@ -6,7 +6,7 @@
 #include "kernel_selector_utils.h"
 #include <string>
 
-#define MAX_ITEMS_NUM 8
+#define MAX_ITEM_NUM 8
 
 namespace kernel_selector {
 static constexpr size_t subgroup_size = 16;
@@ -60,9 +60,13 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         }
 
         const std::string lws_0 = "get_local_size(0)";
-        // It can be expected that the maximum possible itemsNum will not exceed MAX_ITEMS_NUM
-        // Therefore, in dynamic shape, stack_size including additional buffer is set to MAX_ITEMS_NUM
-        constexpr size_t stack_size = MAX_ITEMS_NUM;
+        // It can be expected that the maximum possible itemsNum will not exceed 32
+        // Therefore, in dynamic shape, stack_size including additional buffer is set to 33
+        size_t stack_size = 33;
+        // When data_size small than 4096, the maximum possible itemsNum will not exceed MAX_ITEM_NUM.
+        if (std::stoi(data_size) <= 4096) {
+            stack_size = MAX_ITEM_NUM;
+        }
         jit.AddConstants({
             MakeJitConstant("DATA_SIZE", data_size),
             MakeJitConstant("LWS", lws_0),
@@ -122,7 +126,7 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
 
         dispatchData.itemsNum = dispatchData.dataSize;
         // Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory reads
-        while ((dispatchData.itemsNum > MAX_ITEMS_NUM || dispatchData.lws[0] < dispatchData.itemsNum) && (2 * dispatchData.lws[0] <= max_lws)) {
+        while ((dispatchData.itemsNum > MAX_ITEM_NUM || dispatchData.lws[0] < dispatchData.itemsNum) && (2 * dispatchData.lws[0] <= max_lws)) {
             dispatchData.lws[0] *= 2;
             dispatchData.itemsNum /= 2;
         }
