@@ -886,17 +886,19 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 SLM_FILTER_PACKED_VEC wei_packed0 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, weights_idx);
                 SLM_FILTER_PACKED_VEC wei_packed1 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, (weights_idx + ((IFM_SIZE / 2) * 16)));
                 DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked;
-                dq_wei_unpacked.s0123 = UNPACK_TRANSPOSED_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed0));
-                dq_wei_unpacked.s4567 = UNPACK_TRANSPOSED_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed1));
+                dq_wei_unpacked.s0123 = UNPACK_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed0));
+                dq_wei_unpacked.s4567 = UNPACK_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed1));
             #else
                 SLM_FILTER_PACKED_VEC wei_packed = BLOCK_READN(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE, weights, weights_idx);
                 DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked = UNPACK_TRANSPOSED_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD *)&wei_packed));
             #endif
 
             // Calculate zero-point and scale only for DECOMPRESSION_SCALE_POST_OP enabled
+            // Calculate weight : w = (w - dzp) * ds
             #if DECOMPRESSION_ZP_TERM
                 #if DECOMPRESSION_ZP_SCALAR
                     DQ_SLM_FILTER_UNPACKED_VEC dzp = (DQ_SLM_FILTER_UNPACKED_VEC)(DECOMPRESSION_ZP_VALUE);
+                    dq_wei_unpacked -= dzp;
                 #elif DECOMPRESSION_ZP_GROUPS_NUM > 1
                     DQ_TYPE* w = (DQ_TYPE*)(&dq_wei_unpacked);
                     const uint ni_offset = ni * TILE_IFM * SIMD + local_id * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE;
@@ -906,18 +908,15 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                             const uint offset_ifm = ni_offset + load_iter * FILTER_LOAD_BLOCK_SIZE + kii;
                             const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
                                                     (offset_ifm / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
-                            w[W_IDX] = w[W_IDX] - TO_DQ_TYPE(decompression_zp[zp_offset]);
+                            w[W_DYN_QUAN_IDX] = w[W_DYN_QUAN_IDX] - TO_DQ_TYPE(decompression_zp[zp_offset]);
                         }
                     }
                 #else
                     DQ_SLM_FILTER_UNPACKED_VEC dzp = (DQ_SLM_FILTER_UNPACKED_VEC)(d_zps[0]);
+                    dq_wei_unpacked -= dzp;
                 #endif
             #else
                 DQ_SLM_FILTER_UNPACKED_VEC dzp = (DQ_SLM_FILTER_UNPACKED_VEC)(ACCUMULATOR_VAL_ZERO);
-            #endif
-
-            // Calculate weight : w = (w - dzp) * ds
-            #if !(DECOMPRESSION_ZP_TERM && (DECOMPRESSION_ZP_GROUPS_NUM > 1))
                 dq_wei_unpacked -= dzp;
             #endif
 
