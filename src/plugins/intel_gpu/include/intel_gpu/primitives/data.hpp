@@ -54,12 +54,8 @@ struct data : public primitive_base<data> {
         size_t data_size = mem->size();
         ob << make_data(&data_size, sizeof(size_t));
 
-        bool is_cache_without_weights = bin_offset != SIZE_MAX && data_size == original_size;
+        bool is_cache_without_weights = bin_offset != SIZE_MAX && data_size == original_size && !weights_path.empty();
         if (is_cache_without_weights) {
-            if (weights_path.empty()) {
-                OPENVINO_THROW("weights_path is expected to be set during weightless cache load!");
-            }
-
             ob << true;
             ob << bin_offset;
             ob << weights_path;
