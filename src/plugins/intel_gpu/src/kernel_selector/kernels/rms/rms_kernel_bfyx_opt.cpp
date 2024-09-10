@@ -62,7 +62,7 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         // It can be expected that the maximum possible itemsNum will not exceed 32
         // Therefore, in dynamic shape, stack_size including additional buffer is set to 33
         size_t stack_size = 33;
-        // When data_size small than 4096, the maximum possible itemsNum will not exceed max_items_num.
+	// When data_size is smaller than 4096, the maximum possible itemsNum will not exceed max_items_num
         if (std::stoi(data_size) <= 4096) {
             stack_size = max_items_num + 1;
         }
