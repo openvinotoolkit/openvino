@@ -1,5 +1,3 @@
-.. {#openvino_docs_transformations}
-
 Overview of Transformations API
 ===============================
 

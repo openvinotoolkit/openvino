@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_detection_GenerateProposals_9}
-
 GenerateProposals
 =================
 
 
 .. meta::
-  :description: Learn about GenerateProposals-9 - an object detection operation, 
+  :description: Learn about GenerateProposals-9 - an object detection operation,
                 which can be performed on four required input tensors.
 
 **Versioned name**: *GenerateProposals-9*
@@ -26,8 +24,8 @@ based on input data for each image in the batch.
 5. Removes predicted boxes with either height or width < *min_size*.
 6. Applies non-maximum suppression with *adaptive_nms_threshold*. The initial value of *adaptive_nms_threshold* is
    *nms_threshold*. If ``nms_eta < 1`` and ``adaptive_threshold > 0.5``, update ``adaptive_threshold *= nms_eta``.
-7. Takes and returns top proposals after nms operation. The number of returned proposals in each image is dynamic 
-   and is specified by output port 3 ``rpnroisnum``. And the max number of proposals in each image is specified 
+7. Takes and returns top proposals after nms operation. The number of returned proposals in each image is dynamic
+   and is specified by output port 3 ``rpnroisnum``. And the max number of proposals in each image is specified
    by attribute *post_nms_count*.
 
 All proposals of the whole batch are concatenated image by image, and distinguishable through outputs.
@@ -90,12 +88,12 @@ All proposals of the whole batch are concatenated image by image, and distinguis
 
 **Inputs**
 
-* **1**: ``im_info`` - tensor of type *T* and shape ``[num_batches, 3]`` or ``[num_batches, 4]`` providing 
-  input image info. The image info is layout as ``[image_height, image_width, scale_height_and_width]`` or as 
+* **1**: ``im_info`` - tensor of type *T* and shape ``[num_batches, 3]`` or ``[num_batches, 4]`` providing
+  input image info. The image info is layout as ``[image_height, image_width, scale_height_and_width]`` or as
   ``[image_height, image_width, scale_height, scale_width]``. **Required.**
-* **2**: ``anchors`` - tensor of type *T* with shape ``[height, width, number_of_anchors, 4]`` providing anchors. 
+* **2**: ``anchors`` - tensor of type *T* with shape ``[height, width, number_of_anchors, 4]`` providing anchors.
   Each anchor is layouted as ``[xmin, ymin, xmax, ymax]``. **Required.**
-* **3**: ``boxesdeltas`` - tensor of type *T* with shape ``[num_batches, number_of_anchors * 4, height, width]`` 
+* **3**: ``boxesdeltas`` - tensor of type *T* with shape ``[num_batches, number_of_anchors * 4, height, width]``
   providing deltas for anchors. The delta consists of 4 element tuples with layout ``[dx, dy, log(dw), log(dh)]``. **Required.**
 * **4**: ``scores`` - tensor of type *T* with shape ``[num_batches, number_of_anchors, height, width]`` providing proposals scores. **Required.**
 
@@ -103,11 +101,11 @@ The ``height`` and ``width`` from inputs ``anchors``, ``boxesdeltas`` and ``scor
 
 **Outputs**
 
-* **1**: ``rpnrois`` - tensor of type *T* with shape ``[num_rois, 4]`` providing proposed ROIs. 
-  The proposals are layouted as ``[xmin, ymin, xmax, ymax]``. The ``num_rois`` means the total proposals 
+* **1**: ``rpnrois`` - tensor of type *T* with shape ``[num_rois, 4]`` providing proposed ROIs.
+  The proposals are layouted as ``[xmin, ymin, xmax, ymax]``. The ``num_rois`` means the total proposals
   number of all the images in one batch. ``num_rois`` is a dynamic dimension.
 * **2**: ``rpnscores`` - tensor of type *T* with shape ``[num_rois]`` providing proposed ROIs scores.
-* **3**: ``rpnroisnum`` - tensor of type *roi_num_type* with shape ``[num_batches]`` providing the number 
+* **3**: ``rpnroisnum`` - tensor of type *roi_num_type* with shape ``[num_batches]`` providing the number
   of proposed ROIs in each image.
 
 **Types**

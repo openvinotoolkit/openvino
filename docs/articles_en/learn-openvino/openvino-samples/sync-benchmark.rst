@@ -1,5 +1,3 @@
-.. {#openvino_sample_sync_benchmark}
-
 Sync Benchmark Sample
 =====================
 

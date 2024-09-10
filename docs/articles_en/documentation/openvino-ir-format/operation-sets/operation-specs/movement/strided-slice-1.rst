@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_movement_StridedSlice_1}
-
 StridedSlice
 ============
 
@@ -35,7 +33,7 @@ The basic slicing operation accumulates output elements as follows:
 * At each step, the :math:`slicing\_index` is incremented by the value of :math:`stride[i]`. As long as the :math:`slicing\_index < end[i]`, the element corresponding to the :math:`slicing\_index` is added to the output.
 * Whenever :math:`slicing\_index >= end[i]`, the slicing stops, and the corresponding element is not added to the output.
 
-Notice that the basic slicing operation assumes :math:`N == M` (that is, i-th slicing step corresponds to i-th dimension), as no masks are used. 
+Notice that the basic slicing operation assumes :math:`N == M` (that is, i-th slicing step corresponds to i-th dimension), as no masks are used.
 
 For the purposes of this specification, assume that :math:`dim` is the dimension corresponding to the i-th slicing step.
 
@@ -57,7 +55,7 @@ For the purposes of this specification, assume that :math:`dim` is the dimension
 
 The operation accepts multiple bitmasks in the form of integer arrays to modify the above behavior. **If the length of the bitmask is less than the length of the corresponding input, it is assumed that the bitmask is extended (padded at the end) with zeros. If the length of the bitmask is greater than necessary, the remaining values are ignored.**
 
-For examples of usage of each mask, please refer to the examples provided at the end of the document. 
+For examples of usage of each mask, please refer to the examples provided at the end of the document.
 
 During the i-th slicing step:
 
@@ -332,7 +330,7 @@ Example of ``shrink_axis_mask`` usage. Equivalent of performing :math:`array[0:1
         </input>
         <output>
             <port id="4">
-                <dim>1</dim> <!-- first dim kept, as shrink_axis_mask is 0 --> 
+                <dim>1</dim> <!-- first dim kept, as shrink_axis_mask is 0 -->
                 <dim>384</dim> <!-- second dim is missing as shrink_axis_mask is 1 -->
                 <dim>640</dim>
                 <dim>8</dim>
@@ -350,7 +348,7 @@ Example of ``ellipsis_mask`` usage. Equivalent of performing :math:`array[0:4, .
         <input>
             <port id="0">
                 <dim>10</dim> <!-- first dim -->
-                <dim>10</dim> 
+                <dim>10</dim>
                 <dim>10</dim>
                 <dim>10</dim>
                 <dim>10</dim>
@@ -375,7 +373,7 @@ Example of ``ellipsis_mask`` usage. Equivalent of performing :math:`array[0:4, .
         <output>
             <port id="4">
                 <dim>4</dim> <!-- first dim modified -->
-                <dim>10</dim> 
+                <dim>10</dim>
                 <dim>10</dim>
                 <dim>10</dim>
                 <dim>10</dim>
@@ -400,7 +398,7 @@ Example of ``ellipsis_mask`` usage with other masks of unequal length. Equivalen
         <input>
             <port id="0">
                 <dim>10</dim> <!-- first dim -->
-                <dim>10</dim> 
+                <dim>10</dim>
                 <dim>10</dim>
                 <dim>10</dim>
                 <dim>10</dim>
@@ -425,7 +423,7 @@ Example of ``ellipsis_mask`` usage with other masks of unequal length. Equivalen
         <output>
             <port id="4">
                 <dim>8</dim> <!-- first dim modified, begin = 2, end = 10 -->
-                <dim>10</dim> 
+                <dim>10</dim>
                 <dim>10</dim>
                 <dim>10</dim>
                 <dim>10</dim> <!-- ellipsis skipped over 8 dimensions -->

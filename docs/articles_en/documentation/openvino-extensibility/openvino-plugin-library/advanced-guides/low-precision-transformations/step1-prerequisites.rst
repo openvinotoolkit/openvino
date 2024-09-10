@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_lpt_step1_prerequisites}
-
 Step 1. Prerequisites Transformations
 =====================================
 
