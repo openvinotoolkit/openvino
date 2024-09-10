@@ -27,6 +27,13 @@ private:
     // Note: expected arguments order: A, B, C (+ scratchpad, if needed)
     void emit_brgemm_kernel_call(const std::vector<size_t>& mem_ptrs_idxs, const std::vector<size_t>& mem_offsets) const;
 
+    void internal_call_preamble() const;
+    void internal_call_postamble() const;
+    // align stack on 16-byte and allocate shadow space as ABI reqiures
+    // callee is responsible to save and restore rbx. rbx must not be changed after call callee.
+    void internal_call_rsp_align() const;
+    void internal_call_rsp_restore() const;
+
     // Note: offsets order: A, B, C (+ scratchpad, if needed). Values can be dynamic_value if offset is calculated in runtime
     std::vector<size_t> m_memory_offsets{};
     // Note: cluster ids order: A, B, C (+ scratchpad, if needed). Values can be dynamic_value if there is no buffer
