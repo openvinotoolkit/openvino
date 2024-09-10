@@ -74,11 +74,9 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         });
     } else {
         jit.AddConstants({
-            MakeJitConstant("ITEMS_NUM", dispatchData.itemsNum),
             MakeJitConstant("DATA_SIZE", dispatchData.dataSize),
             MakeJitConstant("LWS", dispatchData.lws[0]),
             MakeJitConstant("SLM_SIZE", dispatchData.lws[0]),
-            MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
             MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 1)
         });
     }
