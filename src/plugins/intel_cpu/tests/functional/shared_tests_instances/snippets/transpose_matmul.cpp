@@ -11,7 +11,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-#define STATIC_SHAPES(...) static_shapes_to_test_representation(std::vector<std::vector<ov::Shape>>{__VA_ARGS__})
+#define SNIPPETS_TESTS_STATIC_SHAPES(...) static_shapes_to_test_representation(std::vector<std::vector<ov::Shape>>{__VA_ARGS__})
 
 namespace {
 static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 = true) {
@@ -35,7 +35,7 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
     return prc;
 }
 namespace transpose_zero_input {
-const auto& transpose_input_shapes = STATIC_SHAPES({{1, 49, 2, 23}, {2, 2, 23, 39}});
+const auto& transpose_input_shapes = SNIPPETS_TESTS_STATIC_SHAPES({{1, 49, 2, 23}, {2, 2, 23, 39}});
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                          ::testing::Combine(
                                  ::testing::ValuesIn(transpose_input_shapes),
@@ -84,7 +84,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnected, TransposeMatMul,
 } // namespace transpose_zero_input
 
 namespace transpose_first_input {
-const auto& transpose_input_shapes = STATIC_SHAPES({{2, 1, 49, 13}, {1, 13, 3, 39}});
+const auto& transpose_input_shapes = SNIPPETS_TESTS_STATIC_SHAPES({{2, 1, 49, 13}, {1, 13, 3, 39}});
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                          ::testing::Combine(
                                  ::testing::ValuesIn(transpose_input_shapes),
@@ -126,7 +126,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulFQ, TransposeMatMulFQ,
 } // namespace transpose_first_input
 
 namespace transpose_output {
-const auto& transpose_input_shapes = STATIC_SHAPES({{2, 1, 49, 13}, {1, 2, 13, 39}});
+const auto& transpose_input_shapes = SNIPPETS_TESTS_STATIC_SHAPES({{2, 1, 49, 13}, {1, 2, 13, 39}});
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                          ::testing::Combine(
@@ -195,7 +195,7 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
 }
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ExplicitTransposeMatMul, ExplicitTransposeMatMul,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(STATIC_SHAPES({{1, 2, 69, 43}, {2, 49, 2, 43}})),
+                                 ::testing::ValuesIn(SNIPPETS_TESTS_STATIC_SHAPES({{1, 2, 69, 43}, {2, 49, 2, 43}})),
                                  ::testing::Values(1), // Transpose on second input
                                  ::testing::ValuesIn(precisions()),
                                  ::testing::Values(MatMulType::MatMul),
@@ -223,7 +223,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynExplicitTransposeMatMul, ExplicitTran
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulBias, ExplicitTransposeMatMulBias,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(STATIC_SHAPES({{1, 2, 69, 43}, {2, 49, 2, 43}, {1, 1, 69, 49}})),
+                                 ::testing::ValuesIn(SNIPPETS_TESTS_STATIC_SHAPES({{1, 2, 69, 43}, {2, 49, 2, 43}, {1, 1, 69, 49}})),
                                  ::testing::Values(1), // Transpose on second input
                                  ::testing::ValuesIn(precisions()),
                                  ::testing::Values(MatMulType::MatMul),

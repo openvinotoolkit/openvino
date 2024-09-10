@@ -4,14 +4,11 @@
 
 #include "snippets/matmul.hpp"
 
-#include "common_test_utils/test_constants.hpp"
-#include "openvino/runtime/system_conf.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
-
-#define STATIC_SHAPES(...) static_shapes_to_test_representation(std::vector<std::vector<ov::Shape>>{__VA_ARGS__})
 
 namespace {
 
@@ -33,14 +30,11 @@ static inline std::vector<std::vector<element::Type>> precisions() {
 #ifndef SNIPPETS_LIBXSMM_TPP
     auto quant = quantized_precisions();
     std::copy(quant.begin(), quant.end(), std::back_inserter(prc));
-    // In Snippets MatMul BF16 is supported only on bf16/AMX platforms
-    if (ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16()) {
-        prc.emplace_back(std::vector<element::Type>{element::bf16, element::bf16});
-    }
+    auto bfloat = precision_bf16(2);
+    std::copy(bfloat.begin(), bfloat.end(), std::back_inserter(prc));
 #endif
     return prc;
 }
-
 
 std::vector<std::vector<ov::test::InputShape>> input_shapes{
     { {{}, {{2, 1, 3, 5}}},   {{}, {{1, 3, 5, 3}}} },
@@ -167,7 +161,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBiasQuantized, MatMulBiasQuantized
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulsQuantized, MatMulsQuantized,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(STATIC_SHAPES({{1, 16, 128, 64}, {1, 16, 64, 128}, {128, 64}})),
+                                 ::testing::ValuesIn(SNIPPETS_TESTS_STATIC_SHAPES({{1, 16, 128, 64}, {1, 16, 64, 128}, {128, 64}})),
                                  ::testing::ValuesIn(quantized_precisions()),
                                  ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(3), // Subgraph + Reshape + Subgraph
@@ -177,7 +171,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulsQuantized, MatMulsQuantized,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulsQuantizedSoftmax, MatMulsQuantizedSoftmax,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(STATIC_SHAPES({{1, 16, 128, 64}, {1, 16, 64, 128}, {128, 64}})),
+                                 ::testing::ValuesIn(SNIPPETS_TESTS_STATIC_SHAPES({{1, 16, 128, 64}, {1, 16, 64, 128}, {128, 64}})),
                                  ::testing::ValuesIn(quantized_precisions()),
                                  ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(3), // Subgraph + Reshape + Subgraph
