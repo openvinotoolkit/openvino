@@ -402,14 +402,14 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
 //     S:   [32,  1,11008]
 //                                                              [1, N ,128]   x
 // TO:                                                          [1,11K,128]T  =
-//                 [N,32,128]                         [1,N,128] [1, N ,11K]            [32,N,11K]
-//     ???(Act)  -> Reshape > Split(/32) ->[to(f16) -> Reshape ->                     ]}
-//     Param(W*) -----------> Split(/32) ->[to(f16) ------------> MatMul -> to(f32) ->]} Concat ->
-//     Param(S)  ---------------------------------------------------------------------> Multiply
-//                                                                                      Reshape(1,a,b,c)
-//                                                                                      ReduceSum(1)
-//                                                                                      Reshape(a,b,c)
-//
+//                 [N,32,128]                         [1,N,128] [1, N ,11K]     [32,N,11K]
+//     ???(Act)  -> Reshape > Split(/32) ->[to(f16) -> Reshape ->            ]}
+//     Param(W*) -----------> Split(/32) ->[to(f16) ------------> MatMul v   ]} Concat
+//     Param(S)  -------------Split(/32) ->[--------------------> Multiply   ]}     v
+//                                                                             Reshape(1,a,b,c)
+//                                                                             ReduceSum(1)
+//                                                                             Reshape(a,b,c)
+//                                                                             to(f32)
 // WHERE:
 //     W* : [32,11008,128]
 DQMatMulGQiP::DQMatMulGQiP(Context::Ref ctx) {
@@ -471,6 +471,7 @@ DQMatMulGQiP::DQMatMulGQiP(Context::Ref ctx) {
 
             auto split_axis_w = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
             auto split_w = std::make_shared<ov::op::v1::Split>(matched_qweight, split_axis_w, NSPLIT);
+            auto split_s = std::make_shared<ov::op::v1::Split>(matched_qcoeff, split_axis_w, NSPLIT);
 
             std::vector<std::size_t> r_a_v = {1, act_shape[1], act_shape[2] / NSPLIT};
             auto r_a_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, r_a_v);
@@ -482,17 +483,17 @@ DQMatMulGQiP::DQMatMulGQiP(Context::Ref ctx) {
                 auto r_f16 = std::make_shared<ov::op::v1::Reshape>(a_f16, r_a_c, false);
                 auto w_f16 = std::make_shared<ov::op::v0::Convert>(split_w->output(i), ov::element::f16);
                 auto m_f16 = std::make_shared<ov::op::v0::MatMul>(r_f16, w_f16, false, true);
-                to_concat.push_back(m_f16);
+                auto s_f16 = std::make_shared<ov::op::v1::Multiply>(m_f16, split_s->output(i));
+                to_concat.push_back(s_f16);
             }
 
             // Now concat and scale the result
             auto concat = std::make_shared<ov::op::v0::Concat>(to_concat, 0);
-            auto s_f16 = std::make_shared<ov::op::v1::Multiply>(concat, matched_qcoeff);
 
             // Now reshape to a better shape, ReduceSum, and reshape to the right size again
             std::vector<std::size_t> rshp_ccat_v = {1, NSPLIT, act_shape[1], qweight_shape[2]};
             auto rshp_ccat_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, rshp_ccat_v);
-            auto rshp_ccat = std::make_shared<ov::op::v1::Reshape>(s_f16, rshp_ccat_c, false);
+            auto rshp_ccat = std::make_shared<ov::op::v1::Reshape>(concat, rshp_ccat_c, false);
 
             auto reduce_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1);
             auto reduce = std::make_shared<ov::op::v1::ReduceSum>(rshp_ccat, reduce_axis, true);
