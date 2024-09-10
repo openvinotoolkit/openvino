@@ -182,8 +182,8 @@ trade-offs after optimization:
       ratio=0.9,
     )
 
-* ``scale_estimation`` - boolean parameter that enables the more accurate estimation of 
-  quantization scales. Especially helpful when the weights of all the layers are quantized to
+* ``scale_estimation`` - boolean parameter that enables more accurate estimation of 
+  quantization scales. Especially helpful when the weights of all layers are quantized to
   4 bits. Requires dataset.
 
 * ``awq`` - boolean parameter that enables the AWQ method for more accurate INT4 weight
