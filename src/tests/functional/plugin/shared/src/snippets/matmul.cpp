@@ -11,18 +11,32 @@ namespace ov {
 namespace test {
 namespace snippets {
 
+void MatMulBase::filter_shape_info(const std::set<size_t> idces_to_remove,
+                       std::vector<ov::PartialShape>& dynamic_shapes,
+                       std::vector<std::vector<ov::Shape>>& static_shapes) {
+    for (auto it = idces_to_remove.cbegin(); it != idces_to_remove.cend(); ++it) {
+        dynamic_shapes.erase(dynamic_shapes.begin() + *it);
+        for (auto& target_shapes : static_shapes) {
+            target_shapes.erase(target_shapes.begin() + *it);
+        }
+    }
+}
+
 std::string MatMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MatMulParams> obj) {
     std::vector<ov::test::InputShape> input_shapes;
     std::vector<ov::element::Type> elem_types;
+    MatMulType mm_type;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
-    std::tie(input_shapes, elem_types, num_nodes, num_subgraphs, targetDevice) = obj.param;
+    std::tie(input_shapes, elem_types, mm_type, num_nodes, num_subgraphs, targetDevice) = obj.param;
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); i++)
         result << "IS[" << i << "]=" << input_shapes[i] << "_";
 
     for (size_t i = 0; i < elem_types.size(); i++)
         result << "T[" << i <<"]=" << elem_types[i] << "_";
+
+    result << mm_type << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
     result << "targetDevice=" << targetDevice;
@@ -32,7 +46,7 @@ std::string MatMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::M
 void MatMul::SetUp() {
     std::vector<ov::test::InputShape> input_shapes;
     std::vector<ov::element::Type> elem_types;
-    std::tie(input_shapes, elem_types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    std::tie(input_shapes, elem_types, matmul_type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes(input_shapes);
 
     init_subgraph(elem_types);
@@ -42,38 +56,45 @@ void MatMul::SetUp() {
 }
 
 void MatMul::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::MatMulFunction(inputDynamicShapes, types);
+    auto f = ov::test::snippets::MatMulFunction(inputDynamicShapes, types, matmul_type);
     function = f.getOriginal();
+    filter_shape_info(f.get_constant_input_idces(), inputDynamicShapes, targetStaticShapes);
 }
 
 void MatMulTransposeB::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::MatMulFunction(inputDynamicShapes, types, true);
+    auto f = ov::test::snippets::MatMulFunction(inputDynamicShapes, types, matmul_type, true);
     function = f.getOriginal();
+    filter_shape_info(f.get_constant_input_idces(), inputDynamicShapes, targetStaticShapes);
 }
 
 void MatMulFQ::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::FQMatMulFunction(inputDynamicShapes);
+    auto f = ov::test::snippets::FQMatMulFunction(inputDynamicShapes, matmul_type);
     function = f.getOriginal();
+    filter_shape_info(f.get_constant_input_idces(), inputDynamicShapes, targetStaticShapes);
 }
 
 void MatMulBias::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::MatMulBiasFunction(inputDynamicShapes, types);
+    auto f = ov::test::snippets::MatMulBiasFunction(inputDynamicShapes, types, matmul_type);
     function = f.getOriginal();
+    filter_shape_info(f.get_constant_input_idces(), inputDynamicShapes, targetStaticShapes);
 }
 
 void MatMulBiasQuantized::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::MatMulBiasQuantizedFunction(inputDynamicShapes, types);
+    auto f = ov::test::snippets::MatMulBiasQuantizedFunction(inputDynamicShapes, types, matmul_type);
     function = f.getOriginal();
+    filter_shape_info(f.get_constant_input_idces(), inputDynamicShapes, targetStaticShapes);
 }
 
-void MatMulQuantized::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::MatMulsQuantizedFunction(inputDynamicShapes, types);
+void MatMulsQuantized::init_subgraph(const std::vector<ov::element::Type>& types) {
+    auto f = ov::test::snippets::MatMulsQuantizedFunction(inputDynamicShapes, types, matmul_type);
     function = f.getOriginal();
+    filter_shape_info(f.get_constant_input_idces(), inputDynamicShapes, targetStaticShapes);
 }
 
-void MatMulQuantizedSoftmax::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::MatMulsQuantizedSoftmaxFunction(inputDynamicShapes, types);
+void MatMulsQuantizedSoftmax::init_subgraph(const std::vector<ov::element::Type>& types) {
+    auto f = ov::test::snippets::MatMulsQuantizedSoftmaxFunction(inputDynamicShapes, types, matmul_type);
     function = f.getOriginal();
+    filter_shape_info(f.get_constant_input_idces(), inputDynamicShapes, targetStaticShapes);
 }
 
 TEST_P(MatMul, CompareWithRefImpl) {
@@ -107,13 +128,13 @@ TEST_P(MatMulBiasQuantized, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-TEST_P(MatMulQuantized, CompareWithRefImpl) {
+TEST_P(MatMulsQuantized, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
 
-TEST_P(MatMulQuantizedSoftmax, CompareWithRefImpl) {
+TEST_P(MatMulsQuantizedSoftmax, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     abs_threshold = 4e-6;
     run();

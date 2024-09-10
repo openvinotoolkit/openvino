@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/common_utils.hpp"
 #include "snippets/transpose_matmul.hpp"
-#include "subgraph_matmul.hpp"
+
+#include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "snippets/matmul.hpp"
+#include "subgraph_matmul.hpp"
 
 namespace ov {
 namespace test {
@@ -15,9 +17,10 @@ std::string TransposeMatMul::getTestCaseName(testing::TestParamInfo<ov::test::sn
     std::vector<InputShape> input_shapes;
     size_t transpose_position;
     std::vector<ov::element::Type> elem_types;
+    MatMulType matmul_type;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
-    std::tie(input_shapes, transpose_position, elem_types, num_nodes, num_subgraphs, targetDevice) = obj.param;
+    std::tie(input_shapes, transpose_position, elem_types, matmul_type, num_nodes, num_subgraphs, targetDevice) = obj.param;
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); ++i) {
         result << "IS[" << i << "]=" << input_shapes[i] << "_";
@@ -25,6 +28,7 @@ std::string TransposeMatMul::getTestCaseName(testing::TestParamInfo<ov::test::sn
     result << "Pos=" << transpose_position << "_";
     for (size_t i = 0; i < elem_types.size(); i++)
         result << "T[" << i <<"]=" << elem_types[i] << "_";
+    result << matmul_type << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
     result << "targetDevice=" << targetDevice;
@@ -33,59 +37,39 @@ std::string TransposeMatMul::getTestCaseName(testing::TestParamInfo<ov::test::sn
 
 void TransposeMatMul::SetUp() {
     std::vector<InputShape> input_shapes;
-    size_t transpose_position;
     std::vector<ov::element::Type> elem_types;
-    std::tie(input_shapes, transpose_position, elem_types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    MatMulType matmul_type;
+    std::tie(input_shapes, transpose_position, elem_types, matmul_type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes(input_shapes);
 
-    auto f = ov::test::snippets::Transpose0213MatMulFunction(inputDynamicShapes, elem_types, transpose_position);
-    function = f.getOriginal();
+    init_subgraph(elem_types);
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 
-void TransposeMatMulFQ::SetUp() {
-    std::vector<InputShape> input_shapes;
-    size_t transpose_position;
-    std::vector<ov::element::Type> elem_types;
-    std::tie(input_shapes, transpose_position, elem_types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(input_shapes);
-
-    auto f = ov::test::snippets::FQMatMulFunction(inputDynamicShapes, transpose_position);
+void TransposeMatMul::init_subgraph(const std::vector<ov::element::Type>& types) {
+    auto f = ov::test::snippets::Transpose0213MatMulFunction(inputDynamicShapes, types, matmul_type, transpose_position);
     function = f.getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
-    abs_threshold = 5e-6;
+    MatMulBase::filter_shape_info(f.get_constant_input_idces(), inputDynamicShapes, targetStaticShapes);
 }
 
-void ExplicitTransposeMatMul::SetUp() {
-    std::vector<InputShape> input_shapes;
-    size_t transpose_position;
-    std::vector<ov::element::Type> elem_types;
-    std::tie(input_shapes, transpose_position, elem_types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(input_shapes);
+void TransposeMatMulFQ::init_subgraph(const std::vector<ov::element::Type>& types) {
+    auto f = ov::test::snippets::FQMatMulFunction(inputDynamicShapes, matmul_type, transpose_position);
+    function = f.getOriginal();
+    MatMulBase::filter_shape_info(f.get_constant_input_idces(), inputDynamicShapes, targetStaticShapes);
+}
 
+void ExplicitTransposeMatMul::init_subgraph(const std::vector<ov::element::Type>& types) {
     auto f = ov::test::snippets::TransposeMatMulFunction(inputDynamicShapes);
     function = f.getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    MatMulBase::filter_shape_info(f.get_constant_input_idces(), inputDynamicShapes, targetStaticShapes);
 }
 
-void ExplicitTransposeMatMulBias::SetUp() {
-    std::vector<InputShape> input_shapes;
-    size_t transpose_position;
-    std::vector<ov::element::Type> elem_types;
-    std::tie(input_shapes, transpose_position, elem_types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(input_shapes);
-
+void ExplicitTransposeMatMulBias::init_subgraph(const std::vector<ov::element::Type>& types) {
     auto f = ov::test::snippets::TransposeMatMulBiasFunction(inputDynamicShapes);
     function = f.getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    MatMulBase::filter_shape_info(f.get_constant_input_idces(), inputDynamicShapes, targetStaticShapes);
 }
 
 TEST_P(TransposeMatMul, CompareWithRefImpl) {
