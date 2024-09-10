@@ -6,10 +6,9 @@
 
 #include <string>
 
+#include "logging.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
-
-#include "logging.hpp"
 
 namespace ov {
 namespace npuw {
@@ -57,10 +56,10 @@ void transpose(ov::Tensor& t);
 void permute(ov::Tensor& t, const std::vector<std::size_t>& axes);
 
 namespace at {
-template <template<typename, typename> class M, class K, class V>
+template <template <typename, typename> class M, class K, class V>
 struct Impl {
-    M<K, V> *m = nullptr;
-    explicit Impl(M<K, V> *pM) : m(pM) {}
+    M<K, V>* m = nullptr;
+    explicit Impl(M<K, V>* pM) : m(pM) {}
 
     V& at(const K& k) {
         const auto iter = m->find(k);
@@ -79,17 +78,17 @@ struct Impl {
     }
 };
 
-template <template<typename, typename> class M, class K, class V>
-Impl<M, K, V> _(M<K, V> *pM) {
+template <template <typename, typename> class M, class K, class V>
+Impl<M, K, V> _(M<K, V>* pM) {
     return Impl<M, K, V>(pM);
 }
 
-template <template<typename, typename> class M, class K, class V>
-Impl<M, K, V> _(std::shared_ptr< M<K, V> > pM) {
+template <template <typename, typename> class M, class K, class V>
+Impl<M, K, V> _(std::shared_ptr<M<K, V>> pM) {
     return Impl<M, K, V>(pM.get());
 }
 
-} // namespace at
+}  // namespace at
 
 }  // namespace util
 }  // namespace npuw

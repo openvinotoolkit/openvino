@@ -5,6 +5,7 @@
 #include "snapshot.hpp"
 
 #include "../../logging.hpp"
+#include "../../util.hpp"
 #include "../patterns/avoid.hpp"
 #include "../patterns/compute.hpp"
 #include "group.hpp"
@@ -13,7 +14,6 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/util/common_util.hpp"
 #include "utils/utils.hpp"
-#include "../../util.hpp"
 
 using ov::npuw::online::Group;
 using ov::npuw::online::Repeated;

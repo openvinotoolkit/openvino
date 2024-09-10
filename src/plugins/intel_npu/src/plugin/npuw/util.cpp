@@ -1415,16 +1415,16 @@ void ov::npuw::util::to_f16(ov::Tensor& t) {
 
     ov::Tensor tnew(ov::element::f16, shape);
 
-    const float *psrc = t.data<float>();
-    uint8_t *pdst = static_cast<uint8_t*>(tnew.data());
+    const float* psrc = t.data<float>();
+    uint8_t* pdst = static_cast<uint8_t*>(tnew.data());
 
     for (std::size_t i = 0; i < t.get_size() / 8; i++) {
         __m256 vsrc = _mm256_loadu_ps(psrc);
         __m128i vout = _mm256_cvtps_ph(vsrc, _MM_FROUND_TO_NEAREST_INT);
         __m128i* pout = reinterpret_cast<__m128i*>(pdst);
         _mm_storeu_si128(pout, vout);
-        psrc += 8; // offset in sizeof(float)
-        pdst += (8*2); // offset in bytes
+        psrc += 8;        // offset in sizeof(float)
+        pdst += (8 * 2);  // offset in bytes
     }
 
     t = std::move(tnew);
