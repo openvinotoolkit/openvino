@@ -496,6 +496,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return true;
             } else {
                 auto in_dt = node.get_input_layout(0).data_type;
+                if (getenv("FC_FUSE") != nullptr)
+                    return node.is_dynamic() || data_type_traits::is_i8_u8(in_dt);
                 return data_type_traits::is_i8_u8(in_dt);
             }
         };
