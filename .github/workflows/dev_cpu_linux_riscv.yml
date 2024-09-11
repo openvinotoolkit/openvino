@@ -94,6 +94,7 @@ jobs:
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 2G
       XUANTIE_BIN_PATH: /mount/testdata1/
+      XUANTIE_TAR_NAME: Xuantie-900-gcc-linux-5.15.0-glibc-x86_64-V2.8.1
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
@@ -132,7 +133,9 @@ jobs:
           ls -la ${XUANTIE_BIN_PATH}
           cp -r ${XUANTIE_BIN_PATH} ${XUANTIE_DIR}
           ls -la ${XUANTIE_DIR}
-          # chmod -R 777 ${XUANTIE_DIR}
+          tar -xf {XUANTIE_TAR_NAME}.tar
+          chmod -R 777 ${XUANTIE_TAR_NAME}
+          ls -la ${XUANTIE_TAR_NAME}/libexec/gcc/riscv64-unknown-linux-gnu/10.4.0/
           # echo 'show old link'
           # ls -la ${XUANTIE_DIR}/libexec/gcc/riscv64-unknown-linux-gnu/10.4.0/
           # echo 'show new link'
