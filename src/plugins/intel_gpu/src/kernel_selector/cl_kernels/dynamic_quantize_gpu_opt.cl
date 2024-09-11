@@ -15,8 +15,7 @@
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
 
-REQD_SUB_GROUP_SIZE(SIMD)
-#ifdef QUANTIZE_GROUP_SIZE <= 128
+#if QUANTIZE_GROUP_SIZE <= 128
 KERNEL(dynamic_quantize_gpu_opt)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
@@ -58,6 +57,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
 
 #else
 
+REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(dynamic_quantize_gpu_opt)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
