@@ -12,18 +12,14 @@ for object detection scenario.
 
 The tutorial consists of the following steps:
 
-- Prepare the PyTorch
-  model.
+- Prepare the PyTorch model.
 - Download and prepare a dataset.
 - Validate the original model.
 - Convert the PyTorch model to OpenVINO IR.
-- Validate the converted
-  model.
+- Validate the converted model.
 - Prepare and run optimization pipeline.
-- Compare performance of
-  the FP32 and quantized models.
-- Compare accuracy of the FP32 and
-  quantized models.
+- Compare performance of the FP32 and quantized models.
+- Compare accuracy of the FP32 and quantized models.
 - Other optimization possibilities with OpenVINO api
 - Live demo
 
@@ -142,7 +138,7 @@ Import required utility functions. The lower cell will download the
 
     open("notebook_utils.py", "w").write(r.text)
 
-    from notebook_utils import download_file, VideoPlayer
+    from notebook_utils import download_file, VideoPlayer, device_widget, quantization_widget
 
 .. code:: ipython3
 
@@ -267,17 +263,7 @@ Select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
-
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -301,6 +287,7 @@ ready to check model prediction for object detection.
 .. code:: ipython3
 
     import torch
+    import openvino as ov
 
     core = ov.Core()
 
@@ -615,15 +602,10 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
     int8_model_det_path = models_dir / f"{DET_MODEL_NAME}_openvino_int8_model/{DET_MODEL_NAME}.xml"
+    quantized_det_model = None
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    to_quantize = quantization_widget()
 
     to_quantize
 
@@ -1109,7 +1091,7 @@ preprocessing and postprocessing steps for a model.
 
     from openvino.preprocess import PrePostProcessor
 
-    ppp = PrePostProcessor(quantized_det_model)
+    ppp = PrePostProcessor(quantized_det_model if quantized_det_model is not None else det_model)
 
 Define input data format
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1176,10 +1158,13 @@ IR, using ``openvino.runtime.serialize``.
 .. code:: ipython3
 
     quantized_model_with_preprocess = ppp.build()
-    ov.save_model(
-        quantized_model_with_preprocess,
-        str(int8_model_det_path.with_name(f"{DET_MODEL_NAME}_with_preprocess.xml")),
+
+    with_preprocess_path = (
+        int8_model_det_path.with_name(f"{DET_MODEL_NAME}_with_preprocess.xml")
+        if quantized_det_model is not None
+        else det_model_path.with_name(f"{DET_MODEL_NAME}_with_preprocess.xml")
     )
+    ov.save_model(quantized_model_with_preprocess, str(with_preprocess_path))
 
 The model with integrated preprocessing is ready for loading to a
 device.
@@ -1190,6 +1175,7 @@ device.
     import cv2
     import numpy as np
     from ultralytics.utils.plotting import colors
+    import random
 
 
     def plot_one_box(
@@ -1420,6 +1406,8 @@ The following code runs model inference on a video:
     import time
     from IPython import display
 
+    det_ov_model
+
 
     # Main processing function to run object detection.
     def run_object_detection(
@@ -1474,7 +1462,7 @@ The following code runs model inference on a video:
                 input_image = np.array(frame)
 
                 start_time = time.time()
-                detections = det_model(input_image)
+                detections = det_model(input_image, verbose=False)
                 stop_time = time.time()
                 frame = detections[0].plot()
 

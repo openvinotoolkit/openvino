@@ -11,9 +11,12 @@ This is the **third notebook** in series of exploring `OpenVINO™
 Explainable AI
 (XAI) <https://github.com/openvinotoolkit/openvino_xai/>`__:
 
-1. `OpenVINO™ Explainable AI Toolkit (1/3): Basic <explainable-ai-1-basic-with-output.html>`__
-2. `OpenVINO™ Explainable AI Toolkit (2/3): Deep Dive <explainable-ai-2-deep-dive-with-output.html>`__
-3. `OpenVINO™ Explainable AI Toolkit (3/3): Saliency map interpretation <explainable-ai-3-map-interpretation-with-output.html>`__
+1. `OpenVINO™ Explainable AI Toolkit (1/3):
+   Basic <explainable-ai-1-basic-with-output.html>`__
+2. `OpenVINO™ Explainable AI Toolkit (2/3): Deep
+   Dive <explainable-ai-2-deep-dive-with-output.html>`__
+3. `OpenVINO™ Explainable AI Toolkit (3/3): Saliency map
+   interpretation <explainable-ai-3-map-interpretation-with-output.html>`__
 
 `OpenVINO™ Explainable AI
 (XAI) <https://github.com/openvinotoolkit/openvino_xai/>`__ provides a
@@ -141,7 +144,7 @@ Imports
 
     open("notebook_utils.py", "w").write(r.text)
 
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 Download dataset
 ~~~~~~~~~~~~~~~~
@@ -253,15 +256,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -280,6 +275,8 @@ Load the Model
 
 
 .. code:: ipython3
+
+    core = ov.Core()
 
     model = core.read_model(model=model_xml_path)
     compiled_model = core.compile_model(model=model, device_name=device.value)

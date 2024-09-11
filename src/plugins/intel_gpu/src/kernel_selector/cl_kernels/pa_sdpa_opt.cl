@@ -34,13 +34,19 @@ KERNEL(pa_sdpa_opt)(
     const __global INPUT3_TYPE* past_lens,
     const __global INPUT4_TYPE* block_indices,
     const __global INPUT5_TYPE* block_indices_begins,
+#if MULTI_TOKENS_PROCESSING
+    const __global INPUT6_TYPE* subsequence_begins,
+#endif
 #if HAS_ALIBI
-    const __global INPUT6_TYPE* alibi_slopes,
+    const __global INPUT7_TYPE* alibi_slopes,
 #endif
     __global OUTPUT_TYPE* output,
     __global SOFTMAX_ACCUMULATOR_TYPE* exp_sums,
     __global SOFTMAX_ACCUMULATOR_TYPE* max_logits,
     __global OUTPUT_TYPE* tmp_out
+#if MULTI_TOKENS_PROCESSING
+    , __global const int* gws_subseq_mapping
+#endif
 ) {
     // Input shapes:
     // query: [sequences_num, HEADS_NUM * HEAD_SIZE]
@@ -66,7 +72,15 @@ KERNEL(pa_sdpa_opt)(
 
     const uint batch_idx = seq_idx;
 
+#if MULTI_TOKENS_PROCESSING
+    const int subsequence_idx = gws_subseq_mapping[seq_idx];
+    const int subsequence_begin = subsequence_begins[subsequence_idx];
+    const int subsequence_end = subsequence_begins[subsequence_idx + 1];
+    const uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
+#else
+    const uint subsequence_idx = seq_idx;
     const uint seq_len = past_lens[seq_idx] + 1;
+#endif
 
     const uint partition_idx = get_group_id(2);
     const uint block_start_idx = partition_idx * SEQ_LEN_PARTITION_SIZE / PAGED_ATTENTION_BLOCK_SIZE;
@@ -79,7 +93,7 @@ KERNEL(pa_sdpa_opt)(
 
 #ifdef STORE_QUERY_TO_SLM
     // SLM buffer for query inputs
-    __local INPUT0_TYPE slm_query[HEAD_SIZE * TARGET_SEQ_LEN_BLOCK_SIZE];
+    __local INPUT0_TYPE slm_query[HEAD_SIZE];
 #endif
 
     // SLM for intermediate QK results
@@ -98,7 +112,14 @@ KERNEL(pa_sdpa_opt)(
                                head_num_idx * HEAD_SIZE +
                                query_idx_local;
 
-        slm_query[query_idx_local] = BLOCK_READN(INPUT0_TYPE, 1, query, query_idx);
+        INPUT0_TYPE q_val = BLOCK_READN(INPUT0_TYPE, 1, query, query_idx);
+
+        // Apply scale value directly to the query input to improve accuracy in case of a high range of input data
+#ifdef SCALE_VAL
+        q_val = TO_INPUT0_TYPE(SCALE_VAL) * q_val;
+#endif
+
+        slm_query[query_idx_local] = q_val;
 
         barrier(CLK_LOCAL_MEM_FENCE);
 #else
@@ -108,6 +129,11 @@ KERNEL(pa_sdpa_opt)(
                                    head_num_idx * HEAD_SIZE +
                                    i * SUBGROUP_SIZE;
             q_val[i] = BLOCK_READN(INPUT0_TYPE, 1, query, query_idx);
+
+            // Apply scale value directly to the query input to improve accuracy in case of a high range of input data
+#ifdef SCALE_VAL
+            q_val[i] = TO_INPUT0_TYPE(SCALE_VAL) * q_val[i];
+#endif
         }
 #endif
 
@@ -117,7 +143,7 @@ KERNEL(pa_sdpa_opt)(
         if (sgid < blocks_num_per_partition % SUBGROUPS_PER_WG)
             blocks_num++;
 
-        const uint start_block_idx = block_indices_begins[seq_idx] + partition_idx * PAGED_ATTENTION_BLOCKS_PER_PARTITION + sgid;
+        const uint start_block_idx = block_indices_begins[subsequence_idx] + partition_idx * PAGED_ATTENTION_BLOCKS_PER_PARTITION + sgid;
         for (uint block_num = 0; block_num < blocks_num; block_num++) {
 #ifdef BROADCAST_GROUP_SIZE
             const uint head_idx = head_num_idx / BROADCAST_GROUP_SIZE;
@@ -147,10 +173,6 @@ KERNEL(pa_sdpa_opt)(
 #endif
                 }
             }
-
-#ifdef SCALE_VAL
-            qk_acc = TO_INPUT0_TYPE(SCALE_VAL) * qk_acc;
-#endif
 
             const uint token_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + block_num * SUBGROUPS_PER_WG * SUBGROUP_SIZE + sgid * SUBGROUP_SIZE + sglid;
 
@@ -255,7 +277,7 @@ KERNEL(pa_sdpa_opt)(
             blocks_num_per_partition = blocks_num_per_partition - 1;
         }
 
-        const uint start_block_idx = block_indices_begins[seq_idx] + partition_idx * PAGED_ATTENTION_BLOCKS_PER_PARTITION;
+        const uint start_block_idx = block_indices_begins[subsequence_idx] + partition_idx * PAGED_ATTENTION_BLOCKS_PER_PARTITION;
 
         for (uint block_num = 0; block_num < blocks_num_per_partition; block_num++) {
 #ifdef BROADCAST_GROUP_SIZE
