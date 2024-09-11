@@ -49,8 +49,8 @@ OutputVector translate_sparse_segment_mean_op(const NodeContext& node) {
         make_shared<v10::Unique>(segment_ids, true, indices.get_element_type(), indices.get_element_type());
     auto broadcast = make_shared<v3::Broadcast>(const_one, n_segments);
     auto divisors = make_shared<v3::ScatterUpdate>(broadcast,
-                                                   unique_segment_ids->output(0), 
-                                                   unique_segment_ids->output(3), 
+                                                   unique_segment_ids->output(0),
+                                                   unique_segment_ids->output(3),
                                                    const_zero);
     auto divisors_with_correct_type = make_shared<v1::ConvertLike>(divisors, data);
 
