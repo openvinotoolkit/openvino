@@ -171,9 +171,10 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
             // Transpose again to make reshaping and slicing
             transposed_b = std::make_shared<v1::Transpose>(scaled_b, transposed_shape);
 
-            const auto reshaped_b = op::util::reshape(
-                transposed_b,
-                ov::Shape{casted_b_shape[0] / n_blocks_per_col, casted_b_shape[1] * n_blocks_per_col});
+            const auto reshaped_b =
+                op::util::reshape(transposed_b,
+                                  ov::Shape{static_cast<size_t>(casted_b_shape[0] / n_blocks_per_col),
+                                            static_cast<size_t>(casted_b_shape[1] * n_blocks_per_col)});
 
             // Removing unused items in case block is bigger than column count
             const auto zero_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 0);
