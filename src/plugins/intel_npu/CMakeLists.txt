@@ -20,8 +20,6 @@ macro(remove_compiler_flag FLAGS)
     endforeach()
 endmacro()
 
-set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
-
 if(CMAKE_COMPILE_WARNING_AS_ERROR)
     remove_compiler_flag("${ov_c_cxx_deprecated_no_errors}")
     if(CMAKE_CXX_COMPILER_ID STREQUAL GNU OR CMAKE_CXX_COMPILER_ID STREQUAL Clang)
@@ -49,8 +47,6 @@ set(NPU_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 include(cmake/features.cmake)
 
 set(CMAKE_CXX_STANDARD 17)
-
-set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
 
 if(ENABLE_NPU_DEBUG_CAPS)
     add_compile_definitions(NPU_PLUGIN_DEVELOPER_BUILD)
