@@ -15,9 +15,11 @@ namespace descriptor {
 class Tensor;
 
 // To change Tensor element type please change the Parameter type.
+OPENVINO_API
 void set_element_type(Tensor& tensor, const element::Type& elemenet_type);
 
 // To change Tensor type please change the Parameter type.
+OPENVINO_API
 void set_tensor_type(Tensor& tensor, const element::Type& element_type, const PartialShape& pshape);
 
 OPENVINO_DEPRECATED("get_ov_tensor_legacy_name() is deprecated. Please don't use this function.")

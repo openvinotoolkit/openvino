@@ -47,6 +47,7 @@ struct primitive_type_base : primitive_type {
             auto factory = implementation_map<PType>::get(runtime_params, node.get_preferred_impl_type(), get_shape_type(runtime_params));
             auto impl = factory(node, runtime_params);
             impl->set_dynamic(get_shape_type(runtime_params) == shape_types::dynamic_shape);
+            impl->can_share_kernels = node.get_program().get_config().get_property(ov::intel_gpu::hint::enable_kernels_reuse);
             return impl;
         } catch (std::exception& e) {
             std::stringstream ss;
@@ -123,6 +124,10 @@ struct primitive_type_base : primitive_type {
         }
 
         return res;
+    }
+
+    kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) const override {
+        return typed_primitive_inst<PType>::get_fake_aligned_params(orig_impl_param);
     }
 
     std::string to_string(const cldnn::program_node& node) const override {

@@ -1,5 +1,5 @@
 ============================
-OpenVINO 2024.2
+OpenVINO 2024.4
 ============================
 
 .. meta::
@@ -148,6 +148,13 @@ Places to Begin
 Key Features
 ++++++++++++++++++++++++++++
 
+.. button-link:: about-openvino/key-features.html
+   :color: primary
+   :outline:
+   :align: right
+   :class: key-feat-btn
+
+   See all features
 
 .. grid:: 2 2 2 2
    :class-container: homepage_begin_container

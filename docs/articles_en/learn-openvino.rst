@@ -1,5 +1,3 @@
-.. {#learn_openvino}
-
 Learn OpenVINO
 ==============
 

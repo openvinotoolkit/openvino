@@ -51,6 +51,16 @@ and do inference with a sample image.
    -  `Integration preprocessing to
       model <#integration-preprocessing-to-model>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -108,7 +118,7 @@ The notebook uses utility functions. The cell below will download the
 
 .. parsed-literal::
 
-    23215
+    24165
 
 
 
@@ -128,7 +138,7 @@ Imports
     import numpy as np
 
     # Notebook utils module
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
     # OpenVINO modules
     import openvino as ov
@@ -236,15 +246,8 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
     core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -393,7 +396,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f9df57e55b0>
+    <matplotlib.image.AxesImage at 0x7fca720c5250>
 
 
 

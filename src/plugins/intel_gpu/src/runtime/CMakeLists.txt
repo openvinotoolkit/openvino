@@ -21,6 +21,12 @@ set(LIBRARY_SOURCES_ALL
     ${LIBRARY_SOURCES_OCL}
   )
 
+file(GLOB_RECURSE SYCL_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ocl/sycl_*.cpp")
+
+if(NOT OV_COMPILER_IS_INTEL_LLVM)
+    list(REMOVE_ITEM LIBRARY_SOURCES_ALL ${SYCL_SOURCES})
+endif()
+
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SOURCES_ALL})
 
 if(NOT BUILD_SHARED_LIBS)
@@ -43,6 +49,11 @@ target_compile_options(${TARGET_NAME} PRIVATE
   >)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+
+if(OV_COMPILER_IS_INTEL_LLVM)
+    add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES ${SYCL_SOURCES})
+    target_compile_definitions(${TARGET_NAME} PUBLIC OV_GPU_WITH_SYCL)
+endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})
 

@@ -702,7 +702,7 @@ void Snapshot::mergeUniques() {
 
     std::unordered_set<std::shared_ptr<Repeated>> merged_this_time;
 
-    for (const auto& nh : m_graph->nodes()) {
+    for (const auto& nh : m_graph->sorted()) {
         if (!m_graph->contains(nh)) {
             continue;
         }
@@ -912,7 +912,7 @@ void Snapshot::afterUniques() {
 
     for (const auto& nh : m_graph->sorted()) {
         Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
-        auto tag = group->isolatedTag();
+        const auto& tag = group->isolatedTag();
 
         // Not expecting thousands of tags here, thus std::find on a vector
         if (!tag.empty() && std::find(m_ctx.nofolds.begin(), m_ctx.nofolds.end(), tag) != m_ctx.nofolds.end()) {

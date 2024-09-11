@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/permute.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -43,9 +44,7 @@ TEST(prepare_primitive_fusing, fuse_activation_to_fc_dyn) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
-
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
 
     ASSERT_NE(prog, nullptr);
     ASSERT_FALSE(has_node_with_type<activation>(*prog));
@@ -69,9 +68,7 @@ TEST(prepare_primitive_fusing, dont_fuse_incompatible_eltwise) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
-
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
 
     ASSERT_NE(prog, nullptr);
     ASSERT_TRUE(has_node(*prog, "eltw"));
@@ -96,9 +93,7 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_legal) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
-
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
 
     ASSERT_NE(prog, nullptr);
     ASSERT_FALSE(has_node_with_type<eltwise>(*prog));
@@ -138,9 +133,7 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
-
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
 
     ASSERT_NE(prog, nullptr);
     ASSERT_FALSE(has_node_with_type<eltwise>(*prog));
@@ -194,9 +187,7 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_const) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
-
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
 
     ASSERT_NE(prog, nullptr);
     ASSERT_FALSE(has_node_with_type<eltwise>(*prog));
@@ -248,9 +239,7 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_legal_scalar_const_broadca
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
-
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
 
     ASSERT_NE(prog, nullptr);
     ASSERT_FALSE(has_node_with_type<eltwise>(*prog));
@@ -305,9 +294,7 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_1) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
-
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
 
     ASSERT_NE(prog, nullptr);
     ASSERT_FALSE(has_node_with_type<eltwise>(*prog));
@@ -374,9 +361,7 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_2) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
-
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
 
     ASSERT_NE(prog, nullptr);
     ASSERT_FALSE(has_node_with_type<eltwise>(*prog));
@@ -385,7 +370,7 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_2) {
 
     auto input_memory = engine.allocate_memory(layout{ ov::PartialShape{1, 10}, data_types::i8, format::bfyx });
     auto extra_input_memory = engine.allocate_memory(layout{ ov::PartialShape{4, 4}, data_types::f32, format::bfyx });
-    set_values<int8_t>(input_memory, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, -10});
+    set_values<int8_t>(input_memory, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
     set_values<float>(extra_input_memory, {1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4});
 
     net.set_input_data("input", input_memory);
@@ -437,9 +422,7 @@ TEST(prepare_primitive_fusing, dont_remove_only_dep_reshape) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
-
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
 
     ASSERT_NE(prog, nullptr);
     ASSERT_TRUE(has_node(*prog, "reshape2"));
@@ -485,9 +468,7 @@ TEST(prepare_primitive_fusing, eltwise_fusing_residual_connection) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
-
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
     ASSERT_NE(prog, nullptr);
     ASSERT_FALSE(has_node_with_type<eltwise>(*prog));
 
@@ -544,9 +525,8 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_removal_check) {
 
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
-    lo.set_implementation_forcing(config.get_property(ov::intel_gpu::force_implementations));
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    prog->get_layout_optimizer().set_implementation_forcing(config.get_property(ov::intel_gpu::force_implementations));
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
 
     ASSERT_TRUE(!has_node(*prog, "permute"));
     ASSERT_EQ(prog->get_node("weights").get_output_layout().format, format::fbyx);
@@ -629,9 +609,7 @@ TEST(prepare_primitive_fusing, can_profiling_data_when_fuse_illegal) {
     config.set_property(ov::enable_profiling(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
-
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
 
     ASSERT_NE(prog, nullptr);
     ASSERT_FALSE(has_node_with_type<eltwise>(*prog));
@@ -682,9 +660,7 @@ TEST(prepare_primitive_fusing, dont_fuse_eltwise_to_dyn_dts) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
-
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
 
     ASSERT_NE(prog, nullptr);
     ASSERT_TRUE(has_node(*prog, "scale1"));
@@ -722,7 +698,7 @@ TEST(prepare_primitive_fusing, fuse_by_priotizing_to_parent_in_fusing_history) {
     auto eltwise_memory = engine.allocate_memory(eltwise_layout);
 
     auto weights_data   = rg.generate_random_4d<ov::float16>(32, 96, 1, 1, 1, 1);
-    auto eltwise_data   = rg.generate_random_4d<ov::float16>(1, 1, 1, 1, 1, 1);
+    auto eltwise_data   = rg.generate_random_1d<ov::float16>(1, 1, 1, 1);
 
     topology topology(
         input_layout("input1", in_layout),
@@ -783,8 +759,7 @@ TEST(prepare_primitive_fusing, fuse_by_priotizing_to_parent_in_fusing_history) {
         move_next(*program, "eltw3"  , "eltw2"  );
     }
 
-    layout_optimizer lo(true);
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*program, lo);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*program);
 
     ASSERT_FALSE(has_node(*program, "actv1"));
     ASSERT_FALSE(has_node(*program, "eltw3"));

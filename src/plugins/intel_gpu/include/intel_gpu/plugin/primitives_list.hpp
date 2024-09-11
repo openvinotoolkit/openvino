@@ -264,9 +264,14 @@ REGISTER_FACTORY(v12, ScatterElementsUpdate);
 // ------------------------------ Supported v13 ops ----------------------------- //
 REGISTER_FACTORY(v13, Multinomial);
 REGISTER_FACTORY(v13, ScaledDotProductAttention);
+REGISTER_FACTORY(v13, BitwiseAnd);
+REGISTER_FACTORY(v13, BitwiseOr);
+REGISTER_FACTORY(v13, BitwiseXor);
 
-// ------------------------------ Supported v14 ops ----------------------------- //
+// ------------------------------ Supported v15 ops ----------------------------- //
 REGISTER_FACTORY(v15, ROIAlignRotated);
+REGISTER_FACTORY(v15, BitwiseRightShift);
+REGISTER_FACTORY(v15, BitwiseLeftShift);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
@@ -287,3 +292,5 @@ REGISTER_FACTORY(internal, Placeholder);
 REGISTER_FACTORY(internal, SDPA);
 REGISTER_FACTORY(internal, IndirectSDPA);
 REGISTER_FACTORY(internal, RoPE);
+REGISTER_FACTORY(internal, DynamicQuantize);
+REGISTER_FACTORY(internal, PagedAttentionExtension);

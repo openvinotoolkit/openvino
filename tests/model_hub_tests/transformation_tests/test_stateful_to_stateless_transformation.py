@@ -4,6 +4,7 @@
 import openvino as ov
 from openvino._offline_transformations import stateful_to_stateless_transformation
 from optimum.intel import OVModelForCausalLM
+from models_hub_common.utils import retry
 import models_hub_common.utils as utils
 import pytest
 import os
@@ -30,6 +31,7 @@ def check_desc_tensors(expected_tensors, tensors):
         assert expected.get_element_type() == tensor.get_element_type()
         assert expected.get_partial_shape() == tensor.get_partial_shape()
 
+@retry(3, exceptions=(OSError,), delay=1)
 def run_stateful_to_stateless_in_runtime(tmp_path, model_id, model_link):
     model = OVModelForCausalLM.from_pretrained(model_id, export=True, stateful=True, compile=False)
     assert len(model.model.get_sinks()), f"Input model is not in the expected stateful form because it doesn't have any sinks."

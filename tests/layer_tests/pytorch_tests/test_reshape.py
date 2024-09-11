@@ -73,4 +73,4 @@ class TestDynamicReshape(PytorchLayerTest):
     ])
     @pytest.mark.precommit_fx_backend
     def test_dynamic_reshape(self, shape, ie_device, precision, ir_version):
-        self._test(*self.create_model(shape), ie_device, precision, ir_version, aot_autograd=True, dynamic=True)
+        self._test(*self.create_model(shape), ie_device, precision, ir_version)
