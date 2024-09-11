@@ -1490,6 +1490,20 @@ void ov::npuw::util::permute(ov::Tensor& t, const std::vector<std::size_t>& axes
             }
         }
         t = std::move(tnew);
+    } else if (axes[0] == 1 && axes[1] == 0 && axes[2] == 2) {
+        ov::Shape tshape = {shape[1], shape[0], shape[2]};
+        ov::Tensor tnew(t.get_element_type(), tshape);
+
+        // Iterate over output tensor coordinates
+        for (std::size_t p = 0; p < tshape[0]; p++) {
+            for (std::size_t r = 0; r < tshape[1]; r++) {
+                for (std::size_t c = 0; c < tshape[2]; c++) {
+                    uint8_t value = tread_4b(t, r, p * shape[2] + c, shape[1]*shape[2]);
+                    twrite_4b(tnew, value, p * tshape[1] + r, c, tshape[2]);
+                }
+            }
+        }
+        t = std::move(tnew);
     } else {
         NPUW_ASSERT(false && "Not supported yet");
     }
