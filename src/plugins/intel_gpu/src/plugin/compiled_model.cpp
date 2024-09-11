@@ -88,7 +88,6 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
         message->set_num_sub_streams(m_config.get_context_for_tp().size());
         std::vector<std::shared_ptr<ov::ICompiledModel>> sub_models;
         std::vector<ov::threading::Task> sub_tasks;
-        ov::serialize(model, "./model_pa_o.xml", "./model_pa_o.bin");
         for (size_t i = 0; i < m_config.get_context_for_tp().size(); i++) {
             auto compile_tp_model = [&](size_t i) {
                 configs_for_tp[i] = m_config;
@@ -132,8 +131,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                 }
                 manager.register_pass<ov::intel_gpu::RemainFCParallelFusion>(config.get_context_for_tp().size(), i);
                 manager.run_passes(model_clone);
-                if (i == 0)
-                    ov::serialize(model_clone, "integrated_vllm_pa_" + std::to_string(i) + ".xml");
+                // ov::serialize(model_clone, "integrated_vllm_pa_" + std::to_string(i) + ".xml");
                 m_sub_compiled_models.push_back(std::make_shared<CompiledModel>(
                     model_clone, plugin, m_config.get_context_for_tp()[i].as<RemoteContextImpl::Ptr>(), configs_for_tp[i], m_sub_memory_manager));
                 GPU_DEBUG_TRACE_DETAIL << "sub models for TP created, rank " << configs_for_tp[i].streamsRankTable[i][0] << std::endl;
