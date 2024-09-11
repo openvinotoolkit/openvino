@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import itertools
+import jax
 import numpy as np
 import os
 from common.constants import test_device, test_precision
@@ -120,6 +121,8 @@ class JaxLayerTest:
         # create function signature based on input shapes and types
         function_signature = []
         for _input in inputs:
+            if isinstance(_input, jax.Array):
+                _input = np.array(_input)
             assert isinstance(_input, np.ndarray)
             input_shape = _input.shape
             input_type = _input.dtype

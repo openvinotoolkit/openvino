@@ -4,13 +4,14 @@
 
 #include "snippets/lowered/pass/split_loops.hpp"
 
-#include "snippets/lowered/pass/fuse_loops.hpp"
-#include "snippets/lowered/pass/init_loops.hpp"
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/pass/fuse_loops.hpp"
+#include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/iter_handler.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/itt.hpp"
+#include "snippets/utils/loop_utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -116,7 +117,7 @@ InnerSplittedUnifiedLoopInfoPtr make_own_inner_splitted_unified_loop_info(const 
                                                        inner_expanded->get_output_ports(), existing_inner_unified->get_input_port_descs(),
                                                        existing_inner_unified->get_output_port_descs(), existing_inner_unified->get_handlers(),
                                                        outer_expanded);
-    InitLoops::update_runtime_parameters(loop_info);
+    ov::snippets::utils::update_runtime_parameters(loop_info);
     return loop_info;
 }
 ExpandedLoopInfoPtr make_own_inner_splitted_expanded_loop_info(const ExpandedLoopInfoPtr& inner_expanded,

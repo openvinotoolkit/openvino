@@ -1,5 +1,3 @@
-.. {#model_zoo}
-
 Model Zoo
 =========
 

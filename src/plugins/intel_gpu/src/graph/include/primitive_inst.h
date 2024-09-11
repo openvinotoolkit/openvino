@@ -386,6 +386,7 @@ protected:
                                               bool reset_mem = true,
                                               bool runtime_alloc = false);
     memory::ptr allocate_internal_buffer(size_t idx, bool reset = true);
+    void allocate_shape_info_memory();
     static std::vector<primitive_inst*> build_exec_deps(
         std::vector<std::pair<primitive_inst*, int32_t>> const& mem_deps);
     int32_t get_index_in_deps(memory::cptr arg) const;
