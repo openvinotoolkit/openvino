@@ -6,6 +6,7 @@
 
 #include "behavior/compiled_model/properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -32,9 +33,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
                                             ::testing::ValuesIn(hetero_properties)),
                          OVPropertiesTests::getTestCaseName);
 
+static std::string (*NULL_getTestCaseName)(const testing::TestParamInfo<std::string>& info) = NULL;
 INSTANTIATE_TEST_SUITE_P(smoke_HeteroOVGetMetricPropsTest,
                          OVGetMetricPropsTest,
-                         ::testing::Values(ov::test::utils::DEVICE_HETERO));
+                         ::testing::Values(ov::test::utils::DEVICE_HETERO),
+                         MARK_MANDATORY_API_FOR_HW_DEVICE(NULL_getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_HeteroOVCheckGetSupportedROMetricsPropsTests,
