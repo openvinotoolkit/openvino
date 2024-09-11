@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/mark_floatpoint_range.hpp"
+#include "transformations/fp16_compression/mark_floatpoint_range.hpp"
 
 #include "itt.hpp"
 #include "openvino/op/convert.hpp"
