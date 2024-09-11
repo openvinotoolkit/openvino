@@ -232,6 +232,22 @@ Plugin::Plugin()
         std::cout << prop << std::endl;
     }
     std::cout << "Sup_props end;" << std::endl;
+
+    /*
+    /// Populate properties
+    _options->walk([&](const details::OptionConcept& opt) {
+        _properties.insert({opt.key().data(),
+                            {opt.isPublic(),
+                             opt.isReadOnly() ? ov::PropertyMutability::RO : ov::PropertyMutability::RW,
+                             [opt](const Config& config) {
+                                 return config._impl[opt.key().data()];
+                             }}});
+    });
+    */
+    for (const auto& prop : _properties) {
+        std::cout << "Key: " << prop.first << std::endl;
+    }
+
     // Map from name to function {Config -> ov::Any}
     // Note that some properties are RW before network is loaded, and become RO after network is loaded
     _properties = {
@@ -244,8 +260,9 @@ Plugin::Plugin()
               return _supportedProperties;
           }}},
         {ov::enable_profiling.name(),
-         {true,
-          ov::PropertyMutability::RW,
+         {_options->get(ov::enable_profiling.name(), OptionMode::Both).isPublic(),
+          _options->get(ov::enable_profiling.name(), OptionMode::Both).isReadOnly() ? ov::PropertyMutability::RO
+                                                                                    : ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<PERF_COUNT>();
           }}},
@@ -557,40 +574,6 @@ Plugin::Plugin()
                                                 return config.getString<BATCH_MODE>();
                                             }}}};
     //_supportedProperties = _options->getSupportedProperties();
-
-    // std::vector<std::string> supportedOptions = _options->getSupported();
-    // std::cout << "[CSOKADBG] SUPPORTED OPTIONS: ";
-    // for (std::vector<std::string>::iterator it = supportedOptions.begin(); it != supportedOptions.end(); ++it) {
-    //     std::cout << *it << " ";
-    // }
-    // std::cout << std::endl;
-
-    // auto compvers = _options->get(ov::hint::execution_mode.name(), OptionMode::Both).isPublic();
-    //  auto compvers = option.compilerSupportVersion();
-    //  std::cout << "[CSOKADBG] " << ov::hint::execution_mode.name() << " compiler support version: " <<
-    //  compvers.vclMajor
-    //           << "." << compvers.vclMinor << " \n\n";
-    /*
-        std::cout << "[CSOKADBG/pluginInit] " << ov::hint::execution_mode.name()
-                  << " IsRegistered: " << _options->has(ov::hint::execution_mode.name())
-                  << " isPublic: " << _options->has(ov::hint::execution_mode.name())
-            ? _options->get(ov::hint::execution_mode.name(), OptionMode::Both).isPublic()
-            : false;
-        std::cout << "\n\n" << std::flush;
-    */
-    bool hasTurbo = _options->has(ov::intel_npu::turbo.name());
-    if (hasTurbo) {
-        bool isTurboPublic = _options->get(ov::intel_npu::turbo.name(), OptionMode::Both).isPublic();
-        std::cout << "[CSOKADBG/pluginInit] " << ov::intel_npu::turbo.name() << " isregistered: " << hasTurbo
-                  << " ispublic: " << isTurboPublic << "\n\n";
-    } else {
-        std::cout << "[CSOKADBG/plugInit] Turbo not registered!" << std::endl;
-    }
-    bool isexecmodepub = _options->has(ov::hint::execution_mode.name())
-                             ? _options->get(ov::hint::execution_mode.name(), OptionMode::Both).isPublic()
-                             : false;
-    std::cout << "[CSOKADBG/pluginit] Isexecmodepub? " << isexecmodepub << "\n\n";
-
     for (auto& property : _properties) {
         if (std::get<0>(property.second)) {
             _supportedProperties.emplace_back(ov::PropertyName(property.first, std::get<1>(property.second)));
