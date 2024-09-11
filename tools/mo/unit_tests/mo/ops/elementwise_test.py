@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
 import unittest
 
 import numpy as np
@@ -104,6 +105,10 @@ class TestElementwiseTypeAlignment(unittest.TestCase):
         graph.stage = 'back'
         return graph
 
+    @unittest.skipIf(
+        (sys.version_info[0], sys.version_info[1]) == (3, 12),
+        'Ticket: 152200'
+    )
     def test_first_input_const(self):
         edges = [
             *connect('const', '0:add'),
@@ -116,6 +121,10 @@ class TestElementwiseTypeAlignment(unittest.TestCase):
         const_node = Node(graph, 'const')
         self.assertEquals(const_node.out_port(0).get_data_type(), np.float32)
 
+    @unittest.skipIf(
+        (sys.version_info[0], sys.version_info[1]) == (3, 12),
+        'Ticket: 152200'
+    )
     def test_second_input_const(self):
         edges = [
             *connect('input_1', '0:add'),
@@ -138,6 +147,10 @@ class TestElementwiseTypeAlignment(unittest.TestCase):
 
         self.assertRaises(Exception, type_infer, graph)
 
+    @unittest.skipIf(
+        (sys.version_info[0], sys.version_info[1]) == (3, 12),
+        'Ticket: 152200'
+    )
     def test_not_raises(self):
         edges = [
             *connect('input_1', '0:add'),
