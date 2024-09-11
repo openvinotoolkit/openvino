@@ -10,6 +10,7 @@
 #include "cpu_shape.h"
 #include "cpu_types.h"
 #include "edge.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "selective_build.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "onednn/dnnl.h"
@@ -394,6 +395,13 @@ public:
      */
     MemoryDescPtr getBaseMemDescAtOutputPort(size_t portNum) const;
 
+    /**
+     * @brief Returns parent output memory descriptor from given \p edge
+     * must be used after selectOptimalPrimitiveDescriptor stage
+     * @param edge
+     * @return pointer to parent output memory descriptor with type MemoryDesc
+     */
+    static MemoryDescPtr getParentOutputMemDesc(const EdgePtr& edge);
     /**
      * @brief Returns input selected primitive descriptor on the specified port
      * must be used after selectOptimalPrimitiveDescriptor stage
