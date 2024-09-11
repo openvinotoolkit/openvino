@@ -25,7 +25,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
-OutputVector translate_sparse_segment_mean(const NodeContext& node) {
+OutputVector translate_sparse_segment_mean_op(const NodeContext& node) {
     default_op_checks(node, 3, {"SparseSegmentMean"});
     auto data = node.get_input(0);
     auto indices = node.get_input(1);
