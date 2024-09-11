@@ -17,7 +17,7 @@ permissions: read-all
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.12'
 
 jobs:
   Smart_CI:
@@ -123,7 +123,7 @@ jobs:
       runner: 'aks-linux-4-cores-16gb'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      python-version: '3.12'
+      python-version: ${{ env.PYTHON_VERSION }}
 
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_24
