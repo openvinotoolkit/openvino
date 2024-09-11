@@ -147,6 +147,8 @@ OP_CONVERTER(translate_rsqrt_op);
 OP_CONVERTER(translate_scatter_nd_op);
 OP_CONVERTER(translate_segment_sum_op);
 OP_CONVERTER(translate_space_to_batch_nd_op);
+OP_CONVERTER(translate_sparse_segment_mean);
+OP_CONVERTER(translate_sparse_segment_sum);
 OP_CONVERTER(translate_sparse_tensor_dense_add_op);
 OP_CONVERTER(translate_sparse_tensor_dense_mat_mul_op);
 OP_CONVERTER(translate_sparse_to_dense_op);
