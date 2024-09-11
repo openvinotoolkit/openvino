@@ -4,9 +4,9 @@
 
 #include "behavior/ov_plugin/properties_tests.hpp"
 
+#include "base/ov_behavior_test_utils.hpp"
 #include "behavior/compiled_model/properties.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "base/ov_behavior_test_utils.hpp"
 
 namespace ov {
 namespace test {
