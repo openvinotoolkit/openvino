@@ -30,10 +30,13 @@ inputs:
     description: 'Source URL hosting OpenVINO nightly archives'
     required: false
     default: 'https://storage.openvinotoolkit.org/repositories/openvino/packages/nightly/latest.json'
-  nightly_pip_extra_url:
-    description: 'Source URL hosting OpenVINO nightly wheels, for passing to pip as --extra-index-url'
+  pip_extra_url:
+    description: 'Source URL hosting OpenVINO wheels, for passing to pip as --extra-index-url'
     required: false
     default: 'https://storage.openvinotoolkit.org/simple/wheels/nightly'
+  package_url:
+    description: 'Direct URL to OpenVINO archive to use, if neither post-commit nor nightly archives are required'
+    required: false
 outputs:
   ov_artifact_name:
     description: "Name of the artifact to upload OpenVINO build artifacts under"
@@ -52,10 +55,10 @@ runs:
   using: "composite"
   steps:
     - name: Verify parameters
-      if: ${{ !inputs.nightly_build_key && !inputs.commit_build_key || inputs.nightly_build_key && inputs.commit_build_key }}
+      if: ${{ !inputs.package_url && !inputs.nightly_build_key && !inputs.commit_build_key }}
       shell: bash
       run: |
-        echo "Please, set one parameter for action - nightly_build_key or commit_build_key"
+        echo "Please, set one parameter for action - nightly_build_key, commit_build_key or package_url"
         exit 1
 
     - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -123,20 +126,24 @@ runs:
         echo "ov_wheel_source=$default_find_links_cmd" >> $GITHUB_OUTPUT
 
 
-    # --- Nightly case ---
-    - name: Verify nightly parameters
-      if: inputs.nightly_build_key && inputs.revision != 'latest_available'
+    # --- S3 case (nightly or direct URL) ---
+    - name: Verify parameters
+      if: (inputs.nightly_build_key || inputs.package_url) && inputs.revision != 'latest_available'
       shell: bash
       run: |
-        echo "Nightly build source provides only 'latest' artifacts, specific revision not yet supported"
+        echo "Nightly and package_url build sources provide only 'latest' artifacts, specific revision not supported"
         exit 1
 
-    - name: Download nightly OpenVINO archives
-      id: openvino_nightly_download
-      if: inputs.nightly_build_key
+    - name: Download OpenVINO archives
+      id: openvino_download
+      if: inputs.nightly_build_key || inputs.package_url
       shell: bash
       run: |
-        ov_package_url=$(curl -s ${{ inputs.nightly_package_source }} | jq -r '.${{ inputs.nightly_build_key }}')
+        if [ ${{ inputs.package_url }} ]; then
+          ov_package_url=${{ inputs.package_url }}
+        else
+          ov_package_url=$(curl -s ${{ inputs.nightly_package_source }} | jq -r '.${{ inputs.nightly_build_key }}')
+        fi
         package_basename=$(basename $ov_package_url)
         wget $ov_package_url --progress=bar:force:noscroll -O $package_basename
         package_folder=${package_basename%.*} && mkdir $package_folder
@@ -145,22 +152,22 @@ runs:
         echo "ov_artifact_name=$ov_artifact_name" >> $GITHUB_OUTPUT
         echo "ov_package_path=$package_folder" >> $GITHUB_OUTPUT
 
-    - name: Upload nightly OpenVINO archives
-      if: steps.openvino_nightly_download.outcome == 'success'
+    - name: Upload OpenVINO archives
+      if: steps.openvino_download.outcome == 'success'
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ steps.openvino_nightly_download.outputs.ov_artifact_name }}
-        path: ${{ steps.openvino_nightly_download.outputs.ov_package_path }}
+        name: ${{ steps.openvino_download.outputs.ov_artifact_name }}
+        path: ${{ steps.openvino_download.outputs.ov_package_path }}
         if-no-files-found: 'error'
 
-    - name: Get nightly wheel
-      id: openvino_nightly_wheel
-      if: steps.openvino_nightly_download.outcome == 'success'
+    - name: Get wheel
+      id: openvino_wheel
+      if: steps.openvino_download.outcome == 'success'
       shell: bash
       run: |
-        version=$(echo ${{ steps.openvino_nightly_download.outputs.ov_package_path }} |
+        version=$(echo ${{ steps.openvino_download.outputs.ov_package_path }} |
           grep -oP '(?<=_)\d{4}\.\d\.\d\.dev\d{8}(?=_)')
-        extra_index="--pre --extra-index-url ${{ inputs.nightly_pip_extra_url }}"
+        extra_index="--pre --extra-index-url ${{ inputs.pip_extra_url }}"
         wheel_input="$extra_index openvino==$version"
         echo "ov_wheel_input=$wheel_input" >> $GITHUB_OUTPUT
         echo "ov_wheel_source=$extra_index" >> $GITHUB_OUTPUT
