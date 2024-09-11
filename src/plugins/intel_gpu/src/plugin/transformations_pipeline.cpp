@@ -283,6 +283,19 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // fuse softmax, MVN patterns, so that they will not be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::SoftmaxFusion>();
         manager.register_pass<ov::pass::MVNFusion>();
+
+        // fuse RMS patterns, so that they will not be marked as precision sensitive in ConvertPrecision
+        manager.register_pass<ov::pass::RMSFusion>(false);
+        pass_config->set_callback<ov::pass::RMSFusion>([=](const_node_ptr& root) -> bool {
+            if (!root->get_input_node_ptr(0)->get_input_partial_shape(0).is_static()) {
+                return false;
+            }
+            const auto& gamma_shape = root->get_input_node_ptr(0)->get_input_partial_shape(0).to_shape();
+            const int32_t vec_size = 8;
+            auto ret = static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
+            return ret;
+        });
+
         // decompose MVNs that sre not supported in GPU, so that they will be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::MVN6Decomposition>();
         // Run these broadcast optimizations earlier to ensure that those are executed before NopElimination/ConstantFolding
@@ -820,16 +833,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
         auto pass_config = manager.get_pass_config();
-        pass_config->set_callback<ov::pass::RMSFusion>([=](const_node_ptr& root) -> bool {
-            if (!root->get_input_node_ptr(0)->get_input_partial_shape(0).is_static()) {
-                return false;
-            }
-            const auto& gamma_shape = root->get_input_node_ptr(0)->get_input_partial_shape(0).to_shape();
-            const int32_t vec_size = 8;
-            return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
-        });
-
-        manager.register_pass<ov::pass::RMSFusion>();
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
         manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);
