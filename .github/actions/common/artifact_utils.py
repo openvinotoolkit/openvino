@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
-from .constants import EventType
+from .constants import EventType, ProductType
 
 
 def add_common_args(parser: argparse.ArgumentParser):
@@ -12,7 +12,8 @@ def add_common_args(parser: argparse.ArgumentParser):
                         default=os.getenv('GITHUB_BASE_REF') or os.getenv('GITHUB_REF_NAME'))
     parser.add_argument('-e', '--event_name', help='Name of GitHub event', required=False,
                         default=os.getenv('GITHUB_EVENT_NAME'))
-    parser.add_argument('--storage_dir', help='Subdirectory name for artifacts, same as product type', required=True)
+    parser.add_argument('--storage_dir', help='Subdirectory name for artifacts, same as product type', required=True,
+                        choices=[product_type.value for product_type in ProductType])
     parser.add_argument('--storage_root', help='Root path of the artifacts storage', required=False,
                         default=os.getenv('ARTIFACTS_SHARE'))
 
