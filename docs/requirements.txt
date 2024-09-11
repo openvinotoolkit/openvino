@@ -1,6 +1,6 @@
 alabaster==0.7.14
 atomicwrites==1.4.0
-attrs==22.1.0
+attrs==22.2.0
 Babel==2.11.0
 beautifulsoup4==4.9.3
 breathe==4.35.0
