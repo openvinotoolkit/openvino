@@ -16,6 +16,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rms.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 
 namespace ov {
 namespace pass {
@@ -43,7 +45,8 @@ RMSFusion::RMSFusion(bool force_tail_convert) {
 
     // x^2
     auto const_power = wrap_type<ov::op::v0::Constant>(constant_value(2));
-    auto power = wrap_type<ov::op::v1::Power>({x, const_power});
+    const auto optional_convert_power = pattern::optional<ov::op::v0::Convert>(const_power);
+    auto power = wrap_type<ov::op::v1::Power>({x, optional_convert_power});
 
     // ReduceMean(x^2,axes)
     auto mean_axes = wrap_type<ov::op::v0::Constant>(constant_value(-1));
@@ -51,20 +54,29 @@ RMSFusion::RMSFusion(bool force_tail_convert) {
 
     // ReduceMean(x^2,axes)+eps
     auto eps = wrap_type<ov::op::v0::Constant>();
-    auto add_eps = wrap_type<ov::op::v1::Add>({mean, eps});
+    const auto optional_convert_eps = pattern::optional<ov::op::v0::Convert>(eps);
+    auto add_eps = wrap_type<ov::op::v1::Add>({mean, optional_convert_eps});
 
     // Sqrt(ReduceMean(x^2,axes)+eps)
     auto sqrt = wrap_type<ov::op::v0::Sqrt>({add_eps});
 
     // 1/Sqrt(ReduceMean(x^2,axes)+eps)
-    auto const_div = wrap_type<ov::op::v0::Constant>(constant_value(-1));
-    auto div = wrap_type<ov::op::v1::Power>({sqrt, const_div});
+    auto const_div1 = wrap_type<ov::op::v0::Constant>(constant_value(-1));
+    auto div1 = wrap_type<ov::op::v1::Power>({sqrt, const_div1});
+
+    auto const_div2 = wrap_type<ov::op::v0::Constant>(constant_value(1));
+    const auto optional_convert_div2 = pattern::optional<ov::op::v0::Convert>(const_div2);
+    auto div2 = wrap_type<ov::op::v1::Divide>({optional_convert_div2, sqrt});
+    auto div = std::make_shared<pattern::op::Or>(OutputVector{div1, div2});
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps)
     auto mul1 = wrap_type<ov::op::v1::Multiply>({x, div});
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
-    auto gamma = wrap_type<ov::op::v0::Constant>(type_matches(element::f32));
+    auto gamma1 = wrap_type<ov::op::v0::Constant>(type_matches(element::f32));
+    auto gamma2 = wrap_type<ov::op::v0::Constant>(type_matches(element::f16));
+    const auto optional_convert_gamma = pattern::optional<ov::op::v0::Convert>(gamma2);
+    auto gamma = std::make_shared<pattern::op::Or>(OutputVector{gamma1, optional_convert_gamma});
     auto mul2 = wrap_type<ov::op::v1::Multiply>({gamma, mul1});
 
     std::shared_ptr<ov::Node> comp = mul2;
@@ -89,7 +101,8 @@ RMSFusion::RMSFusion(bool force_tail_convert) {
             return false;
         }
 
-        const auto& gamma_node = pattern_map.at(gamma).get_node_shared_ptr();
+        const auto& mul2_node = pattern_map.at(mul2).get_node_shared_ptr();
+        const auto& gamma_node = mul2_node->input_values()[0].get_node_shared_ptr();
 
         const auto& mean_node = pattern_map.at(mean).get_node_shared_ptr();
         const auto& axes = pattern_map.at(mean_axes).get_node_shared_ptr();
@@ -101,8 +114,7 @@ RMSFusion::RMSFusion(bool force_tail_convert) {
             return false;
         }
 
-        auto output_type = m.get_match_root()->get_output_element_type(0);
-        auto rms = std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value, output_type);
+        auto rms = std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value);
         rms->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), rms);
         ov::replace_node(m.get_match_root(), rms);
