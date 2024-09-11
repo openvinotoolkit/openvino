@@ -10,8 +10,7 @@ namespace kernel_selector {
 static constexpr size_t subgroup_size = 16;
 
 // Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory reads
-std::pair<int, int> get_item_num_and_lws(const rms_params params, size_t data_size);
-std::pair<int, int> get_item_num_and_lws(const rms_params params, size_t data_size) {
+static std::pair<int, int> get_item_num_and_lws(const rms_params params, size_t data_size) {
     size_t lws = 1;
     size_t itemsNum = data_size;
     const auto& input = params.inputs[0];
