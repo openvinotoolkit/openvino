@@ -6,7 +6,6 @@
 
 #include "jit_emitter.hpp"
 #include "cpu/aarch64/jit_generator.hpp"
-#include "emitters/plugin/aarch64/jit_conversion_emitters.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -42,8 +41,7 @@ private:
     std::string name_;
     int load_num_;  // the element number to load
     int byte_offset_;
-    ov::element::Type src_prc_;
-    ov::element::Type dst_prc_;
+    ov::element::Type prc_;
 };
 
 class jit_store_emitter : public jit_emitter {
@@ -70,8 +68,7 @@ private:
     std::string name_;
     int store_num_;  // the element number to store
     int byte_offset_;
-    ov::element::Type src_prc_;
-    ov::element::Type dst_prc_;
+    ov::element::Type prc_;
 };
 
 }   // namespace aarch64
