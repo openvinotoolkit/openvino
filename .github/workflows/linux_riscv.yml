@@ -74,7 +74,7 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv }}
       volumes:
         - /mount:/mount
-      options: '--cap-drop=all --cap-add=CAP_CHOWN --cap-add=CAP_SETGID --cap-add=CAP_SETUID --cap-add=CAP_KILL --cap-add=CAP_FOWNER --cap-add=CAP_FSETID'
+      options: '--cap-drop=all --cap-add=CAP_CHOWN --cap-add=CAP_SETGID --cap-add=CAP_SETUID --cap-add=CAP_KILL --cap-add=CAP_FOWNER --cap-add=CAP_FSETID --cap-add=CAP_DAC_OVERRIDE'
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
