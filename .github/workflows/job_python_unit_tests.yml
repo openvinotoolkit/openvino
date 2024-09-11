@@ -124,7 +124,7 @@ jobs:
       #
 
       - name: Python API Tests
-        if: ${{ fromJSON(inputs.affected-components).Python_API.test && inputs.python-version != '3.12' }} # Ticket: 152240
+        if: ${{ fromJSON(inputs.affected-components).Python_API.test }}
         run: |
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
@@ -234,7 +234,7 @@ jobs:
           PYTORCH_TRACING_MODE: TORCHFX
 
       - name: ONNX Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).ONNX_FE.test && inputs.p }}
+        if: ${{ fromJSON(inputs.affected-components).ONNX_FE.test && inputs.python-version != '3.12' }} # Ticket: 152240
         run: |
           # requires 'unit_tests' from 'tools/mo'
           export PYTHONPATH=${INSTALL_TEST_DIR}/mo:$PYTHONPATH
