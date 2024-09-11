@@ -1577,6 +1577,7 @@ void Partitioner::optimize(const std::string& func_name) {
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi>();
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQi>(std::ref(ctx));
     rewr.run_on_model(f._model);
+    ov::pass::Validate().run_on_model(f._model);
 
     // Permute tensors where required
     auto& func_group = all_functions.at(func_name);
