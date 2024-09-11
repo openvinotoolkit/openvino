@@ -9,7 +9,6 @@ const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
 const epsilon = 0.5;
 
 describe('ov basic tests.', () => {
-
   let testXml = null;
   let core = null;
   let model = null;
@@ -35,7 +34,6 @@ describe('ov basic tests.', () => {
   });
 
   describe('Core.getVersions()', () => {
-
     it('getVersions(validDeviceName: string)', () => {
       const deviceVersion = core.getVersions('CPU');
       assert.strictEqual(typeof deviceVersion, 'object');
@@ -44,20 +42,15 @@ describe('ov basic tests.', () => {
       assert.strictEqual(typeof deviceVersion.CPU.description, 'string');
     });
 
-    it('getVersions() throws if no arguments are passed into the function', () => {
-      assert.throws(
-        () => core.getVersions(),
-        { message: 'getVersions() method expects 1 argument of string type.' }
-      );
+    it('getVersions() throws if no arguments are passed', () => {
+      assert.throws(() => core.getVersions(), {
+        message: 'getVersions() method expects 1 argument of string type.',
+      });
     });
 
-    it('getVersions() throws if non string coercable arguments are passed into the function', () => {
-      assert.throws(
-        () => core.getVersions({ deviceName: 'CPU' }),
-        { message: 'The argument in getVersions() method must be a string or convertible to a string.' }
-      );
+    it('getVersions() throws with non string coercable arg.', () => {
+      assert.throws(() => core.getVersions({ deviceName: 'CPU' }));
     });
-
   });
 
   it('CompiledModel type', () => {
@@ -77,7 +70,7 @@ describe('ov basic tests.', () => {
       assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
     });
 
-    it('compileModelSync(model:model_path, deviceName: string, config: {}) ', () => {
+    it('compileModelSync(model_path, deviceName, config: {}) ', () => {
       const cm = core.compileModelSync(testXml, 'CPU', tput);
       assert.equal(cm.inputs.length, 1);
     });
@@ -87,14 +80,16 @@ describe('ov basic tests.', () => {
       assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
     });
 
-    it('compileModelSync(model, device, config) throws when config is a string', () => {
-      const expectedMsg = ('\'compileModelSync\' method called with incorrect parameters.\n' +
-      'Provided signature: (object, string, string) \n' +
-      'Allowed signatures:\n' +
-      '- (string, string)\n' +
-      '- (Model, string)\n' +
-      '- (string, string, object)\n' +
-      '- (Model, string, object)\n').replace(/[()]/g, '\\$&');
+    it('compileModelSync(model, device, configOfTypeString) throws', () => {
+      const expectedMsg = (
+        '\'compileModelSync\' method called with incorrect parameters.\n' +
+        'Provided signature: (object, string, string) \n' +
+        'Allowed signatures:\n' +
+        '- (string, string)\n' +
+        '- (Model, string)\n' +
+        '- (string, string, object)\n' +
+        '- (Model, string, object)\n'
+      ).replace(/[()]/g, '\\$&');
 
       assert.throws(
         () => core.compileModelSync(model, 'CPU', 'string'),
@@ -102,21 +97,23 @@ describe('ov basic tests.', () => {
       );
     });
 
-    it('compileModelSync(model, device, config) throws when config value is not a string', () => {
+    it('compileModelSync(model, device, invalidConfig) throws', () => {
       assert.throws(
-        () => core.compileModelSync(model, 'CPU', { 'PERFORMANCE_HINT': tput }),
-        /Cannot convert to ov::Any/
+        () => core.compileModelSync(model, 'CPU', { PERFORMANCE_HINT: tput }),
+        /Cannot convert to ov::Any/,
       );
     });
 
-    it('compileModelSync(model) throws if the number of arguments is invalid', () => {
-      const expectedMsg = ('\'compileModelSync\' method called with incorrect parameters.\n' +
-      'Provided signature: (object) \n' +
-      'Allowed signatures:\n' +
-      '- (string, string)\n' +
-      '- (Model, string)\n' +
-      '- (string, string, object)\n' +
-      '- (Model, string, object)\n').replace(/[()]/g, '\\$&');
+    it('compileModelSync(model) throws with invalid number of args', () => {
+      const expectedMsg = (
+        '\'compileModelSync\' method called with incorrect parameters.\n' +
+        'Provided signature: (object) \n' +
+        'Allowed signatures:\n' +
+        '- (string, string)\n' +
+        '- (Model, string)\n' +
+        '- (string, string, object)\n' +
+        '- (Model, string, object)\n'
+      ).replace(/[()]/g, '\\$&');
 
       assert.throws(
         () => core.compileModelSync(model),
@@ -126,54 +123,50 @@ describe('ov basic tests.', () => {
   });
 
   describe('Core.compileModel()', () => {
-    const tput = { 'PERFORMANCE_HINT': 'THROUGHPUT' };
+    const tput = { PERFORMANCE_HINT: 'THROUGHPUT' };
 
     it('compileModel(model:Model, deviceName: string, config: {}) ', () => {
-      core.compileModel(model, 'CPU', tput).then(cm => {
+      core.compileModel(model, 'CPU', tput).then((cm) => {
         assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
       });
-
     });
 
-    it('compileModel(model:model_path, deviceName: string, config: {}) ', () => {
-      core.compileModel(testXml, 'CPU', tput).then(cm => {
+    it('compileModel(model_path, deviceName, config: {}) ', () => {
+      core.compileModel(testXml, 'CPU', tput).then((cm) => {
         assert.equal(cm.inputs.length, 1);
       });
-
     });
 
     it('compileModel(model:model_path, deviceName: string) ', () => {
-      core.compileModel(testXml, 'CPU').then(cm => {
+      core.compileModel(testXml, 'CPU').then((cm) => {
         assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
       });
-
     });
 
-    it('compileModel(model, device, config) throws when config isn\'t an object', () => {
+    it('compileModel(model, device, invalidconfig) throws', () => {
       assert.throws(
         () => core.compileModel(model, 'CPU', 'string').then(),
-        'Argument #3 must be an Object.'
+        'Argument #3 must be an Object.',
       );
     });
 
-    it('compileModel(model, device, config) throws when config value is not a string', () => {
+    it('compileModel(model, device, invalidConfig) throws', () => {
       assert.throws(
-        () => core.compileModel(model, 'CPU', { 'PERFORMANCE_HINT': tput }).then(),
-        /Cannot convert to ov::Any/
+        () =>
+          core.compileModel(model, 'CPU', { PERFORMANCE_HINT: tput }).then(),
+        /Cannot convert to ov::Any/,
       );
     });
 
-    it('compileModel(model) throws if the number of arguments is invalid', () => {
+    it('compileModel(model) throws with invalid number of args', () => {
       assert.throws(
         () => core.compileModel(model).then(),
-        /Invalid number of arguments/
+        /Invalid number of arguments/,
       );
     });
-
   });
 
   describe('ov.Model/ov.CompiledModel output()', () => {
-
     it('model.output() type', () => {
       assert.ok(model.output() instanceof ov.Output);
     });
@@ -183,7 +176,6 @@ describe('ov basic tests.', () => {
     });
 
     it('output() methods/properties', () => {
-
       modelLike.forEach((obj) => {
         assert.strictEqual(obj.outputs.length, 1);
         // tests for an obj with one output
@@ -195,12 +187,10 @@ describe('ov basic tests.', () => {
         assert.strictEqual(obj.output().getAnyName(), 'fc_out');
         assert.strictEqual(obj.output().anyName, 'fc_out');
       });
-
     });
   });
 
   describe('ov.Model/ov.CompiledModel input()', () => {
-
     it('ov.Model.input() type', () => {
       assert.ok(model.input() instanceof ov.Output);
     });
@@ -211,7 +201,6 @@ describe('ov basic tests.', () => {
 
     it('input() methods/properties', () => {
       modelLike.forEach((obj) => {
-
         assert.strictEqual(typeof obj.input(), 'object');
         assert.strictEqual(obj.inputs.length, 1);
         assert.strictEqual(obj.input().toString(), 'data');
@@ -223,9 +212,7 @@ describe('ov basic tests.', () => {
         assert.deepStrictEqual(obj.input(0).shape, [1, 3, 32, 32]);
         assert.deepStrictEqual(obj.input(0).getShape(), [1, 3, 32, 32]);
       });
-
     });
-
   });
 
   describe('Test exportModel()/importModel()', () => {
@@ -234,7 +221,10 @@ describe('ov basic tests.', () => {
     let res1 = null;
 
     before(() => {
-      tensor = Float32Array.from({ length: 3072 }, () => (Math.random() + epsilon));
+      tensor = Float32Array.from(
+        { length: 3072 },
+        () => Math.random() + epsilon,
+      );
       const core = new ov.Core();
       const model = core.readModelSync(testXml);
       const compiledModel = core.compileModelSync(model, 'CPU');
@@ -252,7 +242,9 @@ describe('ov basic tests.', () => {
     });
 
     it('Test importModelSync(stream, device, config)', () => {
-      const newCompiled = core.importModelSync(userStream, 'CPU', { 'NUM_STREAMS': 1 });
+      const newCompiled = core.importModelSync(userStream, 'CPU', {
+        NUM_STREAMS: 1,
+      });
       const newInferRequest = newCompiled.createInferRequest();
       const res2 = newInferRequest.infer([tensor]);
 
@@ -262,20 +254,20 @@ describe('ov basic tests.', () => {
     it('Test importModelSync(stream, device) throws', () => {
       assert.throws(
         () => core.importModelSync(epsilon, 'CPU'),
-        /The first argument must be of type Buffer./
+        /The first argument must be of type Buffer./,
       );
     });
 
     it('Test importModelSync(stream, device) throws', () => {
       assert.throws(
         () => core.importModelSync(userStream, tensor),
-        /The second argument must be of type String./
+        /The second argument must be of type String./,
       );
     });
     it('Test importModelSync(stream, device, config: tensor) throws', () => {
       assert.throws(
         () => core.importModelSync(userStream, 'CPU', tensor),
-        /NotFound: Unsupported property 0 by CPU plugin./
+        /NotFound: Unsupported property 0 by CPU plugin./,
       );
     });
 
@@ -283,7 +275,7 @@ describe('ov basic tests.', () => {
       const testString = 'test';
       assert.throws(
         () => core.importModelSync(userStream, 'CPU', testString),
-        /Passed Napi::Value must be an object./
+        /Passed Napi::Value must be an object./,
       );
     });
 
@@ -291,13 +283,13 @@ describe('ov basic tests.', () => {
     throws', () => {
       const tmpDir = '/tmp';
       assert.throws(
-        () => core.importModelSync(userStream, 'CPU', { 'CACHE_DIR': tmpDir }),
-        /Unsupported property CACHE_DIR by CPU plugin./
+        () => core.importModelSync(userStream, 'CPU', { CACHE_DIR: tmpDir }),
+        /Unsupported property CACHE_DIR by CPU plugin./,
       );
     });
 
     it('Test importModel(stream, device)', () => {
-      core.importModel(userStream, 'CPU').then(newCompiled => {
+      core.importModel(userStream, 'CPU').then((newCompiled) => {
         const newInferRequest = newCompiled.createInferRequest();
         const res2 = newInferRequest.infer([tensor]);
         assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
@@ -305,26 +297,30 @@ describe('ov basic tests.', () => {
     });
 
     it('Test importModel(stream, device, config)', () => {
-      core.importModel(userStream, 'CPU', { 'NUM_STREAMS': 1 }).then(
-        newCompiled => {
+      core
+        .importModel(userStream, 'CPU', { NUM_STREAMS: 1 })
+        .then((newCompiled) => {
           const newInferRequest = newCompiled.createInferRequest();
           const res2 = newInferRequest.infer([tensor]);
 
-          assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
+          assert.deepStrictEqual(
+            res1['fc_out'].data[0],
+            res2['fc_out'].data[0],
+          );
         });
     });
 
     it('Test importModel(stream, device) throws', () => {
       assert.throws(
         () => core.importModel(epsilon, 'CPU').then(),
-        /'importModel' method called with incorrect parameters./
+        /'importModel' method called with incorrect parameters./,
       );
     });
 
     it('Test importModel(stream, device) throws', () => {
       assert.throws(
         () => core.importModel(userStream, tensor).then(),
-        /'importModel' method called with incorrect parameters./
+        /'importModel' method called with incorrect parameters./,
       );
     });
 
@@ -332,10 +328,8 @@ describe('ov basic tests.', () => {
       const testString = 'test';
       assert.throws(
         () => core.importModel(userStream, 'CPU', testString).then(),
-        /'importModel' method called with incorrect parameters./
+        /'importModel' method called with incorrect parameters./,
       );
     });
-
   });
-
 });

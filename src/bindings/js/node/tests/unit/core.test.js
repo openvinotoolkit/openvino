@@ -7,7 +7,6 @@ const assert = require('assert');
 const { describe, it, beforeEach } = require('node:test');
 
 describe('ov.Core tests', () => {
-
   let core = null;
   beforeEach(() => {
     core = new ov.Core();
@@ -34,7 +33,10 @@ describe('ov.Core tests', () => {
   });
 
   it('Core.getProperty(\'CPU\', \'SUPPORTED_PROPERTIES\') is Array', () => {
-    const supportedPropertiesArray = core.getProperty('CPU', 'SUPPORTED_PROPERTIES');
+    const supportedPropertiesArray = core.getProperty(
+      'CPU',
+      'SUPPORTED_PROPERTIES',
+    );
 
     assert.ok(Array.isArray(supportedPropertiesArray));
   });
@@ -60,7 +62,7 @@ describe('ov.Core tests', () => {
   it('Core.addExtension() with empty parameters', () => {
     assert.throws(
       () => core.addExtension(),
-      /addExtension method applies one argument of string type/
+      /addExtension method applies one argument of string type/,
     );
   });
 
@@ -69,7 +71,7 @@ describe('ov.Core tests', () => {
 
     assert.throws(
       () => core.addExtension(notExistsExt),
-      /Cannot load library 'not_exists'/
+      /Cannot load library 'not_exists'/,
     );
   });
 });
