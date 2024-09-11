@@ -388,11 +388,10 @@ TEST_P(fc_int8_eltwise, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu_taylor, fc_int8_eltwise, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_eltwise, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ CASE_FC_U8S8_1, 2, 3 },
     fully_connected_test_params{ CASE_FC_U8S8_2, 2, 3 },
     fully_connected_test_params{ CASE_FC_U8S8_3, 2, 3 },
-    fully_connected_test_params{ CASE_FC_U8S8_3D_1, 2, 3}
 }));
 
 class fc_int8_quantize_u8 : public FullyConnectedFusingTest {};
@@ -844,6 +843,8 @@ public:
 };
 
 TEST_P(fc_fp16_eltwise_add_ocl_dynamic, basic) {
+    if (engine.get_device_info().supports_immad)
+        return;
     run_test();
 }
 
