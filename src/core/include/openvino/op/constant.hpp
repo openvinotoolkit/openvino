@@ -292,7 +292,8 @@ public:
         OPENVINO_ASSERT(p != nullptr, "Cannot create vector! Buffer is not allocated.");
         auto v = std::vector<T>(p, p + (get_byte_size() / sizeof(T)));
         if (!m_alloc_buffer_on_visit_attributes) {
-            set_unused_bits(v.data(), shape_size(m_shape));
+            // result vector requires update when Constant share data (e.g read weight from IR binary file)
+            set_unused_bits(v.data());
         }
         return v;
     }
@@ -433,7 +434,12 @@ private:
 
     size_t get_num_elements_to_cast(const int64_t n) const;
 
-    void set_unused_bits(void* buffer, size_t num_elements) const;
+    /// \brief Sets buffer's not used bits to zero.
+    ///
+    /// In case of low precision there can be some storage area which is not used (not defined state).
+    ///
+    /// \param buffer  Pointer to buffer with Constant values.
+    void set_unused_bits(void* buffer) const;
 
 #ifdef __clang__
 #    pragma clang diagnostic push

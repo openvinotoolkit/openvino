@@ -264,15 +264,16 @@ void Constant::allocate_buffer(bool memset_allocation) {
         if (memset_allocation) {
             std::memset(m_data->get_ptr(), init_value, m_data->size());
         } else {
-            set_unused_bits(m_data->get_ptr(), num_elements);
+            set_unused_bits(m_data->get_ptr());
         }
     }
 }
 
-void Constant::set_unused_bits(void* buffer, size_t num_elements) const {
-    if (num_elements > 0) {
-        // for low precision always initialize last storage unit to avoid random bit values for unused bits.
-        const auto byte_size = m_data->size();
+void Constant::set_unused_bits(void* buffer) const {
+    const auto byte_size = m_data->size();
+
+    if (byte_size > 0) {
+        const auto num_elements = shape_size(m_shape);
 
         if (element::is_bit_type(m_element_type)) {
             constexpr size_t storage_unit_byte_size = 1;
