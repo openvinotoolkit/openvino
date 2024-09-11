@@ -886,6 +886,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 SLM_FILTER_PACKED_VEC wei_packed0 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, weights_idx);
                 SLM_FILTER_PACKED_VEC wei_packed1 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, (weights_idx + ((IFM_SIZE / 2) * 16)));
                 DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked;
+                // loaded weights 'wei_packed' of os_iyx_osv16 format have continuous values along TILE_K. So no need to transpose while unpacking
                 dq_wei_unpacked.s0123 = UNPACK_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed0));
                 dq_wei_unpacked.s4567 = UNPACK_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed1));
             #else
