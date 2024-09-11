@@ -9,6 +9,7 @@ from openvino.runtime import PartialShape, Type
 import openvino.runtime.opset10 as ops
 import pytest
 
+import sys
 import glob
 import itertools
 import math
@@ -683,6 +684,10 @@ def test_output_tuple_names():
         om.outputs[1].names) == 0, "Output tuple names must be empty"
 
 
+@pytest.mark.skipif(
+        condition=(sys.version_info[0], sys.version_info[1]) == (3, 12),
+        reason='Ticket: 152222'
+)
 def test_patched_16bit_model_converts():
     from openvino.frontend.pytorch import patch_model
     from openvino import convert_model, compile_model

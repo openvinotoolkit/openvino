@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
+
 import pytest
 
 from pytorch_layer_test_class import PytorchLayerTest
@@ -82,5 +84,9 @@ class TestRepeatFromFlanT5(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
+    @pytest.mark.skipif(
+        condition=(sys.version_info[0], sys.version_info[1]) == (3, 12),
+        reason='Ticket: 152223'
+    )
     def test_repeat_t5(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)
