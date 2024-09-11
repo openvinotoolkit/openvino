@@ -24,7 +24,7 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_index_fill_(const NodeContext& context) {
-    // aten::index_fill_(self, dim, index, value) → Tensor
+
     num_inputs_check(context, 4, 4);
     auto input = context.get_input(0);
     auto dim = context.get_input(1);
@@ -37,18 +37,11 @@ OutputVector translate_index_fill_(const NodeContext& context) {
     auto tensor_rank_correct_type = context.mark_node(std::make_shared<v1::ConvertLike>(tensor_rank, dim));
     auto positive_dim = normalize_axis(context, dim, tensor_rank_correct_type);
 
-    // begin the computation
-    //indx_cpy(dim,idx_def,tensor_def)
-    //indx_fill(dim,idx_def,val)
+
     auto tensor_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
     auto dim_vec = context.mark_node(std::make_shared<v1::Reshape>(positive_dim, const_1_vec, false));
     auto broadcasted_index = context.mark_node(std::make_shared<v1::Broadcast>(index, tensor_shape, dim_vec));
-    //reshaping steps
- 
-    //so we need to create a tensor with the same shape as the input tensor
-    //(val tensor is broadcasted to the shape of the input tensor) then index_copy
-    //val tensor->tensor of shape of input tensor with all values v
-    
+
 
     
     
