@@ -14,7 +14,8 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVHoldersTest,
         ::testing::Values(ov::test::utils::target_device),
         OVHoldersTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVHoldersTestOnImportedNetwork,
-        ::testing::Values(ov::test::utils::target_device),
-        OVHoldersTestOnImportedNetwork::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(ov_plugin,
+                         OVHoldersTestOnImportedNetwork,
+                         ::testing::Values(ov::test::utils::target_device),
+                         MARK_MANDATORY_API_FOR_HW_DEVICE(OVHoldersTestOnImportedNetwork::getTestCaseName));
 }  // namespace
