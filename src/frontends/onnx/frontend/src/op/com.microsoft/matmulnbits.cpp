@@ -105,29 +105,22 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         ov::Output<ov::Node> default_zp;
         switch (bits) {
         case 2:
-            casted_b = std::make_shared<v0::Constant>(
-                ov::element::u2,
-                Shape{static_cast<uint64_t>(N), n_blocks_per_col, static_cast<uint64_t>(blob_size) * 4},
-                b_const->get_data_ptr());
-            default_zp = std::make_shared<v0::Constant>(a.get_element_type(), Shape{}, 2);
             casted_b_shape = ov::Shape{static_cast<size_t>(N * n_blocks_per_col), static_cast<size_t>(blob_size * 4)};
+            casted_b = std::make_shared<v0::Constant>(ov::element::u2, casted_b_shape, b_const->get_data_ptr());
+            default_zp = std::make_shared<v0::Constant>(a.get_element_type(), Shape{}, 2);
             break;
         case 4:
-            casted_b = std::make_shared<v0::Constant>(
-                ov::element::u4,
-                Shape{static_cast<uint64_t>(N), n_blocks_per_col, static_cast<uint64_t>(blob_size) * 2},
-                b_const->get_data_ptr());
-            default_zp = std::make_shared<v0::Constant>(a.get_element_type(), Shape{}, 8);
             casted_b_shape = ov::Shape{static_cast<size_t>(N * n_blocks_per_col), static_cast<size_t>(blob_size * 2)};
+            casted_b = std::make_shared<v0::Constant>(ov::element::u4, casted_b_shape, b_const->get_data_ptr());
+            default_zp = std::make_shared<v0::Constant>(a.get_element_type(), Shape{}, 8);
             break;
         default:
             FRONT_END_THROW("Unsupported bits count");
             break;
         }
 
-        const auto reshaped_casted_b = op::util::reshape(casted_b, casted_b_shape);
         // Possible issue with slice implementation, had to move convertion before slice, instead of slicing uint4
-        const auto converted_b = std::make_shared<v1::ConvertLike>(reshaped_casted_b, a);
+        const auto converted_b = std::make_shared<v1::ConvertLike>(casted_b, a);
 
         // Simple case
         if (n_blocks_per_col == 1) {
