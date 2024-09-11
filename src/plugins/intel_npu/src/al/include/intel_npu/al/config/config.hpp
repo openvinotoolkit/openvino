@@ -267,6 +267,9 @@ struct OptionBase {
     // Overload this for private options.
     static bool isPublic() {
         return true;
+    // Overload this for read-only options (metrics)
+    static bool isReadOnly() {
+        return false;
     }
 
     /// Overload this for options conditioned by compiler version
@@ -336,6 +339,7 @@ struct OptionConcept final {
     std::string_view (*envVar)() = nullptr;
     OptionMode (*mode)() = nullptr;
     bool (*isPublic)() = nullptr;
+    bool (*isReadOnly)() = nullptr;
     compilerVersion (*compilerSupportVersion)() = nullptr;
     std::shared_ptr<OptionValue> (*validateAndParse)(std::string_view val) = nullptr;
 };
@@ -355,7 +359,13 @@ std::shared_ptr<OptionValue> validateAndParse(std::string_view val) {
 
 template <class Opt>
 OptionConcept makeOptionModel() {
-    return {&Opt::key, &Opt::envVar, &Opt::mode, &Opt::isPublic, &Opt::compilerSupportVersion, &validateAndParse<Opt>};
+    return {&Opt::key,
+            &Opt::envVar,
+            &Opt::mode,
+            &Opt::isPublic,
+            &Opt::isReadOnly,
+            &Opt::compilerSupportVersion,
+            &validateAndParse<Opt>};
 }
 
 }  // namespace details

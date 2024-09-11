@@ -49,6 +49,10 @@ struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, ov::hint::Performan
         return ov::hint::PerformanceMode::LATENCY;
     }
 
+    static bool isPublic() {
+        return true;
+    }
+
     static ov::hint::PerformanceMode parse(std::string_view val) {
         if (val.empty()) {
             return ov::hint::PerformanceMode::LATENCY;
@@ -101,6 +105,10 @@ struct PERFORMANCE_HINT_NUM_REQUESTS final : OptionBase<PERFORMANCE_HINT_NUM_REQ
         // 1 corresponds to LATENCY and default mode (hints not specified)
         return 1u;
     }
+
+    static bool isPublic() {
+        return true;
+    }
 };
 
 //
@@ -118,6 +126,10 @@ struct INFERENCE_PRECISION_HINT final : OptionBase<INFERENCE_PRECISION_HINT, ov:
 
     static ov::element::Type defaultValue() {
         return ov::element::f16;
+    }
+
+    static bool isPublic() {
+        return true;
     }
 
     static ov::element::Type parse(std::string_view val) {
@@ -148,6 +160,10 @@ struct PERF_COUNT final : OptionBase<PERF_COUNT, bool> {
 
     static bool defaultValue() {
         return false;
+    }
+
+    static bool isPublic() {
+        return true;
     }
 };
 
@@ -209,6 +225,10 @@ struct DEVICE_ID final : OptionBase<DEVICE_ID, std::string> {
     static std::string defaultValue() {
         return {};
     }
+
+    static bool isPublic() {
+        return true;
+    }
 };
 
 //
@@ -222,6 +242,10 @@ struct CACHE_DIR final : OptionBase<CACHE_DIR, std::string> {
 
     static std::string defaultValue() {
         return {};
+    }
+
+    static bool isPublic() {
+        return true;
     }
 };
 
@@ -251,6 +275,10 @@ struct CACHING_PROPERTIES final : OptionBase<CACHING_PROPERTIES, std::string> {
     static std::string defaultValue() {
         return {};
     }
+
+    static bool isPublic() {
+        return false;
+    }
 };
 
 //
@@ -264,6 +292,10 @@ struct INTERNAL_SUPPORTED_PROPERTIES final : OptionBase<INTERNAL_SUPPORTED_PROPE
 
     static std::string defaultValue() {
         return {};
+    }
+
+    static bool isPublic() {
+        return false;
     }
 };
 
@@ -281,6 +313,10 @@ struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
 
     static ov::intel_npu::BatchMode defaultValue() {
         return ov::intel_npu::BatchMode::AUTO;
+    }
+
+    static bool isPublic() {
+        return false;
     }
 
     static ov::intel_npu::BatchMode parse(std::string_view val) {
@@ -314,6 +350,10 @@ struct EXCLUSIVE_ASYNC_REQUESTS final : OptionBase<EXCLUSIVE_ASYNC_REQUESTS, boo
     }
 
     static bool defaultValue() {
+        return false;
+    }
+
+    static bool isPublic() {
         return false;
     }
 
@@ -370,6 +410,10 @@ struct PROFILING_TYPE final : OptionBase<PROFILING_TYPE, ov::intel_npu::Profilin
     static OptionMode mode() {
         return OptionMode::RunTime;
     }
+
+    static bool isPublic() {
+        return false;
+    }
 };
 
 //
@@ -408,6 +452,10 @@ struct MODEL_PRIORITY final : OptionBase<MODEL_PRIORITY, ov::hint::Priority> {
 
     static OptionMode mode() {
         return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return true;
     }
 };
 
@@ -483,6 +531,10 @@ struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
     static OptionMode mode() {
         return OptionMode::RunTime;
     }
+
+    static bool isPublic() {
+        return true;
+    }
 };
 
 //
@@ -495,6 +547,10 @@ struct ENABLE_CPU_PINNING final : OptionBase<ENABLE_CPU_PINNING, bool> {
 
     static bool defaultValue() {
         return false;
+    }
+
+    static bool isPublic() {
+        return true;
     }
 
     static OptionMode mode() {
@@ -513,6 +569,10 @@ struct WORKLOAD_TYPE final : OptionBase<WORKLOAD_TYPE, ov::WorkloadType> {
 
     static ov::WorkloadType defaultValue() {
         return ov::WorkloadType::DEFAULT;
+    }
+
+    static bool isPublic() {
+        return true;
     }
 
     static constexpr std::string_view getTypeName() {
@@ -545,6 +605,10 @@ struct TURBO final : OptionBase<TURBO, bool> {
 
     static bool defaultValue() {
         return false;
+    }
+
+    static bool isPublic() {
+        return true;
     }
 
     static OptionMode mode() {
@@ -689,6 +753,10 @@ struct DYNAMIC_SHAPE_TO_STATIC final : OptionBase<DYNAMIC_SHAPE_TO_STATIC, bool>
     static OptionMode mode() {
         return OptionMode::CompileTime;
     }
+
+    static bool isPublic() {
+        return false;
+    }
 };
 
 //
@@ -799,7 +867,7 @@ struct STEPPING final : OptionBase<STEPPING, int64_t> {
     }
 
     static bool isPublic() {
-        return true;
+        return false;
     }
 };
 
@@ -872,6 +940,10 @@ struct USE_ELF_COMPILER_BACKEND final : OptionBase<USE_ELF_COMPILER_BACKEND, ov:
 
     static constexpr std::string_view getTypeName() {
         return "ov::intel_npu::ElfCompilerBackend";
+    }
+
+    static bool isPublic() {
+        return false;
     }
 
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
@@ -958,7 +1030,7 @@ struct COMPILATION_NUM_THREADS final : OptionBase<COMPILATION_NUM_THREADS, int32
     }
 
     static bool isPublic() {
-        return false;
+        return true;
     }
 };
 
