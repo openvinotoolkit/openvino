@@ -475,6 +475,14 @@ void align_output_types(const NodeContext& context, OutputVector& outputs) {
     }
 }
 
+Output<Node> try_constfold(const Output<Node>& x) {
+    auto res = x;
+    if (const auto x_const = ov::util::get_constant_from_source(x)) {
+        res = x_const;
+    }
+    return res;
+}
+
 Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx) {
     auto x = context.get_input(static_cast<int>(idx));
     // This const only needed for type alignment

@@ -45,8 +45,10 @@ Output<Node> quantize_common(const NodeContext& context,
         const auto out_high_normalized =
             context.mark_node(std::make_shared<v1::Subtract>(out_high, zero_point_convert));
 
-        const auto bound_low = context.mark_node(std::make_shared<v1::Multiply>(scale_convert, out_low_normalized));
-        const auto bound_high = context.mark_node(std::make_shared<v1::Multiply>(scale_convert, out_high_normalized));
+        auto bound_low =
+            try_constfold(context.mark_node(std::make_shared<v1::Multiply>(scale_convert, out_low_normalized)));
+        auto bound_high =
+            try_constfold(context.mark_node(std::make_shared<v1::Multiply>(scale_convert, out_high_normalized)));
 
         const auto quantized_input = context.mark_node(
             std::make_shared<v0::FakeQuantize>(input_convert, bound_low, bound_high, bound_low, bound_high, levels));
@@ -61,7 +63,7 @@ Output<Node> quantize_common(const NodeContext& context,
         const auto input_convert = context.mark_node(std::make_shared<v0::Convert>(input, element::f32));
         const auto scales_convert = context.mark_node(std::make_shared<v0::Convert>(scale, element::f32));
         const auto zero_points_convert = context.mark_node(std::make_shared<v0::Convert>(zero_point, element::f32));
-        const auto axis_convert = context.mark_node(std::make_shared<v0::Convert>(axis, element::i32));
+        auto axis_convert = try_constfold(context.mark_node(std::make_shared<v0::Convert>(axis, element::i32)));
 
         const auto neg_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
         const auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
@@ -85,8 +87,9 @@ Output<Node> quantize_common(const NodeContext& context,
         const auto out_low_normalized = context.mark_node(std::make_shared<v1::Subtract>(out_low, zero_point_bc));
         const auto out_high_normalized = context.mark_node(std::make_shared<v1::Subtract>(out_high, zero_point_bc));
 
-        const auto bound_low = context.mark_node(std::make_shared<v1::Multiply>(scale_bc, out_low_normalized));
-        const auto bound_high = context.mark_node(std::make_shared<v1::Multiply>(scale_bc, out_high_normalized));
+        auto bound_low = try_constfold(context.mark_node(std::make_shared<v1::Multiply>(scale_bc, out_low_normalized)));
+        auto bound_high =
+            try_constfold(context.mark_node(std::make_shared<v1::Multiply>(scale_bc, out_high_normalized)));
 
         const auto quantized_input = context.mark_node(
             std::make_shared<v0::FakeQuantize>(input_convert, bound_low, bound_high, bound_low, bound_high, levels));

@@ -105,6 +105,8 @@ void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
                                 ov::NodeVector to,
                                 const ov::NodeVector& additional_rt_info_src = {});
 
+Output<Node> try_constfold(const Output<Node>& x);
+
 Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx);
 
 Output<Node> get_input_as_i32(const NodeContext& context, size_t idx);
