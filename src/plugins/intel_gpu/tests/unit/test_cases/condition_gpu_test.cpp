@@ -131,14 +131,14 @@ public:
         decltype(net->execute()) out;
 
         //WHEN TRUE
-        set_values(predicate, { 1 });
+        set_values<int8_t>(predicate, { 1 });
         net->set_input_data(pred_id, predicate);
         out = net->execute();
         auto out_data_true = out.at(output_id).get_memory();
         ASSERT_TRUE(is_output_equal(out_data_true, convert_data({ 20, 40 })));
 
         //WHEN FALSE
-        set_values(predicate, { 0 });
+        set_values<int8_t>(predicate, {0});
         net->set_input_data(pred_id, predicate);
         out = net->execute();
         auto out_data_false = out.at(output_id).get_memory();
@@ -612,7 +612,7 @@ public:
             1.0f
         };
         std::vector<float> predicate_2_data = {
-            2.0f, 4.0f
+            2.0f
         };
         set_values(input, input_data);
         set_values(predicate, predicate_data);
@@ -956,7 +956,7 @@ TEST(condition_gpu, empty_body_with_different_shapes) {
     ASSERT_FALSE(net.get_primitive(cond_id)->get_node().as<condition>().get_branch_true().inner_program->can_be_optimized());
     ASSERT_TRUE(net.get_primitive(cond_id)->get_node().as<condition>().get_branch_false().inner_program->can_be_optimized());
 
-    set_values(predicate_mem, { 0 });
+    set_values<int8_t>(predicate_mem, { 0 });
     net.set_input_data(pred_id, predicate_mem);
     set_values(input_mem, { 1 });
     net.set_input_data(input_id1, input_mem);
@@ -984,7 +984,7 @@ TEST(condition_gpu, set_empty_tensor) {
     auto predicate_mem = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::u8, format::bfyx });
     auto concat_data = engine.allocate_memory({ { 1, 1, 4, 1 }, data_types::f32, format::bfyx });
 
-    set_values(predicate_mem, {1});
+    set_values<int8_t>(predicate_mem, {1});
 
     primitive_id empty_input_id      = "input1";
     primitive_id reorder_id          = "reorder";
