@@ -508,9 +508,7 @@ Output<Node> get_input_concat_if_list(const NodeContext& context, size_t idx) {
             // Can we figure real type for empty list?
             return std::make_shared<v0::Constant>(element::i32, Shape{0}, std::vector<int>{});
         OutputVector inputs;
-        std::cout << "Elems:" << std::endl;
         for (auto& elem : elems) {
-            std::cout << elem << std::endl;
             inputs.push_back(elem);
         }
         auto new_x = std::make_shared<v0::Concat>(inputs, 0);
