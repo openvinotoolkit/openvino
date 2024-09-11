@@ -38,7 +38,7 @@ CPU
       * Windows 11, 64-bit
       * macOS 12.6 and above, 64-bit and ARM64
       * CentOS 7
-      * Red Hat Enterprise Linux 8, 64-bit
+      * Red Hat Enterprise Linux 9.3-9.4, 64-bit
       * openSUSE Tumbleweed, 64-bit and ARM64
       * Ubuntu 20.04 ARM64
 
@@ -117,7 +117,7 @@ Operating systems and developer environment
 
       Build environment components:
 
-      * Python* 3.8-3.11
+      * Python 3.8-3.12
       * `Intel® HD Graphics Driver <https://downloadcenter.intel.com/product/80939/Graphics-Drivers>`__
         required for inference on GPU
       * GNU Compiler Collection and CMake are needed for building from source:
@@ -135,7 +135,7 @@ Operating systems and developer environment
 
       * `Microsoft Visual Studio 2019 <https://visualstudio.microsoft.com/vs/older-downloads/>`__
       * `CMake <https://cmake.org/download/>`__ 3.16 or higher
-      * `Python <http://www.python.org/downloads/>`__ 3.8-3.11
+      * `Python <http://www.python.org/downloads/>`__ 3.8-3.12
       * `Intel® HD Graphics Driver <https://downloadcenter.intel.com/product/80939/Graphics-Drivers>`__
         required for inference on GPU
 
@@ -147,13 +147,15 @@ Operating systems and developer environment
 
       * `Xcode <https://developer.apple.com/xcode/>`__ 10.3
       * `CMake <https://cmake.org/download/>`__ 3.13 or higher
-      * `Python <http://www.python.org/downloads/>`__ 3.8-3.11
+      * `Python <http://www.python.org/downloads/>`__ 3.8-3.12
 
    .. tab-item:: DL frameworks versions:
 
-      * TensorFlow 1.15.5, 2.16.1
-      * ONNX 1.15
+      * TensorFlow 1.15.5, 2.16.1, 2.17.0
+      * Torch 2.4
+      * ONNX 1.15, 1.16
       * PaddlePaddle 2.6
+      * JAX 0.4.31 (via a path of jax2tf with native_serialization=False)
 
       This package can be installed on other versions of DL Frameworks
       but only the versions specified here are fully validated.
