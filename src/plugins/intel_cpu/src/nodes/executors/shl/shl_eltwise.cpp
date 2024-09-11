@@ -10,17 +10,6 @@
 namespace ov {
 namespace intel_cpu {
 
-inline void log_unsupported_prec(const std::vector<MemoryDescPtr>& srcDescs,
-                                 const std::vector<MemoryDescPtr>& dstDescs,
-                                 const Algorithm eltwiseAlgorithm) {
-    std::string srcPrec;
-    for (size_t i = 0; i < srcDescs.size(); i++) {
-        srcPrec += srcDescs[i]->getPrecision().to_string() + " ";
-    }
-    DEBUG_LOG(algToString(eltwiseAlgorithm), ": provided combination of src precisions: [", srcPrec,
-                          "] and dst precision: ", dstDescs[0]->getPrecision().to_string(), " is not supported");
-}
-
 bool ShlEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
     if (one_of(algorithm, Algorithm::EltwiseAdd,
                           Algorithm::EltwiseSubtract,
@@ -93,14 +82,11 @@ bool ShlEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs,
     srcTensors = std::vector<ShlTensor>(srcDescs.size());
     dstTensors = std::vector<ShlTensor>(dstDescs.size());
 
-    // Allocate Shl session
-    sess = ShlSession();
-
     for (size_t i = 0; i < srcDescs.size(); i++) {
-        srcTensors[i] = ShlTensor(sess, precisionToShlDataType(srcDescs[i]->getPrecision()), getShlDataLayoutByMemoryDesc(srcDescs[i]), srcDescs[i]->getShape().getStaticDims());
+        srcTensors[i] = ShlTensor(sess, precisionToShlDataType(srcDescs[i]->getPrecision()), getShlDataLayoutByMemoryDesc(srcDescs[i]), srcDescs[i]->as<BlockedMemoryDesc>()->getBlockDims());
     }
     for (size_t i = 0; i < dstDescs.size(); i++) {
-        dstTensors[i] = ShlTensor(sess, precisionToShlDataType(dstDescs[i]->getPrecision()), getShlDataLayoutByMemoryDesc(dstDescs[i]), dstDescs[i]->getShape().getStaticDims());
+        dstTensors[i] = ShlTensor(sess, precisionToShlDataType(dstDescs[i]->getPrecision()), getShlDataLayoutByMemoryDesc(dstDescs[i]), dstDescs[i]->as<BlockedMemoryDesc>()->getBlockDims());
     }
 
     std::function<int()> initFunc = nullptr;

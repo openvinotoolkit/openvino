@@ -6,6 +6,7 @@
 #include "csinn/csinn_data_structure.h"
 #include "csinn/csinn_runtime.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 
 
 namespace ov {
