@@ -342,28 +342,25 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     cldnn::primitive_id concatStr = layerName + ":hiddenConcat";
     p.add_primitive(*op, cldnn::concatenation(concatStr, output_ids_offsets, 1));
 
-    p.add_primitive(*op, cldnn::reshape(layerName + ".out0", concatStr, tensor_from_dims(op->get_output_shape(0))), {layerName});
-
-    // Add out1 and out2 reshape when user exists
-    auto users = op->get_users(true);
-    bool out1_added = false;
-    bool out2_added = false;
-    if (users.size() > 1) {
-        size_t output_index_of_user_input = 0;
-        for (size_t i = 1; i < users.size(); i++) {
-            for (auto& user_input : users.at(i)->inputs()) {
-                if (user_input.get_source_output().get_node()->get_instance_id() == op->get_instance_id()) {
-                    output_index_of_user_input = user_input.get_source_output().get_index();
-                    break;
-                }
+    // Create output reshape when it has own user
+    bool out0_added = false, out1_added = false, out2_added = false;
+    size_t output_index_of_user_input = 0;
+    for (auto& user : op->get_users(true)) {
+        for (auto& user_input : user->inputs()) {
+            if (user_input.get_source_output().get_node()->get_instance_id() == op->get_instance_id()) {
+                output_index_of_user_input = user_input.get_source_output().get_index();
+                break;
             }
-            if (!out1_added && output_index_of_user_input == 1) {
-                p.add_primitive(*op, cldnn::reshape(layerName + ".out1", hiddenStr, tensor_from_dims(op->get_output_shape(1))));
-                out1_added = true;
-            } else if (!out2_added && output_index_of_user_input == 2) {
-                p.add_primitive(*op, cldnn::reshape(layerName + ".out2", cellStr, tensor_from_dims(op->get_output_shape(2))));
-                out2_added = true;
-            }
+        }
+        if (!out0_added && output_index_of_user_input == 0) {
+            p.add_primitive(*op, cldnn::reshape(layerName + ".out0", concatStr, tensor_from_dims(op->get_output_shape(0))), {layerName});
+            out0_added = true;
+        } else if (!out1_added && output_index_of_user_input == 1) {
+            p.add_primitive(*op, cldnn::reshape(layerName + ".out1", hiddenStr, tensor_from_dims(op->get_output_shape(1))));
+            out1_added = true;
+        } else if (!out2_added && output_index_of_user_input == 2) {
+            p.add_primitive(*op, cldnn::reshape(layerName + ".out2", cellStr, tensor_from_dims(op->get_output_shape(2))));
+            out2_added = true;
         }
     }
 }
