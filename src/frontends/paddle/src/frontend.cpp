@@ -23,7 +23,6 @@
 #include "default_opset.hpp"
 #include "framework.pb.h"
 #include "input_model.hpp"
-#include "internal/pass/transform_fakequantize.hpp"
 #include "internal/pass/transform_if.hpp"
 #include "internal/pass/transform_tensorarray.hpp"
 #include "internal/pass/transform_while.hpp"
@@ -355,18 +354,6 @@ void FrontEnd::try_remove_internal_ops(const std::vector<std::shared_ptr<Model>>
     }
 }
 
-void FrontEnd::fuse_fakequantize_ops(const std::vector<std::shared_ptr<Model>>& models) const {
-    for (auto& model : models) {
-        ov::pass::Manager manager("Frontend:Paddle:fuse_fakequantize_ops");
-        manager.register_pass<ov::frontend::paddle::pass::TransformFakeQuantize>();
-        manager.run_passes(model);
-    }
-    if (models.size() > 0) {
-        // revalidate as child models are transformed after parent models.
-        models[0]->validate_nodes_and_infer_types();
-    }
-}
-
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     // Last boolean flag in `variants` (if presented) is reserved for FE configuration
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
@@ -478,7 +465,6 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
             return paddle::make_ng_node(nodes_dict, op_place, m_op_translators);
         });
 
-    fuse_fakequantize_ops(f);
     try_remove_internal_ops(f);
     normalize(f[0]);
     return f[0];
@@ -494,7 +480,6 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
         result->validate_and_infer_types();
     }
 
-    fuse_fakequantize_ops({partiallyConverted});
     try_remove_internal_ops({partiallyConverted});
     normalize(partiallyConverted);
 }
@@ -527,7 +512,6 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& mo
             return named_outputs;
         });
 
-    fuse_fakequantize_ops(f);
     try_remove_internal_ops(f);
     normalize(f[0]);
     return f[0];
