@@ -171,6 +171,18 @@ DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const_dnnl_memory_desc_t de
     }
 }
 
+static size_t sub_byte_data_type_multiplier(dnnl::memory::data_type dataType) {
+    switch (dataType) {
+    case dnnl::memory::data_type::nf4:
+    case dnnl::memory::data_type::s4:
+    case dnnl::memory::data_type::u4:
+    case dnnl::memory::data_type::f4_e2m1:
+        return 2;
+    default:
+        return 1;
+    }
+}
+
 size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const dnnl::memory::desc& desc) {
     auto tmpDesc = desc;
 
@@ -181,7 +193,8 @@ size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const dnnl::memory::desc& desc)
     if (size == DNNL_RUNTIME_SIZE_VAL)
         return MemoryDesc::UNDEFINED_SIZE;
 
-    size += offset0 * sizeOfDataType(tmpDesc.get_data_type());
+    size += div_up(offset0 * sizeOfDataType(tmpDesc.get_data_type()),
+                   sub_byte_data_type_multiplier(tmpDesc.get_data_type()));
     return size;
 }
 
