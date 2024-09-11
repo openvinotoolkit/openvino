@@ -26,5 +26,5 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin,
 INSTANTIATE_TEST_SUITE_P(ov_plugin,
                          OVClassQueryModelTest,
                          ::testing::Values(ov::test::utils::target_device),
-                         MARK_MANDATORY_API_FOR_HW_DEVICE(NULL_getTestCaseName));
+                         MARK_MANDATORY_API_FOR_HW_DEVICE());
 }  // namespace
