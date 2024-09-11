@@ -44,6 +44,8 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
     const uint64_t n_blocks_per_col = (K + block_size - 1) / block_size;
     const auto blob_size = static_cast<int64_t>(ceil(block_size * bits / 8));
 
+    CHECK_VALID_NODE(node, n_blocks_per_col > 0, "Wrong blocks count: ", n_blocks_per_col);
+    CHECK_VALID_NODE(node, blob_size > 0, "Wrong blob size: ", blob_size);
     CHECK_VALID_NODE(node,
                      dynamic_cast<v0::Constant*>(b_quantized.get_node()) != nullptr,
                      "MatMulNBits limitation: accepting only a constant as a B input");
@@ -96,11 +98,10 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                          bias.get_partial_shape());
     }
 
-    ov::Output<ov::Node> scaled_b;
     {
         const auto b_const = std::dynamic_pointer_cast<v0::Constant>(b_quantized.get_node_shared_ptr());
         ov::Output<ov::Node> casted_b;
-        ov::Output<ov::Node> reshape_b;
+        ov::Shape casted_b_shape;
         ov::Output<ov::Node> default_zp;
         switch (bits) {
         case 2:
@@ -108,53 +109,98 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                 ov::element::u2,
                 Shape{static_cast<uint64_t>(N), n_blocks_per_col, static_cast<uint64_t>(blob_size) * 4},
                 b_const->get_data_ptr());
-            reshape_b = op::util::reshape(casted_b, Shape{static_cast<size_t>(N), static_cast<size_t>(blob_size * 4)});
             default_zp = std::make_shared<v0::Constant>(a.get_element_type(), Shape{}, 2);
+            casted_b_shape = ov::Shape{static_cast<size_t>(N * n_blocks_per_col), static_cast<size_t>(blob_size * 4)};
             break;
         case 4:
             casted_b = std::make_shared<v0::Constant>(
                 ov::element::u4,
                 Shape{static_cast<uint64_t>(N), n_blocks_per_col, static_cast<uint64_t>(blob_size) * 2},
                 b_const->get_data_ptr());
-            reshape_b = op::util::reshape(casted_b, Shape{static_cast<size_t>(N), static_cast<size_t>(blob_size * 2)});
             default_zp = std::make_shared<v0::Constant>(a.get_element_type(), Shape{}, 8);
+            casted_b_shape = ov::Shape{static_cast<size_t>(N * n_blocks_per_col), static_cast<size_t>(blob_size * 2)};
             break;
         default:
             FRONT_END_THROW("Unsupported bits count");
             break;
         }
 
+        const auto reshaped_casted_b = op::util::reshape(casted_b, casted_b_shape);
         // Possible issue with slice implementation, had to move convertion before slice, instead of slicing uint4
-        const auto converted_b = std::make_shared<v1::ConvertLike>(reshape_b, a);
+        const auto converted_b = std::make_shared<v1::ConvertLike>(reshaped_casted_b, a);
 
-        // Removing unused items in case block is bigger than column count
-        const auto zero_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 0);
-        const auto one_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 1);
-        const auto elements_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, static_cast<int32_t>(K));
-        const auto axis_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 1);
-        const auto slice_b =
-            std::make_shared<v8::Slice>(converted_b, zero_const, elements_const, one_const, axis_const);
+        // Simple case
+        if (n_blocks_per_col == 1) {
+            // Removing unused items in case block is bigger than column count
+            const auto zero_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 0);
+            const auto one_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 1);
+            const auto elements_const =
+                std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, static_cast<int32_t>(K));
+            const auto axis_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 1);
+            const auto slice_b =
+                std::make_shared<v8::Slice>(converted_b, zero_const, elements_const, one_const, axis_const);
 
-        // Transpose matrix
-        const auto transposed_shape =
-            std::make_shared<v0::Constant>(ov::element::i64, Shape{2}, std::vector<int64_t>{1, 0});
-        const auto transposed_b = std::make_shared<v1::Transpose>(slice_b, transposed_shape);
+            // Transpose matrix
+            const auto transposed_shape =
+                std::make_shared<v0::Constant>(ov::element::i64, Shape{2}, std::vector<int64_t>{1, 0});
+            const auto transposed_b = std::make_shared<v1::Transpose>(slice_b, transposed_shape);
 
-        // If no zero-points provided - we generate default, depends on data size
-        if (!zero_points.get_node_shared_ptr()) {
-            zero_points = default_zp;
+            // If no zero-points provided - we generate default, depends on data size
+            if (!zero_points.get_node_shared_ptr()) {
+                zero_points = default_zp;
+            }
+            const auto sub_b = std::make_shared<v1::Subtract>(transposed_b, zero_points);
+
+            // Scaling
+            const auto scaled_b = std::make_shared<v1::Multiply>(sub_b, scales);
+
+            // Adding bias if required
+            if (!bias.get_node_shared_ptr()) {
+                b = scaled_b;
+            } else {
+                b = std::make_shared<v1::Add>(scaled_b, bias);
+            }
+        } else {
+            // Transpose matrix
+            const auto transposed_shape =
+                std::make_shared<v0::Constant>(ov::element::i64, Shape{2}, std::vector<int64_t>{1, 0});
+            ov::Output<ov::Node> transposed_b = std::make_shared<v1::Transpose>(converted_b, transposed_shape);
+
+            // If no zero-points provided - we generate default, depends on data size
+            if (!zero_points.get_node_shared_ptr()) {
+                zero_points = default_zp;
+            }
+            const auto sub_b = std::make_shared<v1::Subtract>(transposed_b, zero_points);
+
+            // Scaling
+            const auto scaled_b = std::make_shared<v1::Multiply>(sub_b, scales);
+
+            // Transpose again to make reshaping and slicing
+            transposed_b = std::make_shared<v1::Transpose>(scaled_b, transposed_shape);
+
+            const auto reshaped_b = op::util::reshape(
+                transposed_b,
+                ov::Shape{casted_b_shape[0] / n_blocks_per_col, casted_b_shape[1] * n_blocks_per_col});
+
+            // Removing unused items in case block is bigger than column count
+            const auto zero_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 0);
+            const auto one_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 1);
+            const auto elements_const =
+                std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, static_cast<int32_t>(K));
+            const auto axis_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 1);
+            const auto slice_b =
+                std::make_shared<v8::Slice>(reshaped_b, zero_const, elements_const, one_const, axis_const);
+
+            // Transpose again
+            transposed_b = std::make_shared<v1::Transpose>(slice_b, transposed_shape);
+
+            // Adding bias if required
+            if (!bias.get_node_shared_ptr()) {
+                b = transposed_b;
+            } else {
+                b = std::make_shared<v1::Add>(transposed_b, bias);
+            }
         }
-        const auto sub_b = std::make_shared<v1::Subtract>(transposed_b, zero_points);
-
-        // Scaling
-        scaled_b = std::make_shared<v1::Multiply>(sub_b, scales);
-    }
-
-    // Adding bias if required
-    if (!bias.get_node_shared_ptr()) {
-        b = scaled_b;
-    } else {
-        b = std::make_shared<v1::Add>(scaled_b, bias);
     }
 
     return {std::make_shared<v0::MatMul>(a, b)};
