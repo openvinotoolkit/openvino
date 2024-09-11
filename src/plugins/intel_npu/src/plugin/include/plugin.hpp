@@ -58,7 +58,6 @@ private:
 
     std::shared_ptr<NPUBackends> _backends;
 
-    std::map<std::string, std::string> _config;
     std::shared_ptr<OptionsDesc> _options;
     Config _globalConfig;
     Logger _logger;

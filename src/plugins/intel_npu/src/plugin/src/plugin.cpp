@@ -608,10 +608,6 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     if (_backends != nullptr) {
         _backends->setup(_globalConfig);
     }
-
-    for (const auto& entry : config) {
-        _config[entry.first] = entry.second;
-    }
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
