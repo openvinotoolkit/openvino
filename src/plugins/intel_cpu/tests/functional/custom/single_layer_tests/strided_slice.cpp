@@ -208,6 +208,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Static_2D,
                                             ::testing::Values(emptyCPUSpec)),
                          StridedSliceLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Static_2D_InPlace,
+                         StridedSliceLayerCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation({{32, 20}})),
+                                            ::testing::Values(StridedSliceParams{{2, 0}, {16, 20}, {1, 1}, {0, 0}, {0, 0}, {}, {}, {}}),
+                                            ::testing::ValuesIn(inputLayerTypes),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::Values(emptyCPUSpec)),
+                         StridedSliceLayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Dynamic_2D,
                          StridedSliceLayerCPUTest,
                          ::testing::Combine(::testing::ValuesIn(inputShapesDynamic2D),
@@ -249,6 +258,16 @@ INSTANTIATE_TEST_SUITE_P(
     StridedSliceLayerCPUTest,
     ::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic4D)),
                        ::testing::ValuesIn(testCasesCommon4D),
+                       ::testing::ValuesIn(inputLayerTypes),
+                       ::testing::ValuesIn(inputPrecisions),
+                       ::testing::ValuesIn(CPUParamsCommon4D)),
+    StridedSliceLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_CompareWithRefs_Common_Static_4D_InPlace,
+    StridedSliceLayerCPUTest,
+    ::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation({{2, 5, 32, 32}})),
+                       ::testing::Values(StridedSliceParams{{0, 0, 0, 0}, {1, 5, 32, 32}, {1, 1, 1, 1}, {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}}),
                        ::testing::ValuesIn(inputLayerTypes),
                        ::testing::ValuesIn(inputPrecisions),
                        ::testing::ValuesIn(CPUParamsCommon4D)),

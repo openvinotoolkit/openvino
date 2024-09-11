@@ -6,12 +6,14 @@
 
 #include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
-#include "input.h"
 #include "openvino/opsets/opset1.hpp"
-#include "shape_inference/shape_inference_ngraph.hpp"
-#include "slice_shape_inference_utils.hpp"
+#include "partitioned_mem_mgr.h"
 #include "shape_inference/custom/strided_slice.hpp"
+#include "utils/general_utils.h"
 
+#include <algorithm>
+#include <functional>
+#include <numeric>
 #include <string>
 
 using namespace dnnl;
@@ -142,6 +144,8 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
         fillingInParameters(attrs.stride, STRIDE_ID, 1);
     if (inputShapes.size() > AXES_ID)
         fillingInParameters(attrs.axes, AXES_ID, 0);
+
+    isOptimizedOut = canBeOptimizedInplace();
 }
 
 void StridedSlice::getSupportedDescriptors() {
@@ -195,6 +199,52 @@ static void addHiddenDims(StridedSlice::StridedSliceAttributes& attrs, const siz
     }
 }
 
+bool StridedSlice::canBeOptimizedInplace() const {
+    // some of the requirements below can probably be relaxed if necessary
+    if (isDynamicNode())
+        return false;
+
+    if (!everyone_is(attrs.begin.size(), attrs.end.size(), inputShapes[0].getDims().size())) {
+        return false;
+    }
+
+    auto contains_default_values = [](const std::vector<int>& v, const int default_value) {
+        return std::all_of(v.begin(), v.end(), [&default_value](const int mask) { return mask == default_value; });
+    };
+
+    if (!contains_default_values(attrs.stride, 1) ||
+        !contains_default_values(attrs.beginMask, 1) ||
+        !contains_default_values(attrs.endMask, 1) ||
+        !contains_default_values(attrs.ellipsisMask, 0) ||
+        !contains_default_values(attrs.newAxisMask, 0) ||
+        !contains_default_values(attrs.shrinkAxisMask, 0)) {
+        return false;
+    }
+
+    /**
+     * Inplace slice must happen by most outer dimension, for example:
+     * input shape:  {5, 2, 2, 2}
+     * begin:        {3, 0, 0, 0}
+     * end:          {5, 2, 2, 2}
+     * output shape: {2, 2, 2, 2}
+     */
+    int slice_idx = attrs.begin.size();
+    for (int i = attrs.begin.size() - 1;  i >= 0; i--) {
+        if (attrs.end[i] == static_cast<int>(outputShapes[0].getDims()[i]) &&
+            attrs.begin[i] == 0) {
+            continue;
+        }
+
+        slice_idx = i;
+        break;
+    }
+
+    if (slice_idx != 0)
+        return false;
+
+    return true;
+}
+
 void StridedSlice::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
@@ -222,6 +272,7 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
         config.inConfs[AXES_ID].constant(isConstantInput[AXES_ID]);
     }
     config.outConfs.resize(1);
+    config.outConfs[0].inPlace(isOptimizedOut ? 0 : -1);
 
     std::vector<LayoutType> supportedTypes;
     if (nDims > 2 && attrs.equalDims) {
@@ -266,11 +317,79 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
     }
 }
 
+void StridedSlice::resolveInPlaceEdges(Edge::LOOK look) {
+    if (!(look & Edge::LOOK_UP) || !isInPlace()) {
+        Node::resolveInPlaceEdges(look);
+        return;
+    }
+
+    const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
+
+    if (!selected_pd)
+        OPENVINO_THROW("Cannot find selected primitive descriptor for node: ", getName());
+
+    auto outputConfig = selected_pd->getConfig().outConfs;
+
+    for (size_t i = 0; i < outputConfig.size(); i++) {
+        auto inplaceInpIndx = outputConfig[i].inPlace();
+
+        if (inplaceInpIndx < 0)
+            continue;
+
+        auto baseMemBlock = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryBlock();
+        auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock);
+        const auto& childEdges = getChildEdgesAtPort(i);
+
+        auto baseMemorySize = inputShapes.front().getElementsCount();
+
+        // Example:
+        // Input shape: {5, 2, 2, 2}
+        // begin:       {3, 0, 0, 0}
+        // end:         {5, 2, 2, 2}
+        // offset = inputShape[3] * inputShape[2] * inputShape[1] * begin[0]
+        // offset = 2 * 2 * 2 * 3 = 24
+        size_t offset = 1;
+        for (int i = attrs.begin.size() - 1; i >= 0; i--) {
+            if (attrs.begin[i] == 0 && i != 0) {
+                offset *= inputShapes[0].getDims()[i];
+            } else {
+                offset *= attrs.begin[i];
+                break;
+            }
+        }
+
+        size_t end = std::accumulate(attrs.end.begin(), attrs.end.end(), 1, std::multiplies<int>());
+        size_t partitionSize = end - offset;
+
+        for (auto& childEdge : childEdges) {
+            if (childEdge->getStatus() != Edge::Status::NotAllocated) {
+                break;
+            }
+
+            OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
+                            " Unexpected inplace resolve call to an allocated edge: ",
+                            childEdge->name());
+
+            auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock, baseMemorySize, offset, partitionSize);
+            auto newMem =
+                std::make_shared<Memory>(getEngine(), outputConfig[0].getMemDesc(), memBlock);
+
+            childEdge->reuse(newMem);
+        }
+    }
+}
+
 bool StridedSlice::isExecutable() const {
+    if (isInPlace())
+        return false;
+
     return !isInputTensorAtPortEmpty(0) && !isOutputTensorAtPortEmpty(0);
 }
 
 void StridedSlice::createPrimitive() {
+    if (isInPlace())
+        return;
+
     if (inputShapesDefined() && isExecutable() && !shapeHasDataDependency) {
         if (needPrepareParams()) {
             prepareParams();
@@ -284,6 +403,9 @@ bool StridedSlice::needPrepareParams() const {
 }
 
 void StridedSlice::prepareParams() {
+    if (isInPlace())
+        return;
+
     updateLastInputDims();
 
     if (srcMemory.empty()) {
@@ -304,6 +426,10 @@ bool StridedSlice::needShapeInfer() const {
 }
 
 void StridedSlice::execute(dnnl::stream strm) {
+    if (isInPlace()) {
+        return;
+    }
+
     if (!execPtr)
         OPENVINO_THROW(errorPrefix, "doesn't have compiled executor!");
 
