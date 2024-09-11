@@ -226,6 +226,12 @@ Plugin::Plugin()
     // parse again env_variables after backend is initialized to get backend proprieties
     _globalConfig.parseEnvVars();
 
+    std::vector<ov::PropertyName> sup_props = _options->getSupportedProperties();
+    std::cout << "Sup _props: " << std::endl;
+    for (const std::string& prop : sup_props) {
+        std::cout << prop << std::endl;
+    }
+    std::cout << "Sup_props end;" << std::endl;
     // Map from name to function {Config -> ov::Any}
     // Note that some properties are RW before network is loaded, and become RO after network is loaded
     _properties = {
@@ -550,6 +556,7 @@ Plugin::Plugin()
         {ov::intel_npu::batch_mode.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
                                                 return config.getString<BATCH_MODE>();
                                             }}}};
+    //_supportedProperties = _options->getSupportedProperties();
 
     // std::vector<std::string> supportedOptions = _options->getSupported();
     // std::cout << "[CSOKADBG] SUPPORTED OPTIONS: ";
