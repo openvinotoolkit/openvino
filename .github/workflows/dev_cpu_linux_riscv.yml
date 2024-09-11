@@ -132,7 +132,7 @@ jobs:
           pushd ${XUANTIE_DIR}
             echo 'what is going on ?'
             ls -la ${XUANTIE_BIN_PATH}
-            cp -r ${XUANTIE_BIN_PATH} ${XUANTIE_DIR}
+            cp ${XUANTIE_BIN_PATH}/{XUANTIE_TAR_NAME}.tar ${XUANTIE_DIR}
             ls -la ${XUANTIE_DIR}
             tar -xf {XUANTIE_TAR_NAME}.tar
             chmod -R 777 ${XUANTIE_TAR_NAME}
