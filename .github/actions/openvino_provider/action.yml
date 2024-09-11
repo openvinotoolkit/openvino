@@ -46,10 +46,10 @@ outputs:
     value: ${{ steps.openvino_nightly_download.outputs.ov_package_path || steps.openvino_commit_output.outputs.ov_package_path }}
   ov_wheel_input:
     description: "Input for pip to install OpenVINO python wheel"
-    value: ${{ steps.openvino_nightly_wheel.outputs.ov_wheel_input || steps.openvino_commit_wheel.outputs.ov_wheel_input }}
+    value: ${{ steps.openvino_wheel.outputs.ov_wheel_input || steps.openvino_commit_wheel.outputs.ov_wheel_input }}
   ov_wheel_source:
     description: "Pip option for custom OV wheel location (--find-links or --extra-index-url)"
-    value: ${{ steps.openvino_nightly_wheel.outputs.ov_wheel_source || steps.openvino_commit_wheel.outputs.ov_wheel_source }}
+    value: ${{ steps.openvino_wheel.outputs.ov_wheel_source || steps.openvino_commit_wheel.outputs.ov_wheel_source }}
 
 runs:
   using: "composite"
@@ -165,8 +165,16 @@ runs:
       if: steps.openvino_download.outcome == 'success'
       shell: bash
       run: |
-        version=$(echo ${{ steps.openvino_download.outputs.ov_package_path }} |
-          grep -oP '(?<=_)\d{4}\.\d\.\d\.dev\d{8}(?=_)')
+        rc_version=$(echo ${{ inputs.package_url }} |
+          grep -oP '(?<=pre-release\/)\d{4}\.\d+\.\d+rc\d+' || true)
+
+        release_version=$(echo ${{ steps.openvino_download.outputs.ov_package_path }} |
+          grep -oP '_\K\d{4}\.\d+\.\d+')
+        
+        dev_version=$(echo ${{ steps.openvino_download.outputs.ov_package_path }} |
+          grep -oP "${release_version//./\\.}\.dev\d{8}" || true)
+
+        version=${rc_version:-${dev_version:-$release_version}}
         extra_index="--pre --extra-index-url ${{ inputs.pip_extra_url }}"
         wheel_input="$extra_index openvino==$version"
         echo "ov_wheel_input=$wheel_input" >> $GITHUB_OUTPUT
