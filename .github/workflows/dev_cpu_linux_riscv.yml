@@ -128,7 +128,7 @@ jobs:
 
       - name: Init XUANTIE
         run: |
-          # mkdir ${XUANTIE_DIR}
+          mkdir ${XUANTIE_DIR}
           # pushd ${XUANTIE_DIR}
           ls -la ${XUANTIE_BIN_PATH}
           cp -r ${XUANTIE_BIN_PATH} ${XUANTIE_DIR}
