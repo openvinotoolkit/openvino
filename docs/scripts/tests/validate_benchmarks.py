@@ -11,18 +11,13 @@ def load_json(file_path):
     with open(file_path, 'r') as file:
         return json.load(file)
 
-def fetch_schema(schema_url):
-    """Fetch and return the JSON schema."""
-    with open(schema_url, 'r') as file:
-        return json.load(file)
-
 def validate_json_files(benchmarks_dir):
     """Validate all JSON files in the 'data' subdirectory against the schema."""
     # Define the path to the schema file
     schema_path = os.path.join(benchmarks_dir, 'schema', 'graph-data-schema.json')
 
     # Fetch the schema
-    schema = fetch_schema(schema_path)
+    schema = load_json(schema_path)
     validator = Draft7Validator(schema)
     
     # Define the path to the 'data' subdirectory containing the JSON files
