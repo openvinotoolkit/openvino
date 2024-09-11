@@ -91,13 +91,13 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
 
 /**
  * @brief Setting batching mode
- * @details  In the case of older drivers or discrete platforms, we force batching to compiler mode since it is not
+ * @details  In the case of older drivers, we force batching to compiler mode since it is not
  * supported. Othwersie set it tu AUTO if this wasn't set by the user
  * @param isBatchingSupported  Newer driver versions support batching mode on the plugin.
  * @param config A configuration map.
  */
 void set_batch_config(bool isBatchingSupported, Config& config) {
-    if (!isBatchingSupported || config.get<PLATFORM>() == ov::intel_npu::Platform::NPU3700) {
+    if (!isBatchingSupported) {
         if (config.has<BATCH_MODE>()) {
             if (config.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
                 OPENVINO_THROW("Batching on plugin is not supported with this driver version");
@@ -685,10 +685,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
-
     try {
         bool profiling = localConfig.get<PERF_COUNT>();
-
         compiledModel = std::make_shared<CompiledModel>(model,
                                                         shared_from_this(),
                                                         device,
@@ -766,15 +764,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
         const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(meta.inputs, meta.outputs);
 
-        bool profiling = localConfig.get<PERF_COUNT>();
-
         auto networkDescription = std::make_shared<const NetworkDescription>(std::move(blob), std::move(meta));
 
         compiledModel = std::make_shared<CompiledModel>(modelDummy,
                                                         shared_from_this(),
                                                         networkDescription,
                                                         device,
-                                                        profiling ? std::optional(compiler) : std::nullopt,
+                                                        compiler,
                                                         localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
@@ -822,7 +818,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
 ov::SoPtr<ICompiler> Plugin::getCompiler(const Config& config) const {
     auto compilerType = config.get<COMPILER_TYPE>();
-    return createCompiler(compilerType);
+    _logger.debug("performing createCompiler");
+    return createCompiler(_backends, compilerType);
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};

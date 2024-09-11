@@ -1,18 +1,16 @@
-.. {#openvino_docs_ops_detection_DetectionOutput_8}
-
 DetectionOutput
 ===============
 
 
 .. meta::
-  :description: Learn about DetectionOutput-8 - an object detection operation, which 
+  :description: Learn about DetectionOutput-8 - an object detection operation, which
                 can be performed on three mandatory and two additional tensors in OpenVINO.
 
 **Versioned name**: *DetectionOutput-8*
 
 **Category**: *Object detection*
 
-**Short description**: *DetectionOutput* performs non-maximum suppression to generate the detection output using information on location and 
+**Short description**: *DetectionOutput* performs non-maximum suppression to generate the detection output using information on location and
 confidence predictions.
 
 **Detailed description**: `Reference <https://arxiv.org/pdf/1512.02325.pdf>`__ . The layer has 3 mandatory inputs: tensor with box logits, tensor with confidence predictions and tensor with box coordinates (proposals). It can have 2 additional inputs with additional confidence predictions and box coordinates described in the `article <https://arxiv.org/pdf/1711.06897.pdf>`__ . The output tensor contains information about filtered detections described with 7 element tuples: ``[batch_id, class_id, confidence, x_1, y_1, x_2, y_2]``. The first tuple with ``batch_id`` equal to ``-1`` means end of output.
@@ -22,7 +20,7 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 **Attributes**:
 
 .. note::
-   
+
    *num_classes*, a number of classes attribute, presents in :doc:`DetectionOutput_1 <detectionoutput-1>` has been removed. It can be computed as ``cls_pred_shape[-1] // num_prior_boxes`` where ``cls_pred_shape`` and ``num_prior_boxes`` are class predictions tensor shape and a number of prior boxes.
 
 * *background_label_id*
@@ -107,7 +105,7 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 
   * **Description**: *decrease_label_id* flag that denotes how to perform NMS.
   * **Range of values**:
-    
+
     * false - perform NMS like in Caffe.
     * true - perform NMS like in Apache MxNet.
   * **Type**: ``boolean``
@@ -158,7 +156,7 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="DetectionOutput" version="opset8">
        <data background_label_id="1" code_type="caffe.PriorBoxParameter.CENTER_SIZE" confidence_threshold="0.019999999552965164" input_height="1" input_width="1" keep_top_k="200" nms_threshold="0.44999998807907104" normalized="true" share_location="true" top_k="200" variance_encoded_in_target="false" clip_after_nms="false" clip_before_nms="false" objectness_score="0" decrease_label_id="false"/>
        <input>

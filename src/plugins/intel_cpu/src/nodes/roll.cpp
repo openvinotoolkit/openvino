@@ -102,14 +102,14 @@ void Roll::prepareParams() {
     const auto& axesMemPtr = getSrcMemoryAtPort(AXES_INDEX);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
 
-    if (!dataMemPtr || !dataMemPtr->isAllocated())
-        OPENVINO_THROW(layerErrorPrefix, " has not allocated input memory of 'data'");
-    if (!shiftMemPtr || !shiftMemPtr->isAllocated())
-        OPENVINO_THROW(layerErrorPrefix, " has not allocated input memory of 'shift'");
-    if (!axesMemPtr || !axesMemPtr->isAllocated())
-        OPENVINO_THROW(layerErrorPrefix, " has not allocated input memory of 'axes'");
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(layerErrorPrefix, " has not allocated output memory");
+    if (!dataMemPtr || !dataMemPtr->isDefined())
+        OPENVINO_THROW(layerErrorPrefix, " has undefined input memory of 'data'");
+    if (!shiftMemPtr || !shiftMemPtr->isDefined())
+        OPENVINO_THROW(layerErrorPrefix, " has undefined input memory of 'shift'");
+    if (!axesMemPtr || !axesMemPtr->isDefined())
+        OPENVINO_THROW(layerErrorPrefix, " has undefined input memory of 'axes'");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW(layerErrorPrefix, " has undefined output memory");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         OPENVINO_THROW(layerErrorPrefix, " has unidentified preferable primitive descriptor");
 

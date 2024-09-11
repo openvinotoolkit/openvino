@@ -72,7 +72,7 @@ Imports
 
     open("notebook_utils.py", "w").write(r.text)
 
-    from notebook_utils import segmentation_map_to_image, download_file
+    from notebook_utils import segmentation_map_to_image, download_file, device_widget
 
 Download model weights
 ----------------------
@@ -126,16 +126,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
-
+    device = device_widget()
     device
 
 
@@ -204,7 +195,7 @@ is provided.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f8bf851a160>
+    <matplotlib.image.AxesImage at 0x7f2de8219340>
 
 
 
@@ -231,7 +222,7 @@ Do Inference
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f8bf81eda00>
+    <matplotlib.image.AxesImage at 0x7f2de80c1c10>
 
 
 

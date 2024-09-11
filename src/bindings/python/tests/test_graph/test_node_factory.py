@@ -78,8 +78,6 @@ def test_node_factory_empty_topk_with_args_and_attrs():
     node.set_attribute("axis", 1)
     node.set_attribute("mode", "max")
     node.set_attribute("sort", "value")
-    with pytest.warns(DeprecationWarning, match="validate is deprecated and will be removed in version 2024.4."):
-        node.validate()
 
     node.constructor_validate_and_infer_types()
 
