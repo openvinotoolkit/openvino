@@ -8,7 +8,6 @@
 
 namespace kernel_selector {
 static constexpr size_t subgroup_size = 16;
-static constexpr size_t max_items_num = 8;
 
 // Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory reads
 std::pair<int, int> get_item_num_and_lws(const rms_params params, size_t data_size);
