@@ -156,7 +156,7 @@ jobs:
             -DENABLE_INTEL_NPU=OFF \
             -DENABLE_SAMPLES=ON \
             -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64-071-thead-gnu.toolchain.cmake \
-            -DRISCV_TOOLCHAIN_ROOT=${XUANTIE_DIR}${XUANTIE_TAR_NAME} \
+            -DRISCV_TOOLCHAIN_ROOT=${XUANTIE_DIR}/${XUANTIE_TAR_NAME} \
             -DENABLE_PYTHON=ON \
             -DENABLE_PYTHON_PACKAGING=ON \
             -DENABLE_WHEEL=ON \
