@@ -26,29 +26,38 @@ namespace onnx {
 namespace com_microsoft {
 namespace opset_1 {
 ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
+    // Original documentation:
+    // https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#com.microsoft.MatMulNBits
     const auto inputs = node.get_ov_inputs();
     FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 3, "Minimum 3 inputs are required. Got: ", inputs.size());
-    const auto& a = inputs[0];
+    const auto& a = inputs[0];  // required
     ov::Output<ov::Node> b;
-    const auto& b_quantized = inputs[1];
-    const auto& scales = inputs[2];
-    ov::Output<ov::Node> zero_points;
-    ov::Output<ov::Node> group_idx;
-    ov::Output<ov::Node> bias;
-    const auto K = node.get_attribute_value<int64_t>("K");
-    const auto N = node.get_attribute_value<int64_t>("N");
-    const auto accuracy_level = node.get_attribute_value<int64_t>("accuracy_level");
-    const auto block_size = node.get_attribute_value<int64_t>("block_size");
-    const auto bits = node.get_attribute_value<int64_t>("bits", 4);
+    const auto& b_quantized = inputs[1];                                                 // required
+    const auto& scales = inputs[2];                                                      // required
+    ov::Output<ov::Node> zero_points;                                                    // optional, input[3]
+    ov::Output<ov::Node> group_idx;                                                      // optional, input[4]
+    ov::Output<ov::Node> bias;                                                           // optionsl, input[5]
+    const auto K = node.get_attribute_value<int64_t>("K");                               // required
+    const auto N = node.get_attribute_value<int64_t>("N");                               // required
+    const auto accuracy_level = node.get_attribute_value<int64_t>("accuracy_level", 0);  // optional, default unset(0)
+    const auto block_size = node.get_attribute_value<int64_t>("block_size");             // required
+    const auto bits = node.get_attribute_value<int64_t>(
+        "bits",
+        4);  // required, in docs: number of bits used for weight quantization (default 4)
 
     const uint64_t n_blocks_per_col = (K + block_size - 1) / block_size;
     const auto blob_size = static_cast<int64_t>(ceil(block_size * bits / 8));
 
     CHECK_VALID_NODE(node, n_blocks_per_col > 0, "Wrong blocks count: ", n_blocks_per_col);
     CHECK_VALID_NODE(node, blob_size > 0, "Wrong blob size: ", blob_size);
+    // in documentation: ...Input B is a 2D constant Matrix.
     CHECK_VALID_NODE(node,
                      dynamic_cast<v0::Constant*>(b_quantized.get_node()) != nullptr,
                      "MatMulNBits limitation: accepting only a constant as a B input");
+    CHECK_VALID_NODE(node,
+                     b_quantized.get_partial_shape().rank() == 3,
+                     "Expected rank of quantized weights is 3 [N][n_blocks_per_col][blob_size], got: ",
+                     b_quantized.get_partial_shape().rank());
     CHECK_VALID_NODE(node,
                      a.get_element_type() == ov::element::f16 || a.get_element_type() == ov::element::f32,
                      "Unsupported input A type, accepted FP16, FP32, got: ",
@@ -100,9 +109,14 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
 
     {
         const auto b_const = std::dynamic_pointer_cast<v0::Constant>(b_quantized.get_node_shared_ptr());
+
         ov::Output<ov::Node> casted_b;
         ov::Shape casted_b_shape;
         ov::Output<ov::Node> default_zp;
+        // Casting/converting data of source constant.
+        // For further calculations (sub and/or multiply) we need to reshape it from [N][n_blocks_per_col][blob_size *
+        // X] to [N * n_blocks_per_col][blob_size * X] (where X is amount of values in 1 byte) because scale and
+        // zero_point are represented as: ...with shape like: [N * n_blocks_per_col]...
         switch (bits) {
         case 2:
             casted_b_shape = ov::Shape{static_cast<size_t>(N * n_blocks_per_col), static_cast<size_t>(blob_size * 4)};
@@ -113,6 +127,11 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
             casted_b_shape = ov::Shape{static_cast<size_t>(N * n_blocks_per_col), static_cast<size_t>(blob_size * 2)};
             casted_b = std::make_shared<v0::Constant>(ov::element::u4, casted_b_shape, b_const->get_data_ptr());
             default_zp = std::make_shared<v0::Constant>(a.get_element_type(), Shape{}, 8);
+            break;
+        case 8:
+            casted_b_shape = ov::Shape{static_cast<size_t>(N * n_blocks_per_col), static_cast<size_t>(blob_size)};
+            casted_b = op::util::reshape(b_const, casted_b_shape);
+            default_zp = std::make_shared<v0::Constant>(a.get_element_type(), Shape{}, 128);
             break;
         default:
             FRONT_END_THROW("Unsupported bits count");
