@@ -62,6 +62,7 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("TOTAL_BLOCK_NUM", total_block_num));
     jit.AddConstant(MakeJitConstant("ALIGNED_BLOCK_NUM", aligned_block_num));
     jit.AddConstant(MakeJitConstant("BLOCK_NUM", block_num));
+    jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", params.group_size));
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
 
     return jit;
@@ -70,14 +71,20 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
 CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_params& params) const {
     CommonDispatchData dispatchData;
 
-    auto vec_size = get_match_vector_size(params);
-    auto bf_size = get_input_bf_size(params);
-    size_t total_block_num = bf_size.second / (simd * vec_size);
-    size_t batch = get_input_bf_size(params).first;
-    size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
+    if (params.group_size > 128) {
+        auto vec_size = get_match_vector_size(params);
+        auto bf_size = get_input_bf_size(params);
+        size_t total_block_num = bf_size.second / (simd * vec_size);
+        size_t batch = get_input_bf_size(params).first;
+        size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
 
-    dispatchData.gws = {simd, block_num, batch};
-    dispatchData.lws = {simd, block_num, 1};
+        dispatchData.gws = {simd, block_num, batch};
+        dispatchData.lws = {simd, block_num, 1};
+    } else {
+        auto bf_size = get_input_bf_size(params);
+        dispatchData.gws = {bf_size.first, bf_size.second / params.group_size};
+        dispatchData.lws = {1, 1, 1};
+    }
 
     return dispatchData;
 }
@@ -132,7 +139,7 @@ KernelsData DynamicQuantizeKernelOpt::GetKernelsData(const Params& params) const
 }
 
 KernelsPriority DynamicQuantizeKernelOpt::GetKernelsPriority(const Params& /*params*/) const {
-    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    return FORCE_PRIORITY_1;
 }
 
 bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
