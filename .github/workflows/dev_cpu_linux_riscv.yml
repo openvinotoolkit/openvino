@@ -130,18 +130,19 @@ jobs:
         run: |
           mkdir ${XUANTIE_DIR}
           pushd ${XUANTIE_DIR}
-          ls -la ${XUANTIE_BIN_PATH}
-          cp -r ${XUANTIE_BIN_PATH} ${XUANTIE_DIR}
-          ls -la ${XUANTIE_DIR}
-          tar -xf {XUANTIE_TAR_NAME}.tar
-          chmod -R 777 ${XUANTIE_TAR_NAME}
-          ls -la ${XUANTIE_TAR_NAME}/libexec/gcc/riscv64-unknown-linux-gnu/10.4.0/
-          # echo 'show old link'
-          # ls -la ${XUANTIE_DIR}/libexec/gcc/riscv64-unknown-linux-gnu/10.4.0/
-          # echo 'show new link'
-          # cd ${XUANTIE_DIR}/libexec/gcc/riscv64-unknown-linux-gnu/10.4.0/
-          # ln -s liblto_plugin.so.0.0.0 liblto_plugin.so
-          # popd
+            echo 'what is going on ?'
+            ls -la ${XUANTIE_BIN_PATH}
+            cp -r ${XUANTIE_BIN_PATH} ${XUANTIE_DIR}
+            ls -la ${XUANTIE_DIR}
+            tar -xf {XUANTIE_TAR_NAME}.tar
+            chmod -R 777 ${XUANTIE_TAR_NAME}
+            ls -la ${XUANTIE_TAR_NAME}/libexec/gcc/riscv64-unknown-linux-gnu/10.4.0/
+            # echo 'show old link'
+            # ls -la ${XUANTIE_DIR}/libexec/gcc/riscv64-unknown-linux-gnu/10.4.0/
+            # echo 'show new link'
+            # cd ${XUANTIE_DIR}/libexec/gcc/riscv64-unknown-linux-gnu/10.4.0/
+            # ln -s liblto_plugin.so.0.0.0 liblto_plugin.so
+          popd
 
       # - name: CMake configure - OpenVINO - 2
       #   run: |
