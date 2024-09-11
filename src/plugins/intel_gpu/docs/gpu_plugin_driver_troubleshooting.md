@@ -71,7 +71,7 @@ $ ./hello_query_device.py
 
 ## 8. If you have errors with OpenCL headers in application build
 OpenCL headers should be installed in your system to build application using OpenCL objects. OpenVINO source code distribution contains OpenCL headers thirdparty/ocl/cl_headers. Alternatively you can
-install them from [OpenCL Git](https://github.com/KhronosGroup/OpenCL-Headers). For compatobility reasons, the version of OpenCL heares installed should be released before OpenVINO release date
+install them from [OpenCL Git](https://github.com/KhronosGroup/OpenCL-Headers). To ensure compatibility, make sure that the installed version of OpenCL headers had been released before the OpenVINO version you are using.
 
 ## See also
  * [Overview for OpenCL on Linux and troubleshoot](https://bashbaug.github.io/opencl/2019/07/06/OpenCL-On-Linux.html)
