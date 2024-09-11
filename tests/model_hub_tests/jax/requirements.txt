@@ -8,3 +8,4 @@ requests
 jax
 jaxlib
 flax
+pillow
