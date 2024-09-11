@@ -32,7 +32,7 @@ jobs:
       CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
-      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows2022_x86_64_${{ inputs.build-type }}\\${{ github.base_ref || github.ref_name }}"
+      CCACHE_REMOTE_DIR: ""
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_MAXSIZE: 3G
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
@@ -57,6 +57,21 @@ jobs:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
           ref: 'master'
+
+      - name: Set CCACHE_REMOTE_DIR based on event
+        shell: bash
+        run: |
+          final_dir=""
+          if [[ "${{ github.event_name }}" == "merge_group" ]]; then
+            branch_ref="${{ github.event.merge_group.base_ref }}" # Resolves into "refs/heads/master"
+            final_dir="${branch_ref##*/}" # Resolves into "master"
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            final_dir="${{ github.base_ref }}" # Resolves into "master"
+          else
+            final_dir="${{ github.ref_name }}" # Resolves into "master"
+          fi
+          
+          echo "CCACHE_REMOTE_DIR=C:\\\mount\\\caches\\\ccache\\\windows2022_x86_64_${{ inputs.build-type }}\\\\${final_dir}" >> $GITHUB_ENV
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
@@ -209,14 +224,14 @@ jobs:
       #
 
       - name: Upload openvino package
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.zip
           if-no-files-found: 'error'
 
       - name: Upload openvino tests package
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.zip
@@ -224,7 +239,7 @@ jobs:
 
       - name: Upload openvino js package
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_js_package
           path: ${{ env.INSTALL_DIR_JS }}

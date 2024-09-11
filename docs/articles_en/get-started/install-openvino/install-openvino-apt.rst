@@ -1,5 +1,3 @@
-.. {#openvino_docs_install_guides_installing_openvino_apt}
-
 Install Intel® Distribution of OpenVINO™ Toolkit for Linux Using APT Repository
 ==================================================================================
 
@@ -155,7 +153,7 @@ Step 2: Install OpenVINO Runtime Using the APT Package Manager
          .. code-block:: sh
 
 
-            sudo apt install openvino-2024.3.0
+            sudo apt install openvino-2024.4.0
 
 .. note::
 
@@ -228,7 +226,7 @@ To uninstall OpenVINO Runtime via APT, run the following command based on your n
 
       .. code-block:: sh
 
-         sudo apt autoremove openvino-2024.3.0
+         sudo apt autoremove openvino-2024.4.0
 
 
 What's Next?

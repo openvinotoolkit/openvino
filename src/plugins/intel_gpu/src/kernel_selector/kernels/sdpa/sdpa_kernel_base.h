@@ -87,6 +87,14 @@ struct sdpa_configuration {
     int64_t broadcast_axis = -1;
 
     bool is_causal = false;
+    bool has_alibi_input = false;
+
+    // Paged Attention configuration
+    bool is_paged_attention = false;
+    int64_t paged_attention_aligned_seq_len = -1;
+    int64_t paged_attention_block_size = 0;
+    bool has_scale_val = false;
+    float scale_val = 0.f;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -104,10 +112,6 @@ struct sdpa_params : public base_params {
     DataTensor beam_table;
 
     sdpa_configuration conf;
-};
-
-struct sdpa_fuse_params : fuse_params {
-    sdpa_fuse_params() : fuse_params(KernelType::SDPA) {}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

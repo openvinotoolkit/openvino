@@ -1,5 +1,3 @@
-.. {#plugin_build}
-
 Build Plugin Using CMake
 ========================
 

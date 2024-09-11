@@ -1,22 +1,20 @@
-.. {#openvino_docs_ops_comparison_GreaterEqual_1}
-
 GreaterEqual
 ============
 
 
 .. meta::
-  :description: Learn about GreaterEqual-1 - an element-wise, comparison operation, which 
+  :description: Learn about GreaterEqual-1 - an element-wise, comparison operation, which
                 can be performed on two given tensors in OpenVINO.
 
 **Versioned name**: *GreaterEqual-1*
 
 **Category**: *Comparison binary*
 
-**Short description**: *GreaterEqual* performs element-wise comparison operation with two given 
+**Short description**: *GreaterEqual* performs element-wise comparison operation with two given
 tensors applying broadcast rules specified in the ``auto_broadcast`` attribute.
 
 **Detailed description**
-Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are 
+Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are
 different and ``auto_broadcast`` attribute is not ``none``. Broadcasting is performed according to ``auto_broadcast`` value.
 
 After broadcasting, *GreaterEqual* does the following with the input tensors *a* and *b*:
@@ -32,11 +30,11 @@ After broadcasting, *GreaterEqual* does the following with the input tensors *a*
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
-  
+
     * *none* - no auto-broadcasting is allowed, all input shapes should match
     * *numpy* - numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`
     * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`
-  
+
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
@@ -48,7 +46,7 @@ After broadcasting, *GreaterEqual* does the following with the input tensors *a*
 
 **Outputs**
 
-* **1**: The result of element-wise *GreaterEqual* operation applied to the input tensors. 
+* **1**: The result of element-wise *GreaterEqual* operation applied to the input tensors.
   A tensor of type *T_BOOL* and shape equal to broadcasted shape of two inputs.
 
 **Types**

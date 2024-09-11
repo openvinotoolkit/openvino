@@ -1,5 +1,3 @@
-.. {#openvino_docs_ie_plugin_dg_overview}
-
 Overview of OpenVINO Plugin Library
 ===================================
 
