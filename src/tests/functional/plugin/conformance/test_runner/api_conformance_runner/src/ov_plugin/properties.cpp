@@ -108,7 +108,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckMetricsPropsTests_ModelDependceProps,
 INSTANTIATE_TEST_SUITE_P(ov_plugin,
                          OVGetMetricPropsTest,
                          ::testing::Values(ov::test::utils::target_device),
-                         MARK_MANDATORY_API_FOR_HW_DEVICE());
+                         MARK_MANDATORY_API_FOR_HW_DEVICE(NULL_getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(
         ov_plugin, OVGetMetricPropsOptionalTest,
@@ -117,7 +117,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(ov_plugin,
                          OVGetAvailableDevicesPropsTest,
                          ::testing::Values(ov::test::utils::target_device),
-                         MARK_MANDATORY_API_FOR_HW_DEVICE());
+                         MARK_MANDATORY_API_FOR_HW_DEVICE(NULL_getTestCaseName));
 
 //
 // OV Class GetConfig
