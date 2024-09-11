@@ -41,6 +41,7 @@ void prepare_padding::run(program& p) {
                     auto new_reorder = std::make_shared<reorder>(node.id() + "_padding_reorder_for_" + input.id(), input.id(), input.get_output_layout());
                     auto& new_reorder_node = p.get_or_create(new_reorder);
                     p.add_intermediate(new_reorder_node, node, input);
+                    new_reorder_node.recalc_output_layouts(false);
                 }
 
                 p.apply_needed_padding(node, node.get_dependency(0), needed_padding);
@@ -96,7 +97,7 @@ void prepare_padding::run(program& p) {
 
                     needed_upad.push_back(std::max(pe_y, upper_sizes[2]));
                     needed_upad.push_back(std::max(pe_x, upper_sizes[3]));
-                } {
+                } else {
                     needed_lpad.push_back(std::max(pb_x, lower_sizes[2]));
                     needed_upad.push_back(std::max(pb_x, upper_sizes[2]));
                 }
@@ -209,6 +210,7 @@ void prepare_padding::run(program& p) {
             auto new_reorder = std::make_shared<reorder>(node.id() + "_padding_reorder_for_" + input.id(), input.id(), input.get_output_layout());
             auto& new_reorder_node = p.get_or_create(new_reorder);
             p.add_intermediate(new_reorder_node, node, input);
+            new_reorder_node.recalc_output_layouts(false);
         }
 
         p.apply_needed_padding(node, node.get_dependency(0), needed_padding);

@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Subtract_1}
-
 Subtract
 ========
 
 
 .. meta::
-  :description: Learn about Subtract-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Subtract-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Subtract-1*
@@ -29,9 +27,9 @@ After broadcasting *Subtract* performs subtraction operation for the input tenso
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
-  
+
     * *none* - no auto-broadcasting is allowed, all input shapes must match,
-    * *numpy* - numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`, 
+    * *numpy* - numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`,
     * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`.
   * **Type**: string
   * **Default value**: "numpy"
