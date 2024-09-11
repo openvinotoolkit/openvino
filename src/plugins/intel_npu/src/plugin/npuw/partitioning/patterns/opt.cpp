@@ -404,11 +404,8 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
 // TO:                                                          [1,11K,128]T  =
 //                 [N,32,128]                         [1,N,128] [1, N ,11K]     [32,N,11K]
 //     ???(Act)  -> Reshape > Split(/32) ->[to(f16) -> Reshape ->            ]}
-//     Param(W*) -----------> Split(/32) ->[to(f16) ------------> MatMul v   ]} Concat
+//     Param(W*) -----------> Split(/32) ->[to(f16) ------------> MatMul v   ]} 32xAdd
 //     Param(S)  -------------Split(/32) ->[--------------------> Multiply   ]}     v
-//                                                                             Reshape(1,a,b,c)
-//                                                                             ReduceSum(1)
-//                                                                             Reshape(a,b,c)
 //                                                                             to(f32)
 // WHERE:
 //     W* : [32,11008,128]
@@ -487,22 +484,15 @@ DQMatMulGQiP::DQMatMulGQiP(Context::Ref ctx) {
                 to_concat.push_back(s_f16);
             }
 
-            // Now concat and scale the result
-            auto concat = std::make_shared<ov::op::v0::Concat>(to_concat, 0);
-
-            // Now reshape to a better shape, ReduceSum, and reshape to the right size again
-            std::vector<std::size_t> rshp_ccat_v = {1, NSPLIT, act_shape[1], qweight_shape[2]};
-            auto rshp_ccat_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, rshp_ccat_v);
-            auto rshp_ccat = std::make_shared<ov::op::v1::Reshape>(concat, rshp_ccat_c, false);
-
-            auto reduce_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1);
-            auto reduce = std::make_shared<ov::op::v1::ReduceSum>(rshp_ccat, reduce_axis, true);
-
-            auto rshp_out_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, out_shape);
-            auto rshp_out = std::make_shared<ov::op::v1::Reshape>(reduce, rshp_out_c, false);
+            // Reduce via Add
+            std::vector<ov::Output<ov::Node> > reduce;
+            reduce.push_back(std::make_shared<ov::op::v1::Add>(to_concat[0], to_concat[1]));
+            for (std::size_t i = 1; i < NSPLIT-1; i++) {
+                reduce.push_back(std::make_shared<ov::op::v1::Add>(reduce[i-1], to_concat[i+1]));
+            }
 
             // Convert the result to f32 to maintain the graph contracts. FIXME should be avoided
-            auto out = std::make_shared<ov::op::v0::Convert>(rshp_out, ov::element::f32);
+            auto out = std::make_shared<ov::op::v0::Convert>(reduce.back(), ov::element::f32);
 
             // Now.. Reconnect the matmul readers to the new output (reducesum)
             for (auto&& r : matched_matmul->output(0).get_target_inputs()) {
