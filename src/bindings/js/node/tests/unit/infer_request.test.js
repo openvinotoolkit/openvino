@@ -4,7 +4,7 @@
 
 const { addon: ov } = require('../..');
 const assert = require('assert');
-const { describe, it, before } = require('node:test');
+const { describe, it, before, beforeEach } = require('node:test');
 const { testModels, isModelAvailable, getModelPath } = require('./utils.js');
 
 const epsilon = 0.5; // To avoid very small numbers
@@ -12,51 +12,53 @@ const testXml = getModelPath().xml;
 
 describe('ov.InferRequest tests', () => {
 
+  let compiledModel = null;
+  let tensorData = null;
+  let tensor = null;
+  let resTensor = null;
+  let tensorLike = null;
+
   before(async () => {
     await isModelAvailable(testModels.testModelFP32);
+
+    const core = new ov.Core();
+    const model = core.readModelSync(testXml);
+    compiledModel = core.compileModelSync(model, 'CPU');
+
+    tensorData = Float32Array.from({ length: 3072 }, () => (Math.random() + epsilon));
+    tensor = new ov.Tensor(
+      ov.element.f32,
+      [1, 3, 32, 32],
+      tensorData,
+    );
+    resTensor = new ov.Tensor(
+      ov.element.f32,
+      [1, 10],
+      tensorData.slice(-10),
+    );
+    tensorLike = [tensor, tensorData];
   });
 
-  const core = new ov.Core();
-  const model = core.readModelSync(testXml);
-  const compiledModel = core.compileModelSync(model, 'CPU');
+  describe('infer() method', () => {
+    let inferRequest = null;
+    beforeEach(() => {
+      inferRequest = compiledModel.createInferRequest();
+    });
 
-  const inferRequest = compiledModel.createInferRequest();
-  const inferRequestAsync = compiledModel.createInferRequest();
-
-  const tensorData = Float32Array.from({ length: 3072 }, () => (Math.random() + epsilon));
-  const tensor = new ov.Tensor(
-    ov.element.f32,
-    [1, 3, 32, 32],
-    tensorData,
-  );
-  const resTensor = new ov.Tensor(
-    ov.element.f32,
-    [1, 10],
-    tensorData.slice(-10),
-  );
-
-  const tensorLike = [[tensor],
-    [tensorData]];
-
-  describe('InferRequest', () => {
-
-    tensorLike.forEach(([tl]) => {
-      const result = inferRequest.infer({ data: tl });
-      const label = tl instanceof Float32Array ? 'TypedArray[]' : 'Tensor[]';
-      it(`Test infer(inputData: { [inputName: string]: ${label} })`, () => {
+    it('Test infer(inputData: {inputName: string]: Tensor[]/TypedArray[]}', () => {
+      tensorLike.forEach((tl) => {
+        const result = inferRequest.infer({ data: tl });
         assert.deepStrictEqual(Object.keys(result), ['fc_out']);
         assert.deepStrictEqual(result['fc_out'].data.length, 10);
       });
     });
 
-    tensorLike.forEach(([tl]) => {
-      const result = inferRequest.infer([tl]);
-      const label = tl instanceof Float32Array ? 'TypedArray[]' : 'Tensor[]';
-      it(`Test infer(inputData: ${label})`, () => {
+    it('Test infer(inputData: Tensor[]/TypedArray[])', () => {
+      tensorLike.forEach((tl) => {
+        const result = inferRequest.infer([tl]);
         assert.deepStrictEqual(Object.keys(result), ['fc_out']);
         assert.deepStrictEqual(result['fc_out'].data.length, 10);
       });
-
     });
 
     it('Test infer(TypedArray) throws', () => {
@@ -65,29 +67,39 @@ describe('ov.InferRequest tests', () => {
         {message: /TypedArray cannot be passed directly into infer\(\) method./});
     });
 
-    const buffer = new ArrayBuffer(tensorData.length);
-    const inputMessagePairs = [
-      ['string', 'Cannot create a tensor from the passed Napi::Value.'],
-      [tensorData.slice(-10), 'Memory allocated using shape and element::type mismatch passed data\'s size'],
-      [new Float32Array(buffer, 4), 'TypedArray.byteOffset has to be equal to zero.'],
-      [{}, /Invalid argument/], // Test for object that is not Tensor
-    ];
+    it('Test for invalid input data', () => {
+      const buffer = new ArrayBuffer(tensorData.length);
+      const inputMessagePairs = [
+        ['string', 'Cannot create a tensor from the passed Napi::Value.'],
+        [tensorData.slice(-10), 'Memory allocated using shape and element::type mismatch passed data\'s size'],
+        [new Float32Array(buffer, 4), 'TypedArray.byteOffset has to be equal to zero.'],
+        [{}, /Invalid argument/], // Test for object that is not Tensor
+      ];
 
-    inputMessagePairs.forEach( ([tl, msg]) => {
-      it(`Test infer([data]) throws ${msg}`, () => {
+      inputMessagePairs.forEach( ([tl, msg]) => {
+
         assert.throws(
           () => inferRequest.infer([tl]),
-          {message: new RegExp(msg)});
-      });
-      it(`Test infer({ data: tl}) throws ${msg}`, () => {
+          { message: new RegExp(msg) }, 'infer([data]) throws');
+
         assert.throws(
           () => inferRequest.infer({data: tl}),
-          {message: new RegExp(msg)});
+          { message: new RegExp(msg) }, 'infer({ data: tl}) throws');
+
       });
+
+    });
+
+  });
+
+  describe('inferAsync() method', () => {
+    let inferRequest = null;
+    before( () => {
+      inferRequest = compiledModel.createInferRequest();
     });
 
     it('Test inferAsync(inputData: { [inputName: string]: Tensor })', () => {
-      inferRequestAsync.inferAsync({ data: tensor }).then(result => {
+      inferRequest.inferAsync({ data: tensor }).then(result => {
         assert.ok(result['fc_out'] instanceof ov.Tensor);
         assert.deepStrictEqual(Object.keys(result), ['fc_out']);
         assert.deepStrictEqual(result['fc_out'].data.length, 10);}
@@ -95,7 +107,7 @@ describe('ov.InferRequest tests', () => {
     });
 
     it('Test inferAsync(inputData: Tensor[])', () => {
-      inferRequestAsync.inferAsync([ tensor ]).then(result => {
+      inferRequest.inferAsync([ tensor ]).then(result => {
         assert.ok(result['fc_out'] instanceof ov.Tensor);
         assert.deepStrictEqual(Object.keys(result), ['fc_out']);
         assert.deepStrictEqual(result['fc_out'].data.length, 10);
@@ -104,16 +116,24 @@ describe('ov.InferRequest tests', () => {
 
     it('Test inferAsync([data]) throws: Cannot create a tensor from the passed Napi::Value.', () => {
       assert.throws(
-        () => inferRequestAsync.inferAsync(['string']).then(),
+        () => inferRequest.inferAsync(['string']).then(),
         /Cannot create a tensor from the passed Napi::Value./
       );
     });
 
     it('Test inferAsync({ data: "string"}) throws: Cannot create a tensor from the passed Napi::Value.', () => {
       assert.throws(
-        () => inferRequestAsync.inferAsync({data: 'string'}).then(),
+        () => inferRequest.inferAsync({data: 'string'}).then(),
         /Cannot create a tensor from the passed Napi::Value./
       );
+    });
+
+  });
+
+  describe('setters', () => {
+    let inferRequest = null;
+    beforeEach(() => {
+      inferRequest = compiledModel.createInferRequest();
     });
 
     it('Test setInputTensor(tensor)', () => {
@@ -238,38 +258,44 @@ describe('ov.InferRequest tests', () => {
       );
     });
 
-    const irGetters = compiledModel.createInferRequest();
-    irGetters.setInputTensor(tensor);
-    irGetters.infer();
+  });
+
+  describe('getters', () => {
+    let inferRequest = null;
+    beforeEach(() => {
+      inferRequest = compiledModel.createInferRequest();
+      inferRequest.setInputTensor(tensor);
+      inferRequest.infer();
+    });
 
     it('Test getTensor(tensorName)', () => {
-      const t1 = irGetters.getTensor('data');
+      const t1 = inferRequest.getTensor('data');
       assert.ok(t1 instanceof ov.Tensor);
       assert.deepStrictEqual(tensor.data[0], t1.data[0]);
     });
 
     it('Test getTensor(Output)', () => {
-      const input = irGetters.getCompiledModel().input();
-      const t1 = irGetters.getTensor(input);
+      const input = inferRequest.getCompiledModel().input();
+      const t1 = inferRequest.getTensor(input);
       assert.ok(t1 instanceof ov.Tensor);
       assert.deepStrictEqual(tensor.data[0], t1.data[0]);
     });
 
     it('Test getInputTensor()', () => {
-      const t1 = irGetters.getInputTensor();
+      const t1 = inferRequest.getInputTensor();
       assert.ok(t1 instanceof ov.Tensor);
       assert.deepStrictEqual(tensor.data[0], t1.data[0]);
     });
 
     it('Test getInputTensor(idx)', () => {
-      const t1 = irGetters.getInputTensor(0);
+      const t1 = inferRequest.getInputTensor(0);
       assert.ok(t1 instanceof ov.Tensor);
       assert.deepStrictEqual(tensor.data[0], t1.data[0]);
     });
 
     it('Test getOutputTensor(idx?)', () => {
-      const res1 = irGetters.getOutputTensor();
-      const res2 = irGetters.getOutputTensor(0);
+      const res1 = inferRequest.getOutputTensor();
+      const res2 = inferRequest.getOutputTensor(0);
       assert.ok(res1 instanceof ov.Tensor);
       assert.ok(res2 instanceof ov.Tensor);
       assert.deepStrictEqual(res1.data[0], res2.data[0]);
@@ -284,6 +310,6 @@ describe('ov.InferRequest tests', () => {
       const res1 = ir.infer([tensorData]);
       assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
     });
-  });
 
+  });
 });

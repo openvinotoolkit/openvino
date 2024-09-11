@@ -68,9 +68,9 @@ Prerequisites
 .. code:: ipython3
 
     import os
-
+    
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
-
+    
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
     %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
@@ -96,20 +96,20 @@ creating custom tools.
 .. code:: ipython3
 
     from langchain_core.tools import tool
-
-
+    
+    
     @tool
     def multiply(first_int: int, second_int: int) -> int:
         """Multiply two integers together."""
         return first_int * second_int
-
-
+    
+    
     @tool
     def add(first_int: int, second_int: int) -> int:
         "Add two integers."
         return first_int + second_int
-
-
+    
+    
     @tool
     def exponentiate(base: int, exponent: int) -> int:
         "Exponentiate the base to the exponent power."
@@ -178,22 +178,22 @@ previous agent tool invocations and the corresponding tool outputs.
 .. code:: ipython3
 
     PREFIX = """[INST]Respond to the human as helpfully and accurately as possible. You have access to the following tools:"""
-
+    
     FORMAT_INSTRUCTIONS = """Use a json blob to specify a tool by providing an action key (tool name) and an action_input key (tool input).
-
+    
     Valid "action" values: "Final Answer" or {tool_names}
-
+    
     Provide only ONE action per $JSON_BLOB, as shown:
-
+    
     ```
     {{{{
       "action": $TOOL_NAME,
       "action_input": $INPUT
     }}}}
     ```
-
+    
     Follow this format:
-
+    
     Question: input question to answer
     Thought: consider previous and subsequent steps
     Action:
@@ -210,10 +210,10 @@ previous agent tool invocations and the corresponding tool outputs.
       "action_input": "Final response to human"
     }}}}
     ```[/INST]"""
-
+    
     SUFFIX = """Begin! Reminder to ALWAYS respond with a valid json blob of a single action. Use tools if necessary. Respond directly if appropriate. Format is Action:```$JSON_BLOB```then Observation:.
     Thought:[INST]"""
-
+    
     HUMAN_MESSAGE_TEMPLATE = "{input}\n\n{agent_scratchpad}"
 
 Create LLM
@@ -245,7 +245,7 @@ select ``Mistral-7B-Instruct-v0.3`` as LLM in agent pipeline.
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model
+       ## login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -269,10 +269,10 @@ folder.
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     model_id = "mistralai/Mistral-7B-Instruct-v0.3"
     model_path = "Mistral-7B-Instruct-v0.3-ov-int4"
-
+    
     if not Path(model_path).exists():
         !optimum-cli export openvino --model {model_id} --task text-generation-with-past --trust-remote-code --weight-format int4 {model_path}
 
@@ -285,20 +285,20 @@ Select inference device for LLM
 
     import openvino as ov
     import ipywidgets as widgets
-
+    
     core = ov.Core()
-
+    
     support_devices = core.available_devices
     if "NPU" in support_devices:
         support_devices.remove("NPU")
-
+    
     device = widgets.Dropdown(
         options=support_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -320,33 +320,33 @@ information <https://python.langchain.com/docs/integrations/llms/openvino/>`__.
 
     from langchain_community.llms.huggingface_pipeline import HuggingFacePipeline
     from transformers.generation.stopping_criteria import StoppingCriteriaList, StoppingCriteria
-
-
+    
+    
     class StopSequenceCriteria(StoppingCriteria):
         """
         This class can be used to stop generation whenever a sequence of tokens is encountered.
-
+    
         Args:
             stop_sequences (`str` or `List[str]`):
                 The sequence (or list of sequences) on which to stop execution.
             tokenizer:
                 The tokenizer used to decode the model outputs.
         """
-
+    
         def __init__(self, stop_sequences, tokenizer):
             if isinstance(stop_sequences, str):
                 stop_sequences = [stop_sequences]
             self.stop_sequences = stop_sequences
             self.tokenizer = tokenizer
-
+    
         def __call__(self, input_ids, scores, **kwargs) -> bool:
             decoded_output = self.tokenizer.decode(input_ids.tolist()[0])
             return any(decoded_output.endswith(stop_sequence) for stop_sequence in self.stop_sequences)
-
-
+    
+    
     ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
     stop_tokens = ["Observation:"]
-
+    
     ov_llm = HuggingFacePipeline.from_model_id(
         model_id=model_path,
         task="text-generation",
@@ -359,7 +359,7 @@ information <https://python.langchain.com/docs/integrations/llms/openvino/>`__.
         pipeline_kwargs={"max_new_tokens": 2048},
     )
     ov_llm = ov_llm.bind(skip_prompt=True, stop=["Observation:"])
-
+    
     tokenizer = ov_llm.pipeline.tokenizer
     ov_llm.pipeline._forward_params["stopping_criteria"] = StoppingCriteriaList([StopSequenceCriteria(stop_tokens, tokenizer)])
 
@@ -409,7 +409,7 @@ outputs back to the agent, and repeats.
 .. code:: ipython3
 
     from langchain.agents import AgentExecutor, StructuredChatAgent
-
+    
     agent = StructuredChatAgent.from_llm_and_tools(
         ov_llm,
         tools,
@@ -437,11 +437,11 @@ prompt template.
 
 .. parsed-literal::
 
-
-
+    
+    
     > Entering new AgentExecutor chain...
     Thought: I can use the exponentiate and add tools to solve the first part, and then use the multiply tool for the second part, and finally the exponentiate tool again to square the result.
-
+    
     Action:
     ```
     {
@@ -452,7 +452,7 @@ prompt template.
     Observation:
     Observation: 243
     Thought: Now I need to add twelve and three
-
+    
     Action:
     ```
     {
@@ -463,7 +463,7 @@ prompt template.
     Observation:
     Observation: 15
     Thought: Now I need to multiply the result by 243
-
+    
     Action:
     ```
     {
@@ -474,7 +474,7 @@ prompt template.
     Observation:
     Observation: 3645
     Thought: Finally, I need to square the result
-
+    
     Action:
     ```
     {
@@ -485,7 +485,7 @@ prompt template.
     Observation:
     Observation: 13286025
     Thought: I know what to respond
-
+    
     Action:
     ```
     {
@@ -493,7 +493,7 @@ prompt template.
       "action_input": "The final answer is 13286025"
     }
     ```
-
+    
     > Finished chain.
 
 
@@ -531,8 +531,8 @@ words generated by agent.
     from langchain_core.pydantic_v1 import BaseModel, Field
     from langchain_core.callbacks import CallbackManagerForToolRun
     from typing import Optional
-
-
+    
+    
     class WikipediaQueryRunWrapper(WikipediaQueryRun):
         def _run(
             self,
@@ -541,17 +541,17 @@ words generated by agent.
         ) -> str:
             """Use the Wikipedia tool."""
             return self.api_wrapper.run(text)
-
-
+    
+    
     api_wrapper = WikipediaAPIWrapper(top_k_results=2, doc_content_chars_max=1000)
-
-
+    
+    
     class WikiInputs(BaseModel):
         """inputs to the wikipedia tool."""
-
+    
         text: str = Field(description="query to look up on wikipedia.")
-
-
+    
+    
     wikipedia = WikipediaQueryRunWrapper(
         description="A wrapper around Wikipedia. Useful for when you need to answer general questions about people, places, companies, facts, historical events, or other subjects. Input should be a search query.",
         args_schema=WikiInputs,
@@ -583,8 +583,8 @@ In this examples, we will create 2 customized tools for
 
     import urllib.parse
     import json5
-
-
+    
+    
     @tool
     def painting(prompt: str) -> str:
         """
@@ -592,8 +592,8 @@ In this examples, we will create 2 customized tools for
         """
         prompt = urllib.parse.quote(prompt)
         return json5.dumps({"image_url": f"https://image.pollinations.ai/prompt/{prompt}"}, ensure_ascii=False)
-
-
+    
+    
     painting.invoke({"prompt": "a cat"})
 
 
@@ -614,10 +614,10 @@ In this examples, we will create 2 customized tools for
         """
         Get the current weather for `city_name`
         """
-
+    
         if not isinstance(city_name, str):
             raise TypeError("City name must be a string")
-
+    
         key_selection = {
             "current_condition": [
                 "temp_C",
@@ -628,15 +628,15 @@ In this examples, we will create 2 customized tools for
             ],
         }
         import requests
-
+    
         resp = requests.get(f"https://wttr.in/{city_name}?format=j1")
         resp.raise_for_status()
         resp = resp.json()
         ret = {k: {_v: resp[k][0][_v] for _v in v} for k, v in key_selection.items()}
-
+    
         return str(ret)
-
-
+    
+    
     weather.invoke({"city_name": "London"})
 
 
@@ -656,7 +656,7 @@ Create AI agent demo with Gradio UI
 .. code:: ipython3
 
     tools = [wikipedia, painting, weather]
-
+    
     agent = StructuredChatAgent.from_llm_and_tools(
         ov_llm,
         tools,
@@ -670,7 +670,7 @@ Create AI agent demo with Gradio UI
 .. code:: ipython3
 
     import gradio as gr
-
+    
     examples = [
         ["Based on current weather in London, show me a picture of Big Ben through its URL"],
         ["What is OpenVINO ?"],
@@ -678,27 +678,27 @@ Create AI agent demo with Gradio UI
         ["How many people live in Canada ?"],
         ["What is the weather like in New York now ?"],
     ]
-
-
+    
+    
     def partial_text_processor(partial_text, new_text):
         """
         helper for updating partially generated answer, used by default
-
+    
         Params:
           partial_text: text buffer for storing previosly generated text
           new_text: text update for the current step
         Returns:
           updated text string
-
+    
         """
         partial_text += new_text
         return partial_text
-
-
+    
+    
     def user(message, history):
         """
         callback function for updating user messages in interface on submit button click
-
+    
         Params:
           message: current message
           history: conversation history
@@ -707,18 +707,18 @@ Create AI agent demo with Gradio UI
         """
         # Append the user's message to the conversation history
         return "", history + [[message, ""]]
-
-
+    
+    
     def bot(history):
         """
         callback function for running chatbot on submit button click
-
+    
         Params:
           history: conversation history
-
+    
         """
         partial_text = ""
-
+    
         for new_text in agent_executor.stream(
             {"input": history[-1][0]},
         ):
@@ -726,12 +726,12 @@ Create AI agent demo with Gradio UI
                 partial_text = partial_text_processor(partial_text, new_text["output"])
                 history[-1][1] = partial_text
                 yield history
-
-
+    
+    
     def request_cancel():
         ov_llm.pipeline.model.request.cancel()
-
-
+    
+    
     with gr.Blocks(
         theme=gr.themes.Soft(),
         css=".disclaimer {font-variant-caps: all-small-caps;}",
@@ -753,7 +753,7 @@ Create AI agent demo with Gradio UI
                     stop = gr.Button("Stop")
                     clear = gr.Button("Clear")
         gr.Examples(examples, inputs=msg, label="Click on any example and press the 'Submit' button")
-
+    
         submit_event = msg.submit(
             fn=user,
             inputs=[msg, chatbot],
@@ -788,7 +788,7 @@ Create AI agent demo with Gradio UI
             queue=False,
         )
         clear.click(lambda: None, None, chatbot, queue=False)
-
+    
     # if you are launching remotely, specify server_name and server_port
     #  demo.launch(server_name='your server name', server_port='server port in int')
     # if you have any issue to launch on your platform, you can pass share=True to launch method:
@@ -802,11 +802,11 @@ Create AI agent demo with Gradio UI
 
 .. parsed-literal::
 
-
-
+    
+    
     > Entering new AgentExecutor chain...
     Thought: I need to use the weather tool to get the current weather in London, then use the painting tool to generate a picture of Big Ben based on the weather information.
-
+    
     Action:
     ```
     {
@@ -814,11 +814,11 @@ Create AI agent demo with Gradio UI
       "action_input": "London"
     }
     ```
-
+    
     Observation:
     Observation: {'current_condition': {'temp_C': '9', 'FeelsLikeC': '8', 'humidity': '93', 'weatherDesc': [{'value': 'Sunny'}], 'observation_time': '04:39 AM'}}
     Thought: I have the current weather in London. Now I can use the painting tool to generate a picture of Big Ben based on the weather information.
-
+    
     Action:
     ```
     {
@@ -826,11 +826,11 @@ Create AI agent demo with Gradio UI
       "action_input": "Big Ben, sunny day"
     }
     ```
-
+    
     Observation:
     Observation: {image_url: "https://image.pollinations.ai/prompt/Big%20Ben%2C%20sunny%20day"}
     Thought: I have the image URL of Big Ben on a sunny day. Now I can respond to the human with the image URL.
-
+    
     Action:
     ```
     {
@@ -839,7 +839,7 @@ Create AI agent demo with Gradio UI
     }
     ```
     Observation:
-
+    
     > Finished chain.
 
 

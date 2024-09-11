@@ -1,5 +1,3 @@
-.. {#openvino_docs_install_guides_installing_openvino_yum}
-
 Install OpenVINO™ Runtime on Linux From YUM Repository
 ========================================================
 
@@ -128,7 +126,7 @@ Install OpenVINO Runtime
       .. code-block:: sh
 
 
-         sudo yum install openvino-2024.3.0
+         sudo yum install openvino-2024.4.0
 
 
 
@@ -199,7 +197,7 @@ To uninstall OpenVINO Runtime via YUM, run the following command based on your n
 
       .. code-block:: sh
 
-         sudo yum autoremove openvino-2024.3.0
+         sudo yum autoremove openvino-2024.4.0
 
 
 
