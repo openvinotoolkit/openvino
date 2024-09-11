@@ -496,6 +496,9 @@ Output<Node> get_input_concat_if_list(const NodeContext& context, size_t idx) {
     auto x = context.get_input(static_cast<int>(idx));
     if (context.get_input_type(idx).is<type::List>() && cast_fw_node(x.get_node_shared_ptr(), "prim::ListConstruct")) {
         auto elems = get_list_as_outputs(x);
+        if (elems.size() == 0)
+            // Can we figure real type for empty list?
+            return std::make_shared<v0::Constant>(element::i32, Shape{0}, std::vector<int>{});
         OutputVector inputs;
         auto zero = v0::Constant::create(element::i32, Shape{}, {0});
         for (auto& elem : elems) {
