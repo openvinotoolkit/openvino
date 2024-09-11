@@ -130,8 +130,8 @@ jobs:
           # mkdir ${XUANTIE_DIR}
           # pushd ${XUANTIE_DIR}
           ls -la ${XUANTIE_BIN_PATH}
-          # cp -r ${XUANTIE_BIN_PATH} ${XUANTIE_DIR}
-          # ls -la ${XUANTIE_DIR}
+          cp -r ${XUANTIE_BIN_PATH} ${XUANTIE_DIR}
+          ls -la ${XUANTIE_DIR}
           # chmod -R 777 ${XUANTIE_DIR}
           # echo 'show old link'
           # ls -la ${XUANTIE_DIR}/libexec/gcc/riscv64-unknown-linux-gnu/10.4.0/
