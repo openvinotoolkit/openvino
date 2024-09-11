@@ -1,5 +1,3 @@
-.. {#openvino_docs_install_guides_installing_openvino_zypper}
-
 Install OpenVINO™ Runtime on Linux From ZYPPER Repository
 =========================================================
 
