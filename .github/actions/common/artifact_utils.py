@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
-from .constants import EventType
+from .constants import EventType, ProductType
 
 
 def add_common_args(parser: argparse.ArgumentParser):
@@ -12,7 +12,8 @@ def add_common_args(parser: argparse.ArgumentParser):
                         default=os.getenv('GITHUB_BASE_REF') or os.getenv('GITHUB_REF_NAME'))
     parser.add_argument('-e', '--event_name', help='Name of GitHub event', required=False,
                         default=os.getenv('GITHUB_EVENT_NAME'))
-    parser.add_argument('--storage_dir', help='Subdirectory name for artifacts, same as product type', required=True)
+    parser.add_argument('--storage_dir', help='Subdirectory name for artifacts, same as product type', required=True,
+                        choices=[product_type.value for product_type in ProductType])
     parser.add_argument('--storage_root', help='Root path of the artifacts storage', required=False,
                         default=os.getenv('ARTIFACTS_SHARE'))
 
@@ -39,7 +40,7 @@ def get_storage_dir(product_type: str, commit_hash: str, storage_root: str | Pat
     #     branch_name = merge_queue_matcher.group(1)
 
     storage_event_dir = get_storage_event_dir(storage_root, branch_name, event_name, product_name)
-    storage = storage_event_dir / commit_hash / product_type
+    storage = storage_event_dir / commit_hash / product_type.lower()
     return storage
 
 
