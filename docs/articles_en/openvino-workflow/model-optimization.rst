@@ -1,6 +1,9 @@
 Model Optimization - NNCF
 ===============================================================================================
 
+.. meta::
+   :description: Learn about the optimization methods offered by OpenVINO's NNCF
+
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -39,6 +42,10 @@ the following optimizations:
        as Quantization-aware Training. This kind of optimization requires the use of the model's
        original framework, for NNCF, it is either PyTorch or TensorFlow.
 
+A common approach is to perform post-training quantization first, as it is the easiest option.
+If the result proves unsatisfactory, quantization-aware training will give you higher accuracy
+with the same level of performance boost. For the most performant product, adding filter pruning
+will further streamline the model.
 
 To learn about the full scope of the framework, its installation, and technical details, visit
 both `the NNCF repository <https://github.com/openvinotoolkit/nncf?tab=readme-ov-file>`__ and
