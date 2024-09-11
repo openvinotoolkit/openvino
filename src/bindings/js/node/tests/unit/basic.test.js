@@ -10,7 +10,7 @@ const epsilon = 0.5;
 
 describe('ov basic tests.', () => {
 
-  let testXml = null; 
+  let testXml = null;
   let core = null;
   let model = null;
   let compiledModel = null;

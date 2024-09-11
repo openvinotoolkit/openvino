@@ -25,7 +25,7 @@ async function main() {
 
   try {
     await downloadRuntime(destinationPath, { force, ignoreIfExists, proxy });
-  } catch (error) {
+  } catch(error) {
     if (error instanceof RuntimeExistsError) {
       console.error(
         `Directory '${destinationPath}' already exists. To force runtime downloading run 'npm run download_runtime -- -f'`
@@ -68,6 +68,7 @@ async function downloadRuntime(destinationPath, config = { force: false, ignoreI
       console.warn(
         `Directory '${destinationPath}' already exists. Skipping runtime downloading because 'ignoreIfExists' flag is passed.`
       );
+
       return;
     }
 
@@ -96,7 +97,7 @@ async function downloadRuntime(destinationPath, config = { force: false, ignoreI
     await unarchive(archiveFilePath, destinationPath);
 
     console.log('The archive was successfully extracted.');
-  } catch (error) {    
+  } catch(error) {
     console.error(`Failed to download OpenVINO runtime: ${error}.`);
     throw error;
   } finally {
@@ -149,8 +150,9 @@ async function getOsInfo() {
 async function checkIfPathExists(path) {
   try {
     await fs.access(path);
+
     return true;
-  } catch (error) {
+  } catch(error) {
     if (error.code === codeENOENT) {
       return false;
     }
@@ -167,12 +169,12 @@ async function checkIfPathExists(path) {
  * @returns {string}
  */
 function getRuntimeArchiveUrl(version, osInfo) {
-  const { 
+  const {
     host,
     package_name: packageNameTemplate,
     remote_path: remotePathTemplate,
   } = packageJson.binary;
-  const fullPathTemplate = `${remotePathTemplate}${packageNameTemplate}`
+  const fullPathTemplate = `${remotePathTemplate}${packageNameTemplate}`;
   const fullPath = fullPathTemplate
     .replace(new RegExp('{version}', 'g'), version)
     .replace(new RegExp('{platform}', 'g'), osInfo.platform)
@@ -193,7 +195,7 @@ async function removeDirectory(path) {
   try {
     console.log(`Removing ${path}`);
     await fs.rm(path, { recursive: true, force: true });
-  } catch (error) {
+  } catch(error) {
     if (error.code === codeENOENT) console.log(`Path: ${path} doesn't exist`);
 
     throw error;
@@ -215,7 +217,7 @@ function downloadFile(url, destination, filename, proxy = null) {
   const fullPath = path.resolve(destination, filename);
   const file = createWriteStream(fullPath);
 
-  if (new URL(url).protocol === 'http') 
+  if (new URL(url).protocol === 'http')
     throw new Error('Http link doesn\'t support');
 
   let agent;

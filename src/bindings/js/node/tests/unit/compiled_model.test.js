@@ -9,7 +9,6 @@ const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
 
 describe('ov.CompiledModel tests', () => {
 
-
   let testXml = null;
   let core = null;
   let compiledModel = null;
@@ -19,7 +18,7 @@ describe('ov.CompiledModel tests', () => {
     testXml = getModelPath().xml;
     core = new ov.Core();
   });
-  
+
   beforeEach(() => {
     const properties = {
       'AUTO_BATCH_TIMEOUT': '1',

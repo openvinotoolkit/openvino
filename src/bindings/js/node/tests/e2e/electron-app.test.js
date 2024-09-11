@@ -21,6 +21,7 @@ describe('E2E test of installation openvino as electron dependency', function() 
     exec('cd demo-electron-app-project && npm install', (error) => {
       if (error) {
         console.error(`exec error: ${error}`);
+
         return done(error);
       }
       const packageJson = JSON.parse(fs.readFileSync('demo-electron-app-project/package-lock.json', 'utf8'));
