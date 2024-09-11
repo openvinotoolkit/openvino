@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Add_1}
-
 Add
 ===
 
 
 .. meta::
-  :description: Learn about Add-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Add-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Add-1*
@@ -19,7 +17,7 @@ Before performing arithmetic operation, input tensors *a* and *b* are broadcaste
 After broadcasting *Add* performs addition operation for the input tensors *a* and *b* using the formula below:
 
 .. math::
-   
+
    o_{i} = a_{i} + b_{i}
 
 **Attributes**:
@@ -57,7 +55,7 @@ After broadcasting *Add* performs addition operation for the input tensors *a* a
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="Add">
        <data auto_broadcast="none"/>
        <input>
@@ -82,7 +80,7 @@ After broadcasting *Add* performs addition operation for the input tensors *a* a
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="Add">
        <data auto_broadcast="numpy"/>
        <input>

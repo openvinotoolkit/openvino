@@ -1752,6 +1752,8 @@ TEST(convolution_f16_fw_gpu, convolution_big_size_weights) {
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
+        ov::intel_gpu::ImplementationDesc conv_impl = {format::any, "", impl_types::ocl};
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", conv_impl} }));
 
         network network(engine, topology, config);
 
@@ -5722,7 +5724,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
     }
 
     ExecutionConfig config = get_test_default_config(engine);
-    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "convolution_gpu_bfyx_to_fs_byx_fsv32" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "convolution_gpu_bfyx_to_fs_byx_fsv32", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
@@ -10412,6 +10414,7 @@ struct conv_dyn_test_params {
     ov::Strides dilation;
     ov::CoordinateDiff pad_begin;
     ov::CoordinateDiff pad_end;
+    uint32_t groups;
 };
 
 class conv_dyn_test : public testing::TestWithParam<conv_dyn_test_params> {};
@@ -10419,16 +10422,13 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv16_no_bias) {
     auto& engine = get_test_engine();
     auto p = GetParam();
 
-    auto is_grouped = p.wei_shape.size() == 5;
-    auto groups_num = is_grouped ? static_cast<uint32_t>(p.wei_shape[0]) : 1;
-
     auto calculate_ref = [&](memory::ptr input, memory::ptr weights, ExecutionConfig config) {
         auto in_layout = input->get_layout();
 
         topology topology_ref(
             input_layout("input", in_layout),
             data("weights", weights),
-            convolution("conv", input_info("input"), "weights", no_bias, groups_num, p.stride, p.dilation, p.pad_begin, p.pad_end, is_grouped));
+            convolution("conv", input_info("input"), "weights", no_bias, p.groups, p.stride, p.dilation, p.pad_begin, p.pad_end, p.groups > 1));
 
         network network_ref(engine, topology_ref, config);
         network_ref.set_input_data("input", input);
@@ -10438,9 +10438,15 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv16_no_bias) {
         return outputs_ref.at("conv").get_memory();
     };
 
-    auto in_layout = layout{ov::PartialShape{ov::Dimension(), ov::Dimension(p.in_shape[1]), ov::Dimension(), ov::Dimension()}, data_types::f32, format::bfyx};
+    ov::PartialShape dyn_input_pshape;
+    for (size_t i = 0; i < p.in_shape.size(); ++i) {
+        dyn_input_pshape.emplace_back(ov::Dimension());
+    }
+    dyn_input_pshape[1] = p.in_shape[1];
+
+    auto in_layout = layout{dyn_input_pshape, data_types::f32, format::bfyx};
     auto input = engine.allocate_memory({ p.in_shape, data_types::f32, format::bfyx });
-    auto weights = engine.allocate_memory({p.wei_shape, data_types::f32, is_grouped ? format::bfzyx : format::bfyx});
+    auto weights = engine.allocate_memory({p.wei_shape, data_types::f32, p.groups > 1 ? format::bfzyx : format::bfyx});
 
     tests::random_generator rg(GET_SUITE_NAME);
     VF<float> input_rnd = rg.generate_random_1d<float>(ov::shape_size(p.in_shape), -10, 10);
@@ -10452,7 +10458,7 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv16_no_bias) {
     topology topology(
         input_layout("input", in_layout),
         data("weights", weights),
-        convolution("conv", input_info("input"), "weights", no_bias, groups_num, p.stride, p.dilation, p.pad_begin, p.pad_end, is_grouped));
+        convolution("conv", input_info("input"), "weights", no_bias, p.groups, p.stride, p.dilation, p.pad_begin, p.pad_end, p.groups > 1));
 
     ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc conv_impl = { format::bfyx, "convolution_gpu_bfyx_os_iyx_osv16", impl_types::ocl };
@@ -10487,7 +10493,10 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv16_no_bias) {
         // Change original shape for the second run
         auto new_shape = p.in_shape;
         new_shape[2] += 4;
-        new_shape[3] += 8;
+
+        if (new_shape.size() > 3) {
+            new_shape[3] += 8;
+        }
 
         auto input = engine.allocate_memory({ new_shape, data_types::f32, format::bfyx });
 
@@ -10514,9 +10523,7 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
     auto& engine = get_test_engine();
     auto p = GetParam();
 
-    auto is_grouped = p.wei_shape.size() == 5;
-
-    if (is_grouped) {
+    if (p.groups > 1) {
         std::cout << "[ SKIPPED ] The test is skipped (group convolution is not supported)." << std::endl;
         ASSERT_EQ(1, 1);
         return;
@@ -10530,7 +10537,7 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
         topology topology_ref(
             input_layout("input", in_layout),
             data("weights", weights),
-            convolution("conv", input_info("input"), "weights", no_bias, groups_num, p.stride, p.dilation, p.pad_begin, p.pad_end, is_grouped));
+            convolution("conv", input_info("input"), "weights", no_bias, groups_num, p.stride, p.dilation, p.pad_begin, p.pad_end, false));
 
         network network_ref(engine, topology_ref, config);
         network_ref.set_input_data("input", input);
@@ -10542,7 +10549,7 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
 
     auto in_layout = layout{ov::PartialShape{ov::Dimension(), ov::Dimension(p.in_shape[1]), ov::Dimension(), ov::Dimension()}, data_types::f16, format::bfyx};
     auto input = engine.allocate_memory({ p.in_shape, data_types::f16, format::bfyx });
-    auto weights = engine.allocate_memory({p.wei_shape, data_types::f16, is_grouped ? format::bfzyx : format::bfyx});
+    auto weights = engine.allocate_memory({p.wei_shape, data_types::f16, format::bfyx});
 
     tests::random_generator rg(GET_SUITE_NAME);
     VF<ov::float16> input_rnd = rg.generate_random_1d<ov::float16>(ov::shape_size(p.in_shape), -10, 10);
@@ -10554,7 +10561,7 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
     topology topology(
         input_layout("input", in_layout),
         data("weights", weights),
-        convolution("conv", input_info("input"), "weights", no_bias, groups_num, p.stride, p.dilation, p.pad_begin, p.pad_end, is_grouped));
+        convolution("conv", input_info("input"), "weights", no_bias, groups_num, p.stride, p.dilation, p.pad_begin, p.pad_end, false));
 
     ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc conv_impl = { format::bfyx, "convolution_gpu_bfyx_os_iyx_osv32", impl_types::ocl };
@@ -10587,7 +10594,10 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
         // Change original shape for the second run
         auto new_shape = p.in_shape;
         new_shape[2] += 4;
-        new_shape[3] += 8;
+
+        if (new_shape.size() > 3) {
+            new_shape[3] += 8;
+        }
 
         auto input = engine.allocate_memory({ new_shape, data_types::f16, format::bfyx });
 
@@ -10648,6 +10658,9 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
             input_layout("input", in_layout),
             data("weights", weights),
             convolution("conv", input_info("input"), "weights", no_bias, groups_num, p.stride, p.dilation, p.pad_begin, p.pad_end, is_grouped));
+
+        ov::intel_gpu::ImplementationDesc conv_impl = { in_layout.format, "convolution_gpu_ref", impl_types::ocl };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl } }));
 
         network network_ref(engine, topology_ref, config);
         network_ref.set_input_data("input", input);
@@ -10729,29 +10742,168 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
     }
 }
 
+TEST_P(conv_dyn_test, convolution_gpu_fsv16_depthwise_quantized) {
+    auto& engine = get_test_engine();
+    auto p = GetParam();
+    auto is_depthwise = p.in_shape[1] == p.groups;
+
+    if (!is_depthwise) {
+        std::cout << "[ SKIPPED ] The test is skipped (convolution is not depthwise)." << std::endl;
+        ASSERT_EQ(1, 1);
+        return;
+    }
+
+    auto is_valid_output = p.wei_shape[0] % 16 == 0;
+    auto is_valid_strid = all_ones(p.stride);
+    auto is_valid_padding = all_zeroes(p.pad_begin) && all_zeroes(p.pad_end);
+    auto is_valid_ranks = p.in_shape.size() == p.wei_shape.size() - 1;
+    if (!is_valid_output || !is_valid_strid || !is_valid_padding || !is_valid_ranks) {
+        std::cout << "[ SKIPPED ] The test is skipped (is_valid_output: " << is_valid_output
+                  << ", is_valid_strid: " << is_valid_strid
+                  << ", is_valid_padding: " << is_valid_padding
+                  << ", is_valid_ranks: " << is_valid_ranks << std::endl;
+        ASSERT_EQ(1, 1);
+        return;
+    }
+
+    auto calculate_ref = [&](memory::ptr input, memory::ptr weights,
+                             memory::ptr a_zp, memory::ptr compensation, ExecutionConfig config) {
+        auto in_layout = input->get_layout();
+
+        topology topology_ref(
+            input_layout("input", in_layout),
+            data("weights", weights),
+            data("a_zp", a_zp),
+            data("compensation", compensation),
+            convolution("conv", input_info("input"), "weights", no_bias, "", "a_zp", "compensation",
+                        p.groups, p.stride, p.dilation, p.pad_begin, p.pad_end, true, data_types::f32));
+
+        network network_ref(engine, topology_ref, config);
+        network_ref.set_input_data("input", input);
+
+        auto outputs_ref = network_ref.execute();
+
+        return outputs_ref.at("conv").get_memory();
+    };
+
+    ov::PartialShape dyn_input_pshape;
+    for (size_t i = 0; i < p.in_shape.size(); ++i) {
+        dyn_input_pshape.emplace_back(ov::Dimension());
+    }
+    dyn_input_pshape[1] = p.in_shape[1];
+
+    if (p.in_shape.size() > 3) {
+        dyn_input_pshape[p.in_shape.size() - 1] = p.in_shape.back();
+    }
+
+    auto in_layout = layout{dyn_input_pshape, data_types::u8, format::b_fs_yx_fsv16};
+    auto input = engine.allocate_memory({ p.in_shape, data_types::u8, format::b_fs_yx_fsv16 });
+    auto weights = engine.allocate_memory({p.wei_shape, data_types::i8, format::goiyx});
+
+    auto a_zp_shape = ov::Shape(p.in_shape.size(), 1);
+    a_zp_shape[1] = p.in_shape[1];
+    auto a_zp = engine.allocate_memory({ a_zp_shape, data_types::u8, format::bfyx });
+
+    auto compensation = engine.allocate_memory({ a_zp_shape, data_types::f32, format::bfyx });
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    VF<uint8_t> input_rnd = rg.generate_random_1d<uint8_t>(ov::shape_size(p.in_shape), 0, 10);
+    VF<int8_t> weights_rnd = rg.generate_random_1d<int8_t>(ov::shape_size(p.wei_shape), -5, 5);
+    VF<uint8_t> a_zp_rnd = rg.generate_random_1d<uint8_t>(ov::shape_size(a_zp_shape), 1, 5);
+    VF<float> compensation_rnd = rg.generate_random_1d<float>(ov::shape_size(a_zp_shape), -5, 5);
+
+    set_values(input, input_rnd);
+    set_values(weights, weights_rnd);
+    set_values(a_zp, a_zp_rnd);
+    set_values(compensation, compensation_rnd);
+
+    topology topology(
+        input_layout("input", in_layout),
+        data("weights", weights),
+        data("a_zp", a_zp),
+        data("compensation", compensation),
+        convolution("conv", input_info("input"), "weights", no_bias, "", "a_zp", "compensation",
+                    p.groups, p.stride, p.dilation, p.pad_begin, p.pad_end, true, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_b_fs_yx_fsv_16_32_imad_dw", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl } }));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::enable_profiling(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("conv");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    auto output_memory = outputs.at("conv").get_memory();
+
+    auto output_memory_ref = calculate_ref(input, weights, a_zp, compensation, config);
+
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+
+    ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
+    for (size_t i = 0; i < output_ptr.size(); i++) {
+        ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
+    }
+
+    {
+        // Change original shape for the second run
+        auto new_shape = p.in_shape;
+        new_shape[2] += 4;
+
+        auto input = engine.allocate_memory({ new_shape, data_types::u8, format::b_fs_yx_fsv16 });
+
+        VF<uint8_t> input_rnd = rg.generate_random_1d<uint8_t>(ov::shape_size(p.in_shape), 0, 10);
+        set_values(input, input_rnd);
+
+        network.set_input_data("input", input);
+        auto outputs = network.execute();
+
+        auto output_memory = outputs.at("conv").get_memory();
+        auto output_memory_ref = calculate_ref(input, weights, a_zp, compensation, config);
+
+        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+
+        ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
+        for (size_t i = 0; i < output_ptr.size(); i++) {
+            ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
+        }
+    }
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke, conv_dyn_test,
     testing::ValuesIn(std::vector<conv_dyn_test_params>{
-    { ov::Shape{1, 8, 14, 14}, ov::Shape{16, 8, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
-    { ov::Shape{1, 8, 32, 32}, ov::Shape{16, 8, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
-    { ov::Shape{1, 8, 60, 60}, ov::Shape{16, 8, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
-    { ov::Shape{1, 8, 64, 64}, ov::Shape{16, 8, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
-    { ov::Shape{1, 8, 110, 111}, ov::Shape{16, 8, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
-    { ov::Shape{1, 8, 110, 111}, ov::Shape{16, 8, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1} },
-    { ov::Shape{1, 8, 110, 111}, ov::Shape{16, 8, 5, 5}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1} },
-    { ov::Shape{2, 640, 32, 32}, ov::Shape{640, 640, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1} },
-    { ov::Shape{1, 32, 16, 16}, ov::Shape{32, 32, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1} },
-    { ov::Shape{2, 32, 16, 16}, ov::Shape{32, 32, 3, 3}, ov::Strides{2, 2}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1} },
-    { ov::Shape{1, 32, 32, 32}, ov::Shape{64, 32, 1, 1}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
-    { ov::Shape{1, 4, 32, 32}, ov::Shape{32, 4, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1} },
-    { ov::Shape{1, 4, 64, 64}, ov::Shape{4, 4, 1, 1}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
-    { ov::Shape{1, 32, 28, 28}, ov::Shape{32, 1, 1, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1} },
-    { ov::Shape{1, 48, 16, 16}, ov::Shape{48, 48, 4, 4}, ov::Strides{4, 4}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
-    { ov::Shape{1, 16, 28, 28}, ov::Shape{32, 16, 2, 2}, ov::Strides{2, 2}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
-    { ov::Shape{1, 3, 32, 32}, ov::Shape{96, 3, 4, 4}, ov::Strides{4, 4}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
-    { ov::Shape{1, 768, 7, 7}, ov::Shape{768, 1, 1, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1} },
-    { ov::Shape{1, 48, 56, 56}, ov::Shape{48, 48, 8, 8}, ov::Strides{8, 8}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
-    { ov::Shape{1, 4, 16, 16}, ov::Shape{16, 4, 1, 1}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
-    { ov::Shape{1, 16, 15, 17}, ov::Shape{16, 16, 1, 1}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
-    { ov::Shape{1, 16, 17, 18}, ov::Shape{16, 16, 1, 1}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
-    { ov::Shape{1, 32, 64, 64}, ov::Shape{32, 32, 1, 1}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
+    { ov::Shape{1, 8, 14, 14}, ov::Shape{16, 8, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 1 },
+    { ov::Shape{1, 8, 32, 32}, ov::Shape{16, 8, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 1 },
+    { ov::Shape{1, 8, 60, 60}, ov::Shape{16, 8, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 1 },
+    { ov::Shape{1, 8, 64, 64}, ov::Shape{16, 8, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 1 },
+    { ov::Shape{1, 8, 110, 111}, ov::Shape{16, 8, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 1 },
+    { ov::Shape{1, 8, 110, 111}, ov::Shape{16, 8, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1}, 1 },
+    { ov::Shape{1, 8, 110, 111}, ov::Shape{16, 8, 5, 5}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1}, 1 },
+    { ov::Shape{2, 640, 32, 32}, ov::Shape{640, 640, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1}, 1 },
+    { ov::Shape{1, 32, 16, 16}, ov::Shape{32, 32, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1}, 1 },
+    { ov::Shape{2, 32, 16, 16}, ov::Shape{32, 32, 3, 3}, ov::Strides{2, 2}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1}, 1 },
+    { ov::Shape{1, 32, 32, 32}, ov::Shape{64, 32, 1, 1}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 1 },
+    { ov::Shape{1, 4, 32, 32}, ov::Shape{32, 4, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1}, 1 },
+    { ov::Shape{1, 4, 64, 64}, ov::Shape{4, 4, 1, 1}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 1 },
+    { ov::Shape{1, 32, 28, 28}, ov::Shape{32, 1, 1, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1}, 32 },
+    { ov::Shape{1, 48, 16, 16}, ov::Shape{48, 48, 4, 4}, ov::Strides{4, 4}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 1 },
+    { ov::Shape{1, 16, 28, 28}, ov::Shape{32, 16, 2, 2}, ov::Strides{2, 2}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 1 },
+    { ov::Shape{1, 3, 32, 32}, ov::Shape{96, 3, 4, 4}, ov::Strides{4, 4}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 1 },
+    { ov::Shape{1, 768, 7, 7}, ov::Shape{768, 1, 1, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1}, 768 },
+    { ov::Shape{1, 48, 56, 56}, ov::Shape{48, 48, 8, 8}, ov::Strides{8, 8}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 1 },
+    { ov::Shape{1, 4, 16, 16}, ov::Shape{16, 4, 1, 1}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 1 },
+    { ov::Shape{1, 16, 15, 17}, ov::Shape{16, 16, 1, 1}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 1 },
+    { ov::Shape{1, 16, 17, 18}, ov::Shape{16, 16, 1, 1}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 1 },
+    { ov::Shape{1, 32, 64, 64}, ov::Shape{32, 32, 1, 1}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 1 },
+    { ov::Shape{1, 32, 91}, ov::Shape{32, 1, 1, 11}, ov::Strides{1}, ov::Strides{1}, ov::CoordinateDiff{0}, ov::CoordinateDiff{0}, 32 },
+    { ov::Shape{1, 64, 16, 16}, ov::Shape{64, 1, 1, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 64 },
 }));

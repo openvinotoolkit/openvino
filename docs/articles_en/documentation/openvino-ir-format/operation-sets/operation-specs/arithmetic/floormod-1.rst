@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_FloorMod_1}
-
 FloorMod
 ========
- 
+
 
 .. meta::
-  :description: Learn about FloorMod-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about FloorMod-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *FloorMod-1*
@@ -22,7 +20,7 @@ As a first step input tensors *a* and *b* are broadcasted if their shapes differ
    o_{i} = a_{i} \mod b_{i}
 
 
-*FloorMod* operation computes a reminder of a floored division. It is the same behavior like in 
+*FloorMod* operation computes a reminder of a floored division. It is the same behavior like in
 Python programming language: :math:`floor(x / y) * y + floor\_mod(x, y) = x`. The sign of the result is equal to a sign of a divisor. The result of division by zero is undefined.
 
 **Attributes**:

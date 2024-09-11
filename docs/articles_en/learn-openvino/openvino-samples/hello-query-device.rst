@@ -1,5 +1,3 @@
-.. {#openvino_sample_hello_query_device}
-
 Hello Query Device Sample
 =========================
 
