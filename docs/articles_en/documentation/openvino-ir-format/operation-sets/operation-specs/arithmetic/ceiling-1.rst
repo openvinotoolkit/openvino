@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Ceiling_1}
-
 Ceiling
 =======
 
 
 .. meta::
-  :description: Learn about Ceiling-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Ceiling-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Ceiling-1*
@@ -17,7 +15,7 @@ Ceiling
 **Detailed description**: For each element from the input tensor calculates corresponding element in the output tensor with the following formula:
 
 .. math::
-   
+
    a_{i} = \lceil a_{i} \rceil
 
 **Attributes**: *Ceiling* operation has no attributes.
@@ -40,7 +38,7 @@ Ceiling
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="Ceiling">
        <input>
            <port id="0">
@@ -55,5 +53,5 @@ Ceiling
            </port>
        </output>
    </layer>
-   
+
 

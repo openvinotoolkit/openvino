@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_Automatic_Batching}
-
 Automatic Batching
 ==================
 

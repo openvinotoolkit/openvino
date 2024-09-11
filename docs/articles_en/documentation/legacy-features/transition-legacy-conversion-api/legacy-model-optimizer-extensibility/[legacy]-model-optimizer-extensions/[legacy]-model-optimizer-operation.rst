@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Operation}
-
 [LEGACY] Model Optimizer Operation
 ===================================
 

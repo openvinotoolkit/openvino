@@ -54,7 +54,6 @@
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_min.hpp"
-#include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/sigmoid.hpp"
@@ -64,7 +63,6 @@
 #include "openvino/op/softplus.hpp"
 #include "openvino/op/softsign.hpp"
 #include "openvino/op/squared_difference.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tan.hpp"
 #include "openvino/op/tanh.hpp"
@@ -195,7 +193,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Pow", CreatorFunction(translate_binary_op<v1::Power>)},
         {"RealDiv", CreatorFunction(translate_binary_op<v1::Divide>)},
         {"SquaredDifference", CreatorFunction(translate_binary_op<v0::SquaredDifference>)},
-        {"Sub", CreatorFunction(translate_binary_op<v1::Subtract>)},
 
         // note: ReduceOp translator declaration for each op must to be added in reduce.cpp file
         {"Any", CreatorFunction(translate_direct_reduce_op<v1::ReduceLogicalOr>)},
@@ -204,7 +201,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Max", CreatorFunction(translate_direct_reduce_op<v1::ReduceMax>)},
         {"Mean", CreatorFunction(translate_direct_reduce_op<v1::ReduceMean>)},
         {"Min", CreatorFunction(translate_direct_reduce_op<v1::ReduceMin>)},
-        {"Prod", CreatorFunction(translate_direct_reduce_op<v1::ReduceProd>)},
         {"Sum", CreatorFunction(translate_direct_reduce_op<v1::ReduceSum>)},
 
         // Separate translators:
@@ -347,6 +343,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Placeholder", CreatorFunction(translate_placeholder_linked_op)},
         {"PlaceholderWithDefault", CreatorFunction(translate_placeholder_with_default_op)},
         {"PreventGradient", CreatorFunction(translate_identity_op)},
+        {"Prod", CreatorFunction(translate_prod_op)},
         {"Range", CreatorFunction(translate_range_op)},
         {"Rank", CreatorFunction(translate_rank_op)},
         {"RandomUniform", CreatorFunction(translate_random_uniform_op)},
@@ -397,6 +394,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"StatelessIf", CreatorFunction(translate_if_op)},
         {"StatelessWhile", CreatorFunction(translate_while_op)},
         {"StridedSlice", CreatorFunction(translate_strided_slice_op)},
+        {"Sub", CreatorFunction(translate_sub_op)},
         {"Switch", CreatorFunction(translate_switch_op)},
         {"TensorArrayCloseV3", CreatorFunction(translate_tensor_array_close_v3_op)},
         {"TensorArrayConcatV3", CreatorFunction(translate_tensor_array_concat_v3_op)},
