@@ -142,6 +142,8 @@ def ivalue_to_constant(ivalue, shared_memory=True):
     if ov_type.is_static():
         return op.Constant(ov_type, Shape([]), [ivalue]).outputs()
     if isinstance(ivalue, (list, tuple)):
+        if len(ivalue) == 0:
+            return op.Constant(OVType.i64, Shape([0]), []).outputs()
         assert len(ivalue) > 0, "Can't deduce type for empty list"
         if isinstance(ivalue[0], (list, tuple)):
             second_len = len(ivalue[0])
