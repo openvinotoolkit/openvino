@@ -105,7 +105,6 @@ public:
     MemoryDescPtr internal_desc() const override;
 
 private:
-    //ov::intel_cpu::VariableStateBase
     void reset_impl() override;
     void commit_impl() override {};
 
@@ -122,7 +121,6 @@ private:
 private:
     MemoryDescPtr m_internal_desc; //mem desc required by the graph internal tensor
     MemoryPtr m_internal_mem;
-    size_t buffer_num = 0;
 };
 
 class VariableStateKVcache : public VariableStateBase {
