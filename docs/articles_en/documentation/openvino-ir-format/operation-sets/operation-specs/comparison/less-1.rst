@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_comparison_Less_1}
-
 Less
 ====
 
 
 .. meta::
-  :description: Learn about Less-1 - an element-wise, comparison operation, which 
+  :description: Learn about Less-1 - an element-wise, comparison operation, which
                 can be performed on two given tensors in OpenVINO.
 
 **Versioned name**: *Less-1*

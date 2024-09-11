@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_detection_ROIAlign_9}
-
 ROIAlign
 ========
 
 
 .. meta::
-  :description: Learn about ROIAlign-9 - an object detection operation, 
+  :description: Learn about ROIAlign-9 - an object detection operation,
                 which can be performed on three required input tensors.
 
 
@@ -72,7 +70,7 @@ ROIAlign
     * *half_pixel_for_nn* - the coordinate in the resized tensor axis x is x_original * spatial_scale - 0.5
     * *half_pixel* - the coordinate in the resized tensor axis x is calculated as ((x_original + 0.5) * spatial_scale) - 0.5
   * **Type**: string
-  * **Default value**: asymmetric  
+  * **Default value**: asymmetric
   * **Required**: *no*
 
 **Inputs**:
