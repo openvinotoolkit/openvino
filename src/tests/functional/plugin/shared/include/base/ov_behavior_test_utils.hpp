@@ -36,7 +36,6 @@
         return (sw_plugin_in_target_device(ov::test::utils::target_device) ? "" : "mandatory_") + name; \
     }
 
-static std::string (*NULL_getTestCaseName)(const testing::TestParamInfo<std::string>& info) = NULL;
 #define MARK_MANDATORY_API_FOR_HW_DEVICE(GET_TEST_NAME)                                                 \
     [](const testing::TestParamInfo<std::string>& info) {                                               \
         std::string name = "";                                                                          \

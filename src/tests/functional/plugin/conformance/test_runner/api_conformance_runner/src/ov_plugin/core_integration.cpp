@@ -23,6 +23,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin,
 
 // OV Class Query network
 
+static std::string (*NULL_getTestCaseName)(const testing::TestParamInfo<std::string>& info) = NULL;
 INSTANTIATE_TEST_SUITE_P(ov_plugin,
                          OVClassQueryModelTest,
                          ::testing::Values(ov::test::utils::target_device),

@@ -105,6 +105,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckMetricsPropsTests_ModelDependceProps,
 // OV Class GetMetric
 //
 
+static std::string (*NULL_getTestCaseName)(const testing::TestParamInfo<std::string>& info) = NULL;
 INSTANTIATE_TEST_SUITE_P(ov_plugin,
                          OVGetMetricPropsTest,
                          ::testing::Values(ov::test::utils::target_device),
