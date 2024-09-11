@@ -266,7 +266,9 @@ struct OptionBase {
 
     // Overload this for private options.
     static bool isPublic() {
-        return true;
+        return false;
+    }
+
     // Overload this for read-only options (metrics)
     static bool isReadOnly() {
         return false;
