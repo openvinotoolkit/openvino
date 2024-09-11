@@ -39,7 +39,7 @@ def get_storage_dir(product_type: str, commit_hash: str, storage_root: str | Pat
     #     branch_name = merge_queue_matcher.group(1)
 
     storage_event_dir = get_storage_event_dir(storage_root, branch_name, event_name, product_name)
-    storage = storage_event_dir / commit_hash / product_type
+    storage = storage_event_dir / commit_hash / product_type.lower()
     return storage
 
 
