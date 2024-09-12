@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import sys
-
 import pytest
 
 from pytorch_layer_test_class import PytorchLayerTest

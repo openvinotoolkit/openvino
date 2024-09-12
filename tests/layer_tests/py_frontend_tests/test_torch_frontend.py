@@ -9,7 +9,6 @@ from openvino.runtime import PartialShape, Type
 import openvino.runtime.opset10 as ops
 import pytest
 
-import sys
 import glob
 import itertools
 import math
