@@ -54,7 +54,7 @@ class TestSparseSegmentMean(CommonTFLayerTest):
 
         return tf_net, None
 
-    @pytest.mark.parametrize('data_type', [np.float32, np.float64, np.float16])
+    @pytest.mark.parametrize('data_type', [np.float16, np.float32, np.float64])
     @pytest.mark.parametrize('indices_type', [np.int32, np.int64])
     @pytest.mark.parametrize('shape, segments_num', [
         [10, 8],
