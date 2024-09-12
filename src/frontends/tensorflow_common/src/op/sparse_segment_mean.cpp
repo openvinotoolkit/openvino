@@ -10,9 +10,9 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/embedding_segments_sum.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
@@ -61,7 +61,6 @@ OutputVector translate_sparse_segment_mean_op(const NodeContext& node) {
                                                          n_segments,
                                                          const_zero);
     auto divisors_with_correct_shape = std::make_shared<v1::Reshape>(divisors_with_correct_type, divisors_shape, false);
-
 
     // divide the sums by the size of the segments
     auto mean = std::make_shared<v1::Divide>(embedding_segments_sum, divisors_with_correct_shape);
