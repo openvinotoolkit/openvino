@@ -195,11 +195,7 @@ void fill_tensor_from_strings(ov::Tensor& tensor, py::array& array) {
             PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, reinterpret_cast<void*>(ptr), buf.itemsize / 4);
         PyObject* _utf8_obj = PyUnicode_AsUTF8String(_unicode_obj);
         const char* _tmp_str = PyBytes_AsString(_utf8_obj);
-        if (buf.ndim == 0) {
-            data[i] = std::string(_tmp_str, buf.itemsize);
-        } else {
-            data[i] = std::string(_tmp_str);
-        }
+        data[i] = std::string(_tmp_str, strlen(_tmp_str));
         Py_XDECREF(_unicode_obj);
         Py_XDECREF(_utf8_obj);
     }
