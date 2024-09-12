@@ -57,7 +57,6 @@ protected:
     BufferExpression(const std::shared_ptr<Node>& n, const std::shared_ptr<IShapeInferSnippetsFactory>& factory);
 
     ExpressionPtr clone() const override;
-    void validate_attributes() const override;
 
     size_t m_allocation_size = utils::get_dynamic_value<size_t>();
     size_t m_reg_group = 0;

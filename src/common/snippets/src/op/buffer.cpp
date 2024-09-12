@@ -59,8 +59,8 @@ void Buffer::IntermediateMemoryImpl::validate_and_infer_types(Buffer* buffer) co
     OPENVINO_ASSERT(buffer, "Buffer is missed");
     OPENVINO_ASSERT(buffer->get_input_size() != 0, "IntermediateMemory Buffer must have inputs");
     const auto inputs = buffer->input_values();
-    const auto inshape = buffer->get_input_partial_shape(0);
-    const auto intype = buffer->get_input_element_type(0);
+    const auto& inshape = buffer->get_input_partial_shape(0);
+    const auto& intype = buffer->get_input_element_type(0);
     OPENVINO_ASSERT(std::all_of(inputs.cbegin() + 1, inputs.cend(),
                                 [&](const ov::Output<ov::Node>& in) { return in.get_partial_shape() == inshape && in.get_element_type() == intype; }),
                     "All inputs of Buffers must have the same shape and element type");

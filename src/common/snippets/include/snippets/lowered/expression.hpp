@@ -53,7 +53,7 @@ public:
 
     void set_input_port_connector(size_t port, PortConnectorPtr to);
 
-    // Cannot be called in ctor because validate port attributes (descs, connectors) also
+    // Attention! Cannot be called in ctor because this method validats port attributes (descs, connectors) also
     virtual void validate() const;
 
     ExpressionPort get_input_port(size_t i);
@@ -65,8 +65,25 @@ public:
     bool needShapeInfer() const { return m_need_shape_infer; }
     const std::vector<size_t>& get_loop_ids() const;
     void set_loop_ids(const std::vector<size_t>& loops);
+
+    /**
+     * @brief Clone Expression with new node and input port attributes/
+     *        Output port descriptors will be cloned from the current expression.
+     *        Output port connecters will be created.
+     * @param new_node new node
+     * @param new_inputs new input port connectors
+     * @param new_in_descs new input port descriptors. If this collection is empty,
+     *                     descriptors will be copied from the current expression
+     * @return the copy
+     */
     ExpressionPtr clone_with_new_inputs(const std::shared_ptr<Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
                                         const std::vector<PortDescriptorPtr>& new_in_descs = {}) const;
+    /**
+     * @brief Clone Expression with new node using `expr_map` to connect to new parent expressions.
+     * @param expr_map the map with the original and cloned expressions
+     * @param new_node new node
+     * @return the copy
+     */
     ExpressionPtr clone_with_new_inputs(const ExpressionMap& expr_map, const std::shared_ptr<Node>& new_node) const;
 
     virtual bool visit_attributes(AttributeVisitor &visitor);
@@ -93,10 +110,8 @@ protected:
     //       The method must be used only by Linear IR builder of expressions!
     Expression(const std::shared_ptr<Node>& n, const std::shared_ptr<IShapeInferSnippetsFactory>& factory, bool need_shape_infer = true);
 
-    // Virtual clone method wich is called in clone_with_new_inputs with common logic
+    // Virtual clone method which is called in clone_with_new_inputs with common logic
     virtual ExpressionPtr clone() const;
-    // Called in ctors to validate expression attributes
-    virtual void validate_attributes() const;
 
     // used in clone_with_new_inputs. New output port descriptors were inited automatically
     void update_port_attributes(const std::shared_ptr<Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,

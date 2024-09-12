@@ -25,7 +25,6 @@ Expression::Expression(const std::shared_ptr<Node>& n, const std::shared_ptr<ISh
     for (const auto& output : n->outputs()) {
         m_output_port_descriptors.push_back(PortDescriptorUtils::get_port_descriptor_ptr(output));
     }
-    validate_attributes();
 }
 
 Expression::Expression(const Expression& other) :
@@ -40,7 +39,6 @@ Expression::Expression(const Expression& other) :
     // input port connectors and input port descriptors - they must be consistent.
     m_input_port_descriptors = {};
     m_output_port_descriptors = {};
-    validate_attributes();
 }
 
 const PortConnectorPtr& Expression::get_input_port_connector(size_t i) const {
@@ -95,13 +93,9 @@ void Expression::set_reg_info(const RegInfo& rinfo) {
     }
 }
 
- void Expression::validate_attributes() const {
-    OPENVINO_ASSERT(m_source_node != nullptr,
-                "The expression has null source node");
- }
-
 void Expression::validate() const {
-    validate_attributes();
+    OPENVINO_ASSERT(m_source_node != nullptr,
+                    "The expression has null source node");
     OPENVINO_ASSERT(m_input_port_descriptors.size() == m_input_port_connectors.size(),
                     "The count of input ports and input port connectors must be equal");
     OPENVINO_ASSERT(m_output_port_descriptors.size() == m_output_port_connectors.size(),

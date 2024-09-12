@@ -28,11 +28,6 @@ ExpressionPtr BufferExpression::clone() const {
     return std::shared_ptr<BufferExpression>(new BufferExpression(*this));
 }
 
-void BufferExpression::validate_attributes() const {
-    Expression::validate_attributes();
-    OPENVINO_ASSERT(ov::is_type<op::Buffer>(get_node()), "BufferExpression expects Buffer op");
-}
-
 bool BufferExpression::visit_attributes(AttributeVisitor &visitor) {
     auto allocation_size = utils::value2str(m_allocation_size);
     auto offset = utils::value2str(m_offset);
