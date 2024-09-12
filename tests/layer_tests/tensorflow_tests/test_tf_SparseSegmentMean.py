@@ -22,12 +22,12 @@ class TestSparseSegmentMean(CommonTFLayerTest):
 
         # generate all possible indices
         all_indices = []
-        for row_ind in range(0, self.shape):
+        for row_ind in range(0, self.shape[0]):
             all_indices.append(row_ind)
-        inputs_data['indices:0'] = rng.choice(all_indices, self.indices_shape, replace=False).astype(self.indices_type)
+        inputs_data['indices:0'] = rng.choice(all_indices, self.indices_shape[0], replace=False).astype(self.indices_type)
 
         segment_ids = []
-        for ind in range(0, self.indices_shape):
+        for ind in range(0, self.indices_shape[0]):
             segment_ids.append(self.segment_indices_type(rng.integers(0, self.segments_num)))
         inputs_data['segment_indices:0'] = sorted(segment_ids)
 
@@ -43,9 +43,9 @@ class TestSparseSegmentMean(CommonTFLayerTest):
         self.segments_num = segments_num
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
-            values = tf.compat.v1.placeholder(data_type, [shape], 'values')
-            indices = tf.compat.v1.placeholder(indices_type, [indices_shape], 'indices')
-            segments_ids = tf.compat.v1.placeholder(segment_indices_type, [indices_shape], 'segment_indices')
+            values = tf.compat.v1.placeholder(data_type, shape, 'values')
+            indices = tf.compat.v1.placeholder(indices_type, indices_shape, 'indices')
+            segments_ids = tf.compat.v1.placeholder(segment_indices_type, indices_shape, 'segment_indices')
             tf.raw_ops.SparseSegmentMean(
                 data=values,
                 indices=indices,
@@ -59,9 +59,11 @@ class TestSparseSegmentMean(CommonTFLayerTest):
     @pytest.mark.parametrize('indices_type', [np.int32, np.int64])
     @pytest.mark.parametrize('segment_indices_type', [np.int32, np.int64])
     @pytest.mark.parametrize('shape, indices_shape, segments_num', [
-        [10, 7, 8],
-        [5, 5, 3],
-        [5, 2, 4],
+        [[10], [7], 8],
+        [[5], [5], 3],
+        [[5], [2], 4],
+        [[10, 20], [7], 8],
+        [[10, 2, 4], [10], 4]
     ])
     @pytest.mark.precommit
     @pytest.mark.nightly
