@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_activation_Selu_1}
-
 Selu
 ====
 
 
 .. meta::
-  :description: Learn about SeLU-1 - an element-wise, activation operation, which 
+  :description: Learn about SeLU-1 - an element-wise, activation operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Selu-1*

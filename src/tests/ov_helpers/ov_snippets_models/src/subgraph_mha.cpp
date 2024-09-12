@@ -231,6 +231,37 @@ std::shared_ptr<ov::Model> MHASplitMFunction::initReference() const {
     return std::make_shared<ov::Model>(results, ngraphParams, "mha");
 }
 
+std::shared_ptr<ov::Model> MHAWithDynamicMulFunction::initOriginal() const {
+    auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
+    auto transpose1Param = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
+    auto mulParam = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
+    auto addParam = std::make_shared<ov::opset1::Parameter>(precisions[3], input_shapes[3]);
+    auto transpose2Param = std::make_shared<ov::opset1::Parameter>(precisions[4], input_shapes[4]);
+    ov::ParameterVector ngraphParam = {transpose0Param, transpose1Param, mulParam, addParam, transpose2Param};
+
+    const auto rank = input_shapes[0].size();
+    const auto fusion_order = get_fusion_order(rank);
+    const auto decomposed_order = get_decomposed_order(rank);
+
+    const auto transpose0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
+    const auto transpose1Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, decomposed_order);
+    const auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
+    const auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
+
+    const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
+    const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(transpose1Param, transpose1Const);
+    const auto mul = std::make_shared<ov::op::v1::Multiply>(transpose1, mulParam);
+    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, mul);
+    const auto add = std::make_shared<ov::op::v1::Add>(matMul0, addParam);
+    const auto softMax = std::make_shared<ov::opset1::Softmax>(add, rank - 1);
+    const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
+    const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, transpose2);
+    const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(matMul1, transpose3Const);
+
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(transpose3)};
+    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+}
+
 std::shared_ptr<ov::Model> MHAMatMul0TransposeFunction::initOriginal() const {
     auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
     auto transpose1Param = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
@@ -968,7 +999,7 @@ std::shared_ptr<ov::Model> MHATransposedInputFunction::initReference() const {
         in1 = std::make_shared<ov::op::v1::Transpose>(in1, transposeConst);
     }
     if (m_transposed_b) {
-        if (m_order != std::vector<int64_t>{0, 2, 1, 3}) {
+        if (m_order != std::vector<int64_t>{0, 2, 1, 3} && !m_transpose_b_native_support) {
             const auto rank = input_shapes[1].size();
             std::vector<int32_t> transpose_order(rank, 0);
             std::iota(transpose_order.begin(), transpose_order.end(), 0);
@@ -988,7 +1019,8 @@ std::shared_ptr<ov::Model> MHATransposedInputFunction::initReference() const {
         matmul0_in1 = std::make_shared<ov::op::v1::Transpose>(param1, transposeConst);
     }
 
-    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(param0, matmul0_in1);
+    const bool mm0_transpose_b = m_transposed_b && m_transpose_b_native_support;
+    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(param0, matmul0_in1, false, mm0_transpose_b);
     const auto softmax = std::make_shared<ov::op::v8::Softmax>(matMul0, -1);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softmax, param2);
 

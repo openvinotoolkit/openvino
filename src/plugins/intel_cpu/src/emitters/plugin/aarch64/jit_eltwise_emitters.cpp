@@ -705,23 +705,18 @@ void jit_gelu_tanh_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, con
     h->ld1r(vmm_aux1.s, table_val2("gelu_tanh_sqrt_two_over_pi"));
     h->fmul(vmm_aux0.s, vmm_aux1.s, vmm_aux2.s);
 
-    const bool store_src = vmm_src.getIdx() == vmm_dst.getIdx();
-    if (store_src) {
-        h->mov(vmm_aux2.b16, vmm_src.b16);
-    }
-
     tanh_emitter->emit_code(
             { vmm_aux0.getIdx() },
-            out_vec_idxs,
+            { vmm_aux2.getIdx() },
             aux_vec_idxs,
             aux_gpr_idxs);
 
     // compute 0.5 * x * (1 + tanh(G(x)))
     h->ld1r(vmm_aux1.s, table_val2("one"));
-    h->fadd(vmm_dst.s, vmm_aux1.s, vmm_dst.s);
+    h->fadd(vmm_aux0.s, vmm_aux1.s, vmm_aux2.s);
     h->ld1r(vmm_aux1.s, table_val2("half"));
-    h->fmul(vmm_dst.s, vmm_aux1.s, vmm_dst.s);
-    h->fmul(vmm_dst.s, store_src ? vmm_aux2.s : vmm_src.s, vmm_dst.s);
+    h->fmul(vmm_aux0.s, vmm_aux1.s, vmm_aux0.s);
+    h->fmul(vmm_dst.s, vmm_src.s, vmm_aux0.s);
 }
 
 void jit_gelu_tanh_emitter::register_table_entries() {
@@ -1036,6 +1031,68 @@ void jit_is_nan_emitter::register_table_entries() {
     push_arg_entry_of("zero", 0x00000000, true);
 }
 
+/// LOGICAL_NOT ///
+jit_logical_not_emitter::jit_logical_not_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                               dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                               const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+        prepare_table();
+    }
+
+jit_logical_not_emitter::jit_logical_not_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                               dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                               const ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+        prepare_table();
+    }
+
+size_t jit_logical_not_emitter::get_inputs_count() const {
+    return 1;
+}
+
+size_t jit_logical_not_emitter::get_aux_vecs_count() const {
+    return 1;
+}
+
+size_t jit_logical_not_emitter::get_aux_gprs_count() const {
+    return 1;
+}
+
+void jit_logical_not_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                       const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_logical_not_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                      const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    TReg src = TReg(in_vec_idxs[0]);
+    TReg dst = TReg(out_vec_idxs[0]);
+    TReg tmp1 = TReg(aux_vec_idxs[0]);
+
+    h->eor(tmp1.b16, tmp1.b16, tmp1.b16);
+    h->fcmeq(tmp1.s, tmp1.s, src.s);
+    h->ld1r(dst.s, table_val2("one"));
+    h->and_(dst.b16, dst.b16, tmp1.b16);
+}
+
+void jit_logical_not_emitter::register_table_entries() {
+    // Registers constant values that comply with the IEEE 754 standard.
+    push_arg_entry_of("one", 0x3f800000, true);
+}
+
+std::set<std::vector<element::Type>> jit_logical_not_emitter::get_supported_precisions(
+    const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
 /// MAX ///
 jit_maximum_emitter::jit_maximum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -1219,6 +1276,8 @@ jit_mod_emitter::jit_mod_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
 
 size_t jit_mod_emitter::get_inputs_count() const { return 2; }
 
+size_t jit_mod_emitter::get_aux_vecs_count() const { return 1; }
+
 void jit_mod_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
         emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
@@ -1233,14 +1292,15 @@ void jit_mod_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
 
-    TReg divend = TReg(in_vec_idxs[0]);
+    TReg dividend = TReg(in_vec_idxs[0]);
     TReg divisor = TReg(in_vec_idxs[1]);
     TReg r = TReg(out_vec_idxs[0]);
+    TReg aux = TReg(aux_vec_idxs[0]);
 
-    h->uni_fdiv(r.s, divend.s, divisor.s);
-    h->frintz(r.s, r.s);
-    h->uni_fmul(r.s, r.s, divisor.s);
-    h->uni_fsub(r.s, divend.s, r.s);
+    h->fdiv(aux.s, dividend.s, divisor.s);
+    h->frintz(aux.s, aux.s);
+    h->fmul(aux.s, aux.s, divisor.s);
+    h->fsub(r.s, dividend.s, aux.s);
 }
 
 std::set<std::vector<element::Type>> jit_mod_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
@@ -1874,7 +1934,7 @@ void jit_tanh_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const st
     TReg src = TReg(in_vec_idxs[0]);
     TReg dst = TReg(out_vec_idxs[0]);
 
-    TReg aux = TReg(aux_vec_idxs.back());
+    TReg aux = TReg(aux_vec_idxs[0]);
 
     h->ld1r(aux.s, table_val2("two"));
     h->uni_fmul(aux.s, src.s, aux.s);

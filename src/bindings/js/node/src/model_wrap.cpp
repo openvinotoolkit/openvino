@@ -7,6 +7,7 @@
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
 #include "node/include/node_output.hpp"
+#include "node/include/type_validation.hpp"
 
 ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<ModelWrap>(info),
@@ -25,6 +26,8 @@ Napi::Function ModelWrap::get_class(Napi::Env env) {
                         InstanceMethod("setFriendlyName", &ModelWrap::set_friendly_name),
                         InstanceMethod("getFriendlyName", &ModelWrap::get_friendly_name),
                         InstanceMethod("getOutputShape", &ModelWrap::get_output_shape),
+                        InstanceMethod("getOutputElementType", &ModelWrap::get_output_element_type),
+                        InstanceMethod("clone", &ModelWrap::clone),
                         InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
                         InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
 }
@@ -166,6 +169,36 @@ Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
         auto idx = info[0].As<Napi::Number>().Int32Value();
         auto output = _model->output(idx);
         return cpp_to_js<ov::Shape, Napi::Array>(info, output.get_shape());
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
+}
+
+Napi::Value ModelWrap::get_output_element_type(const Napi::CallbackInfo& info) {
+    std::vector<std::string> allowed_signatures;
+    try {
+        if (ov::js::validate<int>(info, allowed_signatures)) {
+            auto idx = info[0].As<Napi::Number>().Int32Value();
+            const auto& output = _model->output(idx);
+            return cpp_to_js<ov::element::Type_t, Napi::String>(info, output.get_element_type());
+        } else {
+            OPENVINO_THROW("'getOutputElementType'", ov::js::get_parameters_error_msg(info, allowed_signatures));
+        }
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
+}
+
+Napi::Value ModelWrap::clone(const Napi::CallbackInfo& info) {
+    std::vector<std::string> allowed_signatures;
+    try {
+        if (ov::js::validate(info, allowed_signatures)) {
+            return cpp_to_js(info.Env(), _model->clone());
+        } else {
+            OPENVINO_THROW("'clone'", ov::js::get_parameters_error_msg(info, allowed_signatures));
+        }
     } catch (const std::exception& e) {
         reportError(info.Env(), e.what());
         return info.Env().Undefined();

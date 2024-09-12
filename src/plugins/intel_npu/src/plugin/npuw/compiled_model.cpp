@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "compiled_model.hpp"
@@ -111,6 +111,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         m_ref_device = m_cfg.getString<::intel_npu::NPUW_ACC_DEVICE>();
         LOG_INFO("Accuracy check is enabled.");
     }
+
+    // Initialize weights bank
+    const std::string weights_bank_opt = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
+    m_weights_bank = ov::npuw::weights::bank(weights_bank_opt, plugin->get_core());
 
     LOG_VERB("*** Original model ***");
     const auto& orig_parameters = model->get_parameters();
@@ -271,6 +275,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             m_compiled_submodels[id].closure = subgraph._closure;
             m_compiled_submodels[id].scales = subgraph._scales;
             m_compiled_submodels[id].zerops = subgraph._zerops;
+            m_compiled_submodels[id].update_required.resize(subgraph._closure.size(), false);
+            fill_weights_bank(id);
         }  // if(!funcall)
 
         if (!m_compiled_submodels[id].model && !m_compiled_submodels[id].replaced_by) {
@@ -385,6 +391,26 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     m_finalized = true;
     reset_io();
+}
+
+void ov::npuw::CompiledModel::fill_weights_bank(const std::size_t idx) {
+    LOG_VERB("Filling weights bank for Subgraph[" << idx << "]...");
+    LOG_BLOCK();
+
+    NPUW_ASSERT(m_compiled_submodels[idx].replaced_by);
+
+    auto& comp_model_desc = m_compiled_submodels[idx];
+
+    for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
+        comp_model_desc.closure[cidx] = m_weights_bank->update(comp_model_desc.closure[cidx]);
+        if (m_cfg.get<::intel_npu::NPUW_FOLD>()) {
+            comp_model_desc.update_required[cidx] = true;
+        } else {
+            comp_model_desc.update_required[cidx] = false;
+        }
+    }
+
+    LOG_VERB("DONE");
 }
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
@@ -762,16 +788,21 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::submodel_device, NPUW_SUBMODEL_DEVICE),
                           BIND(npuw::partitioning::online::pipeline, NPUW_ONLINE_PIPELINE),
                           BIND(npuw::partitioning::online::min_size, NPUW_ONLINE_MIN_SIZE),
+                          BIND(npuw::partitioning::online::keep_blocks, NPUW_ONLINE_KEEP_BLOCKS),
+                          BIND(npuw::partitioning::online::keep_block_size, NPUW_ONLINE_KEEP_BLOCK_SIZE),
                           BIND(npuw::partitioning::online::avoid, NPUW_ONLINE_AVOID),
+                          BIND(npuw::partitioning::online::isolate, NPUW_ONLINE_ISOLATE),
+                          BIND(npuw::partitioning::online::nofold, NPUW_ONLINE_NO_FOLD),
                           BIND(npuw::partitioning::online::dump_plan, NPUW_ONLINE_DUMP_PLAN),
                           BIND(npuw::partitioning::plan, NPUW_PLAN),
                           BIND(npuw::partitioning::fold, NPUW_FOLD),
                           BIND(npuw::partitioning::cwai, NPUW_CWAI),
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
-                          BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
                           BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
+                          BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                           BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),
+                          BIND(npuw::weights_bank, NPUW_WEIGHTS_BANK),
                           BIND(npuw::accuracy::check, NPUW_ACC_CHECK),
                           BIND(npuw::accuracy::threshold, NPUW_ACC_THRESH),
                           BIND(npuw::accuracy::reference_device, NPUW_ACC_DEVICE),

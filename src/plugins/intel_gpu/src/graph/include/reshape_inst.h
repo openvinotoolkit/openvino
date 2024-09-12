@@ -8,6 +8,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "crop_inst.h"
 #include "rope_inst.h"
+#include "mvn_inst.h"
 #include "primitive_inst.h"
 
 #include <string>
@@ -32,15 +33,33 @@ public:
 
     bool is_runtime_propagatable_padding() const {
         auto prim = typed_desc();
-        if (prim->mode == reshape::reshape_mode::squeeze || prim->mode == reshape::reshape_mode::unsqueeze)
+        if (prim->mode == reshape::reshape_mode::squeeze || prim->mode == reshape::reshape_mode::unsqueeze) {
+            // For proper padding propagation we need to know output pattern at model loading stage
+            // in case of squeeze/unsqueeze mode
+            if (prim->output_pattern.empty())
+                return false;
+
+            if (input().is_type<crop>() && prim->mode == reshape::reshape_mode::squeeze) {
+                const auto crop_axis = input().as<crop>().get_primitive()->axis;
+                const auto& output_pattern = prim->output_pattern;
+
+                // Do not propagate output padding in squeeze mode if the squeezed dimension corresponds to the crop axis
+                return std::find(output_pattern.begin(), output_pattern.end(), crop_axis) == output_pattern.end();
+            }
+
             return true;
+        }
 
         // TODO: This function is to limit condition to a specific case (crop + reshape) among cases for the base mode
         if (!input().is_type<crop>())
             return false;
 
-        // TODO: If user is RoPE and dynamic padding exists, ouput padding propagation is not supported in the base mode
-        if (get_users().size() == 1 && get_users().front()->is_type<rope>())
+        // oneDNN supports padded input of outer axis only for buffer fusing on static shape
+        if (!has_outer_padding_offset() && get_users().size() == 1 && get_users().front()->get_preferred_impl_type() == impl_types::onednn)
+            return false;
+
+        // TODO: If user is RoPE or MVN and dynamic padding exists, ouput padding propagation is not supported in the base mode
+        if (get_users().size() == 1 && (get_users().front()->is_type<rope>() || get_users().front()->is_type<mvn>()))
             return false;
 
         auto axis = input().as<crop>().get_primitive()->axis;
@@ -70,7 +89,9 @@ public:
     }
 
     bool has_padding() const {
-        return (this->get_output_layout().data_padding || input().get_output_layout(false).data_padding || input().get_output_layout(false).has_dynamic_pad());
+        return (this->get_output_layout().data_padding
+                || input().get_output_layout(false).data_padding
+                || input().get_output_layout(false).data_padding.is_dynamic());
     }
 
     bool has_outer_padding_offset() const {
@@ -80,15 +101,15 @@ public:
         auto input_layout = input().get_output_layout(false);
         auto input_pad = input_layout.data_padding;
         for (size_t i = 0 ; i < input_layout.get_spatial_rank() ; i++) {
-            if (input_pad.lower_size().spatial[i] != 0)
+            if (input_pad._lower_size[2 + i] != 0)
                 return false;
-            if (input_pad.upper_size().spatial[i] != 0)
+            if (input_pad._upper_size[2 + i] != 0)
                 return false;
         }
 
         // Expected a padded input of only batch axis with 'bxxx' format
         if (input_layout.format.dims_order()[0] != 0 ||
-            input_pad.lower_size().feature[0] != 0)
+            input_pad._lower_size[1] != 0)
             return false;
 
         if (format::is_multi_blocked(input_layout.format))
@@ -102,7 +123,7 @@ public:
         if (this->is_output() || this->has_fused_primitives())
             return false;
 
-        if (input().get_output_layout(false).has_dynamic_pad() && is_runtime_propagatable_padding())
+        if (input().get_output_layout(false).data_padding.is_dynamic() && is_runtime_propagatable_padding())
             return true;
 
         if (has_padding())
@@ -117,7 +138,7 @@ public:
 
         auto input_layout = input().get_output_layout(false);
         auto output_layout = this->get_output_layout();
-        if (input_layout.has_dynamic_pad()) {
+        if (input_layout.data_padding.is_dynamic()) {
             auto prim = typed_desc();
             // TODO: If outer padding exists, ouput padding propagation is not supported in the base mode
             if (prim->mode == reshape::reshape_mode::base)
@@ -140,9 +161,9 @@ public:
             // adjust output padding if Reshape has an outer padding exists in an input
             auto input_pitches = input_layout.get_pitches();
             auto input_pad = input_layout.data_padding;
-            size_t first_element_offset = input_pad.lower_size().batch[0];
+            size_t first_element_offset = input_pad._lower_size[0];
             // feature and spatial size
-            first_element_offset *= input_pitches.batch[0];
+            first_element_offset *= input_pitches[0];
 
             size_t inner_size = 1;
             for (size_t i = 0 ; i < output_layout.get_spatial_rank() ; i++) {

@@ -29,16 +29,16 @@ namespace ov {
 namespace intel_cpu {
 
 class Memory;
-class ProxyMemoryMngr;
+class ProxyMemoryBlock;
 
 /**
- * @interface IMemoryMngr
+ * @interface IMemoryBlock
  * @brief An interface to memory control object
  */
 
-class IMemoryMngr {
+class IMemoryBlock {
 public:
-    virtual ~IMemoryMngr() = default;
+    virtual ~IMemoryBlock() = default;
 
     /**
      * @brief Accessor to underlying memory buffer
@@ -68,15 +68,16 @@ public:
 };
 
 /**
- * @brief An implementation of the mem manager where memory reallocation occurs only if a bigger buffer is requested.
+ * @brief An implementation of the mem block where memory reallocation occurs only if a bigger buffer is requested.
  */
-class MemoryMngrWithReuse : public IMemoryMngr {
+class MemoryBlockWithReuse : public IMemoryBlock {
 public:
-    MemoryMngrWithReuse(int numa_node = -1) : m_data(nullptr, release), numa_node(numa_node) {}
+    MemoryBlockWithReuse(int numa_node = -1) : m_data(nullptr, release), numa_node(numa_node) {}
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
     bool resize(size_t size) override;
     bool hasExtBuffer() const noexcept override;
+    void free();
 
 private:
     bool m_useExternalStorage = false;
@@ -88,24 +89,7 @@ private:
     static void destroy(void *ptr);
 };
 
-class MemoryMngrRealloc : public IMemoryMngr {
-public:
-    MemoryMngrRealloc() : m_data(nullptr, release) {}
-    void* getRawPtr() const noexcept override;
-    void setExtBuff(void* ptr, size_t size) override;
-    bool resize(size_t size) override;
-    bool hasExtBuffer() const noexcept override;
-
-private:
-    bool m_useExternalStorage = false;
-    size_t m_memUpperBound = 0ul;
-    std::unique_ptr<void, void (*)(void *)> m_data;
-
-    static void release(void *ptr);
-    static void destroy(void *ptr);
-};
-
-class IMemoryMngrObserver : public IMemoryMngr {
+class IMemoryBlockObserver : public IMemoryBlock {
 public:
     virtual void registerMemory(Memory* memPtr) = 0;
     virtual void unregisterMemory(Memory* memPtr) = 0;
@@ -114,9 +98,9 @@ public:
 /**
  * @brief A proxy object that additionally implements observer pattern
  */
-class DnnlMemoryMngr : public IMemoryMngrObserver {
+class DnnlMemoryBlock : public IMemoryBlockObserver {
 public:
-    explicit DnnlMemoryMngr(std::unique_ptr<IMemoryMngr> mngr) : m_pMemMngr(std::move(mngr)) {}
+    explicit DnnlMemoryBlock(std::unique_ptr<IMemoryBlock> memBlock) : m_pMemBlock(std::move(memBlock)) {}
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
     bool resize(size_t size) override;
@@ -129,57 +113,55 @@ private:
 
 private:
     std::unordered_set<Memory*> m_setMemPtrs;
-    std::unique_ptr<IMemoryMngr> m_pMemMngr;
+    std::unique_ptr<IMemoryBlock> m_pMemBlock;
 };
 
-using MemoryMngrPtr = std::shared_ptr<IMemoryMngrObserver>;
-using MemoryMngrCPtr = std::shared_ptr<const IMemoryMngrObserver>;
+using MemoryBlockPtr = std::shared_ptr<IMemoryBlockObserver>;
+using MemoryBlockCPtr = std::shared_ptr<const IMemoryBlockObserver>;
 
-class DnnlMemMngrHandle {
+class DnnlMemBlockHandle {
 public:
-    DnnlMemMngrHandle(MemoryMngrPtr pMgr, Memory* pMem) : m_pMgr(pMgr), m_pMem(pMem) {
-        if (m_pMgr) {
-            m_pMgr->registerMemory(m_pMem);
+    DnnlMemBlockHandle(MemoryBlockPtr pBlock, Memory* pMem) : m_pMemBlock(pBlock), m_pMem(pMem) {
+        if (m_pMemBlock) {
+            m_pMemBlock->registerMemory(m_pMem);
         }
     }
 
-    DnnlMemMngrHandle(const DnnlMemMngrHandle&) = delete;
-    DnnlMemMngrHandle& operator= (const DnnlMemMngrHandle&) = delete;
+    DnnlMemBlockHandle(const DnnlMemBlockHandle&) = delete;
+    DnnlMemBlockHandle& operator= (const DnnlMemBlockHandle&) = delete;
 
-    DnnlMemMngrHandle(DnnlMemMngrHandle&& source) {
-        std::swap(m_pMgr, source.m_pMgr);
+    DnnlMemBlockHandle(DnnlMemBlockHandle&& source) {
+        std::swap(m_pMemBlock, source.m_pMemBlock);
         std::swap(m_pMem, source.m_pMem);
     }
-    DnnlMemMngrHandle& operator= (DnnlMemMngrHandle&& rhs) {
-        std::swap(m_pMgr, rhs.m_pMgr);
+    DnnlMemBlockHandle& operator= (DnnlMemBlockHandle&& rhs) {
+        std::swap(m_pMemBlock, rhs.m_pMemBlock);
         std::swap(m_pMem, rhs.m_pMem);
         return *this;
     }
 
-    ~DnnlMemMngrHandle() {
-        if (m_pMgr) {
-            m_pMgr->unregisterMemory(m_pMem);
+    ~DnnlMemBlockHandle() {
+        if (m_pMemBlock) {
+            m_pMemBlock->unregisterMemory(m_pMem);
         }
     }
 
-    MemoryMngrPtr get() const {
-        return m_pMgr;
+    MemoryBlockPtr get() const {
+        return m_pMemBlock;
     }
 
-    MemoryMngrPtr::element_type* operator->() const noexcept {
-        return m_pMgr.get();
+    MemoryBlockPtr::element_type* operator->() const noexcept {
+        return m_pMemBlock.get();
     }
 
 private:
-    MemoryMngrPtr m_pMgr = nullptr;
+    MemoryBlockPtr m_pMemBlock = nullptr;
     Memory* m_pMem = nullptr;
 };
 
 class IMemory {
 public:
     virtual ~IMemory() = default;
-
-    virtual bool isAllocated() const noexcept = 0;
 
     virtual const MemoryDesc& getDesc() const = 0;
     virtual MemoryDescPtr getDescPtr() const = 0;
@@ -200,13 +182,22 @@ public:
     virtual const VectorDims& getStaticDims() const = 0;
 
     // Redefines descriptor. The memory descriptor will be replaced with the new one.
-    // Memory will not be reallocated if the new tensor size is less or equal the upper bound.
+    // Memory will not be reallocated according to the dynamic memory block policy
     // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
     virtual void redefineDesc(MemoryDescPtr desc) = 0;
 
     virtual void load(const IMemory& src, bool ftz = true) const = 0;
 
-    virtual MemoryMngrPtr getMemoryMngr() const = 0;
+    virtual MemoryBlockPtr getMemoryBlock() const = 0;
+
+    virtual void nullify() = 0;
+
+    bool isDefined() const noexcept {
+        if (auto desc = getDescPtr()) {
+            return desc->isDefined();
+        }
+        return false;
+    }
 
     //oneDNN specifics for backward compatibility
     virtual dnnl::memory getPrimitive() const = 0;
@@ -219,8 +210,6 @@ public:
         return DnnlExtensionUtils::ElementTypeToDataType(getDesc().getPrecision());
     }
 
-    virtual void nullify() = 0;
-
     template <typename T,
             typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
             typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
@@ -229,10 +218,10 @@ public:
 
 class StaticMemory final : public IMemory {
 public:
-    class StaticMemoryMngr : public IMemoryMngrObserver {
+    class StaticMemoryBlock : public IMemoryBlockObserver {
     public:
-        explicit StaticMemoryMngr(size_t size);
-        StaticMemoryMngr(void* data, size_t size);
+        explicit StaticMemoryBlock(size_t size);
+        StaticMemoryBlock(void* data, size_t size);
         void* getRawPtr() const noexcept override;
         void setExtBuff(void* ptr, size_t size) override;
         bool resize(size_t size) override;
@@ -242,10 +231,10 @@ public:
 
     private:
         size_t m_size = 0;
-        MemoryMngrWithReuse memMngrImpl;
+        MemoryBlockWithReuse memBlockImpl;
     };
 
-    using MemMngrPtr = std::shared_ptr<StaticMemoryMngr>;
+    using MemBlockPtr = std::shared_ptr<StaticMemoryBlock>;
 
 public:
     StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
@@ -256,8 +245,6 @@ public:
 
     StaticMemory(Memory&&) = delete;
     StaticMemory& operator= (StaticMemory&&) = delete;
-
-    bool isAllocated() const noexcept override;
 
     const MemoryDesc& getDesc() const override;
     MemoryDescPtr getDescPtr() const override;
@@ -273,7 +260,7 @@ public:
 
     void load(const IMemory& src, bool ftz = true) const override;
 
-    MemoryMngrPtr getMemoryMngr() const override;
+    MemoryBlockPtr getMemoryBlock() const override;
 
     //oneDNN specifics for backward compatibility
     dnnl::memory getPrimitive() const override;
@@ -285,7 +272,7 @@ private:
     MemoryDescPtr m_pMemDesc;
     size_t m_size;
     dnnl::memory m_prim;
-    MemMngrPtr m_pMemMngr;
+    MemBlockPtr m_pMemBlock;
     std::string dnnlErrorCtx;
 };
 
@@ -293,8 +280,8 @@ class Memory : public IMemory {
 public:
     Memory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
     Memory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
-    Memory(const dnnl::engine& eng, MemoryDescPtr desc, MemoryMngrPtr mngr);
-    Memory(const dnnl::engine& eng, const MemoryDesc& desc, MemoryMngrPtr mbgr);
+    Memory(const dnnl::engine& eng, MemoryDescPtr desc, MemoryBlockPtr block);
+    Memory(const dnnl::engine& eng, const MemoryDesc& desc, MemoryBlockPtr block);
 
     Memory(const Memory&) = delete;
     Memory& operator= (const Memory&) = delete;
@@ -303,8 +290,6 @@ public:
     Memory& operator= (Memory&&) = delete;
 
     dnnl::memory getPrimitive() const override;
-
-    bool isAllocated() const noexcept override;
 
     const MemoryDesc& getDesc() const override {
         return *m_pMemDesc;
@@ -326,9 +311,6 @@ public:
         return getDesc().getShape().getStaticDims();
     }
 
-    // Redefines descriptor. The memory descriptor will be replaced with the new one.
-    // Memory will not be reallocated if the new tensor size is less or equal the upper bound.
-    // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
     void redefineDesc(MemoryDescPtr desc) override;
 
     void load(const IMemory& src, bool ftz = true) const override;
@@ -338,13 +320,13 @@ public:
         return m_eng;
     }
 
-    MemoryMngrPtr getMemoryMngr() const override {
-        return m_mgrHandle.get();
+    MemoryBlockPtr getMemoryBlock() const override {
+        return m_blockHandle.get();
     }
 
 private:
-    friend DnnlMemoryMngr;
-    friend ProxyMemoryMngr;
+    friend DnnlMemoryBlock;
+    friend ProxyMemoryBlock;
 
 private:
     void update();
@@ -355,7 +337,7 @@ private:
 private:
     dnnl::engine m_eng;
     MemoryDescPtr m_pMemDesc;
-    DnnlMemMngrHandle m_mgrHandle;
+    DnnlMemBlockHandle m_blockHandle;
     bool m_padsZeroing = true;
     class DnnlMemPrimHandle {
     public:
@@ -373,7 +355,7 @@ private:
     } dnnlMemHandle;
 
     void* getDataNoThrow() const noexcept {
-        return m_mgrHandle->getRawPtr();
+        return m_blockHandle->getRawPtr();
     }
 };
 
@@ -381,9 +363,9 @@ class StringMemory : public IMemory {
 public:
     using OvString = ov::element_type_traits<ov::element::string>::value_type;
 
-    class StringMemoryMngr {
+    class StringMemoryBlock {
     public:
-        StringMemoryMngr() : m_data(nullptr, release) {}
+        StringMemoryBlock() : m_data(nullptr, release) {}
         OvString* getStringPtr() const noexcept;
         void setExtBuff(OvString* ptr, size_t size);
         size_t getStrLen() const noexcept;
@@ -400,20 +382,18 @@ public:
         static void destroy(OvString* ptr);
     };
 
-    using StringMemoryMngrPtr = std::shared_ptr<StringMemoryMngr>;
+    using StringMemoryBlockPtr = std::shared_ptr<StringMemoryBlock>;
 
     StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const void* data = nullptr);
 
     StringMemory(const dnnl::engine& engine, const MemoryDesc& desc, const void* data = nullptr)
         : StringMemory(engine, desc.clone(), data) {}
 
-    StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const StringMemoryMngrPtr& manager)
-        : m_engine(engine), m_mem_desc(desc), m_manager(manager) {}
+    StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const StringMemoryBlockPtr& block)
+        : m_engine(engine), m_mem_desc(desc), m_memoryBlock(block) {}
 
-    StringMemory(const dnnl::engine& engine, const MemoryDesc& desc, const StringMemoryMngrPtr& manager)
-        : StringMemory(engine, desc.clone(), manager) {}
-
-    bool isAllocated() const noexcept override;
+    StringMemory(const dnnl::engine& engine, const MemoryDesc& desc, const StringMemoryBlockPtr& block)
+        : StringMemory(engine, desc.clone(), block) {}
 
     const MemoryDesc& getDesc() const override {
         return *m_mem_desc;
@@ -439,10 +419,10 @@ public:
 
     void load(const IMemory& src, bool ftz = false) const override;
 
-    MemoryMngrPtr getMemoryMngr() const override;
+    MemoryBlockPtr getMemoryBlock() const override;
 
-    StringMemoryMngrPtr getStringMemoryMngrPtr() const {
-        return m_manager;
+    StringMemoryBlockPtr getStringMemoryBlockPtr() const {
+        return m_memoryBlock;
     }
 
     dnnl::memory getPrimitive() const override;
@@ -452,7 +432,7 @@ public:
 private:
     dnnl::engine m_engine;
     MemoryDescPtr m_mem_desc;
-    StringMemoryMngrPtr m_manager;
+    StringMemoryBlockPtr m_memoryBlock;
 };
 
 using MemoryPtr = std::shared_ptr<IMemory>;
@@ -462,6 +442,9 @@ using StringMemoryPtr = std::shared_ptr<StringMemory>;
 bool mbind_move(void* data, size_t size, int numaNodeID);
 bool mbind_move(const MemoryCPtr mem, int numaNodeID);
 bool mbind_move(const dnnl::memory mem, int numaNodeID);
+
+MemoryPtr split_horizontal(const dnnl::engine& eng, const MemoryPtr src, int dim, int w_rank, int w_size, bool need_fill = true);
+MemoryPtr split_vertical(const dnnl::engine& eng, const MemoryPtr src, int dim, int w_rank, int w_size, bool need_fill = true);
 
 }   // namespace intel_cpu
 }   // namespace ov

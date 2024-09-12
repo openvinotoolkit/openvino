@@ -22,10 +22,10 @@ static std::vector<int64_t> ExtractAxes(const std::shared_ptr<ov::op::util::Inte
         OPENVINO_ASSERT(axes_constant, "Unsupported parameter node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         axes = axes_constant->cast_vector<int64_t>();
-        ov::util::normalize_axes(op.get(), inputRank, axes);
+        ov::util::try_normalize_axes(axes, inputRank, *op);
     } else {
         for (size_t i = 0; i < inputRank; ++i) {
-            axes.push_back(ov::util::normalize_axis(op.get(), i, inputRank));
+            axes.push_back(ov::util::try_normalize_axis(i, inputRank, *op));
         }
     }
     return axes;
@@ -191,7 +191,7 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
             resamplePrim = std::make_shared<cldnn::resample>(layerName,
                                                              inputs[0],
                                                              inputs[eScalesOrSizesIndex],
-                                                             inputs[eScalesOrSizesIndex],
+                                                             inputs[eAxesIndex],
                                                              axes,
                                                              attrs.pads_begin,
                                                              attrs.pads_end,
@@ -200,7 +200,8 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
                                                              attrs.mode,
                                                              attrs.shape_calculation_mode,
                                                              attrs.coordinate_transformation_mode,
-                                                             attrs.nearest_mode);
+                                                             attrs.nearest_mode,
+                                                             1);
         }
     } else {
         auto outShape = op->get_output_shape(0);

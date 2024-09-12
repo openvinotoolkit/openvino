@@ -62,7 +62,7 @@ namespace cldnn {
 engine::engine(const device::ptr device)
     : _device(device) {}
 
-device_info engine::get_device_info() const {
+const device_info& engine::get_device_info() const {
     return _device->get_info();
 }
 
@@ -197,70 +197,66 @@ memory_ptr engine::share_surface(const layout& layout, shared_surface surf, uint
 #endif  // _WIN32
 
 uint64_t engine::get_max_used_device_memory() const {
-    std::lock_guard<std::mutex> guard(_mutex);
     uint64_t total_peak_memory_usage {0};
-    for (auto const& m : _peak_memory_usage_map) {
-        total_peak_memory_usage += m.second.load();
+    for (auto const& m : _peak_memory_usage_data) {
+        total_peak_memory_usage += m.load();
     }
     return total_peak_memory_usage;
 }
 
 uint64_t engine::get_max_used_device_memory(allocation_type type) const {
-    std::lock_guard<std::mutex> guard(_mutex);
-    uint64_t peak_memory_usage {0};
-    auto iter = _peak_memory_usage_map.find(type);
-    if (iter != _peak_memory_usage_map.end()) {
-        peak_memory_usage = iter->second.load();
-    }
-    return peak_memory_usage;
+    return _peak_memory_usage_data[static_cast<size_t>(type)].load();
 }
 
 uint64_t engine::get_used_device_memory(allocation_type type) const {
-    std::lock_guard<std::mutex> guard(_mutex);
-    uint64_t memory_usage {0};
-    auto iter = _memory_usage_map.find(type);
-    if (iter != _memory_usage_map.end()) {
-        memory_usage = iter->second.load();
-    }
-    return memory_usage;
+    return _memory_usage_data[static_cast<size_t>(type)].load();
 }
 
 std::map<std::string, uint64_t> engine::get_memory_statistics() const {
-    std::lock_guard<std::mutex> guard(_mutex);
     std::map<std::string, uint64_t> statistics;
-    for (auto const& m : _memory_usage_map) {
-        std::ostringstream oss;
-        oss << m.first;
-        statistics[oss.str()] = m.second.load();
-    }
+    const auto add_stat = [&](allocation_type type) {
+        auto idx = static_cast<size_t>(type);
+        auto value = _memory_usage_data[idx].load();
+        if (value != 0) {
+            std::ostringstream oss;
+            oss << type;
+            statistics[oss.str()] = value;
+        }
+    };
+
+    add_stat(allocation_type::unknown);
+    add_stat(allocation_type::cl_mem);
+    add_stat(allocation_type::usm_host);
+    add_stat(allocation_type::usm_shared);
+    add_stat(allocation_type::usm_device);
     return statistics;
 }
 
 void engine::add_memory_used(uint64_t bytes, allocation_type type) {
-    std::lock_guard<std::mutex> guard(_mutex);
-    if (!_memory_usage_map.count(type) && !_peak_memory_usage_map.count(type)) {
-        _memory_usage_map[type] = 0;
-        _peak_memory_usage_map[type] = 0;
-    }
-    _memory_usage_map[type] += bytes;
-    if (_memory_usage_map[type] > _peak_memory_usage_map[type]) {
-        _peak_memory_usage_map[type] = _memory_usage_map[type].load();
+    auto idx = static_cast<size_t>(type);
+    const auto new_val = _memory_usage_data[idx].fetch_add(bytes) + bytes;
+    // Make sure actual maximum value is stored
+    while (new_val > _peak_memory_usage_data[idx]) {
+        _peak_memory_usage_data[idx] = new_val;
     }
 }
 
 void engine::subtract_memory_used(uint64_t bytes, allocation_type type) {
-    std::lock_guard<std::mutex> guard(_mutex);
-    auto iter = _memory_usage_map.find(type);
-    if (iter != _memory_usage_map.end()) {
-        _memory_usage_map[type] -= bytes;
-    } else {
+    auto idx = static_cast<size_t>(type);
+    if (_memory_usage_data[idx].load() < bytes) {
         throw std::runtime_error("Attempt to free unallocated memory");
     }
+    _memory_usage_data[idx] -= bytes;
 }
 
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type, const device::ptr device) {
     std::shared_ptr<cldnn::engine> ret;
     switch (engine_type) {
+#ifdef OV_GPU_WITH_SYCL
+    case engine_types::sycl:
+        ret = ocl::create_sycl_engine(device, runtime_type);
+        break;
+#endif  // OV_GPU_WITH_SYCL
     case engine_types::ocl:
         ret = ocl::create_ocl_engine(device, runtime_type);
         break;
