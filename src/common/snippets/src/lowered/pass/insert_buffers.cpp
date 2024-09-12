@@ -117,7 +117,22 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
             const auto pos = insertion_position(linear_ir, loop_manager, parent_expr, expr);
             const auto buffer = std::make_shared<op::Buffer>(parent->output(parent_port));
             const auto buffer_consumer = has_shape_infer_parent ? top_shape_infer_expr->get_input_port(0)  : *entry_port;
-            linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ parent_expr_output }, buffer_loop_ids, false, pos, { buffer_consumer  });
+            auto buffer_iter = linear_ir.insert_node(
+                buffer, std::vector<ExpressionPort>{ parent_expr_output }, buffer_loop_ids, false, pos, { buffer_consumer  });
+            // if buffer and parent have the same loop id, buffer shape should be subtensor of parent output.
+            const auto buffer_in_idx = (*buffer_iter)->get_input_count() - 1;
+            const auto& parent_port = (*buffer_iter)->get_input_port_connector(buffer_in_idx)->get_source();
+            const auto& parent_expr = parent_port.get_expr();
+            const auto& parent_loop_id = parent_expr->get_loop_ids();
+            if (parent_loop_id == (*buffer_iter)->get_loop_ids()) {
+                auto buffer_shape = (*buffer_iter)->get_input_port_descriptor(0)->get_shape();
+                const auto& subtensor =  ov::snippets::utils::get_projected_subtensor(parent_port);
+                for (size_t sub = 0; sub < subtensor.size(); sub++) {
+                    buffer_shape[buffer_shape.size() - 1 - sub] = subtensor[subtensor.size() - 1 - sub];
+                }
+                (*buffer_iter)->get_input_port_descriptor(0)->set_shape(buffer_shape);
+                (*buffer_iter)->get_output_port_descriptor(0)->set_shape(buffer_shape);
+            }
         }
     }
 
@@ -200,7 +215,21 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
             //             |    <- It should be new PortConnector
             //            Relu
             // Output port connector is automatically filled from PortDescriptor
-            linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ *exit_port }, buffer_loop_ids, false, pos, { potential_consumers });
+            auto buffer_iter = linear_ir.insert_node(
+                buffer, std::vector<ExpressionPort>{ *exit_port }, buffer_loop_ids, false, pos, { potential_consumers });
+            const auto& buffer_consumers = (*buffer_iter)->get_output_port_connector(0)->get_consumers();
+            if (buffer_consumers.size() == 1) {
+                const auto& buffer_child_expr = buffer_consumers.begin()->get_expr();
+                if (buffer_child_expr->get_loop_ids() == (*buffer_iter)->get_loop_ids()) {
+                    const auto& subtensor = buffer_consumers.begin()->get_descriptor_ptr()->get_subtensor();
+                    auto buffer_shape = (*buffer_iter)->get_input_port_descriptor(0)->get_shape();
+                    for (size_t sub = 0; sub < subtensor.size(); sub++) {
+                        buffer_shape[buffer_shape.size() - 1 - sub] = subtensor[subtensor.size() - 1 - sub];
+                    }
+                    (*buffer_iter)->get_input_port_descriptor(0)->set_shape(buffer_shape);
+                    (*buffer_iter)->get_output_port_descriptor(0)->set_shape(buffer_shape);
+                }
+            }
         }
     }
 }

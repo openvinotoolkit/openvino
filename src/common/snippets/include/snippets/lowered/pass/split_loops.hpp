@@ -38,15 +38,12 @@ namespace pass {
  *                                                     Split_loop_2_end (wa = 256, inc = 16)
  *                                                     Split_loop_1_end (wa = 1024, inc = 256)
  * MM0 is M and N split, MM1 is M and K split
- * split ... + softmax on M amd N/K dimension
+ * split ... + softmax on M and N/K dimension
  *             N,N_blk  M,M_blk              N,vec  M,1                  K,K_blk  M,M_blk
  * |__|__MM0___|________|      |__|___Elt____|______|      |_|__MM1______|________|
  *
  *             N,N_blk  M,M_blk               N,vec M_blk,1 M,M_blk                K,K_blk  M,M_blk
  * |__|__MM0___|________|      |_|_|___Elt____|_____|_______|        |_|___MM1_____|________|
- *
- *             N,N_blk  M,M_blk                  N_blk,vec N,N_blk   M_blk,1 M,M_blk              K,K_blk  M,M_blk
- * |__|__MM0___|________|      |_|_|_|____Elt____|_________|_________|_______|      |_|__MM1______|________|
  *
  *             N,N_blk  M,M_blk                  N_blk,vec M_blk,1   N,N_blk M,M_blk              K,K_blk  M,M_blk
  * |__|__MM0___|________|      |_|_|_|___Elt_____|_________|_________|_______|      |_|__MM1______|________|

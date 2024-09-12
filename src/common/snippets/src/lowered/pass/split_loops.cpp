@@ -43,8 +43,8 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
     const auto& loop_manager = linear_ir.get_loop_manager();
     bool loop_was_split = false;
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
+        bool loop_was_split_expr = false;
         const auto& expr = *expr_it;
-        // std::cout << "expr:" << expr->get_node()->get_friendly_name() << std::endl;
         const auto loop_ids = expr->get_loop_ids();
         if (loop_ids.empty())
             continue;
@@ -57,28 +57,14 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
         size_t block_loop_axis = SIZE_MAX;
         for (size_t d = 0; d < loop_depth; d++) {
             // if outter loop is not split and fused, inner loop should stop split
-            if (d > 0 && !loop_was_split)
+            if (d > 0 && !loop_was_split_expr)
                 break;
-            // std::cout << "d:" << d << std::endl;
             const auto& loop_id = loop_ids[d]; // loop_ids[loop_was_split ? d+1 : d];
             const auto loop = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
             for (const auto& input_port : loop->get_input_ports()) {  // fused outter in one port, inner in another port?
                 const auto& parent_port = input_port.expr_port->get_port_connector_ptr()->get_source();
                 const auto& parent_expr = parent_port.get_expr();
                 const auto& parent_loop_ids = parent_expr->get_loop_ids();
-                // std::cout << "parent_loop_ids.size():" << parent_loop_ids.size() << std::endl;
-                // std::cout << "loop_depth:" << loop_depth << std::endl;
-                // std::cout << "parent_loop_ids.empty():" << parent_loop_ids.empty() << std::endl;
-                // int i;
-                // if (parent_loop_ids.size() < loop_depth) {
-                //     i = 1;
-                // } else {
-                //     i = 0;
-                // }
-                // std::cout << "parent_loop_ids.size() < loop_depth:" << i << std::endl;
-                // if (parent_loop_ids.size() < loop_depth)
-                //     continue;
-                // if (parent_loop_ids.empty() || parent_loop_ids.size() < loop_depth)
                 if (parent_loop_ids.empty())
                     continue;
 
@@ -96,19 +82,15 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
                 const auto& loop_to_split = split_parent ? parent_loop : loop;
                 const auto& loop_to_fuse = !split_parent ? parent_loop : loop;
                 // We don't split loop which are not compatible with parent loop because such loops will not be fused
-                // std::cout << "can_be_fused:" << FuseLoops::can_be_fused(upper_loop, lower_loop) << std::endl;
-                // std::cout << "can_be_split:" << can_be_split(loop_to_split, loop_to_fuse) << std::endl;
                 if (FuseLoops::can_be_fused(upper_loop, lower_loop) && can_be_split(loop_to_split, loop_to_fuse)) {
-                    // std::cout << "111111111111 fused:" << d << std::endl;
                     const auto& loop_to_split_id = split_parent ? parent_loop_id : loop_id;
                     size_t id = split(linear_ir, loop_to_split_id, loop_to_fuse->get_increment(), block_loop_axis);
                     if (block_loop_axis == SIZE_MAX) {
                         block_loop_axis = id;  // always insert before first block inner loop, after first mark loop, id changed
                     }
                     loop_was_split = true;
+                    loop_was_split_expr = true;
                     break;
-                } else {
-                    // std::cout << "111111111111111 not fused:" << d << std::endl;
                 }
             }
         }
@@ -118,7 +100,6 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
     // in case if loops are not split but FuseLoops is registered in pass manager after SplitLoops
     if (loop_was_split)
         FuseLoops().run(linear_ir, begin, end);
-    // std::cout << "finish SplitLoops.........." << std::endl;
     return loop_was_split;
 }
 
@@ -142,11 +123,11 @@ size_t SplitLoops::split(LinearIR& linear_ir, size_t loop_to_split_id, size_t ou
                                                        outer_loop_info);
     size_t new_inner = loop_manager->replace_with_new_loop(linear_ir, loop_bounds.first, loop_bounds.second, inner_splitted_loop_info, loop_to_split_id);
     // std::cout << "new outer_loop_id" << outer_loop_id  << " new_inner:" << new_inner << std::endl;
-    if (!outer_loop_info->get_handlers().get_passes<SpecificLoopIterType::FIRST_ITER>().empty()) {
-        outer_loop_info->register_pass_to_handler<SpecificLoopIterType::FIRST_ITER, TransformInnerSplitLoop>();
-    }
-    outer_loop_info->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, TransformInnerSplitLoop>();
-    outer_loop_info->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, TransformInnerSplitLoop>();
+    // if (!outer_loop_info->get_handlers().get_passes<SpecificLoopIterType::FIRST_ITER>().empty()) {
+    //     outer_loop_info->register_pass_to_handler<SpecificLoopIterType::FIRST_ITER, TransformInnerSplitLoop>();
+    // }
+    // outer_loop_info->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, TransformInnerSplitLoop>();
+    // outer_loop_info->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, TransformInnerSplitLoop>();
 
     return new_inner;
 }

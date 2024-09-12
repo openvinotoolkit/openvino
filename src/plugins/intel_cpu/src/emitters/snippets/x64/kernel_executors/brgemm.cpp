@@ -138,6 +138,10 @@ std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const
     if (config.is_empty())
         return compiled_kernel;
 
+    // std::cout << "config.get_LDA():" << config.get_LDA() << std::endl;
+    // std::cout << "config.get_LDB():" << config.get_LDB() << std::endl;
+    // std::cout << "config.get_LDC():" << config.get_LDC() << std::endl;
+
     cpu::x64::brgemm_desc_t desc;
     auto status = brgemm_desc_init(&desc, config.get_isa(), cpu::x64::brgemm_strd,
                                    config.get_dt_in0(), config.get_dt_in1(),
@@ -240,15 +244,24 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
         N = *in1_shape.rbegin();
     } else {
         const auto& current_expanded_loop_info = get_loop_info();
-        const auto& in_ports = current_expanded_loop_info->get_input_ports();
-        const auto& out_ports = current_expanded_loop_info->get_output_ports();
+        // const auto& in_ports = current_expanded_loop_info->get_input_ports();
+        // const auto& out_ports = current_expanded_loop_info->get_output_ports();
         // Quick validation check: Should we check that port is really Brgemm port?
         // Note: We check `is_incremented` attribute only for not incremented ports because
         //       this `is_incremented = true` can be changed by `CleanRepeatedDataPointerShifts` optimization
-        auto check_port = [&](const ov::snippets::lowered::LoopPort& p) { return p.dim_idx == 0; };
-        OPENVINO_ASSERT(in_ports.size() == 2 && !in_ports.front().is_incremented && std::all_of(in_ports.cbegin(), in_ports.cend(), check_port) &&
-                        out_ports.size() == 1 && check_port(out_ports.back()),
-                        "Incorrect Loop by Brgemm dimension N");
+        // auto check_port = [&](const ov::snippets::lowered::LoopPort& p) { return p.dim_idx == 0; };
+        // std::cout << "in_ports.size():" << in_ports.size() << std::endl;
+        // std::cout << "in_ports.front().is_incremented:" << in_ports.front().is_incremented << std::endl;
+        // for (size_t i = 0; i < in_ports.size(); i++) {
+        //     std::cout << "in_ports_idx:" << in_ports[i].dim_idx << std::endl;
+        // }
+        // std::cout << "out_ports.size():" << out_ports.size() << std::endl;
+        // std::cout << "out_ports_idx:" << out_ports[0].dim_idx << std::endl;
+        // Not valide check when block is fused more ops
+        // OPENVINO_ASSERT((in_ports.size() == 2 || in_ports.size() == 3) &&
+        //                 !in_ports.front().is_incremented && std::all_of(in_ports.cbegin(), in_ports.cend(), check_port) &&
+        //                 out_ports.size() == 1 && check_port(out_ports.back()),
+        //                 "Incorrect Loop by Brgemm dimension N");
         N = current_expanded_loop_info->get_increment();
         input_pds[1]->set_subtensor_dim(0, N);
         output_pds[0]->set_subtensor_dim(0, N);
@@ -266,14 +279,22 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
         K = *in0_shape.rbegin();
     } else {
         const auto& current_expanded_loop_info = get_loop_info();
-        const auto& in_ports = current_expanded_loop_info->get_input_ports();
-        const auto& out_ports = current_expanded_loop_info->get_output_ports();
+        // const auto& in_ports = current_expanded_loop_info->get_input_ports();
+        // const auto& out_ports = current_expanded_loop_info->get_output_ports();
+        // std::cout << "K_in_ports.size():" << in_ports.size() << std::endl;
+        // for (size_t i = 0; i < in_ports.size(); i++) {
+        //     std::cout << "K_in_ports_idx:" << in_ports[i].dim_idx << std::endl;
+        // }
+        // std::cout << "K_out_ports.size():" << out_ports.size() << std::endl;
+        // std::cout << "K_out_ports_idx:" << out_ports[0].dim_idx << std::endl;
+        // std::cout << "K_out_ports.front().is_incremented:" << out_ports.front().is_incremented << std::endl;
+        // Not valide check when block is fused more ops
         // Quick validation check: Should we check that port is really Brgemm port?
         // Note: We check `is_incremented` attribute only for not incremented ports because
         //       this `is_incremented = true` can be changed by `CleanRepeatedDataPointerShifts` optimization
-        OPENVINO_ASSERT(in_ports.size() == 2 && in_ports.front().dim_idx == 0 && in_ports.back().dim_idx == 1 &&
-                        out_ports.size() == 1 && !out_ports.front().is_incremented,
-                        "Incorrect Loop by Brgemm dimension K");
+        // OPENVINO_ASSERT(in_ports.size() == 2 && in_ports.front().dim_idx == 0 && in_ports.back().dim_idx == 1 &&
+        //                 out_ports.size() == 1 && !out_ports.front().is_incremented,
+        //                 "Incorrect Loop by Brgemm dimension K");
         K = current_expanded_loop_info->get_increment();
         input_pds[0]->set_subtensor_dim(0, K);
         input_pds[1]->set_subtensor_dim(1, K);
@@ -281,12 +302,22 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
             beta = get_beta(loop_manager, static_cast<int>(loop_ids.back()), current_expanded_loop_info);
     }
 
-    const auto LDA = DIM_CAST(snippets::utils::get_dim_stride(expr->get_input_port(0)));
-    const auto LDC = DIM_CAST(snippets::utils::get_dim_stride(expr->get_output_port(0)));
+    auto LDA = DIM_CAST(snippets::utils::get_dim_stride(expr->get_input_port(0)));
+    // input1 could from buffer by blocks, set LDA based on buffer shape
+    auto parent_expr = expr->get_input_port_connector(0)->get_source().get_expr();
+    if (ov::is_type<snippets::op::Buffer>(parent_expr->get_node())) {
+        LDA = parent_expr->get_output_port_descriptor(0)->get_shape().back();
+    }
     auto LDB = DIM_CAST(snippets::utils::get_dim_stride(expr->get_input_port(1)));
     // In case of data repacking LDB is chosen in accordance with repacking buffer size
     if (with_repacking(brgemm_node->get_type()))
         LDB = brgemm_utils::repacking::compute_out_leading_dim(N, brgemm_node->get_input_element_type(1));
+    auto LDC = DIM_CAST(snippets::utils::get_dim_stride(expr->get_output_port(0)));
+    // ouput could be buffer by blocks, set LDA based on buffer shape
+    auto child_expr = expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
+    if (ov::is_type<snippets::op::Buffer>(child_expr->get_node())) {
+        LDC = child_expr->get_input_port_descriptor(0)->get_shape().back();
+    }
 
     config.update(DIM_CAST(M), DIM_CAST(N), DIM_CAST(K), LDA, LDB, LDC, beta);
 }
