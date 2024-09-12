@@ -18,6 +18,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
+  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Smart_CI:
@@ -118,7 +119,7 @@ jobs:
           repository: 'openvinotoolkit/testdata'
           path: ${{ env.MODELS_PATH }}
           lfs: 'true'
-          ref: 'master'
+          ref: ${{ env.TARGET_BRANCH }}
 
       #
       # Print system info
@@ -291,7 +292,7 @@ jobs:
           repository: 'openvinotoolkit/testdata'
           path: ${{ env.MODELS_PATH }}
           lfs: 'true'
-          ref: 'master'
+          ref: ${{ env.TARGET_BRANCH }}
 
       - name: Download selective build statistics package
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
