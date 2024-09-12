@@ -23,8 +23,8 @@ stateful transformation on LLM part and model optimization techniques
 like weights compression and quantization using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Download PyTorch model <#download-pytorch-model>`__
@@ -51,6 +51,16 @@ Table of contents:
 
 -  `Interactive demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -59,12 +69,6 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q "openvino>=2024.0.0" "nncf>=2.9.0" "torch>=2.1" "transformers>=4.39.1" "accelerate" "pillow" "gradio>=4.26" "datasets>=2.14.6" "tqdm" --extra-index-url https://download.pytorch.org/whl/cpu
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
 
 .. code:: ipython3
 
@@ -120,22 +124,6 @@ Download PyTorch model
         language_model = model.language_model
         del model
         gc.collect()
-
-
-.. parsed-literal::
-
-    2024-04-04 12:27:23.875042: I tensorflow/core/util/port.cc:111] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-04 12:27:23.877406: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-04-04 12:27:23.907479: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9342] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-    2024-04-04 12:27:23.907505: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
-    2024-04-04 12:27:23.907525: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1518] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2024-04-04 12:27:23.913713: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-04-04 12:27:23.914384: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-04-04 12:27:24.847675: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-
-
 
 Convert model to OpenVINO Intermediate Representation
 -----------------------------------------------------
@@ -852,6 +840,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             self.image_newline = torch.zeros(self.config.text_config.hidden_size, dtype=torch.float32)
             self.pad_token_id = self.config.pad_token_id if self.config.pad_token_id is not None else -1
             self.past_len = 0
+            self._supports_cache_class = False
 
         def can_generate(self):
             """Returns True to validate the check that the model using `GenerationMixin.generate()` can indeed generate."""
@@ -1313,24 +1302,11 @@ Interactive demo
     from PIL import Image
     import torch
 
-    example_image_urls = [
-        (
-            "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/1d6a0188-5613-418d-a1fd-4560aae1d907",
-            "bee.jpg",
-        ),
-        (
-            "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/6cc7feeb-0721-4b5d-8791-2576ed9d2863",
-            "baklava.png",
-        ),
-    ]
-    for url, file_name in example_image_urls:
-        Image.open(requests.get(url, stream=True).raw).save(file_name)
-
 
     def bot_streaming(message, history):
         print(message)
         if message["files"]:
-            image = message["files"][-1]["path"]
+            image = message["files"][-1]["path"] if isinstance(message["files"][-1], dict) else message["files"][-1]
         else:
             # if there's no image uploaded for this turn, look for images in the past turns
             # kept inside tuples, take the last one
@@ -1358,20 +1334,25 @@ Interactive demo
             generated_text_without_prompt = buffer[len(text_prompt) :]
             yield generated_text_without_prompt
 
+.. code:: ipython3
 
-    demo = gr.ChatInterface(
-        fn=bot_streaming,
-        title="LLaVA NeXT",
-        examples=[
-            {"text": "What is on the flower?", "files": ["./bee.jpg"]},
-            {"text": "How to make this pastry?", "files": ["./baklava.png"]},
-        ],
-        description="Try [LLaVA NeXT](https://huggingface.co/docs/transformers/main/en/model_doc/llava_next) in this demo using OpenVINO. Upload an image and start chatting about it, or simply try one of the examples below. If you don't upload an image, you will receive an error.",
-        stop_btn="Stop Generation",
-        multimodal=True,
-    )
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llava-next-multimodal-chatbot/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+
+    from gradio_helper import make_demo
+
+    demo = make_demo(fn=bot_streaming)
 
     try:
         demo.launch(debug=False)
     except Exception:
         demo.launch(debug=False, share=True)
+    # if you are launching remotely, specify server_name and server_port
+    # demo.launch(server_name='your server name', server_port='server port in int')
+    # Read more in the docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

@@ -12,8 +12,8 @@ namespace intel_npu {
 namespace Platform {
 
 constexpr std::string_view AUTO_DETECT = "AUTO_DETECT";  // Auto detection
-constexpr std::string_view NPU3700 = "3700";             // NPU30XX
-constexpr std::string_view NPU3720 = "3720";             // NPU37XX
+constexpr std::string_view NPU3720 = "3720";             // NPU3720
+constexpr std::string_view NPU4000 = "4000";             // NPU4000
 
 /**
  * @brief Converts the given platform value to the standard one.
@@ -295,33 +295,11 @@ static constexpr ov::Property<CompilerType> compiler_type{"NPU_COMPILER_TYPE"};
 static constexpr ov::Property<std::string> compilation_mode{"NPU_COMPILATION_MODE"};
 
 /**
- * @brief [Only for NPU compiler]
- * Type: std::string, default is empty.
- * Sets various parameters supported by the NPU compiler.
- * Available values: low-precision=true/low-precision=false
- */
-static constexpr ov::Property<std::string> compilation_mode_params{"NPU_COMPILATION_MODE_PARAMS"};
-
-/**
  * @brief [Only for NPU Plugin]
  * Type: integer, default is None
  * Number of DPU groups
  */
 static constexpr ov::Property<int64_t> dpu_groups{"NPU_DPU_GROUPS"};
-
-/**
- * @brief [Only for NPU Compiler]
- * Type: integer, default is -1
- * Sets the number of npu tiles that will be used to execute the model. (Replaces NPU_DPU_GROUPS)
- */
-static constexpr ov::Property<int64_t> tiles{"NPU_TILES"};
-
-/**
- * @brief
- * Type: integer, default is -1
- * Maximum number of tiles supported by the device. If unset, it will be automatically obtained from driver
- */
-static constexpr ov::Property<int64_t> max_tiles{"NPU_MAX_TILES"};
 
 /**
  * @brief [Only for NPU Plugin]

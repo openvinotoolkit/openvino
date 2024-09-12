@@ -4,8 +4,8 @@ Hello NPU
 Working with NPU in OpenVINO™
 -----------------------------
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Introduction <#introduction>`__
 
@@ -22,12 +22,7 @@ Table of contents:
 
 -  `Compiling a Model on NPU <#compiling-a-model-on-npu>`__
 
-   -  `Download and Convert a Model <#download-and-convert-a-model>`__
-
-      -  `Download the Model <#download-the-model>`__
-      -  `Convert the Model to OpenVINO IR
-         format <#convert-the-model-to-openvino-ir-format>`__
-
+   -  `Download a Model <#download-and-convert-a-model>`__
    -  `Compile with Default
       Configuration <#compile-with-default-configuration>`__
    -  `Reduce Compile Time through Model
@@ -52,6 +47,13 @@ Table of contents:
 
 -  `Limitations <#limitations>`__
 -  `Conclusion <#conclusion>`__
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 This tutorial provides a high-level overview of working with the NPU
 device **Intel(R) AI Boost** (introduced with the Intel® Core™ Ultra
@@ -91,13 +93,7 @@ Install required packages
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2024.1.0" torch torchvision --extra-index-url https://download.pytorch.org/whl/cpu
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
+    %pip install -q "openvino>=2024.1.0" huggingface_hub
 
 Checking NPU with Query Device
 ------------------------------
@@ -209,8 +205,8 @@ Now, we know the NPU present in the system and we have checked its
 properties. We can easily use it for compiling and running models with
 OpenVINO NPU plugin.
 
-Download and Convert a Model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Download a Model
+----------------
 
 
 
@@ -219,16 +215,13 @@ used for image classification tasks. The model was trained on
 `ImageNet <https://www.image-net.org/index.php>`__ dataset which
 contains over a million images categorized into 1000 classes. To read
 more about resnet50, see the
-`paper <https://ieeexplore.ieee.org/document/7780459>`__.
-
-Download the Model
-^^^^^^^^^^^^^^^^^^
-
-
-
-Fetch `ResNet50
-CV <https://pytorch.org/vision/stable/models/generated/torchvision.models.resnet50.html#torchvision.models.ResNet50_Weights>`__
-Classification model from torchvision.
+`paper <https://ieeexplore.ieee.org/document/7780459>`__. As our
+tutorial focused on inference part, we skip model conversion step. To
+convert this Pytorch model to OpenVINO IR, `Model Conversion
+API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
+should be used. Please check this
+`tutorial <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/pytorch-to-openvino/pytorch-to-openvino.ipynb>`__
+for details how to convert pytorch model.
 
 .. code:: ipython3
 
@@ -242,24 +235,7 @@ Classification model from torchvision.
 
 .. code:: ipython3
 
-    from torchvision.models import resnet50, ResNet50_Weights
-
-    # create model object
-    pytorch_model = resnet50(weights=ResNet50_Weights.DEFAULT)
-
-    # switch model from training to inference mode
-    pytorch_model.eval();
-
-Convert the Model to OpenVINO IR format
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-
-
-To convert this Pytorch model to OpenVINO IR with ``FP16`` precision,
-use model conversion API. The models are saved to the
-``model/ir_model/`` directory. For more details about model conversion,
-see this
-`page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
+    import huggingface_hub as hf_hub
 
 .. code:: ipython3
 
@@ -269,8 +245,7 @@ see this
 
     model = None
     if not model_path.exists():
-        model = ov.convert_model(pytorch_model, input=[[1, 3, 224, 224]])
-        ov.save_model(model, model_path, compress_to_fp16=(precision == "FP16"))
+        hf_hub.snapshot_download("katuni4ka/resnet50_fp16", local_dir=model_path.parent)
         print("IR model saved to {}".format(model_path))
     else:
         print("Read IR model from {}".format(model_path))
@@ -909,9 +884,9 @@ different performance hints.
 
 Discover the power of Neural Processing Unit (NPU) with OpenVINO through
 these interactive Jupyter notebooks:
-
 - `hello-world <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-world>`__:
-  Start your OpenVINO journey by performing inference on an OpenVINO IR model.
+  Start your OpenVINO journey by performing inference on an OpenVINO IR
+  model.
 - `hello-segmentation <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-segmentation>`__:
   Dive into inference with a segmentation model and explore image
   segmentation capabilities.

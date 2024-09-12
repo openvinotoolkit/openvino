@@ -26,23 +26,23 @@ const std::vector<std::string> device_names_and_priorities = {
         "AUTO:NPU",   // NPU via AUTO,
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVHoldersTest, ::testing::Values(ov::test::utils::DEVICE_NPU),
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVHoldersTest, ::testing::Values(ov::test::utils::DEVICE_NPU),
                          getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVHoldersTestOnImportedNetwork,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVHoldersTestOnImportedNetwork,
                          ::testing::Values(ov::test::utils::DEVICE_NPU), getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVHoldersTestNPU,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVHoldersTestNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          OVHoldersTestNPU::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVHoldersTestOnImportedNetworkNPU,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVHoldersTestOnImportedNetworkNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          OVHoldersTestOnImportedNetworkNPU::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests, OVHoldersTestWithConfig,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_VirtualPlugin_BehaviorTests, OVHoldersTestWithConfig,
                          ::testing::ValuesIn(device_names_and_priorities),
                          (ov::test::utils::appendPlatformTypeTestName<OVHoldersTestWithConfig>));
 }  // namespace

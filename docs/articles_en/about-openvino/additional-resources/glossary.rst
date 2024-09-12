@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_Glossary}
+:orphan:
 
 Glossary
 ========

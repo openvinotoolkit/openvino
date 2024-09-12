@@ -289,7 +289,8 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
 }
 
 void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
-    std::set<ov::element::Type> supportedWeightsPrecisions{ov::element::u8, ov::element::i8, ov::element::nf4, ov::element::u4, ov::element::i4};
+    std::set<ov::element::Type> supportedWeightsPrecisions{
+        ov::element::u8, ov::element::i8, ov::element::nf4, ov::element::u4, ov::element::i4, ov::element::f4e2m1};
     const std::set<ov::element::Type> supportedDataPrecisions{ov::element::f32, ov::element::bf16};
     auto expectedNode = [](NodePtr node, Type expectedType) {
         return node->getType() == expectedType && node->getChildEdges().size() == 1;
@@ -329,16 +330,24 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         }
 
         CPU_GRAPH_OPTIMIZER_SCOPE(FuseFCAndWeightsDecompression);
-        const auto multiplyConstNode = multiplyNode->getParentEdgeAt(1)->getParent();
+        const auto mulParent1 = multiplyNode->getParentEdgeAt(1)->getParent();
+        NodePtr multiplyParent, multiplyConvertNode, multiplyConstNode;
+        multiplyParent = mulParent1;
+        if (multiplyParent->getType() == Type::Convert) {
+            multiplyConvertNode = multiplyParent;
+            multiplyParent = multiplyConvertNode->getParentEdgeAt(0)->getParent();
+        }
+        multiplyConstNode = multiplyParent;
         if (multiplyConstNode->getType() != Type::Input) {
             SKIP_FUSION_FOR_NODE(fcNode);
         }
+        const bool withMultiplyConvert = multiplyConvertNode != nullptr;
 
-        const auto mulParent = multiplyNode->getParentEdgeAt(0)->getParent();
-        const bool withSubtract = mulParent->getAlgorithm() == Algorithm::EltwiseSubtract;
+        const auto mulParent0 = multiplyNode->getParentEdgeAt(0)->getParent();
+        const bool withSubtract = mulParent0->getAlgorithm() == Algorithm::EltwiseSubtract;
         NodePtr subtractNode, subtractConvertNode, subtractConstNode;
         if (withSubtract) {
-            subtractNode = mulParent;
+            subtractNode = mulParent0;
             if (!expectedNode(subtractNode, Type::Eltwise)) {
                 SKIP_FUSION_FOR_NODE(fcNode);
             }
@@ -354,7 +363,7 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         }
 
         const bool withSubtractConvert = subtractConvertNode != nullptr;
-        const auto convertNode = withSubtract ? subtractNode->getParentEdgeAt(0)->getParent() : mulParent;
+        const auto convertNode = withSubtract ? subtractNode->getParentEdgeAt(0)->getParent() : mulParent0;
         if (!expectedNode(convertNode, Type::Convert)) {
             SKIP_FUSION_FOR_NODE(fcNode);
         }
@@ -461,6 +470,8 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             fcNode->addOriginalLayer(subtractNode->getOriginalLayers());
         if (withSubtractConvert)
             fcNode->addOriginalLayer(subtractConvertNode->getOriginalLayers());
+        if (withMultiplyConvert)
+            fcNode->addOriginalLayer(multiplyConvertNode->getOriginalLayers());
 
         const auto& weightsPrecision = weightsNode->getOriginalOutputPrecisionAtPort(0);
         if (withTranspose) {
@@ -511,6 +522,12 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
                     graph.RemoveEdge(subtractConvertNode->getParentEdgeAt(0));
             }
             graph.RemoveEdge(multiplyNode->getParentEdgeAt(1));
+            if (withMultiplyConvert) {
+                // MultiplyConvert is removed only if there are no other consumers (e.g. CompressedGather)
+                const auto& restChilds = multiplyConvertNode->getChildEdges();
+                if (restChilds.empty())
+                    graph.RemoveEdge(multiplyConvertNode->getParentEdgeAt(0));
+            }
 
             graph.DropNode(convertNode);
             if (withSubtract)
@@ -919,6 +936,10 @@ void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
 }
 
 void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
+#if defined(OV_CPU_WITH_SHL)
+    return;
+#endif
+
     // This optimization fuses Convert (fp16 -> bf16/fp32) on weights directly to FC input to allow precision conversion handling based on internal logic
     // (e.g. fuse conversion with weights reordering)
     auto& graphNodes = graph.GetNodes();
@@ -949,6 +970,10 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
 }
 
 void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
+#if defined(OV_CPU_WITH_SHL)
+    return;
+#endif
+
     // This optimization allows us to avoid transposing the weights in Transpose node and do it directly along with reordering in FC node
     auto& graphNodes = graph.GetNodes();
 
@@ -2471,6 +2496,15 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
     }
 }
 
+bool GraphOptimizer::canBeInplaced(const NodePtr& parentNode, const NodePtr& childNode) {
+    const auto parentInPlace = parentNode->getParentEdgeAt(0)->inPlace(Edge::LOOK_UP);
+    const auto& childEdges = childNode->getChildEdgesAtPort(0);
+    const auto childInPlace = std::any_of(childEdges.begin(), childEdges.end(), [](const EdgePtr& edge) {
+        return edge->inPlace(Edge::LOOK_DOWN);
+    });
+    return !(parentInPlace && childInPlace);
+}
+
 bool GraphOptimizer::checkAscendingFinalOrder(const VectorDims& transposeOrder,
                                               const VectorDims& layoutOrder,
                                               const VectorDims& reorderInOrder,
@@ -2534,21 +2568,14 @@ void GraphOptimizer::mergeTransposeReshapeReorder(Graph& graph,
     if (reshapeNode)
         graph.RemoveEdge(reshapeNode->getParentEdgeAt(1));
 
-    // to prevent inPlace conflict we must check that the memory reference is unidirectional or
-    // inPlace memory is not used
-    const auto parentInPlace = parentNode->getParentEdgeAt(0)->inPlace(Edge::LOOK_UP);
-    const auto& childEdges = childNode->getChildEdgesAtPort(0);
-
-    const auto childInPlace = std::any_of(childEdges.begin(), childEdges.end(), [](const EdgePtr& edge) {
-        return edge->inPlace(Edge::LOOK_DOWN);
-    });
-
+    // To prevent inPlace conflict, we must check that the memory reference is unidirectional
+    // or inPlace memory is not used
     // Note: this value must be computed before detaching nodes
-    bool isOptimized = !(parentInPlace && childInPlace);
+    bool isOptimized = canBeInplaced(parentNode, childNode);
 
     // hold references to all children before dropping reorder_node
     std::vector<std::pair<NodePtr, int>> reorderChildren;
-    for (auto ccEdge : childEdges)
+    for (auto ccEdge : childNode->getChildEdgesAtPort(0))
         reorderChildren.emplace_back(ccEdge->getChild(), ccEdge->getOutputNum());
 
     // detach nodes from graph by remove all of their edges
@@ -2900,6 +2927,12 @@ void GraphOptimizer::MergeReorderAndTranspose(Graph &graph) {
         auto& outOrder = outBlockedDesc->getOrder();
 
         if (checkAscendingFinalOrder(transposeOrder, layoutOrder, inOrder, outOrder)) {
+            // Reorder node doesn't support (with rare exceptions) reordering in case of different ranks on input and output.
+            // So the merge can be performed only in the case when the fused reorder will be optimized.
+            if (parentNode->getInputShapeAtPort(0).getRank() != childNode->getOutputShapeAtPort(0).getRank() &&
+                !canBeInplaced(parentNode, childNode)) {
+                continue;
+            }
             mergeTransposeReshapeReorder(graph, transposeNode, reshapeNode, reorderNode, true);
         }
     }

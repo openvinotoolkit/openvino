@@ -119,6 +119,10 @@ Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
                          const Output<Node>& mask,
                          const Output<Node>& value);
 
+Output<Node> concat_list_from_inputs(const NodeContext& context, size_t begin, size_t end);
+
+Output<Node> masked_select(const NodeContext& context, const Output<Node>& data, const Output<Node>& mask);
+
 namespace op {
 template <OutputVector (*T)(const NodeContext&), size_t idx = 0>
 OutputVector inplace_op(const NodeContext& context) {
@@ -267,6 +271,9 @@ public:
     virtual size_t num_of_outputs() const override {
         FRONT_END_NOT_IMPLEMENTED(num_of_outputs);
     }
+    virtual size_t output_list_size() const override {
+        FRONT_END_NOT_IMPLEMENTED(output_list_size);
+    }
     virtual const std::vector<size_t>& outputs() const override {
         FRONT_END_NOT_IMPLEMENTED(outputs);
     }
@@ -299,6 +306,9 @@ public:
     }
     virtual size_t get_named_input(const std::string& name) const override {
         FRONT_END_NOT_IMPLEMENTED(get_named_input);
+    }
+    virtual std::unordered_map<std::string, ov::Any> get_rt_info() const override {
+        FRONT_END_NOT_IMPLEMENTED(get_rt_info);
     }
 
 private:

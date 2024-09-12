@@ -23,8 +23,8 @@ IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/2024/openvino-workflow/running-inference.html>`__
 and do inference with a sample image.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Imports <#imports>`__
@@ -50,6 +50,16 @@ Table of contents:
    -  `Integration preprocessing to
       model <#integration-preprocessing-to-model>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -60,9 +70,9 @@ Install required packages:
 .. code:: ipython3
 
     import platform
-    
+
     %pip install -q "openvino>=2023.1.0" "numpy>=1.21.0" "opencv-python" "tqdm"
-    
+
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -77,21 +87,13 @@ Install required packages:
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -102,11 +104,11 @@ The notebook uses utility functions. The cell below will download the
 
     # Fetch the notebook utils script from the openvino_notebooks repo
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
 
 
@@ -114,7 +116,7 @@ The notebook uses utility functions. The cell below will download the
 
 .. parsed-literal::
 
-    23215
+    24165
 
 
 
@@ -127,17 +129,17 @@ Imports
 
     # Standard python modules
     from pathlib import Path
-    
+
     # External modules and dependencies
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
-    
+
     # OpenVINO import
     import openvino as ov
-    
+
     # Notebook utils module
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 Settings
 --------
@@ -151,21 +153,21 @@ Define model related variables and create corresponding directories:
     # Create directories for models files
     model_dir = Path("model")
     model_dir.mkdir(exist_ok=True)
-    
+
     # Create directory for TensorFlow model
     tf_model_dir = model_dir / "tf"
     tf_model_dir.mkdir(exist_ok=True)
-    
+
     # Create directory for OpenVINO IR model
     ir_model_dir = model_dir / "ir"
     ir_model_dir.mkdir(exist_ok=True)
-    
+
     model_name = "faster_rcnn_resnet50_v1_640x640"
-    
+
     openvino_ir_path = ir_model_dir / f"{model_name}.xml"
-    
+
     tf_model_url = "https://www.kaggle.com/models/tensorflow/faster-rcnn-resnet-v1/frameworks/tensorFlow2/variations/faster-rcnn-resnet50-v1-640x640/versions/1?tf-hub-format=compressed"
-    
+
     tf_model_archive_filename = f"{model_name}.tar.gz"
 
 Download Model from TensorFlow Hub
@@ -192,7 +194,7 @@ from TensorFlow Hub:
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/model/tf/faster_rcnn_resnet50_v1_640x640.tar.gz')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/model/tf/faster_rcnn_resnet50_v1_640x640.tar.gz')
 
 
 
@@ -201,7 +203,7 @@ Extract TensorFlow Object Detection model from the downloaded archive:
 .. code:: ipython3
 
     import tarfile
-    
+
     with tarfile.open(tf_model_dir / tf_model_archive_filename) as file:
         file.extractall(path=tf_model_dir)
 
@@ -231,7 +233,7 @@ support <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/conve
 .. code:: ipython3
 
     ov_model = ov.convert_model(tf_model_dir)
-    
+
     # Save converted OpenVINO IR model to the corresponding directory
     ov.save_model(ov_model, openvino_ir_path)
 
@@ -249,16 +251,9 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
     core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
-    
+    device = device_widget()
+
     device
 
 
@@ -325,10 +320,10 @@ for more information about model inputs, outputs and their formats.
     model_inputs = compiled_model.inputs
     model_input = compiled_model.input(0)
     model_outputs = compiled_model.outputs
-    
+
     print("Model inputs count:", len(model_inputs))
     print("Model input:", model_input)
-    
+
     print("Model outputs count:", len(model_outputs))
     print("Model outputs:")
     for output in model_outputs:
@@ -361,7 +356,7 @@ Load and save an image:
 .. code:: ipython3
 
     image_path = Path("./data/coco_bike.jpg")
-    
+
     download_file(
         url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg",
         filename=image_path.name,
@@ -378,7 +373,7 @@ Load and save an image:
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_bike.jpg')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_bike.jpg')
 
 
 
@@ -388,16 +383,16 @@ Read the image, resize and convert it to the input shape of the network:
 
     # Read the image
     image = cv2.imread(filename=str(image_path))
-    
+
     # The network expects images in RGB format
     image = cv2.cvtColor(image, code=cv2.COLOR_BGR2RGB)
-    
+
     # Resize the image to the network input shape
     resized_image = cv2.resize(src=image, dsize=(255, 255))
-    
+
     # Transpose the image to the network input shape
     network_input_image = np.expand_dims(resized_image, 0)
-    
+
     # Show the image
     plt.imshow(image)
 
@@ -406,7 +401,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f5aa08bc400>
+    <matplotlib.image.AxesImage at 0x7fc5f4f94070>
 
 
 
@@ -440,19 +435,19 @@ outputs will be used.
         _,
         _,
     ) = model_outputs
-    
+
     image_detection_boxes = inference_result[detection_boxes]
     print("image_detection_boxes:", image_detection_boxes)
-    
+
     image_detection_classes = inference_result[detection_classes]
     print("image_detection_classes:", image_detection_classes)
-    
+
     image_detection_scores = inference_result[detection_scores]
     print("image_detection_scores:", image_detection_scores)
-    
+
     image_num_detections = inference_result[num_detections]
     print("image_detections_num:", image_num_detections)
-    
+
     # Alternatively, inference result data can be extracted by model output name with `.get()` method
     assert (inference_result[detection_boxes] == inference_result.get("detection_boxes")).all(), "extracted inference result data should be equal"
 
@@ -484,21 +479,21 @@ outputs will be used.
       19.  4. 31.  1.  2.  8. 18. 15.  4.  2.  2.  2. 31. 84. 15.  3. 18.  2.
       27. 28. 15. 31. 28.  1.  1.  8. 20.  3.  1. 41.]]
     image_detection_scores: [[0.98100936 0.94071937 0.932054   0.87772274 0.84029174 0.5898775
-      0.5533583  0.5398071  0.49383202 0.47797197 0.46248457 0.44053423
-      0.40156218 0.34709066 0.31749818 0.27442315 0.2470981  0.23665425
-      0.23217289 0.22382483 0.21970394 0.20213611 0.19405638 0.14689012
-      0.14507611 0.14343795 0.12780005 0.12564348 0.11809891 0.10874528
-      0.10462028 0.09282681 0.09071824 0.08906853 0.08674242 0.08082759
+      0.5533583  0.5398071  0.49383202 0.47797197 0.46248457 0.4405343
+      0.40156218 0.34709066 0.3174982  0.27442312 0.24709812 0.23665425
+      0.23217288 0.22382483 0.21970391 0.2021361  0.19405638 0.14689012
+      0.14507614 0.14343795 0.12780006 0.12564348 0.11809891 0.10874528
+      0.10462027 0.09282681 0.09071824 0.08906853 0.08674242 0.0808276
       0.08010086 0.079368   0.06617683 0.0628278  0.06066268 0.0602232
       0.0580567  0.053602   0.05180356 0.04988255 0.048532   0.04689693
       0.04476341 0.04134317 0.0408088  0.03969054 0.03504278 0.03275277
       0.03109965 0.02965053 0.02862901 0.02858275 0.0257968  0.02342912
       0.02333545 0.02142582 0.02137399 0.02088613 0.02024864 0.01939381
-      0.0193674  0.01934038 0.01863845 0.01847859 0.01844665 0.01834509
-      0.01803045 0.01781685 0.0173003  0.01667061 0.01585764 0.01565674
+      0.0193674  0.01934038 0.01863845 0.0184786  0.01844665 0.0183451
+      0.01803045 0.01781685 0.01730029 0.01667061 0.01585764 0.01565674
       0.01565629 0.01524817 0.01516375 0.01505281 0.01435965 0.01434395
       0.01415888 0.01369895 0.01359102 0.0129866  0.01253129 0.0120007
-      0.01156755 0.01149271 0.01135032 0.01133145 0.01113621 0.01108707
+      0.01156755 0.01149271 0.01135033 0.01133145 0.01113621 0.01108707
       0.01100362 0.01090855 0.01044954 0.01028427 0.01001238 0.00976972
       0.00976233 0.00964447 0.00960519 0.00954092 0.0094881  0.00940329
       0.00935068 0.00933121 0.00906878 0.00887597 0.0088425  0.00881775
@@ -507,8 +502,8 @@ outputs will be used.
       0.00765653 0.00765338 0.00744546 0.00704072 0.00697901 0.00689811
       0.00689055 0.00659724 0.00649199 0.0063755  0.00635564 0.00623979
       0.00622121 0.00599785 0.0058857  0.00585696 0.00579975 0.0057361
-      0.00572549 0.0056205  0.00558006 0.00556708 0.00549531 0.00547659
-      0.00547634 0.00546918 0.00541863 0.00540305 0.00535539 0.00534114
+      0.00572549 0.0056205  0.00558006 0.00556709 0.00549531 0.00547659
+      0.00547634 0.00546918 0.00541863 0.00540305 0.00535539 0.00534113
       0.00524252 0.00522422 0.00505857 0.0050541  0.00490434 0.00482884
       0.00479049 0.00470287 0.00461144 0.0046054  0.00460464 0.00457361
       0.00455593 0.00455155 0.00454144 0.0044696  0.00437295 0.00425156
@@ -547,12 +542,12 @@ Define utility functions to visualize the inference results
 
     import random
     from typing import Optional
-    
-    
+
+
     def add_detection_box(box: np.ndarray, image: np.ndarray, label: Optional[str] = None) -> np.ndarray:
         """
         Helper function for adding single bounding box to the image
-    
+
         Parameters
         ----------
         box : np.ndarray
@@ -561,18 +556,18 @@ Define utility functions to visualize the inference results
             The image to which detection box is added
         label : str, optional
             Detection box label string, if not provided will not be added to result image (default is None)
-    
+
         Returns
         -------
         np.ndarray
             NumPy array including both image and detection box
-    
+
         """
         ymin, xmin, ymax, xmax = box
         point1, point2 = (int(xmin), int(ymin)), (int(xmax), int(ymax))
         box_color = [random.randint(0, 255) for _ in range(3)]
         line_thickness = round(0.002 * (image.shape[0] + image.shape[1]) / 2) + 1
-    
+
         cv2.rectangle(
             img=image,
             pt1=point1,
@@ -581,7 +576,7 @@ Define utility functions to visualize the inference results
             thickness=line_thickness,
             lineType=cv2.LINE_AA,
         )
-    
+
         if label:
             font_thickness = max(line_thickness - 1, 1)
             font_face = 0
@@ -623,10 +618,10 @@ Define utility functions to visualize the inference results
 .. code:: ipython3
 
     from typing import Dict
-    
+
     from openvino.runtime.utils.data_helpers import OVDict
-    
-    
+
+
     def visualize_inference_result(
         inference_result: OVDict,
         image: np.ndarray,
@@ -635,7 +630,7 @@ Define utility functions to visualize the inference results
     ):
         """
         Helper function for visualizing inference result on the image
-    
+
         Parameters
         ----------
         inference_result : OVDict
@@ -651,9 +646,9 @@ Define utility functions to visualize the inference results
         detection_classes: np.ndarray = inference_result.get("detection_classes")
         detection_scores: np.ndarray = inference_result.get("detection_scores")
         num_detections: np.ndarray = inference_result.get("num_detections")
-    
+
         detections_limit = int(min(detections_limit, num_detections[0]) if detections_limit is not None else num_detections[0])
-    
+
         # Normalize detection boxes coordinates to original image size
         original_image_height, original_image_width, _ = image.shape
         normalized_detection_boxex = detection_boxes[::] * [
@@ -662,9 +657,9 @@ Define utility functions to visualize the inference results
             original_image_height,
             original_image_width,
         ]
-    
+
         image_with_detection_boxex = np.copy(image)
-    
+
         for i in range(detections_limit):
             detected_class_name = labels_map[int(detection_classes[0, i])]
             score = detection_scores[0, i]
@@ -674,7 +669,7 @@ Define utility functions to visualize the inference results
                 image=image_with_detection_boxex,
                 label=label,
             )
-    
+
         plt.imshow(image_with_detection_boxex)
 
 TensorFlow Object Detection model
@@ -690,7 +685,7 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__:
 .. code:: ipython3
 
     coco_labels_file_path = Path("./data/coco_91cl.txt")
-    
+
     download_file(
         url="https://raw.githubusercontent.com/openvinotoolkit/open_model_zoo/master/data/dataset_classes/coco_91cl.txt",
         filename=coco_labels_file_path.name,
@@ -708,7 +703,7 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__:
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_91cl.txt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_91cl.txt')
 
 
 
@@ -721,7 +716,7 @@ file:
     with open(coco_labels_file_path, "r") as file:
         coco_labels = file.read().strip().split("\n")
         coco_labels_map = dict(enumerate(coco_labels, 1))
-    
+
     print(coco_labels_map)
 
 
@@ -758,7 +753,7 @@ performance of your application using OpenVINO.
 Async inference pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
- The key advantage of the Async
+The key advantage of the Async
 API is that when a device is busy with inference, the application can
 perform other tasks in parallel (for example, populating inputs or
 scheduling other requests) rather than wait for the current inference to

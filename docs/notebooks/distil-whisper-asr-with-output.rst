@@ -36,8 +36,8 @@ convert the model to OpenVINO™ IR format. To further improve OpenVINO
 Distil-Whisper model performance ``INT8`` post-training quantization
 from `NNCF <https://github.com/openvinotoolkit/nncf/>`__ is applied.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Load PyTorch model <#load-pytorch-model>`__
@@ -67,6 +67,16 @@ Table of contents:
 
 -  `Interactive demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -74,7 +84,8 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "transformers>=4.35" "torch>=2.1" onnx "git+https://github.com/huggingface/optimum-intel.git" "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "transformers>=4.35" "torch>=2.1,<2.4.0" "torchvision<0.19.0" onnx "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
     %pip install -q "openvino>=2023.2.0" datasets  "gradio>=4.0" "librosa" "soundfile"
     %pip install -q "nncf>=2.6.0" "jiwer"
 
@@ -1003,11 +1014,6 @@ recognition. Multilingual support will be provided later.
     from transformers.pipelines.audio_utils import ffmpeg_read
     import gradio as gr
     
-    r = requests.get("https://huggingface.co/spaces/distil-whisper/whisper-vs-distil-whisper/resolve/main/assets/example_1.wav")
-    
-    with open("example_1.wav", "wb") as f:
-        f.write(r.content)
-    
     
     BATCH_SIZE = 16
     MAX_AUDIO_MINS = 30  # maximum audio input in minutes
@@ -1071,63 +1077,21 @@ recognition. Multilingual support will be provided later.
         pipe._forward = _forward_ov_time
         ov_text = pipe(inputs.copy(), batch_size=BATCH_SIZE)["text"]
         return ov_text, ov_time
+
+.. code:: ipython3
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/distil-whisper-asr/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo
     
-    with gr.Blocks() as demo:
-        gr.HTML(
-            """
-                    <div style="text-align: center; max-width: 700px; margin: 0 auto;">
-                      <div
-                        style="
-                          display: inline-flex; align-items: center; gap: 0.8rem; font-size: 1.75rem;
-                        "
-                      >
-                        <h1 style="font-weight: 900; margin-bottom: 7px; line-height: normal;">
-                          OpenVINO Distil-Whisper demo
-                        </h1>
-                      </div>
-                    </div>
-                """
-        )
-        audio = gr.components.Audio(type="filepath", label="Audio input")
-        with gr.Row():
-            button = gr.Button("Transcribe")
-            if to_quantize.value:
-                button_q = gr.Button("Transcribe quantized")
-        with gr.Row():
-            infer_time = gr.components.Textbox(label="OpenVINO Distil-Whisper Transcription Time (s)")
-            if to_quantize.value:
-                infer_time_q = gr.components.Textbox(label="OpenVINO Quantized Distil-Whisper Transcription Time (s)")
-        with gr.Row():
-            transcription = gr.components.Textbox(label="OpenVINO Distil-Whisper Transcription", show_copy_button=True)
-            if to_quantize.value:
-                transcription_q = gr.components.Textbox(
-                    label="OpenVINO Quantized Distil-Whisper Transcription",
-                    show_copy_button=True,
-                )
-        button.click(
-            fn=transcribe,
-            inputs=audio,
-            outputs=[transcription, infer_time],
-        )
-        if to_quantize.value:
-            button_q.click(
-                fn=transcribe,
-                inputs=[audio, gr.Number(value=1, visible=False)],
-                outputs=[transcription_q, infer_time_q],
-            )
-        gr.Markdown("## Examples")
-        gr.Examples(
-            [["./example_1.wav"]],
-            audio,
-            outputs=[transcription, infer_time],
-            fn=transcribe,
-            cache_examples=False,
-        )
-    # if you are launching remotely, specify server_name and server_port
-    # demo.launch(server_name='your server name', server_port='server port in int')
-    # Read more in the docs: https://gradio.app/docs/
+    demo = make_demo(fn=transcribe, quantized=to_quantize.value)
+    
     try:
         demo.launch(debug=False)
     except Exception:
         demo.launch(share=True, debug=False)
+    # if you are launching remotely, specify server_name and server_port
+    # demo.launch(server_name='your server name', server_port='server port in int')
+    # Read more in the docs: https://gradio.app/docs/

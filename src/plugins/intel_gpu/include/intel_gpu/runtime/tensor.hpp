@@ -262,8 +262,8 @@ public:
 
     tensor(format fmt, const std::vector<value_type>& sizes, value_type default_size = 1)
         : tensor(default_size) {
-        auto in_order = fmt.order();
-        auto out_order = fmt.internal_order();
+        const auto& in_order = fmt.order();
+        const auto& out_order = fmt.internal_order();
         if (in_order.size() != sizes.size())
             throw std::invalid_argument("The count of values passed to initialize tensor does not match passed format.");
 
@@ -417,8 +417,8 @@ public:
 
     /// @brief Returns a vector of tensors values, ordered regarding to @p format.
     std::vector<value_type> sizes(cldnn::format fmt) const {
-        auto output_order = fmt.order();
-        auto internal_order = fmt.internal_order();
+        const auto& output_order = fmt.order();
+        const auto& internal_order = fmt.internal_order();
         std::vector<value_type> sizes(output_order.size(), 0);
 
         for (size_t i = 0; i < sizes.size(); ++i) {
@@ -472,9 +472,9 @@ public:
      */
     tensor transform(cldnn::format new_fmt, value_type default_size) const {
         cldnn::format default_fmt = cldnn::format::bfvuwzyx;
-        auto val_order = default_fmt.internal_order();
-        auto new_order = new_fmt.internal_order();
-        std::vector<value_type> old_sizes = sizes();
+        const auto& val_order = default_fmt.internal_order();
+        const auto& new_order = new_fmt.internal_order();
+        const std::vector<value_type>& old_sizes = sizes();
         std::vector<value_type> new_sizes(old_sizes.size(), default_size);
         const auto& new_traits = new_fmt.traits();
         static const std::map<char, char> flatten_mapping = {
@@ -519,7 +519,7 @@ public:
 
     /// @brief Calculates linear offset for given @p coord within current tensor.
     /// @param coord The coordinate within current tensor.
-    size_t get_linear_offset(const tensor& coord, cldnn::format fmt) const {
+    size_t get_linear_offset(const tensor& coord, const cldnn::format& fmt) const {
         auto my_sizes = this->sizes(fmt);
         auto adjusted_coords = coord.sizes(fmt);
 

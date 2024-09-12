@@ -15,8 +15,7 @@ if(ENABLE_ZEROAPI_BACKEND)
 
     # Skip warnings as errors for thirdparty
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        string(REPLACE "/WX" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-        string(REPLACE "/WX" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+        ov_add_compiler_flags(/WX-)
         # solve pdb access issue
         set(USE_Z7 ON)
         # Close spectre for ze loader
@@ -25,11 +24,9 @@ if(ENABLE_ZEROAPI_BACKEND)
         ov_add_compiler_flags(-Wno-error)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
             -Wno-undef \
-            -Wno-unused-but-set-variable \
             -Wno-missing-declarations")
-        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.1)
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
-                -Wno-stringop-truncation")
+        if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-but-set-variable")
         endif()
     endif()
     set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)

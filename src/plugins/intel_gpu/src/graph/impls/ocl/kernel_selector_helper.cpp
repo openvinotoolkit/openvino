@@ -5,6 +5,7 @@
 #include "intel_gpu/graph/program.hpp"
 
 #include "kernel_selector_helper.h"
+#include "intel_gpu/runtime/device_info.hpp"
 #include "kernel_selector_params.h"
 #include "to_string_utils.h"
 #include "program_node.h"
@@ -32,7 +33,6 @@
 #include "intel_gpu/primitives/extract_image_patches.hpp"
 
 #include "activation_inst.h"
-#include "depth_to_space_inst.h"
 #include "eltwise_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
@@ -44,9 +44,9 @@
 #include "kernel_selector/kernels/reorder/reorder_kernel_base.h"
 
 #include "runtime/kernels_cache.hpp"
-#include "kernel_base.h"
 
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace {
@@ -119,6 +119,48 @@ bool query_local_block_io_supported(engine& e, const ExecutionConfig& config) {
 
 namespace cldnn {
 
+bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
+    auto device = e.get_device().get();
+
+    static std::mutex m;
+    std::lock_guard<std::mutex> lock(m);
+    static std::map<cldnn::device*, bool> cache;
+    if (cache.find(device) != cache.end()) {
+        return cache.at(device);
+    }
+
+    std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
+    // This program check that all required vISA features are supported by current IGC version
+    const char* kernel_code = R""""(
+        kernel void igc_check() {
+            __asm__ volatile(
+                    ".decl AA0 v_type=G type=ud num_elts=1\n"
+                    ".decl AA1 v_type=G type=ud num_elts=1\n"
+                    ".implicit_PSEUDO_INPUT AA0 offset=256 size=4\n"
+                    ".implicit_PSEUDO_INPUT AA1 offset=256 size=4\n"
+                    "mov (M1_NM,1) AA0(0,0)<1> AA1(0,0)<0;1,0>\n"
+            );
+        }
+        )"""";
+
+    kernel_string->str = kernel_code;
+    kernel_string->options = "";
+    kernel_string->entry_point = "igc_check";
+    kernel_string->batch_compilation = true;
+
+    try {
+        cldnn::kernel_impl_params dummy_params;
+        auto _kernels_cache_device_query = std::unique_ptr<cldnn::kernels_cache>(new cldnn::kernels_cache(e, config, 0));
+        _kernels_cache_device_query->add_kernels_source(dummy_params, {kernel_string}, false);
+        _kernels_cache_device_query->build_all();
+        cache[device] = true;
+    } catch (std::exception&) {
+        cache[device] = false;
+    }
+
+    return cache.at(device);
+}
+
 kernel_selector::data_type to_data_type(data_types dt) {
     switch (dt) {
         case cldnn::data_types::i4:
@@ -129,8 +171,14 @@ kernel_selector::data_type to_data_type(data_types dt) {
             return kernel_selector::data_type::INT8;
         case cldnn::data_types::u8:
             return kernel_selector::data_type::UINT8;
+        case cldnn::data_types::i16:
+            return kernel_selector::data_type::INT16;
+        case cldnn::data_types::u16:
+            return kernel_selector::data_type::UINT16;
         case cldnn::data_types::i32:
             return kernel_selector::data_type::INT32;
+        case cldnn::data_types::u32:
+            return kernel_selector::data_type::UINT32;
         case cldnn::data_types::i64:
             return kernel_selector::data_type::INT64;
         case cldnn::data_types::f16:
@@ -154,8 +202,14 @@ data_types from_data_type(kernel_selector::data_type dt) {
             return cldnn::data_types::i8;
         case kernel_selector::data_type::UINT8:
             return cldnn::data_types::u8;
+        case kernel_selector::data_type::INT16:
+            return cldnn::data_types::i16;
+        case kernel_selector::data_type::UINT16:
+            return cldnn::data_types::u16;
         case kernel_selector::data_type::INT32:
             return cldnn::data_types::i32;
+        case kernel_selector::data_type::UINT32:
+            return cldnn::data_types::u32;
         case kernel_selector::data_type::INT64:
             return cldnn::data_types::i64;
         case kernel_selector::data_type::F16:
@@ -780,7 +834,7 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor v
 
     // legacy get_tensor().sizes() impl return dims in external order, so we need to transpose dims
     ov::PartialShape vals_ordered;
-    auto axis_order = l.format.dims_order();
+    const auto& axis_order = l.format.dims_order();
     for (size_t i = 0; i < axis_order.size(); i++) {
         if (axis_order[i] >= vals_original.size())
             vals_ordered.push_back(ov::Dimension(1));
@@ -788,9 +842,9 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor v
             vals_ordered.push_back(vals_original[axis_order[i]]);
     }
     const auto& add_offsets = view_offset.sizes(l.format);
-    const auto& lower_pad = pad.lower_size().sizes(l.format);
-    const auto& upper_pad = pad.upper_size().sizes(l.format);
-    const auto& dynamic_pad_dims = pad.get_dynamic_pad_dims().sizes(l.format);
+    const auto& lower_pad = layout::format_sizes(pad._lower_size, l.format);
+    const auto& upper_pad = layout::format_sizes(pad._upper_size, l.format);
+    const auto& dynamic_pad_dims = layout::format_sizes(pad._dynamic_dims_mask, l.format);
     const auto ks_layout = to_data_layout(l.format);
     kernel_selector::n_dims vec(kernel_selector::DataTensor::ChannelsCount(ks_layout));
 
@@ -1081,6 +1135,7 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.bOptHintsSupport = false;
 
     params.engineInfo.bLocalBlockIOSupport = query_local_block_io_supported(engine, config);
+    params.engineInfo.supports_microkernels = query_microkernels_supported(engine, config);
     params.engineInfo.deviceType = get_device_type(device_info.dev_type);
     params.engineInfo.maxWorkGroupSize = device_info.max_work_group_size;
     params.engineInfo.maxLocalMemSize = device_info.max_local_mem_size;
@@ -1092,6 +1147,8 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.driverVersion = device_info.driver_version;
     params.engineInfo.supportedSimdSizes = device_info.supported_simd_sizes;
     params.engineInfo.vendor_id = device_info.vendor_id;
+    params.engineInfo.ip_version = device_info.ip_version;
+    params.engineInfo.arch = kernel_selector::gpu_arch(static_cast<std::underlying_type<gpu_arch>::type>(device_info.arch));
 
     auto impl_forcing = config.get_property(ov::intel_gpu::force_implementations);
 
@@ -1165,8 +1222,7 @@ void set_default_params(const kernel_impl_params& param_info, kernel_selector::b
 
                 for (auto& dep : desc.dep_data) {
                     if (dep.dep_type == kernel_selector::DepType::UNDEFINED) {
-                        dep.dep_type    = kernel_selector::DepType::ORIGINAL;
-                        break;
+                        dep.dep_type = kernel_selector::DepType::ORIGINAL;
                     }
                 }
             }

@@ -22,8 +22,8 @@ the PaddleOCR is as follows:
    server, the webcam will not work. You can still do inference on a
    video file.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 
@@ -49,11 +49,26 @@ Table of contents:
 -  `Run Live PaddleOCR with
    OpenVINO <#run-live-paddleocr-with-openvino>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.1.0"
-    %pip install -q "paddlepaddle>=2.5.1"
-    %pip install -q "pyclipper>=1.2.1" "shapely>=1.7.1" tqdm
+    import platform
+    
+    if platform.system() == "Windows":
+        %pip install -q "paddlepaddle>=2.5.1,<2.6.0"
+    else:
+        %pip install -q "paddlepaddle>=2.5.1"
+    %pip install -q "pyclipper>=1.2.1" "shapely>=1.7.1" opencv-python tqdm
 
 
 .. parsed-literal::
@@ -109,16 +124,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = utils.device_widget()
     
     device
 
@@ -200,7 +206,7 @@ Download the Model for Text **Detection**
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/paddle-o…
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/paddle-o…
 
 
 .. parsed-literal::
@@ -246,7 +252,7 @@ Download the Model for Text **Recognition**
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/paddle-o…
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/paddle-o…
 
 
 .. parsed-literal::

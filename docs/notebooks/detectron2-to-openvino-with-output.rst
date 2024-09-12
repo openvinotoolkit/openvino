@@ -15,8 +15,8 @@ using OpenVINO™. We will use ``Faster R-CNN FPN x1`` model and
 `COCO <https://cocodataset.org/#home>`__ dataset as examples for object
 detection and instance segmentation respectively.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 
@@ -42,6 +42,16 @@ Table of contents:
    -  `Select inference device <#select-inference-device>`__
    -  `Run Instance Segmentation model
       inference <#run-instance-segmentation-model-inference>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Prerequisites
 -------------

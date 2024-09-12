@@ -11,8 +11,8 @@ apply `AnimateLCM <https://arxiv.org/abs/2402.00769>`__ LoRA weights and
 run optimization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__.
 
-Table of contents:
-------------------
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Download PyTorch Model <#download-pytorch-model>`__
@@ -39,6 +39,16 @@ Table of contents:
 
 -  `Interactive Demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -46,15 +56,8 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "torch>=2.1" "diffusers>=0.25" "peft==0.6.2" "transformers" "openvino>=2024.1.0" Pillow opencv-python tqdm  "gradio>=4.19" safetensors --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch>=2.1" "torchvision<0.19.0" "diffusers>=0.25" "peft==0.6.2" "transformers" "openvino>=2024.1.0" Pillow opencv-python tqdm  "gradio>=4.19" safetensors --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q datasets "nncf>=2.10.0"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Download PyTorch Model
 ----------------------
@@ -1257,17 +1260,17 @@ applied for footprint reduction.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1290,17 +1293,17 @@ applied for footprint reduction.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1358,7 +1361,7 @@ pipelines.
 
     int8_out_path = Path("generated_int8.mp4")
     
-    export_to_video(frames, str(out_path), fps=7)
+    export_to_video(int8_frames, str(int8_out_path), fps=7)
     int8_frames[0].save(
         "generated_int8.gif",
         save_all=True,
@@ -1489,180 +1492,15 @@ launch the interactive demo.
 
 .. code:: ipython3
 
-    import gradio as gr
-    import random
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-video-diffusion/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
-    max_64_bit_int = 2**63 - 1
+    from gradio_helper import make_demo
+    
     pipeline = ov_int8_pipeline if use_quantized_model.value else ov_pipe
     
-    example_images_urls = [
-        "https://huggingface.co/spaces/wangfuyun/AnimateLCM-SVD/resolve/main/test_imgs/ship-7833921_1280.jpg?download=true",
-        "https://huggingface.co/spaces/wangfuyun/AnimateLCM-SVD/resolve/main/test_imgs/ai-generated-8476858_1280.png?download=true",
-        "https://huggingface.co/spaces/wangfuyun/AnimateLCM-SVD/resolve/main/test_imgs/ai-generated-8481641_1280.jpg?download=true",
-        "https://huggingface.co/spaces/wangfuyun/AnimateLCM-SVD/resolve/main/test_imgs/dog-7396912_1280.jpg?download=true",
-        "https://huggingface.co/spaces/wangfuyun/AnimateLCM-SVD/resolve/main/test_imgs/cupcakes-380178_1280.jpg?download=true",
-    ]
-    
-    example_images_dir = Path("example_images")
-    example_images_dir.mkdir(exist_ok=True)
-    example_imgs = []
-    
-    for image_id, url in enumerate(example_images_urls):
-        img = load_image(url)
-        image_path = example_images_dir / f"{image_id}.png"
-        img.save(image_path)
-        example_imgs.append([image_path])
-    
-    
-    def sample(
-        image: PIL.Image,
-        seed: Optional[int] = 42,
-        randomize_seed: bool = True,
-        motion_bucket_id: int = 127,
-        fps_id: int = 6,
-        num_inference_steps: int = 15,
-        num_frames: int = 4,
-        max_guidance_scale=1.0,
-        min_guidance_scale=1.0,
-        decoding_t: int = 8,  # Number of frames decoded at a time! This eats most VRAM. Reduce if necessary.
-        output_folder: str = "outputs",
-        progress=gr.Progress(track_tqdm=True),
-    ):
-        if image.mode == "RGBA":
-            image = image.convert("RGB")
-    
-        if randomize_seed:
-            seed = random.randint(0, max_64_bit_int)
-        generator = torch.manual_seed(seed)
-    
-        output_folder = Path(output_folder)
-        output_folder.mkdir(exist_ok=True)
-        base_count = len(list(output_folder.glob("*.mp4")))
-        video_path = output_folder / f"{base_count:06d}.mp4"
-    
-        frames = pipeline(
-            image,
-            decode_chunk_size=decoding_t,
-            generator=generator,
-            motion_bucket_id=motion_bucket_id,
-            noise_aug_strength=0.1,
-            num_frames=num_frames,
-            num_inference_steps=num_inference_steps,
-            max_guidance_scale=max_guidance_scale,
-            min_guidance_scale=min_guidance_scale,
-        ).frames[0]
-        export_to_video(frames, str(video_path), fps=fps_id)
-    
-        return video_path, seed
-    
-    
-    def resize_image(image, output_size=(512, 320)):
-        # Calculate aspect ratios
-        target_aspect = output_size[0] / output_size[1]  # Aspect ratio of the desired size
-        image_aspect = image.width / image.height  # Aspect ratio of the original image
-    
-        # Resize then crop if the original image is larger
-        if image_aspect > target_aspect:
-            # Resize the image to match the target height, maintaining aspect ratio
-            new_height = output_size[1]
-            new_width = int(new_height * image_aspect)
-            resized_image = image.resize((new_width, new_height), PIL.Image.LANCZOS)
-            # Calculate coordinates for cropping
-            left = (new_width - output_size[0]) / 2
-            top = 0
-            right = (new_width + output_size[0]) / 2
-            bottom = output_size[1]
-        else:
-            # Resize the image to match the target width, maintaining aspect ratio
-            new_width = output_size[0]
-            new_height = int(new_width / image_aspect)
-            resized_image = image.resize((new_width, new_height), PIL.Image.LANCZOS)
-            # Calculate coordinates for cropping
-            left = 0
-            top = (new_height - output_size[1]) / 2
-            right = output_size[0]
-            bottom = (new_height + output_size[1]) / 2
-    
-        # Crop the image
-        cropped_image = resized_image.crop((left, top, right, bottom))
-        return cropped_image
-    
-    
-    with gr.Blocks() as demo:
-        gr.Markdown(
-            """# Stable Video Diffusion: Image to Video Generation with OpenVINO.
-      """
-        )
-        with gr.Row():
-            with gr.Column():
-                image_in = gr.Image(label="Upload your image", type="pil")
-                generate_btn = gr.Button("Generate")
-            video = gr.Video()
-        with gr.Accordion("Advanced options", open=False):
-            seed = gr.Slider(
-                label="Seed",
-                value=42,
-                randomize=True,
-                minimum=0,
-                maximum=max_64_bit_int,
-                step=1,
-            )
-            randomize_seed = gr.Checkbox(label="Randomize seed", value=True)
-            motion_bucket_id = gr.Slider(
-                label="Motion bucket id",
-                info="Controls how much motion to add/remove from the image",
-                value=127,
-                minimum=1,
-                maximum=255,
-            )
-            fps_id = gr.Slider(
-                label="Frames per second",
-                info="The length of your video in seconds will be num_frames / fps",
-                value=6,
-                minimum=5,
-                maximum=30,
-                step=1,
-            )
-            num_frames = gr.Slider(label="Number of Frames", value=8, minimum=2, maximum=25, step=1)
-            num_steps = gr.Slider(label="Number of generation steps", value=4, minimum=1, maximum=8, step=1)
-            max_guidance_scale = gr.Slider(
-                label="Max guidance scale",
-                info="classifier-free guidance strength",
-                value=1.2,
-                minimum=1,
-                maximum=2,
-            )
-            min_guidance_scale = gr.Slider(
-                label="Min guidance scale",
-                info="classifier-free guidance strength",
-                value=1,
-                minimum=1,
-                maximum=1.5,
-            )
-        examples = gr.Examples(
-            examples=example_imgs,
-            inputs=[image_in],
-            outputs=[video, seed],
-        )
-    
-        image_in.upload(fn=resize_image, inputs=image_in, outputs=image_in)
-        generate_btn.click(
-            fn=sample,
-            inputs=[
-                image_in,
-                seed,
-                randomize_seed,
-                motion_bucket_id,
-                fps_id,
-                num_steps,
-                num_frames,
-                max_guidance_scale,
-                min_guidance_scale,
-            ],
-            outputs=[video, seed],
-            api_name="video",
-        )
-    
+    demo = make_demo(pipeline)
     
     try:
         demo.queue().launch(debug=False)

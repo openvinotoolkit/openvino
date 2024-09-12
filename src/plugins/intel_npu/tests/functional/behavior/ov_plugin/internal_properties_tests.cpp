@@ -142,12 +142,10 @@ const std::vector<ov::AnyMap> CorrectPluginMutableProperties = {
     {{ov::intel_npu::dpu_groups.name(), 1}},
     {{ov::intel_npu::dma_engines.name(), 1}},
     {{ov::intel_npu::compilation_mode.name(), "DefaultHW"}},
-    {{ov::intel_npu::compilation_mode_params.name(), "dump-task-stats=false propagate-quant-dequant=0"}},
     {{ov::intel_npu::platform.name(),
       removeDeviceNameOnlyID(
           ov::test::utils::getTestsDeviceNameFromEnvironmentOr(std::string(ov::intel_npu::Platform::AUTO_DETECT)))}},
     {{ov::intel_npu::stepping.name(), 0}},
-    {{ov::intel_npu::max_tiles.name(), 2}},
     {{ov::intel_npu::use_elf_compiler_backend.name(), ov::intel_npu::ElfCompilerBackend::NO}},
     {{ov::intel_npu::profiling_type.name(), ov::intel_npu::ProfilingType::INFER}}};
 
@@ -155,21 +153,18 @@ const std::vector<ov::AnyMap> IncorrectMutablePropertiesWrongValueTypes = {
     {{ov::intel_npu::compilation_mode.name(), -3.6}},
     {{ov::intel_npu::compiler_type.name(), ov::intel_npu::ElfCompilerBackend::NO}},
     {{ov::intel_npu::stepping.name(), "V1"}},
-    {{ov::intel_npu::max_tiles.name(), "two"}},
     {{ov::intel_npu::use_elf_compiler_backend.name(), "N"}},
     {{ov::intel_npu::profiling_type.name(), 10}},
-    {{ov::intel_npu::tiles.name(), "none"}},
     {{ov::intel_npu::dma_engines.name(), false}},
-    {{ov::intel_npu::compilation_mode_params.name(), "not-a-param=true"}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          OVPropertiesTestsNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(CorrectPluginMutableProperties)),
                          (ov::test::utils::appendPlatformTypeTestName<OVPropertiesTestsNPU>));
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          OVPropertiesIncorrectTestsNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(IncorrectMutablePropertiesWrongValueTypes)),

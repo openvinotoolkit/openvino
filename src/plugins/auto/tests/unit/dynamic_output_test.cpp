@@ -91,7 +91,7 @@ TEST_P(DynamicOutputInferenceTest, CanSelectCorrectTargetDeviceandInitizeBlobWit
                                   ::testing::Matcher<const ov::AnyMap&>(_)))
             .Times(1);
     }
-    ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
 }
 
 TEST_P(DynamicOutputInferenceTest, CanInferWithOutputChangedFromDynamicOnAutoToStaticOnActualDevice) {
@@ -111,10 +111,10 @@ TEST_P(DynamicOutputInferenceTest, CanInferWithOutputChangedFromDynamicOnAutoToS
     config.insert(ov::device::priorities(priorityList.as<std::string>()));
     config.insert(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
-    ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
     std::shared_ptr<ov::IAsyncInferRequest> infer_request;
-    ASSERT_NO_THROW(infer_request = exeNetwork->create_infer_request());
-    ASSERT_NO_THROW(infer_request->infer());
+    OV_ASSERT_NO_THROW(infer_request = exeNetwork->create_infer_request());
+    OV_ASSERT_NO_THROW(infer_request->infer());
 }
 
 const std::vector<DynamicOutputConfigParams> testConfigs = {

@@ -22,7 +22,7 @@ bool ReduceBaseTransformation::transform(TransformationContext& context, ov::pas
     }
 
     const auto reduce = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
-    auto dequantization = NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(reduce, defaultPrecisions));
+    auto dequantization = NetworkHelper::getDequantization(reduce, defaultPrecisions);
 
     // prepare dequantization to propagate
     changeDequantizationValues(reduce, dequantization);
@@ -31,7 +31,7 @@ bool ReduceBaseTransformation::transform(TransformationContext& context, ov::pas
     const bool updatePrecision = getUpdatePrecision(reduce);
     const auto newOperation = moveDequantizationAfter(context, reduce, dequantization, updatePrecision);
 
-    OPENVINO_DEBUG << "LPT: done: " << newOperation;
+    OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 
@@ -47,13 +47,11 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
     }
 
     // get reduced axes in normal form (without negative values)
-    const auto constData = axesConstant->cast_vector<int64_t>();
     const auto inputRank = reduce->get_input_partial_shape(0).rank();
     if (inputRank.is_dynamic()) {
         return false;
     }
-
-    const std::vector<size_t> axes = ov::util::normalize_axes(reduce->get_friendly_name(), constData, inputRank);
+    const auto axes = util::try_get_normalized_axis_vector(axesConstant->get_tensor_view(), inputRank, *reduce);
 
     const auto deqByReducedConst = [&](const std::shared_ptr<Node>& eltwise) {
         const auto constShape = eltwise->get_shape();

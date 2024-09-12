@@ -94,6 +94,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"BitwiseNot", Type::Eltwise},
         {"BitwiseOr", Type::Eltwise},
         {"BitwiseXor", Type::Eltwise},
+        {"BitwiseLeftShift", Type::Eltwise},
+        {"BitwiseRightShift", Type::Eltwise},
         {"Reshape", Type::Reshape},
         {"Squeeze", Type::Reshape},
         {"Unsqueeze", Type::Reshape},
@@ -142,11 +144,14 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"NV12toBGR", Type::ColorConvert},
         {"I420toRGB", Type::ColorConvert},
         {"I420toBGR", Type::ColorConvert},
+        {"Col2Im", Type::Col2Im},
         {"MVN", Type::MVN},
         {"NormalizeL2", Type::NormalizeL2},
         {"ScatterUpdate", Type::ScatterUpdate},
         {"ScatterElementsUpdate", Type::ScatterElementsUpdate},
         {"ScatterNDUpdate", Type::ScatterNDUpdate},
+        {"StringTensorPack", Type::StringTensorPack},
+        {"StringTensorUnpack", Type::StringTensorUnpack},
         {"Interpolate", Type::Interpolate},
         {"RandomUniform", Type::RandomUniform},
         {"ReduceL1", Type::Reduce},
@@ -230,6 +235,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Multinomial", Type::Multinomial},
         {"Reference", Type::Reference},
         {"Subgraph", Type::Subgraph},
+        {"SubModel", Type::SubModel},
         {"PriorBox", Type::PriorBox},
         {"PriorBoxClustered", Type::PriorBoxClustered},
         {"Interaction", Type::Interaction},
@@ -246,6 +252,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"EmbeddingBagOffsets", Type::EmbeddingBagOffsets},
         {"LLMMLP", Type::LLMMLP},
         {"QKVProjection", Type::QKVProjection},
+        {"RMS", Type::RMS}
     };
     return type_to_name_tbl;
 }
@@ -305,11 +312,14 @@ std::string NameFromType(const Type type) {
         CASE(MVN);
         CASE(TensorIterator);
         CASE(Convert);
+        CASE(Col2Im);
         CASE(ColorConvert);
         CASE(NormalizeL2);
         CASE(ScatterUpdate);
         CASE(ScatterElementsUpdate);
         CASE(ScatterNDUpdate);
+        CASE(StringTensorPack);
+        CASE(StringTensorUnpack);
         CASE(Interaction);
         CASE(Interpolate);
         CASE(Reduce);
@@ -359,6 +369,7 @@ std::string NameFromType(const Type type) {
         CASE(Multinomial);
         CASE(Reference);
         CASE(Subgraph);
+        CASE(SubModel);
         CASE(PriorBox);
         CASE(PriorBoxClustered)
         CASE(MHA);
@@ -371,6 +382,7 @@ std::string NameFromType(const Type type) {
         CASE(CausalMaskPreprocess);
         CASE(LLMMLP);
         CASE(QKVProjection);
+        CASE(RMS);
         CASE(Unknown);
     }
 #undef CASE
@@ -443,6 +455,8 @@ std::string algToString(const Algorithm alg) {
         CASE(EltwiseBitwiseNot);
         CASE(EltwiseBitwiseOr);
         CASE(EltwiseBitwiseXor);
+        CASE(EltwiseBitwiseLeftShift);
+        CASE(EltwiseBitwiseRightShift);
         CASE(FQCommon);
         CASE(FQQuantization);
         CASE(FQBinarization);

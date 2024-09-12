@@ -104,9 +104,9 @@ TEST(network_test, has_proper_event_for_in_order_queue) {
     auto reorder_ev = net.get_primitive_event("reorder");
     auto activation_ev = net.get_primitive_event("activation2");
 
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(concat_ev.get()));
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(reorder_ev.get()));
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(activation_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(concat_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(reorder_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(activation_ev.get()));
 
     // Check if we have real underlying OpenCL events
     ASSERT_TRUE(downcast<ocl::ocl_base_event>(concat_ev.get())->get().get() != nullptr);
@@ -151,10 +151,10 @@ TEST(network_test, has_proper_event_for_in_order_queue_optimized_out) {
     auto reorder_ev = net.get_primitive_event("reorder");
     auto activation_ev = net.get_primitive_event("activation");
 
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(concat_ev.get()));
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(reshape_ev.get()));
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(reorder_ev.get()));
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(activation_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(concat_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(reshape_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(reorder_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(activation_ev.get()));
 
     // Check if we have real underlying OpenCL events
     ASSERT_TRUE(downcast<ocl::ocl_base_event>(concat_ev.get())->get().get() != nullptr);
@@ -201,9 +201,9 @@ TEST(network_test, has_proper_event_for_in_order_queue_onednn) {
     auto reorder_ev = net.get_primitive_event("reorder");
     auto activation_ev = net.get_primitive_event("activation");
 
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(conv_ev.get()));
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(reorder_ev.get()));
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(activation_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(conv_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(reorder_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(activation_ev.get()));
 
     // Check if we have real underlying OpenCL events
     ASSERT_TRUE(downcast<ocl::ocl_base_event>(conv_ev.get())->get().get() != nullptr);
@@ -225,7 +225,7 @@ TEST(network_test, scratchpad_test) {
     topology topology;
     topology.add(input_layout("input", in_layout));
     topology.add(data("weights", weights));
-    topology.add(fully_connected("fc_prim", input_info("input"), "weights", "", padding()));
+    topology.add(fully_connected("fc_prim", input_info("input"), "weights", ""));
 
     auto impl_desc_onednn = ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::onednn};
     auto impl_forcing_map = ov::intel_gpu::ImplForcingMap{{"fc_prim", impl_desc_onednn}};
@@ -247,7 +247,10 @@ TEST(network_test, scratchpad_test) {
     auto fc1 = net1.get_primitive("fc_prim");
     auto fc2 = net2.get_primitive("fc_prim");
 
-    ASSERT_TRUE(fc1->get_intermediates_memories()[0]->buffer_ptr() != fc2->get_intermediates_memories()[0]->buffer_ptr());
+    if (fc1->get_intermediates_memories().size() > 0 && fc2->get_intermediates_memories().size() > 0) {
+        ASSERT_TRUE(fc1->get_intermediates_memories()[0]->buffer_ptr() !=
+                    fc2->get_intermediates_memories()[0]->buffer_ptr());
+    }
 }
 
 #endif

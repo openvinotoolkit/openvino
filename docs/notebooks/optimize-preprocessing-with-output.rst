@@ -23,8 +23,8 @@ This tutorial include following steps:
 -  Comparing results on one picture.
 -  Comparing performance.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Settings <#settings>`__
 -  `Imports <#imports>`__
@@ -63,6 +63,16 @@ Table of contents:
    -  `Compare results on one image <#compare-results-on-one-image>`__
    -  `Compare performance <#compare-performance>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Settings
 --------
 
@@ -85,10 +95,12 @@ Settings
     %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version <= '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version <= '3.8'"
+    %pip install -q tf_keras tensorflow_hub
 
 
 .. parsed-literal::
 
+    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
@@ -127,7 +139,7 @@ Imports
     )
     
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 Setup image and device
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -152,15 +164,8 @@ Setup image and device
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
     core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -203,12 +208,6 @@ and save it to the disk.
     
     model = tf.keras.applications.InceptionV3()
     model.save(model_path)
-
-
-.. parsed-literal::
-
-    2024-06-20 00:20:25.041938: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-06-20 00:20:25.042123: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 .. parsed-literal::
@@ -366,7 +365,7 @@ for mean/scale normalization.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7fb1f00de870>
+    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7fc9480c3b30>
 
 
 
@@ -397,7 +396,7 @@ may be specified is input data
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7fb1f00dea30>
+    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7fc9480cacf0>
 
 
 
@@ -435,7 +434,7 @@ then such conversion will be added explicitly.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7fb1f00de170>
+    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7fc9480c3870>
 
 
 
@@ -649,6 +648,6 @@ Compare performance
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0149 seconds per image, FPS: 67.20
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0139 seconds per image, FPS: 71.85
+    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0151 seconds per image, FPS: 66.44
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0140 seconds per image, FPS: 71.66
 

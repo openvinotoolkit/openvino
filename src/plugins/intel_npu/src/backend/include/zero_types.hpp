@@ -8,11 +8,12 @@
 #include <ze_graph_ext.h>
 
 #include "intel_npu/al/config/runtime.hpp"
+#include "ze_command_queue_npu_ext.h"
 
 /**
  * @brief Last version of Table of Graph Extension functions used within plugin
  */
-using ze_graph_dditable_ext_last_t = ze_graph_dditable_ext_1_5_t;
+using ze_graph_dditable_ext_last_t = ze_graph_dditable_ext_1_6_t;
 
 /**
  * @brief Table of Graph Extension functions pointers and function wrappers
@@ -124,6 +125,14 @@ public:
         throwWhenUnsupported("pfnQueryContextMemory", ZE_GRAPH_EXT_VERSION_1_5);
         return _impl->pfnQueryContextMemory(hContext, type, query);
     }
+
+    // version 1.6
+    ze_result_t ZE_APICALL pfnDeviceGetGraphProperties2(ze_device_handle_t hDevice,
+                                                        ze_device_graph_properties_2_t* pDeviceGraphProperties) {
+        throwWhenUnsupported("pfnDeviceGetGraphProperties2", ZE_GRAPH_EXT_VERSION_1_6);
+        return _impl->pfnDeviceGetGraphProperties2(hDevice, pDeviceGraphProperties);
+    }
 };
 
 using ze_graph_dditable_ext_curr_t = ze_graph_dditable_ext_decorator;
+using ze_command_queue_npu_dditable_ext_curr_t = ze_command_queue_npu_dditable_ext_1_0_t;

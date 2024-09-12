@@ -29,8 +29,8 @@ with NNCF. 6. Check quantized model result for the demo video. 7.
 Compare model size, performance and accuracy of FP32 and quantized INT8
 models. 8. Launch Interactive demo for video subtitles generation.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Instantiate model <#instantiate-model>`__
@@ -55,6 +55,16 @@ Table of contents:
 
 -  `Interactive demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -65,8 +75,8 @@ Install dependencies.
 .. code:: ipython3
 
     %pip install -q "openvino>=2024.1.0" "nncf>=2.10.0"
-    %pip install -q "python-ffmpeg<=1.0.16" moviepy transformers onnx "git+https://github.com/huggingface/optimum-intel.git" "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "git+https://github.com/garywu007/pytube.git" soundfile librosa jiwer
+    %pip install -q "python-ffmpeg<=1.0.16" moviepy transformers onnx "git+https://github.com/huggingface/optimum-intel.git" "peft==0.6.2" "torch>=2.1,<2.4" "torchvision<0.19.0" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "yt_dlp>=2024.8.6" soundfile librosa jiwer
     %pip install -q  "gradio>=4.19"
 
 Instantiate model
@@ -260,28 +270,6 @@ select device from dropdown list for running inference using OpenVINO
         feature_extractor=processor.feature_extractor,
     )
 
-
-.. parsed-literal::
-
-    2024-06-10 09:43:58.190233: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-10 09:43:58.192258: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-06-10 09:43:58.228701: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-10 09:43:58.903562: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    WARNING[XFORMERS]: xFormers can't load C++/CUDA extensions. xFormers was built for:
-        PyTorch 2.0.1+cu118 with CUDA 1108 (you have 2.3.0+cu121)
-        Python  3.8.18 (you have 3.8.10)
-      Please reinstall xformers (see https://github.com/facebookresearch/xformers#installing-xformers)
-      Memory-efficient attention, SwiGLU, sparse and more won't be available.
-      Set XFORMERS_MORE_DETAILS=1 for more details
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
-      torch.utils._pytree._register_pytree_node(
-    Compiling the encoder to AUTO ...
-    Compiling the decoder to AUTO ...
-    Compiling the decoder to AUTO ...
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-
-
 Run video transcription pipeline
 --------------------------------
 
@@ -317,13 +305,15 @@ take some time.
 .. code:: ipython3
 
     from pathlib import Path
-    from pytube import YouTube
+    import yt_dlp
     
     print(f"Downloading video {link.value} started")
     
     output_file = Path("downloaded_video.mp4")
-    yt = YouTube(link.value)
-    yt.streams.get_highest_resolution().download(filename=output_file)
+    ydl_ops = {"format": "best[ext=mp4]", "outtmpl": output_file.as_posix()}
+    with yt_dlp.YoutubeDL(ydl_ops) as ydl:
+        ydl.download(link.value)
+    
     print(f"Video saved to {output_file}")
 
 
@@ -384,7 +374,10 @@ Select the task for the model:
         with open(audio_file, "rb") as f:
             inputs = f.read()
         audio = ffmpeg_read(inputs, pipe.feature_extractor.sampling_rate)
-        return {"raw": audio, "sampling_rate": pipe.feature_extractor.sampling_rate}, duration
+        return {
+            "raw": audio,
+            "sampling_rate": pipe.feature_extractor.sampling_rate,
+        }, duration
 
 .. code:: ipython3
 
@@ -422,6 +415,10 @@ Select the task for the model:
         """
         segment_lines = []
         for idx, segment in enumerate(transcription):
+            # for the case where the model could not predict an ending timestamp, which can happen if audio is cut off in the middle of a word.
+            if segment["timestamp"][1] is None:
+                segment["timestamp"] = (segment["timestamp"][0], filter_duration)
+    
             if filter_duration is not None and (segment["timestamp"][0] >= math.floor(filter_duration) or segment["timestamp"][1] > math.ceil(filter_duration) + 1):
                 break
             segment_lines.append(str(idx + 1) + "\n")
@@ -712,17 +709,17 @@ negligible.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -733,17 +730,17 @@ negligible.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -760,17 +757,17 @@ negligible.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -781,17 +778,17 @@ negligible.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -807,17 +804,17 @@ negligible.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -828,17 +825,17 @@ negligible.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -855,17 +852,17 @@ negligible.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -876,17 +873,17 @@ negligible.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1080,13 +1077,11 @@ Interactive demo
 
 .. code:: ipython3
 
-    import gradio as gr
-    
-    
     def transcribe(url, task, use_int8):
         output_file = Path("downloaded_video.mp4")
-        yt = YouTube(url)
-        yt.streams.get_highest_resolution().download(filename=output_file)
+        ydl_ops = {"format": "best[ext=mp4]", "outtmpl": output_file.as_posix()}
+        with yt_dlp.YoutubeDL(ydl_ops) as ydl:
+            ydl.download(link.value)
         inputs, duration = get_audio(output_file)
         m_pipe = int8_pipe if use_int8 else pipe
         transcription = m_pipe(inputs, generate_kwargs={"task": task.lower()}, return_timestamps=True)["chunks"]
@@ -1096,17 +1091,14 @@ Interactive demo
         return [str(output_file), str(output_file.with_suffix(".srt"))]
     
     
-    demo = gr.Interface(
-        transcribe,
-        [
-            gr.Textbox(label="YouTube URL"),
-            gr.Radio(["Transcribe", "Translate"], value="Transcribe"),
-            gr.Checkbox(value=ov_quantized_model is not None, visible=ov_quantized_model is not None, label="Use INT8"),
-        ],
-        "video",
-        examples=[["https://youtu.be/kgL5LBM-hFI", "Transcribe"]],
-        allow_flagging="never",
-    )
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/whisper-subtitles-generation/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+    
+    from gradio_helper import make_demo
+    
+    demo = make_demo(fn=transcribe, quantized=ov_quantized_model is not None)
+    
     try:
         demo.launch(debug=False)
     except Exception:
@@ -1114,22 +1106,3 @@ Interactive demo
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-    
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    Keyboard interruption in main thread... closing server.
-

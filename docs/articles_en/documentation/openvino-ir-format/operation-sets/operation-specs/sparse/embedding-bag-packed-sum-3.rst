@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_sparse_EmbeddingBagPackedSum_3}
-
 EmbeddingBagPackedSum
 =====================
 
@@ -14,7 +12,10 @@ EmbeddingBagPackedSum
 
 **Short description**: Computes sums of "bags" of embeddings, without instantiating the intermediate embeddings.
 
-**Detailed description**: This is the first case of the PyTorch `EmbeddingBag <https://pytorch.org/docs/stable/nn.html#embeddingbag>`__ , it has indices in the tensor of format ``[batch, indices_per_bag]``. If 3rd input is not provided, this operation is equivalent to *Gather* followed by *ReduceSum(axis=0)*. However, *EmbeddingBagPackedSum* is much more time and memory efficient than using a chain of these operations.
+**Detailed description**:
+
+Operation EmbeddingBagPackedSum is an implementation of ``torch.nn.EmbeddingBag`` in ``sum`` mode, which indices input being 2D tensor of shape ``[batch, indices_per_bag]``.
+Operation is equivalent to *ReduceSum(Multiply(Gather(emb_table, indices, axis=0), Unsqueeze(per_sample_weights, -1)), axis=1)*.
 
 **Attributes**: EmbeddingBagPackedSum operation has no attributes.
 
@@ -35,7 +36,7 @@ EmbeddingBagPackedSum
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
 
    <layer ... type="EmbeddingBagPackedSum" ... >
        <input>
@@ -47,13 +48,13 @@ EmbeddingBagPackedSum
                <dim>3</dim>
                <dim>2</dim>
            </port>
-           <port id="2"/>    <!-- per_sample_weigths value is: [[0.5, 0.5], [0.5, 0.5], [0.5, 0.5]] -->
+           <port id="2"/>    <!-- per_sample_weights value is: [[0.5, 0.5], [0.5, 0.5], [0.5, 0.5]] -->
                <dim>3</dim>
                <dim>2</dim>
            </port>
        </input>
        <output>
-           <port id="4">     <!-- output value is: [[-1.05, -1.2], [-1., -1.1], [-0.1, 0.4]] -->
+           <port id="3">     <!-- output value is: [[-1.05, -1.2], [-1., -1.1], [-0.1, 0.4]] -->
                <dim>3</dim>
                <dim>2</dim>
            </port>

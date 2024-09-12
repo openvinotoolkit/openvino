@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/dft.hpp"
-
-#include "core/null_node.hpp"
-#include "utils/common.hpp"
 #include "utils/dft.hpp"
 
+#include "core/null_node.hpp"
+#include "core/operator_set.hpp"
+#include "utils/common.hpp"
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector dft(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector ng_inputs{node.get_ov_inputs()};
     const ov::Output<ov::Node> data = ng_inputs.at(0);
@@ -29,8 +28,9 @@ ov::OutputVector dft(const ov::frontend::onnx::Node& node) {
                           onesided == 1)};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("DFT", OPSET_SINCE(1), ai_onnx::opset_1::dft);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

@@ -38,8 +38,8 @@ a model source.
    video encoder. Ubuntu has it preinstalled, but for Windows, you
    should install it manually.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Prepare images <#prepare-images>`__
@@ -60,6 +60,16 @@ Table of contents:
    -  `Recursive frame generation <#recursive-frame-generation>`__
 
 -  `Interactive inference <#interactive-inference>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Prerequisites
 -------------
@@ -85,19 +95,6 @@ Prerequisites
         %pip install -q "matplotlib>=3.4"
     else:
         %pip install -q "matplotlib>=3.4,<3.7"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 .. code:: ipython3
 
@@ -381,16 +378,7 @@ object to disk using the ``openvino.save_model()`` function.
         ov.save_model(converted_model, MODEL_PATH)
         del converted_model
     del film_model
-    gc.collect()
-
-
-
-
-.. parsed-literal::
-
-    1356
-
-
+    gc.collect();
 
 Inference
 ---------
@@ -514,24 +502,14 @@ Interactive inference
         return filename
     
     
-    demo = gr.Interface(
-        generate,
-        [
-            gr.Image(label="First image"),
-            gr.Image(label="Last image"),
-            gr.Slider(
-                1,
-                8,
-                step=1,
-                label="Times to interpolate",
-                info="""Controls the number of times the frame interpolator is invoked.
-            The output will be the interpolation video with (2^value + 1) frames, fps of 30.""",
-            ),
-        ],
-        gr.Video(),
-        examples=[[*IMAGES.values(), 5]],
-        allow_flagging="never",
-    )
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/film-slowmo/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+    
+    from gradio_helper import make_demo
+    
+    demo = make_demo(fn=generate)
+    
     try:
         demo.queue().launch(debug=False)
     except Exception:

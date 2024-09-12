@@ -118,7 +118,7 @@ class Edge {
     using Ptr = std::shared_ptr<Edge>;
 
 public:
-    Edge(NodeHandle src, NodeHandle dst) : m_src(src), m_dst(dst) {}
+    Edge(NodeHandle src, NodeHandle dst) : m_src(std::move(src)), m_dst(std::move(dst)) {}
     NodeHandle srcNode() const {
         return m_src;
     }

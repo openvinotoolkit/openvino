@@ -32,8 +32,8 @@ text-guided image-to-image generation using Stable Diffusion.
 This notebook demonstrates how to convert and run stable diffusion model
 using OpenVINO.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Prepare Inference Pipelines <#prepare-inference-pipelines>`__
@@ -53,6 +53,16 @@ Table of contents:
    -  `Interactive image-to-image
       demo <#interactive-image-to-image-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -66,15 +76,18 @@ Prerequisites
     %pip install -q "gradio>=4.19"
     %pip install -q transformers Pillow opencv-python tqdm
 
+.. code:: ipython3
 
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    # Fetch `notebook_utils` module
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import download_file, device_widget
 
 Prepare Inference Pipelines
 ---------------------------
@@ -181,18 +194,9 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
     import openvino as ov
     
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
-    
+    device = device_widget()
     device
 
 
@@ -244,6 +248,8 @@ pipeline.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
     sample_text = (
         "cyberpunk cityscape like Tokyo New York  with tall buildings at dusk golden hour cinematic lighting, epic composition. "
         "A golden daylight, hyper-realistic environment. "
@@ -327,7 +333,7 @@ Now is show time!
 
 
 
-.. image:: stable-diffusion-text-to-image-with-output_files/stable-diffusion-text-to-image-with-output_16_1.png
+.. image:: stable-diffusion-text-to-image-with-output_files/stable-diffusion-text-to-image-with-output_17_1.png
 
 
 Nice. As you can see, the picture has quite a high definition 🔥.
@@ -464,19 +470,6 @@ semantically consistent with the input.
     VBox(children=(Text(value='amazing watercolor painting', description='your text'), IntSlider(value=42, descrip…
 
 
-
-.. code:: ipython3
-
-    # Fetch `notebook_utils` module
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    
-    open("notebook_utils.py", "w").write(r.text)
-    
-    from notebook_utils import download_file
 
 .. code:: ipython3
 
@@ -625,50 +618,12 @@ Interactive image-to-image demo
 
 .. code:: ipython3
 
-    import gradio as gr
+    if not Path("gradio_helper.py").exists():
+        download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-text-to-image/gradio_helper.py")
     
+    from gradio_helper import make_demo
     
-    def generate_from_image(img, text, seed, num_steps, strength, _=gr.Progress(track_tqdm=True)):
-        preprocessed_img, meta_data = preprocess(img)
-        np.random.seed(seed)
-        result = ov_pipe_i2i(text, preprocessed_img, num_inference_steps=num_steps, strength=strength)
-        result_img = postprocess(result["images"][0], meta_data["src_width"], meta_data["src_height"])
-        return result_img
-    
-    
-    with gr.Blocks() as demo:
-        with gr.Tab("Image-to-Image generation"):
-            with gr.Row():
-                with gr.Column():
-                    i2i_input = gr.Image(label="Image", type="pil")
-                    i2i_text_input = gr.Textbox(lines=3, label="Text")
-                    i2i_seed_input = gr.Slider(0, 1024, value=42, step=1, label="Seed")
-                    i2i_steps_input = gr.Slider(1, 50, value=10, step=1, label="Steps")
-                    strength_input = gr.Slider(0, 1, value=0.5, label="Strength")
-                i2i_out = gr.Image(label="Result")
-            i2i_btn = gr.Button()
-            sample_i2i_text = "amazing watercolor painting"
-            i2i_btn.click(
-                generate_from_image,
-                [
-                    i2i_input,
-                    i2i_text_input,
-                    i2i_seed_input,
-                    i2i_steps_input,
-                    strength_input,
-                ],
-                i2i_out,
-            )
-            gr.Examples(
-                [[str(default_image_path), sample_i2i_text, 42, 10, 0.5]],
-                [
-                    i2i_input,
-                    i2i_text_input,
-                    i2i_seed_input,
-                    i2i_steps_input,
-                    strength_input,
-                ],
-            )
+    demo = make_demo(ov_pipe_i2i, preprocess, postprocess, default_image_path)
     
     try:
         demo.queue().launch()

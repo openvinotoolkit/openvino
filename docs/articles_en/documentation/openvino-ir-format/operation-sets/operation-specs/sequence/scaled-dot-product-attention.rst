@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_sequence_ScaledDotProductAttention_13}
-
 ScaledDotProductAttention
 =========================
 
@@ -60,11 +58,11 @@ omitting training-related parameter.
 
 * **4**: ``attention_mask`` - two options available. ``attention_mask`` is ignored if ``causal`` is set to ``True``. **Optional.**
 
-	* at least 3 dimensional tensor of type *T* or ``boolean`` and shape ``[N, ..., L, S]``.
+	* at least 2 dimensional tensor of type *T* or ``boolean`` and shape numpy-broadcastable to ``[N, ..., L, S]``. See :doc:`Numpy Broadcast Rules <../../broadcast-rules>` for broadcast details.
 
 	* a scalar of type *T* with value ``0``. Scalar zero value signals that applying an attention mask is not necessary (similar to specifying attention_mask=None in the provided pseudo-code).
 
-* **5**: ``scale`` a scalar tensor of type *T*, an alternative scale factor instead of 1/sqrt(query.shape[-1]) used by default in the pseudo-code above. **Optional.**
+* **5**: ``scale`` a scalar or single element 1D tensor of type *T*, an alternative scale factor instead of 1/sqrt(query.shape[-1]) used by default in the pseudo-code above. **Optional.**
 
 
 **Outputs**
@@ -78,7 +76,7 @@ omitting training-related parameter.
 
 **Dimensions**
 
-* ``N, ...`` - one or more batch dimensions. Each batch dimension should be either constant across the input tensors (query, key, and value), indicating that they have the same batch size, or they should be broadcastable to the same value.
+* ``N, ...`` - one or more batch dimensions. Each batch dimension should be either constant across the input tensors (query, key, and value), indicating that they have the same batch size, or they should be numpy-broadcastable to the same value. See :doc:`Numpy Broadcast Rules <../../broadcast-rules>` for broadcast details.
 
 * ``S`` - source sequence length
 
@@ -192,29 +190,29 @@ Other batch dimensions ``...`` are optional.
 			<input>
 				<!-- Multiple batch dimensions, broadcastable to the following values: N1 = 4, N2 = 6, N3 = 10-->
 				<port id="0" precision="FP32"> <!-- query -->
-					<dim>1</dim> <!-- N1 (repeat 4 times) -->
+					<dim>4</dim> <!-- N1 (repeat 1 time) -->
 					<dim>6</dim> <!-- N2 (repeat 1 time)-->
-					<dim>5</dim> <!-- N3 (repeat 2 times)-->
+					<dim>10</dim> <!-- N3 (repeat 1 time)-->
 					<dim>-1</dim> <!-- L -->
 					<dim>80</dim> <!-- E -->
 				</port>
 				<port id="1" precision="FP32"> <!-- key -->
-					<dim>2</dim> (repeat 2 times)<!-- N1 -->
-					<dim>2</dim> (repeat 3 times)<!-- N2 -->
-					<dim>2</dim> (repeat 5 times)<!-- N3 -->
+					<dim>1</dim> <!-- N1 (repeat 4 times) -->
+					<dim>6</dim> <!-- N2 (repeat 1 time) -->
+					<dim>10</dim> <!-- N3 (repeat 1 time) -->
 					<dim>-1</dim> <!-- S -->
 					<dim>80</dim> <!-- E -->
 				</port>
 				<port id="2" precision="FP32"> <!-- value -->
-					<dim>4</dim> <!-- N1 (repeat 1 time)-->
-					<dim>3</dim> <!-- N2 (repeat 2 times)-->
-					<dim>10</dim> <!-- N3 (repeat 1 time)-->
+					<dim>1</dim> <!-- N1 (repeat 4 times)-->
+					<dim>1</dim> <!-- N2 (repeat 6 times)-->
+					<dim>1</dim> <!-- N3 (repeat 10 times)-->
 					<dim>-1</dim> <!-- S -->
 					<dim>80</dim> <!-- Ev -->
 				</port>
 				<port id="3" precision="FP32"> <!-- attention_mask -->
 					<dim>1</dim> <!-- N1 (repeat 4 times)-->
-					<dim>2</dim> <!-- N2 (repeat 3 times)-->
+					<dim>1</dim> <!-- N2 (repeat 6 times)-->
 					<dim>1</dim> <!-- N3 (repeat 10 times)-->
 					<dim>-1</dim> <!-- L -->
 					<dim>-1</dim> <!-- S -->
@@ -227,6 +225,45 @@ Other batch dimensions ``...`` are optional.
 					<dim>6</dim> <!-- N2 -->
 					<dim>10</dim> <!-- N3 -->
 					<dim>-1</dim> <!-- L -->
+					<dim>80</dim> <!-- Ev -->
+				</port>
+			</output>
+		</layer>
+
+*Example 5: With attention mask broadcasting*
+
+.. code-block:: xml
+   :force:
+
+    <layer id="285" name="aten::scaled_dot_product_attention_0" type="ScaledDotProductAttention" version="opset13">
+			<data causal="false" />
+			<input>
+				<!-- Example with simple dimensions, with N = 2, L = 16, S = 32, E = 80, Ev = 80-->
+				<port id="0" precision="FP32"> <!-- query -->
+					<dim>2</dim>  <!-- N -->
+					<dim>16</dim> <!-- L -->
+					<dim>80</dim> <!-- E -->
+				</port>
+				<port id="1" precision="FP32"> <!-- key -->
+					<dim>2</dim>  <!-- N -->
+					<dim>32</dim> <!-- S -->
+					<dim>80</dim> <!-- E -->
+				</port>
+				<port id="2" precision="FP32"> <!-- value -->
+					<dim>2</dim>  <!-- N -->
+					<dim>32</dim> <!-- S -->
+					<dim>80</dim> <!-- Ev -->
+				</port>
+				<port id="3" precision="FP32"> <!-- attention_mask -->
+					<dim>2</dim>  <!-- N -->
+					<dim>1</dim>  <!-- to be broadcasted to L -->
+					<dim>1</dim> <!-- to be broadcasted to S -->
+				</port>
+			</input>
+			<output>
+				<port id="4" precision="FP32">
+					<dim>2</dim>  <!-- N -->
+					<dim>16</dim> <!-- L -->
 					<dim>80</dim> <!-- Ev -->
 				</port>
 			</output>

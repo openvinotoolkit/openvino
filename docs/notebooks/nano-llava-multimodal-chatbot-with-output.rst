@@ -10,8 +10,8 @@ this tutorial, we consider how to convert and run nanoLLaVA model using
 OpenVINO. Additionally, we will optimize model using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Load PyTorch model <#load-pytorch-model>`__
@@ -34,6 +34,16 @@ Table of contents:
 
 -  `Interactive demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -47,8 +57,10 @@ Prerequisites
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.3.1+cpu which is incompatible.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.1+cpu which is incompatible.
+    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
+    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
+    optimum 1.22.0.dev0 requires transformers[sentencepiece]<4.44.0,>=4.29.0, but you have transformers 4.44.2 which is incompatible.
+    optimum-intel 1.19.0.dev0+9a18ae0 requires transformers<4.44.0,>=4.36.0, but you have transformers 4.44.2 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -93,13 +105,13 @@ Prerequisites
 
 .. parsed-literal::
 
-    README.md:   0%|          | 0.00/3.47k [00:00<?, ?B/s]
+    configuration_llava_qwen2.py:   0%|          | 0.00/8.87k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    example_1.png:   0%|          | 0.00/200k [00:00<?, ?B/s]
+    added_tokens.json:   0%|          | 0.00/80.0 [00:00<?, ?B/s]
 
 
 
@@ -123,13 +135,7 @@ Prerequisites
 
 .. parsed-literal::
 
-    configuration_llava_qwen2.py:   0%|          | 0.00/8.87k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    added_tokens.json:   0%|          | 0.00/80.0 [00:00<?, ?B/s]
+    example_1.png:   0%|          | 0.00/200k [00:00<?, ?B/s]
 
 
 
@@ -141,13 +147,7 @@ Prerequisites
 
 .. parsed-literal::
 
-    vocab.json:   0%|          | 0.00/2.78M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    tokenizer_config.json:   0%|          | 0.00/1.32k [00:00<?, ?B/s]
+    README.md:   0%|          | 0.00/3.47k [00:00<?, ?B/s]
 
 
 
@@ -159,13 +159,25 @@ Prerequisites
 
 .. parsed-literal::
 
-    tokenizer.json:   0%|          | 0.00/7.03M [00:00<?, ?B/s]
+    tokenizer_config.json:   0%|          | 0.00/1.32k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    vocab.json:   0%|          | 0.00/2.78M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
     modeling_llava_qwen2.py:   0%|          | 0.00/103k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    tokenizer.json:   0%|          | 0.00/7.03M [00:00<?, ?B/s]
 
 
 
@@ -200,10 +212,10 @@ previous step.
 
 .. parsed-literal::
 
-    2024-06-19 13:21:30.264248: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-19 13:21:30.299571: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-08-28 03:13:42.981452: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-28 03:13:43.015054: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-19 13:21:30.903182: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-08-28 03:13:43.533092: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Run PyTorch Model Inference
@@ -252,7 +264,7 @@ Run PyTorch Model Inference
 
 .. parsed-literal::
 
-    The image features a white lama, a cute kitten, and a fire. The lama is standing on a blue carpet and is in the center of the image. It has a small white ear and a pink nose. The kitten is also white and appears to be holding the fire. The fire is orange and has a red flame, and it is so bright that it's almost illuminating the scene. The kitten is standing on the carpet, and the fire is on the ground, creating a contrast between the bright orange fire and the blue carpet.
+    The image primarily features a white, fluffy llama with a small pink nose and a cute smiley face. The llama is standing in the middle of a fire, which is bright and orange in color. The fire is so intense that it's causing the llama to glow in a fiery blaze. The llama's ears are pink and the fire is so intense that it's causing the fire to spread. The fire is also casting a bright yellow light, and the llama's face is lit up with a warm, inviting glow. The llama's fur is fluffy and white, and it has black eyes that are wide open. The llama's face has
 
 
 Convert and Optimize model
@@ -487,6 +499,15 @@ space.
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+
+
+.. parsed-literal::
+
+    WARNING:nncf:NNCF provides best results with torch==2.4.*, while current torch version is 2.2.2+cpu. If you encounter issues, consider switching to torch==2.4.*
+
+
+.. parsed-literal::
+
     huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
     To disable this warning, you can either:
     	- Avoid using `tokenizers` before the fork if possible
@@ -511,17 +532,9 @@ space.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -640,17 +653,9 @@ token prediction.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -673,17 +678,9 @@ token prediction.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -792,6 +789,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             self.device = torch.device("cpu")
             self.num_pkv = 2
             self.image_processor = ImageProcessor()
+            self._supports_cache_class = False
     
         def can_generate(self):
             """Returns True to validate the check that the model using `GenerationMixin.generate()` can indeed generate."""
@@ -1056,11 +1054,6 @@ Select device
 
 
 
-.. _select-device-1:
-
-Select device
-~~~~~~~~~~~~~
-
 .. code:: ipython3
 
     import ipywidgets as widgets
@@ -1102,7 +1095,7 @@ Select device
 
 .. parsed-literal::
 
-    The image features a white, fluffy lamb with a playful, cheerful expression. The lamb is positioned in the center of the image, and it appears to be in motion, as if it's running. The lamb's face is white and it has a cute, adorable expression. It has a pair of bright, pink eyes that are wide open, and it has a small, black nose. The lamb's ears are also white and pink, and they are quite large. The lamb's legs are white and fluffy, and it has a black hoof. The lamb's tail is also white and fluffy, and it appears to be curled up.
+    The image features a white, fluffy lamb with a playful expression. The lamb is positioned in the center of the image, and it appears to be in motion, as if it's running. The lamb's fur is fluffy and white, and it has a cute, adorable appearance. The lamb's eyes are wide open, and it has a big, black nose. The lamb's ears are also visible, and it has a cute, adorable expression. The lamb's mouth is open, and it seems to be smiling. The lamb's legs are also visible, and it appears to be in motion, as if it's running. The lamb
 
 
 Interactive demo

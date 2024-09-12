@@ -16,6 +16,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset1.hpp"
@@ -873,9 +874,9 @@ public:
             if (pad_agnostic_types.count(op->get_auto_pad())) {
                 clone_op_and_fix_paddings<ov::opset1::BinaryConvolution, ov::CoordinateDiff>(op);
             }
-        } else if (auto op = ov::as_type<ov::opset1::AvgPool>(node)) {
+        } else if (auto op = ov::as_type<ov::op::util::AvgPoolBase>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
-                clone_op_and_fix_paddings<ov::opset1::AvgPool, ov::Shape>(op);
+                clone_op_and_fix_paddings<ov::op::util::AvgPoolBase, ov::Shape>(op);
             }
         } else if (auto op = ov::as_type<ov::op::util::MaxPoolBase>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
@@ -885,14 +886,53 @@ public:
     }
 };
 
+bool is_correct_tag_name(const std::string& name) {
+    if (name.length() == 0) {
+        return false;
+    }
+    if (!std::all_of(name.begin(), name.end(), [](const int c) {
+            return std::isalnum(c) || (c == '_') || (c == '-') || (c == '.');
+        })) {
+        return false;
+    }
+    if (std::isalpha(name[0]) == false && name[0] != '_') {
+        return false;
+    }
+    if (name.length() >= 3 && (name[0] == 'X' || name[0] == 'x') && (name[1] == 'M' || name[1] == 'm') &&
+        (name[2] == 'l' || name[2] == 'L')) {
+        return false;
+    }
+    return true;
+}
+
 void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::Any& data) {
-    auto child = root.append_child(name.c_str());
+    pugi::xml_node child;
+    if (is_correct_tag_name(name)) {
+        child = root.append_child(name.c_str());
+    } else {
+        // Name may brake XML-naming specification, so better to store it as an attribute of typical
+        // node
+        child = root.append_child("info");
+        child.append_attribute("name").set_value(name.c_str());
+    }
     if (data.is<std::shared_ptr<ov::Meta>>()) {
-        std::shared_ptr<ov::Meta> meta = data.as<std::shared_ptr<ov::Meta>>();
-        ov::AnyMap& map = *meta;
-        for (const auto& it : map) {
-            serialize_rt_info(child, it.first, it.second);
-        }
+        auto meta = data.as<std::shared_ptr<ov::Meta>>();
+        do {
+            if (auto meta_with_pugixml_node = std::dynamic_pointer_cast<ov::MetaDataWithPugixml>(meta)) {
+                if (auto pugi_node = meta_with_pugixml_node->get_pugi_node()) {
+                    root.remove_child(child);
+                    auto added_node = root.append_copy(pugi_node);
+                    OPENVINO_ASSERT(added_node, "Cannot add pugixml node with name: ", name);
+                    added_node.set_name(name.c_str());
+                    break;
+                }
+            }
+            // Meta in ov::Meta cannot be accessed by MetaDataWithPugixml::get_pugi_node. Read it as ov::AnyMap
+            ov::AnyMap& map = *meta;
+            for (const auto& it : map) {
+                serialize_rt_info(child, it.first, it.second);
+            }
+        } while (false);
     } else if (data.is<ov::AnyMap>()) {
         const ov::AnyMap& any_map = data.as<ov::AnyMap>();
         for (const auto& it : any_map) {
@@ -943,7 +983,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         for (const auto& res : model.get_results()) {
             result.emplace_back(res);
         }
-        sorted_ops = result;
+        sorted_ops = std::move(result);
     }
 
     for (const auto& n : sorted_ops) {
@@ -1196,6 +1236,8 @@ namespace ov {
 bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(Serialize);
 
+    model->validate_nodes_and_infer_types();
+
     // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
     //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
     // ['precise_0'] = '' into => rt_info['precise_0'] = DisableFP16Compression{}
@@ -1206,16 +1248,27 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, model, m_version);
     } else {
-        auto xmlDir = ov::util::get_directory(m_xmlPath);
-        if (xmlDir != m_xmlPath)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        const auto& xmlPath_ref = ov::util::string_to_wstring(m_xmlPath);
+        const auto& binPath_ref = ov::util::string_to_wstring(m_binPath);
+        std::string message_bin = "Can't open bin file.";
+        std::string message_xml = "Can't open xml file.";
+#else
+        const auto& xmlPath_ref = m_xmlPath;
+        const auto& binPath_ref = m_binPath;
+        std::string message_bin = "Can't open bin file: \"" + binPath_ref + "\"";
+        std::string message_xml = "Can't open xml file: \"" + xmlPath_ref + "\"";
+#endif
+        auto xmlDir = ov::util::get_directory(xmlPath_ref);
+        if (xmlDir != xmlPath_ref)
             ov::util::create_directory_recursive(xmlDir);
 
-        std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
-        OPENVINO_ASSERT(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
+        std::ofstream bin_file(binPath_ref, std::ios::out | std::ios::binary);
+        OPENVINO_ASSERT(bin_file, message_bin);
 
         // create xml file
-        std::ofstream xml_file(m_xmlPath, std::ios::out);
-        OPENVINO_ASSERT(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
+        std::ofstream xml_file(xmlPath_ref, std::ios::out);
+        OPENVINO_ASSERT(xml_file, message_xml);
 
         try {
             serializeFunc(xml_file, bin_file, model, m_version);
@@ -1347,7 +1400,7 @@ static uint64_t hash_combine(uint64_t seed, const T& a) {
 }
 
 class OstreamHashWrapper final : public std::streambuf {
-    uint64_t m_res = 0;
+    uint64_t m_res = 0lu;
 
 public:
     uint64_t getResult() const {
@@ -1355,18 +1408,19 @@ public:
     }
 
     std::streamsize xsputn(const char* s, std::streamsize n) override {
-        auto* intS = (const std::streamsize*)s;
-        std::streamsize n64 = n / static_cast<std::streamsize>(sizeof(std::streamsize));
-        std::streamsize i = 0;
-        // Using 64-bit values executes much faster than char
-        while (i++ < n64) {
-            m_res += *(intS++);
-        }
+        // Reinterpret data as uint32_t and accumulate in uint64_t to avoid overflow fluctuations in parallel_sum.
+        auto* int_sum = reinterpret_cast<const uint32_t*>(s);
+        const uint64_t n32 = n / sizeof(uint32_t);
 
-        std::streamsize rest = n % static_cast<std::streamsize>(sizeof(std::streamsize));
-        for (i = 0; i < rest; i++) {
+        m_res += parallel_sum(n32, uint64_t(0lu), [&](size_t k) -> uint32_t {
+            return int_sum[k];
+        });
+
+        const uint64_t rest = n % sizeof(uint32_t);
+        for (uint64_t i = 0lu; i < rest; i++) {
             m_res += s[n - rest + i];
         }
+
         return n;
     }
 };

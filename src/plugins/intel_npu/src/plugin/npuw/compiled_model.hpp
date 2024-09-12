@@ -13,6 +13,7 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "partitioning/partitioning.hpp"
+#include "weights_bank.hpp"
 
 namespace intel_npu {
 class Plugin;
@@ -58,6 +59,7 @@ private:
 
     // This is used for removing too long output tensor names to fix some compilation issues
     void remove_long_output_names(const std::shared_ptr<ov::Model>& model);
+    void fill_empty_tensor_names(const std::shared_ptr<ov::Model>& model);
 
     std::shared_ptr<const ::intel_npu::Plugin> get_npuw_plugin() const;
 
@@ -69,6 +71,8 @@ private:
     void log_device_dist() const;
 
     void implement_properties();
+
+    void fill_weights_bank(const std::size_t idx);
 
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
@@ -86,7 +90,8 @@ private:
     static const constexpr auto NO_LINK = ToSubmodel{-1, -1};
 
     // In the below vector, index == compiled model's input/output port idex.
-    std::vector<ToSubmodel> m_inputs_to_submodels_inputs, m_outputs_to_submodels_outputs;
+    std::vector<ToSubmodel> m_inputs_to_submodels_inputs;
+    std::vector<ToSubmodel> m_outputs_to_submodels_outputs;
 
     std::map<std::size_t, std::vector<ToSubmodel>> m_param_subscribers;
 
@@ -117,6 +122,7 @@ private:
         std::vector<ov::Tensor> closure;
         std::vector<ov::Tensor> scales;
         std::vector<ov::Tensor> zerops;
+        std::vector<bool> update_required;
 
         // FIXME: Take it out of structure
         ov::SoPtr<ov::ICompiledModel> ref_compiled_model;
@@ -131,6 +137,8 @@ private:
     std::string m_ref_device;
 
     execution_stats m_total_stat;
+
+    std::shared_ptr<weights::Bank> m_weights_bank = nullptr;
 };
 }  // namespace npuw
 }  // namespace ov

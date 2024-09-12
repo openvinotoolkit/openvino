@@ -63,6 +63,10 @@ JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKern
         jit.AddConstant(MakeJitConstant("TRANSPOSED_INPUT0_BATCH_PITCH", "INPUT0_BATCH_PITCH"));
     }
 
+    if (!params.is_chatglm && (params.inputs[1].has_dynamic_pad() || params.inputs[2].has_dynamic_pad())) {
+        jit.AddConstant(MakeJitConstant("SIN_COS_HAVE_DYNAMIC_PADDINGS", true));
+    }
+
     if (params.is_qwen) {
         jit.AddConstant(MakeJitConstant("QWEN", true));
     } else if (params.is_chatglm) {
@@ -79,19 +83,16 @@ RoPEKernelBase::DispatchData RoPEKernelBase::SetDefault(const rope_params& param
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
 
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH }, { Tensor::DataChannelName::FEATURE },
+                                                                     { Tensor::DataChannelName::Y, Tensor::DataChannelName::X }};
     if (params.is_chatglm || params.is_qwen) {
-        dims_by_gws = {{ Tensor::DataChannelName::BATCH }, { Tensor::DataChannelName::FEATURE },
-                       { Tensor::DataChannelName::Y, Tensor::DataChannelName::X }};
         dispatchData.gws = {input.Batch().v,
                             input.Feature().v,
                             params.head_cnt * std::max(params.rotary_ndims / 2ul, params.head_size - params.rotary_ndims)};
     } else {
-        dims_by_gws = {{ Tensor::DataChannelName::BATCH }, { Tensor::DataChannelName::Y },
-                       { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::X }};
-        dispatchData.gws = {input.Batch().v,
-                            input.Y().v,
-                            input.Feature().v * params.rotary_ndims / 2ul};
+        dispatchData.gws = {output.Batch().v,
+                            output.Feature().v,
+                            output.Y().v * params.rotary_ndims / 2ul};
     }
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, input.GetLayout(), output.GetLayout(), dims_by_gws);

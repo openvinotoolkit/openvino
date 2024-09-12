@@ -45,8 +45,8 @@ It consists of the following steps:
 -  Compare original and optimized pipelines from performance and
    accuracy standpoints
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `How does it work? <#how-does-it-work>`__
 -  `Prerequisites <#prerequisites>`__
@@ -64,6 +64,16 @@ Table of contents:
       accuracy <#compare-model-size-performance-and-accuracy>`__
 
 -  `Interactive demo <#interactive-demo>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 How does it work?
 -----------------
@@ -134,13 +144,6 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
     %pip install -q "torch>=2.1.0" "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2024.0.0" onnx tqdm "gradio>=4.19" "transformers>=4.33.0" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "nncf>=2.9.0" datasets jiwer
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Download and Convert Models
 ---------------------------
@@ -614,17 +617,17 @@ some time to complete.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -635,17 +638,17 @@ some time to complete.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -662,17 +665,17 @@ some time to complete.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -792,51 +795,34 @@ Interactive demo
 
     import gradio as gr
     import time
+    import requests
     
     
     def correct(text, quantized, progress=gr.Progress(track_tqdm=True)):
         grammar_corrector = grammar_corrector_pipe_int8 if quantized else grammar_corrector_pipe
-    
         start_time = time.perf_counter()
         corrected_text = correct_text(text, grammar_checker_pipe, grammar_corrector)
         end_time = time.perf_counter()
-    
         return corrected_text, f"{end_time - start_time:.2f}"
     
     
-    def create_demo_block(quantized: bool, show_model_type: bool):
-        model_type = (" optimized" if quantized else " original") if show_model_type else ""
-        with gr.Row():
-            gr.Markdown(f"## Run{model_type} grammar correction pipeline")
-        with gr.Row():
-            with gr.Column():
-                input_text = gr.Textbox(label="Text")
-            with gr.Column():
-                output_text = gr.Textbox(label="Correction")
-                correction_time = gr.Textbox(label="Time (seconds)")
-        with gr.Row():
-            gr.Examples(examples=[default_text], inputs=[input_text])
-        with gr.Row():
-            button = gr.Button(f"Run{model_type}")
-            button.click(
-                correct,
-                inputs=[input_text, gr.Number(quantized, visible=False)],
-                outputs=[output_text, correction_time],
-            )
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/grammar-correction/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo
     
-    with gr.Blocks() as demo:
-        gr.Markdown("# Interactive demo")
-        quantization_is_present = grammar_corrector_pipe_int8 is not None
-        create_demo_block(quantized=False, show_model_type=quantization_is_present)
-        if quantization_is_present:
-            create_demo_block(quantized=True, show_model_type=True)
+    demo = make_demo(fn=correct, quantized=grammar_corrector_pipe_int8 is not None)
     
-    
-    # if you are launching remotely, specify server_name and server_port
-    # demo.launch(server_name='your server name', server_port='server port in int')
-    # Read more in the docs: https://gradio.app/docs/
     try:
         demo.queue().launch(debug=False)
     except Exception:
         demo.queue().launch(share=True, debug=False)
+    # if you are launching remotely, specify server_name and server_port
+    # demo.launch(server_name='your server name', server_port='server port in int')
+    # Read more in the docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

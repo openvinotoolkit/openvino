@@ -1,17 +1,34 @@
 $(document).ready(function () {
   var table = $('table.modeldata').DataTable({
+    responsive: true,
     "autoWidth": false,
-  });
-
-  document.querySelectorAll('input.toggle-vis').forEach((el) => {
-    if (el.checked) {
-      table.columns([el.getAttribute('data-column')]).visible(false, true);
+    stateSave: true,
+    language: {
+      buttons: {
+        colvisRestore: "Show all columns"
+      }
+    },
+    lengthMenu: [
+      [10, 25, 50, -1],
+      ['10 rows', '25 rows', '50 rows', 'Show all rows']
+    ],
+    layout: {
+      topStart: {
+        buttons: [
+          'pageLength',
+          {
+            extend: 'colvis',
+            postfixButtons: ['colvisRestore'],
+          },
+          {
+            extend: 'print',
+            text: 'Print pdf',
+            exportOptions: {
+              columns: ':visible'
+            }
+          }
+        ]
+      }
     }
-
-    el.addEventListener('click', function (e) {
-      let columnIdx = e.target.getAttribute('data-column');
-      let column = table.column(columnIdx);
-      column.visible(!column.visible());
-    });
   });
 });

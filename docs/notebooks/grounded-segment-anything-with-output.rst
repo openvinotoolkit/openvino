@@ -24,8 +24,8 @@ More details about the model can be found in the
 
    image
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Clone repository and install
    requirements <#clone-repository-and-install-requirements>`__
@@ -41,6 +41,16 @@ Table of contents:
 -  `Interactive GroundedSAM <#interactive-groundedsam>`__
 -  `Cleanup <#cleanup>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Clone repositories and install requirements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -48,7 +58,7 @@ Clone repositories and install requirements
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2024.0" "torch>=2.1" opencv-python "supervision[desktop]" transformers yapf pycocotools addict "gradio>=4.19" tqdm timm --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino>=2024.0" "torch>=2.1" opencv-python "Pillow>=10.0" "supervision[desktop]>=0.22" transformers yapf pycocotools addict "gradio>=4.19" tqdm timm --extra-index-url https://download.pytorch.org/whl/cpu
 
 
 .. parsed-literal::
@@ -111,17 +121,17 @@ segmentation you can select vanilla ``SAM``.
 
     Cloning into 'GroundingDINO'...
     remote: Enumerating objects: 379, done.[K
-    remote: Counting objects: 100% (176/176), done.[K
-    remote: Compressing objects: 100% (65/65), done.[K
-    remote: Total 379 (delta 136), reused 111 (delta 111), pack-reused 203[K
-    Receiving objects: 100% (379/379), 14.03 MiB | 22.73 MiB/s, done.
+    remote: Counting objects: 100% (177/177), done.[K
+    remote: Compressing objects: 100% (64/64), done.[K
+    remote: Total 379 (delta 137), reused 113 (delta 113), pack-reused 202 (from 1)[K
+    Receiving objects: 100% (379/379), 14.03 MiB | 23.98 MiB/s, done.
     Resolving deltas: 100% (195/195), done.
     Cloning into 'EfficientSAM'...
     remote: Enumerating objects: 424, done.[K
     remote: Counting objects: 100% (85/85), done.[K
     remote: Compressing objects: 100% (33/33), done.[K
-    remote: Total 424 (delta 76), reused 52 (delta 52), pack-reused 339[K
-    Receiving objects: 100% (424/424), 262.14 MiB | 29.87 MiB/s, done.
+    remote: Total 424 (delta 76), reused 52 (delta 52), pack-reused 339 (from 1)[K
+    Receiving objects: 100% (424/424), 262.14 MiB | 21.48 MiB/s, done.
     Resolving deltas: 100% (246/246), done.
 
 
@@ -174,7 +184,7 @@ Download checkpoints and load PyTorch models
     )
     
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
     
     download_file(
         "https://github.com/IDEA-Research/GroundingDINO/releases/download/v0.1.0-alpha/groundingdino_swint_ogc.pth",
@@ -242,12 +252,21 @@ GroundingDINO imports
 
 .. parsed-literal::
 
-    UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3587.)
+    UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3549.)
 
 
 .. parsed-literal::
 
     final text_encoder_type: bert-base-uncased
+
+
+.. parsed-literal::
+
+    FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+
+
+.. parsed-literal::
+
     final text_encoder_type: bert-base-uncased
 
 
@@ -358,11 +377,7 @@ Run OpenVINO optimized GroundingDINO
 
 .. code:: ipython3
 
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-    )
+    device = device_widget()
     device
 
 
@@ -498,10 +513,10 @@ class, but the inference will be done using OpenVINO optimized model.
 
 .. parsed-literal::
 
-    2024-06-19 23:47:38.298373: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-19 23:47:38.337270: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-08-28 02:36:00.269902: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-28 02:36:00.310016: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-19 23:47:39.084012: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-08-28 02:36:00.890965: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Convert predicted boxes to supervision box detections format
@@ -519,20 +534,17 @@ Draw box detections
 .. code:: ipython3
 
     box_annotator = sv.BoxAnnotator()
+    label_annotator = sv.LabelAnnotator()
     labels = [f"{classes_prompt[class_id] if class_id is not None else 'None'} {confidence:0.2f}" for _, _, confidence, class_id, _, _ in detections]
-    annotated_frame = box_annotator.annotate(scene=np.array(pil_image).copy(), detections=detections, labels=labels)
+    annotated_frame = box_annotator.annotate(scene=np.array(pil_image).copy(), detections=detections)
+    annotated_frame = label_annotator.annotate(scene=annotated_frame.copy(), detections=detections, labels=labels)
     
     Image.fromarray(annotated_frame)
 
 
-.. parsed-literal::
-
-    SupervisionWarnings: annotate is deprecated: `BoxAnnotator` is deprecated and will be removed in `supervision-0.22.0`. Use `BoundingBoxAnnotator` and `LabelAnnotator` instead
 
 
-
-
-.. image:: grounded-segment-anything-with-output_files/grounded-segment-anything-with-output_29_1.png
+.. image:: grounded-segment-anything-with-output_files/grounded-segment-anything-with-output_29_0.png
 
 
 
@@ -772,22 +784,20 @@ Combine both boxes and segmentation masks and draw them.
 
     box_annotator = sv.BoxAnnotator()
     mask_annotator = sv.MaskAnnotator()
+    label_annotator = sv.LabelAnnotator()
     
     annotated_image = np.array(pil_image)
     annotated_image = mask_annotator.annotate(scene=np.array(pil_image).copy(), detections=detections)
-    annotated_image = box_annotator.annotate(scene=annotated_image, detections=detections, labels=labels)
+    annotated_image = box_annotator.annotate(scene=annotated_image, detections=detections)
+    annotated_image = label_annotator.annotate(scene=annotated_image, detections=detections, labels=labels)
+    
     
     Image.fromarray(annotated_image)
 
 
-.. parsed-literal::
-
-    SupervisionWarnings: annotate is deprecated: `BoxAnnotator` is deprecated and will be removed in `supervision-0.22.0`. Use `BoundingBoxAnnotator` and `LabelAnnotator` instead
 
 
-
-
-.. image:: grounded-segment-anything-with-output_files/grounded-segment-anything-with-output_45_1.png
+.. image:: grounded-segment-anything-with-output_files/grounded-segment-anything-with-output_45_0.png
 
 
 
@@ -841,6 +851,8 @@ demonstration.
 
 .. code:: ipython3
 
+    import gradio as gr
+    
     """"
     run_grounding_sam is called every time "Submit" button is clicked
     """
@@ -895,33 +907,16 @@ increase threshold values in ``Advanced options``.
 
 .. code:: ipython3
 
-    import gradio as gr
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/grounded-segment-anything/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
-    with gr.Accordion("Advanced options", open=False) as advanced:
-        box_threshold = gr.Slider(label="Box Threshold", minimum=0.0, maximum=1.0, value=0.3, step=0.05)
-        text_threshold = gr.Slider(label="Text Threshold", minimum=0.0, maximum=1.0, value=0.25, step=0.05)
+    from gradio_helper import make_demo
     
-    demo = gr.Interface(
-        run_grounding_sam,
-        [
-            gr.Image(),
-            gr.Dropdown(["det", "seg"], value="seg", label="task_type"),
-            gr.Textbox(value="bears", label="Text Prompt"),
-        ],
-        additional_inputs=[
-            box_threshold,
-            text_threshold,
-        ],
-        outputs=gr.Gallery(preview=True, object_fit="scale-down"),
-        examples=[
-            [f"{ground_dino_dir}/.asset/demo2.jpg", "seg", "dog, forest"],
-            [f"{ground_dino_dir}/.asset/demo7.jpg", "seg", "horses and clouds"],
-        ],
-        additional_inputs_accordion=advanced,
-    )
+    demo = make_demo(fn=run_grounding_sam)
     
     try:
-        demo.launch(server_name="0.0.0.0", debug=False, height=1000)
+        demo.launch(debug=False, height=1000)
     except Exception:
         demo.launch(share=True, debug=False, height=1000)
     # if you are launching remotely, specify server_name and server_port
@@ -931,7 +926,7 @@ increase threshold values in ``Advanced options``.
 
 .. parsed-literal::
 
-    Running on local URL:  http://0.0.0.0:7860
+    Running on local URL:  http://127.0.0.1:7860
     
     To create a public link, set `share=True` in `launch()`.
 

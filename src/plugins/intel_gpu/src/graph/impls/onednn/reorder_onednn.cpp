@@ -5,7 +5,7 @@
 #include "impls/onednn/utils.hpp"
 #include "reorder_inst.h"
 #include "primitive_onednn_base.h"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 
 #include "kernel_selector_common.h"
 
@@ -103,8 +103,10 @@ public:
         ib >> prim_cache;
 
         _scratchpad_md = _pd.scratchpad_desc();
-
-        _prim = dnnl::reorder(_pd, prim_cache);
+        if (prim_cache.size() > 0)
+            _prim = dnnl::reorder(_pd, prim_cache);
+        else
+            _prim = dnnl::reorder(_pd);
 #endif
     }
 

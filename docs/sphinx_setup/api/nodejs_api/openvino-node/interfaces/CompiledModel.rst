@@ -6,6 +6,7 @@ Interface CompiledModel
    interface CompiledModel {
        inputs: Output[];
        outputs: Output[];
+       getProperty(propertyName): string | number | boolean;
        createInferRequest(): InferRequest;
        exportModelSync(): Buffer;
        input(): Output;
@@ -14,13 +15,14 @@ Interface CompiledModel
        output(): Output;
        output(index): Output;
        output(name): Output;
+       setProperty(properties: {[propertyName: string]: string | number | boolean}): void;
    }
 
 CompiledModel represents a model that is compiled for a specific device by applying
 multiple optimization transformations, then mapping to compute kernels.
 
 * **Defined in:**
-  `addon.ts:272 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L272>`__
+  `addon.ts:303 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L303>`__
 
 
 Properties
@@ -29,7 +31,7 @@ Properties
 
 .. rubric:: inputs
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -38,12 +40,12 @@ Properties
    It gets all inputs of a compiled model.
 
    -  **Defined in:**
-      `addon.ts:274 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L274>`__
+      `addon.ts:305 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L305>`__
 
 
 .. rubric:: outputs
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -52,17 +54,41 @@ Properties
    It gets all outputs of a compiled model.
 
    -  **Defined in:**
-      `addon.ts:276 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L276>`__
+      `addon.ts:307 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L307>`__
 
 
 Methods
 #####################
 
 
+.. rubric:: getProperty
+   :name: getProperty
+
+*
+
+   .. code-block:: ts
+
+      getProperty(propertyName): string | number | boolean
+
+   It gets the property for the current compiled model.
+
+   * **Parameters:**
+
+     - propertyName: string
+
+       A string to get the property value.
+
+   * **Returns:**  string | number | boolean
+
+   * **Defined in:**
+     `addon.ts:313 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L313>`__
+
+
+
 .. rubric:: createInferRequest
    :name: createInferRequest
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -73,13 +99,13 @@ Methods
    * **Returns:** :doc:`InferRequest <InferRequest>`
 
    -  **Defined in:**
-      `addon.ts:281 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L281>`__
+      `addon.ts:318 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L318>`__
 
 
 .. rubric:: exportModelSync
    :name: exportModelSync
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -88,12 +114,12 @@ Methods
    * **Returns:** Buffer
 
    -  **Defined in:**
-      `addon.ts:288 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L288>`__
+      `addon.ts:325 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L325>`__
 
 
 .. rubric:: input
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -107,7 +133,7 @@ Methods
      A compiled model input.
 
    * **Defined in:**
-     `addon.ts:312 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L312>`__
+     `addon.ts:349 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L349>`__
 
 
    .. code-block:: ts
@@ -127,7 +153,7 @@ Methods
      A compiled model input.
 
    * **Defined in:**
-     `addon.ts:318 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L318>`__
+     `addon.ts:355 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L355>`__
 
 
    .. code-block:: ts
@@ -147,12 +173,12 @@ Methods
      A compiled model input.
 
    * **Defined in:**
-     `addon.ts:324 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L324>`__
+     `addon.ts:361 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L361>`__
 
 
 .. rubric:: output
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -165,7 +191,7 @@ Methods
      A compiled model output.
 
    * **Defined in:**
-     `addon.ts:294 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L294>`__
+     `addon.ts:331 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L331>`__
 
 
    .. code-block:: ts
@@ -189,7 +215,7 @@ Methods
      A compiled model output.
 
    * **Defined in:**
-     `addon.ts:300 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L300>`__
+     `addon.ts:337 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L337>`__
 
 
    .. code-block:: ts
@@ -213,5 +239,34 @@ Methods
      A compiled model output.
 
    * **Defined in:**
-     `addon.ts:306 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L306>`__
+     `addon.ts:343 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L343>`__
+
+
+.. rubric:: setProperty
+
+*
+
+   .. code-block:: ts
+
+      setProperty(properties): void
+
+   It sets properties for the current compiled model. Properties can be retrieved via
+   :ref:`CompiledModel.getProperty <getProperty>`
+
+   * **Parameters:**
+
+     -
+
+       .. code-block:: ts
+
+          properties: {
+                    [propertyName: string]: string | number | boolean;
+           }
+
+       An object with the key-value pairs (property name, property value).
+
+   * **Returns:**  void
+
+   * **Defined in:**
+     `addon.ts:368 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L368>`__
 

@@ -14,8 +14,8 @@ IR model.
 Source of the
 `model <https://www.paddlepaddle.org.cn/hubdetail?name=mobilenet_v3_large_imagenet_ssld&en_category=ImageClassification>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Preparation <#preparation>`__
 
@@ -32,6 +32,16 @@ Table of contents:
 -  `Timing and Comparison <#timing-and-comparison>`__
 -  `Select inference device <#select-inference-device>`__
 -  `References <#references>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Preparation
 -----------
@@ -78,11 +88,11 @@ Imports
 
 .. parsed-literal::
 
-    --2024-06-20 00:22:07--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
+    --2024-08-28 03:23:05--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
     Resolving proxy-dmz.intel.com (proxy-dmz.intel.com)... 10.241.208.166
     Connecting to proxy-dmz.intel.com (proxy-dmz.intel.com)|10.241.208.166|:911... connected.
     Proxy request sent, awaiting response... 404 Not Found
-    2024-06-20 00:22:07 ERROR 404: Not Found.
+    2024-08-28 03:23:05 ERROR 404: Not Found.
     
     dpkg: error: cannot access archive 'libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb': No such file or directory
 
@@ -108,13 +118,13 @@ Imports
     
     open("notebook_utils.py", "w").write(r.text)
     
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 
 .. parsed-literal::
 
-    2024-06-20 00:22:09 INFO: Loading faiss with AVX512 support.
-    2024-06-20 00:22:09 INFO: Successfully loaded faiss with AVX512 support.
+    2024-08-28 03:23:07 INFO: Loading faiss with AVX512 support.
+    2024-08-28 03:23:07 INFO: Successfully loaded faiss with AVX512 support.
 
 
 Settings
@@ -198,7 +208,7 @@ inference on that image, and then show the top three prediction results.
 
 .. parsed-literal::
 
-    [2024/06/20 00:22:29] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
+    [2024/08/28 03:23:29] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
     Labrador retriever, 0.75138
     German short-haired pointer, 0.02373
     Great Dane, 0.01848
@@ -264,7 +274,7 @@ clipping values.
 
 .. parsed-literal::
 
-    2024-06-20 00:22:30 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
+    2024-08-28 03:23:30 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
 
 
 .. parsed-literal::
@@ -276,7 +286,7 @@ clipping values.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f90500ede80>
+    <matplotlib.image.AxesImage at 0x7f394c042a90>
 
 
 
@@ -332,15 +342,8 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
     core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -455,7 +458,7 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    PaddlePaddle model on CPU: 0.0074 seconds per image, FPS: 135.62
+    PaddlePaddle model on CPU: 0.0076 seconds per image, FPS: 131.68
     
     PaddlePaddle result:
     Labrador retriever, 0.75138
@@ -516,7 +519,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0029 seconds per image, FPS: 340.77
+    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0029 seconds per image, FPS: 344.93
     
     OpenVINO result:
     Labrador retriever, 0.74909

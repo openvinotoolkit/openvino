@@ -5,8 +5,8 @@
 #include "jit_memory_emitters.hpp"
 
 #include "emitters/snippets/jit_snippets_call_args.hpp"
-#include "transformations/snippets/x64/op/load_convert.hpp"
-#include "transformations/snippets/x64/op/store_convert.hpp"
+#include "transformations/snippets/common/op/load_convert.hpp"
+#include "transformations/snippets/common/op/store_convert.hpp"
 #include "snippets/op/buffer.hpp"
 
 
@@ -183,7 +183,7 @@ jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t i
 
 void jit_store_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     OV_CPU_JIT_EMITTER_ASSERT(store_emitter, "Store CPU emitter isn't initialized!");
-    store_emitter->emit_code({in[0], compiled_byte_offset}, {out[0]}, aux_vec_idxs, get_available_aux_gprs());
+    store_emitter->emit_code({in[0]}, {out[0], compiled_byte_offset}, aux_vec_idxs, get_available_aux_gprs());
 }
 
 void jit_store_memory_emitter::emit_data() const {

@@ -61,6 +61,8 @@ macro(ov_define_component_include_rules)
     # tbb
     unset(OV_CPACK_COMP_TBB_EXCLUDE_ALL)
     set(OV_CPACK_COMP_TBB_DEV_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    # openmp
+    unset(OV_CPACK_COMP_OPENMP_EXCLUDE_ALL)
     # licensing
     unset(OV_CPACK_COMP_LICENSING_EXCLUDE_ALL)
     # samples
@@ -85,6 +87,8 @@ macro(ov_define_component_include_rules)
     unset(OV_CPACK_COMP_PKG_CONFIG_EXCLUDE_ALL)
     # symbolic links
     unset(OV_CPACK_COMP_LINKS_EXCLUDE_ALL)
+    # npu internal tools
+    set(OV_CPACK_COMP_NPU_INTERNAL_EXCLUDE_ALL EXCLUDE_FROM_ALL)
 endmacro()
 
 ov_define_component_include_rules()

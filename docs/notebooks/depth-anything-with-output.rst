@@ -19,8 +19,8 @@ using OpenVINO. An additional part demonstrates how to run quantization
 with `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up the
 model.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Load and run PyTorch model <#load-and-run-pytorch-model>`__
@@ -45,6 +45,16 @@ Table of contents:
    -  `Compare model file size <#compare-unet-file-size>`__
 
 -  `Interactive demo <#interactive-demo>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 .. |image.png| image:: https://depth-anything.github.io/static/images/pipeline.png
 
@@ -75,16 +85,16 @@ Prerequisites
 .. parsed-literal::
 
     Cloning into 'Depth-Anything'...
-    remote: Enumerating objects: 430, done.[K
-    remote: Counting objects: 100% (153/153), done.[K
-    remote: Compressing objects: 100% (112/112), done.[K
-    remote: Total 430 (delta 107), reused 47 (delta 41), pack-reused 277[K
-    Receiving objects: 100% (430/430), 237.89 MiB | 23.98 MiB/s, done.
-    Resolving deltas: 100% (150/150), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything
+    remote: Enumerating objects: 441, done.[K
+    remote: Counting objects: 100% (161/161), done.[K
+    remote: Compressing objects: 100% (120/120), done.[K
+    remote: Total 441 (delta 115), reused 44 (delta 41), pack-reused 280 (from 1)[K
+    Receiving objects: 100% (441/441), 237.90 MiB | 29.17 MiB/s, done.
+    Resolving deltas: 100% (158/158), done.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
-    WARNING: typer 0.12.3 does not provide the extra 'all'
+    WARNING: typer 0.12.5 does not provide the extra 'all'
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -134,6 +144,8 @@ DepthAnything family.
 
     xFormers not available
     xFormers not available
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/hub_mixin.py:824: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+      state_dict = torch.load(model_file, map_location=torch.device(map_location))
 
 
 Prepare input data
@@ -152,7 +164,7 @@ Prepare input data
     )
     
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget, quantization_widget
     
     download_file(
         "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/3f779fc1-c1b2-4dec-915a-64dae510a2bb",
@@ -273,13 +285,13 @@ loading on device using ``core.complie_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/dinov2/layers/patch_embed.py:73: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/dinov2/layers/patch_embed.py:73: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert H % patch_H == 0, f"Input image height {H} is not a multiple of patch height {patch_H}"
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/dinov2/layers/patch_embed.py:74: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/dinov2/layers/patch_embed.py:74: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert W % patch_W == 0, f"Input image width {W} is not a multiple of patch width: {patch_W}"
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/vision_transformer.py:183: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/vision_transformer.py:183: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if npatch == N and w == h:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/depth_anything/dpt.py:133: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/depth_anything/dpt.py:133: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       out = F.interpolate(out, (int(patch_h * 14), int(patch_w * 14)), mode="bilinear", align_corners=True)
 
 
@@ -299,17 +311,7 @@ For starting work, please select inference device from dropdown list.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
-    
+    device = device_widget()
     device
 
 
@@ -323,6 +325,7 @@ For starting work, please select inference device from dropdown list.
 
 .. code:: ipython3
 
+    core = ov.Core()
     compiled_model = core.compile_model(OV_DEPTH_ANYTHING_PATH, device.value)
 
 Run inference on image
@@ -571,7 +574,7 @@ Run inference on video
 
 .. parsed-literal::
 
-    Processed 60 frames in 13.15 seconds. Total FPS (including video processing): 4.56.Inference FPS: 10.55 
+    Processed 60 frames in 13.36 seconds. Total FPS (including video processing): 4.49.Inference FPS: 10.46 
     Video saved to 'output/Coco Walking in Berkeley_depth_anything.mp4'.
 
 
@@ -598,7 +601,7 @@ Run inference on video
 .. parsed-literal::
 
     Showing video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
     If you cannot see the video in your browser, please click on the following link to download the video 
 
 
@@ -640,11 +643,7 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    to_quantize = quantization_widget()
     
     to_quantize
 
@@ -735,10 +734,10 @@ quantization code below may take some time.
 
 .. parsed-literal::
 
-    2024-06-19 23:17:58.857728: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-19 23:17:58.890483: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-08-28 00:10:42.268363: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-28 00:10:42.301084: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-19 23:17:59.450018: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-08-28 00:10:42.870851: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -748,17 +747,9 @@ quantization code below may take some time.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -769,24 +760,16 @@ quantization code below may take some time.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
 .. parsed-literal::
 
-    INFO:nncf:36 ignored nodes were found by name in the NNCFGraph
-    INFO:nncf:48 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:36 ignored nodes were found by names in the NNCFGraph
+    INFO:nncf:48 ignored nodes were found by names in the NNCFGraph
 
 
 
@@ -796,17 +779,9 @@ quantization code below may take some time.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -817,17 +792,9 @@ quantization code below may take some time.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -902,10 +869,10 @@ data.
 
 .. parsed-literal::
 
-    Processed 60 frames in 12.57 seconds. Total FPS (including video processing): 4.77.Inference FPS: 12.87 
+    Processed 60 frames in 12.77 seconds. Total FPS (including video processing): 4.70.Inference FPS: 12.70 
     Video saved to 'output/Coco Walking in Berkeley_depth_anything_int8.mp4'.
     Showing video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
     If you cannot see the video in your browser, please click on the following link to download the video 
 
 
@@ -985,9 +952,9 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
 
 .. parsed-literal::
 
-    FP16 Throughput: 10.71 FPS
-    INT8 Throughput: 14.20 FPS
-    Speed-up: 1.33
+    FP16 Throughput: 10.82 FPS
+    INT8 Throughput: 14.11 FPS
+    Speed-up: 1.30
 
 
 Interactive demo
@@ -1004,6 +971,8 @@ launch the interactive demo.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
     quantized_model_present = OV_DEPTH_ANYTHING_INT8_PATH.exists()
     
     use_quantized_model = widgets.Checkbox(
@@ -1025,27 +994,9 @@ launch the interactive demo.
 
 .. code:: ipython3
 
-    import gradio as gr
-    import cv2
     import numpy as np
-    import os
+    import cv2
     import tempfile
-    from gradio_imageslider import ImageSlider
-    
-    css = """
-    #img-display-container {
-        max-height: 100vh;
-        }
-    #img-display-input {
-        max-height: 80vh;
-        }
-    #img-display-output {
-        max-height: 80vh;
-        }
-    """
-    
-    
-    title = "# Depth Anything with OpenVINO"
     
     if use_quantized_model.value:
         compiled_model = core.compile_model(OV_DEPTH_ANYTHING_INT8_PATH, device.value)
@@ -1055,58 +1006,45 @@ launch the interactive demo.
         return model(image)[0]
     
     
-    with gr.Blocks(css=css) as demo:
-        gr.Markdown(title)
-        gr.Markdown("### Depth Prediction demo")
-        gr.Markdown("You can slide the output to compare the depth prediction with input image")
+    def on_submit(image):
+        original_image = image.copy()
     
-        with gr.Row():
-            input_image = gr.Image(label="Input Image", type="numpy", elem_id="img-display-input")
-            depth_image_slider = ImageSlider(label="Depth Map with Slider View", elem_id="img-display-output", position=0)
-        raw_file = gr.File(label="16-bit raw depth (can be considered as disparity)")
-        submit = gr.Button("Submit")
+        h, w = image.shape[:2]
     
-        def on_submit(image):
-            original_image = image.copy()
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) / 255.0
+        image = transform({"image": image})["image"]
+        image = np.expand_dims(image, 0)
     
-            h, w = image.shape[:2]
+        depth = predict_depth(compiled_model, image)
+        depth = cv2.resize(depth[0], (w, h), interpolation=cv2.INTER_LINEAR)
     
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) / 255.0
-            image = transform({"image": image})["image"]
-            image = np.expand_dims(image, 0)
+        raw_depth = Image.fromarray(depth.astype("uint16"))
+        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        raw_depth.save(tmp.name)
     
-            depth = predict_depth(compiled_model, image)
-            depth = cv2.resize(depth[0], (w, h), interpolation=cv2.INTER_LINEAR)
+        depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
+        depth = depth.astype(np.uint8)
+        colored_depth = cv2.applyColorMap(depth, cv2.COLORMAP_INFERNO)[:, :, ::-1]
     
-            raw_depth = Image.fromarray(depth.astype("uint16"))
-            tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-            raw_depth.save(tmp.name)
+        return [(original_image, colored_depth), tmp.name]
+
+.. code:: ipython3
+
+    # Go back to the depth-anything notebook directory
+    %cd ..
     
-            depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
-            depth = depth.astype(np.uint8)
-            colored_depth = cv2.applyColorMap(depth, cv2.COLORMAP_INFERNO)[:, :, ::-1]
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/depth-anything/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
-            return [(original_image, colored_depth), tmp.name]
+    from gradio_helper import make_demo
     
-        submit.click(on_submit, inputs=[input_image], outputs=[depth_image_slider, raw_file])
+    demo = make_demo(fn=on_submit, examples_dir="Depth-Anything/assets/examples")
     
-        example_files = os.listdir("assets/examples")
-        example_files.sort()
-        example_files = [os.path.join("assets/examples", filename) for filename in example_files]
-        examples = gr.Examples(
-            examples=example_files,
-            inputs=[input_image],
-            outputs=[depth_image_slider, raw_file],
-            fn=on_submit,
-            cache_examples=False,
-        )
-    
-    
-    if __name__ == "__main__":
-        try:
-            demo.queue().launch(debug=False)
-        except Exception:
-            demo.queue().launch(share=True, debug=False)
+    try:
+        demo.queue().launch(debug=False)
+    except Exception:
+        demo.queue().launch(share=True, debug=False)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
@@ -1114,6 +1052,7 @@ launch the interactive demo.
 
 .. parsed-literal::
 
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/depth-anything
     Running on local URL:  http://127.0.0.1:7860
     
     To create a public link, set `share=True` in `launch()`.

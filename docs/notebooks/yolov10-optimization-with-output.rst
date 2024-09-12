@@ -44,8 +44,8 @@ The tutorial consists of the following steps:
 -  Run optimized model inference on video
 -  Launch interactive Gradio demo
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Download PyTorch model <#download-pytorch-model>`__
@@ -80,6 +80,16 @@ Table of contents:
 
    -  `Gradio Interactive Demo <#gradio-interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -92,7 +102,7 @@ Prerequisites
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
     
     %pip install -q "nncf>=2.11.0"
-    %pip install --pre -Uq openvino --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -Uq "openvino>=2024.3.0"
     %pip install -q "git+https://github.com/THU-MIG/yolov10.git" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "torch>=2.1" "torchvision>=0.16" tqdm opencv-python "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
 
@@ -120,7 +130,7 @@ Prerequisites
     
     open("notebook_utils.py", "w").write(r.text)
     
-    from notebook_utils import download_file, VideoPlayer
+    from notebook_utils import download_file, VideoPlayer, device_widget
 
 Download PyTorch model
 ----------------------
@@ -376,18 +386,7 @@ model inference to compare results with AUTO.
 
 .. code:: ipython3
 
-    import openvino as ov
-    
-    import ipywidgets as widgets
-    
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget("CPU")
     
     device
 
@@ -402,6 +401,10 @@ model inference to compare results with AUTO.
 
 .. code:: ipython3
 
+    import openvino as ov
+    
+    core = ov.Core()
+    
     ov_model = core.read_model(ov_model_path)
     
     # load model on selected device
