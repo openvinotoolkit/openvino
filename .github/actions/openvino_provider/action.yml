@@ -40,10 +40,10 @@ inputs:
 outputs:
   ov_artifact_name:
     description: "Name of the artifact to upload OpenVINO build artifacts under"
-    value: ${{ steps.openvino_nightly_download.outputs.ov_artifact_name || steps.openvino_commit_output.outputs.ov_artifact_name }}
+    value: ${{ steps.openvino_download.outputs.ov_artifact_name || steps.openvino_commit_output.outputs.ov_artifact_name }}
   ov_package_path:
     description: "Path to OpenVINO core package relative to the root of uploaded artifacts"
-    value: ${{ steps.openvino_nightly_download.outputs.ov_package_path || steps.openvino_commit_output.outputs.ov_package_path }}
+    value: ${{ steps.openvino_download.outputs.ov_package_path || steps.openvino_commit_output.outputs.ov_package_path }}
   ov_wheel_input:
     description: "Input for pip to install OpenVINO python wheel"
     value: ${{ steps.openvino_wheel.outputs.ov_wheel_input || steps.openvino_commit_wheel.outputs.ov_wheel_input }}
