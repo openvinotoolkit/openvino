@@ -46,8 +46,7 @@ OutputVector translate_sparse_segment_mean_op(const NodeContext& node) {
         make_shared<v3::EmbeddingSegmentsSum>(data, indices, segment_ids, std::make_shared<v0::Squeeze>(n_segments));
 
     // get the sizes of each segment
-    auto unique_segment_ids =
-        make_shared<v10::Unique>(segment_ids, true, element::i64, element::i64);
+    auto unique_segment_ids = make_shared<v10::Unique>(segment_ids, true, element::i64, element::i64);
     auto broadcast = make_shared<v3::Broadcast>(const_one, n_segments);
     auto divisors = make_shared<v3::ScatterUpdate>(broadcast,
                                                    unique_segment_ids->output(0),
