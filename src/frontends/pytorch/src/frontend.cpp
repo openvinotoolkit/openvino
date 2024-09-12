@@ -245,8 +245,6 @@ std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    ov::pass::Manager manager("Frontend:Pytorch:normalize");
-
     bool is_fx = false;
     if (model->has_rt_info("decoder_type_name")) {
         is_fx = model->get_rt_info()["decoder_type_name"].as<std::string>() == "fx";
@@ -257,46 +255,63 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         // GPTQ transformations need to be executed before other passes
         // Once the GPTQ patterns are modified by other transformations,
         // they cannot be captured anymore
+        ov::pass::Manager manager("Frontend:Pytorch:normalize::fx_gptq");
         manager.register_pass<ov::frontend::pytorch::pass::GPTQDecompressionReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::GPTQMultPatternReplacer>();
+        manager.run_passes(model);
     }
 
-    // the following 2 transformations are needed for keypoint detectron2 models to work.
-    // AtenIndexToSelect will be called twice
-    manager.register_pass<ov::pass::ConvertConvertLike>();
-    manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
+    {
+        ov::pass::Manager manager("Frontend:Pytorch:normalize::no_val");
+        // Passes replacing ops without relying on input shapes or types
+        manager.set_per_pass_validation(false);
+        // the following 2 transformations are needed for keypoint detectron2 models to work.
+        // AtenIndexToSelect will be called twice
+        manager.register_pass<ov::pass::ConvertConvertLike>();
+        manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
 
-    // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
-    // so that not extra memory is used for intermediate decompressed constants.
-    manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
+        // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
+        // so that not extra memory is used for intermediate decompressed constants.
+        manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
 
-    manager.register_pass<ov::pass::ConvertConvertPromoteTypes>();
-    manager.register_pass<ov::pass::PushConstantToSubgraph>();
+        manager.register_pass<ov::pass::ConvertConvertPromoteTypes>();
+        manager.register_pass<ov::pass::PushConstantToSubgraph>();
+        manager.register_pass<ov::frontend::pytorch::pass::TupleUnpackInBodyReplacer>();
+        manager.register_pass<ov::frontend::pytorch::pass::AtenCatToConcat>();
+        manager.register_pass<ov::frontend::pytorch::pass::AppendListUnpackReplacer>();
+        manager.register_pass<ov::frontend::pytorch::pass::AtenStackListConstructReplacer>();
+        manager.register_pass<ov::frontend::pytorch::pass::AtenEinsumListConstructReplacer>();
+        manager.register_pass<ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer>();
+        manager.register_pass<ov::frontend::pytorch::pass::StringEqualityReplacer>();
+        manager.register_pass<ov::frontend::pytorch::pass::RFFTNComplexReplacer>();
+        manager.register_pass<ov::frontend::pytorch::pass::IRFFTNComplexReplacer>();
+        manager.register_pass<ov::frontend::pytorch::pass::PrimTupleUnpackReplacer>();
+        manager.register_pass<ov::frontend::pytorch::pass::DecomposeListTupleResults>();
+        manager.register_pass<ov::frontend::pytorch::pass::DecomposeUnpackParameters>();  //
+        manager.register_pass<ov::frontend::pytorch::pass::DictParameterResolver>();
+        manager.register_pass<ov::frontend::pytorch::pass::DictResultResolver>();
+        manager.register_pass<ov::frontend::pytorch::pass::QuantizedNodeRemover>();
+        manager.register_pass<ov::frontend::pytorch::pass::SoftmaxReshapeElimination>();
+        manager.register_pass<ov::frontend::pytorch::pass::ReversepropResolver>();
+        manager.register_pass<ov::frontend::pytorch::pass::MovePackThroughLstm>();
+        manager.register_pass<ov::frontend::pytorch::pass::RemovePackingOps>();
+        bool is_changed = manager.run_passes(model);
+
+        // make validation after previously non-validated passes
+        if (is_changed)
+            model->validate_nodes_and_infer_types();
+    }
+
+    ov::pass::Manager manager("Frontend:Pytorch:normalize");
     manager.register_pass<ov::pass::UnrollIf>();
-    manager.register_pass<ov::frontend::pytorch::pass::TupleUnpackInBodyReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::AtenCatToConcat>();
-    manager.register_pass<ov::frontend::pytorch::pass::AppendListUnpackReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::AtenStackListConstructReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::AtenGetItemReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::ListConstructReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();  //
+    manager.register_pass<ov::frontend::pytorch::pass::AtenGetItemReplacer>();     //
+    manager.register_pass<ov::frontend::pytorch::pass::ListConstructReplacer>();   //
     // TODO: remove AtenIndexToSelect when problem with  dynamic input rank is gone.
-    manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
-    manager.register_pass<ov::frontend::pytorch::pass::AtenIndexPutReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();     //
+    manager.register_pass<ov::frontend::pytorch::pass::AtenIndexPutReplacer>();  //
     manager.register_pass<ov::frontend::pytorch::pass::PrimListConstructPadReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::AtenEinsumListConstructReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::StringEqualityReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::DecomposeUnpackParameters>();
-    manager.register_pass<ov::frontend::pytorch::pass::RFFTNComplexReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::IRFFTNComplexReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::PrimTupleUnpackReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::DecomposeListTupleResults>();
-    manager.register_pass<ov::frontend::pytorch::pass::DictParameterResolver>();
-    manager.register_pass<ov::frontend::pytorch::pass::DictResultResolver>();
-    manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::QuantizedNodeRemover>();
-    manager.register_pass<ov::frontend::pytorch::pass::SoftmaxReshapeElimination>();
+    manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();  //
 
     // Check if model is symmetrically quantized
     bool sym = false;
@@ -304,11 +319,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         sym = model->get_rt_info()["symmetric_quantization"].as<bool>();
         model->get_rt_info().erase("symmetric_quantization");
     }
-    manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>(sym);
+    manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>(sym);  //
 
-    manager.register_pass<ov::frontend::pytorch::pass::ReversepropResolver>();
-    manager.register_pass<ov::frontend::pytorch::pass::MovePackThroughLstm>();
-    manager.register_pass<ov::frontend::pytorch::pass::RemovePackingOps>();
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);
