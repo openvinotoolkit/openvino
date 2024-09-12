@@ -105,10 +105,6 @@ class TestElementwiseTypeAlignment(unittest.TestCase):
         graph.stage = 'back'
         return graph
 
-    @unittest.skipIf(
-        (sys.version_info[0], sys.version_info[1]) == (3, 12),
-        'Ticket: 152200'
-    )
     def test_first_input_const(self):
         edges = [
             *connect('const', '0:add'),
@@ -119,12 +115,8 @@ class TestElementwiseTypeAlignment(unittest.TestCase):
 
         type_infer(graph)
         const_node = Node(graph, 'const')
-        self.assertEquals(const_node.out_port(0).get_data_type(), np.float32)
+        self.assertEqual(const_node.out_port(0).get_data_type(), np.float32)
 
-    @unittest.skipIf(
-        (sys.version_info[0], sys.version_info[1]) == (3, 12),
-        'Ticket: 152200'
-    )
     def test_second_input_const(self):
         edges = [
             *connect('input_1', '0:add'),
@@ -135,7 +127,7 @@ class TestElementwiseTypeAlignment(unittest.TestCase):
 
         type_infer(graph)
         const_node = Node(graph, 'const')
-        self.assertEquals(const_node.out_port(0).get_data_type(), np.float32)
+        self.assertEqual(const_node.out_port(0).get_data_type(), np.float32)
 
     def test_raises(self):
         edges = [
@@ -147,10 +139,6 @@ class TestElementwiseTypeAlignment(unittest.TestCase):
 
         self.assertRaises(Exception, type_infer, graph)
 
-    @unittest.skipIf(
-        (sys.version_info[0], sys.version_info[1]) == (3, 12),
-        'Ticket: 152200'
-    )
     def test_not_raises(self):
         edges = [
             *connect('input_1', '0:add'),
@@ -161,4 +149,4 @@ class TestElementwiseTypeAlignment(unittest.TestCase):
 
         type_infer(graph)
         add_node = Node(graph, 'add')
-        self.assertEquals(add_node.out_port(0).get_data_type(), np.float32)
+        self.assertEqual(add_node.out_port(0).get_data_type(), np.float32)
