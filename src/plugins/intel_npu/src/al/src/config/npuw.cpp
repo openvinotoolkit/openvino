@@ -26,6 +26,7 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_PLAN>();
     desc.add<NPUW_FOLD>();
     desc.add<NPUW_CWAI>();
+    desc.add<NPUW_DQ>();
     desc.add<NPUW_DCOFF_TYPE>();
     desc.add<NPUW_DCOFF_SCALE>();
     desc.add<NPUW_FUNCALL_FOR_ALL>();

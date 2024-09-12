@@ -15,6 +15,7 @@
 
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"
 
 #ifdef UNPACK_PROFILING
@@ -1403,5 +1404,107 @@ void ov::npuw::util::to_f32(const ov::Tensor& in, ov::Tensor& out) {
     default:
         OPENVINO_THROW("Unsupported precision {0}", in.get_element_type().get_type_name());
         break;
+    }
+}
+
+void ov::npuw::util::to_f16(ov::Tensor& t) {
+    ov::Shape shape = t.get_shape();
+    NPUW_ASSERT(t.get_element_type() == ov::element::f32);
+    NPUW_ASSERT(t.get_size() % 8 == 0);
+    NPUW_ASSERT(t.is_continuous());
+
+    ov::Tensor tnew(ov::element::f16, shape);
+
+    const float* psrc = t.data<float>();
+    uint8_t* pdst = static_cast<uint8_t*>(tnew.data());
+
+    for (std::size_t i = 0; i < t.get_size() / 8; i++) {
+        __m256 vsrc = _mm256_loadu_ps(psrc);
+        __m128i vout = _mm256_cvtps_ph(vsrc, _MM_FROUND_TO_NEAREST_INT);
+        __m128i* pout = reinterpret_cast<__m128i*>(pdst);
+        _mm_storeu_si128(pout, vout);
+        psrc += 8;        // offset in sizeof(float)
+        pdst += (8 * 2);  // offset in bytes
+    }
+
+    t = std::move(tnew);
+}
+
+inline uint8_t tread_4b(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
+    const uint8_t* tdata = static_cast<uint8_t*>(t.data());
+    const uint8_t* trow = tdata + r * COLS / 2;
+    const uint8_t* telem = trow + c / 2;
+    if (c % 2 == 0) {
+        return lo4(*telem);
+    }
+    return hi4(*telem);
+}
+
+inline void twrite_4b(ov::Tensor& t, uint8_t value, std::size_t r, std::size_t c, std::size_t COLS) {
+    uint8_t* tdata = static_cast<uint8_t*>(t.data());
+    uint8_t* trow = tdata + r * COLS / 2;
+    uint8_t* telem = trow + c / 2;
+    if (c % 2 == 0) {
+        *telem = (hi4(*telem) << 4) | lo4(value);
+    } else {
+        *telem = (lo4(value) << 4) | lo4(*telem);
+    }
+}
+
+void ov::npuw::util::transpose(ov::Tensor& t) {
+    ov::Shape shape = t.get_shape();
+    NPUW_ASSERT(shape.size() == 3);  // Yes, so far only transpose 3D tensors
+    NPUW_ASSERT(t.get_element_type() == ov::element::i4);
+
+    ov::Shape tshape = {shape[2], shape[0], shape[1]};
+    ov::Tensor tnew(t.get_element_type(), tshape);
+
+    const auto IN_ROWS = shape[0] * shape[1];
+    const auto IN_COLS = shape[2];
+    for (std::size_t i = 0; i < IN_ROWS; i++) {
+        for (std::size_t j = 0; j < IN_COLS; j++) {
+            uint8_t value = tread_4b(t, i, j, IN_COLS);
+            twrite_4b(tnew, value, j, i, IN_ROWS);
+        }
+    }
+    t = std::move(tnew);
+}
+
+void ov::npuw::util::permute(ov::Tensor& t, const std::vector<std::size_t>& axes) {
+    ov::Shape shape = t.get_shape();
+    NPUW_ASSERT(shape.size() == 3);                        // Yes, so far only transpose 3D tensors
+    NPUW_ASSERT(t.get_element_type() == ov::element::i4);  // And, yes, 4bit only!
+
+    if (axes[0] == 2 && axes[1] == 0 && axes[2] == 1) {
+        transpose(t);
+    } else if (axes[0] == 0 && axes[1] == 2 && axes[2] == 1) {
+        ov::Shape tshape = {shape[0], shape[2], shape[1]};
+        ov::Tensor tnew(t.get_element_type(), tshape);
+
+        for (std::size_t p = 0; p < shape[0]; p++) {
+            for (std::size_t r = 0; r < shape[1]; r++) {
+                for (std::size_t c = 0; c < shape[2]; c++) {
+                    uint8_t value = tread_4b(t, p * shape[1] + r, c, shape[2]);
+                    twrite_4b(tnew, value, p * shape[2] + c, r, shape[1]);
+                }
+            }
+        }
+        t = std::move(tnew);
+    } else if (axes[0] == 1 && axes[1] == 0 && axes[2] == 2) {
+        ov::Shape tshape = {shape[1], shape[0], shape[2]};
+        ov::Tensor tnew(t.get_element_type(), tshape);
+
+        // Iterate over output tensor coordinates
+        for (std::size_t p = 0; p < tshape[0]; p++) {
+            for (std::size_t r = 0; r < tshape[1]; r++) {
+                for (std::size_t c = 0; c < tshape[2]; c++) {
+                    uint8_t value = tread_4b(t, r, p * shape[2] + c, shape[1] * shape[2]);
+                    twrite_4b(tnew, value, p * tshape[1] + r, c, tshape[2]);
+                }
+            }
+        }
+        t = std::move(tnew);
+    } else {
+        NPUW_ASSERT(false && "Not supported yet");
     }
 }

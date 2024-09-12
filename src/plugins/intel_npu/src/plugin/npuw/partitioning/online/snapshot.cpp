@@ -5,6 +5,7 @@
 #include "snapshot.hpp"
 
 #include "../../logging.hpp"
+#include "../../util.hpp"
 #include "../patterns/avoid.hpp"
 #include "../patterns/compute.hpp"
 #include "group.hpp"
@@ -72,6 +73,8 @@ void Snapshot::buildGraph() {
         ++gid;
     }
 
+    using namespace ov::npuw::util::at;
+
     for (const auto& nh : m_graph->sorted()) {
         auto gptr = m_graph->meta(nh).get<Group::GPtr>();
         auto ov_node = gptr->getInitialNode();
@@ -83,7 +86,7 @@ void Snapshot::buildGraph() {
                 auto ov_node_child = target_output.get_node()->shared_from_this();
 
                 // Insert readers from other layers
-                m_node_to_prod_cons->at(ov_node).second.insert(ov_node_child);
+                _(m_node_to_prod_cons).at(ov_node).second.insert(ov_node_child);
 
                 // Save ports for repeated blocks pipeline
                 m_ports_map.insert({{ov_node, ov_node_child}, {i, target_output.get_index()}});
@@ -91,9 +94,9 @@ void Snapshot::buildGraph() {
                 if (!isOp(ov_node_child)) {
                     continue;
                 }
-
-                if (!m_graph->linked(nh, m_node_to_gr->at(ov_node_child)->getHandle())) {
-                    m_graph->link(nh, m_node_to_gr->at(ov_node_child)->getHandle());
+                Group::GPtr gr_child = _(m_node_to_gr).at(ov_node_child);
+                if (!m_graph->linked(nh, gr_child->getHandle())) {
+                    m_graph->link(nh, gr_child->getHandle());
                 }
             }
         }  // for(outputs)
@@ -103,7 +106,7 @@ void Snapshot::buildGraph() {
             auto ov_node_parent = target_input.get_node()->shared_from_this();
 
             // Insert writers from other layers
-            m_node_to_prod_cons->at(ov_node).first.insert(ov_node_parent);
+            _(m_node_to_prod_cons).at(ov_node).first.insert(ov_node_parent);
 
             // Save ports for repeated blocks pipeline
             m_ports_map.insert({{ov_node_parent, ov_node}, {target_input.get_index(), i}});
@@ -112,8 +115,9 @@ void Snapshot::buildGraph() {
                 continue;
             }
 
-            if (!m_graph->linked(m_node_to_gr->at(ov_node_parent)->getHandle(), nh)) {
-                m_graph->link(m_node_to_gr->at(ov_node_parent)->getHandle(), nh);
+            Group::GPtr gr_parent = _(m_node_to_gr).at(ov_node_parent);
+            if (!m_graph->linked(gr_parent->getHandle(), nh)) {
+                m_graph->link(gr_parent->getHandle(), nh);
             }
         }  // for(inputs)
     }      // for(get_ordered_ops)
@@ -1028,11 +1032,11 @@ GPtrSet Snapshot::getRepGroups(const Group::GPtr& group) const {
 }
 
 const OVNodeSet& Snapshot::getNodeProducers(const OVNodePtr& node) const {
-    return m_node_to_prod_cons->at(node).first;
+    return ov::npuw::util::at::_(m_node_to_prod_cons).at(node).first;
 }
 
 const OVNodeSet& Snapshot::getNodeConsumers(const OVNodePtr& node) const {
-    return m_node_to_prod_cons->at(node).second;
+    return ov::npuw::util::at::_(m_node_to_prod_cons).at(node).second;
 }
 
 // Updated within a group during fusion

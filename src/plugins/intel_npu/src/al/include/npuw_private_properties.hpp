@@ -161,6 +161,14 @@ static constexpr ov::Property<bool> cwai{"NPUW_CWAI"};
 
 /**
  * @brief
+ * Type: bool.
+ * Apply dynamic quantization transformations at the plugin side.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> dyn_quant{"NPUW_DQ"};
+
+/**
+ * @brief
  * Type: std::string.
  * Promotional data type for weights decompression. Works only with function "NPUW_FOLD"ing.
  * Possible values: "i8", "f16"
