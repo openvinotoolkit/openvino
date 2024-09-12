@@ -85,11 +85,12 @@ jobs:
       SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
       SCCACHE_LOG: warn
       OPENVINO_REPO: '/__w/openvino/openvino/openvino'
+      OPENVINO_GENAI_REPO: '/__w/openvino/openvino/openvino.genai'
       VCPKG_ROOT: '/__w/openvino/openvino/vcpkg'
       BUILD_DIR: '/__w/openvino/openvino/build'
       ANDROID_TOOLS: '/deps/android_tools'
       ANDROID_NDK_HOME: '/deps/android_tools/ndk-bundle'
-      ANDROID_SDK_VERSION: 29
+      ANDROID_SDK_VERSION: 33
       ANDROID_ABI_CONFIG: arm64-v8a
       VCPKG_TARGET_TRIPLET: arm64-android
       VCPKG_DEFAULT_BINARY_CACHE: '/mount/caches/ccache/android_arm64/vcpkg_cache'
@@ -114,6 +115,14 @@ jobs:
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
           popd
+
+      - name: Clone OpenVINO GenAI
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          repository: 'openvinotoolkit/openvino.genai'
+          path: ${{ env.OPENVINO_GENAI_REPO }}
+          submodules: 'true'
+          ref: 'master'
 
       - name: Clone vcpkg
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -162,6 +171,7 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
+            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_GENAI_REPO }} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
