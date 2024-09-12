@@ -234,7 +234,7 @@ jobs:
           PYTORCH_TRACING_MODE: TORCHFX
 
       - name: ONNX Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).ONNX_FE.test && inputs.python-version != '3.12' }} # Ticket: 152240
+        if: ${{ fromJSON(inputs.affected-components).ONNX_FE.test }}
         run: |
           # requires 'unit_tests' from 'tools/mo'
           export PYTHONPATH=${INSTALL_TEST_DIR}/mo:$PYTHONPATH
