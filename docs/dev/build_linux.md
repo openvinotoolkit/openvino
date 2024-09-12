@@ -11,7 +11,7 @@ The software was validated on:
 
 - [CMake](https://cmake.org/download/) 3.13 or higher
 - GCC 7.5 or higher to build OpenVINO Runtime
-- Python 3.8 - 3.11 for OpenVINO Runtime Python API
+- Python 3.8 - 3.12 for OpenVINO Runtime Python API
 - (Optional) Install Intel® Graphics Compute Runtime for OpenCL™ Driver package to enable inference on Intel integrated GPUs.
 
 ## How to build
@@ -39,7 +39,7 @@ The software was validated on:
      mkdir build && cd build
    ```
 
-> **NOTE**: It is recommended to disable the oneAPI environment before compiling OpenVINO from source on Linux, as it may cause build failures. 
+> **NOTE**: It is recommended to disable the oneAPI environment before compiling OpenVINO from source on Linux, as it may cause build failures.
 
 4. OpenVINO Runtime uses a CMake-based build system. In the created `build` directory, run `cmake` to fetch project dependencies and create Unix makefiles, then run `make` to build the project:
    ```sh

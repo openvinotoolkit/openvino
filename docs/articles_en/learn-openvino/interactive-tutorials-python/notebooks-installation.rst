@@ -30,20 +30,20 @@ The table below lists the supported operating systems and Python versions.
 |                                     | (64-bit                        |
 |                                     | ) <https://www.python.org/>`__ |
 +=====================================+================================+
-| Ubuntu 20.04 LTS, 64-bit            | 3.8, 3.9, 3.10. 3.11           |
+| Ubuntu 20.04 LTS, 64-bit            | 3.8, 3.9, 3.10, 3.11, 3.12     |
 +-------------------------------------+--------------------------------+
-| Ubuntu 22.04 LTS, 64-bit            | 3.8, 3.9, 3.10, 3.11           |
+| Ubuntu 22.04 LTS, 64-bit            | 3.8, 3.9, 3.10, 3.11, 3.12     |
 +-------------------------------------+--------------------------------+
-| Red Hat Enterprise Linux 8          | 3.8, 3.9, 3.10, 3.11           |
+| Red Hat Enterprise Linux 8          | 3.8, 3.9, 3.10, 3.11, 3.12     |
 +-------------------------------------+--------------------------------+
-| CentOS 7, 64 bit                    | 3.8, 3.9, 3.10, 3.11           |
+| CentOS 7, 64 bit                    | 3.8, 3.9, 3.10, 3.11, 3.12     |
 +-------------------------------------+--------------------------------+
-| macOS 10.15.x versions or higher    | 3.8, 3.9, 3.10, 3.11           |
+| macOS 10.15.x versions or higher    | 3.8, 3.9, 3.10, 3.11, 3.12     |
 +-------------------------------------+--------------------------------+
-| Windows 10, 64-bit Pro, Enterprise  | 3.8, 3.9, 3.10, 3.11           |
+| Windows 10, 64-bit Pro, Enterprise  | 3.8, 3.9, 3.10, 3.11, 3.12     |
 | or Education editions               |                                |
 +-------------------------------------+--------------------------------+
-| Windows Server 2016 or higher       | 3.8, 3.9, 3.10, 3.11           |
+| Windows Server 2016 or higher       | 3.8, 3.9, 3.10, 3.11, 3.12     |
 +-------------------------------------+--------------------------------+
 
 OpenVINO Notebooks also require Git. Follow the guide below for your
@@ -59,7 +59,7 @@ Installing prerequisites
 
       1. **Install Python**
 
-         Download 64 bit version of Python software (3.8, 3.9, 3.10, 3.11) from `python.org <https://www.python.org/downloads/windows/>`__
+         Download 64 bit version of Python software (3.8 - 3.12) from `python.org <https://www.python.org/downloads/windows/>`__
 
          Run the installer by double clicking it. Follow the installation steps to set up the software.
 
@@ -91,7 +91,7 @@ Installing prerequisites
    .. tab-item:: Linux
       :sync: linux
 
-      1. **Install Python and GIT**
+      5. **Install Python and GIT**
 
          .. note::
 
