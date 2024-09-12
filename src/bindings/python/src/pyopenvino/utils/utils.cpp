@@ -282,19 +282,6 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
     return properties_to_cpp;
 }
 
-bool is_string_null_terminated(const char* str) {
-    if (str == nullptr) {
-        return false;
-    }
-    while (*str) {
-        if (*str == '\0') {
-            return true;
-        }
-        ++str;
-    }
-    return false;
-}
-
 std::string convert_path_to_string(const py::object& path) {
     // import pathlib.Path
     py::object Path = py::module_::import("pathlib").attr("Path");
