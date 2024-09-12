@@ -37,6 +37,7 @@ jobs:
   otel-export-trace:
     name: Export finished workflow metrics
     runs-on: aks-linux-2-cores-8gb
+    if: github.repository == 'openvinotoolkit/openvino'
 
     steps:
       - name: Checkout
