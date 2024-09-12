@@ -86,7 +86,6 @@ function(ov_check_python_build_conditions)
             message(${message_mode} "MSVC toolset version 14.28.x (19.28.x compiler) is not supported. Please update your toolset (${CMAKE_CXX_COMPILER_VERSION}).")
         else()
             set(msvc_supported ON)
-            message(STATUS "MSVC toolset version: ${CMAKE_CXX_COMPILER_VERSION}")
         endif()
     endif()
 
