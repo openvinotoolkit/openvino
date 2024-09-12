@@ -509,7 +509,7 @@ Output<Node> get_input_concat_if_list(const NodeContext& context, size_t idx) {
             return std::make_shared<v0::Constant>(element::i32, Shape{0}, std::vector<int>{});
         OutputVector inputs;
         for (auto& elem : elems) {
-            inputs.push_back(elem);
+            inputs.push_back(try_constfold(elem));
         }
         auto new_x = std::make_shared<v0::Concat>(inputs, 0);
         new_x->set_friendly_name(x.get_node_shared_ptr()->get_friendly_name());
