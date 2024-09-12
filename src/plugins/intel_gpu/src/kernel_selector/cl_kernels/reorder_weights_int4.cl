@@ -119,6 +119,27 @@ KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_
     // Calculate the output buffer index for the packed 8-bit data
     const uint output_idx = GET_FILTER_OS_IYX_OSV_INDEX(OUTPUT, o, i, 0, 0, 64 / 2);
     output[output_idx] = packed_out_channels;
+#elif defined(OUTPUT_LAYOUT_OS_IS_YX_OSV64_ISV2)
+    // os_is_yx_osv64_isv2 layout for int4 packed weight
+    // f0_k0k1 | f1_k0k1 | .... | f15_k0k1 || f16_k0k1 | f17_k0k1 | .... | f31_k0k1 || f32_k0k1 | f33_k0k1 | .... | kf47_k0k1 || f48_k0k1 | f49_k0k1 | .... | f63_k0k1 ||
+    // f0_k2k3 | f1_k2k3 | .... | f15_k2k3 || f16_k2k3 | f17_k2k3 | .... | f31_k2k3 || f32_k2k3 | f33_k2k3 | .... | kf47_k2k3 || f48_k2k3 | f49_k2k3 | .... | f63_k2k3 ||
+    // ...
+    const unsigned o = (uint)get_global_id(0);
+    const unsigned i = (uint)get_global_id(1) * 2;
+
+    // Calculate the input buffer offset
+    const uint input0_offset = GET_FILTER_INDEX(INPUT0, 0, o, i, 0, 0);
+
+    // Extract 8-bit packed value from the input buffer
+    INPUT0_TYPE in1 = input[input0_offset / 2] & 0xFF;
+
+    // Prepare the output value by directly using the extracted value
+    // Since the data is packed, no further processing is needed here
+    INPUT0_TYPE packed_out_channels = in1;
+
+    // Calculate the output buffer index for the packed 8-bit data
+    const uint output_idx = GET_FILTER_OS_IS_YX_OSV_ISV_INDEX_INT4_PACKED(OUTPUT, o, i/2, 0, 0, 64);
+    output[output_idx] = packed_out_channels;
 #else
 #error "reorder_weights_int4: unsupported layouts combination"
 #endif
