@@ -48,7 +48,7 @@ Install OpenVINO™ Runtime on Linux from an Archive File
       :sync: software
 
       * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
-      * `Python 3.8 - 3.11, 64-bit <https://www.python.org/downloads/>`__
+      * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/>`__
       * GCC:
 
       .. tab-set::
