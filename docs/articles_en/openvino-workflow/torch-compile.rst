@@ -1,5 +1,3 @@
-.. {#pytorch_2_0_torch_compile}
-
 PyTorch Deployment via "torch.compile"
 ======================================
 

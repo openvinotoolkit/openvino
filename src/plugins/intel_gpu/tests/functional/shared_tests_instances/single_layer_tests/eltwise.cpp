@@ -67,7 +67,8 @@ std::vector<EltwiseTypes> eltwiseOpTypes = {
 };
 
 std::vector<EltwiseTypes> smoke_intOnly_eltwiseOpTypes = {
-        EltwiseTypes::RIGHT_SHIFT
+        EltwiseTypes::RIGHT_SHIFT,
+        EltwiseTypes::BITWISE_AND
 };
 
 std::vector<ov::test::ElementType> intOnly_netPrecisions = {

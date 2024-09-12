@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_reduction_ReduceL1_4}
-
 ReduceL1
 ========
 
