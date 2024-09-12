@@ -117,7 +117,7 @@ void PreStepsList::add_clamp(float min_value, float max_value) {
                             "Clamp preprocessing can be applied to 'float' inputs. Consider using 'convert_element_type' before clamping. Current type is: ",
                             element_type);
 
-            auto clamp_op = std::make_shared<ov::opset1::Clamp>(node, min_value, max_value);
+            auto clamp_op = std::make_shared<ov::op::v0::Clamp>(node, min_value, max_value);
             return std::make_tuple(std::vector<Output<Node>>{clamp_op}, true);
         },
         name);
