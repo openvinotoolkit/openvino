@@ -52,9 +52,7 @@ class TestSparseSegmentMean(CommonTFLayerTest):
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
-        ref_net = None
-
-        return tf_net, ref_net
+        return tf_net, None
 
     @pytest.mark.parametrize('data_type', [np.float32, np.float64, np.float16])
     @pytest.mark.parametrize('indices_type', [np.int32, np.int64])
