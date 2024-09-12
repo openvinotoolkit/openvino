@@ -13,7 +13,8 @@ rng = np.random.default_rng(109734)
 
 class TestErf(JaxLayerTest):
     def _prepare_input(self):
-        x = rng.uniform(-50.0, 50.0, self.input_shape).astype(self.input_type)
+        # erf are mostly changing in a range [-4, 4]
+        x = rng.uniform(-4.0, 4.0, self.input_shape).astype(self.input_type)
 
         x = jnp.array(x)
         return [x]
