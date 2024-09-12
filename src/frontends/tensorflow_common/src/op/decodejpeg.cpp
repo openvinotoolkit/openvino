@@ -21,17 +21,7 @@ OutputVector translate_decodejpeg_op(const NodeContext& node) {
     << ", input size=" << node.get_input_size() << ", input0=" << input
     << std::endl;
 
-    // auto output_type = ov::element::i32;
-    // auto shape =  make_shared<v0::Constant>(ov::element::i32, Shape{3}, std::vector<int32_t>({224,224,3}));    
-    // auto minval = make_shared<v0::Constant>(output_type, Shape{}, 0);
-    // auto maxval = make_shared<v0::Constant>(output_type, Shape{}, 254);
-    // auto random = std::make_shared<v8::RandomUniform>(shape, minval, maxval, output_type, 0, 0);
-
-    // set_node_name(node.get_name(), random);
-    // return random->outputs();
-
-    auto name = make_shared<v0::Constant>(ov::element::i32, Shape{}, 254);
-    auto res = make_shared<v0::DecodeImg>(name);
+    auto res = make_shared<v0::DecodeImg>(input);
     set_node_name(node.get_name(), res);
     return res->outputs();
 }

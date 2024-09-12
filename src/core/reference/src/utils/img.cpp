@@ -9,9 +9,9 @@ namespace ov {
 namespace reference {
 namespace img {
 
-std::shared_ptr<images> ParserImages(const char* filename) {
+std::shared_ptr<images> ParserImages(const char* content, size_t img_length) {
     auto ptr = BitMap::getBMP();
-    if (ptr->isSupported(filename))
+    if (ptr->isSupported(content, img_length))
         return ptr;
     return nullptr;
 }

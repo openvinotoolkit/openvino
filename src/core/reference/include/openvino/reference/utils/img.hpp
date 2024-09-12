@@ -32,13 +32,17 @@ protected:
     /// \brief shape - data shape
     std::vector<size_t> _shape;
 
+    const char* _data;
+    size_t _length;
+    size_t _offset;
+
 public:
 
     images() {}
 
     virtual ~images() = default;
 
-    virtual bool isSupported(const std::string& filename) = 0;
+    virtual bool isSupported(const char* content, size_t img_length) = 0;
 
     virtual void closeFile() = 0;
     /**
@@ -81,7 +85,7 @@ public:
 
 static std::vector<std::shared_ptr<images>> image_formats;
 
-std::shared_ptr<images> ParserImages(const char* filename) ;
+std::shared_ptr<images> ParserImages(const char* content, size_t img_length) ;
 }  // namespace img
 }  // namespace reference
 }  // namespace ov

@@ -11,17 +11,20 @@
 namespace ov {
 namespace reference {
 
-// Implementation of RandomUniform that uses Philox algorithm as inner random unsigned integer generator.
-void decodeimg(const Tensor& input, Tensor& out) {
-    const char* filename = static_cast<const char*>(input.data());
-    std::cout << "input filename : " << filename << std::endl;
-    filename = "/home/sgui/tensorflow-1.15/tensorflow/contrib/ffmpeg/testdata/small_100.bmp";
-    auto reader = ov::reference::img::ParserImages(filename);
-    if (reader == nullptr) {
-        std::cout << "Unsupported file :" << filename << std::endl;
+// Implementation of decodeimg.
+int decodeimg(const Tensor& input, Tensor& out) {
+    int img_length = input.get_byte_size();
+    char* img_content = static_cast<char*>(input.data());
+
+    // ov::PartialShape output_shape{Dimension(), Dimension(),3};
+    // out.set_shape(output_shape.to_shape());
+    int ret = -1;
+    auto reader = ov::reference::img::ParserImages(img_content, img_length);
+    if (reader != nullptr) {
+        ret = reader->getData(out);
+        reader->closeFile();
     }
-    // reader->getData(out);
-    reader->closeFile();
+    return ret;
 }
 
 }  // namespace reference

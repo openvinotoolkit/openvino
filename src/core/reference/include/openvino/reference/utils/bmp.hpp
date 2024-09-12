@@ -46,27 +46,21 @@ private:
     BmpHeader header;
     BmpInfoHeader infoHeader;
 
-    ifstream input;
-
     BitMap() : images() {};
 
 public:
     static std::shared_ptr<BitMap> getBMP();
 
-    virtual ~BitMap() {input.close();}
+    virtual ~BitMap() {}
     
-    void closeFile() override {input.close();}
-    /**
-     * \brief Constructor of BMP reader
-     * @param filename - path to input data
-     * @return BitMap reader object
-     */
-    bool isSupported(const std::string& filename) override;
+    bool isSupported(const char* content, size_t img_length) override;
 
-    /**
-     * \brief Get size
-     * @return size
-     */
+    void closeFile() override {
+        _data=nullptr;
+        _offset = 0;
+        _length = 0;
+    }
+
     size_t size() const override {
         return _width * _height * 3;
     }

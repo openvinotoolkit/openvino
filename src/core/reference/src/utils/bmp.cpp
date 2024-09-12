@@ -16,27 +16,34 @@ std::shared_ptr<BitMap> BitMap::getBMP() {
     return bmp_singleton;
 }
 
-bool BitMap::isSupported(const string& filename) {
-    input.open(filename, ios::binary);
-    if (!input) {
+bool BitMap::isSupported(const char* content, size_t length) {
+    if (content==nullptr || length < 24) {
         return false;
     }
-
-    input.read(reinterpret_cast<char*>(&header.type), 2);
+    _data = content;
+    _length = length;
+    _offset = 0;
+    memcpy(reinterpret_cast<char*>(&header.type), _data + _offset, 2);
+    _offset += 2;
 
     if (header.type != 'M' * 256 + 'B') {
         std::cerr << "[BMP] file is not bmp type\n";
         return false;
     }
 
-    input.read(reinterpret_cast<char*>(&header.size), 4);
-    input.read(reinterpret_cast<char*>(&header.reserved), 4);
-    input.read(reinterpret_cast<char*>(&header.offset), 4);
+    memcpy(reinterpret_cast<char*>(&header.size), _data + _offset, 4);
+    _offset += 4;
+    memcpy(reinterpret_cast<char*>(&header.reserved), _data + _offset, 4);
+    _offset += 4;
+    memcpy(reinterpret_cast<char*>(&header.offset), _data + _offset, 4);
+    _offset += 4;
 
-    input.read(reinterpret_cast<char*>(&infoHeader), sizeof(BmpInfoHeader));
+    memcpy(reinterpret_cast<char*>(&infoHeader), _data + _offset, sizeof(BmpInfoHeader));
+    _offset += sizeof(BmpInfoHeader);
 
     _width = infoHeader.width;
     _height = abs(infoHeader.height);
+    _shape.clear();
     _shape.push_back(_height);
     _shape.push_back(_width);
     _shape.push_back(3);
@@ -72,26 +79,29 @@ int BitMap::getData(Tensor& output) {
     BmpHeader header;
     BmpInfoHeader infoHeader;
 
-    if (!input.is_open() ) {
+    if (_data==nullptr) {
         return -1;
     }
 
     bool rowsReversed = false;
 
     int padSize = _width & 3;
-    char pad[3];
+    // char pad[3];
     // size_t size = _width * _height * 3;
+
+    std::cout << "BMP shape: " << _shape[0] << "," << _shape[1] << "," << _shape[2] << std::endl;
 
     output.set_shape(_shape);
 
-    char* output_data = output.data<char>();
-    input.seekg(header.offset, ios::beg);
+    char* output_data = (char*)output.data();
+    _offset = header.offset;
 
     // reading by rows in invert vertically
     for (uint32_t i = 0; i < _height; i++) {
         uint32_t storeAt = rowsReversed ? i : (uint32_t)_height - 1 - i;
-        input.read(output_data + _width * 3 * storeAt, _width * 3);
-        input.read(pad, padSize);
+        memcpy(output_data + _width * 3 * storeAt, _data + _offset, _width * 3);
+        _offset += _width * 3;
+        _offset += padSize;
     }
     return 0;
 }

@@ -449,6 +449,12 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         if (const auto& input_var = model_tf->get_variable(input_place)) {
             (*ov_tensors_map)[input_name] = {NamedOutput(input_var->output(0))};
         } else {
+            if (input_type == element::string) {
+                input_type = element::i8;
+                std::cout << "Replace string to i8" << std::endl;
+                if (input_shape == ov::PartialShape::dynamic())
+                    input_shape = ov::PartialShape({1, -1});
+            }
             auto param = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape);
             param->set_friendly_name(input_name);
             set_out_name(input_name, param);

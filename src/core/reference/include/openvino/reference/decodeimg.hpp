@@ -13,6 +13,6 @@
 namespace ov {
 namespace reference {
 
-void decodeimg(const Tensor& input, Tensor& out);
+int decodeimg(const Tensor& input, Tensor& out);
 }  // namespace reference
 }  // namespace ov

@@ -28,13 +28,13 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
-    bool has_evaluate() const override;
 
-protected:
-    int m_width;
-    int m_height;
-    int m_channel;
+    // /// \return Turns off constant folding for DecodeImg operation.
+    // bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
+
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
+
+    bool has_evaluate() const override;
 };
 }  // namespace v0
 }  // namespace op
