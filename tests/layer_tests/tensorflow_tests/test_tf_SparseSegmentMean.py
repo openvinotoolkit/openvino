@@ -68,6 +68,8 @@ class TestSparseSegmentMean(CommonTFLayerTest):
                                 shape, segments_num,
                                 ie_device, precision, ir_version, temp_dir,
                                 use_legacy_frontend):
+        if ie_device == 'GPU':
+            pytest.skip("GPU error: to_shape was called on a dynamic shape")
         self._test(*self.create_sparse_segment_mean(data_type, indices_type,
                                                    shape, segments_num),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
