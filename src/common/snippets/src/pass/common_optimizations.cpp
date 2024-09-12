@@ -47,6 +47,7 @@ CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& con
         // Then if Subgraph contains FakeQuantize we enable specific transformation for quantized subgraphs.
         ov::pass::Manager manager(get_pass_config(), "Snippets:CommonOptimizations");
         REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::TransformConvertToConvertTruncation, true);
+        // Note: in case of FullyConnected, some common optimizations shouldn't be applied. At least, ExplicitTransposeMatMulInputs
         REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::ExplicitTransposeMatMulInputs, is_domain_sensitive);
         REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::CommonFakeQuantizeDecomposition, is_quantized);
         REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::SoftmaxReshapeElimination, is_domain_sensitive);

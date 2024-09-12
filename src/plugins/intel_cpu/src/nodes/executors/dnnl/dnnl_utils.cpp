@@ -26,6 +26,9 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
     const auto& eng = context->getEngine();
     const auto& format = dstWeightDesc->serializeFormat();
 
+    std::cout << "[ INFO ] prepareWeightsMemory: repacking from " << srcWeightDesc->serializeFormat() << " to "
+              << dstWeightDesc->serializeFormat() << std::endl;
+
     const auto privateWeightCache = context->getPrivateWeighCache();
     OPENVINO_ASSERT(privateWeightCache, "privateWeightCache is nullptr");
     if (privateWeightCache) {

@@ -70,7 +70,10 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(const 
         n_blk = get_full_dim_value();
         k_blk = get_full_dim_value();
     }
-    return std::make_tuple(m_blk, n_blk, k_blk);
+    const size_t M = std::getenv("M_b") ? std::atoi(std::getenv("M_b")) : m_blk;
+    const size_t K = std::getenv("K_b") ? std::atoi(std::getenv("K_b")) : k_blk;
+    const size_t N = std::getenv("N_b") ? std::atoi(std::getenv("N_b")) : n_blk;
+    return std::make_tuple(M, N, K);
 }
 
 SpecificIterationHandlers BrgemmCPUBlocking::get_k_loop_handlers(size_t work_amount, size_t block_size) const {

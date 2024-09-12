@@ -62,17 +62,39 @@ inline void init_work_amount(const LoopInfoPtr& loop_info) {
 }  // namespace
 
 void update_data_pointer_shifts(const UnifiedLoopInfoPtr& loop_info) {
+    static size_t loop_id = 0;
     OPENVINO_ASSERT(loop_info != nullptr, "UnifiedLoopInfo is nullptr, nothing to update");
     const auto work_amount = loop_info->get_work_amount();
     const auto input_count = loop_info->get_input_count();
     const auto output_count = loop_info->get_output_count();
-
-    auto update_shifts = [&work_amount, &input_count, &output_count](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& ptr_shifts_params) {
+    size_t idx = 0;
+    auto update_shifts = [&](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& ptr_shifts_params) {
         ptr_shifts_params.ptr_increment = get_ptr_increment(loop_port, work_amount,
                                                             loop_port.expr_port->get_type() == ExpressionPort::Input ? input_count : output_count);
+        // Note: this dirty hack is needed to set correct increments of loops in blocked weights conditions
+        // Attention: this works only for Subgraph with single matmul layer inside
+        {
+            // Note: update_data_pointer_shifts is called twice: in InitLoops and in RuntimeConfigurator
+            const bool K_loop = loop_id == 0 || loop_id == 4;
+            const bool N_loop = loop_id == 1 || loop_id == 5;
+
+            if (K_loop && idx == 1) {
+                // increment = inner_N_block size. Default value is the same as in BrgemmCPUBlocking
+                const size_t block = std::getenv("N_b") ? std::atoi(std::getenv("N_b")) : 64;
+                ptr_shifts_params.ptr_increment = block;
+            }
+            if (N_loop && idx == 1) {
+                // increment = K dimension rounded by K block.
+                // Note: round is skipped here, so only K divisible on block can be used
+                const auto& K = *++loop_port.expr_port->get_descriptor_ptr()->get_shape().rbegin();
+                ptr_shifts_params.ptr_increment = K;
+            }
+        }
         ptr_shifts_params.finalization_offset = get_finalization_offset(work_amount, ptr_shifts_params.ptr_increment);
+        idx++;
     };
     loop_info->iterate_through_infos(update_shifts);
+    loop_id++;
 }
 
 void update_runtime_parameters(const UnifiedLoopInfoPtr& loop_info) {
