@@ -15,6 +15,9 @@ concurrency:
 
 permissions: read-all
 
+env:
+  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
@@ -122,7 +125,7 @@ jobs:
           repository: 'openvinotoolkit/openvino.genai'
           path: ${{ env.OPENVINO_GENAI_REPO }}
           submodules: 'true'
-          ref: 'master'
+          ref: ${{ env.TARGET_BRANCH }}
 
       - name: Clone vcpkg
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
