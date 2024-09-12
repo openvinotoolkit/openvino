@@ -6,6 +6,7 @@
 
 #include "openvino/op/add.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/erf.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -59,6 +60,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"device_put", op::skip_node},
             {"div", op::translate_1to1_match_2_inputs<v1::Divide>},
             {"dot_general", op::translate_dot_general},
+            {"erf", op::translate_1to1_match_1_input<v0::Erf>},
             {"exp", op::translate_1to1_match_1_input<v0::Exp>},
             {"integer_pow", op::translate_integer_pow},
             {"max", op::translate_1to1_match_2_inputs<v1::Maximum>},

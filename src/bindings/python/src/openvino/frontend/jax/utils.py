@@ -142,21 +142,25 @@ def ivalue_to_constant(ivalue, shared_memory=True):
     if ov_type.is_static():
         return op.Constant(ov_type, Shape([]), [ivalue]).outputs()
     if isinstance(ivalue, (list, tuple)):
+        # TODO 150596: remove this workaround
+        if len(ivalue) == 0:
+            return op.Constant(OVType.i64, Shape([0]), []).outputs()
         assert len(ivalue) > 0, "Can't deduce type for empty list"
-        if isinstance(ivalue[0], (list, tuple)):
-            second_len = len(ivalue[0])
-            flattened_ivalue = []
-            for value in ivalue:
-                assert isinstance(value, (list, tuple)), "Can't deduce type for a list with both list and basic types."
-                assert len(value) == second_len or len(value) == 0, "Can't deduce type for nested list with different lengths."
-                flattened_ivalue.extend([filter_element(item) for item in value])
-            flattened_ivalue = [item for sublist in ivalue for item in sublist]
-            ov_type = _get_ov_type_from_value(flattened_ivalue[0])
-            assert ov_type.is_static(), f"Can't deduce type {flattened_ivalue[0].__class__} for list"
-            return op.Constant(ov_type, Shape([len(ivalue), second_len]), flattened_ivalue).outputs()
-        ivalue = [filter_element(item) for item in ivalue]
-        ov_type = _get_ov_type_from_value(ivalue[0])
         try:
+            if isinstance(ivalue[0], (list, tuple)):
+                second_len = len(ivalue[0])
+                flattened_ivalue = []
+                for value in ivalue:
+                    assert isinstance(value, (list, tuple)), "Can't deduce type for a list with both list and basic types."
+                    assert len(value) == second_len or len(
+                        value) == 0, "Can't deduce type for nested list with different lengths."
+                    flattened_ivalue.extend([filter_element(item) for item in value])
+                flattened_ivalue = [item for sublist in ivalue for item in sublist]
+                ov_type = _get_ov_type_from_value(flattened_ivalue[0])
+                assert ov_type.is_static(), f"Can't deduce type {flattened_ivalue[0].__class__} for list"
+                return op.Constant(ov_type, Shape([len(ivalue), second_len]), flattened_ivalue).outputs()
+            ivalue = [filter_element(item) for item in ivalue]
+            ov_type = _get_ov_type_from_value(ivalue[0])
             assert ov_type.is_static(), f"Can't deduce type {ivalue[0].__class__} for list"
         except:
             # TODO 150596: remove this workaround
