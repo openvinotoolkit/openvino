@@ -203,8 +203,10 @@ std::string resample_inst::to_string(resample_node const& node) {
         resample_info.add("nearest_mode:", "simple");
 
     resample_info.add("output_size", desc->output_size);
-    resample_info.add("output padding lower size", desc->output_paddings[0].lower_size());
-    resample_info.add("output padding upper size", desc->output_paddings[0].upper_size());
+    resample_info.add("output padding lower size", std::vector<tensor::value_type>(desc->output_paddings[0]._lower_size.begin(),
+                                                                                   desc->output_paddings[0]._lower_size.end()));
+    resample_info.add("output padding upper size", std::vector<tensor::value_type>(desc->output_paddings[0]._upper_size.begin(),
+                                                                                   desc->output_paddings[0]._upper_size.end()));
 
     node_info->add("resample_info", resample_info);
     node_info->dump(primitive_description);

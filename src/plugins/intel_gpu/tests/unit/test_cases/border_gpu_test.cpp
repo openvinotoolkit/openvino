@@ -1884,7 +1884,7 @@ TEST(border_gpu, basic_zero_input) {
     layout zero_input_layout = {{0, 1}, data_types::f32, format::bfyx};
     input = engine.reinterpret_buffer(*input, zero_input_layout);
 
-    ov::CoordinateDiff pads_begin = {4, 0};
+    std::vector<int> pads_begin = {4, 0};
     ov::PartialShape pads_begin_shape = { ov::Dimension(pads_begin.size()) };
     auto pads_begin_input = engine.allocate_memory({pads_begin_shape, data_types::i32, format::bfyx});
     set_values(pads_begin_input, pads_begin);

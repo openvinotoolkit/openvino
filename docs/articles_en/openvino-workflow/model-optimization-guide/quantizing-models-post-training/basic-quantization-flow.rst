@@ -1,5 +1,3 @@
-.. {#basic_quantization_flow}
-
 Basic Quantization Flow
 =======================
 
@@ -39,14 +37,14 @@ The transformation function is a function that takes a sample from the dataset a
 
    .. tab-item:: OpenVINO
       :sync: openvino
-      
+
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
          :language: python
          :fragment: [dataset]
 
    .. tab-item:: PyTorch
       :sync: pytorch
-      
+
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
          :language: python
          :fragment: [dataset]
@@ -78,14 +76,14 @@ See the `example section <#examples-of-how-to-apply-nncf-post-training-quantizat
 
    .. tab-item:: OpenVINO
       :sync: openvino
-      
+
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
          :language: python
          :fragment: [quantization]
 
    .. tab-item:: PyTorch
       :sync: pytorch
-      
+
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
          :language: python
          :fragment: [quantization]
@@ -103,7 +101,7 @@ See the `example section <#examples-of-how-to-apply-nncf-post-training-quantizat
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py
          :language: python
          :fragment: [quantization]
-         
+
 
 After that the model can be converted into the OpenVINO Intermediate Representation (IR) if needed, compiled and run with OpenVINO.
 If you have not already installed OpenVINO developer tools, install it with ``pip install openvino``.
@@ -112,14 +110,14 @@ If you have not already installed OpenVINO developer tools, install it with ``pi
 
    .. tab-item:: OpenVINO
       :sync: openvino
-      
+
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
          :language: python
          :fragment:  [inference]
 
    .. tab-item:: PyTorch
       :sync: pytorch
-      
+
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
          :language: python
          :fragment:  [inference]
@@ -137,7 +135,7 @@ If you have not already installed OpenVINO developer tools, install it with ``pi
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py
          :language: python
          :fragment:  [inference]
-         
+
 Tune quantization parameters
 ############################
 
