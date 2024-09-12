@@ -90,7 +90,7 @@ jobs:
       BUILD_DIR: '/__w/openvino/openvino/build'
       ANDROID_TOOLS: '/deps/android_tools'
       ANDROID_NDK_HOME: '/deps/android_tools/ndk-bundle'
-      ANDROID_SDK_VERSION: 29
+      ANDROID_SDK_VERSION: 33
       ANDROID_ABI_CONFIG: arm64-v8a
       VCPKG_TARGET_TRIPLET: arm64-android
       VCPKG_DEFAULT_BINARY_CACHE: '/mount/caches/ccache/android_arm64/vcpkg_cache'
