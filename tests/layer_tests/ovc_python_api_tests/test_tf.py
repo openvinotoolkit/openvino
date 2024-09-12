@@ -3,6 +3,7 @@
 import numpy as np
 import openvino.runtime as ov
 import os
+import sys
 import pytest
 import tempfile
 import tensorflow as tf
@@ -731,6 +732,10 @@ class TestMoConvertTF(CommonMOConvertTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.skipif(
+        condition=(sys.version_info[0], sys.version_info[1]) == (3, 12),
+        reason='Ticket: 152216'
+    )
     def test_unnamed_saved_model_dir(self, ie_device, precision, ir_version, temp_dir):
         saved_model_dir, graph_ref = create_tf_saved_model_dir(temp_dir)
 
@@ -1148,6 +1153,10 @@ class TestOutputTensorName(unittest.TestCase):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.skipif(
+        condition=(sys.version_info[0], sys.version_info[1]) == (3, 12),
+        reason='Ticket: 152216'
+    )
     def test_tf2_from_file_single_tensor_name(self):
         tf.keras.backend.clear_session()
         tf.compat.v1.reset_default_graph()

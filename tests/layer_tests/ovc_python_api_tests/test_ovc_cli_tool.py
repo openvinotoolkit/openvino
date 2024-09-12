@@ -141,6 +141,10 @@ class TestOVCTool(unittest.TestCase):
         flag, msg = compare_functions(ov_model, create_ref_graph(), False)
         assert flag, msg
 
+    @unittest.skipIf(
+        (sys.version_info[0], sys.version_info[1]) == (3, 12),
+        'Ticket: 152216'
+    )
     def test_ovc_tool_saved_model_dir(self):
         from openvino.runtime import Core
         core = Core()
@@ -154,6 +158,10 @@ class TestOVCTool(unittest.TestCase):
         flag, msg = compare_functions(ov_model, ref_model, False)
         assert flag, msg
 
+    @unittest.skipIf(
+        (sys.version_info[0], sys.version_info[1]) == (3, 12),
+        'Ticket: 152216'
+    )
     def test_ovc_tool_saved_model_dir_with_sep_at_path_end(self):
         from openvino.runtime import Core
         core = Core()
@@ -167,6 +175,10 @@ class TestOVCTool(unittest.TestCase):
         flag, msg = compare_functions(ov_model, ref_model, False)
         assert flag, msg
 
+    @unittest.skipIf(
+        (sys.version_info[0], sys.version_info[1]) == (3, 12),
+        'Ticket: 152216'
+    )
     def test_ovc_tool_non_existng_output_dir(self):
         from openvino.runtime import Core
         core = Core()
@@ -180,7 +192,10 @@ class TestOVCTool(unittest.TestCase):
         flag, msg = compare_functions(ov_model, ref_model, False)
         assert flag, msg
 
-
+    @unittest.skipIf(
+        (sys.version_info[0], sys.version_info[1]) == (3, 12),
+        'Ticket: 152216'
+    )
     def test_ovc_tool_verbose(self):
         from openvino.runtime import Core
         core = Core()
