@@ -13,12 +13,7 @@ rng = np.random.default_rng(109734)
 
 class TestErf(JaxLayerTest):
     def _prepare_input(self):
-        if np.issubdtype(self.input_type, np.floating):
-            x = rng.uniform(-50.0, 50.0, self.input_shape).astype(self.input_type)
-        elif np.issubdtype(self.input_type, np.signedinteger):
-            x = rng.integers(-80, 80, self.input_shape).astype(self.input_type)
-        else:
-            x = rng.integers(0, 80, self.input_shape).astype(self.input_type)
+        x = rng.uniform(-50.0, 50.0, self.input_shape).astype(self.input_type)
 
         x = jnp.array(x)
         return [x]
