@@ -5,7 +5,7 @@ This basic introduction to OpenVINO™ shows how to do inference with an
 image classification model.
 
 A pre-trained `MobileNetV3
-model <https://docs.openvino.ai/2024/omz_models_model_mobilenet_v3_small_1_0_224_tf.html>`__
+model <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/mobilenet-v3-small-1.0-224-tf/README.md>`__
 from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used in
 this tutorial. For more information about how OpenVINO IR models are
@@ -23,6 +23,16 @@ tutorial.
 -  `Load the Model <#load-the-model>`__
 -  `Load an Image <#load-an-image>`__
 -  `Do Inference <#do-inference>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 .. code:: ipython3
 
@@ -68,7 +78,7 @@ Imports
 
     open("notebook_utils.py", "w").write(r.text)
 
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 Download the Model and data samples
 -----------------------------------
@@ -115,15 +125,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 

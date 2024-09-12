@@ -16,7 +16,7 @@ More details about model can be found in `Stability AI blog
 post <https://stability.ai/news/stability-ai-sdxl-turbo>`__.
 
 Previously, we already discussed how to launch Stable Diffusion XL model
-using OpenVINO in the following `notebook <../stable-diffusion-xl>`__,
+using OpenVINO in the following `notebook <stable-diffusion-xl-with-output.html>`__,
 in this tutorial we will focus on the
 `SDXL-turbo <https://huggingface.co/stabilityai/sdxl-turbo>`__ version.
 Additionally, to improve image decoding speed, we will use `Tiny
@@ -53,6 +53,16 @@ used to convert the models to OpenVINO™ IR format.
 
 -  `Interactive Demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -60,7 +70,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
     "torch>=2.1" transformers diffusers "git+https://github.com/huggingface/optimum-intel.git" "gradio>=4.19" "peft==0.6.2" "openvino>=2023.3.0"
 
 Convert model to OpenVINO format
@@ -89,9 +99,9 @@ You can find a mapping between tasks and model classes in Optimum
 TaskManager
 `documentation <https://huggingface.co/docs/optimum/exporters/task_manager>`__.
 
-Additionally, you can specify weights compression ``--fp16`` for the
-compression model to FP16 and ``--int8`` for the compression model to
-INT8. Please note, that for INT8, it is necessary to install nncf.
+Additionally, you can specify weights compression ``--weight-format``
+for the model compression. Please note, that for INT8/INT4, it is
+necessary to install nncf.
 
 Full list of supported arguments available via ``--help`` For more
 details and examples of usage, please check `optimum
@@ -153,7 +163,7 @@ back to image format.
 
 
     if not skip_convert_model:
-        !optimum-cli export openvino --model $sdxl_model_id --task stable-diffusion-xl $model_dir --fp16
+        !optimum-cli export openvino --model $sdxl_model_id --task stable-diffusion-xl $model_dir --weight-format fp16
         convert_tiny_vae(tae_id, model_dir)
 
 Text-to-image generation
@@ -189,15 +199,6 @@ Select inference device for text-to-image generation
 
     device
 
-
-
-
-.. parsed-literal::
-
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
-
-
-
 .. code:: ipython3
 
     from optimum.intel.openvino import OVStableDiffusionXLPipeline
@@ -207,14 +208,6 @@ Select inference device for text-to-image generation
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
-
-
-.. parsed-literal::
-
-    /home/ea/work/genai_env/lib/python3.8/site-packages/torch/cuda/__init__.py:138: UserWarning: CUDA initialization: The NVIDIA driver on your system is too old (found version 11080). Please update your GPU driver by downloading and installing a new version from the URL: http://www.nvidia.com/Download/index.aspx Alternatively, go to: https://pytorch.org to install a PyTorch version that has been compiled with your version of the CUDA driver. (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:108.)
-      return torch._C._cuda_getDeviceCount() > 0
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
     Compiling the vae_decoder to AUTO ...
     Compiling the unet to AUTO ...
     Compiling the text_encoder to AUTO ...
@@ -285,8 +278,8 @@ For that, we should replace ``OVStableDiffusionXLPipeline`` with
 
     Compiling the vae_decoder to AUTO ...
     Compiling the unet to AUTO ...
-    Compiling the text_encoder_2 to AUTO ...
     Compiling the vae_encoder to AUTO ...
+    Compiling the text_encoder_2 to AUTO ...
     Compiling the text_encoder to AUTO ...
 
 
@@ -483,6 +476,22 @@ model inputs for calibration we should customize ``CompiledModel``.
         text2image_pipe = OVStableDiffusionXLPipeline.from_pretrained(model_dir, device=device.value)
         unet_calibration_data = collect_calibration_data(text2image_pipe, subset_size=200)
 
+
+.. parsed-literal::
+
+    Compiling the vae_decoder to AUTO ...
+    Compiling the unet to AUTO ...
+    Compiling the text_encoder_2 to AUTO ...
+    Compiling the vae_encoder to AUTO ...
+    Compiling the text_encoder to AUTO ...
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/200 [00:00<?, ?it/s]
+
+
 Run quantization
 ~~~~~~~~~~~~~~~~
 
@@ -519,6 +528,106 @@ sensitive ``Convolution`` layers in FP16 precision.
             ),
         )
         ov.save_model(quantized_unet, UNET_INT8_OV_PATH)
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    INFO:nncf:3 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:448 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:Not adding activation input quantizer for operation: 6 __module.model.conv_in/aten::_convolution/Convolution
+    14 __module.model.conv_in/aten::_convolution/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 317 __module.model.up_blocks.2.resnets.2.conv_shortcut/aten::_convolution/Convolution
+    543 __module.model.up_blocks.2.resnets.2.conv_shortcut/aten::_convolution/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1242 __module.model.conv_out/aten::_convolution/Convolution
+    1426 __module.model.conv_out/aten::_convolution/Add
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 Let us check predictions with the quantized UNet using the same input
 data.
@@ -615,9 +724,9 @@ Compare UNet file size
 
 .. parsed-literal::
 
-    FP16 model size: 5014578.27 KB
-    INT8 model size: 2513541.44 KB
-    Model compression rate: 1.995
+    FP16 model size: 5014578.62 KB
+    INT8 model size: 2517944.84 KB
+    Model compression rate: 1.992
 
 
 Compare inference time of the FP16 and INT8 models
@@ -681,16 +790,16 @@ pipelines, we use median inference time on calibration subset.
 
     Compiling the vae_decoder to AUTO ...
     Compiling the unet to AUTO ...
-    Compiling the text_encoder_2 to AUTO ...
-    Compiling the text_encoder to AUTO ...
     Compiling the vae_encoder to AUTO ...
+    Compiling the text_encoder to AUTO ...
+    Compiling the text_encoder_2 to AUTO ...
 
 
 .. parsed-literal::
 
-    FP16 pipeline latency: 1.391
-    INT8 pipeline latency: 0.781
-    Text-to-Image generation speed up: 1.780
+    FP16 pipeline latency: 1.775
+    INT8 pipeline latency: 0.673
+    Text-to-Image generation speed up: 2.636
 
 
 Interactive Demo

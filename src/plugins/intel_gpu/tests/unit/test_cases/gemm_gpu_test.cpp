@@ -415,19 +415,19 @@ public:
         ov::Shape in2_shape_aligned = { aligned_batch1_size, aligned_batch2_size, aligned_k_size, aligned_n_size };
 
         // Use dynamic padding for all BFYX dimensions
-        tensor dyn_pad_dims_input1({0, 0, 0, 0}, 0);
-        tensor dyn_pad_dims_input2({0, 0, 0, 0}, 0);
+        padding::DynamicDimsMask dyn_pad_dims_input1;
+        padding::DynamicDimsMask dyn_pad_dims_input2;
 
         if (n_dim_only) {
-            dyn_pad_dims_input1 = tensor({0, 0, 0, 0}, 0);
-            dyn_pad_dims_input2 = tensor({0, 0, 1, 0}, 0);
+            dyn_pad_dims_input1 = 0ul;
+            dyn_pad_dims_input2 = padding::DynamicDimsMask("1000");
         } else {
-            dyn_pad_dims_input1 = tensor({1, 1, 1, 1}, 0);
-            dyn_pad_dims_input2 = tensor({1, 1, 1, 1}, 0);
+            dyn_pad_dims_input1 = padding::DynamicDimsMask("1111");
+            dyn_pad_dims_input2 = padding::DynamicDimsMask("1111");
         }
 
-        auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input1)};
-        auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input2)};
+        auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, dyn_pad_dims_input1)};
+        auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, dyn_pad_dims_input2)};
 
         auto aligned_input1_mem = engine.allocate_memory({ov::PartialShape(in1_shape_aligned), data_types::f16, format::bfyx});
         auto aligned_input2_mem = engine.allocate_memory({ov::PartialShape(in2_shape_aligned), data_types::f16, format::bfyx});
@@ -435,14 +435,14 @@ public:
         auto input1_mem = engine.reinterpret_buffer(*aligned_input1_mem, layout{ov::PartialShape(in1_shape),
                                                                                 data_types::f16,
                                                                                 format::bfyx,
-                                                                                n_dim_only ? padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input1) :
-                                                                                             padding({padding_size_batch1, 0, 0, 0}, {0, padding_size_batch2, padding_size_k, padding_size_m}, 0.0f, dyn_pad_dims_input1)});
+                                                                                n_dim_only ? padding({0, 0, 0, 0}, {0, 0, 0, 0}, dyn_pad_dims_input1) :
+                                                                                             padding({padding_size_batch1, 0, 0, 0}, {0, padding_size_batch2, padding_size_m, padding_size_k}, dyn_pad_dims_input1)});
 
         auto input2_mem = engine.reinterpret_buffer(*aligned_input2_mem, layout{ov::PartialShape(in2_shape),
                                                                                 data_types::f16,
                                                                                 format::bfyx,
-                                                                                n_dim_only ? padding({0, 0, 0, 0}, {0, 0, padding_size_n, 0}, 0.0f, dyn_pad_dims_input2) :
-                                                                                            padding({0, padding_size_batch2, 0, 0}, {padding_size_batch1, 0, padding_size_n, padding_size_k}, 0.0f, dyn_pad_dims_input2)});
+                                                                                n_dim_only ? padding({0, 0, 0, 0}, {0, 0, 0, padding_size_n}, dyn_pad_dims_input2) :
+                                                                                            padding({0, padding_size_batch2, 0, 0}, {padding_size_batch1, 0, padding_size_k, padding_size_n}, dyn_pad_dims_input2)});
 
         auto input_1_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in1_shape), -2, 2);
         auto input_2_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in2_shape), -2, 2);
@@ -1316,7 +1316,7 @@ public:
         }
     }
 
-    void test_transpose_matmul_f16(size_t num_dims, bool is_input_dynamic, bool is_caching_test, std::vector<size_t> BMKN, std::vector<int64_t> input0_order, std::vector<int64_t> input1_order) {
+    void test_transpose_matmul_f16(size_t num_dims, bool is_input_dynamic, bool is_caching_test, std::vector<size_t> BMKN, std::vector<int64_t> input0_order, std::vector<int64_t> input1_order, const double abs_error = 0.0001) {
         tests::random_generator rg;
         rg.set_seed(GET_SUITE_NAME);
 
@@ -1331,7 +1331,7 @@ public:
         set_default_shapes(num_dims, BMKN, input0_shape_default, input1_shape_default, output_shape_default);
         ov::Shape input0_shape(input0_shape_default.size());
         ov::Shape input1_shape(input1_shape_default.size());
- 
+
         for (size_t dim = 0; dim < input0_shape_default.size(); ++dim) {
             input0_shape[input0_order[dim]] = input0_shape_default[dim];
         }
@@ -1411,7 +1411,6 @@ public:
 
         ASSERT_EQ(output_ptr.size(), ref_out_data.size());
 
-        const auto abs_error = 0.0001;
         for (uint32_t i = 0; i < ref_out_data.size(); ++i) {
             ASSERT_NEAR(output_ptr[i], ref_out_data[i], abs_error) << "at " << i;
         }
@@ -1487,8 +1486,20 @@ TEST_F(gemm_gpu_tests, transpose_matmul_static_3d_f16) {
     this->test_transpose_matmul_f16(3, false, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 2, 1}, /*input1_order*/{1, 2, 0});
 }
 
+TEST_F(gemm_gpu_tests, transpose_matmul_static_3d_f16_n32) {
+    this->test_transpose_matmul_f16(3, false, false, /*BMKN*/{1, 256, 32, 128}, /*input0_order*/{0, 1, 2}, /*input1_order*/{0, 2, 1}, 0.1);
+}
+
 TEST_F(gemm_gpu_tests, transpose_matmul_static_3d_f32) {
     this->test_transpose_matmul_f32(3, false, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 2, 1}, /*input1_order*/{1, 2, 0});
+}
+
+TEST_F(gemm_gpu_tests, transpose_matmul_static_3d_f32_n32) {
+    this->test_transpose_matmul_f32(3, false, false, /*BMKN*/{2, 128, 16, 256}, /*input0_order*/{0, 1, 2}, /*input1_order*/{0, 2, 1});
+}
+
+TEST_F(gemm_gpu_tests, transpose_matmul_static_3d_f32_n32_k_remainder) {
+    this->test_transpose_matmul_f32(3, false, false, /*BMKN*/{2, 128, 17, 256}, /*input0_order*/{0, 1, 2}, /*input1_order*/{0, 2, 1});
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_4d_f16_unaligned) {
@@ -2540,36 +2551,34 @@ public:
 
         ov::Shape in1_shape = { 1, 1, 3, 4 };
         ov::Shape in2_shape = { 1, 4 };
-        auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::bfyx};
-        auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::f32, format::bfyx};
-        auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx});
-        auto input2 = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::f32, format::bfyx});
+        auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f16, format::bfyx};
+        auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::f16, format::bfyx};
+        auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f16, format::bfyx});
+        auto input2 = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::f16, format::bfyx});
 
-        std::vector<float> input1_data = {
+        std::vector<ov::float16> input1_data = {
             1.f, -2.f, 3.f, -4.f,
             5.f, 6.f, 1.f, 2.f,
             3.f, 3.f, 2.f, -1.f,
         };
 
-        std::vector<float> input2_data = {
+        std::vector<ov::float16> input2_data = {
             2.f, 5.f, -4.f, -7.f,
         };
         set_values(input1, input1_data);
         set_values(input2, input2_data);
 
-        std::vector<float> out_data = {
+        std::vector<ov::float16> out_data = {
             8.f, 22.f, 20.f
         };
 
         topology topology;
         topology.add(input_layout("input1", in1_layout),
                      input_layout("input2", in2_layout),
-                     gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, true, 1.0f, 0.0f, 4, 2)
+                     gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f16, false, true, 1.0f, 0.0f, 4, 2)
         );
 
-        ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
         ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
-                             ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", fc_impl} }),
                              ov::intel_gpu::optimize_data(true),
                              ov::intel_gpu::allow_new_shape_infer(true) };
 
@@ -2585,7 +2594,7 @@ public:
         auto outputs = network.execute();
 
         auto output = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), (uint32_t)3);
         for (uint32_t i = 0; i < out_data.size(); ++i) {
@@ -2696,19 +2705,19 @@ public:
         ov::Shape in2_shape_aligned = { aligned_batch1_size, aligned_batch2_size, aligned_k_size, aligned_n_size };
 
         // Use dynamic padding for all BFYX dimensions
-        tensor dyn_pad_dims_input1({0, 0, 0, 0}, 0);
-        tensor dyn_pad_dims_input2({0, 0, 0, 0}, 0);
+        padding::DynamicDimsMask dyn_pad_dims_input1;
+        padding::DynamicDimsMask dyn_pad_dims_input2;
 
         if (n_dim_only) {
-            dyn_pad_dims_input1 = tensor({0, 0, 0, 0}, 0);
-            dyn_pad_dims_input2 = tensor({0, 0, 1, 0}, 0);
+            dyn_pad_dims_input1 = padding::EMPTY_MASK;                  //tensor({0, 0, 0, 0}, 0).sizes();
+            dyn_pad_dims_input2 = padding::DynamicDimsMask("1000");      //tensor({0, 0, 1, 0}, 0).sizes();
         } else {
-            dyn_pad_dims_input1 = tensor({1, 1, 1, 1}, 0);
-            dyn_pad_dims_input2 = tensor({1, 1, 1, 1}, 0);
+            dyn_pad_dims_input1 = padding::DynamicDimsMask("1111");      //tensor({1, 1, 1, 1}, 0).sizes();
+            dyn_pad_dims_input2 = padding::DynamicDimsMask("1111");      //tensor({1, 1, 1, 1}, 0).sizes();
         }
 
-        auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input1)};
-        auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input2)};
+        auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, dyn_pad_dims_input1)};
+        auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, dyn_pad_dims_input2)};
 
         auto aligned_input1_mem = engine.allocate_memory({ov::PartialShape(in1_shape_aligned), data_types::f16, format::bfyx});
         auto aligned_input2_mem = engine.allocate_memory({ov::PartialShape(in2_shape_aligned), data_types::f16, format::bfyx});
@@ -2716,14 +2725,14 @@ public:
         auto input1_mem = engine.reinterpret_buffer(*aligned_input1_mem, layout{ov::PartialShape(in1_shape),
                                                                                 data_types::f16,
                                                                                 format::bfyx,
-                                                                                n_dim_only ? padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input1) :
-                                                                                             padding({0, 0, 0, 0}, {padding_size_batch1, padding_size_batch2, padding_size_k, padding_size_m}, 0.0f, dyn_pad_dims_input1)});
+                                                                                n_dim_only ? padding({0, 0, 0, 0}, {0, 0, 0, 0}, dyn_pad_dims_input1) :
+                                                                                             padding({0, 0, 0, 0}, {padding_size_batch1, padding_size_batch2, padding_size_m, padding_size_k}, dyn_pad_dims_input1)});
 
         auto input2_mem = engine.reinterpret_buffer(*aligned_input2_mem, layout{ov::PartialShape(in2_shape),
                                                                                 data_types::f16,
                                                                                 format::bfyx,
-                                                                                n_dim_only ? padding({0, 0, 0, 0}, {0, 0, padding_size_n, 0}, 0.0f, dyn_pad_dims_input2) :
-                                                                                             padding({0, 0, 0, 0}, {padding_size_batch1, padding_size_batch2, padding_size_n, padding_size_k}, 0.0f, dyn_pad_dims_input2)});
+                                                                                n_dim_only ? padding({0, 0, 0, 0}, {0, 0, 0, padding_size_n}, dyn_pad_dims_input2) :
+                                                                                             padding({0, 0, 0, 0}, {padding_size_batch1, padding_size_batch2, padding_size_k, padding_size_n}, dyn_pad_dims_input2)});
 
         auto input_1_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in1_shape), -2, 2);
         auto input_2_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in2_shape), -2, 2);
@@ -2753,7 +2762,7 @@ public:
 
             ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, std::string(""), impl_types::onednn };
             ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
-                                 ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_impl} }),
+                                 ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_ref", gemm_impl} }),
                                  ov::intel_gpu::optimize_data(true),
                                  ov::intel_gpu::allow_new_shape_infer(true) };
 
@@ -2847,12 +2856,10 @@ public:
         ov::Shape in1_shape_aligned = in1_shape;
         ov::Shape in2_shape_aligned = { 1, BATCH_SIZE, aligned_n_size, K_SIZE };
 
-        tensor dyn_pad_dims_input2({0, 0, 0, 0}, 0);
-        dyn_pad_dims_input2 = tensor({0, 0, 0, 1}, 0);
-
+        padding::DynamicDimsMask dyn_pad_dims_input2("0100");  // {0, 0, 1, 0};
 
         auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx};
-        auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input2)};
+        auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, dyn_pad_dims_input2)};
 
         auto aligned_input2_mem = engine.allocate_memory({ov::PartialShape(in2_shape_aligned), data_types::f16, format::bfyx});
 
@@ -2861,7 +2868,7 @@ public:
         auto input2_mem = engine.reinterpret_buffer(*aligned_input2_mem, layout{ov::PartialShape(in2_shape),
                                                                                 data_types::f16,
                                                                                 format::bfyx,
-                                                                                padding({0, 0, 0, 0}, {0, 0, 0, padding_size_n}, 0.0f, dyn_pad_dims_input2)});
+                                                                                padding({0, 0, 0, 0}, {0, 0, padding_size_n, 0}, dyn_pad_dims_input2)});
 
         auto input_1_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in1_shape), -2, 2);
         auto input_2_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in2_shape), -2, 2);

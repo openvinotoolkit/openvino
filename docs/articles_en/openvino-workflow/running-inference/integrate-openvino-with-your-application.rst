@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_Integrate_OV_with_your_application}
-
 Integrate OpenVINO™ with Your Application
 ===========================================
 
@@ -439,5 +437,5 @@ Additional Resources
 * Models in the OpenVINO IR format on `Hugging Face <https://huggingface.co/models>`__.
 * :doc:`OpenVINO™ Runtime Preprocessing <optimize-inference/optimize-preprocessing>`
 * :doc:`String Tensors <string-tensors>`
-* :doc:`Using Encrypted Models with OpenVINO <../../documentation/openvino-security/openvino-encrypted-models>`
+* :ref:`Using Encrypted Models with OpenVINO <encrypted-models>`
 

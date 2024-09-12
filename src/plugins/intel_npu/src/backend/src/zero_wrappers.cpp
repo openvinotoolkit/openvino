@@ -114,11 +114,16 @@ CommandList::~CommandList() {
         _log.error("zeCommandListDestroy failed %#X", uint64_t(result));
     }
 }
-void CommandList::updateMutableCommandList(const void* pNext) const {
-    ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {
-        static_cast<ze_structure_type_t>(ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT),
-        pNext,
-        0};
+void CommandList::updateMutableCommandList(uint32_t arg_index, const void* arg_value) const {
+    ze_mutable_graph_argument_exp_desc_t desc = {ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC,
+                                                 nullptr,
+                                                 _command_id,
+                                                 arg_index,
+                                                 arg_value};
+
+    ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {ZE_STRUCTURE_TYPE_MUTABLE_COMMANDS_EXP_DESC,
+                                                                  &desc,
+                                                                  0};
 
     zeroUtils::throwOnFail("zeCommandListUpdateMutableCommandsExp",
                            zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t));
@@ -135,6 +140,15 @@ CommandQueue::CommandQueue(const ze_device_handle_t& device_handle,
       _log("CommandQueue", config.get<LOG_LEVEL>()) {
     ze_command_queue_desc_t queue_desc =
         {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, group_ordinal, 0, 0, ZE_COMMAND_QUEUE_MODE_DEFAULT, priority};
+    if (config.has<TURBO>()) {
+        if (_command_queue_npu_dditable_ext != nullptr) {
+            bool turbo = config.get<TURBO>();
+            ze_command_queue_desc_npu_ext_t turbo_cfg = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT, nullptr, turbo};
+            queue_desc.pNext = &turbo_cfg;
+        } else {
+            OPENVINO_THROW("Turbo is not supported by the current driver");
+        }
+    }
     zeroUtils::throwOnFail("zeCommandQueueCreate",
                            zeCommandQueueCreate(_context, device_handle, &queue_desc, &_handle));
 }

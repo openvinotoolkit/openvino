@@ -162,10 +162,10 @@ void DepthToSpace::initSupportedPrimitiveDescriptors() {
 void DepthToSpace::createPrimitive() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        THROW_ERROR("has not allocated destination memory");
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        THROW_ERROR("has not allocated input memory");
+    if (!dstMemPtr)
+        THROW_ERROR("has null destination memory");
+    if (!srcMemPtr)
+        THROW_ERROR("has null input memory");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR("has unidentified preferable primitive descriptor");
 

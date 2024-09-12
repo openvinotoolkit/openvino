@@ -9,6 +9,7 @@
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "zero_executor.hpp"
+#include "zero_host_tensor.hpp"
 #include "zero_infer_request.hpp"
 #include "zero_remote_tensor.hpp"
 #include "zero_utils.hpp"
@@ -95,25 +96,21 @@ std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
 
 std::string ZeroDevice::getName() const {
 //    KMD is setting usDeviceID from VpuFamilyID.h
-#define NPU_3700_DEVICE_ID   0x6240
 #define NPU_3720_P_DEVICE_ID 0x7D1D
 #define NPU_3720_S_DEVICE_ID 0xAD1D
 #define NPU_4000_DEVICE_ID   0x643E
 
     std::string name;
     switch (device_properties.deviceId) {
-    case NPU_3700_DEVICE_ID:
-        name = "3700";
-        break;
     case NPU_3720_P_DEVICE_ID:
     case NPU_3720_S_DEVICE_ID:
         name = ov::intel_npu::Platform::NPU3720;
         break;
     case NPU_4000_DEVICE_ID:
-        name = "4000";
+        name = ov::intel_npu::Platform::NPU4000;
         break;
     default:
-        name = "AUTO_DETECT";
+        name = ov::intel_npu::Platform::AUTO_DETECT;
     }
 
     return name;
@@ -169,11 +166,7 @@ std::map<ov::element::Type, float> ZeroDevice::getGops() const {
 }
 
 ov::device::Type ZeroDevice::getDeviceType() const {
-    if (device_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) {
-        return ov::device::Type::INTEGRATED;
-    } else {
-        return ov::device::Type::DISCRETE;
-    }
+    return ov::device::Type::INTEGRATED;
 }
 
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
@@ -192,4 +185,11 @@ ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::
                                                             void* mem) {
     return {std::make_shared<
         ZeroRemoteTensor>(context, _initStructs, element_type, shape, config, tensor_type, mem_type, mem)};
+};
+
+ov::SoPtr<ov::ITensor> ZeroDevice::createHostTensor(std::shared_ptr<ov::IRemoteContext> context,
+                                                    const ov::element::Type& element_type,
+                                                    const ov::Shape& shape,
+                                                    const Config& config) {
+    return {std::make_shared<ZeroHostTensor>(context, _initStructs, element_type, shape, config)};
 };

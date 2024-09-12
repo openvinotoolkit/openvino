@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -22,7 +22,9 @@ namespace pass {
 class TRANSFORMATIONS_API MarkDequantizationSubgraph : public MatcherPass {
 public:
     OPENVINO_RTTI("MarkDequantizationSubgraph", "0");
-    MarkDequantizationSubgraph(const element::TypeVector& precisions, const bool fold_subtract_const = false);
+    MarkDequantizationSubgraph(const element::TypeVector& precisions,
+                               const bool fold_subtract_const = false,
+                               const bool disable_fold_multiply_const = false);
 };
 }  // namespace pass
 }  // namespace ov
