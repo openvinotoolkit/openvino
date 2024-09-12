@@ -1508,3 +1508,49 @@ void ov::npuw::util::permute(ov::Tensor& t, const std::vector<std::size_t>& axes
         NPUW_ASSERT(false && "Not supported yet");
     }
 }
+
+ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t axis) {
+    const auto type = tt.front().get_element_type();
+    auto shape = tt.front().get_shape();
+    std::size_t new_dim = 0;
+
+    if (axis == 2) {
+        std::vector<std::size_t> offsets;
+        std::vector<std::size_t> lens;
+        for (auto&& t : tt) {
+            auto tshape = t.get_shape();
+            NPUW_ASSERT(t.is_continuous());
+            NPUW_ASSERT(shape[0] == tshape[0]);
+            NPUW_ASSERT(shape[1] == tshape[1]);
+            NPUW_ASSERT(tt.front().get_element_type() == t.get_element_type());
+            offsets.push_back(new_dim);
+            lens.push_back(tshape[2]);
+            new_dim += tshape[2];
+        }
+
+        shape[2] = new_dim;
+        ov::Tensor tnew(tt.front().get_element_type(), shape);
+        uint8_t* pDst = static_cast<uint8_t*>(tnew.data());
+
+        const bool is_4bit = (type == ov::element::i4 || type == ov::element::u4);
+        for (std::size_t t_idx = 0; t_idx < tt.size(); t_idx++) {
+            const auto& t_src = tt[t_idx];
+
+            for (std::size_t r = 0; r < shape[0] * shape[1]; r++) {
+                const auto r_offset = is_4bit ? new_dim * r / 2 : new_dim * r * type.size();
+                const auto c_offset = is_4bit ? offsets[t_idx] / 2 : offsets[t_idx] * type.size();
+                const auto copy_len = is_4bit ? lens[t_idx] / 2 : lens[t_idx] * type.size();
+                uint8_t* pDstRow = pDst + r_offset + c_offset;
+
+                const auto r_offset_src = is_4bit ? lens[t_idx] * r / 2 : lens[t_idx] * r * type.size();
+                const uint8_t* pSrc = static_cast<uint8_t*>(t_src.data());
+                const uint8_t* pSrcRow = pSrc + r_offset_src;
+
+                std::copy_n(pSrcRow, copy_len, pDstRow);
+            }
+        }
+        return tnew;
+    } else {
+        NPUW_ASSERT(false && "Not supported yet");
+    }
+}
