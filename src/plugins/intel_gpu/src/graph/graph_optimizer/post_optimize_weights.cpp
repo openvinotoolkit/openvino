@@ -72,6 +72,11 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
         program_node& prev_node = node.get_dependency(i);
 
         if (weights_reorder_params != nullptr) {
+            auto in = weights_reorder_params->get_input_layout().convert_to_weights_layout(false);
+            auto out = weights_reorder_params->get_output_layout();
+            if (in.identical(out))
+                continue;
+
             bool can_be_fused = prev_node.is_type<reorder>() &&
                                 prev_node.as<reorder>().is_simple_reorder() &&
                                 prev_node.get_users().size() == 1 &&

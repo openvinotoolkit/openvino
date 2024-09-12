@@ -54,12 +54,12 @@
 using namespace cldnn;
 
 void prepare_primitive_fusing::run(program& p) {
-    fuse_reorders(p);
-    remove_redundant_reshape(p);
-    fuse_bias(p);
-    fuse_simple_primitives(p);
-    fuse_constant_transposes(p);
-    optimize_fused_ops(p);
+    // fuse_reorders(p);
+    // remove_redundant_reshape(p);
+    // fuse_bias(p);
+    // fuse_simple_primitives(p);
+    // fuse_constant_transposes(p);
+    // optimize_fused_ops(p);
 }
 
 void prepare_primitive_fusing::remove_redundant_reshape(program &p) {

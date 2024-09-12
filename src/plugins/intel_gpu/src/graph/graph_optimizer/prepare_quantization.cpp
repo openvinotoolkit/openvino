@@ -509,6 +509,9 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
     };
 
     auto need_reorder = [&](size_t dep_id) {
+        if (fc_node.can_use(impl_types::sycl))
+            return false;
+
         auto dep_layout = fc_node.get_input_layout(dep_id);
         auto dep_pshape = dep_layout.get_partial_shape();
         // Group for scale_idx is always 1, whereas zero_point_idx is 0.
