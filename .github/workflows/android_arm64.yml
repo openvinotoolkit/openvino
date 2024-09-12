@@ -48,6 +48,7 @@ jobs:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
         - /mount:/mount
+      options: '--cap-drop=all --cap-add=CAP_CHOWN --cap-add=CAP_SETGID --cap-add=CAP_SETUID --cap-add=CAP_KILL --cap-add=CAP_FOWNER --cap-add=CAP_FSETID --cap-add=CAP_DAC_OVERRIDE'
     outputs:
       images: "${{ steps.handle_docker.outputs.images }}"
     steps:
@@ -74,7 +75,7 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_android }}
       volumes:
         - /mount:/mount
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+      options: '-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING --cap-drop=all --cap-add=CAP_CHOWN --cap-add=CAP_SETGID --cap-add=CAP_SETUID --cap-add=CAP_KILL --cap-add=CAP_FOWNER --cap-add=CAP_FSETID --cap-add=CAP_DAC_OVERRIDE'
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_GENERATOR: 'Ninja'

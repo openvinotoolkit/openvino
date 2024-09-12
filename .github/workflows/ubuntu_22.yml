@@ -60,6 +60,7 @@ jobs:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
         - /mount:/mount
+      options: --cap-drop=all --cap-add=CAP_CHOWN --cap-add=CAP_SETGID --cap-add=CAP_SETUID --cap-add=CAP_KILL --cap-add=CAP_FOWNER --cap-add=CAP_FSETID --cap-add=CAP_DAC_OVERRIDE
     outputs:
       images: "${{ steps.handle_docker.outputs.images }}"
     steps:
@@ -83,7 +84,7 @@ jobs:
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb-staging'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING --cap-drop=all --cap-add=CAP_CHOWN --cap-add=CAP_SETGID --cap-add=CAP_SETUID --cap-add=CAP_KILL --cap-add=CAP_FOWNER --cap-add=CAP_FSETID --cap-add=CAP_DAC_OVERRIDE"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
       os: 'ubuntu_22_04'
@@ -116,7 +117,7 @@ jobs:
     uses: ./.github/workflows/job_samples_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb-staging'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "--cap-drop=all --cap-add=CAP_CHOWN --cap-add=CAP_SETGID --cap-add=CAP_SETUID --cap-add=CAP_KILL --cap-add=CAP_FOWNER --cap-add=CAP_FSETID --cap-add=CAP_DAC_OVERRIDE"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   JS_API:
@@ -126,7 +127,7 @@ jobs:
     uses: ./.github/workflows/job_openvino_js.yml
     with:
       runner: 'aks-linux-4-cores-16gb-staging'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}"}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "options": "--cap-drop=all --cap-add=CAP_CHOWN --cap-add=CAP_SETGID --cap-add=CAP_SETUID --cap-add=CAP_KILL --cap-add=CAP_FOWNER --cap-add=CAP_FSETID --cap-add=CAP_DAC_OVERRIDE"}'
 
   Conformance:
     needs: [ Build, Smart_CI ]
@@ -266,7 +267,7 @@ jobs:
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
       runner: 'aks-linux-16-cores-32gb-staging'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING --cap-drop=all --cap-add=CAP_CHOWN --cap-add=CAP_SETGID --cap-add=CAP_SETUID --cap-add=CAP_KILL --cap-add=CAP_FOWNER --cap-add=CAP_FSETID --cap-add=CAP_DAC_OVERRIDE"}'
       sccache-azure-key-prefix: 'ubuntu22_x86_64_onnxruntime'
 
   ONNX_Models:
@@ -277,7 +278,7 @@ jobs:
     uses: ./.github/workflows/job_onnx_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-64gb-staging'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "--cap-drop=all --cap-add=CAP_CHOWN --cap-add=CAP_SETGID --cap-add=CAP_SETUID --cap-add=CAP_KILL --cap-add=CAP_FOWNER --cap-add=CAP_FSETID --cap-add=CAP_DAC_OVERRIDE"}'
 
   CXX_Unit_Tests:
     name: C++ unit tests
@@ -294,7 +295,7 @@ jobs:
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb-staging'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "--cap-drop=all --cap-add=CAP_CHOWN --cap-add=CAP_SETGID --cap-add=CAP_SETUID --cap-add=CAP_KILL --cap-add=CAP_FOWNER --cap-add=CAP_FSETID --cap-add=CAP_DAC_OVERRIDE"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   TensorFlow_Layer_Tests:
@@ -304,7 +305,7 @@ jobs:
     with:
       runner: 'aks-linux-4-cores-16gb-staging'
       shell: bash
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "--cap-drop=all --cap-add=CAP_CHOWN --cap-add=CAP_SETGID --cap-add=CAP_SETUID --cap-add=CAP_KILL --cap-add=CAP_FOWNER --cap-add=CAP_FSETID --cap-add=CAP_DAC_OVERRIDE"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   CPU_Functional_Tests:
@@ -325,7 +326,7 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-16gb-staging'
       model_scope: 'precommit'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "--cap-drop=all --cap-add=CAP_CHOWN --cap-add=CAP_SETGID --cap-add=CAP_SETUID --cap-add=CAP_KILL --cap-add=CAP_FOWNER --cap-add=CAP_FSETID --cap-add=CAP_DAC_OVERRIDE"}'
 
   TensorFlow_Models_Tests_Nightly_TF_HUB:
     name: TensorFlow TF Hub Models tests
@@ -391,7 +392,7 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_nvidia }}
       volumes:
         - /mount:/mount
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+      options: "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING --cap-drop=all --cap-add=CAP_CHOWN --cap-add=CAP_SETGID --cap-add=CAP_SETUID --cap-add=CAP_KILL --cap-add=CAP_FOWNER --cap-add=CAP_FSETID --cap-add=CAP_DAC_OVERRIDE"
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
@@ -465,7 +466,7 @@ jobs:
     with:
       runner: 'aks-linux-4-cores-16gb-staging'
       shell: bash
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "--cap-drop=all --cap-add=CAP_CHOWN --cap-add=CAP_SETGID --cap-add=CAP_SETUID --cap-add=CAP_KILL --cap-add=CAP_FOWNER --cap-add=CAP_FSETID --cap-add=CAP_DAC_OVERRIDE"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
