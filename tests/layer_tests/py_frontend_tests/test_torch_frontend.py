@@ -682,6 +682,7 @@ def test_output_tuple_names():
     assert len(om.outputs[0].names) == 0 and len(
         om.outputs[1].names) == 0, "Output tuple names must be empty"
 
+
 def test_patched_16bit_model_converts():
     from openvino.frontend.pytorch import patch_model
     from openvino import convert_model, compile_model
