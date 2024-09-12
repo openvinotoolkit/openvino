@@ -35,7 +35,7 @@ static std::shared_ptr<Model> create_clamp_function(element::Type type, const Pa
     data->set_friendly_name("input");
     data->get_output_tensor(0).set_names({"tensor_input"});
 
-    auto clamp_op = std::make_shared<opset8::Clamp>(data, min_value, max_value);
+    auto clamp_op = std::make_shared<op::v0::Clamp>(data, min_value, max_value);
     clamp_op->set_friendly_name("Clamp");
     clamp_op->get_output_tensor(0).set_names({"tensor_clamp"});
 
