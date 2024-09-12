@@ -642,10 +642,10 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order_scalar = { "(out_b + bi)", "(out_f + sglid)", "0", "0" };
-        std::vector<std::string> idx_order_vec = { "(out_b + bi)", "(out_f + fi + sglid)", "0", "0" };
+        std::vector<std::string> idx_order_vec = { "(out_b + bi)", "(out_f + sglid + fi * SIMD)", "0", "0" };
         if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
-            idx_order_scalar = { "(out_b + bi) / OUTPUT_FEATURE_NUM", "(out_b + bi) % OUTPUT_FEATURE_NUM", "sglid", "0" };
-            idx_order_vec = { "(out_b + bi) / OUTPUT_FEATURE_NUM", "(out_b + bi) % OUTPUT_FEATURE_NUM", "sglid", "0" };
+            idx_order_scalar = { "(out_b + bi) / OUTPUT_FEATURE_NUM", "(out_b + bi) % OUTPUT_FEATURE_NUM", "(out_f + sglid)", "0" };
+            idx_order_vec = { "(out_b + bi) / OUTPUT_FEATURE_NUM", "(out_b + bi) % OUTPUT_FEATURE_NUM", "(out_f + sglid + fi * SIMD)", "0" };
         }
 
         // Simplify fused ops configuration to prevent mixed layout exception in jitter
