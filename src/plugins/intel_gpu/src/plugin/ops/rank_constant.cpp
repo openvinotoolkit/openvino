@@ -117,6 +117,7 @@ static void CreateRankConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::in
         auto buf = lock.data();
         auto bufSize = constLayout.bytes_count();
         int rank = op->get_rank();
+        int w_size = op->get_size();
         switch (op->get_tp_mode()) {
             case ov::intel_gpu::op::TP_MODE::ALL_GATHERH: {
                 int offset = rank * bufSize;
@@ -127,17 +128,23 @@ static void CreateRankConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::in
                 break;
             case ov::intel_gpu::op::TP_MODE::ALL_REDUCE: {
                 int step_r = bufSize / const_shape[0];
-                int step_h = step_r * 2;
+                int step_h = step_r * w_size;
                 for (size_t i = 0; i < const_shape[0]; i++) {
                     std::memcpy(&buf[0] + i * step_r, (&data[0] + (rank * step_r)) + i * step_h, step_r);
                 }
                 break;
             }
             case ov::intel_gpu::op::TP_MODE::ALL_GATHERQKV: {
-                int copysize = bufSize / 3;
-                std::memcpy(&buf[0], &data[0] + rank * copysize, copysize);
-                std::memcpy(&buf[0] + copysize, &data[0] + rank * copysize + copysize * 2, copysize);
-                std::memcpy(&buf[0] + copysize * 2, &data[0] + rank * copysize + copysize * 4, copysize);
+                auto qkv_parts = op->get_qkv_parts();
+                int32_t copysize = bufSize / std::accumulate(qkv_parts.begin(), qkv_parts.end(), 0);
+                int32_t q_copysize = copysize * qkv_parts[0];
+                int32_t k_copysize = copysize * qkv_parts[1];
+                int32_t v_copysize = copysize * qkv_parts[2];
+                std::memcpy(&buf[0], &data[0] + rank * q_copysize, q_copysize);
+                std::memcpy(&buf[0] + q_copysize, &data[0] + (w_size * q_copysize) + (rank * k_copysize), k_copysize);
+                std::memcpy(&buf[0] + q_copysize + k_copysize,
+                            &data[0] + (w_size * (q_copysize + k_copysize)) + (rank * v_copysize),
+                            v_copysize);
                 break;
             }
             default: {

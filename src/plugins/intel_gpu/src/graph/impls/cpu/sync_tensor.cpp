@@ -97,14 +97,15 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                 input_mem_ptrs.push_back(instance.output_memory_ptr(i));
             auto output_mem_ptr = instance.output_memory_ptr();
             cldnn::mem_lock<uint8_t, mem_lock_type::write> output_lock(output_mem_ptr, stream);
-            for (size_t i = 0; i < input_mem_ptrs.size(); i++)
-                input_host_tensors.push_back(
-                    make_tensor(instance.get_output_layout(), input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
             output_host_tensors.push_back(make_tensor(instance.get_output_layout(), output_lock.data()));
-            OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
+            for (size_t i = 0; i < input_mem_ptrs.size(); i++) {
+                input_host_tensors.clear();
+                input_host_tensors.push_back(make_tensor(instance.get_output_layout(), input_mem_ptrs[0]->lock(stream, mem_lock_type::read)));
+                input_host_tensors.push_back(make_tensor(instance.get_output_layout(), input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
+                OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
                             "[GPU] Couldn't execute eltwise primitive with id ",
                             instance.id());
-
+            }
             for (size_t i = 0; i < input_mem_ptrs.size(); i++)
                 input_mem_ptrs[i]->unlock(stream);
         }
