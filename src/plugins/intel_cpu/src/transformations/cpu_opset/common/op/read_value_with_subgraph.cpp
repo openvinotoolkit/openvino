@@ -18,8 +18,7 @@ std::string ov::intel_cpu::ReadValueWithSubgraphNode::get_variable_id() const {
     OPENVINO_ASSERT(m_variable, "Variable is not initialized. Variable_id is unavailable");
     return m_variable->get_info().variable_id;
 }
-#if USE_SUBMODEL
-#else
+
 void ov::intel_cpu::ReadValueWithSubgraphNode::set_input(const Output<Node>& value,
                                                          const std::shared_ptr<op::v0::Parameter>& body_parameter) {
     OPENVINO_ASSERT(body_parameter != nullptr, "Missing parameter! parameter is is nullptr!");
@@ -39,7 +38,6 @@ ov::Output<ov::Node> ov::intel_cpu::ReadValueWithSubgraphNode::set_output(
 
     return set_body_outputs({body_result});
 }
-#endif
 
 std::shared_ptr<ov::Node> ov::intel_cpu::ReadValueWithSubgraphNode::clone_with_new_inputs(
     const OutputVector& new_args) const {
@@ -55,11 +53,7 @@ std::shared_ptr<ov::Node> ov::intel_cpu::ReadValueWithSubgraphNode::clone_with_n
                     get_friendly_name());
     op->set_arguments(new_args);
     op->set_output_size(m_output_descriptions[0].size());
-#if USE_SUBMODEL
-    op->set_submodel(ov::as_type_ptr<ov::intel_cpu::SubModel>(get_submodel()->clone_with_new_inputs(new_args)));
-#else
     op->set_body(get_body()->clone());
-#endif
     for (const auto& m_input_descr : m_input_descriptions[0]) {
         op->m_input_descriptions[0].push_back(m_input_descr->copy());
     }
@@ -91,11 +85,9 @@ void ov::intel_cpu::ReadValueWithSubgraphNode::validate_and_infer_types() {
                           m_output_descriptions.size() == 1,
                           "If contains incorrect number of body output descriptions:",
                           m_output_descriptions.size());
-#if USE_SUBMODEL
-    get_submodel()->validate_and_infer_types();
-#else
+
     validate_and_infer_type_body(get_body(), m_input_descriptions[0]);
-#endif
+
     auto output_nodes = outputs();
 
     auto outputs_map = get_mapping_outputs_on_body_description(m_output_descriptions[0]);
