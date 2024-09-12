@@ -35,17 +35,22 @@ on:
         description: 'Whether to build OpenVINO JS Bindings'
         type: boolean
         required: false
-        default: true
+        default: false
       build-debian-packages:
         description: 'Whether to build Debian packages'
         type: boolean
         required: false
-        default: true
+        default: false
       build-contrib:
         description: 'Whether to build OpenVINO Contrib'
         type: boolean
         required: false
-        default: true
+        default: false
+      build-rpm-packages:
+        description: 'Whether to build RPM Packages'
+        type: boolean
+        required: false
+        default: false
 
 permissions: read-all
 
@@ -229,6 +234,17 @@ jobs:
           cmake --build ${BUILD_DIR} --parallel
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR_JS} -P ${BUILD_DIR}/cmake_install.cmake
 
+      - name: Build RPM packages
+        if: ${{ inputs.build-rpm-packages }}
+        run: |
+          cmake -UTBB* \
+                -DCPACK_GENERATOR=RPM \
+                -DENABLE_SYSTEM_TBB=ON \
+                -DENABLE_PYTHON_PACKAGING=ON \
+                -DENABLE_TESTS=OFF \
+                ${BUILD_DIR}
+          cmake --build ${BUILD_DIR} --parallel --target package --verbose
+
       #
       # Upload build artifacts and logs
       #
@@ -262,6 +278,14 @@ jobs:
         with:
           name: openvino_developer_package
           path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
+          if-no-files-found: 'error'
+
+      - name: Upload openvino RPM packages
+        if: ${{ inputs.build-rpm-packages }}
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: openvino_rpm_packages
+          path: ${{ env.BUILD_DIR }}/*.rpm
           if-no-files-found: 'error'
 
       - name: Upload openvino debian packages

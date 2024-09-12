@@ -49,6 +49,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/convert_precision.hpp"
+#include "transformations/fp16_compression/mark_floatpoint_range.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -81,19 +82,6 @@ bool is_fq_path(const std::shared_ptr<const Node>& node) {
 void erase_fq_path(const std::shared_ptr<Node>& node) {
     auto& rt_info = node->get_rt_info();
     rt_info.erase("fq_path");
-}
-
-void mark_range_path(const std::shared_ptr<Node>& node) {
-    node->get_rt_info().emplace("range_path", true);
-}
-
-bool is_range_path(const std::shared_ptr<const Node>& node) {
-    return node->get_rt_info().count("range_path");
-}
-
-void erase_range_path(const std::shared_ptr<Node>& node) {
-    auto& rt_info = node->get_rt_info();
-    rt_info.erase("range_path");
 }
 
 // Marking continues to propagate through these ops.
@@ -223,57 +211,6 @@ public:
             return true;
         };
         auto m = make_shared<pattern::Matcher>(reduce_ops, matcher_name);
-        register_matcher(m, callback);
-    }
-};
-
-/* MarkFloatingPointRange marks paths that involve Range operations with floating point output data types,
- * as well as their users allowed for propagation. This pass is needed to prevent accuracy data loss
- * in cases of high range generation, which could suffer due to lowered precision.
- */
-class MarkFloatingPointRange : public pass::MatcherPass {
-public:
-    OPENVINO_RTTI("MarkFloatingPointRange", "0");
-    MarkFloatingPointRange() {
-        MATCHER_SCOPE(MarkFloatingPointRange);
-
-        // through these nodes
-        const auto range_propagating_nodes = pattern::wrap_type<ov::op::v0::Convert,
-                                                                ov::op::v1::Greater,
-                                                                ov::op::v1::GreaterEqual,
-                                                                ov::op::v1::Less,
-                                                                ov::op::v1::LessEqual,
-                                                                ov::op::v1::Reshape,
-                                                                ov::op::v4::Range,
-                                                                ov::op::v0::Squeeze,
-                                                                ov::op::v0::Unsqueeze>();
-
-        matcher_pass_callback callback = [=](pattern::Matcher& m) {
-            const auto& node = m.get_match_root();
-            if (!node)
-                return false;
-
-            auto range = as_type_ptr<ov::op::v4::Range>(node);
-            if (range && range->get_output_type().is_real()) {
-                mark_range_path(node);
-                disable_fp16_compression(node);
-                return true;
-            }
-
-            bool is_changed = false;
-
-            for (const auto& in_node_output : node->input_values()) {
-                auto input_node = in_node_output.get_node_shared_ptr();
-                if (is_range_path(input_node)) {
-                    mark_range_path(node);
-                    disable_fp16_compression(node);
-                    is_changed = true;
-                }
-            }
-
-            return is_changed;
-        };
-        auto m = make_shared<pattern::Matcher>(range_propagating_nodes, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -495,7 +432,7 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     Manager manager(get_pass_config(), "MarkSugraphsToKeepInMixedPrecision");
     manager.set_per_pass_validation(false);
     // Mark root of Division with eps pattern to keep in FP32
-    REGISTER_PASS(manager, MarkFloatingPointRange)
+    REGISTER_PASS(manager, ov::pass::MarkFloatingPointRange)
     REGISTER_PASS(manager, MarkDivWithEps)
     REGISTER_PASS(manager, MarkExpInReduceOpPath)
     REGISTER_PASS(manager, PropagateDownDisableSensitivityForQuantized)
@@ -514,7 +451,7 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     for (auto& node : m->get_ops()) {
         erase_reduceop_path(node);
         erase_fq_path(node);
-        erase_range_path(node);
+        ov::pass::erase_range_path(node);
     }
 
     return false;  // no need to revalidate
