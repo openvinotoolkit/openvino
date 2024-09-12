@@ -75,34 +75,39 @@ bool all_same_value(const T* qp_ptr, size_t size) {
     });
 }
 
+template <typename T>
+std::shared_ptr<ov::op::v0::Constant>
+create_scalar_constant(const std::shared_ptr<ov::op::v0::Constant>& qp) {
+    auto type = qp->get_element_type();
+    auto shape = qp->get_shape();
+    if (all_same_value(static_cast<const T*>(qp->get_data_ptr()), ov::shape_size(shape))) {
+        ov::Shape new_shape(shape.size(), 1);
+        ov::Tensor new_tensor(type, new_shape);
+        auto new_qp = std::make_shared<ov::op::v0::Constant>(new_tensor);
+        auto val = qp->get_vector<T>()[0];
+        new_qp->fill_data(type, val);
+        return new_qp;
+    }
+    return nullptr;
+}
+
 std::shared_ptr<ov::Node> scalar_parameter(std::shared_ptr<ov::op::v0::Constant> qp) {
     auto type = qp->get_element_type();
-    size_t size = ov::shape_size(qp->get_shape());
-    bool has_same_value = false;
-    switch (type) {
-        case ov::element::u8:
-            has_same_value = all_same_value(static_cast<const uint8_t*>(qp->get_data_ptr()), size);
-            break;
-        case ov::element::i8:
-            has_same_value = all_same_value(static_cast<const int8_t*>(qp->get_data_ptr()), size);
-            break;
-        case ov::element::f16:
-            has_same_value = all_same_value(static_cast<const ov::float16*>(qp->get_data_ptr()), size);
-            break;
-        case ov::element::f32:
-            has_same_value = all_same_value(static_cast<const float*>(qp->get_data_ptr()), size);
-            break;
-        default: OPENVINO_THROW("[GPU] Can't pad quantization parameter for ", type, " element type");
+    std::shared_ptr<ov::op::v0::Constant> new_qp = nullptr;
+
+    if (type == ov::element::u8) {
+        new_qp = create_scalar_constant<uint8_t>(qp);
+    } else if (type == ov::element::i8) {
+        new_qp = create_scalar_constant<int8_t>(qp);
+    } else if (type == ov::element::f16) {
+        new_qp = create_scalar_constant<ov::float16>(qp);
+    } else if (type == ov::element::f32) {
+        new_qp = create_scalar_constant<float>(qp);
+    } else {
+        OPENVINO_THROW("[GPU] Can't pad quantization parameter for ", type, " element type");
     }
 
-    if (has_same_value) {
-        auto new_shape = qp->get_shape();
-        std::fill(new_shape.begin(), new_shape.end(), 1);
-        ov::Tensor new_qp(type, new_shape);
-        return std::make_shared<ov::op::v0::Constant>(new_qp);
-    }
-
-    return nullptr;
+    return new_qp;
 }
 
 }  // namespace
