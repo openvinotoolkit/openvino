@@ -25,6 +25,8 @@ bool LLMMLPNode::visit_attributes(ov::AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(LLMMLPNode_visit_attributes);
     visitor.start_structure("config");
     visitor.on_attribute("act", m_config.act);
+    visitor.on_attribute("gate_up_quantized", m_config.gate_up_quantized);
+    visitor.on_attribute("down_quantized", m_config.down_quantized);
     visitor.finish_structure();
     return true;
 }
@@ -32,7 +34,10 @@ bool LLMMLPNode::visit_attributes(ov::AttributeVisitor& visitor) {
 void LLMMLPNode::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(LLMMLPNode_validate_and_infer_types);
     const auto input_size = get_input_size();
-    NODE_VALIDATION_CHECK(this, input_size == 4);
+    size_t expect_input_size = 4;
+    if (m_config.gate_up_quantized) expect_input_size += 2;
+    if (m_config.down_quantized) expect_input_size += 1;
+    NODE_VALIDATION_CHECK(this, input_size == expect_input_size);
 
     const auto& ishape = get_input_partial_shape(0);
     const auto& itype = get_input_element_type(0);
@@ -44,6 +49,7 @@ void LLMMLPNode::validate_and_infer_types() {
     const auto length = ishape[1];
     const auto feature = ishape[2];
     NODE_VALIDATION_CHECK(this, feature.is_static());
+    NODE_VALIDATION_CHECK(this, itype.is_real(), "feature data type must be real");
 
     auto oshape = ishape;
     oshape[oshape.size() - 1] = w_down_shape[0];

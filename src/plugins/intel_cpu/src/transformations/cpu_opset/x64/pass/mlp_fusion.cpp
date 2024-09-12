@@ -24,25 +24,53 @@
 
 using namespace ov::gen_pattern;
 
-ov::intel_cpu::MLPFusion::MLPFusion() {
+static const char * MLPNAME = std::getenv("MLPNAME");
+
+ov::intel_cpu::MLPFusion::MLPFusion(bool allow_dynamic_quantization) {
     MATCHER_SCOPE(MLPFusion);
 
     auto input = makePattern("[?,?,?]");
 
     auto gate_proj_weight_compressed = makePattern<opset1::Constant>({});  // [up_size, down_size]
     auto gate_proj_weight = makePattern<opset1::Convert>({gate_proj_weight_compressed}, {{"destination_type", "f32"}});
+
     auto up_proj_weight_compressed = makePattern<opset1::Constant>({});  // [up_size, down_size]
     auto up_proj_weight = makePattern<opset1::Convert>({up_proj_weight_compressed}, {{"destination_type", "f32"}});
+
     auto down_proj_weight_compressed = makePattern<opset1::Constant>({});  // [down_size, up_size]
     auto down_proj_weight = makePattern<opset1::Convert>({down_proj_weight_compressed}, {{"destination_type", "f32"}});
-    auto mlp_gate_proj = makePattern<opset1::MatMul>({input, gate_proj_weight | gate_proj_weight_compressed},
+
+    // symmetrically INT8 quantized version
+    // all 3 layers must be quantized at the same time (checked in callback)
+    auto gate_proj_weight_i8 =
+        makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
+    auto gate_proj_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
+    auto gate_proj_weight_f32 = makePattern<opset1::Convert>({gate_proj_weight_i8}, {{"destination_type", "f32"}});
+    auto gate_proj_weight_deq =
+        makePattern<opset1::Multiply>({gate_proj_weight_f32, gate_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
+
+    auto up_proj_weight_i8 =
+        makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
+    auto up_proj_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
+    auto up_proj_weight_f32 = makePattern<opset1::Convert>({up_proj_weight_i8}, {{"destination_type", "f32"}});
+    auto up_proj_weight_deq =
+        makePattern<opset1::Multiply>({up_proj_weight_f32, up_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
+
+    auto down_proj_weight_i8 =
+        makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
+    auto down_proj_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
+    auto down_proj_weight_f32 = makePattern<opset1::Convert>({down_proj_weight_i8}, {{"destination_type", "f32"}});
+    auto down_proj_weight_deq =
+        makePattern<opset1::Multiply>({down_proj_weight_f32, down_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
+
+    auto mlp_gate_proj = makePattern<opset1::MatMul>({input, gate_proj_weight | gate_proj_weight_compressed | gate_proj_weight_deq},
                                                      {{"transpose_a", false}, {"transpose_b", true}});  // [?,?,up_size]
     auto mlp_silu_gate = makePattern<opset4::Swish>({mlp_gate_proj});
     auto mlp_gelu_gate = makePattern<opset7::Gelu>({mlp_gate_proj});
-    auto mlp_up_proj = makePattern<opset1::MatMul>({input, up_proj_weight | up_proj_weight_compressed},
+    auto mlp_up_proj = makePattern<opset1::MatMul>({input, up_proj_weight | up_proj_weight_compressed | up_proj_weight_deq},
                                                    {{"transpose_a", false}, {"transpose_b", true}});
     auto mlp_gated_up = makePattern<opset1::Multiply>({mlp_silu_gate | mlp_gelu_gate, mlp_up_proj}, {{"auto_broadcast", "numpy"}});
-    auto down_proj = makePattern<opset1::MatMul>({mlp_gated_up, down_proj_weight | down_proj_weight_compressed},
+    auto down_proj = makePattern<opset1::MatMul>({mlp_gated_up, down_proj_weight | down_proj_weight_compressed | down_proj_weight_deq},
                                                  {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,down_size]
 
     auto result = down_proj;
@@ -55,10 +83,45 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
 
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
+        auto src = pattern_map.at(input);
+        if (!src.get_element_type().is_real()) {
+            // FakeQuantize, should skip fusion
+            return false;
+        }
+        Output<Node> gate_proj_w;
+        Output<Node> up_proj_w;
+        Output<Node> down_proj_w;
 
-        auto gate_proj_w = pattern_map.at(gate_proj_weight_compressed);
-        auto up_proj_w = pattern_map.at(up_proj_weight_compressed);
-        auto down_proj_w = pattern_map.at(down_proj_weight_compressed);
+        // down projection is harder to quantize w/o causing accuracy problem, so it may be un-quantized instead
+        bool is_gate_up_quantized_int8 = false;
+        bool is_down_proj_int8 = false;
+        if (pattern_map.count(gate_proj_weight_compressed) > 0 && pattern_map.count(up_proj_weight_compressed) > 0 &&
+            pattern_map.count(down_proj_weight_compressed) > 0) {
+            is_gate_up_quantized_int8 = false;
+            is_down_proj_int8 = false;
+            gate_proj_w = pattern_map.at(gate_proj_weight_compressed);
+            up_proj_w = pattern_map.at(up_proj_weight_compressed);
+            down_proj_w = pattern_map.at(down_proj_weight_compressed);
+        } else if (pattern_map.count(gate_proj_weight_i8) > 0 && pattern_map.count(up_proj_weight_i8) > 0 &&
+                   pattern_map.count(gate_proj_weight_scales_per_OC) > 0 && pattern_map.count(up_proj_weight_scales_per_OC) > 0) {
+            is_gate_up_quantized_int8 = true;
+            gate_proj_w = pattern_map.at(gate_proj_weight_i8);
+            up_proj_w = pattern_map.at(up_proj_weight_i8);
+
+            if (pattern_map.count(down_proj_weight_i8) > 0) {
+                if (pattern_map.count(down_proj_weight_scales_per_OC) == 0) return false;
+                is_down_proj_int8 = true;
+                down_proj_w = pattern_map.at(down_proj_weight_i8);
+            } else {
+                is_down_proj_int8 = false;
+                down_proj_w = pattern_map.at(down_proj_weight_compressed);
+            }
+        } else {
+            return false;
+        }
+
+        if (!allow_dynamic_quantization && (is_gate_up_quantized_int8 || is_down_proj_int8))
+            return false;
 
         auto gate_proj_w_pshape = gate_proj_w.get_partial_shape();
         auto up_proj_w_pshape = up_proj_w.get_partial_shape();
@@ -94,6 +157,11 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
         LLMMLPNode::Config config;
         OutputVector new_args;
         std::shared_ptr<Node> gate_act;
+
+        config.gate_up_quantized = is_gate_up_quantized_int8;
+        config.down_quantized = is_down_proj_int8;
+        config.hidden_size = down_size;
+        config.up_size = up_size;
         if (pattern_map.count(mlp_silu_gate) > 0) {
             config.act = LLMMLPNode::ACT_FN::SILU;
             gate_act = mlp_silu_gate;
@@ -104,10 +172,17 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
             return false;
         }
 
-        new_args.push_back(pattern_map.at(input));
+        new_args.push_back(src);
         new_args.push_back(gate_proj_w);
         new_args.push_back(up_proj_w);
         new_args.push_back(down_proj_w);
+        if (is_gate_up_quantized_int8) {
+            new_args.push_back(pattern_map.at(gate_proj_weight_scales_per_OC));
+            new_args.push_back(pattern_map.at(up_proj_weight_scales_per_OC));
+        }
+        if (is_down_proj_int8) {
+            new_args.push_back(pattern_map.at(down_proj_weight_scales_per_OC));
+        }
 
         auto old_node = root;
         auto new_node = std::make_shared<LLMMLPNode>(new_args, config);
@@ -122,6 +197,10 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
         if (!transformation_callback(new_node)) {
             return false;
         }
+
+        if (MLPNAME && root->get_friendly_name().find(MLPNAME) == std::string::npos) return false;
+        std::cout << "MLPFusion: " << __LINE__ << "  " << root->get_friendly_name()
+                  << "  is_is_quantized_int8 (gate-up, down) =" << is_gate_up_quantized_int8 << "," << is_down_proj_int8 << std::endl;
 
         ov::replace_node(old_node, new_node);
         return true;

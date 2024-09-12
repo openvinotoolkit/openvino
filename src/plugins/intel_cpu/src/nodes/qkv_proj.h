@@ -34,6 +34,8 @@ public:
 private:
     struct Impl;
     std::shared_ptr<Impl> m_pimpl;
+
+    QKVProjectionNode::Config m_config;
 };
 
 }  // namespace node

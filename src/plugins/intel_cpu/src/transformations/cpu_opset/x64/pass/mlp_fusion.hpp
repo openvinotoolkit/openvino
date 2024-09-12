@@ -12,7 +12,7 @@ namespace intel_cpu {
 class MLPFusion: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("MLPFusion", "0");
-    MLPFusion();
+    MLPFusion(bool allow_dyn_quant);
 };
 
 }   // namespace intel_cpu

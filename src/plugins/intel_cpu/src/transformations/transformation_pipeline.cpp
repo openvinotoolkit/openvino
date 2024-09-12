@@ -829,9 +829,11 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
-    auto can_use_amx_bf16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) && (config.inferencePrecision == element::bf16);
-    if (can_use_amx_bf16) {
-        CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
+    auto can_use_amx_bf16_int8 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) && (config.inferencePrecision == element::bf16);
+    if (can_use_amx_bf16_int8) {
+        int allow_dyn_quant = std::getenv("LLM_DQ") ? atoi(std::getenv("LLM_DQ")) : 0; // config.fcDynamicQuantizationGroupSize > 0
+
+        CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion, allow_dyn_quant & 0x2);
         CPU_SET_CALLBACK_X64(postLPTPassManager,
             [](const_node_ptr &node) -> bool {
                 std::string errorMsg;
@@ -842,7 +844,8 @@ void Transformations::PostLpt() {
         size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
         if (concurrency == 0)
             concurrency = parallel_get_max_threads();
-        CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
+
+        CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion, allow_dyn_quant & 0x1);
         CPU_SET_CALLBACK_X64(postLPTPassManager,
             [concurrency](const_node_ptr &node) -> bool {
                 std::string errorMsg;

@@ -16,18 +16,30 @@ public:
 
     QKVProjectionNode() = default;
 
+    struct Config {
+        bool quantized;
+        int hidden_size;
+    };
+
     // args:
     //      0: input
     //      1: gate_proj
     //      2: up_proj
     //      3: down_proj
-    QKVProjectionNode(const OutputVector& args) : Op(args) {
+    QKVProjectionNode(const OutputVector& args, const Config& cfg) : Op(args), m_config(cfg) {
         validate_and_infer_types();
     }
 
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
+
+    const Config& get_config() const {
+        return m_config;
+    }
+
+private:
+    Config m_config;
 };
 
 }  // namespace intel_cpu

@@ -11,7 +11,7 @@ namespace intel_cpu {
 void QKVProjectionNode::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(QKVProjection_validate_and_infer_types);
     const auto input_size = get_input_size();
-    NODE_VALIDATION_CHECK(this, input_size == 4);
+    NODE_VALIDATION_CHECK(this, input_size == (m_config.quantized ? 7 : 4));
 
     const auto& ishape = get_input_partial_shape(0);
     const auto& itype = get_input_element_type(0);
@@ -34,7 +34,7 @@ void QKVProjectionNode::validate_and_infer_types() {
 std::shared_ptr<Node> QKVProjectionNode::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(QKVProjection_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<QKVProjectionNode>(new_args);
+    return std::make_shared<QKVProjectionNode>(new_args, m_config);
 }
 }  // namespace intel_cpu
 }  // namespace ov
