@@ -61,7 +61,13 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
     const auto insertion_it =
         linear_ir.find_after(std::reverse_iterator<LinearIR::constExprIt>(data_expr_it), parent_expr);
     const auto& insertion_pos = insertion_it.base();
-    linear_ir.insert_node(store, std::vector<ExpressionPort>{ parent_output }, loop_ids, true, insertion_pos, { data_expr->get_input_port(0) });
+    auto store_it = linear_ir.insert_node(store, std::vector<ExpressionPort>{ parent_output }, loop_ids, true, insertion_pos, { data_expr->get_input_port(0) });
+    // insert buffer -> insert_load_store -> allocation(set port shape). load/store need buffer shape
+    if (ov::is_type<op::Buffer>(data_expr->get_node())) {
+        const auto& buffer_shape = data_expr->get_input_port_descriptor(0)->get_shape();
+        (*store_it)->get_input_port_descriptor(0)->set_shape(buffer_shape);
+        (*store_it)->get_output_port_descriptor(0)->set_shape(buffer_shape);
+    }
     return true;
 }
 
