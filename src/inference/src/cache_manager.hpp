@@ -13,6 +13,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <windows.h>
 
 #include "openvino/util/file_util.hpp"
 
@@ -41,7 +42,9 @@ private:
  * @brief This class represents private interface for Cache Manager
  *
  */
+
 class ICacheManager {
+
 public:
     /**
      * @brief Default destructor
@@ -96,6 +99,104 @@ public:
  * Uses simple file for read/write cached models.
  *
  */
+
+class Readfile_istreambuf : public std::streambuf {
+public:
+    Readfile_istreambuf(const std::wstring& file_path) {
+        m_handle = ::CreateFileW(file_path.c_str(),
+                                GENERIC_READ,
+                                FILE_SHARE_READ,
+                                0,
+                                OPEN_EXISTING,
+                                FILE_ATTRIBUTE_NORMAL,
+                                0);
+
+        LARGE_INTEGER file_size_large;
+        if (::GetFileSizeEx(m_handle, &file_size_large) == 0) {
+            throw std::runtime_error("Can not get file size for ");
+        }
+
+        m_file_size = static_cast<uint64_t>(file_size_large.QuadPart);
+        read_buffer.resize(m_max_read_length);
+
+        read_more();
+    }
+
+    ~Readfile_istreambuf() {
+        ::CloseHandle(m_handle);
+    }
+
+protected:
+    void read_more(){
+        OPENVINO_ASSERT(m_offset_in_buffer == m_buffer_size);
+
+        DWORD chunk_size = static_cast<DWORD>(std::min<size_t>(m_file_size - m_bytes_read_without_buffer - m_buffer_size, m_max_read_length));
+        DWORD chunk_read = 0;
+        BOOL result = ReadFile(m_handle, read_buffer.data(), chunk_size, &chunk_read, NULL);
+
+        OPENVINO_ASSERT(result, "read error: ", GetLastError());
+        OPENVINO_ASSERT(chunk_read == chunk_size, "unexpectedly reached end of file");
+
+        m_offset_in_buffer = 0;
+        m_bytes_read_without_buffer += m_buffer_size;
+        m_buffer_size = chunk_read;
+
+    }
+
+    std::streamsize xsgetn(char* s, std::streamsize count) override{
+        OPENVINO_ASSERT(m_file_size >= (m_bytes_read_without_buffer + m_offset_in_buffer) + count);
+        if (m_offset_in_buffer == m_max_read_length)
+            read_more();
+
+        std::streamsize got_bytes = 0;
+        while (got_bytes < count) {
+            size_t bytes_to_copy = std::min<size_t>(count - got_bytes, m_buffer_size - m_offset_in_buffer);
+            std::memcpy(s + got_bytes, read_buffer.data() + m_offset_in_buffer, bytes_to_copy);
+            got_bytes += bytes_to_copy;
+            m_offset_in_buffer += bytes_to_copy;
+            if (m_offset_in_buffer == m_max_read_length)
+                read_more();
+        }
+        return got_bytes;
+    }
+
+    int_type underflow() override {
+        if (m_offset_in_buffer == m_max_read_length)
+            read_more();
+        if (m_bytes_read_without_buffer + m_offset_in_buffer == m_file_size)
+            return traits_type::eof();
+
+        return traits_type::to_int_type(*(read_buffer.data() + m_offset_in_buffer));
+    }
+
+    int_type uflow() override {
+        if (m_offset_in_buffer == m_max_read_length)
+            read_more();
+        if (m_bytes_read_without_buffer + m_offset_in_buffer == m_file_size)
+            return traits_type::eof();
+
+        return traits_type::to_int_type(*(read_buffer.data() + m_offset_in_buffer++));
+    }
+
+    int_type pbackfail(int_type ch) override {
+        OPENVINO_THROW("NOT IMPLEMENTED");
+    }
+
+    std::streamsize showmanyc() override {
+        return m_file_size - m_bytes_read_without_buffer - m_offset_in_buffer;
+    }
+
+    const size_t m_max_read_length = 64 * 1024 * 1024;
+    std::vector<char> read_buffer;
+    size_t m_buffer_size = 0;
+    size_t m_offset_in_buffer = 0;
+    size_t m_bytes_read_without_buffer = 0;
+
+    HANDLE m_handle = nullptr;
+    size_t m_file_size = 0;
+};
+
+
 class FileStorageCacheManager final : public ICacheManager {
     std::string m_cachePath;
 #if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
@@ -134,7 +235,11 @@ private:
         ScopedLocale plocal_C(LC_ALL, "C");
         auto blobFileName = getBlobFile(id);
         if (ov::util::file_exists(blobFileName)) {
-            std::ifstream stream(blobFileName, std::ios_base::binary);
+
+            Readfile_istreambuf buffer(blobFileName);
+            std::istream stream(&buffer);
+
+            //std::ifstream stream(blobFileName, std::ios_base::binary);
             reader(stream);
         }
     }
