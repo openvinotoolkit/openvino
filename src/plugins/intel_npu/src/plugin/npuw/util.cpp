@@ -1498,7 +1498,7 @@ void ov::npuw::util::permute(ov::Tensor& t, const std::vector<std::size_t>& axes
         for (std::size_t p = 0; p < tshape[0]; p++) {
             for (std::size_t r = 0; r < tshape[1]; r++) {
                 for (std::size_t c = 0; c < tshape[2]; c++) {
-                    uint8_t value = tread_4b(t, r, p * shape[2] + c, shape[1]*shape[2]);
+                    uint8_t value = tread_4b(t, r, p * shape[2] + c, shape[1] * shape[2]);
                     twrite_4b(tnew, value, p * tshape[1] + r, c, tshape[2]);
                 }
             }

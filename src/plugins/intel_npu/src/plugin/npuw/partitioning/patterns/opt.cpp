@@ -42,14 +42,14 @@ void Context::to_f16(PPtr orig_param) {
 namespace opp = ov::pass::pattern;
 
 // FROM:
-//     ???(Act) --------------------------------------------->
-//     Param(W) -> Convert(f16) -> Multiply -> Convert(f32) -> MatMul
-//     Param(S) ----------------->
+//     ???(Act) ----------------------------------->
+//     Param(W) -> to(f16) -> Multiply -> to(f32) -> MatMul
+//     Param(S) ------------>
 //
 // TO:
-//     ???(Act) -> Convert(f16) ->
-//     Param(W) -> Convert(f16) -> MatMul -> Multiply -> Convert(f32)
-//     Param(S) -> Reshape ---------------->
+//     ???(Act) -> to(f16) ->
+//     Param(W) -> to(f16) -> MatMul -> Multiply -> to(f32)
+//     Param(S) -> Reshape ----------->
 //
 
 DQMatMulCWi::DQMatMulCWi() {
@@ -128,14 +128,14 @@ DQMatMulCWi::DQMatMulCWi() {
 //     S:   [32,  1,11008]
 //                                         [1, 1 ,128]   x
 // TO:                                     [1,11K,128]T  =
-//                 [32,1,128]              [1, 1 ,11K]                      [32,1,11K]
-//     ???(Act)  -> Reshape > Split(/32) ->[to(f16) ->                     ]}
-//     Param(W*) -----------> Split(/32) ->[to(f16) -> MatMul -> to(f32) ->]} Concat ->
-//     Param(S)  ---------------------------------------------------------------------> Multiply
-//                                                                                     Reshape(1,a,b,c)
-//                                                                                     ReduceSum(1)
-//                                                                                     Reshape(a,b,c)
-//
+//                 [32,1,128]              [1, 1 ,11K]        [32,1,11K]
+//     ???(Act)  -> Reshape > Split(/32) ->[to(f16) ->       ]}
+//     Param(W*) -----------> Split(/32) ->[to(f16) -> MatMul]} Concat v
+//     Param(S)  ---------------------------------------------> Multiply
+//                                                              Reshape(1,a,b,c)
+//                                                              ReduceSum(1)
+//                                                              Reshape(a,b,c)
+//                                                              to(f32)
 // WHERE:
 //     W* : [32,11008,128]
 
@@ -251,7 +251,7 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
 //                                                               Reshape(1,16,1,512)
 //                                                               ReduceSum(1)
 //                                                               Reshape(   1,1,512)
-//                                                               to32()
+//                                                               to(f32)
 // WHERE:
 //     W* : [16,512,128]
 
@@ -285,10 +285,9 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
 
         if (ov::element::i4 == matched_qweight->get_element_type() && qweight_shape.size() == 3 &&
             ov::element::f16 == matched_qcoeff->get_element_type() && qcoeff_shape.size() == 3 &&
-            act_shape.size() == 3 &&
-            qcoeff_shape[0] == qweight_shape[0] &&
-            qcoeff_shape[2] == 1 && qcoeff_shape[1] == qweight_shape[1] &&
-            !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+            act_shape.size() == 3 && qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[2] == 1 &&
+            qcoeff_shape[1] == qweight_shape[1] && !matched_matmul->get_transpose_a() &&
+            matched_matmul->get_transpose_b()) {
             // Mark W closure to transpose, and transpose the respective parameter
             ctx.get().permute(matched_qweight, {1, 0, 2});
 
@@ -352,8 +351,6 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
     };
     register_matcher(std::make_shared<opp::Matcher>(qmm, "OptDQMatMulGQ2i"), std::move(callback));
 }
-
-
 
 }  // namespace opt
 }  // namespace patterns
