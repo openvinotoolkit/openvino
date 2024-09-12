@@ -6,6 +6,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/embedding_segments_sum.hpp"
 #include "openvino/op/gather.hpp"
@@ -26,11 +27,11 @@ namespace op {
 OutputVector translate_sparse_segment_mean_op(const NodeContext& node) {
     default_op_checks(node, 3, {"SparseSegmentMean"});
     auto data = node.get_input(0);
-    auto indices = node.get_input(1);
-    auto segment_ids = node.get_input(2);
+    auto indices = std::make_shared<v0::Convert>(node.get_input(1), element::i64);
+    auto segment_ids = std::make_shared<v0::Convert>(node.get_input(2), element::i64);
 
     // get the last index from segment_ids
-    auto segments_ids_size = std::make_shared<v3::ShapeOf>(segment_ids, indices.get_element_type());
+    auto segments_ids_size = std::make_shared<v3::ShapeOf>(segment_ids, element::i64);
     auto const_one = create_same_type_const<int32_t>(indices, vector<int32_t>{1}, Shape{1});
     auto const_zero = create_same_type_const<int32_t>(indices, vector<int32_t>{0}, Shape{1});
     auto last_idx = std::make_shared<v1::Subtract>(segments_ids_size, const_one);
@@ -46,7 +47,7 @@ OutputVector translate_sparse_segment_mean_op(const NodeContext& node) {
 
     // get the sizes of each segment
     auto unique_segment_ids =
-        make_shared<v10::Unique>(segment_ids, true, indices.get_element_type(), indices.get_element_type());
+        make_shared<v10::Unique>(segment_ids, true, element::i64, element::i64);
     auto broadcast = make_shared<v3::Broadcast>(const_one, n_segments);
     auto divisors = make_shared<v3::ScatterUpdate>(broadcast,
                                                    unique_segment_ids->output(0),
