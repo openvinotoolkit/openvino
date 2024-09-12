@@ -41,7 +41,7 @@ TEST(prepare_primitive_fusing, fuse_activation_to_fc_dyn) {
     topology.add(reorder("reorder", input_info("act"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, true);
 
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
@@ -65,7 +65,7 @@ TEST(prepare_primitive_fusing, dont_fuse_incompatible_eltwise) {
     topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, true);
 
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
@@ -90,7 +90,7 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_legal) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, true);
 
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
@@ -130,7 +130,7 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, true);
 
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
@@ -184,7 +184,7 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_const) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, true);
 
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
@@ -236,7 +236,7 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_legal_scalar_const_broadca
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, true);
 
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
@@ -291,7 +291,7 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_1) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, true);
 
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
@@ -358,7 +358,7 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_2) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, true);
 
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
@@ -419,7 +419,7 @@ TEST(prepare_primitive_fusing, dont_remove_only_dep_reshape) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, true);
 
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
@@ -465,7 +465,7 @@ TEST(prepare_primitive_fusing, eltwise_fusing_residual_connection) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, true);
 
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
@@ -516,7 +516,7 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_removal_check) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     if (engine.get_device_info().supports_immad) {
         ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
@@ -561,7 +561,7 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_accuracy_test) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     cldnn::network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -572,7 +572,6 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_accuracy_test) {
 
     ExecutionConfig config_ref = get_test_default_config(engine);
     config_ref.set_property(ov::intel_gpu::optimize_data(false));
-    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     cldnn::network network_ref(engine, topology, config_ref);
     network_ref.set_input_data("input", input);
@@ -605,7 +604,7 @@ TEST(prepare_primitive_fusing, can_profiling_data_when_fuse_illegal) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::queue_type(ov::intel_gpu::QueueTypes::in_order));
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::enable_profiling(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
@@ -657,7 +656,7 @@ TEST(prepare_primitive_fusing, dont_fuse_eltwise_to_dyn_dts) {
     topology.add(reorder("reorder_bfyx", input_info("eltw"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, true);
 
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
@@ -727,7 +726,6 @@ TEST(prepare_primitive_fusing, fuse_by_priotizing_to_parent_in_fusing_history) {
     set_values(eltwise_memory, eltwise_data);
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     auto program = program::build_program(engine, topology, config, false, true);
     ASSERT_NE(program, nullptr);

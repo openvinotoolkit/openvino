@@ -56,23 +56,13 @@ TEST_P(non_max_suppression_test, shape_infer) {
     }
 
     auto non_max_suppression_prim = std::make_shared<non_max_suppression>("output",
-                                                                          input_prim_ids[0],
-                                                                          input_prim_ids[1],
+                                                                          input_prim_ids,
                                                                           p.selected_indices_num,
                                                                           p.center_point_box,
                                                                           p.sort_result_descending,
-                                                                          primitive_id(),
-                                                                          primitive_id(),
-                                                                          primitive_id(),
-                                                                          primitive_id(),
-                                                                          primitive_id(),
-                                                                          primitive_id(),
                                                                           p.num_outputs);
     non_max_suppression_prim->output_paddings = {padding(), padding(), padding()};
     non_max_suppression_prim->output_data_types = {optional_data_type{}, optional_data_type{p.in_layouts[1].data_type}, optional_data_type{}};
-    if (p.in_layouts.size() > 2) {
-        non_max_suppression_prim->num_select_per_class = input_prim_ids[2].pid;
-    }
 
     cldnn::program prog(engine);
 

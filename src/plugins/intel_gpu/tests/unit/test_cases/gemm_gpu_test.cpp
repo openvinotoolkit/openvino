@@ -341,7 +341,7 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input1", input1);
         network->set_input_data("input2", input2);
@@ -470,7 +470,7 @@ public:
 
             auto config = get_test_default_config(engine);
             config.set_property(ov::intel_gpu::optimize_data(true));
-            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
             network network(engine, topology, config);
             network.set_input_data("input1", input1_mem);
@@ -496,7 +496,7 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input1", input1_mem);
         network->set_input_data("input2", input2_mem);
@@ -570,7 +570,7 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         {
@@ -659,7 +659,7 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         {
@@ -767,7 +767,7 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input0", input0_mem);
         network->set_input_data("input1", input1_mem);
@@ -909,7 +909,7 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input0", input0_mem);
         network->set_input_data("input1", input1_mem);
@@ -1078,7 +1078,7 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input0", input0_mem);
         network->set_input_data("input1", input1_mem);
@@ -1251,7 +1251,7 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input0", input0_mem);
         network->set_input_data("input1", input1_mem);
@@ -1365,7 +1365,7 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input0", input0_mem);
         network->set_input_data("input1", input1_mem);
@@ -2579,8 +2579,7 @@ public:
         );
 
         ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
-                             ov::intel_gpu::optimize_data(true),
-                             ov::intel_gpu::allow_new_shape_infer(true) };
+                             ov::intel_gpu::optimize_data(true) };
 
         network network(engine, topology, cfg);
         network.set_input_data("input1", input1);
@@ -2633,8 +2632,7 @@ public:
         ov::intel_gpu::ImplementationDesc impl = { format::bfyx, "", impl_types::onednn };
         ExecutionConfig config{ ov::intel_gpu::queue_type(QueueTypes::in_order),
                                 ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", impl} }),
-                                ov::intel_gpu::optimize_data(true),
-                                ov::intel_gpu::allow_new_shape_infer(false) };
+                                ov::intel_gpu::optimize_data(true) };
         network network(engine, topology, config);
 
         auto input0_data = rg.generate_random_1d<ov::float16>(input0->get_layout().count(), -1, 1);
@@ -2763,8 +2761,7 @@ public:
             ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, std::string(""), impl_types::onednn };
             ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
                                  ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_ref", gemm_impl} }),
-                                 ov::intel_gpu::optimize_data(true),
-                                 ov::intel_gpu::allow_new_shape_infer(true) };
+                                 ov::intel_gpu::optimize_data(true) };
 
             network network(engine, topology, cfg);
             network.set_input_data("input1", input1_mem);
@@ -2793,8 +2790,7 @@ public:
         ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, std::string(""), impl_types::onednn };
         ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
                              ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_impl} }),
-                             ov::intel_gpu::optimize_data(true),
-                             ov::intel_gpu::allow_new_shape_infer(true) };
+                             ov::intel_gpu::optimize_data(true) };
         network network(engine, topology, cfg);
         network.set_input_data("input1", input1_mem);
         network.set_input_data("input2", input2_mem);
@@ -2899,8 +2895,7 @@ public:
             ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, std::string(""), impl_types::onednn };
             ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
                                  ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_impl} }),
-                                 ov::intel_gpu::optimize_data(true),
-                                 ov::intel_gpu::allow_new_shape_infer(true) };
+                                 ov::intel_gpu::optimize_data(true) };
 
             network network(engine, topology, cfg);
             network.set_input_data("input1", input1_mem);
@@ -2929,8 +2924,7 @@ public:
         ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, std::string(""), impl_types::onednn };
         ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
                              ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_impl} }),
-                             ov::intel_gpu::optimize_data(true),
-                             ov::intel_gpu::allow_new_shape_infer(true) };
+                             ov::intel_gpu::optimize_data(true) };
         network network(engine, topology, cfg);
         network.set_input_data("input1", input1_mem);
         network.set_input_data("input2", input2_mem);

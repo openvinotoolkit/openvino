@@ -34,8 +34,6 @@ public:
         return forward_input0_shape<ShapeType>(impl_param);
     }
 
-    static layout calc_output_layout(const assign_node& node, kernel_impl_params const& impl_param);
-
     static std::string to_string(const assign_node& node);
 
     typed_primitive_inst(network& network, const assign_node& desc);

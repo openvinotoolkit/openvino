@@ -37,7 +37,7 @@ struct RangeArgs {
     RangeArg step { dt, "step" };
     explicit RangeArgs(data_types dt) : dt { dt } {}
 
-    memory::ptr run(int outLen, bool use_new_shape_infer) const {
+    memory::ptr run(int outLen) const {
         topology topology;
         start.addTo(topology);
         stop.addTo(topology);
@@ -46,7 +46,6 @@ struct RangeArgs {
 
         auto& engine = get_test_engine();
         ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(use_new_shape_infer));
 
         network network { engine, topology, config };
 
@@ -64,13 +63,11 @@ struct range_test_params {
     double start;
     double stop;
     double step;
-    bool use_new_shape_infer;
 };
 
 std::ostream& operator<<(std::ostream& ost, const range_test_params& params) {
     ost << ov::element::Type(params.d_types) << ",";
     ost << "{start:" << params.start << ",stop:" << params.stop << ",step:" << params.step << "},";
-    ost << " use_new_shape_infer(" << (params.use_new_shape_infer?"True":"False") << ")";
     return ost;
 }
 
@@ -89,7 +86,7 @@ void doSmokeRange(range_test_params& params) {
 
     T outLen = (stop_val - start_val) / step_val;
 
-    auto output = args.run(outLen, params.use_new_shape_infer);
+    auto output = args.run(outLen);
     mem_lock<T> output_ptr { output, tests::get_test_stream() };
 
     for (std::size_t i = 0; i < static_cast<size_t>(outLen); ++i) {
@@ -111,7 +108,7 @@ void doSmokeRange_fp16(range_test_params& params) {
 
     auto outLen = (stop_val - start_val) / step_val;
 
-    auto output = args.run(outLen, params.use_new_shape_infer);
+    auto output = args.run(outLen);
     mem_lock<uint16_t> output_ptr { output, tests::get_test_stream() };
 
     for (std::size_t i = 0; i < static_cast<size_t>(outLen); ++i) {
@@ -156,11 +153,8 @@ struct range_test_param_generator : std::vector<range_test_params> {
     }
 
     range_test_param_generator& simple_params(std::vector<data_types>& data_types_list, double start, double stop, double step) {
-        std::vector<bool> flags_use_new_si = {true, false};
-        for (auto use_new_si : flags_use_new_si) {
-            for (auto type : data_types_list) {
-                push_back(range_test_params{ type, start, stop, step, use_new_si});
-            }
+        for (auto type : data_types_list) {
+            push_back(range_test_params{ type, start, stop, step});
         }
         return *this;
     }
@@ -210,7 +204,7 @@ TEST(range_gpu_test, range_with_select) {
     set_values<int32_t>(input2, {step_val});
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     network network { tests::get_test_engine(), topology, config };
 
@@ -246,7 +240,7 @@ TEST(range_gpu_test, constant_folding) {
     topology.add(range{ "range", { input_info("input0"), input_info("input1"), input_info("input2") }, data_types::i32});
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     network network(engine, topology, config);
 
@@ -284,7 +278,7 @@ TEST(range_gpu_test, dynamic_all) {
     topology.add(range{ "range", { input_info("input0"), input_info("input1"), input_info("input2") }, data_types::i32});
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     network network(engine, topology, config);
     network.set_input_data("input0", input0);
@@ -330,7 +324,7 @@ TEST(range_gpu_test, dynamic_stop) {
     topology.add(range{ "range", { input_info("input0"), input_info("input1"), input_info("input2") }, data_types::i32});
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     network network(engine, topology, config);
     network.set_input_data("input1", input1);
@@ -374,7 +368,7 @@ TEST(range_cpu_impl_test, dynamic_all) {
     topology.add(range{ "range", { input_info("input0"), input_info("input1"), input_info("input2") }, data_types::i32});
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"range", {format::bfyx, "", impl_types::cpu}} }));
 
     network network(engine, topology, config);
@@ -421,7 +415,7 @@ TEST(range_cpu_impl_test, dynamic_stop) {
     topology.add(range{ "range", { input_info("input0"), input_info("input1"), input_info("input2") }, data_types::i32});
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"range", {format::bfyx, "", impl_types::cpu}} }));
 
     network network(engine, topology, config);

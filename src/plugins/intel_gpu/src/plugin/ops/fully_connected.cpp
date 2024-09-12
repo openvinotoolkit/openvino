@@ -3,15 +3,12 @@
 //
 
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "openvino/op/constant.hpp"
 
 #include "intel_gpu/primitives/fully_connected.hpp"
-#include "intel_gpu/primitives/reshape.hpp"
-#include "intel_gpu/primitives/reorder.hpp"
 
 namespace ov {
 namespace op {
@@ -94,34 +91,6 @@ static void CreateFullyConnectedOp(ProgramBuilder& p, const std::shared_ptr<op::
                                          rank_b);
 
     p.add_primitive(*op, fcPrim);
-
-    if (shape_a.size() > 3 && !p.use_new_shape_infer()) {
-        auto lastLayerName = layerName;
-        auto outReshapeName = layerName + "_cldnn_out_reshape";
-
-        // add reorder
-        auto outDims = op->get_output_shape(0);
-        auto outTensor = tensor_from_dims(outDims);
-
-        if (outDims.size() > 4) {
-            cldnn::format outputFormat = cldnn::format::bfyx;
-            switch (outDims.size()) {
-                case 5: outputFormat = cldnn::format::bfzyx; break;
-                case 6: outputFormat = cldnn::format::bfwzyx; break;
-                default: break;
-            }
-
-            cldnn::primitive_id reorderId = "reorder:" + outReshapeName + "_reorder";
-            cldnn::layout outputLayout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outTensor);
-            auto reorder_prim = cldnn::reorder(reorderId, cldnn::input_info(layerName), outputLayout);
-            p.add_primitive(*op, reorder_prim);
-            lastLayerName = reorderId;
-        }
-
-        // add reshape
-        auto outReshapePrim = cldnn::reshape(outReshapeName, cldnn::input_info(lastLayerName), outTensor);
-        p.add_primitive(*op, outReshapePrim);
-    }
 }
 
 REGISTER_FACTORY_IMPL(internal, FullyConnected);

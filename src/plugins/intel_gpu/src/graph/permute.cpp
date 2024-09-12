@@ -13,39 +13,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(permute)
 
-layout permute_inst::calc_output_layout(permute_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<permute>();
-    auto input_layout = impl_param.get_input_layout();
-    auto permute_order = desc->permute_order;
-    std::vector<tensor::value_type> output_shape;
-
-    auto input_shape = input_layout.get_dims();
-
-    for (size_t x = 0; x < permute_order.size(); x++) {
-        output_shape.push_back(input_shape[permute_order[x]]);
-    }
-
-    for (size_t i = output_shape.size(); i < 4; i++) {
-        output_shape.push_back(1);
-    }
-
-    auto output_size = tensor(format::get_default_format(input_layout.get_rank()), output_shape);
-    auto op = desc->output_paddings[0];
-
-    auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
-    if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_output_element_type();
-    }
-
-    // Adjust output format for optimizing out of transpose related to acdb format.
-    auto out_fmt = input_layout.format;
-    if (node.get_preferred_output_fmt() != format::any) {
-        out_fmt = node.get_preferred_output_fmt();
-    }
-
-    return layout(output_type, out_fmt, output_size, op);
-}
-
 template<typename ShapeType>
 std::vector<layout> permute_inst::calc_output_layouts(permute_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<permute>();

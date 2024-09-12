@@ -3,7 +3,6 @@
 //
 
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/constant.hpp"

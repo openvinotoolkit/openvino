@@ -33,7 +33,7 @@ TEST(remove_redundant_reorder, skip_reorder_at_runtime) {
                       reorder("reorder", input_info("fc"), format::bfyx, data_types::f32)); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     network network(engine, topology, config);
     auto reorder_inst = network.get_primitive("reorder");
@@ -67,7 +67,7 @@ TEST(skip_reorder_at_runtime, correct_memory_reuse) {
                       reorder("reorder_fsv16", input_info("reshape"), format::b_fs_yx_fsv16, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(engine, topology, config);

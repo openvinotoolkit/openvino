@@ -62,7 +62,6 @@ public:
             );
 
             auto config = get_test_default_config(engine);
-            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
             config.set_property(ov::intel_gpu::optimize_data(true));
 
             ov::intel_gpu::ImplementationDesc dyn_quan_impl_desc = { format::bfyx, "dynamic_quantize_gpu_ref", impl_types::ocl };
@@ -87,7 +86,6 @@ public:
         );
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
 
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);

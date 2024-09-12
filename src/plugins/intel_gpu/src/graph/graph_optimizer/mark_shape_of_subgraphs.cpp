@@ -120,9 +120,7 @@ void mark_shape_of_subgraphs::mark_node(program_node& node) {
 }
 
 void mark_shape_of_subgraphs::run(program& p) {
-    if (p.is_new_shape_infer()) {
-        for (auto& node : p.get_processing_order()) {
-            look_for_shape_of_subgraph(*node);
-        }
+    for (auto& node : p.get_processing_order()) {
+        look_for_shape_of_subgraph(*node);
     }
 }

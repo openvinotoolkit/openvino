@@ -46,9 +46,6 @@ class GemmFusingTest : public ::BaseFusingTest<gemm_test_params> {
 public:
 
     void execute(gemm_test_params& p, bool is_dynamic, bool is_caching_test = false) {
-        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
-        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
-
         auto input0_prim = get_mem(get_input_layout(p, 0));
         auto input1_prim = get_mem(get_input_layout(p, 1));
 
@@ -424,9 +421,6 @@ TEST_P(gemm_2in_dynamic_add, add) {
 
     if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
-
-    cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     auto eltwise_layout = get_output_layout(p);
     auto eltwise_shape = ov::PartialShape::dynamic(eltwise_layout.get_partial_shape().size());

@@ -146,10 +146,6 @@ std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(convolution)
 
-layout convolution_inst::calc_output_layout(convolution_node const& node, kernel_impl_params const& impl_param) {
-    return calc_output_layout_impl(node, impl_param, true)[0];
-}
-
 template<typename ShapeType>
 std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const& node, kernel_impl_params const& impl_param) {
     return calc_output_layout_impl(node, impl_param, false);

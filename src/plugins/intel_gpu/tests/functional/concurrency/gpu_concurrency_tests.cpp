@@ -51,7 +51,6 @@ public:
             ov::test::utils::removeFilesWithExt(cacheFolderName, "cl_cache");
             ov::test::utils::removeDir(cacheFolderName);
             core->set_property(ov::cache_dir(cacheFolderName));
-            core->set_property(ov::test::utils::DEVICE_GPU, ov::intel_gpu::enable_loop_unrolling(false));
         }
 
         std::vector<std::pair<std::shared_ptr<ov::Model>, ov::InferRequest>> irs;
@@ -63,11 +62,15 @@ public:
             if (is_caching_test) {
                 {
                     auto _dummy_exec_net = core->compile_model(fn, ov::test::utils::DEVICE_GPU,
-                                                    ov::num_streams(ov::streams::Num(num_streams)), ov::hint::inference_precision(ov::element::f32));
+                                                    ov::num_streams(ov::streams::Num(num_streams)),
+                                                    ov::hint::inference_precision(ov::element::f32),
+                                                    ov::intel_gpu::enable_loop_unrolling(false));
                 }
                 {
                     exec_net = core->compile_model(fn, ov::test::utils::DEVICE_GPU,
-                                                    ov::num_streams(ov::streams::Num(num_streams)), ov::hint::inference_precision(ov::element::f32));
+                                                    ov::num_streams(ov::streams::Num(num_streams)),
+                                                    ov::hint::inference_precision(ov::element::f32),
+                                                    ov::intel_gpu::enable_loop_unrolling(false));
                 }
             } else {
                 exec_net = core->compile_model(fn, ov::test::utils::DEVICE_GPU,
@@ -114,6 +117,7 @@ public:
         }
 
         if (is_caching_test) {
+            core->set_property(ov::cache_dir(""));
             ov::test::utils::removeFilesWithExt(cacheFolderName, "blob");
             ov::test::utils::removeFilesWithExt(cacheFolderName, "cl_cache");
             ov::test::utils::removeDir(cacheFolderName);

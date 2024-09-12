@@ -29,8 +29,7 @@ void canonicalization_test(cldnn::topology topology, std::string prim_name,
                            bool enable_fusing = false) {
     auto& engine = get_test_engine();
 
-    ExecutionConfig config({ov::intel_gpu::optimize_data(true),
-                            ov::intel_gpu::allow_new_shape_infer(true)});
+    ExecutionConfig config({ov::intel_gpu::optimize_data(true)});
 
     auto prog = program::build_program(engine, topology, config, false, true);
     if (enable_fusing) {

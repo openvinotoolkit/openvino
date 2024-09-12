@@ -390,13 +390,6 @@ void SyncInferRequest::wait() {
         if (need_output_update) {
             OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::wait::update_output");
             auto mem_shape = output_layout.get_shape();
-            // In case of old shape infer we need to shrink out tensor shape to avoid redudnant dimensions that occur due to rank extension
-            // For new shape infer this shouldn't happen, thus remove that WA once we migrate to ngraph-based shape infer for all cases
-            if (!m_graph->get_config().get_property(ov::intel_gpu::allow_new_shape_infer)) {
-                OPENVINO_ASSERT(port.get_partial_shape().is_static(), "[GPU] Unexpected dynamic shape for legacy shape inference");
-                OPENVINO_ASSERT(ov::shape_size(port.get_shape()) == ov::shape_size(mem_shape), "[GPU] Unexpected elements count for output tensor");
-                mem_shape = port.get_shape();
-            }
             if (is_dynamic) {
                 bool need_reallocate = true;
                 auto usm_host_tensor = std::dynamic_pointer_cast<USMHostTensor>(output_tensor);
@@ -833,12 +826,6 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     }
 
     auto memory = device_tensor->get_memory();
-    // WA to extend shape to ranks expected by legacy shape infer. Remove after full migration to new shape infer
-    if (!m_graph->get_config().get_property(ov::intel_gpu::allow_new_shape_infer)) {
-        auto new_layout = memory->get_layout();
-        new_layout.set_partial_shape(m_graph->get_input_layouts().at(input_idx).get_shape());
-        memory = engine.reinterpret_buffer(*memory, new_layout);
-    }
 
     cldnn::event::ptr ret_event = nullptr;
     if (!is_remote_tensor_impl && !is_generic_remote && !convert_needed) {

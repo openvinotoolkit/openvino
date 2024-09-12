@@ -27,7 +27,6 @@ public:
     using parent = typed_primitive_inst_base<unique_count>;
     using parent::parent;
 
-    static layout calc_output_layout(const unique_count_node& node, const kernel_impl_params& impl_param);
     template <typename ShapeType>
     static std::vector<layout> calc_output_layouts(const unique_count_node& node, const kernel_impl_params& impl_param);
     static std::string to_string(const unique_count_node& node);
@@ -57,7 +56,6 @@ public:
     using parent = typed_primitive_inst_base<unique_gather>;
     using parent::parent;
 
-    static layout calc_output_layout(const unique_gather_node& node, const kernel_impl_params& impl_param);
     template <typename ShapeType>
     static std::vector<layout> calc_output_layouts(const unique_gather_node& node,
                                                    const kernel_impl_params& impl_param);

@@ -23,23 +23,6 @@ std::vector<layout> multinomial_inst::calc_output_layouts(multinomial_node const
 
 template std::vector<layout> multinomial_inst::calc_output_layouts<ov::PartialShape>(multinomial_node const& node, const kernel_impl_params& impl_param);
 
-layout multinomial_inst::calc_output_layout(multinomial_node const& node, kernel_impl_params const& impl_param) {
-    auto primitive = impl_param.typed_desc<multinomial>();
-    auto input_layout = impl_param.get_input_layout(0);
-    if (input_layout.get_shape().size() == 1) {
-        return {primitive->output_data_type, input_layout.format,
-            tensor{std::vector<tensor::value_type>{
-                static_cast<tensor::value_type>(primitive->num_samples)
-            }}};
-    } else {
-        return {primitive->output_data_type, input_layout.format,
-            tensor{std::vector<tensor::value_type>{
-                input_layout.batch(),
-                static_cast<tensor::value_type>(primitive->num_samples)
-            }}};
-    }
-}
-
 multinomial_inst::typed_primitive_inst(network& network, multinomial_node const& node)
     : parent{network, node} {}
 

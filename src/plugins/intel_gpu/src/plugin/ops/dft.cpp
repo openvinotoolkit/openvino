@@ -28,7 +28,7 @@ void createDft(ProgramBuilder& p,
     const auto layer_name = layer_type_name_ID(op);
     const auto& friendly_name = op->get_friendly_name();
 
-    if (op->is_dynamic() && p.use_new_shape_infer()) {
+    if (op->is_dynamic()) {
         std::vector<int64_t> axes;
         auto axes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
         if (axes_constant != nullptr) {

@@ -38,7 +38,6 @@ class typed_primitive_inst<prior_box> : public typed_primitive_inst_base<prior_b
 public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(prior_box_node const& /*node*/, kernel_impl_params const& impl_param);
-    static layout calc_output_layout(prior_box_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(prior_box_node const& node);
 
 public:

@@ -44,7 +44,7 @@ TEST(stateful_model, skip_gather_at_runtime) {
                       reorder("reorder", input_info("concat"), format::bfyx, data_types::f32)); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     network network(engine, topology, config);
     auto gather_inst = network.get_primitive("gather");
@@ -100,7 +100,7 @@ TEST(stateful_model, not_skip_gather_at_runtime) {
                       reorder("reorder", input_info("concat"), format::bfyx, data_types::f32)); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     network network(engine, topology, config);
     auto gather_inst = network.get_primitive("gather");
@@ -152,7 +152,7 @@ TEST(stateful_model, not_skip_gather_in_cpuimpl) {
                       reorder("reorder", input_info("concat"), format::bfyx, data_types::f32)); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gather", {format::bfyx, "", impl_types::cpu}} }));
 
     network network(engine, topology, config);
@@ -210,7 +210,7 @@ TEST(stateful_model, check_dynamic_pad_for_kv_cache) {
                       reorder("reorder", input_info("concat"), format::bfyx, data_types::f32)); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(engine, topology, config);

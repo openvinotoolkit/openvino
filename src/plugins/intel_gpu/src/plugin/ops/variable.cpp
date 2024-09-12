@@ -3,7 +3,6 @@
 //
 
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/read_value.hpp"

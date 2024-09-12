@@ -1697,7 +1697,7 @@ TEST(reduce_gpu, dynamic) {
     topology.add(reduce("reduce", input_info("input"), reduce_mode::prod, {1, 2}, 1));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input", input);
 
@@ -1754,7 +1754,7 @@ TEST(reduce_gpu, b_fs_yx_fsv16_min_dynamic) {
     topology.add(reduce("reduce", input_info("reorder"), reduce_mode::min, {1}, 0));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     network network(engine, topology, config);
 
@@ -1809,7 +1809,7 @@ TEST(reduce_gpu, b_fs_yx_fsv16_max_dynamic) {
     topology.add(reduce("reduce", input_info("reorder"), reduce_mode::max, {1}, 0));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     network network(engine, topology, config);
 

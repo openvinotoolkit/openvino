@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,15 +23,6 @@ struct matrix_nms : public primitive_base<matrix_nms> {
     /// @param second_output primitive id.
     /// @param third_output primitive id.
     /// @param attrs operation attributes.
-    matrix_nms(const primitive_id& id,
-               const input_info& boxes,
-               const input_info& scores,
-               const input_info& second_output,
-               const input_info& third_output,
-               const ov::op::v8::MatrixNms::Attributes& attrs)
-        : primitive_base(id, {boxes, scores, second_output, third_output}),
-          attribs(attrs) {}
-
     matrix_nms(const primitive_id& id,
                const input_info& boxes,
                const input_info& scores,

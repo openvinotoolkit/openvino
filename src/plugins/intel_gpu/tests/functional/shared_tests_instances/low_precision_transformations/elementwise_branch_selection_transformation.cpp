@@ -42,9 +42,9 @@ const std::vector<LayerTestsDefinitions::ElementwiseBranchSelectionTestValues> p
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         {}, // GPU doesn't returns Reorders in performance counters
         {
-            {"convolution1", "U8"},
-            {"convolution2", "U8"},
-            {"eltwise", "U8"}
+            {"convolution1", ov::element::u8.get_type_name()},
+            {"convolution2", ov::element::u8.get_type_name()},
+            {"eltwise", ov::element::u8.get_type_name()}
         }
     },
     {
@@ -69,9 +69,9 @@ const std::vector<LayerTestsDefinitions::ElementwiseBranchSelectionTestValues> p
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         {}, // GPU doesn't returns Reorders in performance counters
         {
-            {"convolution1", "U8"},
-            {"convolution2", "U8"},
-            {"eltwise", "U8"}
+            {"convolution1", ov::element::u8.get_type_name()},
+            {"convolution2", ov::element::u8.get_type_name()},
+            {"eltwise", ov::element::u8.get_type_name()}
         }
     }
 };

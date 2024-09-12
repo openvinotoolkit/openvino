@@ -66,7 +66,7 @@ public:
 
     // Allocates tensoer with given shape and data.
     template<typename TDataType>
-    memory::ptr AllocateTensor(ov::PartialShape shape, cldnn::format fmt, 
+    memory::ptr AllocateTensor(ov::PartialShape shape, cldnn::format fmt,
                                 const std::vector<TDataType>& data) {
         const layout lo = {shape, helpers::ToDataType<TDataType>(), fmt};
         EXPECT_EQ(lo.get_linear_size(), data.size());
@@ -89,7 +89,7 @@ public:
         params.axes = this->template AllocateTensor<int64_t>(
             ov::PartialShape{ 3 }, format::bfyx, { 1, 3, 2 });
         params.wanted_output = this->template AllocateTensor<TypeParam>(
-            ov::PartialShape{ 1, 1, 5, 10 }, format::bfyx, { 
+            ov::PartialShape{ 1, 1, 5, 10 }, format::bfyx, {
                 1201, 1211, 1221, 1231, 1241, 1251, 1261, 1271, 1281, 1291,
                 1301, 1311, 1321, 1331, 1341, 1351, 1361, 1371, 1381, 1391,
                 1401, 1411, 1421, 1431, 1441, 1451, 1461, 1471, 1481, 1491,
@@ -135,7 +135,7 @@ private:
         topology.add(slice("slice", inputs));
 
         ExecutionConfig config = get_test_default_config(engine_);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
         cldnn::network::ptr network =
             get_network(engine_, topology, config, get_test_stream_ptr(), params.is_caching_test);
@@ -291,7 +291,7 @@ TYPED_TEST(SliceTest, bfyx_negative_step) {
     params.step = this->template AllocateTensor<int64_t>(
         ov::PartialShape{ 4 }, format::bfyx, { 1, -1, -1, -10 });
     params.wanted_output = this->template AllocateTensor<TypeParam>(
-        ov::PartialShape{ 1, 1, 5, 8 }, format::bfyx, { 
+        ov::PartialShape{ 1, 1, 5, 8 }, format::bfyx, {
             1789, 1779, 1769, 1759, 1749, 1739, 1729, 1719,
             1689, 1679, 1669, 1659, 1649, 1639, 1629, 1619,
             1589, 1579, 1569, 1559, 1549, 1539, 1529, 1519,
@@ -314,7 +314,7 @@ TYPED_TEST(SliceTest, bfzyx) {
     params.step = this->template AllocateTensor<int64_t>(
         ov::PartialShape{ 5 }, format::bfzyx, { 1, 1, 1, 1, 1 });
     params.wanted_output = this->template AllocateTensor<TypeParam>(
-        ov::PartialShape{ 1, 2, 2, 2, 2 }, format::bfzyx, { 
+        ov::PartialShape{ 1, 2, 2, 2, 2 }, format::bfzyx, {
             0,   1,   5,   6,   60,  61,  65,  66,
             600, 601, 605, 606, 660, 661, 665, 666
         });

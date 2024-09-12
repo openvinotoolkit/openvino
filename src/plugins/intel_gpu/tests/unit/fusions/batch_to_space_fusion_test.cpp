@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/partial_shape.hpp"
 #include "test_utils.h"
 #include "fusion_test_common.hpp"
 
@@ -18,13 +19,13 @@ using namespace ::tests;
 
 namespace {
 struct batch_to_space_test_params {
-    tensor input_size;
-    tensor output_size;
+    ov::PartialShape input_size;
+    ov::PartialShape output_size;
     data_types input_type;
     format input_format;
-    tensor block_shape;
-    tensor crops_begin;
-    tensor crops_end;
+    std::vector<int32_t> block_shape;
+    std::vector<int32_t> crops_begin;
+    std::vector<int32_t> crops_end;
     data_types default_type;
     format default_format;
     size_t expected_fused_primitives;
@@ -46,11 +47,11 @@ public:
     }
 
     layout get_input_layout(batch_to_space_test_params& p) {
-        return layout{ p.input_type, p.input_format, p.input_size };
+        return layout{ p.input_size, p.input_type, p.input_format };
     }
 
     layout get_per_channel_layout(batch_to_space_test_params& p) {
-        return layout{ p.default_type, p.default_format, tensor{ 1, p.output_size.feature[0], 1, 1 } };
+        return layout{ { 1, p.output_size[1], 1, 1 }, p.default_type, p.default_format,  };
     }
 };
 
@@ -74,7 +75,7 @@ TEST_P(batch_to_space_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        batch_to_space("batch_to_space", input_info("input"), p.block_shape, p.crops_begin, p.crops_end, p.output_size),
+        batch_to_space("batch_to_space", input_info("input"), p.block_shape, p.crops_begin, p.crops_end),
         data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_low", get_mem(get_single_element_layout(p), -128)),
@@ -100,11 +101,11 @@ TEST_P(batch_to_space_scale_act_eltwise_quantize_u8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        batch_to_space("batch_to_space", input_info("input"), p.block_shape, p.crops_begin, p.crops_end, p.output_size),
+        batch_to_space("batch_to_space", input_info("input"), p.block_shape, p.crops_begin, p.crops_end),
         data("scale1_data", get_mem(get_per_channel_layout(p), -0.125f)),
         eltwise("scale1", { input_info("batch_to_space"), input_info("scale1_data") }, eltwise_mode::prod, p.default_type),
         activation("actv1", input_info("scale1"), activation_func::relu),
-        data("eltw_data", get_mem(layout(p.default_type, p.input_format, p.output_size))),
+        data("eltw_data", get_mem(layout(p.output_size, p.default_type, p.input_format))),
         eltwise("eltw", { input_info("actv1"), input_info("eltw_data") }, eltwise_mode::sum, p.default_type),
         data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
@@ -135,11 +136,11 @@ TEST_P(batch_to_space_scale_act_eltw, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        batch_to_space("batch_to_space", input_info("input"), p.block_shape, p.crops_begin, p.crops_end, p.output_size),
+        batch_to_space("batch_to_space", input_info("input"), p.block_shape, p.crops_begin, p.crops_end),
         data("scale1_data", get_mem(get_per_channel_layout(p), -0.125f)),
         eltwise("scale1", { input_info("batch_to_space"), input_info("scale1_data") }, eltwise_mode::prod, p.default_type),
         activation("actv1", input_info("scale1"), activation_func::relu),
-        data("eltw_data", get_mem(layout(p.default_type, p.input_format, p.output_size))),
+        data("eltw_data", get_mem(layout(p.output_size, p.default_type, p.input_format))),
         eltwise("eltw", { input_info("actv1"), input_info("eltw_data") }, eltwise_mode::sum, p.default_type),
         reorder("reorder_bfyx", input_info("eltw"), p.default_format, data_types::f32)
     );

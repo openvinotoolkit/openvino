@@ -249,7 +249,7 @@ void generic_eltwise_int_test(cldnn::format test_input_fmt,
                               int input2_max_val) {
     static_assert(std::is_integral<T>::value, "T must be an integral type");
     static_assert(std::is_integral<TOut>::value, "TOut must be an integral type");
-    
+
     tests::random_generator rg(GET_SUITE_NAME);
 
     VVVVF<T> input1_rnd = rg.generate_random_4d<T>(input_b, input_f, input_y, input_x, input1_min_val, input1_max_val);
@@ -299,7 +299,7 @@ void generic_eltwise_int_test(cldnn::format test_input_fmt,
     bool test_is_correct = true;
     VF<TOut> output_cpu_vec = flatten_4d<TOut>(test_input_fmt, output_cpu);
     for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
-        const TOut cpu_val = output_cpu_vec[i]; 
+        const TOut cpu_val = output_cpu_vec[i];
         const TOut gpu_val = output_ptr[i];
         if (cpu_val != gpu_val) {
             test_is_correct = false;
@@ -1369,7 +1369,7 @@ TEST(eltwise_gpu_f32, dynamic_kernel_no_broadcast) {
         -2.f,  6.5f,  -0.5f, -2.5f });
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -1425,7 +1425,7 @@ TEST(eltwise_gpu_f32, dynamic_kernel_broadcast) {
     set_values(input2, { 0.5f, -0.5f });
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -1480,7 +1480,7 @@ TEST(eltwise_gpu_f32, dynamic_kernel_broadcast_mixed_ranks_3d_2d) {
     set_values(input2, { 0.5f, -0.5f, 1.0f, -1.0f, 2.f });
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -1539,7 +1539,7 @@ TEST(eltwise_gpu_f32, dynamic_kernel_broadcast_mixed_ranks_5d_2d) {
     set_values(input2, { 0.5f, -0.5f, 1.0f, -1.0f, 2.f });
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -1598,7 +1598,7 @@ TEST(eltwise_cpu_impl_f32, dynamic_kernel_broadcast_mixed_ranks_5d_2d) {
     set_values(input2, { 0.5f, -0.5f, 1.0f, -1.0f, 2.f });
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"eltwise", {format::bfzyx, "", impl_types::cpu}}}));
 
     network network(engine, topology, config);
@@ -1680,7 +1680,6 @@ TEST(eltwise_gpu_f32, dynamic_padding) {
         0.5f,   2.5f });
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     // config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input1", input1);
@@ -1730,7 +1729,7 @@ TEST(eltwise_gpu_f32, add_basic_8d) {
     }
 
     auto config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
@@ -1773,7 +1772,7 @@ TEST(eltwise_cpu_impl_f32, add_basic_8d) {
     auto config = get_test_default_config(engine);
     auto forcing_map = ov::intel_gpu::ImplForcingMap{ {"eltwise", {format::bfvuwzyx, "", impl_types::cpu}} };
     config.set_property(ov::intel_gpu::force_implementations(forcing_map));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
@@ -3372,7 +3371,7 @@ TEST(eltwise_gpu_f32, broadcast_test_dim3_dim4) {
     };
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     // in1:dim3, int2:dim4
     {
@@ -3406,7 +3405,7 @@ TEST(eltwise_gpu_f32, broadcast_test_dim3_dim4) {
     }
 
     // in1:extended_dim4_from_dim3, int2:dim4
-    // in1_shape = {2, 4, 2} is extended to {1, 2, 4, 2} internally in case allow_new_shape_infer true.
+    // in1_shape = {2, 4, 2} is extended to {1, 2, 4, 2} internally.
     // So explicit 4d input shpae {1, 2, 4, 2} should have same result from input{2, 4, 2}
     {
         ov::Shape in1_shape = {1, 2, 4, 2};

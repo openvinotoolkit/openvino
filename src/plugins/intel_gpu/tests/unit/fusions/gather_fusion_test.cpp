@@ -33,8 +33,6 @@ struct gather_test_params {
 class GatherPrimitiveFusingTest : public ::BaseFusingTest<gather_test_params> {
 public:
     void execute(gather_test_params& p, bool is_dynamic = false, bool count_reorder = false) {
-        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
-        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
         cfg_fused.set_property(ov::intel_gpu::optimize_data(true));
         auto input_prim = get_mem(get_input_layout(p));
         auto indices_prim = get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p) - 1));

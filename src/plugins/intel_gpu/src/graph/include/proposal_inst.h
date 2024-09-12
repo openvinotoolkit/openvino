@@ -67,7 +67,6 @@ public:
 
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(proposal_node const& node, kernel_impl_params const& impl_param);
-    static layout calc_output_layout(proposal_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(proposal_node const& node);
 
     typed_primitive_inst(network& network, proposal_node const& desc);

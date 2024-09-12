@@ -39,19 +39,9 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         const auto format = impl_param.get_output_layout().format;
         size_t max_axes_num = format.dimension();
 
-        const auto& broadcast_axes = primitive->broadcast_axes;
-        uint16_t index = (uint16_t)0;
-        uint16_t input_index = (uint16_t)broadcast_axes.size();
-
         // bfyx, bfzyx format
         for (size_t i = 0; i < max_axes_num; ++i) {
-            if (std::find(broadcast_axes.begin(), broadcast_axes.end(), i) != broadcast_axes.end()) {
-                params.input_order.push_back(index);
-                ++index;
-            } else {
-                params.input_order.push_back(input_index);
-                ++input_index;
-            }
+            params.input_order.push_back(i);
         }
 
         return params;
@@ -67,57 +57,24 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         auto input_pshape = i_layout.get_partial_shape();
         auto output_pshape = o_layout.get_partial_shape();
 
-        auto output_rank = output_pshape.size();
+        auto new_in_shape = output_pshape;
 
         if (primitive->axes_mapping.empty()) {
-            bool use_new_shape_infer = impl_params.prog->is_new_shape_infer();
-            if (!broadcastable(input_pshape, output_pshape, use_new_shape_infer)) {
-                input_pshape = extend_shape_to_rank_from_begin(input_pshape, output_pshape.size());
+            if (!broadcastable(input_pshape, output_pshape)) {
+                new_in_shape = extend_shape_to_rank_from_begin(input_pshape, output_pshape.size());
             } else {
-                input_pshape = extend_shape_to_rank_from_end(input_pshape, output_pshape.size());
+                new_in_shape = extend_shape_to_rank_from_end(input_pshape, output_pshape.size());
             }
         } else {
-            if (i_layout.is_static() && o_layout.is_static()) {
-                // If axis_mapping is specified, then ones are inserted according to it.
-                ov::Shape tmp_shape;
-                int prev_axis = -1;
-                int next_axis = -1;
-                size_t currentRank = 0;
-                int axe_idx = 0;
-                for (auto& axis : primitive->axes_mapping) {
-                    prev_axis = next_axis;
-                    next_axis = static_cast<int>(axis);
-
-                    int ones_count = std::max(next_axis - prev_axis - 1, 0);
-                    tmp_shape.insert(tmp_shape.begin() + currentRank, ones_count, 1ul);
-                    tmp_shape.push_back(input_pshape[axe_idx].get_length()); // Consider the Broadcast kernel 'broadcast' input to output shape
-
-                    currentRank += ones_count + 1;
-                    axe_idx += 1;
+            for (size_t i = 0; i < new_in_shape.size(); i++) {
+                if (primitive->axes_mapping.find(i) == primitive->axes_mapping.end()) {
+                    new_in_shape[i] = 1;
                 }
-                input_pshape = extend_shape_to_rank_from_end(tmp_shape, output_rank);
-            } else {
-                // dynamic input
-                // insert 1 to extend dimensions by axes_mapping
-                ov::Shape tmp_shape;
-                size_t idx = 0;
-                for (auto& axis : primitive->axes_mapping) {
-                    if (idx == axis) {
-                        tmp_shape.insert(tmp_shape.begin() + idx, 1, -1);
-                        idx += 1;
-                    } else {
-                        tmp_shape.insert(tmp_shape.begin() + idx, axis - idx, 1);
-                        idx = axis;
-                        tmp_shape.insert(tmp_shape.begin() + idx, 1, -1);
-                        idx += 1;
-                    }
-                }
-                input_pshape = extend_shape_to_rank_from_end(tmp_shape, output_rank);
             }
         }
 
-        updated_impl_params.input_layouts[0].set_partial_shape(extend_shape_to_rank_from_end(input_pshape));
-        updated_impl_params.input_layouts[0].format = format::adjust_to_rank(i_layout.format, input_pshape.size());
+        updated_impl_params.input_layouts[0].set_partial_shape(extend_shape_to_rank_from_end(new_in_shape));
+        updated_impl_params.input_layouts[0].format = format::adjust_to_rank(i_layout.format, new_in_shape.size());
 
         updated_impl_params.output_layouts[0].set_partial_shape(extend_shape_to_rank_from_end(output_pshape));
 

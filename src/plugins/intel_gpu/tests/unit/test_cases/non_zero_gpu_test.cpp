@@ -132,7 +132,7 @@ TEST(test_count_non_zero, dynamic_2d_f32_bfyx) {
     topology.add(count_nonzero("count_nonzero", input_info("InputData")));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     std::vector<size_t> input_shapes = {171, 531, 168, 169, 174, 172, 168, 167, 1169, 16, 677};
     dyn_nonzero_count_net _test;
@@ -295,7 +295,7 @@ TEST(non_zero_gpu, dynamic) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("InputData", input);
 
@@ -509,7 +509,7 @@ TEST(non_zero_gpu, const_input) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
 
     auto count_nonzero_inst = network.get_primitive("count_nonzero");
@@ -547,7 +547,7 @@ TEST(non_zero_gpu, empty_input) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network net(engine, topology, config);
 
     net.set_input_data("input", input_data_mem);

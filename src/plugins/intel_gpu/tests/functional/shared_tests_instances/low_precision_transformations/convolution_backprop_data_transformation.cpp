@@ -25,21 +25,21 @@ const std::vector<LayerTestsDefinitions::ConvolutionBackpropDataTransformationPa
         {256ul, ov::Shape{1, 1, 1, 1}, { 0.f }, { 25.5f }, { 0.f }, { 25.5f }},
         {255ul, ov::Shape{1, 1, 1, 1}, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f }},
         "convolutionBackpropData_original",
-        "u8"
+        ov::element::u8.get_type_name()
     },
     // FQ on weights
     {
         {256ul, ov::Shape{}, { 0.f }, { 25.5f }, { 0.f }, { 25.5f }},
         {255ul, ov::Shape{}, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f }},
         "convolutionBackpropData_original",
-        "u8"
+        ov::element::u8.get_type_name()
     },
     // FQ on weights
     {
         {256ul, ov::Shape{1, 1, 1, 1}, { -12.8f }, { 12.7f }, { -12.8f }, { 12.7f }},
         {255ul, ov::Shape{1, 1, 1, 1}, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f }},
         "convolutionBackpropData_original",
-        "i8"
+        ov::element::i8.get_type_name()
     },
     // FQ on weights
     // with zero point
@@ -135,14 +135,14 @@ const std::vector<LayerTestsDefinitions::ConvolutionBackpropDataTransformationPa
         {256ul, ov::Shape{1, 1, 1}, { 0.f }, { 25.5f }, { 0.f }, { 25.5f }},
         {255ul, ov::Shape{1, 1, 1}, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f }},
         "convolutionBackpropData_original",
-        "u8"
+        ov::element::u8.get_type_name()
     },
     // Qdq on weights
     {
         {256ul, ov::Shape{1, 1, 1}, { 0.f }, { 255.f }, { 0.f }, { 25.5f }},
         {{ov::element::f32}, {}, { {4.f}, ov::element::f32, {}, false }},
         "convolutionBackpropData_original",
-        "u8"
+        ov::element::u8.get_type_name()
     },
 };
 

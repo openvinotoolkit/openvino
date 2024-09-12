@@ -129,7 +129,6 @@ public:
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
         auto updated_impl_params = canonicalize_fused_shapes(impl_params);
-        bool use_new_shape_infer = impl_params.prog->is_new_shape_infer();
 
         auto& output_layout = updated_impl_params.output_layouts[0];
         auto out_pshape = output_layout.get_partial_shape();
@@ -137,7 +136,7 @@ public:
 
         for (auto& input_layout : updated_impl_params.input_layouts) {
             auto input_pshape = input_layout.get_partial_shape();
-            if (!broadcastable(input_pshape, out_pshape, use_new_shape_infer)) {
+            if (!broadcastable(input_pshape, out_pshape)) {
                 input_pshape = extend_shape_to_rank_from_begin(input_pshape, out_pshape.size());
             }
             input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_pshape));

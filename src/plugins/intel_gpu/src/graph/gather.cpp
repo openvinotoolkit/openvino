@@ -13,61 +13,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(gather)
 
-layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<gather>();
-
-    auto input_layout = impl_param.get_input_layout();
-    std::vector<tensor::value_type> dims_converted;
-    for (auto dim : desc->output_shape) {
-        dims_converted.push_back(static_cast<tensor::value_type>(dim));
-    }
-    // extend shape to 4d
-    for (size_t i = dims_converted.size(); i < 4; i++)
-        dims_converted.push_back(1);
-
-    format output_format = input_layout.format;
-    if (dims_converted.size() == 5) {
-        switch (input_layout.format) {
-        case format::bfyx:
-            output_format = format::get_default_format(dims_converted.size());
-            break;
-        case format::b_fs_yx_fsv16:
-            output_format = format::b_fs_zyx_fsv16;
-            break;
-        case format::b_fs_yx_fsv32:
-            output_format = format::b_fs_zyx_fsv32;
-            break;
-        case format::bs_fs_yx_bsv16_fsv16:
-            output_format = format::bs_fs_zyx_bsv16_fsv16;
-            break;
-        default:
-            break;
-        }
-    } else if (dims_converted.size() == 6) {
-        switch (input_layout.format) {
-        case format::bfyx:
-        case format::bfzyx:
-        case format::b_fs_zyx_fsv16:
-        case format::b_fs_zyx_fsv32:
-            output_format = format::get_default_format(dims_converted.size());
-            break;
-        default:
-            break;
-        }
-    }
-    auto output_type = input_layout.data_type;
-    if (impl_param.typed_desc<gather>()->compressed_weights) {
-        output_type = impl_param.typed_desc<gather>()->decompressed_type;
-    }
-    if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_output_element_type();
-    }
-
-    return layout{output_type,
-                  output_format,
-                  tensor(format::get_default_format(dims_converted.size()), dims_converted)};
-}
-
 template<typename ShapeType>
 std::vector<layout> gather_inst::calc_output_layouts(gather_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<gather>();

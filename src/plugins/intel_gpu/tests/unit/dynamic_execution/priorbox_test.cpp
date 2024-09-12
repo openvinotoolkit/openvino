@@ -139,7 +139,7 @@ TEST(priorbox_constant_propagation_test, basic) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     network network(engine, topology, config);
     network.set_input_data("input1", input1_mem);

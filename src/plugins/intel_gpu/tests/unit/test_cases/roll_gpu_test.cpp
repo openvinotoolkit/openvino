@@ -51,7 +51,7 @@ struct roll_test : testing::TestWithParam<roll_test_params<T>> {
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
         topology.add(reorder("reordered_input", input_info("input"), input_format, ov::element::from<T>()));
-        topology.add(roll("roll", input_info("reordered_input"), tensor(input_format, p.shift)));
+        topology.add(roll("roll", input_info("reordered_input"), p.shift, {0}));
         topology.add(reorder("reordered_roll", input_info("roll"), plane_format, ov::element::from<T>()));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);

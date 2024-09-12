@@ -740,7 +740,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest1) {
 
     auto& engine = get_test_engine();
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     int b = 2;
     int f = 2;
@@ -830,7 +830,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest2) {
 
     auto& engine = get_test_engine();
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     int b = 2;
     int f = 2;
@@ -920,7 +920,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest3) {
 
     auto& engine = get_test_engine();
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     int b = 2;
     int f = 2;
@@ -1010,7 +1010,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest4) {
 
     auto& engine = get_test_engine();
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     int b = 2;
     int f = 2;
@@ -1100,7 +1100,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest5) {
 
     auto& engine = get_test_engine();
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     int b = 2;
     int f = 2;
@@ -1190,7 +1190,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode1) {
 
     auto& engine = get_test_engine();
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     int b = 2;
     int f = 2;
@@ -1260,7 +1260,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode2) {
 
     auto& engine = get_test_engine();
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     int b = 2;
     int f = 2;
@@ -1324,7 +1324,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode3) {
 
     auto& engine = get_test_engine();
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     int b = 2;
     int f = 2;
@@ -1394,7 +1394,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode4) {
 
     auto& engine = get_test_engine();
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     int b = 2;
     int f = 2;
@@ -1464,7 +1464,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode5) {
 
     auto& engine = get_test_engine();
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     int b = 2;
     int f = 2;
@@ -1534,7 +1534,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic) {
 
     auto& engine = get_test_engine();
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     int b = 2;
     int f = 2;
@@ -1602,7 +1602,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic2) {
 
     auto& engine = get_test_engine();
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     int b = 1;
     int f = 1;
@@ -1655,7 +1655,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_linear) {
 
     auto& engine = get_test_engine();
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     int b = 2;
     int f = 2;
@@ -1882,7 +1882,7 @@ TEST(resample_gpu, interpolate_in1x1x2x4_linear_scale) {
 
     auto& engine = get_test_engine();
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     int b = 1;
     int f = 1;
@@ -1949,7 +1949,7 @@ TEST(resample_gpu, downsampling_u8) {
     });
 
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     cldnn::network net{ engine, topology, config };
     net.set_input_data("input", input);
 

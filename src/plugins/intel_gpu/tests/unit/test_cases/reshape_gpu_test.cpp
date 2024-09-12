@@ -822,7 +822,7 @@ TEST(reshape_gpu_f32, basic_runtime_static_shape) {
     set_values(input, input_data);
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -870,7 +870,7 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape) {
     set_values(input, input_data);
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -921,7 +921,7 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const) {
     set_values(input, input_data);
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -978,7 +978,7 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const_optimized_out) {
     set_values(input, input_data);
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -1024,7 +1024,7 @@ TEST(reshape_gpu_f32, basic_dynamic_shape_to_static_optimized_out) {
     set_values(input, input_data);
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -1074,7 +1074,7 @@ TEST(reshape_gpu_f32, basic_dynamic_shape_to_static_optimized_out_static_optimiz
     set_values(input, input_data);
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -1127,7 +1127,7 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_activation_fusion) {
     set_values(input, input_data);
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -1603,7 +1603,6 @@ TEST(reshape_gpu_f32, followed_by_convolution_dynamic) {
         convolution("conv", input_info("reshape"), "weights", "", 1, { 2, 1 }, {1, 1}, {0, 0}, {0, 0}, false));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
 
     // first execute
@@ -1726,7 +1725,6 @@ TEST(reshape_gpu_f32, followed_by_convolution_dynamic_w_pad) {
     );
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::allow_static_input_reorder(true));
 
     network network(engine, topology, config);

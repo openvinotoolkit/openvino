@@ -4,14 +4,11 @@
 
 #include "openvino/core/except.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 
 #include "intel_gpu/primitives/broadcast.hpp"
-#include "intel_gpu/primitives/reorder.hpp"
-#include "intel_gpu/primitives/reshape.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -22,43 +19,8 @@ static void CreateCommonBroadcastOp(ProgramBuilder& p, const std::shared_ptr<ov:
 
     auto input_pshape = op->get_input_partial_shape(0);
     auto output_pshape = op->get_output_partial_shape(0);
-    auto input_rank = input_pshape.size();
-    auto output_rank = output_pshape.size();
 
     auto input = inputs[0];
-
-    if (input_rank != output_rank && input_pshape.is_static() && output_pshape.is_static() && !p.use_new_shape_infer()) {
-        auto inputShape = op->get_input_shape(0);
-        auto outputShape = op->get_output_shape(0);
-        // Add reorder if changing number of dimensions requires changing format
-        auto targetFormat = cldnn::format::get_default_format(output_rank);
-        if (targetFormat.value != cldnn::format::get_default_format(input_rank).value) {
-            auto reorderName = layerName + "_cldnn_in_reorder";
-            auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(0));
-            auto reorderPrim = cldnn::reorder(reorderName,
-                                              input,
-                                              targetFormat,
-                                              targetDatatype);
-            p.add_primitive(*op, reorderPrim);
-
-            input.pid = reorderName;
-        }
-
-        auto reshapeName = layerName + "_cldnn_in_reshape";
-
-        // Extend input dimensions with ones
-        if (axis_mapping.empty()) {
-            // If axis_mapping is not specified, then we prepend shape with neccesary count of 1-s
-            inputShape.insert(inputShape.begin(), output_rank - input_rank, 1ul);
-        }
-
-        auto targetShape = tensor_from_dims(inputShape);
-
-        auto reshapePrim = cldnn::reshape(reshapeName, input, targetShape);
-        p.add_primitive(*op, reshapePrim);
-
-        input.pid = reshapeName;
-    }
 
     ov::op::BroadcastModeSpec mode = ov::op::BroadcastType::NONE;
     if (auto broadcast_v3 = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(op)) {

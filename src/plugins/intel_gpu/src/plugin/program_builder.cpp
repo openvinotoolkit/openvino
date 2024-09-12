@@ -145,22 +145,8 @@ void ProgramBuilder::cleanup_build() {
 
 std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool partial_build, bool is_inner_program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::build");
-    // In the case of inner program, allow_new_shape_infer flag is setted by outside of program.
-    // So, do not check allow_new_shape_infer for inner program build
-    for (const auto& op : ops) {
-        if (requires_new_shape_infer(op)) {
-            allow_new_shape_infer = true;
-            break;
-        }
-    }
-
-    if (is_inner_program) {
-        allow_new_shape_infer = (m_config.get_property(ov::intel_gpu::allow_new_shape_infer) || allow_new_shape_infer);
-    }
-
     m_config.set_property(ov::intel_gpu::partial_build_program(partial_build));
     m_config.set_property(ov::intel_gpu::optimize_data(true));
-    m_config.set_property(ov::intel_gpu::allow_new_shape_infer(allow_new_shape_infer));
 
     prepare_build();
     {
@@ -206,7 +192,6 @@ bool ProgramBuilder::is_op_supported(const std::shared_ptr<ov::Node>& op) {
         if (!data_types_are_supported(op.get()))
             return false;
 
-        allow_new_shape_infer = requires_new_shape_infer(op);
         CreateSingleLayerPrimitive(op);
         cleanup_build();
         DisableQueryMode();
@@ -263,10 +248,9 @@ std::vector<cldnn::input_info> ProgramBuilder::GetInputInfo(const std::shared_pt
         // Note: Currently Split/Variadic Split are divided to multiple crops
         // LSTMCell contains its own body network, and each output has a unique pid
         // But there is no need to maintain output port index for the next node e.g. Result
-        bool is_legacy_multiple_outputs = !allow_new_shape_infer
-                                          || ov::is_type<ov::op::v1::Split>(prevOp)
-                                          || ov::is_type<ov::op::v1::VariadicSplit>(prevOp)
-                                          || ov::is_type<ov::op::v4::LSTMCell>(prevOp);
+        bool is_legacy_multiple_outputs = ov::is_type<ov::op::v1::Split>(prevOp) ||
+                                          ov::is_type<ov::op::v1::VariadicSplit>(prevOp) ||
+                                          ov::is_type<ov::op::v4::LSTMCell>(prevOp);
         if (prevOp->get_output_size() > 1 && is_legacy_multiple_outputs) {
             prevName += ".out" + std::to_string(op->get_input_source_output(i).get_index());
         }
@@ -329,37 +313,6 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     }
 
     m_topology->add_primitive(prim);
-}
-
-bool ProgramBuilder::requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) const {
-    if (op->is_dynamic()) {
-        return true;
-    }
-
-    if (ov::is_type<ov::op::v5::Loop>(op)) {
-        const auto body_function = std::static_pointer_cast<ov::op::v5::Loop>(op)->get_function();
-        if (body_function->is_dynamic())
-            return true;
-    }
-    // When input node has dynamic shape with 4 dimension, this function return false
-    // because op.is_dynamic() which only checks input shapes return false.
-    // So, in the case of input data, we need to check output shape.
-    for (size_t i = 0; i < op->get_output_size(); i++) {
-        if (op->get_output_partial_shape(i).is_dynamic())
-            return true;
-    }
-
-    for (size_t i = 0; i < op->get_output_size(); i++) {
-        if (op->get_output_partial_shape(i).size() > 6)
-            return true;
-    }
-
-    for (size_t i = 0; i < op->get_input_size(); i++) {
-        if (op->get_input_partial_shape(i).size() > 6)
-            return true;
-    }
-
-    return false;
 }
 
 int64_t ProgramBuilder::get_parameter_index(const std::shared_ptr<ov::op::v0::Parameter>& parameter) const {

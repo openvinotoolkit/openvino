@@ -1170,7 +1170,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4_dynamic, normal_bfyx_0_2_3_1) {
         permute("permute", input_info("input"), { 0, 2, 3, 1 }));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input", input);
 
@@ -1233,7 +1233,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4_dynamic, f_remainder_bfyx_0_2_3_1) {
         permute("permute", input_info("input"), { 0, 2, 3, 1 }));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input", input);
 
@@ -1296,7 +1296,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4_dynamic, x_remainder_bfyx_0_2_3_1) {
         permute("permute", input_info("input"), { 0, 2, 3, 1 }));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input", input);
 
@@ -1353,7 +1353,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4_dynamic, xf_remainder_bfyx_0_2_3_1) {
         permute("permute", input_info("input"), { 0, 2, 3, 1 }));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input", input);
 
@@ -2141,7 +2141,7 @@ TEST(permute_gpu_f32_dynamic, bfyx_0_2_3_1) {
         permute("permute", input_info("input"), { 0, 2, 3, 1 }));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input", input);
 

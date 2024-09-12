@@ -1623,7 +1623,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant_dynamic) {
     set_values(input, input_data);
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input", input);
 
@@ -1728,7 +1728,7 @@ public:
         set_values(input, input_data);
 
         ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network network(engine, topology, config);
         network.set_input_data("input", input);
 
@@ -1850,7 +1850,7 @@ TEST(border_gpu, basic_zero_input_dynamic) {
     };
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     cldnn::network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -1903,7 +1903,7 @@ TEST(border_gpu, basic_zero_input) {
     };
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     cldnn::network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -1963,7 +1963,7 @@ TEST(border_gpu, 3d_input) {
                                allow_negative_pads),
                         reorder("output", input_info("border"), cldnn::format::bfyx, data_types::f16));
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network target_network(engine, target_topology, config);
     target_network.set_input_data("input", input);
     auto target_output = target_network.execute().at("output").get_memory();

@@ -13,128 +13,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(fully_connected)
 
-namespace {
-bool is_batch_after_spatial(const std::string order) {
-    bool spatial_found = false;
-    for (auto c : order) {
-        switch (c) {
-            case 'b':
-            case 'n':
-                return spatial_found;
-
-            case 'x':
-            case 'y':
-            case 'z':
-            case 'w':
-            case 's':
-                spatial_found = true;
-                break;
-
-            default:
-                break;
-        }
-    }
-    return false;
-}
-
-format::type get_preferred_format(fully_connected_node const& node, const kernel_impl_params& impl_param) {
-    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
-        return node.get_preferred_output_fmt();
-    }
-
-    auto input_layout = impl_param.get_input_layout();
-
-    // for 3d output we have to chose bfyx format
-    if (impl_param.typed_desc<fully_connected>()->input_size == 3)
-        return format::bfyx;
-
-    if (data_type_traits::is_floating_point(input_layout.data_type) &&
-        (is_batch_after_spatial(input_layout.format.order()) ||
-         input_layout.format == format::bs_f_bsv16 ||
-         input_layout.format == format::bs_fs_fsv8_bsv8))
-        return format::yxfb;
-
-    bool no_spatial_padding = true;
-    // C++ 11 range loop shouldn't be used here because of incorrect iterator functionality in mutable_array_ref<>
-    for (size_t i = 0; i < input_layout.get_spatial_rank(); ++i) {
-        no_spatial_padding &= (input_layout.data_padding._lower_size[2 + i] == 0);
-    }
-    for (size_t i = 0; i < input_layout.get_spatial_rank(); ++i) {
-        no_spatial_padding &= (input_layout.data_padding._upper_size[2 + i] == 0);
-    }
-
-    if (input_layout.data_type == data_types::f32 &&
-        input_layout.format == format::bfyx &&
-        no_spatial_padding &&
-        input_layout.batch() != 8)
-        return format::bfyx;
-
-    auto input_pitches = input_layout.get_pitches();
-    if (input_layout.data_type == data_types::f16 &&
-        input_layout.format == format::bfyx &&
-        no_spatial_padding &&
-        input_pitches[0] % 2 == 0 &&
-        input_layout.batch() != 16)
-        return format::bfyx;
-
-    // this condition tests whether our input is batch>1 in bfyx format, if yes there will be
-    // extra reorder between input and this fc from bfyx to yxfb format (so
-    // "is_batch_after_spatial" should return true)
-    if (data_type_traits::is_floating_point(input_layout.data_type) &&
-        input_layout.format == format::bfyx &&
-        input_layout.batch() > 1)
-        return format::yxfb;
-
-    return format::bfyx;
-}
-
-}  // namespace
-
-layout fully_connected_inst::calc_output_layout(fully_connected_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<fully_connected>();
-
-    auto input_layout = impl_param.get_input_layout();
-    auto input_pshape = input_layout.get_partial_shape();
-    auto weights_layout = *impl_param.weights_layout;
-    auto weights_pshape = weights_layout.get_partial_shape();
-    auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
-    if (data_type_traits::is_i8_u8(input_layout.data_type) && desc->output_data_types[0])
-        output_type = *desc->output_data_types[0];
-
-    if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_output_element_type();
-    }
-
-    auto reshape_to_2d = [](const ov::PartialShape& shape, int64_t feature) {
-        auto staticShape = shape.to_shape();
-        size_t total = std::accumulate(staticShape.begin(), staticShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
-        std::vector<int64_t> reshapeSize = { static_cast<int64_t>(total) / feature, feature };
-        return reshapeSize;
-    };
-
-    int64_t feature = input_pshape[std::min(desc->input_size, static_cast<size_t>(4)) - 1].get_length();
-    if (desc->input_size == 3) {
-        feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
-    }
-
-    if (desc->input_size > 4) {
-       input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
-    }
-    if (weights_pshape.size() != 2) {
-        weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
-    }
-
-    auto output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
-    if (desc->input_size == 3) {
-        output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
-    } else if (desc->input_size == 4) {
-        output_size = tensor(input_layout.batch(), input_layout.feature(), weights_layout.batch(), input_layout.spatial(1));
-    }
-    format output_format = get_preferred_format(node, impl_param);
-
-    return layout(output_type, output_format, output_size);
-}
-
 template<typename ShapeType>
 std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_node const& node, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<fully_connected>();
@@ -158,10 +36,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
 
-    bool is_static = input_layout.is_static() && weights_layout.is_static();
-    bool allow_new_shape_infer = impl_param.get_program().is_new_shape_infer();
-    format::type output_format = is_static && !allow_new_shape_infer ? get_preferred_format(node, impl_param) :
-                                              input_layout.format.value;
+    format::type output_format = input_layout.format.value;
 
     if (node.get_preferred_output_fmt() != format::any)
         output_format = node.get_preferred_output_fmt();

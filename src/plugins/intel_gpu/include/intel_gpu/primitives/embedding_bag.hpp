@@ -29,9 +29,8 @@ struct embedding_bag : public primitive_base<embedding_bag> {
     embedding_bag(const primitive_id& id,
                   const std::vector<input_info>& inputs,
                   const embedding_bag_type& type,
-                  const tensor& output_shape,
                   const int32_t default_index = -1)
-        : primitive_base(id, inputs), type(type), output_shape(output_shape), default_index(default_index) {}
+        : primitive_base(id, inputs), type(type), default_index(default_index) {}
 
     /// @brief Type of EmbeddingBag operation
     embedding_bag_type type;
@@ -60,14 +59,12 @@ struct embedding_bag : public primitive_base<embedding_bag> {
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<embedding_bag>::save(ob);
         ob << make_data(&type, sizeof(embedding_bag_type));
-        ob << output_shape;
         ob << default_index;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<embedding_bag>::load(ib);
         ib >> make_data(&type, sizeof(embedding_bag_type));
-        ib >> output_shape;
         ib >> default_index;
     }
 };

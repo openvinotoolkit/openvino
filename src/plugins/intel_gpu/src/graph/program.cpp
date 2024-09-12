@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/non_max_suppression.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 
@@ -209,7 +210,6 @@ program::program(engine& engine, const ExecutionConfig& config)
       processing_order() {
     init_primitives();
     _config.apply_user_properties(_engine.get_device_info());
-    new_shape_infer = _config.get_property(ov::intel_gpu::allow_new_shape_infer);
     _layout_optimizer = cldnn::make_unique<layout_optimizer>();
 }
 
@@ -221,7 +221,6 @@ void program::init_program() {
     set_options();
 
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
-    new_shape_infer = _config.get_property(ov::intel_gpu::allow_new_shape_infer);
 
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
@@ -354,34 +353,6 @@ bool program::analyze_output_size_handling_need() {
                                                                             ov::Strides(prim->stride.size(), 1),
                                                                             true,
                                                                             1);
-
-            if (specified_output_range != calc_output_range)
-                handling_needed = true;
-        } else if (node->is_type<pooling>()) {
-            auto& prim_node = node->as<pooling>();
-            const auto& prim = prim_node.get_primitive();
-
-            if (!prim->with_output_size)
-                continue;
-
-            tensor specified_output_range(
-                {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
-                1);
-
-            tensor size(1);
-            for (size_t i = 0; i < prim->size.size(); i++) {
-                size.spatial[i] = static_cast<tensor::value_type>(prim->size[prim->size.size() - i - 1]);
-            }
-            // TODO: Check compatibility of output size calculation (with caffe).
-            auto primInputSize = prim_node.get_input_layout().get_tensor();
-            auto calc_output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(
-                primInputSize,
-                size,
-                ov::CoordinateDiff(prim->pads_begin.begin(), prim->pads_begin.end()),
-                prim->stride,
-                ov::Strides(prim->stride.size(), 1),
-                true,
-                1);
 
             if (specified_output_range != calc_output_range)
                 handling_needed = true;
@@ -656,7 +627,11 @@ void program::post_optimize_graph(bool is_internal) {
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program::mark_if_constant(program_node& node) {
-    if (node.get_dependencies().empty() || node.is_type<assign>() || node.is_type<read_value>() || node.is_type<gather_nonzero>()) {
+    if (node.get_dependencies().empty() ||
+        node.is_type<assign>() ||
+        node.is_type<read_value>() ||
+        node.is_type<gather_nonzero>() ||
+        node.is_type<non_max_suppression>() /* WA: constant folding works incorrectly for NMS */) {
         return;
     }
     node.constant = true;

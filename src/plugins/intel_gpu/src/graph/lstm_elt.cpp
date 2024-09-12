@@ -10,23 +10,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(lstm_elt)
 
-layout lstm_elt_inst::calc_output_layout(lstm_elt_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for lstm_elt_node!");
-    auto input_layout = impl_param.get_input_layout();
-
-    // tempGEMM{bfyx} = [b: batch, f: direction, x: 1,         y: 4 * hidden_size ] input
-    // cell{bfyx}     = [b: batch, f: direction, x: 1,         y: hidden_size ] optional
-    // output{bfyx}   = [b: batch, f: 2,         x: direction, y: hidden_size ] output
-    // The output of the lstm_elt node is the concatenation of the intermediate [hidden, cell] tensors.
-    // A crop/split node is needed to extract each individual tensors
-    auto result =
-        layout(input_layout.data_type,
-               input_layout.format,
-               tensor(input_layout.batch(), 2, input_layout.spatial(0) / 4, input_layout.feature()));
-    return result;
-}
-
 template<typename ShapeType>
 std::vector<layout> lstm_elt_inst::calc_output_layouts(lstm_elt_node const& node, kernel_impl_params const& impl_param) {
     std::vector<layout> output_layouts;

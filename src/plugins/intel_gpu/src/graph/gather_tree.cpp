@@ -14,13 +14,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(gather_tree)
 
-layout gather_tree_inst::calc_output_layout(gather_tree_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-        "Output data type forcing is not supported for gather_tree_node!");
-    auto input_layout = impl_param.get_input_layout();
-    return input_layout;
-}
-
 template<typename ShapeType>
 std::vector<layout> gather_tree_inst::calc_output_layouts(gather_tree_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<gather_tree>();

@@ -12,24 +12,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(resample)
 
-layout resample_inst::calc_output_layout(resample_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<resample>();
-    auto input_layout = impl_param.get_input_layout();
-
-    auto output_type = input_layout.data_type;
-    if ((input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8)
-        && desc->operation_type != resample::InterpolateOp::InterpolateMode::NEAREST
-        && desc->operation_type != resample::InterpolateOp::InterpolateMode::LINEAR_ONNX) {
-        output_type = data_types::f32;
-    }
-    if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_output_element_type();
-    }
-
-    return desc->sizes.empty() ? layout({output_type, input_layout.format, desc->output_size}) :
-                                 layout({desc->sizes, output_type, input_layout.format});
-}
-
 namespace v4 {
 template<typename ShapeType>
 static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, const kernel_impl_params& impl_param) {

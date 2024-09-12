@@ -367,31 +367,10 @@ bool program_node::is_detached(bool whole_branch) {
     return true;
 }
 
-layout program_node::calc_output_layout() const {
-    bool allow_new_shape_infer = get_program().is_new_shape_infer();
-    if (allow_new_shape_infer) {
-        auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
-        if (!out_layouts.empty()) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": calc_output_layout(new):" << out_layouts[0] << std::endl;
-            return out_layouts[0];
-        }
-    }
-
-    auto res = type()->calc_output_layout(*this, *get_kernel_impl_params());
-    GPU_DEBUG_TRACE_DETAIL << id() << ": calc_output_layout:" << res << std::endl;
-
-    return res;
-}
-
 std::vector<layout> program_node::calc_output_layouts() const {
-    bool allow_new_shape_infer = get_program().is_new_shape_infer();
-    if (allow_new_shape_infer) {
-        auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
-        if (!out_layouts.empty())
-            return out_layouts;
-    }
-
-    return {type()->calc_output_layout(*this, *get_kernel_impl_params())};
+    auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
+    OPENVINO_ASSERT(!out_layouts.empty());
+    return out_layouts;
 }
 
 const layout& program_node::get_output_layout(bool invalidate_users_if_changed, size_t idx) {
@@ -460,8 +439,7 @@ bool program_node::set_output_layouts(std::vector<layout>& new_layouts, bool inv
 }
 
 bool program_node::recalc_output_layout(bool invalidate_users_if_changed) {
-    auto new_layout = calc_output_layout();
-    return set_output_layout(new_layout, invalidate_users_if_changed);
+    return recalc_output_layouts();
 }
 
 bool program_node::recalc_output_layouts(bool invalidate_users_if_changed) {
@@ -1487,15 +1465,10 @@ void program_node::create_onednn_primitive_attributes(
         auto& desc = cldnn_post_ops[idx];
         if (desc.is_type<activation>()) {
             auto fused_desc = desc.typed_desc<activation>();
-            bool allow_new_shape_infer = get_program().is_new_shape_infer();
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && !fused_desc->additional_params_input.empty()) {
                 auto dep_idx = cldnn_post_ops[idx].outer_dep_start_idx;
-                int oc_dim = 1;
-                if (allow_new_shape_infer)
-                    oc_dim = static_cast<int>(desc.output_layout.get_partial_shape()[1].get_max_length());
-                else
-                    oc_dim = static_cast<int>(desc.output_layout.get_tensor().feature.size());
+                int oc_dim = static_cast<int>(desc.output_layout.get_partial_shape()[1].get_max_length());
                 post_ops.append_prelu(1 << std::max(0, oc_dim));
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
