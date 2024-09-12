@@ -196,7 +196,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
             :type model: openvino.runtime.Model
             :param output_model: path to output model file
             :type output_model: Union[str, bytes, pathlib.Path]
-            :param compress_to_fp16: whether to compress floating point weights to FP16 (default: True). Starting with OpenVINO 2024.1, the parameter is ignored for pre-optimized models.
+            :param compress_to_fp16: whether to compress floating point weights to FP16 (default: True). The parameter is ignored for pre-optimized models.
             :type compress_to_fp16: bool
 
             :Examples:
