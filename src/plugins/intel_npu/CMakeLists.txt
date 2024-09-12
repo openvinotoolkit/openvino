@@ -21,8 +21,8 @@ macro(remove_compiler_flags FLAGS)
 endmacro()
 
 if(CMAKE_COMPILE_WARNING_AS_ERROR)
-    remove_compiler_flags(-Wno-error=deprecated-declarations)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+        remove_compiler_flags(-Wno-error=deprecated-declarations)
         ov_add_compiler_flags(-Werror)
 
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
