@@ -81,22 +81,6 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         constTensor.feature[0] = 1;
     }
 
-    auto is_user_bucketize = [](const std::shared_ptr<ov::op::v0::Constant>& op) -> bool {
-        auto users = op->get_output_target_inputs(0);
-        for (auto& user : users) {
-            auto node = user.get_node();
-            if (ov::is_type<ov::op::v3::Bucketize>(node))
-                return true;
-        }
-        return false;
-    };
-
-    // If const_shape has a dimension = 0, then create tensor with single value.
-    // Bucketize second input can have empty shape.
-    // TODO: check if dim=0 is a valid case
-    if (std::accumulate(const_shape.begin(), const_shape.end(), size_t(1), std::multiplies<size_t>()) == 0 && !is_user_bucketize(op))
-        constTensor = cldnn::tensor{1};
-
     cldnn::data_types out_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
     cldnn::layout constLayout = p.use_new_shape_infer() ? cldnn::layout(const_shape, out_dtype, constFormat) :
                                                           cldnn::layout(out_dtype, constFormat, constTensor);
