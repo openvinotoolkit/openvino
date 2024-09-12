@@ -13,10 +13,6 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-BufferExpression::BufferExpression(const BufferExpression& other)
-    : Expression(other), m_allocation_size(other.m_allocation_size), m_reg_group(other.m_reg_group),
-      m_cluster_id(other.m_cluster_id), m_offset(other.m_offset) {}
-
 BufferExpression::BufferExpression(const std::shared_ptr<Node>& n, const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
     : Expression(n, factory) {
     const auto& buffer = ov::as_type_ptr<op::Buffer>(get_node());

@@ -64,7 +64,7 @@ public:
     static bool can_be_in_one_group(const ShiftPtrParams& lhs, const ShiftPtrParams& rhs);
 
 private:
-    using BufferPool = LinearIR::buffers;
+    using BufferPool = std::vector<BufferExpressionPtr>;
     using BufferMap = std::map<BufferExpressionPtr, ShiftPtrParams>;
 
     /**

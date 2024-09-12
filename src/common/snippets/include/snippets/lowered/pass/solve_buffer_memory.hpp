@@ -35,7 +35,7 @@ public:
     bool run(lowered::LinearIR& linear_ir) override;
 
 private:
-    using Buffers = LinearIR::buffers;
+    using Buffers = std::vector<BufferExpressionPtr>;
     /**
      * @brief Split buffer expressions of Linear IR into
      *        static (with defined allocation size) and dynamic (with unknown size) buffers

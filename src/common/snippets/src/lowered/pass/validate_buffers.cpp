@@ -24,22 +24,15 @@ bool ValidateBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt be
                             "All BufferExpressions must be in LinearIR.get_buffers()");
     }
 
-    // Secondly we should validate `lir_buffers`:
-    // - execution order
-    // - clusters
-
+    // Secondly we should validate buffers and their clusters
     std::set<size_t> cluster_ids;
     std::map<size_t, std::set<lowered::BufferExpressionPtr>> dynamic_buffer_clusters, static_buffer_clusters;
-
-    double prev_exec_order =  -1 * std::numeric_limits<double>::max();
     for (const auto& buffer_expr : lir_buffers) {
         // TODO [143395] : MemoryManager should provide exact containers with needed buffers (static or dynamic) without any `is_defined()`
         auto& clusters = buffer_expr->is_defined() ? static_buffer_clusters : dynamic_buffer_clusters;
         clusters[buffer_expr->get_cluster_id()].insert(buffer_expr);
         cluster_ids.insert(buffer_expr->get_cluster_id());
 
-        OPENVINO_ASSERT(buffer_expr->get_exec_num() > prev_exec_order, "Invalid execution order of buffer expressions");
-        prev_exec_order = buffer_expr->get_exec_num();
         buffer_expr->validate();
     }
 

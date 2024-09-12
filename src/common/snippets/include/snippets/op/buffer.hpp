@@ -47,12 +47,6 @@ public:
 
 private:
     // Base class for implementations of Buffer
-    class BaseImpl;
-    // This constructor is used only in clone_with_new_inputs
-    Buffer(const OutputVector& arguments, std::shared_ptr<BaseImpl> impl);
-
-    const std::shared_ptr<BaseImpl> m_impl {nullptr};
-
     class BaseImpl {
     public:
         BaseImpl() = default;
@@ -67,7 +61,6 @@ private:
     // IntermediateMemoryImpl represents intermediate memory.
     // The buffers with this implementation must have source (parents)
     class IntermediateMemoryImpl : public BaseImpl {
-        class ShapeInfer;
     public:
         IntermediateMemoryImpl() = default;
 
@@ -86,9 +79,6 @@ private:
     // NewMemoryImpl represents a new empty memory for allocation with specified shape and element type.
     // The buffers with this implementation mustn't have source (parents)
     class NewMemoryImpl : public BaseImpl {
-        class ShapeInfer;
-        ov::Shape m_shape;
-        ov::element::Type m_element_type = ov::element::u8;  // u8 - default 1 byte
     public:
         NewMemoryImpl(const ov::Shape& shape, ov::element::Type element_type);
 
@@ -104,7 +94,15 @@ private:
             explicit ShapeInfer(ov::Shape shape);
             Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
         };
+
+        ov::Shape m_shape;
+        ov::element::Type m_element_type = ov::element::u8;  // u8 - default 1 byte
     };
+
+    // This constructor is used only in clone_with_new_inputs
+    Buffer(const OutputVector& arguments, std::shared_ptr<BaseImpl> impl);
+
+    const std::shared_ptr<BaseImpl> m_impl {nullptr};
 };
 
 

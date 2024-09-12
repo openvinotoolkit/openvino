@@ -54,11 +54,7 @@ using LoopManagerPtr = std::shared_ptr<LoopManager>;
 class LinearIR {
     friend class LinearIRBuilder;
 public:
-    template <typename Expr = Expression,
-              typename std::enable_if<std::is_base_of<Expression, Expr>::value, bool>::type = true>
-    using containerT = std::list<std::shared_ptr<Expr>>;
-    using container = containerT<Expression>;
-    using buffers = containerT<BufferExpression>;
+    using container = std::list<ExpressionPtr>;
     using exprIt = container::iterator;
     using constExprIt = container::const_iterator;
     using exprReverseIt = container::reverse_iterator;
@@ -70,9 +66,9 @@ public:
     const ExpressionFactoryPtr& get_expr_factory() const;
 
     const container& get_ops() const { return m_expressions; }
-    const container& get_parameters() const { return m_parameter_expressions; }
-    const container& get_results() const { return m_result_expressions; }
-    const buffers& get_buffers() const { return m_buffer_expressions; }
+    const std::vector<ExpressionPtr>& get_parameters() const { return m_parameter_expressions; }
+    const std::vector<ExpressionPtr>& get_results() const { return m_result_expressions; }
+    const std::vector<BufferExpressionPtr>& get_buffers() const { return m_buffer_expressions; }
     const Config& get_config() const { return m_config; }
     size_t get_static_buffer_scratchpad_size() const { return m_static_buffer_scratchpad_size; }
 
@@ -267,13 +263,13 @@ public:
 private:
     class LIRShapeInfer : public ShapeInferSnippetsNode {
     public:
-        explicit LIRShapeInfer(const container& body_exprs, const container& param_exprs, const container& result_exprs);
+        explicit LIRShapeInfer(const container& body_exprs, const std::vector<ExpressionPtr>& param_exprs, const std::vector<ExpressionPtr>& result_exprs);
         Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 
     private:
         const container& m_exprs;
-        const container& m_input_exprs;
-        const container& m_output_exprs;
+        const std::vector<ExpressionPtr>& m_input_exprs;
+        const std::vector<ExpressionPtr>& m_output_exprs;
     };
 
     static ov::NodeVector get_ordered_ops(const std::shared_ptr<ov::Model>& model);
@@ -291,9 +287,11 @@ private:
 
     container m_expressions{};
     std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Expression>> m_node2expression_map;
-    container m_parameter_expressions{};
-    container m_result_expressions{};
-    buffers m_buffer_expressions{};
+    // Note: Parameters and Results are stored in the order of Subgraph inputs/outputs
+    std::vector<ExpressionPtr> m_parameter_expressions{};
+    std::vector<ExpressionPtr> m_result_expressions{};
+    // Note: BufferExpressions are not stored in the order of execution numbers
+    std::vector<BufferExpressionPtr> m_buffer_expressions{};
     Config m_config{};
     LoopManagerPtr m_loop_manager;
     std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory = nullptr;

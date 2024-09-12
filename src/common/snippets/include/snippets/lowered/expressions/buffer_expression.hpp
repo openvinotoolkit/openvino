@@ -53,7 +53,6 @@ public:
     bool is_independent_memory() const { return get_input_count() == 0; }
 
 protected:
-    BufferExpression(const BufferExpression& other);
     BufferExpression(const std::shared_ptr<Node>& n, const std::shared_ptr<IShapeInferSnippetsFactory>& factory);
 
     ExpressionPtr clone() const override;

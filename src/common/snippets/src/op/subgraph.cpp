@@ -473,9 +473,12 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.register_pass<lowered::pass::AllocateBuffers>(m_linear_ir->get_config().m_are_buffers_optimized);
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     pipeline.register_positioned_passes(lowered_backend_passes);
-    pipeline.register_pass<lowered::pass::ValidateBuffers>(); // must be last
-    pipeline.register_pass<lowered::pass::Validate>(); // must be last
     pipeline.run(*m_linear_ir);
+
+    lowered::pass::PassPipeline validation_pipeline;
+    validation_pipeline.register_pass<lowered::pass::ValidateBuffers>();
+    validation_pipeline.register_pass<lowered::pass::Validate>();
+    validation_pipeline.run(*m_linear_ir);
 
 #ifdef SNIPPETS_DEBUG_CAPS
     if (m_linear_ir->get_config().debug_config.perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {

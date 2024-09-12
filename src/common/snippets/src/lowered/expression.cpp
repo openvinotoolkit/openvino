@@ -27,20 +27,6 @@ Expression::Expression(const std::shared_ptr<Node>& n, const std::shared_ptr<ISh
     }
 }
 
-Expression::Expression(const Expression& other) :
-    std::enable_shared_from_this<Expression>(other), m_source_node(other.m_source_node), m_emitter(other.m_emitter),
-    m_loop_ids(other.m_loop_ids), m_shapeInference(other.m_shapeInference), m_need_shape_infer(other.m_need_shape_infer),
-    m_exec_num(other.m_exec_num) {
-    // Note that connectors are not filled on purpose, since you need a shared pointer to this to initialize them,
-    // which is not available in constructor. Also, an expression copy is rarely expected to use the same connectors.
-    m_input_port_connectors = {};
-    m_output_port_connectors = {};
-    // The copy ctor is used only in `clone_with_new_inputs`. This method is responsible for initialization of
-    // input port connectors and input port descriptors - they must be consistent.
-    m_input_port_descriptors = {};
-    m_output_port_descriptors = {};
-}
-
 const PortConnectorPtr& Expression::get_input_port_connector(size_t i) const {
     OPENVINO_ASSERT(i < m_input_port_connectors.size(), "Failed to get input port connector: target input port must be less than input count!");
     return m_input_port_connectors[i];
@@ -127,26 +113,6 @@ void Expression::set_loop_ids(const std::vector<size_t>& loops) {
     m_loop_ids = loops;
 }
 
-void Expression::update_port_attributes(const std::shared_ptr<Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
-                                        const std::vector<PortDescriptorPtr>& new_in_descs, const std::vector<PortDescriptorPtr>& new_out_descs) {
-    OPENVINO_ASSERT(m_source_node->get_type_info() == new_node->get_type_info(), "Can't clone expression for a new node with incompatible type");
-    m_source_node = new_node;
-    OPENVINO_ASSERT(new_inputs.size() == new_in_descs.size(), "Can't create Expression with new inputs: invalid number of input port connectors passed");
-    m_input_port_descriptors = new_in_descs;
-    m_input_port_connectors = new_inputs;
-    for (size_t i = 0; i < m_input_port_descriptors.size(); i++) {
-        const auto& i_con = new_inputs[i];
-        const auto& i_port = get_input_port(i);
-        if (!i_con->found_consumer(i_port))
-            i_con->add_consumer(i_port);
-    }
-    m_output_port_descriptors = new_out_descs;
-    m_output_port_connectors.resize(m_output_port_descriptors.size());
-    for (size_t i = 0; i < m_output_port_descriptors.size(); i++) {
-        m_output_port_connectors[i] = std::make_shared<PortConnector>(get_output_port(i));
-    }
-}
-
 ExpressionPtr Expression::clone_with_new_inputs(const std::shared_ptr<Node>& new_node,
                                                 const std::vector<PortConnectorPtr>& new_inputs,
                                                 const std::vector<PortDescriptorPtr>& new_in_descs) const {
@@ -156,12 +122,30 @@ ExpressionPtr Expression::clone_with_new_inputs(const std::shared_ptr<Node>& new
             dst[i] = src[i]->clone();
         return dst;
     };
-    const auto& expr = clone();
-    const auto& in_descs = !new_in_descs.empty() ? new_in_descs : clone_ports_descriptors(m_input_port_descriptors);
-    const auto& out_descs = clone_ports_descriptors(m_output_port_descriptors);
-    expr->update_port_attributes(new_node, new_inputs, in_descs, out_descs);
-    expr->validate();
-    return expr;
+    const auto& cloned = clone();
+    OPENVINO_ASSERT(m_source_node->get_type_info() == new_node->get_type_info(),
+                    "Can't clone expression for a new node with incompatible type");
+    cloned->m_source_node = new_node;
+
+    // Initialize Port Attributes: PortConnectors and PortDescriptors
+    OPENVINO_ASSERT(new_in_descs.empty() || new_inputs.size() == new_in_descs.size(),
+                    "Can't create Expression with new inputs: invalid number of input port connectors passed");
+    cloned->m_input_port_descriptors = !new_in_descs.empty() ? new_in_descs : clone_ports_descriptors(m_input_port_descriptors);
+    cloned->m_input_port_connectors = new_inputs;
+    for (size_t i = 0; i < cloned->m_input_port_connectors.size(); i++) {
+        const auto& i_con = cloned->m_input_port_connectors[i];
+        const auto& i_port = cloned->get_input_port(i);
+        if (!i_con->found_consumer(i_port))
+            i_con->add_consumer(i_port);
+    }
+    cloned->m_output_port_descriptors = clone_ports_descriptors(m_output_port_descriptors);
+    OPENVINO_ASSERT(cloned->m_output_port_connectors.size() == cloned->m_output_port_descriptors.size(),
+                    "Can't create Expression with new inputs: output port attributes are not compatible");
+    for (size_t i = 0; i < cloned->m_output_port_descriptors.size(); i++)
+        cloned->m_output_port_connectors[i] = std::make_shared<PortConnector>(cloned->get_output_port(i));
+
+    cloned->validate();
+    return cloned;
 }
 
 ExpressionPtr Expression::clone_with_new_inputs(const ExpressionMap& expr_map,

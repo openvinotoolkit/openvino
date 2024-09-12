@@ -173,31 +173,24 @@ SetBufferRegGroup::BufferMap SetBufferRegGroup::get_buffer_loop_inside(const Lin
 }
 
 auto SetBufferRegGroup::coloring(BufferPool& buffers, std::vector<bool>& adj) -> std::map<size_t, BufferPool> {
-     auto get_buffer_it = [&](size_t index) {
-        OPENVINO_ASSERT(index < buffers.size(), "Incorrect index");
-        BufferPool::iterator it = buffers.begin();
-        std::advance(it, index);
-        return it;
-    };
     size_t color = 0;
     std::map<size_t, BufferPool> color_groups;
     const auto size = buffers.size();
-    for (size_t i = 0; i < size; i++) {
-        auto& buffer_i = *get_buffer_it(i);
+    for (size_t i = 0; i < size; ++i) {
         // The Buffer is already colored (visited) - skip
-        if (!buffer_i)
+        if (!buffers[i])
             continue;
 
-        color_groups[color].push_back(buffer_i); // Add to Color Group
-        buffer_i = nullptr;  // Remove from graph vertices
+        const auto& buffer = buffers[i];
+        color_groups[color].push_back(buffer); // Add to Color Group
+        buffers[i] = nullptr;  // Remove from graph vertices
 
         // While Buffer `i` has non-coloured non-neighbours (while row `i` contains 0)
         while ((i + 1 < size) && !std::accumulate(adj.begin() + i * size, adj.begin() + (i + 1) * size, true, std::logical_and<bool>())) {
             size_t j = i + 1;
-            auto buffer_j_it = get_buffer_it(j);
             // Find first non-adjacent and non-visited (non-colored) Buffer to color him to the same color
-            for (; j < size; ++j, ++buffer_j_it) {
-                if (!adj[index(size, i, j)] && *buffer_j_it)
+            for (; j < size; ++j) {
+                if (!adj[index(size, i, j)] && buffers[j])
                     break;
             }
 
@@ -206,10 +199,9 @@ auto SetBufferRegGroup::coloring(BufferPool& buffers, std::vector<bool>& adj) ->
             if (j == size)
                 break;
 
-            auto& buffer_j = *buffer_j_it;
-            const auto& neighbour_buffer = buffer_j;
+            const auto& neighbour_buffer = buffers[j];
             color_groups[color].push_back(neighbour_buffer); // Add to Color Group
-            buffer_j = nullptr;  // Remove from graph vertices
+            buffers[j] = nullptr;  // Remove from graph vertices
             // Unite adjacency links:
             //    All the neighbors of Buffer `j` are added to the neighbors of Buffer `i` (the `vertices` are pulled together).
             //    The result is an updated i-th row of the adjacency matrix,
@@ -229,6 +221,9 @@ bool SetBufferRegGroup::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt 
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SetBufferRegGroup")
     // Identify Buffers using Graph coloring algorithm.
     BufferPool buffer_pool = linear_ir.get_buffers();
+    // For the better coloring Buffers should be stored in the order of execution numbers
+    std::sort(buffer_pool.begin(), buffer_pool.end(),
+              [](const BufferExpressionPtr& lhs, const BufferExpressionPtr& rhs) { return lhs->get_exec_num() < rhs->get_exec_num(); });
 
     // Creation of Adj matrix
     auto adj = create_adjacency_matrix(begin, end, buffer_pool);

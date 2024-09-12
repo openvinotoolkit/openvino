@@ -55,10 +55,12 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
         }
     }
 
+    using ExprSet = std::unordered_set<snippets::lowered::ExpressionPtr>;
+    const ExprSet params_set(parameters.cbegin(), parameters.cend());
+    const ExprSet results_set(results.cbegin(), results.cend());
+    const ExprSet buffers_set(buffers.cbegin(), buffers.cend());
     for (const auto& expr : *body) {
-        if (std::find(parameters.cbegin(), parameters.cend(), expr) == parameters.cend() &&
-            std::find(results.cbegin(), results.cend(), expr) == results.cend() &&
-            std::find(buffers.cbegin(), buffers.cend(), expr) == buffers.cend())
+        if (params_set.count(expr) == 0 && results_set.count(expr) == 0 && buffers_set.count(expr) == 0)
             general_exprs.emplace_back(expr);
     }
     num_unique_buffers = unique_buffers.size();

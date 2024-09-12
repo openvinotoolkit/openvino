@@ -44,11 +44,7 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
             insertion_pos = std::next(last_param);
         }
 
-        // Some utils containers (for example, buffers) in Lir contain expressions in execution order
-        // so we have to pass exec order to registration. However, this enumeration is not optimal because
-        // the next each expr will has exec_num = prev_expr->exec_num + 1.
-        // For more efficient execution ordering we have to call "enumerate_expressions" in the end of LIR initialization
-        register_expression(expr, true, get_inserted_expr_exec_num(insertion_pos));
+        register_expression(expr, true, 0);
         const auto& it = m_expressions.insert(insertion_pos, expr);
         if (ov::is_type<ov::op::v0::Parameter>(n))
             last_param = it;
@@ -192,19 +188,13 @@ void LinearIR::register_expression(const ExpressionPtr& expr, bool io_allowed, d
     const auto& res = m_node2expression_map.insert({node, expr});
     OPENVINO_ASSERT(res.second, "Duplicate node is detected in linear IR: ", node);
 
-    expr->m_exec_num = exec_num;
-
     if (ov::is_type<ov::op::v0::Parameter>(node))
         m_parameter_expressions.push_back(expr);
     if (ov::is_type<ov::op::v0::Result>(node))
         m_result_expressions.push_back(expr);
-    if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(expr)) {
-        // just to align with execution order
-        auto it = m_buffer_expressions.cbegin();
-        while (it != m_buffer_expressions.cend() && expr->m_exec_num > (*it)->get_exec_num())
-            ++it;
-        m_buffer_expressions.insert(it, buffer_expr);
-    }
+    if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(expr))
+        m_buffer_expressions.push_back(buffer_expr);
+    expr->m_exec_num = exec_num;
 }
 
 void LinearIR::unregister_expression(const ExpressionPtr& expr) {
@@ -505,11 +495,10 @@ double LinearIR::get_inserted_expr_exec_num(constExprIt insertion_pos) const {
     return left_order + (right_order - left_order) / 2;
 }
 
-LinearIR::LIRShapeInfer::LIRShapeInfer(const container& body_exprs, const container& param_exprs, const container& result_exprs)
-                                       : ShapeInferSnippetsNode(),
-                                         m_exprs(body_exprs),
-                                         m_input_exprs(param_exprs),
-                                         m_output_exprs(result_exprs) {
+LinearIR::LIRShapeInfer::LIRShapeInfer(const container& body_exprs,
+                                       const std::vector<ExpressionPtr>& param_exprs,
+                                       const std::vector<ExpressionPtr>& result_exprs)
+    : ShapeInferSnippetsNode(), m_exprs(body_exprs), m_input_exprs(param_exprs), m_output_exprs(result_exprs) {
     // Note that if all output shapes are static, as in the case when the first shape infer was performed on nGraph,
     // we can treat them as the last result
     std::vector<VectorDims> outputDims;

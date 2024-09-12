@@ -53,7 +53,7 @@ public:
 
     void set_input_port_connector(size_t port, PortConnectorPtr to);
 
-    // Attention! Cannot be called in ctor because this method validats port attributes (descs, connectors) also
+    // Attention! Cannot be called in ctor because this method validats port attributes (descs, connectors)
     virtual void validate() const;
 
     ExpressionPort get_input_port(size_t i);
@@ -105,17 +105,12 @@ public:
     }
 
 protected:
-    Expression(const Expression& other);
     // Note: The constructor initialization is private since an expression can be created only by Linear IR.
     //       The method must be used only by Linear IR builder of expressions!
     Expression(const std::shared_ptr<Node>& n, const std::shared_ptr<IShapeInferSnippetsFactory>& factory, bool need_shape_infer = true);
 
     // Virtual clone method which is called in clone_with_new_inputs with common logic
     virtual ExpressionPtr clone() const;
-
-    // used in clone_with_new_inputs. New output port descriptors were inited automatically
-    void update_port_attributes(const std::shared_ptr<Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
-                                const std::vector<PortDescriptorPtr>& new_in_descs, const std::vector<PortDescriptorPtr>& new_out_descs);
 
     std::shared_ptr<Node> m_source_node{nullptr};
     std::shared_ptr<Emitter> m_emitter{nullptr};
