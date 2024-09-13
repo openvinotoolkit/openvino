@@ -461,17 +461,17 @@ TEST(fully_connected_gpu, no_biases_5d_input) {
         return;
 
     //  Input  : 1x8x8x8x12
-    //  Weights: 48x12x1x1
+    //  Weights: 48x12
     //  Output : 1x8x8x8x48
 
     const int32_t input_b = 1, input_f = 8, input_z = 8, input_y = 8, input_x = 12, // size of the whole input buffer
-                  weight_b = 48, weight_f = 12, weight_y = 1, weight_x = 1;         // size of the whole weights buffer
+                  weight_b = 48, weight_f = 12;                                     // size of the whole weights buffer
 
     auto input_prim = engine.allocate_memory({ data_types::f32, format::bfzyx, { input_b, input_f, input_x, input_y, input_z } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, weight_f, weight_x, weight_y } });
+    auto weights_prim = engine.allocate_memory({ { weight_b, weight_f }, data_types::f32, format::bfyx });
 
     std::vector<float> input_data(input_b * input_f * input_z * input_y * input_x, 0);
-    std::vector<float> weights_data(weight_b * weight_f * weight_y * weight_x, 0);
+    std::vector<float> weights_data(weight_b * weight_f, 0);
 
     set_values(input_prim, std::move(input_data));
     set_values(weights_prim, std::move(weights_data));
@@ -501,17 +501,17 @@ TEST(fully_connected_gpu, no_biases_5d_input_immad) {
         return;
 
     //  Input  : 1x8x8x8x12
-    //  Weights: 48x12x1x1
+    //  Weights: 48x12
     //  Output : 512x48x1x1
 
     const int32_t input_b = 1, input_f = 8, input_z = 8, input_y = 8, input_x = 12, // size of the whole input buffer
-                  weight_b = 48, weight_f = 12, weight_y = 1, weight_x = 1;         // size of the whole weights buffer
+                  weight_b = 48, weight_f = 12;                                     // size of the whole weights buffer
 
     auto input_prim = engine.allocate_memory({ data_types::f32, format::bfzyx, { input_b, input_f, input_x, input_y, input_z } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, weight_f, weight_x, weight_y } });
+    auto weights_prim = engine.allocate_memory({ { weight_b, weight_f }, data_types::f32, format::bfyx });
 
     std::vector<float> input_data(input_b * input_f * input_z * input_y * input_x, 0);
-    std::vector<float> weights_data(weight_b * weight_f * weight_y * weight_x, 0);
+    std::vector<float> weights_data(weight_b * weight_f, 0);
 
     set_values(input_prim, std::move(input_data));
     set_values(weights_prim, std::move(weights_data));
@@ -536,8 +536,8 @@ TEST(fully_connected_gpu, no_biases_5d_input_immad) {
     auto outputs = network.execute();
     ASSERT_EQ(outputs.begin()->second.get_layout().batch(), input_f*input_z*input_y);
     ASSERT_EQ(outputs.begin()->second.get_layout().feature(), weight_b);
-    ASSERT_EQ(outputs.begin()->second.get_layout().spatial(1), weight_y);
-    ASSERT_EQ(outputs.begin()->second.get_layout().spatial(0), weight_x);
+    ASSERT_EQ(outputs.begin()->second.get_layout().spatial(1), 1);
+    ASSERT_EQ(outputs.begin()->second.get_layout().spatial(0), 1);
 }
 
 TEST(fully_connected_gpu, xb_f32_batch_1) {

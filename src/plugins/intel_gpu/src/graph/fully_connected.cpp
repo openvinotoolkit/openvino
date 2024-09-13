@@ -115,20 +115,22 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     };
 
     int64_t feature = input_pshape[std::min(desc->input_size, static_cast<size_t>(4)) - 1].get_length();
+
+    if (desc->input_size == 3) {
+        feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
+    }
+
+    if (weights_pshape.size() != 2) {
+        weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
+    }
+
     auto output_size = tensor();
 
     // If immad is supported, spatial dimensions are reshaped to 2d in order to select oneDnn impl,
     // because oneDnn doesn't support spatial dimensions for output.
     if (supports_immad) {
-        if (desc->input_size == 3) {
-            feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
-        }
-
         if (desc->input_size > 3) {
             input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
-        }
-        if (weights_pshape.size() != 2) {
-            weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
         }
 
         output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
@@ -136,16 +138,8 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
             output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
         }
     } else {
-        feature = input_pshape[std::min(desc->input_size, static_cast<size_t>(5)) - 1].get_length();
-        if (desc->input_size == 3) {
-            feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
-        }
-
         if (desc->input_size > 5) {
             input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
-        }
-        if (weights_pshape.size() != 2) {
-            weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
         }
 
         output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
