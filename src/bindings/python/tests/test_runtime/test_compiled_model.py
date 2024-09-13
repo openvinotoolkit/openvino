@@ -14,7 +14,7 @@ from tests.utils.helpers import (
     encrypt_base64,
     decrypt_base64,
     create_filename_for_test)
-from openvino import Model, Shape, Core, Tensor, serialize, Type, PartialShape
+from openvino import Model, Shape, Core, Tensor, serialize
 from openvino.runtime import ConstOutput
 
 import openvino.runtime.opset13 as ops
@@ -278,71 +278,20 @@ def test_compiled_model_from_buffer_in_memory(request, tmp_path, device):
     _ = compiled([np.random.normal(size=list(input.shape)).astype(dtype=input.get_element_type().to_dtype()) for input in compiled.inputs])
 
 
-@pytest.fixture(scope="function")
-def model(dynamic_shapes):
-    partial_shape = PartialShape([1, 2048, -1]) if dynamic_shapes else PartialShape([])
-    input_shape = [Shape([1, 2048, 7])] if dynamic_shapes else [Shape([1, 2048, 7]), Shape([1, 2048, 10])]
-
-
-    max_shape_size = len(input_shape)
-    targetStaticShapes = []
-
-    if partial_shape.rank == 0:
-        partial_shape = input_shape[0]
-
-    for i in range(max_shape_size):
-        if i < len(input_shape):
-            targetStaticShapes.append(input_shape[i])
-        else:
-            targetStaticShapes.append(input_shape[-1])
-
-    param = ops.parameter(partial_shape, Type.f32)
-    relu0 = ops.relu(param)
-    print(partial_shape)
-
-    # # Convolution params
-    # kernel_3x3 = Shape([3, 3])
-    strides_1x1 = np.array([1, 1])
-    dilations_1x1 = np.array([1, 1])
-    pads_begin = np.array([0, 0])
-    pads_end = np.array([0, 0])
-    #filter_shape_1x1 = Shape([512, 1, 1, 1])
-    #filter_weights_1x1 = np.random.uniform(1, 9, filter_shape_1x1).astype(np.float32)
-
-    #conv1 = ops.convolution(relu0, ops.constant(filter_weights_1x1), strides_1x1, pads_begin, pads_end, dilations_1x1)
-    
-    filter_shape = [512, 1] + [1]
-    filter_weights = np.random.rand(*filter_shape).astype(np.float32)
-
-    # Create convolution node
-    conv = ops.convolution(relu0, filter_weights, strides_1x1, pads_begin, pads_end, dilations_1x1)
-
-    # relu1 = ops.relu(conv1)
-
-    # relu_shape = relu1.get_partial_shape()
-
-    # filter_shape_3x3 = Shape([512, filter_shape_1x1[0], 3, 3])
-    # filter_weights_3x3 = np.random.uniform(0, 1, filter_shape_3x3).astype(np.float32)
-    # conv2 = ops.convolution(relu1, ops.constant(filter_weights_3x3), strides_1x1, pads_begin, pads_end, dilations_1x1)
-    # relu2 = ops.relu(conv2)
-
-    # filter_shape_1x1_last = Shape([2048, filter_shape_3x3[0], 1, 1])
-    # filter_weights_1x1_last = np.random.uniform(0, 1, filter_shape_1x1_last).astype(np.float32)
-    # conv3 = ops.convolution(relu2, ops.constant(filter_weights_1x1_last), strides_1x1, pads_begin, pads_end, dilations_1x1)
-    # add = ops.add(conv3, relu0)
-    # reduce = ops.reduce_mean(add, np.array([2], dtype=np.int32), True)
-
-    # return Model([reduce], [param])
-
-
-@pytest.mark.parametrize("dynamic_shapes", [True, False])
-def test_memory_release(model, dynamic_shapes):
+def test_memory_release():
     core = Core()
-    # compiled_model = core.compile_model(model, "CPU")
 
-    # input_tensor = Tensor(model.input().get_element_type(), model.input().get_shape())
-    # compiled_model.infer_new_request({0: input_tensor})
+    input_shape = [5]
 
-    # # Release memory and perform inference again
-    # compiled_model.release_memory()
-    # compiled_model.infer_new_request({0: input_tensor})
+    params = [ops.parameter(input_shape, np.float32), ops.parameter(input_shape, np.float32)]
+
+    model = Model(ops.concat(params, 0), params)
+    compiled_model = core.compile_model(model, "CPU")
+    request = compiled_model.create_infer_request()
+
+    input_tensor = Tensor(model.inputs[0].get_element_type(), model.inputs[0].get_shape())
+    request.infer({0: input_tensor, 1: input_tensor})
+
+    # Release memory and perform inference again
+    compiled_model.release_memory()
+    request.infer({0: input_tensor, 1: input_tensor})
