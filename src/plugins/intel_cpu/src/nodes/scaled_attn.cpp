@@ -27,10 +27,6 @@
 #     include "kernels/acl/gemm_kernel.hpp"
 #endif
 
-#if defined(OPENVINO_ARCH_ARM64) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-#     include "kernels/scaled_attn/softmax_f16.hpp"
-#endif
-
 #include "utils/plain_tensor.hpp"
 #include "kernels/scaled_attn/softmax.hpp"
 #include "kernels/scaled_attn/mha_single_token.hpp"
