@@ -338,8 +338,16 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
 }
 
 void CompiledModel::export_model(std::ostream& modelStream) const {
-    ModelSerializer serializer(modelStream);
+    ModelSerializer serializer(modelStream, m_cfg.cacheEncrypt);
     serializer << m_model;
+}
+
+void CompiledModel::release_memory() {
+    for (auto&& graph : m_graphs) {
+        GraphGuard::Lock graph_lock{graph};
+        auto ctx = graph_lock._graph.getGraphContext();
+        ctx->getNetworkMemoryControl()->releaseMemory();
+    }
 }
 
 }  // namespace intel_cpu

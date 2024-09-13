@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Abs_1}
-
 Abs
 ===
 
 
 .. meta::
-  :description: Learn about Abs-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Abs-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Abs-1*
@@ -33,7 +31,7 @@ No attributes available.
 *Abs* does the following with the input tensor *a*:
 
 .. math::
-   
+
    a_{i} = \vert a_{i} \vert
 
 
@@ -43,7 +41,7 @@ No attributes available.
 
 .. code-block:: xml
    :force:
-    
+
     <layer ... type="Abs">
         <input>
             <port id="0">

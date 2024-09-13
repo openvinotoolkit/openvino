@@ -11,6 +11,9 @@ from tests.utils.helpers import (
     generate_image,
     generate_model_and_image,
     generate_relu_compiled_model,
+    generate_relu_compiled_model_with_config,
+    encrypt_base64,
+    decrypt_base64,
     create_filename_for_test)
 from openvino import Model, Shape, Core, Tensor, serialize
 from openvino.runtime import ConstOutput
@@ -32,10 +35,6 @@ def test_get_runtime_model(device):
     assert isinstance(runtime_model, Model)
 
 
-@pytest.mark.skipif(
-    condition=sys.version_info >= (3, 12),
-    reason="Fails on any Linux platform with Python 3.12. Ticket CVS-133903",
-)
 def test_export_import(device):
     core = Core()
 
@@ -47,6 +46,27 @@ def test_export_import(device):
     user_stream = compiled_model.export_model()
 
     new_compiled = core.import_model(user_stream, device)
+
+    img = generate_image()
+    res = new_compiled.infer_new_request({"data": img})
+
+    assert np.argmax(res[new_compiled.outputs[0]]) == 531
+
+
+def test_export_import_with_encryption(device):
+    core = Core()
+
+    if props.device.Capability.EXPORT_IMPORT not in core.get_property(device, props.device.capabilities):
+        pytest.skip(f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
+
+    config = {}
+    config["CACHE_ENCRYPTION_CALLBACKS"] = [encrypt_base64, decrypt_base64]
+
+    compiled_model = generate_relu_compiled_model_with_config(device, config)
+
+    user_stream = compiled_model.export_model()
+
+    new_compiled = core.import_model(user_stream, device, config)
 
     img = generate_image()
     res = new_compiled.infer_new_request({"data": img})

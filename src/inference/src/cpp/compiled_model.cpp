@@ -145,6 +145,10 @@ Any CompiledModel::get_property(const std::string& name) const {
     });
 }
 
+void CompiledModel::release_memory() {
+    OV_COMPILED_MODEL_CALL_STATEMENT(_impl->release_memory());
+}
+
 RemoteContext CompiledModel::get_context() const {
     OV_COMPILED_MODEL_CALL_STATEMENT({
         auto ctx = _impl->get_context();

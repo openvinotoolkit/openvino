@@ -39,6 +39,7 @@
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/fp16_compression/mark_floatpoint_range.hpp"
 #include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_bitwise_to_logical_bool.hpp"
@@ -326,7 +327,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                                                      ov::element::i4,
                                                      ov::element::nf4,
                                                      ov::element::f4e2m1};
-    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, false, false);
+    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, false, true);
     CPU_SET_CALLBACK_X64(decompression_handling_manager, [&](const_node_ptr &node) -> bool {
         return !is_decompression_multiply(node);
     }, ov::pass::MarkDequantizationSubgraph);
@@ -828,33 +829,26 @@ void Transformations::PostLpt() {
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
     auto can_use_amx_bf16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) && (inferencePrecision == element::bf16);
     if (can_use_amx_bf16) {
-        auto has_paged_attention = op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model);
-        if (has_paged_attention) {
-            CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
-            CPU_SET_CALLBACK_X64(postLPTPassManager,
-                [](const_node_ptr &node) -> bool {
-                    std::string errorMsg;
-                    return node::LLMMLP::isSupportedOperation(node, errorMsg);
-                },
-                MLPFusion);
-        }
+        CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
+        CPU_SET_CALLBACK_X64(postLPTPassManager,
+            [](const_node_ptr &node) -> bool {
+                std::string errorMsg;
+                return node::LLMMLP::isSupportedOperation(node, errorMsg);
+            },
+            MLPFusion);
 
-        // Limitations: at least 3 workers are required for QKV fusion
         size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
         if (concurrency == 0)
             concurrency = parallel_get_max_threads();
-        if (concurrency >= 3) {
-            if (has_paged_attention) {
-                CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
-                CPU_SET_CALLBACK_X64(postLPTPassManager,
-                    [](const_node_ptr &node) -> bool {
-                        std::string errorMsg;
-                        return node::QKVProjection::isSupportedOperation(node, errorMsg);
-                    },
-                    QKVProjFusion);
-            }
-        }
+        CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
+        CPU_SET_CALLBACK_X64(postLPTPassManager,
+            [concurrency](const_node_ptr &node) -> bool {
+                std::string errorMsg;
+                return node::QKVProjection::isSupportedOperation(node, errorMsg, concurrency);
+            },
+            QKVProjFusion);
     }
+
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion, false);
@@ -867,8 +861,10 @@ void Transformations::PostLpt() {
         ov::intel_cpu::DecomposeRMSNorm);
 
     // markup Rope Input when BF16/F16 inference.
-    if (one_of(inferencePrecision, ov::element::bf16, ov::element::f16))
+    if (one_of(inferencePrecision, ov::element::bf16, ov::element::f16)) {
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkRopeInputsToKeepInMixedPrecision);
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkFloatingPointRange);
+    }
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by Snippets.
     auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::SymbolicOptimizations, false);
@@ -903,16 +899,21 @@ void Transformations::MainSnippets(void) {
     size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
     if (concurrency == 0)
         concurrency = parallel_get_max_threads();
+
+    // Runtime caching should be enabled in case of dynamic Subgraphs in CPU Plugin: to reduce overheads of ShapeInference and CodeGeneration
+    // If runtime cache capacity is zero, it means that rtCache won't be used and
+    // we shouldn't tokenize dynamic Subgraphs - it will lead to performance degradations
+    bool is_dynamic_mha_token_enabled = config.rtCacheCapacity != 0;
 #if defined(OPENVINO_ARCH_ARM64)
     // ARM has 32 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters, 1 platform register,
     // 3 registers for temporary use, and 2 stack related registers, it has 23 remaining registers.
     size_t data_ptr_gpr_count = 23;
-    bool is_dynamic_mha_token_enabled = false;
+    // ARM doesn't even support MHA yet
+    is_dynamic_mha_token_enabled = false;
 #else
     // X64 has 16 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters,
     // and 2 stack related registers, it has 11 remaining registers.
     size_t data_ptr_gpr_count = 11;
-    bool is_dynamic_mha_token_enabled = true;
 #endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
@@ -1011,6 +1012,7 @@ void Transformations::MainSnippets(void) {
         return (ov::is_type<ov::op::v0::Abs>(n) ||
                 ov::is_type<ov::op::v1::Add>(n) ||
                 ov::is_type<ov::op::v0::Clamp>(n) ||
+                ov::is_type<ov::op::v0::Convert>(n) ||
                 ov::is_type<ov::op::v1::Divide>(n) ||
                 ov::is_type<ov::op::v0::Elu>(n) ||
                 ov::is_type<ov::op::v0::Exp>(n) ||
@@ -1059,7 +1061,7 @@ void Transformations::MainSnippets(void) {
             // So i32 is supported exclusively for transposes and broadcast
             static const std::set<ov::element::Type> supported_element_types =
 #if defined(OPENVINO_ARCH_ARM64)
-                { ov::element::f32 };
+                {ov::element::f32, ov::element::f16, ov::element::i8, ov::element::u8};
 #else
                 {ov::element::f32, ov::element::bf16, ov::element::f16, ov::element::i8, ov::element::u8};
 #endif

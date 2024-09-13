@@ -58,7 +58,7 @@ public:
         std::set<std::string> off = {"0", "false", "off"};
         std::set<std::string> on = {"1", "true", "on"};
 
-        const auto& val_lower = ov::util::to_lower(var);
+        const auto& val_lower = ov::util::to_lower(val);
         if (off.count(val_lower)) {
             m_is_bool = true;
         } else if (on.count(val_lower)) {
@@ -133,6 +133,46 @@ private:
 
 class Profiler {
 public:
+    /**
+     * @brief Profiler class helps to analyze Transformations execution times, visualize/serialize ov model after all
+     * or for dedicated Transformations.
+     *
+     *  There are 3 environment variables which can be set for Transformations debugging:
+     *
+     *  1. OV_ENABLE_PROFILE_PASS - Enables profiling of transformation passes to log their execution times.
+     *
+     *      Usage: Set this environment variable to "true" to enable visualizations.
+     *      Alternatively, specify a file path where the execution times will be saved.
+     *
+     *      Example:
+     *      export OV_ENABLE_PROFILE_PASS=true
+     *      export OV_ENABLE_PROFILE_PASS="/path/to/save/profiling/results"
+     *
+     *  2. OV_ENABLE_VISUALIZE_TRACING - Enables visualization of the model to .svg file after each transformation pass.
+     *
+     *      Usage: Set this environment variable to "true", "on" or "1" to enable visualization for all Transformations.
+     *
+     *      Filtering: You can specify filters to control which passes are visualized.
+     *      If the variable is set to a specific filter string (e.g., "PassName", "PassName1,PassName2"),
+     *      only transformations matching that filter will be visualized. Delimiter is ",".
+     *
+     *      Example:
+     *      export OV_ENABLE_VISUALIZE_TRACING=true
+     *      export OV_ENABLE_VISUALIZE_TRACING="Pass1,Pass2,Pass3"
+     *
+     *  3. OV_ENABLE_SERIALIZE_TRACING - Enables serialization of the model to .xml/.bin after each transformation pass.
+     *
+     *      Usage: Set this environment variable to "true", "on" or "1" to enable serialization for all Transformations.
+     *
+     *      Filtering: You can specify filters to control which passes are serialized.
+     *      If the variable is set to a specific filter string (e.g., "PassName", "PassName1,PassName2"),
+     *      only transformations matching that filter will be serialized. Delimiter is ",".
+     *
+     *      Example:
+     *      export OV_ENABLE_SERIALIZE_TRACING=true
+     *      export OV_ENABLE_SERIALIZE_TRACING="Pass1,Pass2,Pass3"
+     *
+     */
     explicit Profiler(std::string manager_name)
         : m_visualize("OV_ENABLE_VISUALIZE_TRACING"),
           m_serialize("OV_ENABLE_SERIALIZE_TRACING"),
@@ -196,11 +236,22 @@ public:
     void visualize(const shared_ptr<ov::Model>& model, const std::string& pass_name) const {
         static size_t viz_index = 0;
         if (m_visualize.is_enabled()) {
-            const auto& filter = m_visualize.get_str();
-            if (m_visualize.is_bool() || (pass_name.find(filter) != std::string::npos)) {
+            const auto& _visualize = [&]() {
                 const auto& file_name = gen_file_name(model->get_name(), pass_name, viz_index++);
                 ov::pass::VisualizeTree vt(file_name + ".svg");
                 vt.run_on_model(model);
+            };
+
+            if (m_visualize.is_bool()) {
+                _visualize();
+            } else {
+                const auto& filter_tokens = split_by_delimiter(m_visualize.get_str(), ',');
+                for (const auto& token : filter_tokens) {
+                    if (pass_name.find(token) != std::string::npos) {
+                        _visualize();
+                        return;
+                    }
+                }
             }
         }
     }
@@ -208,11 +259,22 @@ public:
     void serialize(const shared_ptr<ov::Model>& model, const std::string& pass_name) const {
         static size_t serialize_index = 0;
         if (m_serialize.is_enabled()) {
-            const auto& filter = m_serialize.get_str();
-            if (m_serialize.is_bool() || (pass_name.find(filter) != std::string::npos)) {
+            const auto& _serialize = [&]() {
                 const auto& file_name = gen_file_name(model->get_name(), pass_name, serialize_index++);
                 ov::pass::Serialize serialize(file_name + ".xml", file_name + ".bin");
                 serialize.run_on_model(model);
+            };
+
+            if (m_serialize.is_bool()) {
+                _serialize();
+            } else {
+                const auto& filter_tokens = split_by_delimiter(m_serialize.get_str(), ',');
+                for (const auto& token : filter_tokens) {
+                    if (pass_name.find(token) != std::string::npos) {
+                        _serialize();
+                        return;
+                    }
+                }
             }
         }
     }
@@ -227,6 +289,19 @@ private:
 
         name << model_name << std::string("_") << index_str << std::string("_") << pass_name;
         return name.str();
+    }
+
+    static std::vector<std::string> split_by_delimiter(std::string str, char delimiter) {
+        std::vector<std::string> res;
+        size_t pos = 0;
+        while ((pos = str.find(delimiter)) != std::string::npos) {
+            res.push_back(str.substr(0, pos));
+            str.erase(0, pos + 1);
+        }
+        if (pos != str.size() - 1) {
+            res.push_back(str);
+        }
+        return res;
     }
 
     std::unordered_map<std::string, stopwatch> stopwatches;
