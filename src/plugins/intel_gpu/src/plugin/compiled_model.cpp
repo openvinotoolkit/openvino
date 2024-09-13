@@ -167,7 +167,10 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 //     [ ov::Node::Input/ ov::Node::Output ]
 //     [ ov::intel_gpu::Graph ]
 void CompiledModel::export_model(std::ostream& model) const {
-    if (m_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE)
+    // If ov::CacheMode::OPTIMIZE_SIZE is set, do the export iff it's possible to do weightless caching
+    // which requires the weights_path.
+    if (m_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE &&
+        m_config.get_property(ov::intel_gpu::weights_path) == "")
         return;
 
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::export_model");
