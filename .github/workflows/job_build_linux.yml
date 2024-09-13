@@ -25,7 +25,7 @@ on:
       arch:
         description: 'Target architecture'
         type: string
-        default: 'x86_64'
+        default: 'intel64'
         required: false
       cmake-options:
         description: 'A string of options passed to CMake'
@@ -121,7 +121,7 @@ jobs:
             ${{ env.OPENVINO_REPO }}
             ${{ env.OPENVINO_CONTRIB_REPO }}
           product_type: ${{ env.PRODUCT_TYPE }}
-          target_arch: 'intel64'
+          target_arch: ${{ inputs.arch }}
           build_type: 'release'
           save_to: ${{ env.MANIFEST_PATH }}
 
