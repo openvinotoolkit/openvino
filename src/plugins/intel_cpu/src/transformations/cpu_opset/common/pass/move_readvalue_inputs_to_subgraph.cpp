@@ -54,6 +54,11 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
                 return;
             }
 
+            if (node->get_output_target_inputs(0).size() == 0u) {
+                final_successor_is_only_root = false;
+                return;
+            }
+
             for (const auto& child : node->get_output_target_inputs(0)) {
                 auto son = child.get_node()->shared_from_this();
                 if (son->get_friendly_name() == root_name) {
