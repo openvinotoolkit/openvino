@@ -65,8 +65,8 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
             }
             user_fc_count++;
         }
-        if (std::getenv("MLP_FUSION") == nullptr && user_fc_count != 3)
-            return false;
+//        if (std::getenv("MLP_FUSION") == nullptr && user_fc_count != 3)
+//            return false;
         return (user_fc_count > 1) && (user_fc_count <= max_num_fcs_to_fuse) &&
                (nodes_with_bias == static_cast<int32_t>(user_fc_count) || nodes_with_bias == 0) &&
                (nodes_with_zp == static_cast<int32_t>(user_fc_count) || nodes_with_zp == 0);
