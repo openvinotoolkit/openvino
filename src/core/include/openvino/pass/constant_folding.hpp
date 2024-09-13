@@ -19,7 +19,10 @@ namespace pass {
 class OPENVINO_API ConstantFolding : public ModelPass {
 public:
     OPENVINO_RTTI("ConstantFolding");
-    explicit ConstantFolding(int64_t byte_threshold = -1) : m_byte_threshold(byte_threshold) {}
+    explicit ConstantFolding(int64_t increase_threshold = 1024,
+                             int64_t execution_threshold = 1024) :
+                                m_increase_threshold(increase_threshold),
+                                m_execution_threshold(execution_threshold) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 protected:
@@ -30,8 +33,12 @@ protected:
 
 private:
     // this variable controls the threshold by which it is allowed to increase
-    // the size of the binary file during one step of the ConstantFolding execution.
-    int64_t m_byte_threshold;
+    // the size of the next created Constant during one step of the ConstantFolding execution.
+    const int64_t m_increase_threshold;
+
+    // This threshold determines the maximum byte size of Constants for which
+    // the ConstantFolding transformation will be applied.
+    const int64_t m_execution_threshold;
 };
 
 /**
