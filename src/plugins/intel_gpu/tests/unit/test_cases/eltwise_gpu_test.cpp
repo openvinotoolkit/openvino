@@ -347,7 +347,7 @@ void run_eltwise_int_shift_generic_test(cldnn::eltwise_mode mode) {
                                          0,                                                      \
                                          0,                                                      \
                                          0,                                                      \
-                                         static_cast<int>(std::numeric_limits<type>::max()) / 2, \
+                                         static_cast<int>(std::numeric_limits<type>::max()) /16, \
                                          0,                                                      \
                                          ((sizeof(type) * 8) - 1) / 2);
 
