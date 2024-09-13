@@ -63,7 +63,7 @@ JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKern
         jit.AddConstant(MakeJitConstant("TRANSPOSED_INPUT0_BATCH_PITCH", "INPUT0_BATCH_PITCH"));
     }
 
-    if (!params.is_chatglm && (params.inputs[1].has_dynamic_pad() || params.inputs[2].has_dynamic_pad())) {
+    if (!params.is_chatglm && !params.is_chatglm4 && (params.inputs[1].has_dynamic_pad() || params.inputs[2].has_dynamic_pad())) {
         jit.AddConstant(MakeJitConstant("SIN_COS_HAVE_DYNAMIC_PADDINGS", true));
     }
 
@@ -71,6 +71,8 @@ JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKern
         jit.AddConstant(MakeJitConstant("QWEN", true));
     } else if (params.is_chatglm) {
         jit.AddConstant(MakeJitConstant("CHATGLM", true));
+    } else if (params.is_chatglm4) {
+        jit.AddConstant(MakeJitConstant("CHATGLM4", true));
     } else {
         jit.AddConstant(MakeJitConstant("RotateHalf", true));
     }
@@ -89,6 +91,12 @@ RoPEKernelBase::DispatchData RoPEKernelBase::SetDefault(const rope_params& param
         dispatchData.gws = {input.Batch().v,
                             input.Feature().v,
                             params.head_cnt * std::max(params.rotary_ndims / 2ul, params.head_size - params.rotary_ndims)};
+    } else if (params.is_chatglm4) {
+        // input  [batch_size, seq_length]
+        // output [batch_size, head_count, seq_length, half_rotary_ndims]
+        dispatchData.gws = {input.Batch().v * params.head_cnt,
+                            input.Feature().v,
+                            params.rotary_ndims / 2ul};
     } else {
         dispatchData.gws = {output.Batch().v,
                             output.Feature().v,

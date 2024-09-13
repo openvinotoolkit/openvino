@@ -24,6 +24,7 @@ struct rope_params : public base_params {
 
     bool is_qwen = false;
     bool is_chatglm = false;
+    bool is_chatglm4 = false;
     bool transposed_input = false;
 };
 
