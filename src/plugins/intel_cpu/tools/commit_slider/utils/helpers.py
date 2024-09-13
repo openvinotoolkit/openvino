@@ -198,6 +198,12 @@ def runCommandList(commit, cfgData):
     gitPath = cfgData["gitPath"]
     buildPath = cfgData["buildPath"]
     defRepo = gitPath
+    newEnv = os.environ.copy()
+    if "buildEnvVars" in cfgData:
+        for env in cfgData["buildEnvVars"]:
+            envKey = env["name"]
+            envVal = env["val"]
+            newEnv[envKey] = envVal
     for cmd in commandList:
         if "tag" in cmd:
             if cmd["tag"] == "preprocess":
@@ -241,7 +247,8 @@ def runCommandList(commit, cfgData):
         proc = subprocess.Popen(
             formattedCmd, cwd=cwd, stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            encoding="utf-8", errors="replace"
+            encoding="utf-8", errors="replace",
+            env=newEnv
         )
         for line in proc.stdout:
             if cfgData["verboseOutput"]:
