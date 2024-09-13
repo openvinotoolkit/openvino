@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/util/common_util.hpp"
 
