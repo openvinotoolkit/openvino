@@ -183,10 +183,10 @@ public:
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
     void getSupportedDescriptors() override;
+    void selectOptimalPrimitiveDescriptor() override;
+    void createPrimitive() override;
 
     MemStatePtr makeState() const override;
-
-    void createPrimitive() override;
 
     bool isHaveSubgraph() {
         return haveSubgraph;
@@ -205,32 +205,33 @@ private:
 private:
     const std::shared_ptr<ov::Node> ovOp;
     bool haveSubgraph = false;
+    std::shared_ptr<ov::Model> body;
     ov::intel_cpu::Graph subGraph;
     std::vector<std::deque<MemoryPtr>> inputMem;
     std::deque<MemoryPtr> outputMem;
 
-    struct PortMap {
-        int from; /**< Index of external/internal out data */
-        int to;   /**< Index of external/internal in data */
-    };
-    class PortMapHelper {
-    public:
-        PortMapHelper(const MemoryPtr& from, const std::deque<MemoryPtr>& to, const dnnl::engine& eng);
-        ~PortMapHelper() = default;
-        void execute(dnnl::stream& strm);
+    // struct PortMap {
+    //     int from; /**< Index of external/internal out data */
+    //     int to;   /**< Index of external/internal in data */
+    // };
+    // class PortMapHelper {
+    // public:
+    //     PortMapHelper(const MemoryPtr& from, const std::deque<MemoryPtr>& to, const dnnl::engine& eng);
+    //     ~PortMapHelper() = default;
+    //     void execute(dnnl::stream& strm);
 
-    private:
-        void redefineTo();
+    // private:
+    //     void redefineTo();
 
-        MemoryPtr srcMemPtr;
-        std::deque<MemoryPtr> dstMemPtrs;
-        std::deque<MemoryDescPtr> originalDstMemDescs;
+    //     MemoryPtr srcMemPtr;
+    //     std::deque<MemoryPtr> dstMemPtrs;
+    //     std::deque<MemoryDescPtr> originalDstMemDescs;
 
-        ptrdiff_t size;
-    };
+    //     ptrdiff_t size;
+    // };
 
-    std::vector<PortMap> inputPortMap, outputPortMap;
-    std::vector<std::shared_ptr<PortMapHelper>> beforeMappers, afterMappers;
+    // std::vector<PortMap> inputPortMap, outputPortMap;
+    // std::vector<std::shared_ptr<PortMapHelper>> beforeMappers, afterMappers;
     ProxyMemoryBlockPtr memBlock = nullptr;
 };
 
