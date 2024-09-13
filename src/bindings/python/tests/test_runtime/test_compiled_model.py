@@ -9,6 +9,7 @@ from tests.utils.helpers import (
     get_relu_model,
     generate_image,
     generate_model_and_image,
+    generate_concat_compiled_model,
     generate_relu_compiled_model,
     generate_relu_compiled_model_with_config,
     encrypt_base64,
@@ -278,18 +279,11 @@ def test_compiled_model_from_buffer_in_memory(request, tmp_path, device):
     _ = compiled([np.random.normal(size=list(input.shape)).astype(dtype=input.get_element_type().to_dtype()) for input in compiled.inputs])
 
 
-def test_memory_release():
-    core = Core()
-
-    input_shape = [5]
-
-    params = [ops.parameter(input_shape, np.float32), ops.parameter(input_shape, np.float32)]
-
-    model = Model(ops.concat(params, 0), params)
-    compiled_model = core.compile_model(model, "CPU")
+def test_memory_release(device):
+    compiled_model = generate_concat_compiled_model(device)
     request = compiled_model.create_infer_request()
 
-    input_tensor = Tensor(model.inputs[0].get_element_type(), model.inputs[0].get_shape())
+    input_tensor = Tensor(compiled_model.inputs[0].get_element_type(), compiled_model.inputs[0].get_shape())
     request.infer({0: input_tensor, 1: input_tensor})
 
     # Release memory and perform inference again
