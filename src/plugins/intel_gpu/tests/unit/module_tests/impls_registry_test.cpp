@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_inst.h"
+#include <memory>
 
+#include "impls/registry/registry.hpp"
 #include "intel_gpu/primitives/adaptive_pooling.hpp"
 #include "intel_gpu/primitives/arg_max_min.hpp"
 #include "intel_gpu/primitives/assign.hpp"
@@ -52,6 +53,7 @@
 #include "intel_gpu/primitives/non_max_suppression.hpp"
 #include "intel_gpu/primitives/non_zero.hpp"
 #include "intel_gpu/primitives/one_hot.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/primitives/permute.hpp"
 #include "intel_gpu/primitives/prior_box.hpp"
 #include "intel_gpu/primitives/proposal.hpp"
@@ -84,16 +86,15 @@
 #include "intel_gpu/primitives/swiglu.hpp"
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/unique.hpp"
+#include "primitive_inst.h"
 #include "test_utils.h"
-#include "impls/registry/registry.hpp"
-#include <memory>
 
 using namespace cldnn;
 using namespace ::tests;
 
 namespace {
 
-template<typename PType, typename... Args, typename std::enable_if<(sizeof...(Args) == 0), bool>::type = true>
+template <typename PType, typename... Args, typename std::enable_if<(sizeof...(Args) == 0), bool>::type = true>
 void check_impl() {
     const auto& all_impls = ov::intel_gpu::Registry<PType>::get_implementations();
     ASSERT_GT(all_impls.size(), 0);
@@ -104,8 +105,8 @@ void check_impl() {
             actual_impls_count++;
     }
 
-    std::vector<shape_types> shapes = { shape_types::static_shape, shape_types::dynamic_shape };
-    std::vector<impl_types> impls = { impl_types::ocl, impl_types::cpu, impl_types::common, impl_types::onednn };
+    std::vector<shape_types> shapes = {shape_types::static_shape, shape_types::dynamic_shape};
+    std::vector<impl_types> impls = {impl_types::ocl, impl_types::cpu, impl_types::common, impl_types::onednn};
 
     size_t expected_impls_count = 0;
     for (auto& impl : impls) {
@@ -115,16 +116,16 @@ void check_impl() {
         }
     }
 
-    ASSERT_EQ(expected_impls_count, actual_impls_count) <<  " for " << PType().type_string();
+    ASSERT_EQ(expected_impls_count, actual_impls_count) << " for " << PType().type_string();
 }
 
-template<typename PType, typename... Args, typename std::enable_if<(sizeof...(Args) > 0), bool>::type = true>
+template <typename PType, typename... Args, typename std::enable_if<(sizeof...(Args) > 0), bool>::type = true>
 void check_impl() {
     check_impl<PType>();
     check_impl<Args...>();
 }
 
-template<typename... Args>
+template <typename... Args>
 void check_impls() {
     check_impl<Args...>();
 }
@@ -132,101 +133,100 @@ void check_impls() {
 }  // namespace
 
 TEST(registry_test, no_null_impls) {
-    program p(get_test_engine(), get_test_default_config(get_test_engine())); // dummy program to register impls
-    check_impls<
-            cldnn::concatenation,
-            cldnn::convolution,
-            cldnn::deconvolution,
-            cldnn::fully_connected,
-            cldnn::gemm,
-            cldnn::pooling,
-            cldnn::reduce,
-            cldnn::reorder,
-            cldnn::assign,
-            cldnn::read_value,
-            cldnn::condition,
-            cldnn::loop,
-            cldnn::input_layout,
-            cldnn::non_max_suppression_gather,
-            cldnn::proposal,
-            cldnn::activation,
-            cldnn::adaptive_pooling,
-            cldnn::arg_max_min,
-            cldnn::batch_to_space,
-            cldnn::border,
-            cldnn::broadcast,
-            cldnn::bucketize,
-            cldnn::crop,
-            cldnn::custom_gpu_primitive,
-            cldnn::data,
-            cldnn::depth_to_space,
-            cldnn::detection_output,
-            cldnn::dft,
-            cldnn::experimental_detectron_detection_output,
-            cldnn::experimental_detectron_generate_proposals_single_image,
-            cldnn::experimental_detectron_prior_grid_generator,
-            cldnn::experimental_detectron_roi_feature_extractor,
-            cldnn::experimental_detectron_topk_rois,
-            cldnn::eltwise,
-            cldnn::gather,
-            cldnn::gather_nd,
-            cldnn::gather_elements,
-            cldnn::generate_proposals,
-            cldnn::grid_sample,
-            cldnn::group_normalization,
-            cldnn::kv_cache,
-            cldnn::lrn,
-            cldnn::lstm_elt,
-            cldnn::multiclass_nms,
-            cldnn::multinomial,
-            cldnn::mutable_data,
-            cldnn::mvn,
-            cldnn::non_max_suppression,
-            cldnn::matrix_nms,
-            cldnn::normalize,
-            cldnn::one_hot,
-            cldnn::permute,
-            cldnn::prior_box,
-            cldnn::quantize,
-            cldnn::random_uniform,
-            cldnn::range,
-            cldnn::region_yolo,
-            cldnn::reorg_yolo,
-            cldnn::reshape,
-            cldnn::reverse,
-            cldnn::reverse_sequence,
-            cldnn::rms,
-            cldnn::roi_align,
-            cldnn::roi_pooling,
-            cldnn::roll,
-            cldnn::scatter_update,
-            cldnn::scatter_elements_update,
-            cldnn::scatter_nd_update,
-            cldnn::select,
-            cldnn::shape_of,
-            cldnn::shuffle_channels,
-            cldnn::slice,
-            cldnn::softmax,
-            cldnn::space_to_batch,
-            cldnn::space_to_depth,
-            cldnn::strided_slice,
-            cldnn::swiglu,
-            cldnn::tile,
-            cldnn::gather_tree,
-            cldnn::resample,
-            cldnn::grn,
-            cldnn::ctc_greedy_decoder,
-            cldnn::ctc_loss,
-            cldnn::cum_sum,
-            cldnn::embedding_bag,
-            cldnn::extract_image_patches,
-            cldnn::convert_color,
-            cldnn::count_nonzero,
-            cldnn::gather_nonzero,
-            cldnn::eye,
-            cldnn::unique_count,
-            cldnn::unique_gather,
-            cldnn::scaled_dot_product_attention,
-            cldnn::rope
-    >();
+    program p(get_test_engine(), get_test_default_config(get_test_engine()));  // dummy program to register impls
+    check_impls<cldnn::concatenation,
+                cldnn::convolution,
+                cldnn::deconvolution,
+                cldnn::fully_connected,
+                cldnn::gemm,
+                cldnn::pooling,
+                cldnn::reduce,
+                cldnn::reorder,
+                cldnn::assign,
+                cldnn::read_value,
+                cldnn::condition,
+                cldnn::loop,
+                cldnn::input_layout,
+                cldnn::non_max_suppression_gather,
+                cldnn::proposal,
+                cldnn::activation,
+                cldnn::adaptive_pooling,
+                cldnn::arg_max_min,
+                cldnn::batch_to_space,
+                cldnn::border,
+                cldnn::broadcast,
+                cldnn::bucketize,
+                cldnn::crop,
+                cldnn::custom_gpu_primitive,
+                cldnn::data,
+                cldnn::depth_to_space,
+                cldnn::detection_output,
+                cldnn::dft,
+                cldnn::experimental_detectron_detection_output,
+                cldnn::experimental_detectron_generate_proposals_single_image,
+                cldnn::experimental_detectron_prior_grid_generator,
+                cldnn::experimental_detectron_roi_feature_extractor,
+                cldnn::experimental_detectron_topk_rois,
+                cldnn::eltwise,
+                cldnn::gather,
+                cldnn::gather_nd,
+                cldnn::gather_elements,
+                cldnn::generate_proposals,
+                cldnn::grid_sample,
+                cldnn::group_normalization,
+                cldnn::kv_cache,
+                cldnn::lrn,
+                cldnn::lstm_elt,
+                cldnn::multiclass_nms,
+                cldnn::multinomial,
+                cldnn::mutable_data,
+                cldnn::mvn,
+                cldnn::non_max_suppression,
+                cldnn::matrix_nms,
+                cldnn::normalize,
+                cldnn::one_hot,
+                cldnn::permute,
+                cldnn::paged_attention,
+                cldnn::prior_box,
+                cldnn::quantize,
+                cldnn::random_uniform,
+                cldnn::range,
+                cldnn::region_yolo,
+                cldnn::reorg_yolo,
+                cldnn::reshape,
+                cldnn::reverse,
+                cldnn::reverse_sequence,
+                cldnn::rms,
+                cldnn::roi_align,
+                cldnn::roi_pooling,
+                cldnn::roll,
+                cldnn::scatter_update,
+                cldnn::scatter_elements_update,
+                cldnn::scatter_nd_update,
+                cldnn::select,
+                cldnn::shape_of,
+                cldnn::shuffle_channels,
+                cldnn::slice,
+                cldnn::softmax,
+                cldnn::space_to_batch,
+                cldnn::space_to_depth,
+                cldnn::strided_slice,
+                cldnn::swiglu,
+                cldnn::tile,
+                cldnn::gather_tree,
+                cldnn::resample,
+                cldnn::grn,
+                cldnn::ctc_greedy_decoder,
+                cldnn::ctc_loss,
+                cldnn::cum_sum,
+                cldnn::embedding_bag,
+                cldnn::extract_image_patches,
+                cldnn::convert_color,
+                cldnn::count_nonzero,
+                cldnn::gather_nonzero,
+                cldnn::eye,
+                cldnn::unique_count,
+                cldnn::unique_gather,
+                cldnn::scaled_dot_product_attention,
+                cldnn::rope>();
 }
