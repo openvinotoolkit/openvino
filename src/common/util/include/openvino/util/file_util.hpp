@@ -10,9 +10,8 @@
 #include <string>
 #include <vector>
 
-#include "openvino/util/util.hpp"
 #include "openvino/util/file_path.hpp"
-
+#include "openvino/util/util.hpp"
 
 namespace ov {
 namespace util {
@@ -89,8 +88,9 @@ template <class Path,
 const std::string& path_to_string(const Path& path) {
     return path;
 }
-template <class Path,
-          typename std::enable_if<std::is_same<typename std::decay<Path>::type, ov::util::Path>::value>::type* = nullptr>
+template <
+    class Path,
+    typename std::enable_if<std::is_same<typename std::decay<Path>::type, ov::util::Path>::value>::type* = nullptr>
 std::string path_to_string(const Path& path) {
     return path.string();
 }

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <memory>
 #include <experimental/filesystem>
+#include <memory>
 
 namespace ov {
 namespace util {
@@ -15,8 +15,10 @@ using Path = fs::path;
 
 
 auto File = [](std::FILE* file) {
-    auto deleter = [](std::FILE* file){ std::fclose(file); };
-    return std::unique_ptr<std::FILE, decltype(deleter)> { file, deleter };
+    auto deleter = [](std::FILE* file) {
+        std::fclose(file);
+    };
+    return std::unique_ptr<std::FILE, decltype(deleter)>{file, deleter};
 };
 
 }  // namespace util

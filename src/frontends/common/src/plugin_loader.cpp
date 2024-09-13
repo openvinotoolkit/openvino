@@ -79,8 +79,8 @@ void load_static_plugins(std::vector<PluginInfo>& res) {
 static std::vector<ov::util::Path> list_files(const ov::util::Path& path) {
     std::vector<ov::util::Path> res{};
     try {
-    const auto prefix = ov::util::Path{FRONTEND_LIB_PREFIX};
-    const auto suffix = ov::util::Path{FRONTEND_LIB_SUFFIX};
+        const auto prefix = ov::util::Path{FRONTEND_LIB_PREFIX};
+        const auto suffix = ov::util::Path{FRONTEND_LIB_SUFFIX};
         ov::util::iterate_files(
             path,
             [&res, &prefix, &suffix](const ov::util::Path& file_path, bool is_dir) {
@@ -120,8 +120,8 @@ void ov::frontend::find_plugins(const ov::util::Path& dir_name, std::vector<Plug
 
 /////////////////////////
 ov::util::Path PluginInfo::get_name_from_file() const {
-    const ov::util::Path prefix {FRONTEND_LIB_PREFIX};
-    const ov::util::Path suffix {FRONTEND_LIB_SUFFIX};
+    const ov::util::Path prefix{FRONTEND_LIB_PREFIX};
+    const ov::util::Path suffix{FRONTEND_LIB_SUFFIX};
     auto prefix_pos = m_file_name.native().find(prefix.native());
     auto suffix_pos = m_file_name.native().rfind(suffix.native());
     const auto prefix_length = prefix.native().length();
