@@ -112,7 +112,7 @@ def getBlobDiff(file1, file2):
 
 def absolutizePaths(cfg):
     pl = sys.platform
-    if pl == "linux" or pl == "linux2":
+    if pl in ["linux", "linux2", "darwin"]:
         cfg["workPath"] = cfg["linWorkPath"]
         cfg["os"] = "linux"
     elif pl == "win32":
