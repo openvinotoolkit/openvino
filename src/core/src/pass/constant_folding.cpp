@@ -129,7 +129,7 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
             for (const auto& output : node->outputs()) {
                 if (output.get_partial_shape().is_static() && is_threshold_applicable) {
                     byte_size_after += static_cast<int64_t>(
-                            element::get_memory_size(output.get_element_type(), ov::shape_size(output.get_shape())));
+                        element::get_memory_size(output.get_element_type(), ov::shape_size(output.get_shape())));
                 } else {
                     is_threshold_applicable = false;
                     break;
