@@ -11,6 +11,8 @@
 #include <vector>
 
 #include "openvino/util/util.hpp"
+#include "openvino/util/file_path.hpp"
+
 
 namespace ov {
 namespace util {
@@ -255,9 +257,13 @@ inline bool file_exists(const std::string& path) {
     return file_exists(path.c_str());
 }
 
+inline bool file_exists(const ov::util::Path& path) {
+    return ov::util::fs::exists(path);
+}
+
 std::string get_file_ext(const std::string& path);
 std::string get_directory(const std::string& path);
-std::string path_join(const std::vector<std::string>& paths);
+ov::util::Path path_join(const std::vector<ov::util::Path>& paths);
 
 void iterate_files(const std::string& path,
                    const std::function<void(const std::string& file, bool is_dir)>& func,

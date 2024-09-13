@@ -172,10 +172,14 @@ std::wstring join_paths(const std::wstring& s1, const std::wstring& s2) {
     return rc;
 }
 #endif
+
+ov::util::Path join_paths(const ov::util::Path& s1, const ov::util::Path& s2) {
+    return s1 / s2;
+}
 }  // namespace
 
-std::string ov::util::path_join(const std::vector<std::string>& paths) {
-    std::string result;
+ov::util::Path ov::util::path_join(const std::vector<ov::util::Path>& paths) {
+    ov::util::Path result{};
     if (paths.empty()) {
         return result;
     }
