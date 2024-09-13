@@ -22,6 +22,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/bucketize.hpp"
 #include "openvino/op/util/binary_elementwise_bitwise.hpp"
 
 #include "intel_gpu/primitives/data.hpp"
@@ -80,11 +81,6 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         constTensor.feature[0] = 1;
     }
 
-    // If const_shape has a dimension = 0, then create tensor with single value
-    // TODO: check if dim=0 is a valid case
-    if (std::accumulate(const_shape.begin(), const_shape.end(), size_t(1), std::multiplies<size_t>()) == 0)
-        constTensor = cldnn::tensor{1};
-
     cldnn::data_types out_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
     cldnn::layout constLayout = p.use_new_shape_infer() ? cldnn::layout(const_shape, out_dtype, constFormat) :
                                                           cldnn::layout(out_dtype, constFormat, constTensor);
@@ -134,7 +130,6 @@ static bool is_btiwise(Node* node) {
 static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Constant>& op) {
     ov::Shape constDims = op->get_shape();
     auto constUsers = op->get_output_target_inputs(0);
-
     std::unordered_map<std::shared_ptr<ov::op::v0::Constant>, ConstProperties> consts = {
         {op, {false}}
     };

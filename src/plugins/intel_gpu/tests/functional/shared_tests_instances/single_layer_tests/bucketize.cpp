@@ -106,4 +106,44 @@ INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_input_u8,
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          BucketizeLayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_empty_boundary_f16,
+                         BucketizeLayerTest,
+                         testing::Combine(testing::Values(ov::test::static_shapes_to_test_representation({{6, 7, 3, 2, 8, 5}, {0}})),
+                                          testing::ValuesIn(with_right_bound),
+                                          testing::Values(ov::element::f16),
+                                          testing::Values(ov::element::f16),
+                                          testing::ValuesIn(out_precision),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
+                         BucketizeLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_empty_boundary_f32,
+                         BucketizeLayerTest,
+                         testing::Combine(testing::Values(ov::test::static_shapes_to_test_representation({{6, 7, 3, 2, 8, 5}, {0}})),
+                                          testing::ValuesIn(with_right_bound),
+                                          testing::Values(ov::element::f32),
+                                          testing::Values(ov::element::f32),
+                                          testing::ValuesIn(out_precision),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
+                         BucketizeLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_empty_boundary_i8,
+                         BucketizeLayerTest,
+                         testing::Combine(testing::Values(ov::test::static_shapes_to_test_representation({{6, 7, 3, 2, 8, 5}, {0}})),
+                                          testing::ValuesIn(with_right_bound),
+                                          testing::Values(ov::element::i8),
+                                          testing::Values(ov::element::i8),
+                                          testing::ValuesIn(out_precision),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
+                         BucketizeLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_empty_boundary_u8,
+                         BucketizeLayerTest,
+                         testing::Combine(testing::Values(ov::test::static_shapes_to_test_representation({{6, 7, 3, 2, 8, 5}, {0}})),
+                                          testing::ValuesIn(with_right_bound),
+                                          testing::Values(ov::element::u8),
+                                          testing::Values(ov::element::u8),
+                                          testing::ValuesIn(out_precision),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
+                         BucketizeLayerTest::getTestCaseName);
+
 }  // namespace
