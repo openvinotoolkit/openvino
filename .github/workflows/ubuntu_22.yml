@@ -21,6 +21,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
+  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Smart_CI:
@@ -296,6 +297,7 @@ jobs:
       runner: 'aks-linux-4-cores-16gb'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
 
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
@@ -379,6 +381,16 @@ jobs:
       runner: 'ubuntu-22.04-16-cores'
       model_scope: 'nightly_scope2'
 
+  JAX_Models_Tests_Precommit:
+    name: JAX/Flax Models tests
+    if: fromJSON(needs.smart_ci.outputs.affected_components).JAX_FE.test
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_jax_models_tests.yml
+    with:
+      runner: 'aks-linux-8-cores-16gb'
+      model_scope: 'precommit'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+
   NVIDIA_Plugin:
     name: NVIDIA plugin
     needs: [ Docker, Build, Smart_CI ]
@@ -439,7 +451,7 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
-          ref: 'master'
+          ref: ${{ env.TARGET_BRANCH }}
 
       #
       # Build
@@ -508,7 +520,7 @@ jobs:
   Overall_Status:
     name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests,
-            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, NVIDIA_Plugin, Openvino_tokenizers, iGPU]
+            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, NVIDIA_Plugin, Openvino_tokenizers, iGPU]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
