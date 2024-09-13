@@ -51,11 +51,6 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
       m_inputs(ov::ICompiledModel::inputs()),
       m_outputs(ov::ICompiledModel::outputs()),
       m_loaded_from_cache(false) {
-    auto model_rt_info = model->get_rt_info();
-    auto weights_path = model_rt_info.find("weights_path");
-    if (weights_path != model_rt_info.end()) {
-        m_weights_path = weights_path->second.as<std::string>();
-    }
     auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
