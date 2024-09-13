@@ -1103,7 +1103,7 @@ void unpack_u8f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
         // number of vectorized operations per scale
         size_t elementsPerScaleVectorized = elementsPerScale / 64;
 
-        uint8_t const* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
+        uint8_t const* pSrcLocal = pSrc + 64 * elementsPerScaleVectorized * sindex * stride;
         int8_t const* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
         uint8_t const* pZerLocal = pZer + zerop_elem_type.size() * sindex * stride;
         int16_t* pDstLocal = const_cast<int16_t*>(pDst) + 64 * elementsPerScaleVectorized * sindex * stride;

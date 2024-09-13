@@ -100,7 +100,7 @@ void Snapshot::buildGraph() {
 
         auto nh = m_graph->create();
         auto group = std::make_shared<Group>(ov_node, gid, nh, m_graph, shared_from_this());
-        group->setWeightsPrecision(gid, getWeightsPrecision(ov_node));
+        group->addWeightsPrecision(getWeightsPrecision(ov_node));
         m_graph->meta(nh).set(group);
         m_node_to_gr->emplace(std::make_pair(ov_node, group));
         ++gid;
