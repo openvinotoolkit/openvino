@@ -204,13 +204,13 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
             const auto slice_b =
                 std::make_shared<v8::Slice>(reshaped_b, zero_const, elements_const, one_const, axis_const);
 
-            // Transpose again
-            transposed_b = std::make_shared<v1::Transpose>(slice_b, transposed_shape);
-
             // Adding bias if required
             if (!bias.get_node_shared_ptr()) {
-                b = transposed_b;
+                return {std::make_shared<v0::MatMul>(a, slice_b, false, true)};
             } else {
+                // Transpose again
+                transposed_b = std::make_shared<v1::Transpose>(slice_b, transposed_shape);
+
                 b = std::make_shared<v1::Add>(transposed_b, bias);
             }
         }
