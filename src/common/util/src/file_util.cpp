@@ -377,13 +377,8 @@ void ov::util::create_directory_recursive(const std::string& path) {
     }
 }
 
-bool ov::util::directory_exists(const std::string& path) {
-    struct stat sb;
-
-    if (stat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
-        return true;
-    }
-    return false;
+bool ov::util::directory_exists(const ov::util::Path& path) {
+    return ov::util::fs::is_directory(path);
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

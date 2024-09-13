@@ -31,7 +31,7 @@ inline std::string get_ref_path(const std::string& model_path) {
 
 // vector<ir_path, ref_path>
 inline std::vector<std::pair<std::string, std::string>>
-get_model_paths(const std::vector<std::string>& conformance_ir_paths,
+get_model_paths(const std::vector<ov::util::Path>& conformance_ir_paths,
                 const std::string& operation_name = "undefined") {
     // This is required to prevent re-scan folders each call in case there is nothing found
     // {{ op_name, {irs} }}
