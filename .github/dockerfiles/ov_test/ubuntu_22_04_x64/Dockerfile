@@ -28,6 +28,8 @@ RUN apt-get update && \
         python3.11-venv \
         python3.11-distutils \
         libhdf5-dev \
+        # For TF Models tests
+        wget \
         && \
     rm -rf /var/lib/apt/lists/*
 
