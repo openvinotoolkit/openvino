@@ -23,8 +23,6 @@ RUN apt-get update && \
         gpg-agent \
         tzdata \
         libhdf5-dev \
-        # For TF Models tests
-        wget \
         && \
     rm -rf /var/lib/apt/lists/*
 
