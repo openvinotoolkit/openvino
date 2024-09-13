@@ -104,6 +104,10 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
     bool rewritten = pre_calculated_values_folding(model);
 
     for (const auto& original_node : model->get_ordered_ops()) {
+        if (!original_node->can_constant_fold(original_node->input_values())) {
+            continue;
+        }
+
         auto node = original_node;
         if (node_has_requires_precision_conversion_attribute(node)) {
             remove_requires_precision_conversion_attribute(node);
