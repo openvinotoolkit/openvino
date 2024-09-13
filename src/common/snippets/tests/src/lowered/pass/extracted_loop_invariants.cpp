@@ -288,6 +288,40 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsFromInnermostToLoopOuts
     }
 }
 
+TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsImpossible) {
+    const auto input_precision = ov::element::f32;
+    const ov::Shape input_shape_0{32, 8, 1};
+    ov::snippets::VectorDims order{1, 2, 0};
+    ov::snippets::VectorDims layout{0, 1, 2};
+    ov::snippets::VectorDims subtensor{1, 1};
+    /* 
+     *  < Transpose decomposition >
+     *
+     *        Param0(32,8,1)
+     *             |
+     *       LoadReshape with order (1,2,0)
+     *             |
+     *           Store
+     *             |
+     *           Result
+    */
+    {
+        auto param = linear_ir->push_node<ov::opset10::Parameter>(input_precision, input_shape_0);
+        auto load_reshape = linear_ir->push_node<ov::snippets::op::LoadReshape>(param.second, 1, 0, layout);
+        auto store = linear_ir->push_node<ov::snippets::op::Store>(load_reshape.second, 1, 0);
+        init_expr_descriptors(*load_reshape.first, {subtensor, subtensor}, {order, layout});
+        init_expr_descriptors(*store.first, {subtensor, subtensor}, {layout, layout});
+        auto result = linear_ir->push_node<ov::opset10::Result>(store.second);
+        linear_ir->get_loop_manager()->mark_loop(load_reshape.first, result.first, 32, 1,
+                                                 std::vector<LoopPort>{LoopPort((*load_reshape.first)->get_input_port(0), true, 0)},
+                                                 std::vector<LoopPort>{LoopPort((*store.first)->get_output_port(0), true, 0)});
+        linear_ir->get_loop_manager()->mark_loop(load_reshape.first, result.first, 1, 1,
+                                                 std::vector<LoopPort>{LoopPort((*load_reshape.first)->get_input_port(0), true, 1)},
+                                                 std::vector<LoopPort>{LoopPort((*store.first)->get_output_port(0), true, 1)});
+        linear_ir->set_loop_depth(2);
+    }
+}
+
 TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsSplitLoops) {
     size_t vector_size = 16;
     size_t block_size = 32;

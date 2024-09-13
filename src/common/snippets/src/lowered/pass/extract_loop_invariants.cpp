@@ -61,7 +61,14 @@ int64_t get_stride_after_move_outer(const LoopPort& loop_port) {
     }
 }
 
-bool is_extraction_applicable(const ExpressionPtr& expr, const UnifiedLoopInfoPtr& inner_loop_info) {
+bool is_extraction_applicable(const ExpressionPtr& expr, const UnifiedLoopInfoPtr& inner_loop_info, size_t loop_id) {
+    // Extraction is possible only from the innermost Loop!
+    // We cannot extract Expression from the outermost or any intermediate Loop with other Loops inside
+    const auto& loop_ids = expr->get_loop_ids();
+    OPENVINO_ASSERT(!loop_ids.empty(), "Expression must be in a Loop");
+    if (loop_ids.back() != loop_id)
+        return false;
+
     const auto& expr_input_ports = expr->get_input_ports();
     const auto& input_port_size = expr_input_ports.size();
     if (input_port_size == 0)
@@ -162,7 +169,7 @@ bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
         const auto& potential_extractable_exprs = get_loop_input_exprs(inner_loop_input_ports);
         bool expr_extracted = false;
         for (const auto& port_expr : potential_extractable_exprs) {
-            if (is_extraction_applicable(port_expr, inner_loop_info)) {
+            if (is_extraction_applicable(port_expr, inner_loop_info, inner_loop_id)) {
                 status = true;
                 LinearIR::constExprIt inner_loop_begin_pos, inner_loop_end_pos;
                 std::tie(inner_loop_begin_pos, inner_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, inner_loop_id);
