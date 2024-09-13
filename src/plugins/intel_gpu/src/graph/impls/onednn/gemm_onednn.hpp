@@ -12,7 +12,7 @@ namespace cldnn {
 namespace onednn {
 
 struct GemmImplementationManager : public ImplementationManager {
-    OV_GPU_PRIMITIVE_IMPL("GemmImplementationOnednn")
+    OV_GPU_PRIMITIVE_IMPL("onednn::gemm")
     GemmImplementationManager(shape_types shape_type) : ImplementationManager(impl_types::onednn, shape_type) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
 

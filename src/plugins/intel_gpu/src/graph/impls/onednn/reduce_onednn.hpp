@@ -42,7 +42,7 @@ inline bool is_reduce_blocked_axes(reduce_node const& node) {
 }
 
 struct ReduceImplementationManager : public ImplementationManager {
-    OV_GPU_PRIMITIVE_IMPL("ReduceImplementationOnednn")
+    OV_GPU_PRIMITIVE_IMPL("onednn::reduce")
     ReduceImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::onednn, shape_type, vf) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
 

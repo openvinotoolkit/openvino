@@ -100,7 +100,7 @@ struct some_impl : public typed_primitive_impl<some_primitive>  {
 };
 
 struct SomeImplementationManager : public ImplementationManager {
-    OV_GPU_PRIMITIVE_IMPL("SomeImpl")
+    OV_GPU_PRIMITIVE_IMPL("test::some_impl")
     SomeImplementationManager(shape_types shape_type, ValidateFunc vf) : ImplementationManager(impl_types::onednn, shape_type, vf) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override {
         return some_impl::create(node, params);
@@ -127,7 +127,7 @@ struct SomeImplementationManager : public ImplementationManager {
 };
 
 struct SomeDynamicImplementationManager : public ImplementationManager {
-    OV_GPU_PRIMITIVE_IMPL("SomeDynamicImpl")
+    OV_GPU_PRIMITIVE_IMPL("test::some_dynamic_impl")
     SomeDynamicImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, vf) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override {
         return some_impl::create(node, params);
