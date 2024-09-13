@@ -13,6 +13,8 @@ namespace ov {
 namespace descriptor {
 
 class Tensor;
+class Input;
+class Output;
 
 // To change Tensor element type please change the Parameter type.
 OPENVINO_API
@@ -83,5 +85,7 @@ struct OPENVINO_API TensorExtension {
         bool operator()(const std::shared_ptr<Tensor>& lhs, const std::shared_ptr<Tensor>& rhs) const;
     };
 };
+
+OPENVINO_API void set_shared_tensor(Output& output_descriptor, const Input& input_descriptor);
 }  // namespace descriptor
 }  // namespace ov
