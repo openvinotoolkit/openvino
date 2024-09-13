@@ -30,7 +30,7 @@ std::pair<std::vector<std::string>, std::pair<ModelCacheStatus, std::vector<std:
 find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
     std::vector<std::string> models, full_content, not_read_model;
     for (const auto& dir : dirs) {
-        std::vector<std::string> dir_content;
+        std::vector<ov::util::Path> dir_content;
         if (ov::util::directory_exists(dir)) {
             dir_content = ov::util::get_filelist_recursive({dir}, FROTEND_REGEXP);
         } else if (ov::util::file_exists(dir) && std::regex_match(dir, std::regex(".*" + std::string(LST_EXTENSION)))) {

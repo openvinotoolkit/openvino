@@ -44,7 +44,7 @@ get_model_paths(const std::vector<std::string>& conformance_ir_paths,
         std::vector<std::string> filelist;
         // Looking for any applicable files in a folders
         for (const auto& conformance_ir_path : conformance_ir_paths) {
-            std::vector<std::string> tmp_buf;
+            std::vector<ov::util::Path> tmp_buf;
             if (ov::util::directory_exists(conformance_ir_path)) {
                 tmp_buf = ov::util::get_filelist_recursive({conformance_ir_path}, {std::regex(R"(.*\.xml)")});
             } else if (ov::util::file_exists(conformance_ir_path)) {
@@ -61,7 +61,7 @@ get_model_paths(const std::vector<std::string>& conformance_ir_paths,
                         val.replace(it, it + 1, ov::test::utils::FileSeparator);
                 }
 #endif
-                for (const auto& path_item : ov::test::utils::splitStringByDelimiter(val, ov::test::utils::FileSeparator)) {
+                for (const auto& path_item : ov::test::utils::splitStringByDelimiter(val.native(), ov::test::utils::FileSeparator)) {
                     auto pos = path_item.find('-');
                     auto tmp_path_item = pos == std::string::npos ? path_item : path_item.substr(0, pos);
 
