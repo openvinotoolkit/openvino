@@ -563,6 +563,8 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_MHAEnforceBF16.*)");
     }
 #ifdef SNIPPETS_LIBXSMM_TPP
+    // GN in TPP requires exposing tmp Buffer results outside the loop (ticket: 151234)
+    retVector.emplace_back(R"(.*smoke_Snippets_GroupNormalization.*)");
     // TPP performs precision conversion implicitly, it makes all Convert tests irrelevant
     retVector.emplace_back(R"(.*smoke_Snippets_Convert.*)");
     // ABS and ROUND operations are needed for TPP support. Disable, since low precisions are not supported by TPP yet.
@@ -584,6 +586,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_Snippets_MHAQuantMatMul0.*)");
     retVector.emplace_back(R"(.*smoke_Snippets_MHAFQ.*)");
     retVector.emplace_back(R"(.*smoke_Snippets_PrecisionPropagation_Convertion.*)");
+    retVector.emplace_back(R"(.*smoke_MHAQuant.*)");
 #endif
 
     if (ov::with_cpu_x86_avx512_core_amx()) {

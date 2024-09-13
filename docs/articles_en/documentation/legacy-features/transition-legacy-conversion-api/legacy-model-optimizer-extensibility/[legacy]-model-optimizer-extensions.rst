@@ -1,11 +1,9 @@
-.. {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions}
-
 [LEGACY] Model Optimizer Extensions
 =====================================
 
 .. meta::
-   :description: Learn about deprecated extensions, which enable injecting logic 
-                 to the model conversion pipeline without changing the Model 
+   :description: Learn about deprecated extensions, which enable injecting logic
+                 to the model conversion pipeline without changing the Model
                  Optimizer core code.
 
 .. toctree::
@@ -20,7 +18,7 @@
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <../../../openvino-extensibility/frontend-extensions>` article. 
+   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <../../../openvino-extensibility/frontend-extensions>` article.
 
 Model Optimizer extensions enable you to inject some logic to the model conversion pipeline without changing the Model
 Optimizer core code. There are three types of the Model Optimizer extensions:
@@ -33,7 +31,7 @@ An extension is just a plain text file with a Python code. The file should conta
 one of extension base classes. Extension files should be saved to a directory with the following structure:
 
 .. code-block:: sh
-   
+
    ./<MY_EXT>/
               ops/                  - custom operations
               front/                - framework independent front transformations
@@ -43,13 +41,13 @@ one of extension base classes. Extension files should be saved to a directory wi
               middle/               - middle transformations
               back/                 - back transformations
 
-Model Optimizer uses the same layout internally to keep built-in extensions. The only exception is that the 
+Model Optimizer uses the same layout internally to keep built-in extensions. The only exception is that the
 ``mo/ops/`` directory is also used as a source of the Model Optimizer operations due to historical reasons.
 
-.. note:: 
+.. note::
    The name of a root directory with extensions should not be equal to "extensions" because it will result in a name conflict with the built-in Model Optimizer extensions.
 
-.. note:: 
+.. note::
    Model Optimizer itself is built by using these extensions, so there is a huge number of examples of their usage in the Model Optimizer code.
 
 ====================
