@@ -27,12 +27,13 @@ protected:
     size_t _height = 0;
     /// \brief width
     size_t _width = 0;
+    size_t _channel = 0;
     /// \brief data
     // std::shared_ptr<unsigned char> _data;
     /// \brief shape - data shape
     std::vector<size_t> _shape;
 
-    const char* _data;
+    const uint8_t* _data;
     size_t _length;
     size_t _offset;
 
@@ -42,9 +43,6 @@ public:
 
     virtual ~images() = default;
 
-    virtual bool isSupported(const char* content, size_t img_length) = 0;
-
-    virtual void closeFile() = 0;
     /**
      * \brief Get width
      * @return width
@@ -69,6 +67,10 @@ public:
         return _shape;
     }
 
+    virtual bool isSupported(const uint8_t* content, size_t img_length) = 0;
+
+    virtual void cleanUp() = 0;
+
     /**
      * \brief Get input data ptr
      * @return shared pointer with input data
@@ -85,7 +87,7 @@ public:
 
 static std::vector<std::shared_ptr<images>> image_formats;
 
-std::shared_ptr<images> ParserImages(const char* content, size_t img_length) ;
+std::shared_ptr<images> ParserImages(const uint8_t* content, size_t img_length) ;
 }  // namespace img
 }  // namespace reference
 }  // namespace ov

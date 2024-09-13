@@ -4,15 +4,23 @@
 
 #include "openvino/reference/utils/img.hpp"
 #include "openvino/reference/utils/bmp.hpp"
+#if WITH_JPEG
+#include "openvino/reference/utils/jpeg.hpp"
+#endif //WITH_JPEG
 
 namespace ov {
 namespace reference {
 namespace img {
 
-std::shared_ptr<images> ParserImages(const char* content, size_t img_length) {
-    auto ptr = BitMap::getBMP();
-    if (ptr->isSupported(content, img_length))
-        return ptr;
+std::shared_ptr<images> ParserImages(const uint8_t* content, size_t img_length) {
+    auto bmp = BitMap::getBmp();
+    if (bmp->isSupported(content, img_length))
+        return bmp;
+#if WITH_JPEG
+    auto jpeg = Jpeg::getJpeg();
+    if (jpeg->isSupported(content, img_length))
+        return jpeg;
+#endif //WITH_JPEG
     return nullptr;
 }
 

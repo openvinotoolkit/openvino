@@ -44,6 +44,21 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
 find_package(Threads REQUIRED)
 target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads openvino::core::dev)
 
+#find jpeg vars
+find_path(JPEG_INCLUDE_DIR jpeglib.h REQUIRED)
+set(JPEG_NAMES ${JPEG_NAMES} jpeg libjpeg)
+find_library(JPEG_LIBRARIES NAMES ${JPEG_NAMES})
+if(JPEG_INCLUDE_DIR AND JPEG_LIBRARIES)
+  include_directories(${JPEG_INCLUDE_DIR})
+  target_link_libraries(${TARGET_NAME} PRIVATE ${JPEG_LIBRARIES})
+  add_compile_definitions(WITH_JPEG)
+  message(STATUS "JPEG_INCLUDE_DIR=${JPEG_INCLUDE_DIR}")
+  message(STATUS "JPEG_LIBRARIES=${JPEG_LIBRARIES}")    
+else()
+  message(STATUS "JPEG not found disable libjpeg supported")
+endif()
+
+
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 # install & export

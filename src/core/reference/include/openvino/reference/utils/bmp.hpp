@@ -46,23 +46,23 @@ private:
     BmpHeader header;
     BmpInfoHeader infoHeader;
 
-    BitMap() : images() {};
+    BitMap() : images() {_channel=3;};
 
 public:
-    static std::shared_ptr<BitMap> getBMP();
+    static std::shared_ptr<BitMap> getBmp();
 
     virtual ~BitMap() {}
     
-    bool isSupported(const char* content, size_t img_length) override;
+    bool isSupported(const uint8_t* content, size_t img_length) override;
 
-    void closeFile() override {
+    void cleanUp() override {
         _data=nullptr;
         _offset = 0;
         _length = 0;
     }
 
     size_t size() const override {
-        return _width * _height * 3;
+        return _width * _height * _channel;
     }
 
     int getData(Tensor& output) override;
