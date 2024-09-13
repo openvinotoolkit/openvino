@@ -89,7 +89,7 @@ class CheckOutputMode(Mode):
 class BenchmarkAppPerformanceMode(Mode):
     def __init__(self, cfg):
         super().__init__(cfg)
-        self.outPattern = "Throughput:\s*([0-9]*[.][0-9]*)\s*FPS"
+        self.outPattern = r"Throughput:\s*([0-9]*[.][0-9]*)\s*FPS"
         self.perfRel = 0
         self.createCash()
 
