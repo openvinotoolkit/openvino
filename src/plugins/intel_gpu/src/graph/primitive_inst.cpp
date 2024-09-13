@@ -2346,40 +2346,20 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
             outer_dep_ids.push_back(prim->id);
         }
         // Samely, need to update dependency of the current fused nodes' input primitive ids with those in the current program
-        auto update_dep_id = [&](cldnn::primitive_id& dep_id, size_t dep_idx) {
-            if (std::find_if(outer_dep_ids.begin(), outer_dep_ids.end(),
-                             [&](const primitive_id& pid) {
-                                 return pid == dep_id;
-                             }) == outer_dep_ids.end()) {
-                dep_id = _node->get_dependency(dep_idx).id();
-            }
-        };
-
         auto prim_of_fused_node = std::const_pointer_cast<primitive>(_impl_params->desc);
         for (size_t i = 0; i < prim_of_fused_node->input.size(); ++i) {
-            update_dep_id(prim_of_fused_node->input[i].pid, i);
+            auto& in = prim_of_fused_node->input[i];
+            if (std::find_if(outer_dep_ids.begin(), outer_dep_ids.end(),
+                             [&](const primitive_id& pid) {
+                                 return pid == in.pid;
+                             }) == outer_dep_ids.end()) {
+                in = _node->get_dependency(i).id();
+            }
         }
-
         // need to update additional deps that are not in 'input' of fully_connected primitive
         if (_node->is_type<fully_connected>()) {
-            auto fc_prim_of_fused_node = std::dynamic_pointer_cast<fully_connected>(prim_of_fused_node);
-            size_t dep_idx = fc_prim_of_fused_node->input.size();
-
-            update_dep_id(fc_prim_of_fused_node->weights, dep_idx++);
-
-            if (!fc_prim_of_fused_node->bias.empty())
-                update_dep_id(fc_prim_of_fused_node->bias, dep_idx++);
-
-            if (!fc_prim_of_fused_node->decompression_scale.empty())
-                update_dep_id(fc_prim_of_fused_node->decompression_scale, dep_idx++);
-
-            if (!fc_prim_of_fused_node->decompression_zero_point.empty())
-                update_dep_id(fc_prim_of_fused_node->decompression_zero_point, dep_idx++);
-
-            if (fc_prim_of_fused_node->activation_scale.is_valid())
-                update_dep_id(fc_prim_of_fused_node->activation_scale.pid, dep_idx);
+            fully_connected_inst::rename_deps_in_primitive(*_node, prim_of_fused_node);
         }
-
         ExecutionConfig subgraph_config{
             ov::intel_gpu::allow_static_input_reorder(true),
             ov::intel_gpu::allow_new_shape_infer(true),

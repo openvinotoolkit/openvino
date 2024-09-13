@@ -49,6 +49,7 @@ public:
     static layout calc_output_layout(fully_connected_node const& node, kernel_impl_params const& impl_param);
     static kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param);
     static std::string to_string(fully_connected_node const& node);
+    static void rename_deps_in_primitive(fully_connected_node const& node, std::shared_ptr<cldnn::primitive> prim);
 
     typed_primitive_inst(network& network, fully_connected_node const& node);
 
