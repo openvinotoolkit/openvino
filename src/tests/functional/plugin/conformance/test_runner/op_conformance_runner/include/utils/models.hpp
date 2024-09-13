@@ -62,11 +62,9 @@ get_model_paths(const std::vector<std::string>& conformance_ir_paths,
                 }
 #endif
                 for (const auto& path_item : ov::test::utils::splitStringByDelimiter(val, ov::test::utils::FileSeparator)) {
-                    auto tmp_path_item = path_item;
-                    auto pos = tmp_path_item.find('-');
-                    if (pos != std::string::npos) {
-                        tmp_path_item = tmp_path_item.substr(0, pos);
-                    }
+                    auto pos = path_item.find('-');
+                    auto tmp_path_item = pos == std::string::npos ? path_item : path_item.substr(0, pos);
+
                     if (op_filelist.find(tmp_path_item) != op_filelist.end()) {
                         op_filelist[tmp_path_item].push_back({val, get_ref_path(val)});
                         is_op = true;
