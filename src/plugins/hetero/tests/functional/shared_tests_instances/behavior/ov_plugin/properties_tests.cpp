@@ -32,7 +32,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
                                             ::testing::ValuesIn(hetero_properties)),
                          OVPropertiesTests::getTestCaseName);
 
-static std::string (*NULL_getTestCaseName)(const testing::TestParamInfo<std::string>& info) = NULL;
 INSTANTIATE_TEST_SUITE_P(smoke_HeteroOVGetMetricPropsTest,
                          OVGetMetricPropsTest,
                          ::testing::Values(ov::test::utils::DEVICE_HETERO));
