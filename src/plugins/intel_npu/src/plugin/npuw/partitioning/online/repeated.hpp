@@ -66,10 +66,9 @@ struct hash<std::pair<ov::npuw::online::detail::OVNodePtr, ov::npuw::online::det
     }
 };
 
-template <>
 struct hash<std::vector<std::string>> {
     inline size_t operator()(const std::vector<std::string>& vec) const {
-       std::size_t seed = vec.size();
+        std::size_t seed = vec.size();
         for (const auto& s : vec) {
             seed ^= std::hash<std::string>()(s) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
         }
@@ -78,14 +77,11 @@ struct hash<std::vector<std::string>> {
 };
 
 template <>
-struct hash<std::tuple<std::string, std::set<std::string>, std::string, std::vector<std::string>>> {
-    inline size_t operator()(const std::tuple<std::string, std::set<std::string>, std::string, std::vector<std::string>>& t) const {
+struct hash<std::tuple<std::string, std::set<std::string>, std::string>> {
+    inline size_t operator()(const std::tuple<std::string, std::set<std::string>, std::string>& t) const {
         std::size_t seed = std::hash<std::string>()(std::get<0>(t)) + 0x9e3779b9;
         seed ^= std::hash<std::string>()(std::get<2>(t)) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
         for (const auto& s : std::get<1>(t)) {
-            seed ^= std::hash<std::string>()(s) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        }
-        for (const auto& s : std::get<3>(t)) {
             seed ^= std::hash<std::string>()(s) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
         }
         return seed;

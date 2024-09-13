@@ -240,6 +240,7 @@ private:
         if (!ov::is_type<ov::op::v0::Constant>(node_ptr)) {
             OPENVINO_THROW("NPUW: trying to get a unique name of a non-Constant node");
         }
+        // FIXME: cache this
         return node_ptr->get_friendly_name() + " with meta " + ov::npuw::online::util::getMetaDesc(node_ptr) +
                " with output " + (*node_ptr->output(0).get_target_inputs().begin()).get_node()->description();
     }

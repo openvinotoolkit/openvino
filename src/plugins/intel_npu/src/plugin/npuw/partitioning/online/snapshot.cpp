@@ -47,7 +47,8 @@ bool isOp(const std::shared_ptr<ov::Node>& node) {
 }
 
 std::vector<std::string> getWeightsPrecision(const std::shared_ptr<ov::Node>& node) {
-    NPUW_ASSERT(!ov::op::util::is_constant(node) && !ov::op::util::is_parameter(node) && !ov::op::util::is_output(node));
+    NPUW_ASSERT(!ov::op::util::is_constant(node) && !ov::op::util::is_parameter(node) &&
+                !ov::op::util::is_output(node));
 
     std::vector<std::string> precisions;
 
@@ -56,24 +57,15 @@ std::vector<std::string> getWeightsPrecision(const std::shared_ptr<ov::Node>& no
         auto ov_node_parent = target_input.get_node()->shared_from_this();
 
         if (ov::is_type<ov::opset1::Convert>(ov_node_parent) && ov_node_parent->inputs().size() == 1) {
-            auto target_input2 = ov_node_parent->get_input_source_output(0);
-            auto parent_node2 = target_input2.get_node()->shared_from_this();
+            auto target_op_input = ov_node_parent->get_input_source_output(0);
+            auto parent_op_node = target_op_input.get_node()->shared_from_this();
 
-            if (ov::op::util::is_constant(parent_node2)) {
-                precisions.push_back(parent_node2->get_element_type().to_string());
+            if (ov::op::util::is_constant(parent_op_node)) {
+                precisions.push_back(parent_op_node->get_element_type().to_string());
             }
         }
     }
 
-    // if (precisions.size() > 0) {
-    //     std::cout << "alex added precisions " << node->get_friendly_name() << std::endl;
-    //     for (const auto& a : precisions) {
-    //         std::cout << a << ' ';
-    //     }
-    //     std::cout << std::endl;
-    // }
-
-    //return {};
     return precisions;
 }
 }  // namespace detail
@@ -81,8 +73,8 @@ std::vector<std::string> getWeightsPrecision(const std::shared_ptr<ov::Node>& no
 }  // namespace npuw
 }  // namespace ov
 
-using ov::npuw::online::detail::isOp;
 using ov::npuw::online::detail::getWeightsPrecision;
+using ov::npuw::online::detail::isOp;
 
 void Snapshot::buildGraph() {
     LOG_INFO("Online partitioning: parsing OV Model to initial groups...");
@@ -165,26 +157,18 @@ void Snapshot::splitMixedPrecision() {
 
     auto reptag_to_gset = repeating();
     for (const auto& elem : reptag_to_gset) {
-        std::cout << "new reptag" << std::endl;
         auto reptag = elem.first;
         auto gset = elem.second;
 
         std::unordered_map<std::vector<std::string>, GPtrSet> prec_to_new_gset;
         for (const auto& gptr : gset) {
             prec_to_new_gset[gptr->getWeightsPrecision()].insert(gptr);
-            std::cout << "alex trying split " << gptr->getId() << ' ' << gptr->getWeightsPrecision().size() << std::endl;
-            for (const auto& a : gptr->getWeightsPrecision()) {
-                std::cout << a << ' ';
-            }
-            std::cout << std::endl;
         }
 
         if (prec_to_new_gset.size() == 1) {
-            std::cout << "split NOT happened!" << std::endl;
             continue;
         }
 
-        std::cout << "split happened!" << std::endl;
         // Need to assign new reptags
         for (const auto& elem : prec_to_new_gset) {
             std::shared_ptr<Repeated> rep = std::make_shared<Repeated>();
@@ -533,8 +517,7 @@ void Snapshot::identifyUniques() {
         auto metadesc = ov::npuw::online::util::getMetaDesc(ov_node);
         const auto& avoids = group->avoidedTargets();
         const auto& special_tags = group->specialTags();
-        const auto& weights_precision = group->getWeightsPrecision();
-        uniques[{metadesc, avoids, special_tags, {}}].insert(group);
+        uniques[{metadesc, avoids, special_tags}].insert(group);
     }
 
     for (const auto& elem : uniques) {
@@ -1018,7 +1001,8 @@ bool Snapshot::cleanUpUniquesImpl(const GPtrSet& gptrs) {
     // Another special case, actually a workaround. Keep it
     // FIXME: slightly different from Ensemble since we don't check flops and keep it by size only
     auto block_layer_size = (*(gptrs.begin()))->size();
-    if ((gptrs.size() >= m_ctx.keep_blocks && block_layer_size >= m_ctx.keep_block_size) || (gptrs.size() * block_layer_size > 500)) {
+    if ((gptrs.size() >= m_ctx.keep_blocks && block_layer_size >= m_ctx.keep_block_size) ||
+        (gptrs.size() * block_layer_size > 500)) {
         LOG_DEBUG("Keeping a repeated block of " << gptrs.size() << " groups with " << block_layer_size << " layers.");
         for (const auto& g : gptrs) {
             g->freeze();
