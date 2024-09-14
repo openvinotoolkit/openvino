@@ -1567,6 +1567,7 @@ void Partitioner::optimize(const std::string& func_name) {
     // Regardless of DQ setting, run this first
     {
         ov::npuw::patterns::opt::Context ctx;
+        ctx.pmm_dims = cfg.get<::intel_npu::NPUW_PMM>();
         mergeParallelMatMuls(f._model, ctx);
 
         // Concatenate closures for "concatenated" parameters

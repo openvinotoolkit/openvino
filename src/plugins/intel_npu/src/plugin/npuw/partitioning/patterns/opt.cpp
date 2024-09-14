@@ -5,6 +5,7 @@
 #include "opt.hpp"
 
 #include "../../logging.hpp"
+#include "../../util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
@@ -22,11 +23,6 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
-
-// FIXME: It is probably much better to have these transformations done
-// just once per function BODY
-// On LLMs, it may reduce the # of such transformations by a factor of
-// 20..30x.
 
 namespace ov {
 namespace npuw {
@@ -439,8 +435,13 @@ void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx) {
             continue;
         }
         ov::Output<ov::Node> orig_multiply;
-        std::size_t axis_to_concat = -1u;
+        std::size_t axis_to_concat = -1;
         std::tie(orig_multiply, axis_to_concat) = mul_to_mms.first;
+
+        if (!util::is_set(axis_to_concat, ctx.pmm_dims)) {
+            LOG_VERB("Parallel MatMuls found, but fusion over dim " << axis_to_concat << " is not enabled");
+            continue;
+        }
 
         const auto& first_w = parallel_matmuls[0].w;
         const auto& first_s = parallel_matmuls[0].s;
