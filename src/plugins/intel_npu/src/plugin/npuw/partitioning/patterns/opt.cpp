@@ -19,6 +19,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 
@@ -40,13 +41,11 @@ void Context::to_f16(PPtr orig_param) {
     closures_to_f16.insert(orig_param);
 }
 
-void Context::register_parallel_matmul(O multiply, DQParMM&& mm) {
-    par_dq_mms[multiply].push_back(std::move(mm));
+void Context::register_parallel_matmul(O multiply, std::size_t axis, DQParMM&& mm) {
+    par_dq_mms[std::make_pair(multiply, axis)].push_back(std::move(mm));
 }
 
 Context::PPtr Context::concat(ov::ParameterVector&& v, std::size_t dim) {
-    NPUW_ASSERT(dim == 2);  // For the future...
-
     // Sanity check dimensions - all dims other tham dim must match
     std::size_t sum = 0u;
     const auto& first = v.front();
@@ -54,13 +53,17 @@ Context::PPtr Context::concat(ov::ParameterVector&& v, std::size_t dim) {
     for (auto&& p : v) {
         const auto this_shape = p->get_shape();
         NPUW_ASSERT(first_shape.size() == this_shape.size());
-        NPUW_ASSERT(first_shape[0] == this_shape[0]);
-        NPUW_ASSERT(first_shape[1] == this_shape[1]);
+        for (std::size_t d = 0; d < first_shape.size(); d++) {
+            if (d != dim) {
+                NPUW_ASSERT(first_shape[d] == this_shape[d]);
+            } else {
+                sum += this_shape[d];
+            }
+        }
         NPUW_ASSERT(first->get_element_type() == p->get_element_type());
-        sum += this_shape[2];
     }
     auto out_shape = first_shape;
-    out_shape[2] = sum;
+    out_shape[dim] = sum;
 
     auto new_param = std::make_shared<ov::op::v0::Parameter>(first->get_element_type(), out_shape);
     params_to_concat[new_param] = {std::move(v), dim};
@@ -393,7 +396,8 @@ DQParMMGQ::DQParMMGQ(Context::Ref ctx) {
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
     auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qmuls, opp::any_input()});
     auto qmmi = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
-    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qreshp});
+    auto qcvtr = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtr});
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
@@ -405,10 +409,15 @@ DQParMMGQ::DQParMMGQ(Context::Ref ctx) {
 
         auto qmmi_shape = node_to_output.at(qmm).get_shape();
 
-        if (!matmul->get_transpose_a() && !matmul->get_transpose_b() && qmmi_shape.size() == 3 && qmmi_shape[0] == 1 &&
-            qmmi_shape[1] == 1) {
+        if (qmmi_shape.size() != 3 || qmmi_shape[0] != 1 || qmmi_shape[1] != 1) {
             // Limit token to 1-token shapes only (prefill requires its own tranformation)
-            ctx.get().register_parallel_matmul(node_to_output.at(qmmi), Context::DQParMM{w_param, s_param, matmul});
+            return false;
+        }
+
+        if (!matmul->get_transpose_a() && !matmul->get_transpose_b()) {
+            ctx.get().register_parallel_matmul(node_to_output.at(qmmi), 2, Context::DQParMM{w_param, s_param, matmul});
+        } else if (!matmul->get_transpose_a() && matmul->get_transpose_b()) {
+            ctx.get().register_parallel_matmul(node_to_output.at(qmmi), 0, Context::DQParMM{w_param, s_param, matmul});
         }
         return false;  // no change here
     };
@@ -425,18 +434,27 @@ void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx) {
         if (parallel_matmuls.size() < 2) {
             continue;
         }
+        ov::Output<ov::Node> orig_multiply;
+        std::size_t axis_to_concat = -1u;
+        std::tie(orig_multiply, axis_to_concat) = mul_to_mms.first;
+
         const auto& first_w = parallel_matmuls[0].w;
         const auto& first_s = parallel_matmuls[0].s;
         ov::ParameterVector old_w, old_s;
         bool all_ok = true;
         for (auto&& dqmm : parallel_matmuls) {
             if (first_w->get_shape().size() != dqmm.w->get_shape().size() ||
-                first_w->get_shape()[0] != dqmm.w->get_shape()[0] ||
-                first_w->get_shape()[1] != dqmm.w->get_shape()[1] ||
                 first_s->get_shape().size() != dqmm.s->get_shape().size() ||
-                first_s->get_shape()[0] != dqmm.s->get_shape()[0] ||
-                first_s->get_shape()[1] != dqmm.s->get_shape()[1]) {
-                all_ok &= false;
+                dqmm.w->get_shape().size() != dqmm.s->get_shape().size()) {
+                all_ok = false;
+                break;
+            }
+            for (std::size_t d = 0u; d < first_w->get_shape().size(); d++) {
+                if (d != axis_to_concat && (first_w->get_shape()[d] != dqmm.w->get_shape()[d] ||
+                                            first_s->get_shape()[d] != dqmm.s->get_shape()[d])) {
+                    all_ok = false;
+                    break;
+                }
             }
             old_w.push_back(dqmm.w);
             old_s.push_back(dqmm.s);
@@ -444,31 +462,42 @@ void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx) {
         if (!all_ok) {
             continue;
         }
-        auto new_w = ctx.concat(std::move(old_w), 2);  // Concat weights in 2nd dimension
-        auto new_s = ctx.concat(std::move(old_s), 2);  // Concat scales in 2nd dimension
+        auto new_w = ctx.concat(std::move(old_w), axis_to_concat);
+        auto new_s = ctx.concat(std::move(old_s), axis_to_concat);
+        auto new_cvt = std::make_shared<ov::op::v0::Convert>(new_w, new_s->get_element_type());
 
-        // TODO: it must be f16 but the following (DQ*) patterns look for f32..
-        auto new_cvt = std::make_shared<ov::op::v0::Convert>(new_w, ov::element::f32);
-        auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_cvt, new_s);
-
+        std::shared_ptr<ov::Node> new_mul = std::make_shared<ov::op::v1::Multiply>(new_cvt, new_s);
+        if (new_s->get_element_type() == ov::element::f16) {
+            new_mul = std::make_shared<ov::op::v0::Convert>(new_mul, ov::element::f32);
+        }
         auto new_w_shape = new_w->get_shape();
-        auto new_rshp_v = std::vector<std::size_t>{new_w_shape[0] * new_w_shape[1], new_w_shape[2]};
+
+        using S = std::vector<std::size_t>;
+        S new_rshp_v;
+        if (axis_to_concat == 2) {
+            new_rshp_v = S{new_w_shape[0] * new_w_shape[1], new_w_shape[2]};
+        } else if (axis_to_concat == 0) {
+            new_rshp_v = S{new_w_shape[0], new_w_shape[1] * new_w_shape[2]};
+        } else {
+            NPUW_ASSERT(false);
+        }
         auto new_rshp_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, new_rshp_v);
         auto new_rshp = std::make_shared<ov::op::v1::Reshape>(new_mul, new_rshp_c, false);
 
-        auto new_mm = std::make_shared<ov::op::v0::MatMul>(mul_to_mms.first, new_rshp, false, false);
+        // Transpose input_b if concat was done by 0th axis (meaning the original MM's input_b were also transposed)
+        auto new_mm = std::make_shared<ov::op::v0::MatMul>(orig_multiply, new_rshp, false, (axis_to_concat == 0));
 
         // Create new slices & reconnect matmuls
         // FIXME: use zip
         std::size_t offset = 0u;
         for (std::size_t i = 0u; i < parallel_matmuls.size(); i++) {
-            using S = std::vector<std::size_t>;
             auto this_orig_wshape = parallel_matmuls[i].w->get_shape();
             auto this_slice_start =
                 std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, S{0, 0, offset});
-            auto this_slice_end = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                                         ov::Shape{3},
-                                                                         S{1, 1, offset + this_orig_wshape[2]});
+            auto this_slice_end =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                       ov::Shape{3},
+                                                       S{1, 1, offset + this_orig_wshape[axis_to_concat]});
             auto this_slice_step = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, S{1, 1, 1});
             auto this_slice =
                 std::make_shared<ov::op::v8::Slice>(new_mm, this_slice_start, this_slice_end, this_slice_step);
@@ -477,7 +506,7 @@ void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx) {
             for (auto&& r : parallel_matmuls[i].mm->output(0).get_target_inputs()) {
                 r.replace_source_output(this_slice);
             }
-            offset += this_orig_wshape[2];
+            offset += this_orig_wshape[axis_to_concat];
         }
     }
 }

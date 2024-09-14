@@ -40,8 +40,8 @@ struct Context {
         NPtr mm;
     };
     using DQParMMs = std::vector<DQParMM>;
-    std::map<O, DQParMMs> par_dq_mms;
-    void register_parallel_matmul(O multiply, DQParMM&& mm);
+    std::map<std::pair<O, std::size_t>, DQParMMs> par_dq_mms;
+    void register_parallel_matmul(O multiply, std::size_t axis, DQParMM&& mm);
 
     std::map<PPtr, std::pair<ov::ParameterVector, std::size_t>> params_to_concat;
     PPtr concat(ov::ParameterVector&& v, std::size_t dim);

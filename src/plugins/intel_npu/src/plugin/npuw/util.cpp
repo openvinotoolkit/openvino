@@ -1510,25 +1510,47 @@ void ov::npuw::util::permute(ov::Tensor& t, const std::vector<std::size_t>& axes
 }
 
 ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t axis) {
+    NPUW_ASSERT(axis == 0 || axis == 2);
+
     const auto type = tt.front().get_element_type();
     auto shape = tt.front().get_shape();
     std::size_t new_dim = 0;
 
-    if (axis == 2) {
-        std::vector<std::size_t> offsets;
-        std::vector<std::size_t> lens;
-        for (auto&& t : tt) {
-            auto tshape = t.get_shape();
-            NPUW_ASSERT(t.is_continuous());
-            NPUW_ASSERT(shape[0] == tshape[0]);
-            NPUW_ASSERT(shape[1] == tshape[1]);
-            NPUW_ASSERT(tt.front().get_element_type() == t.get_element_type());
-            offsets.push_back(new_dim);
-            lens.push_back(tshape[2]);
-            new_dim += tshape[2];
-        }
+    std::vector<std::size_t> offsets;
+    std::vector<std::size_t> lens;
+    for (auto&& t : tt) {
+        NPUW_ASSERT(tt.front().get_element_type() == t.get_element_type());
+        NPUW_ASSERT(t.is_continuous());
 
-        shape[2] = new_dim;
+        auto tshape = t.get_shape();
+        for (std::size_t d = 0; d < tshape.size(); d++) {
+            if (d != axis) {
+                NPUW_ASSERT(shape[d] == tshape[d]);
+            } else {
+                offsets.push_back(new_dim);
+                lens.push_back(tshape[d]);
+                new_dim += tshape[d];
+            }
+        }
+    }
+    shape[axis] = new_dim;
+
+    if (axis == 0) {
+        ov::Tensor tnew(tt.front().get_element_type(), shape);
+        uint8_t* pDst = static_cast<uint8_t*>(tnew.data());
+
+        const bool is_4bit = (type == ov::element::i4 || type == ov::element::u4);
+        for (std::size_t t_idx = 0; t_idx < tt.size(); t_idx++) {
+            const uint8_t* pSrc = static_cast<uint8_t*>(tt[t_idx].data());
+
+            const auto copy_size = lens[t_idx] * shape[1] * shape[2];
+            const auto copy_len = is_4bit ? copy_size / 2 : copy_size * type.size();
+
+            std::copy_n(pSrc, copy_len, pDst);
+            pDst += copy_len;
+        }
+        return tnew;
+    } else if (axis == 2) {
         ov::Tensor tnew(tt.front().get_element_type(), shape);
         uint8_t* pDst = static_cast<uint8_t*>(tnew.data());
 
