@@ -10,10 +10,9 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/util/common_util.hpp"
 #include "preprocess/color_utils.hpp"
-#include <openvino/core/shape.hpp>
-#include <openvino/core/type.hpp>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/model.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;
