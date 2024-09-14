@@ -46,10 +46,10 @@ private:
     BmpHeader header;
     BmpInfoHeader infoHeader;
 
-    BitMap() : images() {_channel=3;};
 
 public:
-    static std::shared_ptr<BitMap> getBmp();
+    // static std::shared_ptr<BitMap> getBmp();
+    BitMap() : images() {_channel=3;};
 
     virtual ~BitMap() {}
     
@@ -68,7 +68,7 @@ public:
     int getData(Tensor& output) override;
 };
 
-static std::shared_ptr<BitMap> bmp_singleton = nullptr;
+// static std::shared_ptr<BitMap> bmp_singleton = nullptr;
 
 }  // namespace img
 }  // namespace reference

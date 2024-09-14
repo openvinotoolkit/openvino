@@ -8,13 +8,14 @@
  */
 #pragma once
 
-#include <memory>
-#include <string>
-#include "img.hpp"
+#include <gif_lib.h>
+
 #include <fstream>
 #include <iostream>
-#include <jpeglib.h>
-#include <setjmp.h>
+#include <memory>
+#include <string>
+
+#include "img.hpp"
 
 using namespace std;
 
@@ -26,23 +27,28 @@ namespace img {
  * \brief Reader for jpeg files
  */
 
-class JPEG : public images {
+class GIF : public images {
 private:
-    jpeg_decompress_struct _image_info;
-    struct jpeg_error_mgr _jerr;
-public:
-    // static std::shared_ptr<JPEG> getJPEG();
-    JPEG() : images() {};
+    // GifFileType _gifInfo;
+    GifFileType* _gif_file;
 
-    virtual ~JPEG() {}
+public:
+    GIF() : images() {
+        _gif_file = nullptr;
+    };
+
+    virtual ~GIF() {
+        int error_code;
+        if (_gif_file)
+            DGifCloseFile(_gif_file, &error_code);
+    }
 
     bool isSupported(const uint8_t* content, size_t img_length) override;
 
     void cleanUp() override {
-        _data=nullptr;
+        _data = nullptr;
         _offset = 0;
         _length = 0;
-        jpeg_destroy_decompress(&_image_info);
     }
 
     size_t size() const override {
@@ -50,9 +56,12 @@ public:
     }
 
     int getData(Tensor& output) override;
+
+    // int readData(void* buf, size_t size);
 };
-void CatchError(j_common_ptr _image_info);
-// static std::shared_ptr<JPEG> jpeg_singleton = nullptr;
+
+int input_callback(GifFileType* gif_file, GifByteType* buf, int size);
+// static std::shared_ptr<GIF> gif_singleton = nullptr;
 
 }  // namespace img
 }  // namespace reference

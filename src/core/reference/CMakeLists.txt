@@ -44,6 +44,7 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
 find_package(Threads REQUIRED)
 target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads openvino::core::dev)
 
+# set(CMAKE_FIND_LIBRARY_SUFFIXES .a;.so)
 #find jpeg vars
 find_path(JPEG_INCLUDE_DIR jpeglib.h REQUIRED)
 set(JPEG_NAMES ${JPEG_NAMES} jpeg libjpeg)
@@ -58,6 +59,34 @@ else()
   message(STATUS "JPEG not found disable libjpeg supported")
 endif()
 
+#find png vars
+find_path(PNG_INCLUDE_DIR png.h REQUIRED)
+set(PNG_NAMES ${PNG_NAMES} png libpng)
+find_library(PNG_LIBRARIES NAMES ${PNG_NAMES})
+if(PNG_INCLUDE_DIR AND PNG_LIBRARIES)
+  include_directories(${PNG_INCLUDE_DIR})
+  target_link_libraries(${TARGET_NAME} PRIVATE ${PNG_LIBRARIES})
+  add_compile_definitions(WITH_PNG)
+  message(STATUS "PNG_INCLUDE_DIR=${PNG_INCLUDE_DIR}")
+  message(STATUS "PNG_LIBRARIES=${PNG_LIBRARIES}")    
+else()
+  message(STATUS "PNG not found disable libpng supported")
+endif()
+
+#find gif vars
+find_path(GIF_INCLUDE_DIR gif_lib.h REQUIRED)
+set(GIF_NAMES ${GIF_NAMES} gif libgif)
+find_library(GIF_LIBRARIES NAMES ${GIF_NAMES})
+if(GIF_INCLUDE_DIR AND GIF_LIBRARIES)
+  include_directories(${GIF_INCLUDE_DIR})
+  target_link_libraries(${TARGET_NAME} PRIVATE ${GIF_LIBRARIES})
+  add_compile_definitions(WITH_GIF)
+  message(STATUS "GIF_INCLUDE_DIR=${GIF_INCLUDE_DIR}")
+  message(STATUS "GIF_LIBRARIES=${GIF_LIBRARIES}")    
+else()
+  message(STATUS "GIF not found disable libgif supported")
+endif()
+set(CMAKE_FIND_LIBRARY_SUFFIXES .so;.a)
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 

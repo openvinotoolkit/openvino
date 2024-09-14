@@ -15,7 +15,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_decodejpeg_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"decodejpeg", "DecodeJpeg"});
+    default_op_checks(node, 1, {"DecodeBmp", "DecodeJpeg", "DecodePng", "DecodeGif"});
     auto input = node.get_input(0);
     std::cout << "$$$ translate_decodejpeg_op : name=" << node.get_name()
     << ", input size=" << node.get_input_size() << ", input0=" << input

@@ -8,22 +8,14 @@ namespace ov {
 namespace reference {
 namespace img {
 
-std::shared_ptr<Jpeg> Jpeg::getJpeg() {
-    if (jpeg_singleton == nullptr) {
-        auto tmp = std::shared_ptr<Jpeg>(new Jpeg());
-        jpeg_singleton = tmp;
-    }
-    return jpeg_singleton;
-}
-
 void CatchError(j_common_ptr _image_info) {
-    (*_image_info->err->output_message)(_image_info);
+    // (*_image_info->err->output_message)(_image_info);
     jmp_buf* jpeg_jmpbuf = reinterpret_cast<jmp_buf*>(_image_info->client_data);
     jpeg_destroy(_image_info);
     longjmp(*jpeg_jmpbuf, 1);
 }
 
-bool Jpeg::isSupported(const uint8_t* content, size_t length) {
+bool JPEG::isSupported(const uint8_t* content, size_t length) {
     _data = content;
     _length = length;
     _offset = 0;
@@ -55,8 +47,6 @@ bool Jpeg::isSupported(const uint8_t* content, size_t length) {
         }
         break;
     default:
-        std::cout << " Invalid _channel value " << _channel << std::endl;
-        jpeg_destroy_decompress(&_image_info);
         return false;
     }
     _image_info.do_fancy_upsampling = true;
@@ -76,7 +66,7 @@ bool Jpeg::isSupported(const uint8_t* content, size_t length) {
     return true;
 }
 
-int Jpeg::getData(Tensor& output) {
+int JPEG::getData(Tensor& output) {
     if (_data == nullptr) {
         return -1;
     }
@@ -151,8 +141,6 @@ int Jpeg::getData(Tensor& output) {
     }
 
     jpeg_finish_decompress(&_image_info);
-    jpeg_destroy_decompress(&_image_info);
-
     return 0;
 }
 

@@ -8,13 +8,13 @@ namespace ov {
 namespace reference {
 namespace img {
 
-std::shared_ptr<BitMap> BitMap::getBmp() {
-    if (bmp_singleton == nullptr) {
-        auto tmp = std::shared_ptr<BitMap>(new BitMap());
-        bmp_singleton = tmp;
-    }
-    return bmp_singleton;
-}
+// std::shared_ptr<BitMap> BitMap::getBmp() {
+//     if (bmp_singleton == nullptr) {
+//         auto tmp = std::shared_ptr<BitMap>(new BitMap());
+//         bmp_singleton = tmp;
+//     }
+//     return bmp_singleton;
+// }
 
 bool BitMap::isSupported(const uint8_t* content, size_t length) {
     if (content==nullptr || length < 24) {

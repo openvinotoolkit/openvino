@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
@@ -38,7 +39,6 @@ protected:
     size_t _offset;
 
 public:
-
     images() {}
 
     virtual ~images() = default;
@@ -83,11 +83,11 @@ public:
      * @return size
      */
     virtual size_t size() const = 0;
+
+    virtual int readData(void* buf, size_t size);
 };
 
-static std::vector<std::shared_ptr<images>> image_formats;
-
-std::shared_ptr<images> ParserImages(const uint8_t* content, size_t img_length) ;
+std::shared_ptr<images> ParserImages(const uint8_t* content, size_t img_length);
 }  // namespace img
 }  // namespace reference
 }  // namespace ov
