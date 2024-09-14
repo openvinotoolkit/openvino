@@ -276,15 +276,17 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
 //                                         [1,  1,128]   x
 // TO:                                     [1,512,128]T  =
 //                 [16,1,128]              [1,  1,512]            [16,1,512]
-//     ???(Act)  -> Reshape > Split(/16) ->[to(f16) ->          ]}
-//     Param(W*) -----------> Split(/16) ->[to(f16) -> MatMul v ]} Concat
-//     Param(S)  -----------> Split(/16) ->[---------> Multiply ]}   v
-//                                                               Reshape(1,16,1,512)
-//                                                               ReduceSum(1)
-//                                                               Reshape(   1,1,512)
-//                                                               to(f32)
+//     ???(Act)  -> Reshape > Split(/16) ->[to(f16) ->         ]}
+//     Param(W*) -----------> Split(/16) ->[to(f16) -> MatMul >]} Concat
+//                                                                 v
+//     Param(S*) ---------------------------------------------> Multiply
+//                                                              Reshape(1,16,1,512)
+//                                                              ReduceSum(1)
+//                                                              Reshape(   1,1,512)
+//                                                              to(f32)
 // WHERE:
 //     W* : [16,512,128]
+//     S* : [16,  1,512]
 
 DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
@@ -326,6 +328,13 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
             matched_qweight->set_partial_shape(tw_shape);
             matched_qweight->validate_and_infer_types();
 
+            // Also transpose S, but in a different way (see diagram above)
+            ctx.get().permute(matched_qcoeff, {1, 2, 0});
+
+            ov::Shape ts_shape = {qcoeff_shape[1], qcoeff_shape[2], qcoeff_shape[0]};
+            matched_qcoeff->set_partial_shape(ts_shape);
+            matched_qcoeff->validate_and_infer_types();
+
             // Reshape the Act to group format
             const auto NSPLIT = qweight_shape[1];
             std::vector<std::size_t> rshp_act_v = {NSPLIT, 1, act_shape[2] / NSPLIT};
@@ -337,9 +346,6 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
             auto split_a = std::make_shared<ov::op::v1::Split>(rshp_act, split_axis, NSPLIT);
             auto split_w = std::make_shared<ov::op::v1::Split>(matched_qweight, split_axis, NSPLIT);
 
-            auto split_axis_s = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1);
-            auto split_s = std::make_shared<ov::op::v1::Split>(matched_qcoeff, split_axis_s, NSPLIT);
-
             std::vector<std::size_t> rshp_scale_v = {1, 1, qcoeff_shape[0]};
             auto rshp_scale_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, rshp_scale_v);
 
@@ -349,19 +355,17 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
                 auto a_f16 = std::make_shared<ov::op::v0::Convert>(split_a->output(i), ov::element::f16);
                 auto w_f16 = std::make_shared<ov::op::v0::Convert>(split_w->output(i), ov::element::f16);
                 auto m_f16 = std::make_shared<ov::op::v0::MatMul>(a_f16, w_f16, false, true);
-
-                auto r_f16 = std::make_shared<ov::op::v1::Reshape>(split_s->output(i), rshp_scale_c, false);
-                auto s_f16 = std::make_shared<ov::op::v1::Multiply>(m_f16, r_f16);
-                to_concat.push_back(s_f16);
+                to_concat.push_back(m_f16);
             }
 
             // Now concat and scale the result
             auto concat = std::make_shared<ov::op::v0::Concat>(to_concat, 0);
+            auto scaled = std::make_shared<ov::op::v1::Multiply>(concat, matched_qcoeff);
 
             // Now reshape to a better shape, ReduceSum, and reshape to the right size again
             std::vector<std::size_t> rshp_ccat_v = {1, NSPLIT, 1, qweight_shape[0]};
             auto rshp_ccat_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, rshp_ccat_v);
-            auto rshp_ccat = std::make_shared<ov::op::v1::Reshape>(concat, rshp_ccat_c, false);
+            auto rshp_ccat = std::make_shared<ov::op::v1::Reshape>(scaled, rshp_ccat_c, false);
 
             auto reduce_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1);
             auto reduce = std::make_shared<ov::op::v1::ReduceSum>(rshp_ccat, reduce_axis, true);
