@@ -24,7 +24,6 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_index_fill_(const NodeContext& context) {
-
     num_inputs_check(context, 4, 4);
     auto input = context.get_input(0);
     auto dim = context.get_input(1);
@@ -37,16 +36,11 @@ OutputVector translate_index_fill_(const NodeContext& context) {
     auto tensor_rank_correct_type = context.mark_node(std::make_shared<v1::ConvertLike>(tensor_rank, dim));
     auto positive_dim = normalize_axis(context, dim, tensor_rank_correct_type);
 
-
     auto tensor_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
     auto dim_vec = context.mark_node(std::make_shared<v1::Reshape>(positive_dim, const_1_vec, false));
     auto broadcasted_index = context.mark_node(std::make_shared<v1::Broadcast>(index, tensor_shape, dim_vec));
 
-
-    
-    
-    auto result =
-        context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(input, broadcasted_index, index, dim));
+    auto result = context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(input, broadcasted_index, index, dim));
     return {result};
 };
 
