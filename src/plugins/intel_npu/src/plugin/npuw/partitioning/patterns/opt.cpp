@@ -9,15 +9,14 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -515,6 +514,55 @@ void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx) {
         }
     }
 }
+
+// Identify a Gather+DQ MatMul pattern, lift Gather up
+// Note: this pattern is applied on the full model before any partitioning
+DQGather::DQGather() {
+    auto qweight = opp::wrap_type<ov::op::v0::Constant>();
+    auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
+    auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
+    auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
+    auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
+    auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qcoeff});
+    auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
+
+    auto pids = opp::wrap_type<ov::op::v0::Parameter>();
+    auto cvtids = opp::wrap_type<ov::op::v0::Convert>({pids});
+    auto gather = opp::wrap_type<ov::op::v8::Gather>({qcvtm, cvtids, opp::any_input()});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        // Create new gathers on W, Z, and S respectively
+        auto matched_out_w = node_to_output.at(qweight);
+        auto matched_out_z = node_to_output.at(qzerop);
+        auto matched_out_s = node_to_output.at(qcoeff);
+        auto matched_out_ids = node_to_output.at(cvtids);
+        auto matched_out_gather = node_to_output.at(gather);
+
+        // Replicate the compute part
+        auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
+        auto new_g_w = std::make_shared<ov::op::v8::Gather>(matched_out_w, matched_out_ids, gather_c);
+        auto new_g_z = std::make_shared<ov::op::v8::Gather>(matched_out_z, matched_out_ids, gather_c);
+        auto new_g_s = std::make_shared<ov::op::v8::Gather>(matched_out_s, matched_out_ids, gather_c);
+
+        auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(new_g_w, ov::element::f16);
+        auto new_cvt_z = std::make_shared<ov::op::v0::Convert>(new_g_z, ov::element::f16);
+        auto new_sub = std::make_shared<ov::op::v1::Subtract>(new_cvt_w, new_cvt_z);
+        auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_sub, new_g_s);
+        auto new_out = std::make_shared<ov::op::v0::Convert>(new_mul, ov::element::f32);
+
+        // Reconnect old gathre readers to the new Multiply
+        for (auto&& r : matched_out_gather.get_target_inputs()) {
+            r.replace_source_output(new_out);
+        }
+        return true; // root was changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(gather, "DQGather"), std::move(callback));
+}
+
 
 }  // namespace opt
 }  // namespace patterns

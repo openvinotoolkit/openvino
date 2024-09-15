@@ -18,6 +18,7 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "partitioning/patterns/opt.hpp"
 #include "plugin.hpp"
 #include "util.hpp"
 
@@ -134,6 +135,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     // FIXME: Find a better place to call this transformation
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(model);
+
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::opt::DQGather>();
+    rewr.run_on_model(model);
 
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;

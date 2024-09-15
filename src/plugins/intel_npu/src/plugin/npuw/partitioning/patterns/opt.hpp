@@ -68,6 +68,11 @@ public:
 
 void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx);
 
+class DQGather : public ov::pass::MatcherPass {
+public:
+    DQGather();
+};
+
 }  // namespace opt
 }  // namespace patterns
 }  // namespace npuw
