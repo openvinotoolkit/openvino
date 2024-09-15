@@ -1470,22 +1470,22 @@ void ov::npuw::util::transpose(ov::Tensor& t) {
     t = std::move(tnew);
 }
 
-template<typename T>
-void permute120(const ov::Tensor &src, ov::Tensor &dst) {
+template <typename T>
+void permute120(const ov::Tensor& src, ov::Tensor& dst) {
     const ov::Shape src_shape = src.get_shape();
     const ov::Shape dst_shape = dst.get_shape();
-    NPUW_ASSERT(src_shape.size() == 3);                    // Yes, so far only transpose 3D tensors
+    NPUW_ASSERT(src_shape.size() == 3);  // Yes, so far only transpose 3D tensors
 
     const T* pSrc = static_cast<T*>(src.data());
-    T *pDst = static_cast<T*>(dst.data());
+    T* pDst = static_cast<T*>(dst.data());
 
     // DSTs [b,r,c] map to SRC's [r,c,b]
 
     for (std::size_t b = 0; b < dst_shape[0]; b++) {
         for (std::size_t r = 0; r < dst_shape[1]; r++) {
             for (std::size_t c = 0; c < dst_shape[2]; c++) {
-                auto dst_idx = b*dst_shape[1]*dst_shape[2] + r*dst_shape[2] + c;
-                auto src_idx = r*src_shape[1]*src_shape[2] + c*src_shape[1] + b;
+                auto dst_idx = b * dst_shape[1] * dst_shape[2] + r * dst_shape[2] + c;
+                auto src_idx = r * src_shape[1] * src_shape[2] + c * src_shape[1] + b;
                 pDst[dst_idx] = pSrc[src_idx];
             }
         }
@@ -1494,7 +1494,7 @@ void permute120(const ov::Tensor &src, ov::Tensor &dst) {
 
 void ov::npuw::util::permute(ov::Tensor& t, const std::vector<std::size_t>& axes) {
     ov::Shape shape = t.get_shape();
-    NPUW_ASSERT(shape.size() == 3);                        // Yes, so far only transpose 3D tensors
+    NPUW_ASSERT(shape.size() == 3);  // Yes, so far only transpose 3D tensors
 
     if (axes[0] == 2 && axes[1] == 0 && axes[2] == 1) {
         transpose(t);
@@ -1531,9 +1531,14 @@ void ov::npuw::util::permute(ov::Tensor& t, const std::vector<std::size_t>& axes
         ov::Shape tshape = {shape[1], shape[2], shape[0]};
         ov::Tensor tnew(t.get_element_type(), tshape);
         switch (t.get_element_type()) {
-        case ov::element::f32: permute120<uint32_t>(t, tnew); break;
-        case ov::element::f16: permute120<uint16_t>(t, tnew); break;
-        default: NPUW_ASSERT("Element type is not supported yet");
+        case ov::element::f32:
+            permute120<uint32_t>(t, tnew);
+            break;
+        case ov::element::f16:
+            permute120<uint16_t>(t, tnew);
+            break;
+        default:
+            NPUW_ASSERT("Element type is not supported yet");
         }
         t = std::move(tnew);
     } else {
