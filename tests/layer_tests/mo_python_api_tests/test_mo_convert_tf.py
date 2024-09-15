@@ -749,36 +749,36 @@ def static_shape_false(temp_dir):
 class TestMoConvertTF(CommonMOConvertTest):
     test_data = [
         # TF2
-        create_keras_model,
-        create_keras_layer,
-        create_tf_function,
-        create_tf_module,
-        create_tf_checkpoint,
-        create_keras_layer_dynamic,
-        create_tf_module_dynamic,
-        create_tf_module_layout_list,
-        create_tf_stateful_partioned_call_net,
-        create_keras_layer_with_example_input_1,
-        create_keras_layer_with_example_input_2,
-        create_keras_layer_with_input_shapes_case1,
-        create_keras_layer_with_input_shapes_case2,
-        create_keras_layer_with_input_shapes_case3,
+        'create_keras_model',
+        'create_keras_layer',
+        'create_tf_function',
+        'create_tf_module',
+        'create_tf_checkpoint',
+        'create_keras_layer_dynamic',
+        'create_tf_module_dynamic',
+        'create_tf_module_layout_list',
+        'create_tf_stateful_partioned_call_net',
+        'create_keras_layer_with_example_input_1',
+        'create_keras_layer_with_example_input_2',
+        'create_keras_layer_with_input_shapes_case1',
+        'create_keras_layer_with_input_shapes_case2',
+        'create_keras_layer_with_input_shapes_case3',
         # can skip since this is legacy MO
         # create_keras_layer_with_input_shapes_case4,
-        create_keras_layer_with_tf_function_call,
-        create_keras_layer_with_tf_function_call_default_compressed_to_fp16,
-        create_keras_layer_with_tf_function_call_no_signature,
-        create_keras_layer_with_tf_function_call_no_signature_single_input,
-        create_keras_layer_with_string_tensor,
-        shape_of_const_fold_test,
-        static_shape_true,
-        static_shape_false,
+        'create_keras_layer_with_tf_function_call',
+        'create_keras_layer_with_tf_function_call_default_compressed_to_fp16',
+        'create_keras_layer_with_tf_function_call_no_signature',
+        'create_keras_layer_with_tf_function_call_no_signature_single_input',
+        'create_keras_layer_with_string_tensor',
+        'shape_of_const_fold_test',
+        'static_shape_true',
+        'static_shape_false',
 
         # TF1
-        create_tf_graph,
-        create_tf_graph_def,
-        create_tf1_wrap_function,
-        create_tf_session,
+        'create_tf_graph',
+        'create_tf_graph_def',
+        'create_tf1_wrap_function',
+        'create_tf_session',
     ]
 
     @pytest.mark.parametrize("create_model", test_data)
@@ -787,7 +787,7 @@ class TestMoConvertTF(CommonMOConvertTest):
     @pytest.mark.precommit
     def test_mo_import_from_memory_tf_fe(self, create_model, ie_device, precision, ir_version,
                                          temp_dir):
-        fw_model, graph_ref, mo_params = create_model(temp_dir)
+        fw_model, graph_ref, mo_params = eval(create_model)(temp_dir)
 
         test_params = {'input_model': fw_model}
         test_params.update({'use_convert_model_from_mo': True})
