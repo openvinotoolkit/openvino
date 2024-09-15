@@ -146,30 +146,10 @@ static void perf_dump_done(const std::chrono::_V2::system_clock::time_point& sta
     }
 }
 
-static char* read_cl_buf(cl_command_queue queue, cl_mem clbuf, size_t count, size_t offset, char* dst = nullptr) {
-    cl_int err;
-    char* ptr = dst;
-    if (!ptr)
-        ptr = new char[count];
-    err = clEnqueueReadBuffer(queue, clbuf, CL_TRUE, offset, count, ptr, 0, NULL, NULL);
-    CHECK_OCL_ERROR_EXIT(err, "clEnqueueReadBuffer failed");
-    clFinish(queue);
-    return ptr;
-}
-
 class ocl_p2p_helper {
 public:
     ocl_p2p_helper() {}
-    ~ocl_p2p_helper() {
-        if (wait_kernel)
-            clReleaseKernel(wait_kernel);
-        if (sync_kernel)
-            clReleaseKernel(sync_kernel);
-        if (inited_ == true) {
-            clReleaseKernel(kernel);
-            clReleaseProgram(program);
-        }
-    }
+    ~ocl_p2p_helper() {}
 
     uint64_t derive_handle(cl_mem clbuf) {
         cl_int err;
@@ -228,234 +208,25 @@ public:
         clReleaseMemObject(clbuf);
     }
 
-    event::ptr remote_write(cldnn::stream& stream, cl_mem src, cl_mem dst, size_t elemCount) {
-        cl_int err;
-        const auto start = perf_dump_start();
-        auto& ocl_stream = downcast<ocl::ocl_stream>(stream);
-        // Use 4 bytes to copy in each work item
-        const char write_kernel_code[] = R"(
-            kernel void write_to_remote(const global int *src, global int *dst)
-            {
-                const int id = get_global_id(0);
-                //printf("write_to_remote: dst[%d] = %d, src[%d] = %d\n", id, dst[id], id, src[id]);
-                dst[id] = src[id];
-                barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
-            })";
-        const char kernelName[] = "write_to_remote";
-
-        cl_uint knlcount = 1;
-        const char* knlstrList[] = {write_kernel_code};
-        size_t knlsizeList[] = {strlen(write_kernel_code)};
-
-        if (inited_ == false) {
-            cl_context context = ocl_stream.get_engine().get_cl_context().get();
-            program = clCreateProgramWithSource(context, knlcount, knlstrList, knlsizeList, &err);
-            CHECK_OCL_ERROR_EXIT(err, "clCreateProgramWithSource failed");
-
-            std::string buildopt = "-cl-std=CL2.0 -cl-intel-greater-than-4GB-buffer-required";
-            err = clBuildProgram(program, 0, NULL, buildopt.c_str(), NULL, NULL);
-            if (err < 0) {
-                size_t logsize = 0;
-                auto device = ocl_stream.get_engine().get_cl_device().get();
-                err = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &logsize);
-                CHECK_OCL_ERROR_EXIT(err, "clGetProgramBuildInfo failed");
-
-                std::vector<char> logbuf(logsize + 1, 0);
-                err = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, logsize + 1, logbuf.data(), NULL);
-                CHECK_OCL_ERROR_EXIT(err, "clGetProgramBuildInfo failed");
-                printf("%s\n", logbuf.data());
-
-                exit(1);
-            }
-
-            kernel = clCreateKernel(program, kernelName, &err);
-            CHECK_OCL_ERROR_EXIT(err, "clCreateKernel failed");
-            inited_ = true;
-        }
-
-        if (0) {
-            // std::lock_guard<std::mutex> lock(debug_mutex);
-            size_t data_size = 0;
-            err = clGetMemObjectInfo(src, CL_MEM_SIZE, sizeof(size_t), &data_size, NULL);
-            CHECK_OCL_ERROR(err, "clGetMemObjectInfo - CL_MEM_SIZE failed");
-            printf("src: size = %ld, data_size = %ld\n", elemCount, data_size);
-
-            err = clGetMemObjectInfo(dst, CL_MEM_SIZE, sizeof(size_t), &data_size, NULL);
-            CHECK_OCL_ERROR(err, "clGetMemObjectInfo - CL_MEM_SIZE failed");
-            printf("dst: size = %ld, data_size = %ld\n", elemCount, data_size);
-        }
-
-        err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &src);
-        CHECK_OCL_ERROR_EXIT(err, "clSetKernelArg src failed");
-
-        err = clSetKernelArg(kernel, 1, sizeof(cl_mem), &dst);
-        CHECK_OCL_ERROR_EXIT(err, "clSetKernelArg dst failed");
-
-        size_t global_size[] = {elemCount / 4};
-        auto queue = ocl_stream.get_cl_queue().get();
-        err = clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, global_size, nullptr, 0, nullptr, nullptr);
-        CHECK_OCL_ERROR_EXIT(err, "clEnqueueNDRangeKernel failed");
-        clFinish(queue);  // todo: opt performance by removing clFinish
-
-        perf_dump_done(start, std::string("ocl p2p host time for ") + std::to_string(elemCount) + std::string(" bytes"));
-        return stream.create_user_event(true);
-    }
-
     void finish(cldnn::stream& stream) {
         auto& ocl_stream = downcast<ocl::ocl_stream>(stream);
         auto queue = ocl_stream.get_cl_queue().get();
         clFinish(queue);
     }
 
-    cl_event remote_copy(cldnn::stream& stream, cl_mem src, cl_mem dst, size_t size) {
+    void remote_copy(cldnn::stream& stream, cl_mem src, cl_mem dst, size_t size) {
         const auto start = perf_dump_start();
         auto& ocl_stream = downcast<ocl::ocl_stream>(stream);
         auto queue = ocl_stream.get_cl_queue().get();
         cl_event ret;
         clEnqueueCopyBuffer(queue, src, dst, 0, 0, size, 0, NULL, &ret);
-        clWaitForEvents(1, &ret);
-        perf_dump_done(start, std::string("p2p copy host time for ") + std::to_string(size) + std::string(" bytes"), true);
-        return ret;
+        clWaitForEvents(1, &ret); // blocked copy
+        clReleaseEvent(ret);
+        perf_dump_done(start,
+                       std::string("p2p copy host time for ") + std::to_string(size) + std::string(" bytes"),
+                       true);
+        return;
     }
-
-    cl_event set_remote_sync(cldnn::stream& stream, cl_event event, cl_mem remote_cl_buf, int offset, int value) {
-        return nullptr;
-        cl_int err;
-        const auto start = perf_dump_start();
-        auto& ocl_stream = downcast<ocl::ocl_stream>(stream);
-        // Use 4 bytes to copy in each work item
-        const char write_kernel_code[] = R"(
-            kernel void write_to_sync_mem(global int *dst, int offset, int value)
-            {
-                const int id = get_global_id(0);
-                dst[offset] = value;
-                // printf("%d: dst[%d] = %d\n",id, offset, dst[offset]);
-                // printf("%d: %d", id, value);
-            })";
-        const char kernelName[] = "write_to_sync_mem";
-
-        cl_uint knlcount = 1;
-        const char* knlstrList[] = {write_kernel_code};
-        size_t knlsizeList[] = {strlen(write_kernel_code)};
-
-        cl_context context = ocl_stream.get_engine().get_cl_context().get();
-        if (sync_kernel == nullptr) {
-            program = clCreateProgramWithSource(context, knlcount, knlstrList, knlsizeList, &err);
-            CHECK_OCL_ERROR_EXIT(err, "clCreateProgramWithSource failed");
-
-            std::string buildopt = "-cl-std=CL2.0 -cl-intel-greater-than-4GB-buffer-required";
-            err = clBuildProgram(program, 0, NULL, buildopt.c_str(), NULL, NULL);
-            if (err < 0) {
-                size_t logsize = 0;
-                auto device = ocl_stream.get_engine().get_cl_device().get();
-                err = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &logsize);
-                CHECK_OCL_ERROR_EXIT(err, "clGetProgramBuildInfo failed");
-
-                std::vector<char> logbuf(logsize + 1, 0);
-                err = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, logsize + 1, logbuf.data(), NULL);
-                CHECK_OCL_ERROR_EXIT(err, "clGetProgramBuildInfo failed");
-                printf("%s\n", logbuf.data());
-
-                exit(1);
-            }
-
-            sync_kernel = clCreateKernel(program, kernelName, &err);
-            CHECK_OCL_ERROR_EXIT(err, "clCreateKernel failed");
-        }
-        auto dst = map_remote_mem(context, remote_cl_buf, 8192);
-
-        err = clSetKernelArg(sync_kernel, 0, sizeof(cl_mem), &dst);
-        CHECK_OCL_ERROR_EXIT(err, "clSetKernelArg 0 src failed");
-
-        err = clSetKernelArg(sync_kernel, 1, sizeof(int), &offset);
-        CHECK_OCL_ERROR_EXIT(err, "clSetKernelArg 1 dst failed");
-
-        err = clSetKernelArg(sync_kernel, 2, sizeof(int), &value);
-        CHECK_OCL_ERROR_EXIT(err, "clSetKernelArg 2 dst failed");
-
-        size_t global_size[] = {1};
-        auto queue = ocl_stream.get_cl_queue().get();
-        cl_event ret = nullptr;
-        err = clEnqueueNDRangeKernel(queue, sync_kernel, 1, nullptr, global_size, nullptr, 1, &event, &ret);
-        CHECK_OCL_ERROR_EXIT(err, "clEnqueueNDRangeKernel failed");
-        clFinish(queue);  // todo: opt performance by removing clFinish
-
-        perf_dump_done(start, std::string("ocl p2p set_sync time"));
-        return ret;
-    }
-
-    cl_event wait_remote_sync(cldnn::stream& stream, cl_mem local_cl_buf, int offset) {
-        return nullptr;
-        cl_int err;
-        const auto start = perf_dump_start();
-        auto& ocl_stream = downcast<ocl::ocl_stream>(stream);
-        const char wait_kernel_code[] = R"(
-            kernel void wait_sync_kernel(global int *dst, int offset)
-            {
-                const int id = get_global_id(0);
-                int i = 0;
-                while(1) {
-                    i++;
-                    if(dst[offset] == 1)
-                        break;
-                }
-                dst[offset] = 0;
-                if(i>2)
-                    printf("%d: wait %d for %d times\n",id, offset, i);
-            })";
-        const char kernelName[] = "wait_sync_kernel";
-
-        cl_uint knlcount = 1;
-        const char* knlstrList[] = {wait_kernel_code};
-        size_t knlsizeList[] = {strlen(wait_kernel_code)};
-
-        if (wait_kernel == nullptr) {
-            cl_context context = ocl_stream.get_engine().get_cl_context().get();
-            program = clCreateProgramWithSource(context, knlcount, knlstrList, knlsizeList, &err);
-            CHECK_OCL_ERROR_EXIT(err, "clCreateProgramWithSource failed");
-
-            std::string buildopt = "-cl-std=CL2.0 -cl-intel-greater-than-4GB-buffer-required";
-            err = clBuildProgram(program, 0, NULL, buildopt.c_str(), NULL, NULL);
-            if (err < 0) {
-                size_t logsize = 0;
-                auto device = ocl_stream.get_engine().get_cl_device().get();
-                err = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &logsize);
-                CHECK_OCL_ERROR_EXIT(err, "clGetProgramBuildInfo failed");
-
-                std::vector<char> logbuf(logsize + 1, 0);
-                err = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, logsize + 1, logbuf.data(), NULL);
-                CHECK_OCL_ERROR_EXIT(err, "clGetProgramBuildInfo failed");
-                printf("%s\n", logbuf.data());
-
-                exit(1);
-            }
-            wait_kernel = clCreateKernel(program, kernelName, &err);
-            CHECK_OCL_ERROR_EXIT(err, "clCreateKernel failed");
-        }
-
-        err = clSetKernelArg(wait_kernel, 0, sizeof(cl_mem), &local_cl_buf);
-        CHECK_OCL_ERROR_EXIT(err, "clSetKernelArg 0 src failed");
-
-        err = clSetKernelArg(wait_kernel, 1, sizeof(int), &offset);
-        CHECK_OCL_ERROR_EXIT(err, "clSetKernelArg 1 dst failed");
-
-        size_t global_size[] = {1};
-        auto queue = ocl_stream.get_cl_queue().get();
-        cl_event event = nullptr;
-        err = clEnqueueNDRangeKernel(queue, wait_kernel, 1, nullptr, global_size, nullptr, 0, nullptr, &event);
-        CHECK_OCL_ERROR_EXIT(err, "clEnqueueNDRangeKernel failed");
-        // clFinish(queue);  // todo: opt performance by removing clFinish
-
-        perf_dump_done(start, std::string("ocl p2p wait_sync time"));
-        return event;
-    }
-
-private:
-    bool inited_ = false;
-    cl_program program;
-    cl_kernel kernel;
-    cl_kernel sync_kernel;
-    cl_kernel wait_kernel;
 };
 
 #define KERNEL_DATA_TYPE_NUM 3
@@ -524,7 +295,8 @@ public:
         program = clCreateProgramWithSource(context, knlcount, knlstrList, knlsizeList, &err);
         CHECK_OCL_ERROR_EXIT(err, "clCreateProgramWithSource failed");
 
-        std::cout << "get_or_create_kernel_if_possible: create_kernel->clCreateProgramWithSource " << kernelName << std::endl;
+        std::cout << "get_or_create_kernel_if_possible: create_kernel->clCreateProgramWithSource " << kernelName
+                  << std::endl;
 
         std::string buildopt = "-cl-std=CL2.0 -cl-intel-greater-than-4GB-buffer-required";
         err = clBuildProgram(program, 0, NULL, buildopt.c_str(), NULL, NULL);
@@ -597,7 +369,6 @@ public:
     }
 
     event::ptr tensor_add(cldnn::stream& stream,
-                          std::vector<cl_event>& events,
                           cl_mem src,
                           cl_mem dst,
                           size_t element_count,
@@ -618,15 +389,7 @@ public:
         size_t global_size[] = {element_count};
         auto queue = ocl_stream.get_cl_queue().get();
         cl_event ret;
-        err = clEnqueueNDRangeKernel(queue,
-                                     kernel,
-                                     1,
-                                     nullptr,
-                                     global_size,
-                                     nullptr,
-                                     events.size(),
-                                     events.size() > 0 ? events.data() : nullptr,
-                                     &ret);
+        err = clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, global_size, nullptr, 0, nullptr, &ret);
         CHECK_OCL_ERROR_EXIT(err, "clEnqueueNDRangeKernel failed");
         // clWaitForEvents(1, &ret);
 
@@ -700,17 +463,17 @@ public:
             return false;
 
         concat_mode = -1;
-        if (total_height == (dst->height & (~0x1))  && src[0]->width == dst->width) {
+        if (total_height == (dst->height & (~0x1)) && src[0]->width == dst->width) {
             // Vertical concat
             concat_mode = 0;
             if (total_height != dst->height) {  // Need fix
                 std::lock_guard<std::mutex> lock(debug_mutex);
                 print(src, dst);
             }
-        } else if (total_width == dst->width /*&& src[0]->height <= dst->height*/) {// fake alignment issue
+        } else if (total_width == dst->width /*&& src[0]->height <= dst->height*/) {  // fake alignment issue
             // Horizontal concat
             concat_mode = 1;
-            if (src[0]->height != dst->height || src[1]->height != dst->height) { // Need fix
+            if (src[0]->height != dst->height || src[1]->height != dst->height) {  // Need fix
                 std::lock_guard<std::mutex> lock(debug_mutex);
                 print(src, dst);
                 auto actual_height = std::min(src[0]->height, dst->height);
@@ -724,7 +487,6 @@ public:
     }
 
     std::vector<cldnn::event::ptr> concat(cldnn::stream& stream,
-                                          std::vector<cl_event>& events,
                                           std::vector<std::shared_ptr<concat_mem>>& src,
                                           std::shared_ptr<concat_mem>& dst) {
         const auto start = perf_dump_start();
@@ -756,17 +518,17 @@ public:
                                                    src[i]->height * src[i]->stride,
                                                    dst->stride,
                                                    dst->stride * dst->width,
-                                                   events.size(),
-                                                   events.size() > 0 ? events.data() : nullptr,
+                                                   0,
+                                                   nullptr,
                                                    &event);
                 if (ret != CL_SUCCESS) {
                     std::cout << "0.clEnqueueCopyBufferRect failed: " << oclErrorCode[ret] << ", idx = " << i
                               << std::endl;
                 }
                 dst_rec[1] += src[i]->height;
-                //ret = clWaitForEvents(1, &event);
-                //CHECK_OCL_ERROR(ret, "clWaitForEvents failed");
-                //clReleaseEvent(event);
+                // ret = clWaitForEvents(1, &event);
+                // CHECK_OCL_ERROR(ret, "clWaitForEvents failed");
+                // clReleaseEvent(event);
                 sync_events.emplace_back(ocl_stream.create_event(cl::Event(event)));
             }
         } else if (concat_mode == 1) {
@@ -784,17 +546,17 @@ public:
                                                    src[i]->height * src[i]->stride,
                                                    dst->stride,
                                                    dst->stride * dst->width,
-                                                   0/*events.size()*/,
-                                                   nullptr/*&events[0]*/,
+                                                   0,
+                                                   nullptr,
                                                    &event);
                 if (ret != CL_SUCCESS) {
                     std::cout << "1.clEnqueueCopyBufferRect failed: " << oclErrorCode[ret] << ", idx = " << i
                               << std::endl;
                 }
                 dst_rec[0] += src[i]->width;
-                //ret = clWaitForEvents(1, &event);
-                //CHECK_OCL_ERROR(ret, "clWaitForEvents failed");
-                //clReleaseEvent(event);
+                // ret = clWaitForEvents(1, &event);
+                // CHECK_OCL_ERROR(ret, "clWaitForEvents failed");
+                // clReleaseEvent(event);
                 sync_events.emplace_back(ocl_stream.create_event(cl::Event(event)));
             }
         } else {
@@ -868,58 +630,17 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
         parent::load(ib);
     }
 
-    std::vector<cl_event> wait_p2p_done_opt(cldnn::stream& stream,
-                                            cldnn::cpu::ocl_p2p_helper& p2p_helper,
-                                            ov::intel_gpu::SubMemoryManager::ptr& sub_mem_mgr,
-                                            int id,
-                                            size_t w_size,
-                                            int32_t w_rank) {
-        std::vector<cl_event> events;
-        auto sync_buf = sub_mem_mgr->_memorys_table[id][w_rank].sync_buf;
-        for (size_t idx = 0; idx < w_size; idx++) {
-            if (idx != static_cast<size_t>(w_rank)) {
-                auto ret = p2p_helper.wait_remote_sync(stream, static_cast<cl_mem>(sync_buf), idx);
-                if (ret != nullptr)
-                    events.emplace_back(ret);
-            }
-        }
-        return events;
-    }
-
-    std::vector<cl_event> wait_p2p_done(cldnn::stream& stream,
-                                        cldnn::cpu::ocl_p2p_helper& p2p_helper,
-                                        ov::intel_gpu::SubMemoryManager::ptr& sub_mem_mgr,
-                                        int id,
-                                        size_t w_size,
-                                        int32_t w_rank,
-                                        bool validate = true) {
+    void wait_p2p_done(cldnn::stream& stream,
+                       cldnn::cpu::ocl_p2p_helper& p2p_helper,
+                       ov::intel_gpu::SubMemoryManager::ptr& sub_mem_mgr,
+                       int id,
+                       size_t w_size,
+                       int32_t w_rank,
+                       bool validate = true) {
         // Wait for P2P transferred data are ready
         std::vector<int> copy_list(w_size, 1);
         copy_list[w_rank] = 0;
         auto start = perf_dump_start();
-        std::vector<cl_event> wait_events;
-
-        // Dump P2P 16 bytes source data
-        const size_t check_size = 16;
-        std::vector<char*> src_data(w_size, nullptr);
-        std::vector<char*> dst_data(w_size, nullptr);
-        if (validate) {
-            for (size_t idx = 0; idx < w_size; idx++) {
-                if (idx == static_cast<size_t>(w_rank))
-                    continue;
-                auto& remote_ocl_stream = downcast<ocl::ocl_stream>(*sub_mem_mgr->_memorys_table[id][idx].stream_ptr);
-                cldnn::memory::ptr src_mem = sub_mem_mgr->_memorys_table[id][idx].recv_bufs[idx];
-                auto remote_src_cl_buf = std::dynamic_pointer_cast<const ocl::gpu_buffer>(src_mem)->get_buffer().get();
-                src_data[idx] = read_cl_buf(remote_ocl_stream.get_cl_queue().get(),
-                                            remote_src_cl_buf,
-                                            check_size,
-                                            src_mem->size() - check_size);
-            }
-            perf_dump_done(
-                start,
-                std::string("rank[") + std::to_string(w_rank) + std::string("] sync_tensor read p2p source data"),
-                true);
-        }
 
         // Wait P2P done
         while (true) {
@@ -929,40 +650,9 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                         downcast<ocl::ocl_stream>(*sub_mem_mgr->_memorys_table[id][idx].stream_ptr);
                     auto event = sub_mem_mgr->_memorys_table[id][w_rank].events[idx];
                     if (event) {
-                        auto sync_buf = sub_mem_mgr->_memorys_table[id][w_rank].sync_buf;
-                        auto ret_event = p2p_helper.wait_remote_sync(stream, static_cast<cl_mem>(sync_buf), idx);
-                        if (ret_event != nullptr)
-                            wait_events.emplace_back(ret_event);
-
                         event->wait();
                         remote_ocl_stream.finish();
-                        bool is_done = true;
-
-                        // dump dst data
-                        if (validate) {
-                            auto& ocl_stream =
-                                downcast<ocl::ocl_stream>(*sub_mem_mgr->_memorys_table[id][w_rank].stream_ptr);
-                            cldnn::memory::ptr dst_mem = sub_mem_mgr->_memorys_table[id][w_rank].recv_bufs[idx];
-                            auto dst_cl_buf =
-                                std::dynamic_pointer_cast<const ocl::gpu_buffer>(dst_mem)->get_buffer().get();
-                            auto start_r = perf_dump_start();
-                            dst_data[idx] = read_cl_buf(ocl_stream.get_cl_queue().get(),
-                                                        dst_cl_buf,
-                                                        check_size,
-                                                        dst_mem->size() - check_size,
-                                                        dst_data[idx]);
-
-                            perf_dump_done(start_r,
-                                           std::string("rank[") + std::to_string(w_rank) +
-                                               std::string("] sync_tensor read p2p dst data"),
-                                           true);
-
-                            for (size_t k = 0; k < check_size; k++)
-                                if (src_data[k] != dst_data[k])
-                                    is_done = false;
-                        }
-                        if (is_done)
-                            copy_list[idx] = 0;
+                        copy_list[idx] = 0;
                         // std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
                         sub_mem_mgr->_memorys_table[id][w_rank].events[idx] = nullptr;
                         // MUST release remote cl_mem, but it will cause remote map failed.
@@ -982,54 +672,10 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                 exit(1);
             }
         }
-
-        // release dump data
-        for (size_t idx = 0; idx < w_size; idx++) {
-            if (src_data[idx]) {
-                delete src_data[idx];
-                src_data[idx] = nullptr;
-            }
-            if (dst_data[idx]) {
-                delete dst_data[idx];
-                dst_data[idx] = nullptr;
-            }
-        }
         perf_dump_done(start,
                        std::string("rank[") + std::to_string(w_rank) + std::string("] sync_tensor wait p2p done"),
                        true);
-        return wait_events;
-    }
-
-    std::vector<cldnn::event::ptr> propagate_p2p_events(ov::intel_gpu::SubMemoryManager::ptr& sub_mem_mgr,
-                                                        int id,
-                                                        size_t w_size,
-                                                        int32_t w_rank) {
-        std::vector<cldnn::event::ptr> sync_events;
-        std::vector<int> copy_list(w_size, 1);
-        copy_list[w_rank] = 0;
-        auto start = perf_dump_start();
-        while (true) {
-            for (size_t idx = 0; idx < w_size; idx++) {
-                if (idx != static_cast<size_t>(w_rank) && copy_list[idx]) {
-                    auto event = sub_mem_mgr->_memorys_table[id][idx].events[w_rank];
-                    if (event) {
-                        sync_events.emplace_back(event);
-                        copy_list[idx] = 0;
-                    }
-                }
-            }
-            auto left_size = std::accumulate(copy_list.begin(), copy_list.end(), 0);
-            if (left_size == 0)
-                break;
-            auto end = perf_dump_start();
-            std::chrono::duration<double, std::milli> duration = end - start;
-            if (duration.count() > 10000) {
-                std::cout << "rank[" << w_rank << "]Error: sync_tensor propagate_p2p_events timeout..." << std::endl;
-                exit(1);
-            }
-        }
-
-        return sync_events;
+        return;
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, sync_tensor_inst& instance) override {
@@ -1124,59 +770,11 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
 
                     data_size = dst_mem->size();
                     auto dst_cl_buf = p2p_helper.map_remote_mem(local_context, dst_cl_buf_remote, data_size);
-                    auto cl_event = p2p_helper.remote_copy(stream, src_cl_buf, dst_cl_buf, data_size);
+                    p2p_helper.remote_copy(stream, src_cl_buf, dst_cl_buf, data_size);
                     {
                         std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
-                        if (sub_mem_mgr->_memorys_table[id][idx].sync_buf == nullptr) {
-                            auto& remote_ocl_stream =
-                                downcast<ocl::ocl_stream>(*sub_mem_mgr->_memorys_table[id][idx].stream_ptr);
-                            auto remote_context = remote_ocl_stream.get_engine().get_cl_context().get();
-                            cl_int err;
-                            auto buf = clCreateBuffer(remote_context, CL_MEM_READ_WRITE, 8192, nullptr, &err);
-                            CHECK_OCL_ERROR_EXIT(err, "clCreateBuffer failed");
-                            sub_mem_mgr->_memorys_table[id][idx].sync_buf = static_cast<void*>(buf);
-                        }
+                        sub_mem_mgr->_memorys_table[id][idx].events[w_rank] = stream.create_user_event(true);
                     }
-                    auto remote_sync_buf = sub_mem_mgr->_memorys_table[id][idx].sync_buf;
-                    auto sync_event = p2p_helper.set_remote_sync(stream, cl_event, static_cast<cl_mem>(remote_sync_buf), w_rank, 1);
-                    {
-                        std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
-                        sub_mem_mgr->_memorys_table[id][idx].events[w_rank] = ocl_stream.create_event(cl::Event(sync_event));;
-                    }
-
-                    if (0) { // validate p2p result
-                        auto src = read_cl_buf(ocl_stream.get_cl_queue().get(), src_cl_buf, dst_mem->size(), 0);
-                        auto& remote_ocl_stream =
-                            downcast<ocl::ocl_stream>(*sub_mem_mgr->_memorys_table[id][idx].stream_ptr);
-                        auto dst =
-                            read_cl_buf(remote_ocl_stream.get_cl_queue().get(), dst_cl_buf_remote, dst_mem->size(), 0);
-
-                        auto layout = instance.get_output_layout(1);
-                        size_t total = 0;
-                        static bool dump = false;
-                        ov::element::Type element_type = layout.data_type;
-                        auto width = layout.get_shape()[-1] * element_type.size();
-                        for (size_t i = 0; i < dst_mem->size(); i++) {
-                            if (src[i] != dst[i]) {
-                                total++;
-                                if (dump) {
-                                    std::cout << "p2p-src[" << i / width << "][" << i % width
-                                              << "] = " << static_cast<int>(src[i]) << ", dst[" << i / width << "]["
-                                              << i % width << "] = " << static_cast<int>(dst[i]) << " - "
-                                              << layout.to_short_string() << std::endl;
-                                }
-                            }
-                        }
-                        if (total > 0) {
-                            dump = false;
-                            auto layout = instance.get_output_layout(1);
-                            std::cout << "tensor_sync p2p: rank[" << w_rank << "] is incorrect: " << total << "/"
-                                      << dst_mem->size() << ":" << layout.to_short_string() << std::endl;
-                        }
-                        delete src;
-                        delete dst;
-                    }
-
                     if (0) {
                         std::lock_guard<std::mutex> lock(debug_mutex);
                         printf("Write output memory (rank=%d):\n", w_rank);
@@ -1215,8 +813,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
         }
 
         // P2P adopts sync write to avoid the problem of event cannot work across contexts
-        auto p2p_events = wait_p2p_done(stream, p2p_helper, sub_mem_mgr, id, w_size, w_rank, false);
-        // auto p2p_events = wait_p2p_done_opt(stream, p2p_helper, sub_mem_mgr, id, w_size, w_rank);
+        wait_p2p_done(stream, p2p_helper, sub_mem_mgr, id, w_size, w_rank, false);
 
         std::vector<cldnn::event::ptr> sync_events;
         if (is_all_reduce) {
@@ -1232,7 +829,6 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                                           .get();
                     sync_event = get_adder_instance(w_rank).tensor_add(
                         stream,
-                        p2p_events,
                         src_cl_buf,
                         dst_cl_buf,
                         dst_mem->count(),
@@ -1264,7 +860,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                 auto layout = instance.get_output_layout(idx);
                 auto shape = layout.get_shape();
                 auto width = shape[-1] * element_size;
-                auto stride = shape[-1] * element_size; // Need no pad?
+                auto stride = shape[-1] * element_size;  // Need no pad?
                 auto height = ov::shape_size(shape) / shape[-1];
                 if (0) {
                     std::lock_guard<std::mutex> lock(debug_mutex);
@@ -1291,7 +887,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                 std::lock_guard<std::mutex> lock(debug_mutex);
                 concat->print(src_mem, dst_mem);
             }
-            sync_events = concat->concat(stream, p2p_events, src_mem, dst_mem);
+            sync_events = concat->concat(stream, src_mem, dst_mem);
             if (0) {
                 std::lock_guard<std::mutex> lock(debug_mutex);
                 std::cout << "tensor_sync concat: rank[" << w_rank << "] done" << std::endl;
@@ -1312,66 +908,6 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                             dst_mem->width / element_size * dst_mem->height,
                             0);
             }
-
-            if (0) {  // validate concat result
-                std::lock_guard<std::mutex> lock(debug_mutex);
-                std::vector<char*> src_ptrs;
-                for (size_t i = 0; i < src_mem.size(); i++) {
-                    src_ptrs.emplace_back(read_cl_buf(ocl_stream.get_cl_queue().get(),
-                                                      src_mem[i]->buf,
-                                                      src_mem[i]->width * src_mem[i]->height,
-                                                      0));
-                }
-                auto dst_ptr =
-                    read_cl_buf(ocl_stream.get_cl_queue().get(), dst_mem->buf, dst_mem->width * dst_mem->height, 0);
-
-                size_t height = dst_mem->height;
-                size_t width_src = src_mem[0]->width;
-                size_t width_dst = dst_mem->width;
-
-                size_t total = 0;
-                size_t base_offset = 0;
-                auto layout = instance.get_output_layout(0);
-                static bool dump = false;
-                for (auto src_ptr : src_ptrs) {
-                    for (size_t j = 0; j < height; j++) {
-                        size_t dst_offset = base_offset + j * width_dst;
-                        size_t src_offset = j * width_src;
-                        char* src_value = static_cast<char*>(src_ptr) + src_offset;
-                        char* dst_value = static_cast<char*>(dst_ptr) + dst_offset;
-                        for (size_t i = 0; i < width_src; i++) {
-                            if (src_value[i] != dst_value[i]) {
-                                total++;
-                                if (dump) {
-                                    std::cout << "src[" << j << "][" << i << "] = " << static_cast<int>(src_value[i])
-                                              << ", dst[" << j << "][" << i + base_offset
-                                              << "] = " << static_cast<int>(dst_value[i]) << " - "
-                                              << layout.to_short_string() << std::endl;
-                                }
-                            } else {
-                                if (total > 0 && dump) {
-                                    std::cout << "-src[" << j << "][" << i << "] = " << static_cast<int>(src_value[i])
-                                              << ", dst[" << j << "][" << i + base_offset
-                                              << "] = " << static_cast<int>(dst_value[i]) << " - "
-                                              << layout.to_short_string() << std::endl;
-                                }
-                            }
-                        }
-                    }
-                    base_offset += width_src;
-                }
-
-                for (auto src_ptr : src_ptrs)
-                    delete src_ptr;
-                delete dst_ptr;
-
-                if (total > 0) {
-                    dump = false;
-                    std::cout << "tensor_sync concat: rank[" << w_rank << "] is incorrect: " << total << "/"
-                              << instance.output_memory(0).size() << ":" << layout.to_short_string() << std::endl;
-                    // exit(0);
-                }
-            }
         }
 
         if (pass_through_events) {
@@ -1381,9 +917,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                 return events[0];
             }
         }
-        perf_dump_done(start,
-                       std::string("rank[") + std::to_string(w_rank) + std::string("] sync_tensor total"),
-                       true);
+        perf_dump_done(start, std::string("rank[") + std::to_string(w_rank) + std::string("] sync_tensor total"), true);
 
         // for (auto& evt : sync_events) {
         //     evt->wait();
@@ -1394,12 +928,6 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
             std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
             sub_mem_mgr->_use_count[id]++;
         }
-
-        //while (true) {
-        //    std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
-        //    if (sub_mem_mgr->_use_count[id] == w_size)
-        //        break;
-        //}
 
         // return stream.create_user_event(true);
         return sync_events.size() > 0 ? stream.group_events(sync_events) : stream.create_user_event(true);

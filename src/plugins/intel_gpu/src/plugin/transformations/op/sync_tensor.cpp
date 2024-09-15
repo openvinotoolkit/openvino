@@ -45,9 +45,7 @@ void SyncTensor::validate_and_infer_types() {
             for (size_t i = 0; i < p_shapes.size(); i++)
                 set_output_type(i, m_output_type, p_shapes[i]);
         } else if (m_tp_mode == TP_MODE::ALL_GATHERH) {
-#if 1
-            set_output_size(m_world_size + 1); // last ouput as result
-#endif
+            set_output_size(m_world_size + 1); // first ouput as result
             auto split_parts = [](int len, int n) {
                 int average = len / n;
                 std::vector<int> parts(n, average);
@@ -56,11 +54,7 @@ void SyncTensor::validate_and_infer_types() {
             };
             auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
             auto input_pshape = get_input_source_output(0).get_partial_shape();
-#if 1
             std::vector<ov::PartialShape> p_shapes(m_world_size + 1, input_pshape);
-#else
-            std::vector<ov::PartialShape> p_shapes(m_world_size, input_pshape);
-#endif
             auto fc_out_dim_vec = split_parts(m_split_dimension, m_world_size);
             const int64_t axis = ov::util::normalize_axis(-1, input_pshape.size());
             const auto& dimension_at_axis = input_pshape[axis];
@@ -69,9 +63,7 @@ void SyncTensor::validate_and_infer_types() {
                 for (size_t i = 0; i < m_world_size; ++i) {
                     p_shapes[i+1][axis] = ov::Dimension(fc_out_dim_vec[i]);
                 }
-#if 1
                 p_shapes[0][axis] = ov::Dimension(m_split_dimension);
-#endif
             }
             for (size_t i = 0; i < p_shapes.size(); i++) {
                 //std::cout << "SyncTensor::validate_and_infer_types: shape[" << i << "] = " << p_shapes[i].to_string()
@@ -95,7 +87,6 @@ std::shared_ptr<Node> SyncTensor::clone_with_new_inputs(const ov::OutputVector& 
 
 std::vector<ov::PartialShape> shape_infer(const SyncTensor* op, std::vector<ov::PartialShape> input_shapes) {
     std::vector<ov::PartialShape> out_shapes;
-#if 1
     auto first_shape = input_shapes[0];
     for (size_t i = 0; i < op->get_output_size(); i++) {
         out_shapes.push_back(input_shapes[0]);
@@ -112,10 +103,6 @@ std::vector<ov::PartialShape> shape_infer(const SyncTensor* op, std::vector<ov::
     // for (size_t i = 0; i < out_shapes.size(); i++) {
     //     std::cout << "SyncTensor - shape_infer[" << i << "] = " << out_shapes[i].to_string() << std::endl;
     // }
-#else
-    for (size_t i = 0; i < op->get_output_size(); i++)
-        out_shapes.push_back(input_shapes[0]);
-#endif
     return out_shapes;
 }
     }  // namespace op

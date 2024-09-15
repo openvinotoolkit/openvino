@@ -187,35 +187,13 @@ RemainFCParallelFusion::RemainFCParallelFusion(size_t world_size, size_t world_r
                 std::shared_ptr<ov::intel_gpu::op::SyncTensor> sync_node;
                 sync_node = std::make_shared<ov::intel_gpu::op::SyncTensor>(node_to_operate, world_size, splitted_context.second,
                                                                            new_fc->get_element_type());
-                // std::cout << "node to operate: " << node_to_operate->get_friendly_name() << std::endl;
                 sync_node->set_friendly_name(new_fc->get_friendly_name()+ "_TP_remain");
-                // std::cout << "related syn tensor: " << sync_node->get_friendly_name() << std::endl;
-
-#if 1
                 // auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node->outputs(), -1);
                 // concat_node->set_friendly_name(new_fc->get_friendly_name()+ "_ALLGATHER");
                 copy_runtime_info(new_fc, sync_node);
                 for (auto& iter : org_users) {
-                    // std::cout << "RemainFCParallelFusion: rank[" << world_rank << "], world_size = " << world_size
-                    //           << std::endl;
                     iter.second->input(iter.first).replace_source_output(sync_node->output(0));
-                    // std::cout << "changing input shape of user:" << iter.second->get_friendly_name()
-                    //           << "to: " << sync_node->output(world_size).get_partial_shape().to_string() <<
-                    //           std::endl;
                 }
-                // ov::replace_node(node_to_operate, sync_node);
-#else
-                ov::OutputVector sync_node_output;
-                for (size_t i = 0; i < world_size; i++)
-                    sync_node_output.emplace_back(sync_node->output(i));
-                auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node_output, -1);
-                // auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node->outputs(), -1);
-                concat_node->set_friendly_name(new_fc->get_friendly_name() + "_ALLGATHER_concat");
-                copy_runtime_info(new_fc, concat_node);
-                for (auto& iter : org_users) {
-                    iter.second->input(iter.first).replace_source_output(concat_node->output(0));
-                }
-#endif
                 new_fc->clear_control_dependencies();
             }
         }
