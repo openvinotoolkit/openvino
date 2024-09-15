@@ -88,15 +88,15 @@ def create_paddle_hapi_module(tmp_dir):
 
 class TestMoConvertPaddle(CommonMOConvertTest):
     test_data = [
-        create_paddle_dynamic_module,
-        create_paddle_static_module,
-        create_paddle_hapi_module
+        'create_paddle_dynamic_module',
+        'create_paddle_static_module',
+        'create_paddle_hapi_module'
     ]
     @pytest.mark.skip(reason="Paddlepaddle has incompatible protobuf. Ticket: 95904")
     @pytest.mark.parametrize("create_model", test_data)
     def test_mo_import_from_memory_paddle_fe(self, create_model, ie_device, precision, ir_version,
                                              temp_dir):
-        fw_model, graph_ref, mo_params = create_model(temp_dir)
+        fw_model, graph_ref, mo_params = eval(create_model)(temp_dir)
         test_params = {'input_model': fw_model}
         if mo_params is not None:
             test_params.update(mo_params)

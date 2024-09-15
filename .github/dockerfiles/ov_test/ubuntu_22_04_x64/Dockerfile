@@ -1,4 +1,5 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
+ARG REGISTRY="docker.io"
+FROM ${REGISTRY}/library/ubuntu:22.04
 
 USER root
 
@@ -27,6 +28,8 @@ RUN apt-get update && \
         python3.11-venv \
         python3.11-distutils \
         libhdf5-dev \
+        # For TF Models tests
+        wget \
         && \
     rm -rf /var/lib/apt/lists/*
 

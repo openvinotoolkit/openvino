@@ -105,6 +105,28 @@ use ``pip install openvino-tokenizers[transformers]``.
     %pip install --pre -Uq openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install "numpy<2.0.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
 
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    openvino-dev 2024.3.0 requires openvino==2024.3.0, but you have openvino 2024.4.0.dev20240827 which is incompatible.
+    openvino-genai 2024.3.0.0 requires openvino_tokenizers~=2024.3.0.0.dev, but you have openvino-tokenizers 2024.4.0.0.dev20240827 which is incompatible.
+    Note: you may need to restart the kernel to use updated packages.
+    Looking in indexes: https://pypi.org/simple, https://download.pytorch.org/whl/cpu
+    Requirement already satisfied: numpy<2.0.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (1.23.5)
+    Requirement already satisfied: torch>=2.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2.2.2+cpu)
+    Requirement already satisfied: filelock in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.15.4)
+    Requirement already satisfied: typing-extensions>=4.8.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (4.12.2)
+    Requirement already satisfied: sympy in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (1.13.2)
+    Requirement already satisfied: networkx in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.1)
+    Requirement already satisfied: jinja2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.1.4)
+    Requirement already satisfied: fsspec in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (2024.6.1)
+    Requirement already satisfied: MarkupSafe>=2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from jinja2->torch>=2.1) (2.1.5)
+    Requirement already satisfied: mpmath<1.4,>=1.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from sympy->torch>=2.1) (1.3.0)
+    Note: you may need to restart the kernel to use updated packages.
+
+
 .. code:: ipython3
 
     from pathlib import Path
@@ -176,11 +198,11 @@ The other method is to pass HuggingFace ``hf_tokenizer`` object to
      ]
      outputs[
      <ConstOutput: names[input_ids] shape[?,?] type: i64>,
-     <ConstOutput: names[attention_mask] shape[?,?] type: i64>
+     <ConstOutput: names[attention_mask] shape[?,1..] type: i64>
      ]>,
      <Model: 'detokenizer'
      inputs[
-     <ConstOutput: names[Parameter_21] shape[?,?] type: i64>
+     <ConstOutput: names[Parameter_71] shape[?,?] type: i64>
      ]
      outputs[
      <ConstOutput: names[string_output] shape[?] type: string>
@@ -229,7 +251,7 @@ tasks, but not suitable for text generation.
 
     Token ids: [[   1 4321]
      [   1 6031]]
-    Detokenized text: ['<s> Test' '<s> strings']
+    Detokenized text: ['Test' 'strings']
 
 
 We can compare the result of converted (de)tokenizer with the original
@@ -251,10 +273,10 @@ one:
 
 .. parsed-literal::
 
-    2024-04-02 18:45:50.238827: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-02 18:45:50.275055: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-08-28 03:18:00.551123: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-28 03:18:00.585276: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-04-02 18:45:50.909410: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-08-28 03:18:01.080765: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -300,6 +322,19 @@ command is commented.
             filename="openvino_model.bin",
             local_dir=model_dir,
         )
+
+
+
+.. parsed-literal::
+
+    openvino_model.xml:   0%|          | 0.00/2.93M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    openvino_model.bin:   0%|          | 0.00/1.10G [00:00<?, ?B/s]
+
 
 .. code:: ipython3
 
@@ -428,6 +463,53 @@ models and tokenizers simplifies memory management.
         %pip install -qU git+https://github.com/huggingface/optimum-intel.git onnx
         !optimum-cli export openvino --model $model_id --task text-classification $model_dir
         !convert_tokenizer $model_id -o $model_dir
+
+
+.. parsed-literal::
+
+    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+    To disable this warning, you can either:
+    	- Avoid using `tokenizers` before the fork if possible
+    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+    To disable this warning, you can either:
+    	- Avoid using `tokenizers` before the fork if possible
+    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+
+
+.. parsed-literal::
+
+    2024-08-28 03:18:27.942514: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    Framework not specified. Using pt to export the model.
+    Using framework PyTorch: 2.2.2+cpu
+    Overriding 1 configuration item(s)
+    	- use_cache -> False
+    Detokenizer is not supported, convert tokenizer only.
+
+
+.. parsed-literal::
+
+    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+    To disable this warning, you can either:
+    	- Avoid using `tokenizers` before the fork if possible
+    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+
+
+.. parsed-literal::
+
+    Loading Huggingface Tokenizer...
+    Converting Huggingface Tokenizer to OpenVINO...
+    Saved OpenVINO Tokenizer: bert-tiny-finetuned-sms-spam-detection/openvino_tokenizer.xml, bert-tiny-finetuned-sms-spam-detection/openvino_tokenizer.bin
+
 
 .. code:: ipython3
 
