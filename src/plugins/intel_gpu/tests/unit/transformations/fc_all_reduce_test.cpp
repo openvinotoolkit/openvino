@@ -178,3 +178,54 @@ TEST(TransformationTestsF1, FullyConnectedSplitInput16) {
         std::cout << std::endl;
     }
 }
+
+TEST(TransformationTestsF1, FullyConnectedSplitInput1024) {
+    {
+        // -------- Construct model
+        unsigned long m = 1024, k = 2048, n = 13696;
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{m, n});
+        std::vector<float> input_data(m * k, 1);
+        std::vector<float> weights(k * n, 2);
+        std::vector<float> result(m * n, 2);
+
+        auto input2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{k, n}, weights.data());
+
+        std::cout << "input_shape: " << m << " * " << k << std::endl;
+        std::cout << "weight_shape: " << k << " * " << n << std::endl;
+        std::cout << "output_shape: " << m << " * " << n << std::endl;
+
+        std::cout << std::endl;
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input1, input2, no_bias, ov::element::f32);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(fc);
+        auto model = std::make_shared<ov::Model>(ov::NodeVector{relu}, ov::ParameterVector{input1});
+
+        // ov::serialize(model, "./model_fc.xml", "./model_fc.bin");
+
+        // -------- Loading a model to the device --------
+        ov::Core core;
+        ov::CompiledModel compiled_model = core.compile_model(model, "GPU");
+
+        // -------- Create an infer request --------
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
+
+        // -------- Prepare input --------
+        auto tensor = ov::Tensor(infer_request.get_input_tensor().get_element_type(),
+                                 infer_request.get_input_tensor().get_shape(),
+                                 input_data.data());
+
+        infer_request.set_input_tensor(tensor);
+
+        // -------- Do inference synchronously --------
+        infer_request.infer();
+        for (int iter = 0; iter < 100; iter++) {
+            infer_request.infer();
+        }
+
+        // -------- Process output
+        auto output_tensor = infer_request.get_output_tensor();
+        std::cout << "\n"
+                  << "output_tensor: " << output_tensor.get_shape() << std::endl;
+        std::cout << std::endl;
+    }
+}

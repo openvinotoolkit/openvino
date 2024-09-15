@@ -144,7 +144,7 @@ RemainFCParallelFusion::RemainFCParallelFusion(size_t world_size, size_t world_r
                     return false;
                 }
             }
-#if 1
+#if 0
             // some accuracy lost, disable for now
             if (m_fc->get_friendly_name().find("mlp.down_proj") != std::string::npos)
                 return false;
