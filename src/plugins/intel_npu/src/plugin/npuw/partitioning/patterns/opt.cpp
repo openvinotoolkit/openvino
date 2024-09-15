@@ -7,6 +7,7 @@
 #include "../../logging.hpp"
 #include "../../util.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -142,6 +143,84 @@ DQMatMulCWi::DQMatMulCWi() {
     };
     register_matcher(std::make_shared<opp::Matcher>(qmm, "OptDQMatMulCWi"), std::move(callback));
 }
+
+// FROM:
+//     Param(W) -> to(f16) ->
+//     Param(Z) -> to(f16) -> Subtract
+//     Param(S) ---------------------> Multiply -> to(f32) -> MatMul
+//     ???(Act) -------------------------------------------->
+//
+// TO:
+//     Param(W) -> to(f16) ->
+//     ???(Act) -> to(f16) -> MatMul
+//           :                     :
+//           '-------------->      '--.
+//     Param(Z) -> to(f16) -> MatMul -> Subtract ->
+//     Param(S) ----------------------------------> Multiply -> to(f32)
+
+DQMatMulCWu::DQMatMulCWu() {
+    auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qzerop = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
+    auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
+    auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
+    auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
+    auto qmmi = opp::any_input();
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtm});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
+        auto matched_node_qzerop = node_to_output.at(qzerop).get_node_shared_ptr();
+        auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
+        auto matched_node_cvtz = node_to_output.at(qcvtz).get_node_shared_ptr();
+        auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
+        auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
+        auto matched_mmi = node_to_output.at(qmmi);
+
+        auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
+        auto matched_qzerop = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qzerop);
+        auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
+        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
+
+        auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
+        auto qzerop_shape = matched_qzerop->output(0).get_shape();
+        auto act_shape = matched_mmi.get_shape();
+
+        if (ov::element::u8 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
+            !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+            auto new_cvt_a = std::make_shared<ov::op::v0::Convert>(matched_mmi, ov::element::f16);
+            auto new_mm_w = std::make_shared<ov::op::v0::MatMul>(new_cvt_a, matched_node_cvtw, false, true);
+
+            const std::vector<std::size_t> bcast_v = {qzerop_shape[0], act_shape[2]};
+            auto new_bcast_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, bcast_v);
+            auto new_bcast_z = std::make_shared<ov::op::v1::Broadcast>(matched_node_cvtz, new_bcast_c);
+            auto new_mm_z = std::make_shared<ov::op::v0::MatMul>(new_cvt_a, new_bcast_z, false, true);
+
+            auto new_dims = std::vector<std::size_t>{qcoeff_shape[1], qcoeff_shape[0]};
+            auto new_rhsp_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, new_dims);
+            auto new_rshp = std::make_shared<ov::op::v1::Reshape>(matched_node_qcoeff, new_rhsp_c, false);
+
+            auto new_mw = std::make_shared<ov::op::v1::Multiply>(new_mm_w, new_rshp);
+            auto new_mz = std::make_shared<ov::op::v1::Multiply>(new_mm_z, new_rshp);
+            auto new_sub = std::make_shared<ov::op::v1::Subtract>(new_mw, new_mz);
+            auto new_out = std::make_shared<ov::op::v0::Convert>(new_sub, ov::element::f32);
+
+            // Reconnect MatMul's old readers to Convert(Multiply)
+            for (auto&& r : matched_matmul->output(0).get_target_inputs()) {
+                r.replace_source_output(new_out);
+            }
+            return true; // Root has changed
+        }
+        return false;  // root has changed (yet)
+    };
+    register_matcher(std::make_shared<opp::Matcher>(qmm, "OptDQMatMulCWu"), std::move(callback));
+}
+
 
 // FROM:
 //     ???(Act) -------------------------------------------->

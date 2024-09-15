@@ -51,6 +51,11 @@ struct Context {
     using Ref = std::reference_wrapper<Context>;
 };
 
+class DQMatMulCWu : public ov::pass::MatcherPass {
+public:
+    DQMatMulCWu();
+};
+
 class DQMatMulGQi : public ov::pass::MatcherPass {
 public:
     explicit DQMatMulGQi(Context::Ref ctx);
