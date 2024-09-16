@@ -32,36 +32,10 @@ Shape out_shape_infer(const Shape& data_shape, const Shape& indices_shape, int64
 bool cf_gather_with_subgraph(OutputVector& output_values,
                              const OutputVector& input_values,
                              const PartialShape& gather_ps) {
-    if (gather_ps.is_dynamic() || input_values.size() != 3) {
-        return false;
-    }
-
     const auto concat = std::dynamic_pointer_cast<v0::Concat>(input_values[0].get_node_shared_ptr());
     const auto indices = std::dynamic_pointer_cast<v0::Constant>(input_values[1].get_node_shared_ptr());
-    const auto axis = std::dynamic_pointer_cast<v0::Constant>(input_values[2].get_node_shared_ptr());
-
-    if (!concat || !indices || !axis) {
-        return false;
-    }
-
-    // only along axis=0
-    if (axis->cast_vector<int64_t>()[0] != 0 || concat->get_axis() != 0) {
-        return false;
-    }
-    // only single indices are accepted
     const auto& indices_shape = indices->get_shape();
-    if (indices_shape.size() > 1 || (indices_shape.size() == 1 && indices_shape[0] > 1)) {
-        return false;
-    }
-    // concat inputs are 1D and their count is equal to Concat output shape
-    if (concat->get_output_partial_shape(0).is_dynamic()) {
-        return false;
-    }
     const auto concat_inputs = concat->inputs();
-    // concat inputs must be single elements
-    if (concat_inputs.size() != shape_size(concat->get_shape())) {
-        return false;
-    }
 
     const int64_t rank = concat->get_shape()[0];
     const auto raw_index = indices->cast_vector<int64_t>()[0];
@@ -262,13 +236,49 @@ bool GatherBase::evaluate_symbol(TensorSymbolVector& output_symbols) const {
     return gather::have_indices_and_axis_bound_set(this) && ov::util::default_symbol_evaluator(this, output_symbols);
 }
 
+bool GatherBase::can_constant_fold(const OutputVector& input_values) {
+    if (input_values[0].get_partial_shape().is_dynamic() || input_values.size() != 3) {
+        return false;
+    }
+
+    const auto concat = std::dynamic_pointer_cast<v0::Concat>(input_values[0].get_node_shared_ptr());
+    const auto indices = std::dynamic_pointer_cast<v0::Constant>(input_values[1].get_node_shared_ptr());
+    const auto axis = std::dynamic_pointer_cast<v0::Constant>(input_values[2].get_node_shared_ptr());
+
+    if (!concat || !indices || !axis) {
+        return false;
+    }
+
+    // only along axis=0
+    if (axis->cast_vector<int64_t>()[0] != 0 || concat->get_axis() != 0) {
+        return false;
+    }
+    // only single indices are accepted
+    const auto& indices_shape = indices->get_shape();
+    if (indices_shape.size() > 1 || (indices_shape.size() == 1 && indices_shape[0] > 1)) {
+        return false;
+    }
+    // concat inputs are 1D and their count is equal to Concat output shape
+    if (concat->get_output_partial_shape(0).is_dynamic()) {
+        return false;
+    }
+    const auto concat_inputs = concat->inputs();
+    // concat inputs must be single elements
+    if (concat_inputs.size() != shape_size(concat->get_shape())) {
+        return false;
+    }
+    return true;
+}
+
 bool GatherBase::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     // try the regular constant folding just for the Gather node
     if (Node::constant_fold(output_values, input_values)) {
         return true;
-    } else {
-        return gather::cf_gather_with_subgraph(output_values, input_values, get_output_partial_shape(0));
     }
+    if (!can_constant_fold(input_values)) {
+        return false;
+    }
+    return gather::cf_gather_with_subgraph(output_values, input_values, get_output_partial_shape(0));
 }
 }  // namespace util
 }  // namespace op
