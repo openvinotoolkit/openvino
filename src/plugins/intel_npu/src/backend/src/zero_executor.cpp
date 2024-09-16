@@ -31,24 +31,12 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
       _networkDesc(networkDescription),
       _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
       _group_ordinal(group_ordinal),
-      _command_queues{{std::make_shared<CommandQueue>(_initStructs->getDevice(),
-                                                      _initStructs->getContext(),
-                                                      zeroUtils::toZeQueuePriority(_config.get<MODEL_PRIORITY>()),
-                                                      _initStructs->getCommandQueueDdiTable(),
-                                                      _config,
-                                                      group_ordinal),
-                       std::make_shared<CommandQueue>(_initStructs->getDevice(),
-                                                      _initStructs->getContext(),
-                                                      zeroUtils::toZeQueuePriority(_config.get<MODEL_PRIORITY>()),
-                                                      _initStructs->getCommandQueueDdiTable(),
-                                                      _config,
-                                                      group_ordinal),
-                       std::make_shared<CommandQueue>(_initStructs->getDevice(),
-                                                      _initStructs->getContext(),
-                                                      zeroUtils::toZeQueuePriority(_config.get<MODEL_PRIORITY>()),
-                                                      _initStructs->getCommandQueueDdiTable(),
-                                                      _config,
-                                                      group_ordinal)}} {
+      _command_queues{std::make_shared<CommandQueue>(_initStructs->getDevice(),
+                                                     _initStructs->getContext(),
+                                                     zeroUtils::toZeQueuePriority(_config.get<MODEL_PRIORITY>()),
+                                                     _initStructs->getCommandQueueDdiTable(),
+                                                     _config,
+                                                     group_ordinal)} {
     _logger.debug("ZeroExecutor::ZeroExecutor init start - create graph_command_list");
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::ZeroExecutor");
     CommandList graph_command_list(_initStructs->getDevice(),
@@ -69,19 +57,29 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
     _logger.debug("ZeroExecutor::ZeroExecutor - create graph");
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_GRAPH, itt::domains::LevelZeroBackend, "Executor::ZeroExecutor", "graphCreate");
 
-    ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                         nullptr,
-                         ZE_GRAPH_FORMAT_NATIVE,
-                         _networkDesc->compiledNetwork.size(),
-                         _networkDesc->compiledNetwork.data(),
-                         nullptr};
-    zeroUtils::throwOnFail(
-        "pfnCreate",
-        _graph_ddi_table_ext->pfnCreate(_initStructs->getContext(), _initStructs->getDevice(), &desc, &_graph));
+    // _graph is a nullptr for CIP path, a new handle will be obtained from the driver based on the given
+    // compiledNetwork _graph gets (reuses) graphHandle from the compiler for CID path
+    if (_networkDesc->metadata.graphHandle == nullptr) {
+        _logger.debug("create graph handle on executor");
+        ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+                             nullptr,
+                             ZE_GRAPH_FORMAT_NATIVE,
+                             _networkDesc->compiledNetwork.size(),
+                             _networkDesc->compiledNetwork.data(),
+                             nullptr};
+
+        zeroUtils::throwOnFail(
+            "pfnCreate",
+            _graph_ddi_table_ext->pfnCreate(_initStructs->getContext(), _initStructs->getDevice(), &desc, &_graph));
+
+    } else {
+        _logger.debug("reuse graph handle created from compiler");
+        _graph = static_cast<ze_graph_handle_t>(_networkDesc->metadata.graphHandle);
+    }
 
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetProperties");
+    _logger.debug("performing pfnGetProperties");
     zeroUtils::throwOnFail("pfnGetProperties", _graph_ddi_table_ext->pfnGetProperties(_graph, &_props));
-
     auto targetDriverExtVersion = _initStructs->getDriverExtVersion();
     if (targetDriverExtVersion <= ZE_GRAPH_EXT_VERSION_1_1) {
         OPENVINO_THROW("Incompatibility between the NPU plugin and driver! The driver version is too old, please "
@@ -89,7 +87,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
     }
 
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetArgumentProperties3");
-    _logger.debug("ZeroExecutor::ZeroExecutor - performing pfnGetArgumentProperties3");
+    _logger.debug("performing pfnGetArgumentProperties3");
     for (uint32_t index = 0; index < _props.numGraphArgs; ++index) {
         ze_graph_argument_properties_3_t arg3;
         zeroUtils::throwOnFail("pfnGetArgumentProperties3",
@@ -133,9 +131,7 @@ void ZeroExecutor::setWorkloadType(const ov::WorkloadType workloadType) const {
         OPENVINO_THROW("Unknown value for WorkloadType!");
     }
 
-    for (auto& queue : _command_queues) {
-        queue->setWorkloadType(zeWorkloadType);
-    }
+    _command_queues->setWorkloadType(zeWorkloadType);
 }
 
 void ZeroExecutor::setArgumentValue(uint32_t argi_, const void* argv_) const {
@@ -151,6 +147,7 @@ void ZeroExecutor::mutexUnlock() const {
 }
 
 ZeroExecutor::~ZeroExecutor() {
+    _logger.debug("~ZeroExecutor() - pfnDestroy _graph ");
     auto result = _graph_ddi_table_ext->pfnDestroy(_graph);
     if (ZE_RESULT_SUCCESS != result) {
         _logger.error("_graph_ddi_table_ext->pfnDestroy failed %#X", uint64_t(result));

@@ -61,9 +61,9 @@ Prerequisites
 .. code:: ipython3
 
     import platform
-
+    
     %pip install -q "torch>=2.1" transformers accelerate diffusers "openvino>=2023.3.0" "gradio>=4.19" opencv-python "peft==0.6.2" "protobuf>=3.20" --extra-index-url https://download.pytorch.org/whl/cpu
-
+    
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -73,10 +73,10 @@ Prerequisites
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    botocore 1.34.131 requires urllib3<1.27,>=1.25.4; python_version < "3.10", but you have urllib3 2.2.2 which is incompatible.
-    tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 5.27.3 which is incompatible.
-    tf2onnx 1.16.1 requires protobuf~=3.20, but you have protobuf 5.27.3 which is incompatible.
-    wandb 0.15.4 requires protobuf!=4.21.0,<5,>=3.12.0; python_version < "3.9" and sys_platform == "linux", but you have protobuf 5.27.3 which is incompatible.
+    botocore 1.34.162 requires urllib3<1.27,>=1.25.4; python_version < "3.10", but you have urllib3 2.2.2 which is incompatible.
+    tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 5.27.4 which is incompatible.
+    tf2onnx 1.16.1 requires protobuf~=3.20, but you have protobuf 5.27.4 which is incompatible.
+    wandb 0.15.4 requires protobuf!=4.21.0,<5,>=3.12.0; python_version < "3.9" and sys_platform == "linux", but you have protobuf 5.27.4 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -125,14 +125,14 @@ Additionally, LCM requires using LCMScheduler for efficient generation.
     from transformers import CLIPVisionModelWithProjection
     from diffusers.utils import load_image
     from diffusers import LCMScheduler
-
-
+    
+    
     stable_diffusion_id = "runwayml/stable-diffusion-v1-5"
     ip_adapter_id = "h94/IP-Adapter"
     ip_adapter_weight_name = "ip-adapter_sd15.bin"
     lcm_lora_id = "latent-consistency/lcm-lora-sdv1-5"
     models_dir = Path("model")
-
+    
     load_original_pipeline = not all(
         [
             (models_dir / model_name).exists()
@@ -145,8 +145,8 @@ Additionally, LCM requires using LCMScheduler for efficient generation.
             ]
         ]
     )
-
-
+    
+    
     def get_pipeline_components(
         stable_diffusion_id,
         ip_adapter_id,
@@ -170,8 +170,8 @@ Additionally, LCM requires using LCMScheduler for efficient generation.
             pipeline.unet,
             pipeline.vae,
         )
-
-
+    
+    
     if load_original_pipeline:
         (
             tokenizer,
@@ -197,16 +197,11 @@ Additionally, LCM requires using LCMScheduler for efficient generation.
 
 .. parsed-literal::
 
-    2024-08-07 04:08:11.861379: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-08-07 04:08:11.894726: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+    2024-08-28 05:57:10.757745: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-28 05:57:10.792241: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-08-07 04:08:12.489851: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/vq_model.py:20: FutureWarning: `VQEncoderOutput` is deprecated and will be removed in version 0.31. Importing `VQEncoderOutput` from `diffusers.models.vq_model` is deprecated and this will be removed in a future version. Please use `from diffusers.models.autoencoders.vq_model import VQEncoderOutput`, instead.
-      deprecate("VQEncoderOutput", "0.31", deprecation_message)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/vq_model.py:25: FutureWarning: `VQModel` is deprecated and will be removed in version 0.31. Importing `VQModel` from `diffusers.models.vq_model` is deprecated and this will be removed in a future version. Please use `from diffusers.models.autoencoders.vq_model import VQModel`, instead.
-      deprecate("VQModel", "0.31", deprecation_message)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1150: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-      warnings.warn(
+    2024-08-28 05:57:11.340886: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -254,8 +249,8 @@ extractor as input and returns image embeddings.
     import openvino as ov
     import torch
     import gc
-
-
+    
+    
     def cleanup_torchscript_cache():
         """
         Helper for removing cached model representation
@@ -263,10 +258,10 @@ extractor as input and returns image embeddings.
         torch._C._jit_clear_class_registry()
         torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
         torch.jit._state._clear_class_state()
-
-
+    
+    
     IMAGE_ENCODER_PATH = models_dir / "image_encoder.xml"
-
+    
     if not IMAGE_ENCODER_PATH.exists():
         with torch.no_grad():
             ov_model = ov.convert_model(
@@ -278,10 +273,10 @@ extractor as input and returns image embeddings.
         feature_extractor.save_pretrained(models_dir / "feature_extractor")
         del ov_model
         cleanup_torchscript_cache()
-
+    
     del image_encoder
     del feature_extractor
-
+    
     gc.collect();
 
 
@@ -293,12 +288,8 @@ extractor as input and returns image embeddings.
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4371: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4664: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:279: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:319: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
 
 
 U-net
@@ -331,8 +322,8 @@ Model predicts the ``sample`` state for the next step.
 .. code:: ipython3
 
     UNET_PATH = models_dir / "unet.xml"
-
-
+    
+    
     if not UNET_PATH.exists():
         inputs = {
             "sample": torch.randn((2, 4, 64, 64)),
@@ -340,7 +331,7 @@ Model predicts the ``sample`` state for the next step.
             "encoder_hidden_states": torch.randn((2, 77, 768)),
             "added_cond_kwargs": {"image_embeds": torch.ones((2, 1024))},
         }
-
+    
         with torch.no_grad():
             ov_model = ov.convert_model(unet, example_input=inputs)
         # dictionary with added_cond_kwargs will be decomposed during conversion
@@ -351,25 +342,25 @@ Model predicts the ``sample`` state for the next step.
         ov.save_model(ov_model, UNET_PATH)
         del ov_model
         cleanup_torchscript_cache()
-
+    
     del unet
-
+    
     gc.collect();
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unets/unet_2d_condition.py:1103: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unets/unet_2d_condition.py:1110: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if dim % default_overall_up_factor != 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/embeddings.py:1257: FutureWarning: You have passed a tensor as `image_embeds`.This is deprecated and will be removed in a future release. Please make sure to update your script to pass `image_embeds` as a list of tensors to supress this warning.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/embeddings.py:1624: FutureWarning: You have passed a tensor as `image_embeds`.This is deprecated and will be removed in a future release. Please make sure to update your script to pass `image_embeds` as a list of tensors to suppress this warning.
       deprecate("image_embeds not a list", "1.0.0", deprecation_message, standard_warn=False)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:136: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:136: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:145: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:145: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:146: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:146: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if hidden_states.shape[0] >= 64:
 
 
@@ -403,17 +394,17 @@ image in pipeline, we can discuss it in inference examples.
 
     VAE_DECODER_PATH = models_dir / "vae_decoder.xml"
     VAE_ENCODER_PATH = models_dir / "vae_encoder.xml"
-
+    
     if not VAE_DECODER_PATH.exists():
-
+    
         class VAEDecoderWrapper(torch.nn.Module):
             def __init__(self, vae):
                 super().__init__()
                 self.vae = vae
-
+    
             def forward(self, latents):
                 return self.vae.decode(latents)
-
+    
         vae_decoder = VAEDecoderWrapper(vae)
         with torch.no_grad():
             ov_model = ov.convert_model(vae_decoder, example_input=torch.ones([1, 4, 64, 64]))
@@ -421,17 +412,17 @@ image in pipeline, we can discuss it in inference examples.
         del ov_model
         cleanup_torchscript_cache()
         del vae_decoder
-
+    
     if not VAE_ENCODER_PATH.exists():
-
+    
         class VAEEncoderWrapper(torch.nn.Module):
             def __init__(self, vae):
                 super().__init__()
                 self.vae = vae
-
+    
             def forward(self, image):
                 return self.vae.encode(x=image)["latent_dist"].sample()
-
+    
         vae_encoder = VAEEncoderWrapper(vae)
         vae_encoder.eval()
         image = torch.zeros((1, 3, 512, 512))
@@ -440,23 +431,23 @@ image in pipeline, we can discuss it in inference examples.
         ov.save_model(ov_model, VAE_ENCODER_PATH)
         del ov_model
         cleanup_torchscript_cache()
-
+    
     del vae
     gc.collect();
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1303: TracerWarning: Trace had nondeterministic nodes. Did you forget call .eval() on your model? Nodes:
-    	%2494 : Float(1, 4, 64, 64, strides=[16384, 4096, 64, 1], requires_grad=0, device=cpu) = aten::randn(%2488, %2489, %2490, %2491, %2492, %2493) # /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/torch_utils.py:81:0
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1303: TracerWarning: Trace had nondeterministic nodes. Did you forget call .eval() on your model? Nodes:
+    	%2494 : Float(1, 4, 64, 64, strides=[16384, 4096, 64, 1], requires_grad=0, device=cpu) = aten::randn(%2488, %2489, %2490, %2491, %2492, %2493) # /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/torch_utils.py:81:0
     This may cause errors in trace checking. To disable trace checking, pass check_trace=False to torch.jit.trace()
       _check_trace(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1303: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1303: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
     Tensor-likes are not close!
-
-    Mismatched elements: 10343 / 16384 (63.1%)
-    Greatest absolute difference: 0.001569986343383789 at index (0, 2, 0, 42) (up to 1e-05 allowed)
-    Greatest relative difference: 0.0035231296070578674 at index (0, 3, 63, 59) (up to 1e-05 allowed)
+    
+    Mismatched elements: 10253 / 16384 (62.6%)
+    Greatest absolute difference: 0.0016326904296875 at index (0, 1, 63, 63) (up to 1e-05 allowed)
+    Greatest relative difference: 0.009607371181261107 at index (0, 3, 63, 59) (up to 1e-05 allowed)
       _check_trace(
 
 
@@ -481,7 +472,7 @@ hidden states.
 .. code:: ipython3
 
     TEXT_ENCODER_PATH = models_dir / "text_encoder.xml"
-
+    
     if not TEXT_ENCODER_PATH.exists():
         with torch.no_grad():
             ov_model = ov.convert_model(
@@ -495,19 +486,17 @@ hidden states.
         del ov_model
         cleanup_torchscript_cache()
         tokenizer.save_pretrained(models_dir / "tokenizer")
-
+    
     del text_encoder
     del tokenizer
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:86: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:86: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if input_shape[-1] > 1 or self.sliding_window is not None:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if past_key_values_length > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:287: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if causal_attention_mask.size() != (bsz, 1, tgt_len, src_len):
 
 
 Prepare OpenVINO inference pipeline
@@ -542,24 +531,24 @@ encoder (VAE).
     import inspect
     from typing import List, Optional, Union, Dict, Tuple
     import numpy as np
-
+    
     import PIL
     import cv2
     import torch
-
+    
     from transformers import CLIPTokenizer, CLIPImageProcessor
     from diffusers import DiffusionPipeline
     from diffusers.pipelines.stable_diffusion.pipeline_output import (
         StableDiffusionPipelineOutput,
     )
     from diffusers.schedulers import DDIMScheduler, LMSDiscreteScheduler, PNDMScheduler
-
-
+    
+    
     def scale_fit_to_window(dst_width: int, dst_height: int, image_width: int, image_height: int):
         """
         Preprocessing helper function for calculating image size for resize with peserving original aspect ratio
         and fitting image to specific window size
-
+    
         Parameters:
           dst_width (int): destination window width
           dst_height (int): destination window height
@@ -571,8 +560,8 @@ encoder (VAE).
         """
         im_scale = min(dst_height / image_height, dst_width / image_width)
         return int(im_scale * image_width), int(im_scale * image_height)
-
-
+    
+    
     def randn_tensor(
         shape: Union[Tuple, List],
         generator: Optional[Union[List["torch.Generator"], "torch.Generator"]] = None,
@@ -580,32 +569,32 @@ encoder (VAE).
     ):
         """A helper function to create random tensors on the desired `device` with the desired `dtype`. When
         passing a list of generators, you can seed each batch size individually.
-
+    
         """
         batch_size = shape[0]
         rand_device = torch.device("cpu")
-
+    
         # make sure generator list of length 1 is treated like a non-list
         if isinstance(generator, list) and len(generator) == 1:
             generator = generator[0]
-
+    
         if isinstance(generator, list):
             shape = (1,) + shape[1:]
             latents = [torch.randn(shape, generator=generator[i], device=rand_device, dtype=dtype) for i in range(batch_size)]
             latents = torch.cat(latents, dim=0)
         else:
             latents = torch.randn(shape, generator=generator, device=rand_device, dtype=dtype)
-
+    
         return latents
-
-
+    
+    
     def preprocess(image: PIL.Image.Image, height, width):
         """
         Image preprocessing function. Takes image in PIL.Image format, resizes it to keep aspect ration and fits to model input window 512x512,
         then converts it to np.ndarray and adds padding with zeros on right or bottom side of image (depends from aspect ratio), after that
         converts data to float32 data type and change range of values from [0, 255] to [-1, 1], finally, converts data layout from planar NHWC to NCHW.
         The function returns preprocessed input tensor and padding size, which can be used in postprocessing.
-
+    
         Parameters:
           image (PIL.Image.Image): input image
         Returns:
@@ -623,8 +612,8 @@ encoder (VAE).
         image = 2.0 * image - 1.0
         image = image.transpose(0, 3, 1, 2)
         return image, {"padding": pad, "src_width": src_width, "src_height": src_height}
-
-
+    
+    
     class OVStableDiffusionPipeline(DiffusionPipeline):
         def __init__(
             self,
@@ -667,7 +656,7 @@ encoder (VAE).
             self.tokenizer = tokenizer
             self.vae_encoder = vae_encoder
             self.feature_extractor = feature_extractor
-
+    
         def __call__(
             self,
             prompt: Union[str, List[str]],
@@ -735,17 +724,17 @@ encoder (VAE).
             image_embeds, negative_image_embeds = self.encode_image(ip_adapter_image)
             if do_classifier_free_guidance:
                 image_embeds = np.concatenate([negative_image_embeds, image_embeds])
-
+    
             # set timesteps
             accepts_offset = "offset" in set(inspect.signature(self.scheduler.set_timesteps).parameters.keys())
             extra_set_kwargs = {}
             if accepts_offset:
                 extra_set_kwargs["offset"] = 1
-
+    
             self.scheduler.set_timesteps(num_inference_steps, **extra_set_kwargs)
             timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength)
             latent_timestep = timesteps[:1]
-
+    
             # get the initial random noise unless the user supplied it
             latents, meta = self.prepare_latents(
                 1,
@@ -757,7 +746,7 @@ encoder (VAE).
                 image=image,
                 latent_timestep=latent_timestep,
             )
-
+    
             # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
             # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
             # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
@@ -766,19 +755,19 @@ encoder (VAE).
             extra_step_kwargs = {}
             if accepts_eta:
                 extra_step_kwargs["eta"] = eta
-
+    
             for i, t in enumerate(self.progress_bar(timesteps)):
                 # expand the latents if you are doing classifier free guidance
                 latent_model_input = np.concatenate([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
-
+    
                 # predict the noise residual
                 noise_pred = self.unet([latent_model_input, t, text_embeddings, image_embeds])[0]
                 # perform guidance
                 if do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred[0], noise_pred[1]
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
-
+    
                 # compute the previous noisy sample x_t -> x_t-1
                 latents = self.scheduler.step(
                     torch.from_numpy(noise_pred),
@@ -786,13 +775,13 @@ encoder (VAE).
                     torch.from_numpy(latents),
                     **extra_step_kwargs,
                 )["prev_sample"].numpy()
-
+    
             # scale and decode the image latents with vae
             image = self.vae_decoder(latents * (1 / 0.18215))[0]
-
+    
             image = self.postprocess_image(image, meta, output_type)
             return StableDiffusionPipelineOutput(images=image, nsfw_content_detected=False)
-
+    
         def _encode_prompt(
             self,
             prompt: Union[str, List[str]],
@@ -802,7 +791,7 @@ encoder (VAE).
         ):
             """
             Encodes the prompt into text encoder hidden states.
-
+    
             Parameters:
                 prompt (str or list(str)): prompt to be encoded
                 num_images_per_prompt (int): number of images that should be generated per prompt
@@ -812,7 +801,7 @@ encoder (VAE).
                 text_embeddings (np.ndarray): text encoder hidden states
             """
             batch_size = len(prompt) if isinstance(prompt, list) else 1
-
+    
             # tokenize input prompts
             text_inputs = self.tokenizer(
                 prompt,
@@ -822,15 +811,15 @@ encoder (VAE).
                 return_tensors="np",
             )
             text_input_ids = text_inputs.input_ids
-
+    
             text_embeddings = self.text_encoder(text_input_ids)[0]
-
+    
             # duplicate text embeddings for each generation per prompt
             if num_images_per_prompt != 1:
                 bs_embed, seq_len, _ = text_embeddings.shape
                 text_embeddings = np.tile(text_embeddings, (1, num_images_per_prompt, 1))
                 text_embeddings = np.reshape(text_embeddings, (bs_embed * num_images_per_prompt, seq_len, -1))
-
+    
             # get unconditional embeddings for classifier free guidance
             if do_classifier_free_guidance:
                 uncond_tokens: List[str]
@@ -848,21 +837,21 @@ encoder (VAE).
                     truncation=True,
                     return_tensors="np",
                 )
-
+    
                 uncond_embeddings = self.text_encoder(uncond_input.input_ids)[0]
-
+    
                 # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
                 seq_len = uncond_embeddings.shape[1]
                 uncond_embeddings = np.tile(uncond_embeddings, (1, num_images_per_prompt, 1))
                 uncond_embeddings = np.reshape(uncond_embeddings, (batch_size * num_images_per_prompt, seq_len, -1))
-
+    
                 # For classifier-free guidance, we need to do two forward passes.
                 # Here we concatenate the unconditional and text embeddings into a single batch
                 # to avoid doing two forward passes
                 text_embeddings = np.concatenate([uncond_embeddings, text_embeddings])
-
+    
             return text_embeddings
-
+    
         def prepare_latents(
             self,
             batch_size,
@@ -886,10 +875,10 @@ encoder (VAE).
                     f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
                     f" size of {batch_size}. Make sure the batch size matches the length of the generators."
                 )
-
+    
             if latents is None:
                 latents = randn_tensor(shape, generator=generator, dtype=dtype)
-
+    
             if image is None:
                 # scale the initial noise by the standard deviation required by the scheduler
                 latents = latents * self.scheduler.init_noise_sigma
@@ -899,12 +888,12 @@ encoder (VAE).
             image_latents = image_latents * 0.18215
             latents = self.scheduler.add_noise(torch.from_numpy(image_latents), latents, latent_timestep).numpy()
             return latents, meta
-
+    
         def postprocess_image(self, image: np.ndarray, meta: Dict, output_type: str = "pil"):
             """
             Postprocessing for decoded image. Takes generated image decoded by VAE decoder, unpad it to initial image size (if required),
             normalize and convert to [0, 255] pixels range. Optionally, converts it from np.ndarray to PIL.Image format
-
+    
             Parameters:
                 image (np.ndarray):
                     Generated image
@@ -936,23 +925,23 @@ encoder (VAE).
                     orig_height, orig_width = meta["src_height"], meta["src_width"]
                     image = [cv2.resize(img, (orig_width, orig_width)) for img in image]
             return image
-
+    
         def encode_image(self, image, num_images_per_prompt=1):
             if not isinstance(image, torch.Tensor):
                 image = self.feature_extractor(image, return_tensors="pt").pixel_values
-
+    
             image_embeds = self.image_encoder(image)[0]
             if num_images_per_prompt > 1:
                 image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-
+    
             uncond_image_embeds = np.zeros(image_embeds.shape)
             return image_embeds, uncond_image_embeds
-
+    
         def get_timesteps(self, num_inference_steps: int, strength: float):
             """
             Helper function for getting scheduler timesteps for generation
             In case of image-to-image generation, it updates number of steps according to strength
-
+    
             Parameters:
                num_inference_steps (int):
                   number of inference steps for generation
@@ -962,10 +951,10 @@ encoder (VAE).
             """
             # get the original timestep using init_timestep
             init_timestep = min(int(num_inference_steps * strength), num_inference_steps)
-
+    
             t_start = max(num_inference_steps - init_timestep, 0)
             timesteps = self.scheduler.timesteps[t_start:]
-
+    
             return timesteps, num_inference_steps - t_start
 
 Run model inference
@@ -985,16 +974,16 @@ Select inference device from dropdown list.
 .. code:: ipython3
 
     core = ov.Core()
-
+    
     import ipywidgets as widgets
-
+    
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -1009,18 +998,18 @@ Select inference device from dropdown list.
 .. code:: ipython3
 
     from transformers import AutoTokenizer
-
+    
     ov_config = {"INFERENCE_PRECISION_HINT": "f32"} if device.value != "CPU" else {}
     vae_decoder = core.compile_model(VAE_DECODER_PATH, device.value, ov_config)
     vae_encoder = core.compile_model(VAE_ENCODER_PATH, device.value, ov_config)
     text_encoder = core.compile_model(TEXT_ENCODER_PATH, device.value)
     image_encoder = core.compile_model(IMAGE_ENCODER_PATH, device.value)
     unet = core.compile_model(UNET_PATH, device.value)
-
+    
     scheduler = LCMScheduler.from_pretrained(models_dir / "scheduler")
     tokenizer = AutoTokenizer.from_pretrained(models_dir / "tokenizer")
     feature_extractor = CLIPImageProcessor.from_pretrained(models_dir / "feature_extractor")
-
+    
     ov_pipe = OVStableDiffusionPipeline(
         vae_decoder,
         text_encoder,
@@ -1049,12 +1038,12 @@ can get variation of the same image.
 .. code:: ipython3
 
     import matplotlib.pyplot as plt
-
-
+    
+    
     def visualize_results(images, titles):
         """
         Helper function for results visualization
-
+    
         Parameters:
            orig_img (PIL.Image.Image): original image
            processed_img (PIL.Image.Image): processed image after editing
@@ -1091,9 +1080,9 @@ can get variation of the same image.
 .. code:: ipython3
 
     generator = torch.Generator(device="cpu").manual_seed(576)
-
+    
     image = load_image("https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/load_neg_embed.png")
-
+    
     result = ov_pipe(
         prompt="",
         ip_adapter_image=image,
@@ -1102,7 +1091,7 @@ can get variation of the same image.
         num_inference_steps=4,
         generator=generator,
     )
-
+    
     fig = visualize_results([image, result.images[0]], ["input image", "result"])
 
 
@@ -1129,7 +1118,7 @@ extension for each other, for example we can use a text prompt to add
 .. code:: ipython3
 
     generator = torch.Generator(device="cpu").manual_seed(576)
-
+    
     result = ov_pipe(
         prompt="best quality, high quality, wearing sunglasses",
         ip_adapter_image=image,
@@ -1167,7 +1156,7 @@ achieve image blending effect.
 
     image = load_image("https://huggingface.co/datasets/YiYiXu/testing-images/resolve/main/vermeer.jpg")
     ip_image = load_image("https://huggingface.co/datasets/YiYiXu/testing-images/resolve/main/river.png")
-
+    
     result = ov_pipe(
         prompt="best quality, high quality",
         image=image,
@@ -1203,144 +1192,17 @@ Now, you can try model using own images and text prompts.
 
 .. code:: ipython3
 
-    import gradio as gr
-
-
-    def generate_from_text(
-        positive_prompt,
-        negative_prompt,
-        ip_adapter_image,
-        seed,
-        num_steps,
-        guidance_scale,
-        _=gr.Progress(track_tqdm=True),
-    ):
-        generator = torch.Generator(device="cpu").manual_seed(seed)
-        result = ov_pipe(
-            positive_prompt,
-            ip_adapter_image=ip_adapter_image,
-            negative_prompt=negative_prompt,
-            guidance_scale=guidance_scale,
-            num_inference_steps=num_steps,
-            generator=generator,
-        )
-        return result.images[0]
-
-
-    def generate_from_image(
-        img,
-        ip_adapter_image,
-        positive_prompt,
-        negative_prompt,
-        seed,
-        num_steps,
-        guidance_scale,
-        strength,
-        _=gr.Progress(track_tqdm=True),
-    ):
-        generator = torch.Generator(device="cpu").manual_seed(seed)
-        result = ov_pipe(
-            positive_prompt,
-            image=img,
-            ip_adapter_image=ip_adapter_image,
-            negative_prompt=negative_prompt,
-            num_inference_steps=num_steps,
-            guidance_scale=guidance_scale,
-            strength=strength,
-            generator=generator,
-        )
-        return result.images[0]
-
-
-    with gr.Blocks() as demo:
-        with gr.Tab("Text-to-Image generation"):
-            with gr.Row():
-                with gr.Column():
-                    ip_adapter_input = gr.Image(label="IP-Adapter Image", type="pil")
-                    text_input = gr.Textbox(lines=3, label="Positive prompt")
-                    neg_text_input = gr.Textbox(lines=3, label="Negative prompt")
-                    with gr.Accordion("Advanced options", open=False):
-                        seed_input = gr.Slider(0, 10000000, value=42, label="Seed")
-                        steps_input = gr.Slider(1, 12, value=4, step=1, label="Steps")
-                        guidance_scale_input = gr.Slider(
-                            label="Guidance scale",
-                            minimum=0.1,
-                            maximum=2,
-                            step=0.1,
-                            value=0.5,
-                        )
-                out = gr.Image(label="Result", type="pil")
-            btn = gr.Button()
-            btn.click(
-                generate_from_text,
-                [
-                    text_input,
-                    neg_text_input,
-                    ip_adapter_input,
-                    seed_input,
-                    steps_input,
-                    guidance_scale_input,
-                ],
-                out,
-            )
-            gr.Examples(
-                [
-                    [
-                        "https://raw.githubusercontent.com/tencent-ailab/IP-Adapter/main/assets/images/woman.png",
-                        "best quality, high quality",
-                        "low resolution",
-                    ],
-                    [
-                        "https://raw.githubusercontent.com/tencent-ailab/IP-Adapter/main/assets/images/statue.png",
-                        "wearing a hat",
-                        "",
-                    ],
-                ],
-                [ip_adapter_input, text_input, neg_text_input],
-            )
-        with gr.Tab("Image-to-Image generation"):
-            with gr.Row():
-                with gr.Column():
-                    i2i_input = gr.Image(label="Image", type="pil")
-                    i2i_ip_adapter_input = gr.Image(label="IP-Adapter Image", type="pil")
-                    i2i_text_input = gr.Textbox(lines=3, label="Text")
-                    i2i_neg_text_input = gr.Textbox(lines=3, label="Negative prompt")
-                    with gr.Accordion("Advanced options", open=False):
-                        i2i_seed_input = gr.Slider(0, 10000000, value=42, label="Seed")
-                        i2i_steps_input = gr.Slider(1, 12, value=8, step=1, label="Steps")
-                        strength_input = gr.Slider(0, 1, value=0.7, label="Strength")
-                        i2i_guidance_scale = gr.Slider(
-                            label="Guidance scale",
-                            minimum=0.1,
-                            maximum=2,
-                            step=0.1,
-                            value=0.5,
-                        )
-                i2i_out = gr.Image(label="Result")
-            i2i_btn = gr.Button()
-            i2i_btn.click(
-                generate_from_image,
-                [
-                    i2i_input,
-                    i2i_ip_adapter_input,
-                    i2i_text_input,
-                    i2i_neg_text_input,
-                    i2i_seed_input,
-                    i2i_steps_input,
-                    i2i_guidance_scale,
-                    strength_input,
-                ],
-                i2i_out,
-            )
-            gr.Examples(
-                [
-                    [
-                        "https://raw.githubusercontent.com/tencent-ailab/IP-Adapter/main/assets/images/river.png",
-                        "https://raw.githubusercontent.com/tencent-ailab/IP-Adapter/main/assets/images/statue.png",
-                    ],
-                ],
-                [i2i_ip_adapter_input, i2i_input],
-            )
+    import requests
+    from pathlib import Path
+    
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-ip-adapter/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+    
+    from gradio_helper import make_demo
+    
+    demo = make_demo(ov_pipe)
+    
     try:
         demo.queue().launch(debug=False)
     except Exception:
@@ -1353,7 +1215,7 @@ Now, you can try model using own images and text prompts.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-
+    
     To create a public link, set `share=True` in `launch()`.
 
 

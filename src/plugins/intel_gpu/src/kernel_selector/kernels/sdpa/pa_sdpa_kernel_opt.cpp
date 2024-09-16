@@ -12,7 +12,9 @@ namespace kernel_selector {
 namespace {
 enum KernelsTypes {
     SINGLE_TOKEN = 0,
+    MULTI_TOKENS,
     FINALIZATION,
+    FINALIZATION_MULTI_TOKENS,
     TOTAL_KERNELS_NUM
 };
 
@@ -27,8 +29,12 @@ static std::string GetKernelName(std::string base_name, KernelsTypes type) {
 
     if (type == KernelsTypes::SINGLE_TOKEN) {
         kernel_name += "_single_token";
+    } else if (type == KernelsTypes::MULTI_TOKENS) {
+        kernel_name += "_multi_tokens_seq";
     } else if (type == KernelsTypes::FINALIZATION) {
         kernel_name += "_finalization";
+    } else if (type == KernelsTypes::FINALIZATION_MULTI_TOKENS) {
+        kernel_name += "_finalization_multi_tokens_seq";
     }
 
     return kernel_name;
@@ -41,7 +47,9 @@ KernelsData PagedAttentionSDPAKernelOpt::GetKernelsData(const Params& p) const {
 
     const auto& params = static_cast<const pa_sdpa_params&>(p);
     const std::vector<KernelsTypes> kernels_type = { KernelsTypes::SINGLE_TOKEN,
-                                                     KernelsTypes::FINALIZATION };
+                                                     KernelsTypes::MULTI_TOKENS,
+                                                     KernelsTypes::FINALIZATION,
+                                                     KernelsTypes::FINALIZATION_MULTI_TOKENS };
 
     KernelData kd = KernelData::Default<pa_sdpa_params>(params, kernels_type.size());
     kd.needs_sub_kernels_sync = true;
@@ -57,7 +65,18 @@ KernelsData PagedAttentionSDPAKernelOpt::GetKernelsData(const Params& p) const {
 
         const auto jit = CreateJit(kernel_name, jit_constants, entry_point);
 
-        const size_t inputs_num = kernel_type == KernelsTypes::SINGLE_TOKEN ? static_cast<int>(params.inputs.size()) : 1;
+        size_t inputs_num = static_cast<int>(params.inputs.size());
+        if (kernel_type == KernelsTypes::SINGLE_TOKEN) {
+            // SINGLE_TOKEN kernel doesn't use the subsequence_begins input
+            inputs_num -= 1;
+        } else if (kernel_type == KernelsTypes::FINALIZATION) {
+            // FINALIZATION kernel uses only the past_lens data input
+            inputs_num = 1;
+        } else if (kernel_type == KernelsTypes::FINALIZATION_MULTI_TOKENS) {
+            // FINALIZATION_MULTI_TOKENS kernel uses past_lens data input and subsequence_begins
+            inputs_num = 2;
+        }
+
         auto& kernel = kd.kernels[kd_kernels_idx++];
         FillCLKernelData(kernel,
                          dispatch_data,
@@ -76,9 +95,14 @@ KernelsData PagedAttentionSDPAKernelOpt::GetKernelsData(const Params& p) const {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
-        kd.internalBufferDataType = softmax_acc_dt;
 
-        if (kernel_type == KernelsTypes::FINALIZATION) {
+        if (kernel_type == KernelsTypes::MULTI_TOKENS || kernel_type == KernelsTypes::FINALIZATION_MULTI_TOKENS) {
+            // MULTIPLE_TOKENS kernels needs additional information related to mapping
+            // launched kernel instances to subsequence indexes
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});
+        }
+
+        if (kernel_type == KernelsTypes::FINALIZATION || kernel_type == KernelsTypes::FINALIZATION_MULTI_TOKENS) {
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
 
             // Remove unused shape_info argument at finalization stage
@@ -149,7 +173,7 @@ JitConstants PagedAttentionSDPAKernelOpt::GetJitConstants(const pa_sdpa_params& 
         jit.AddConstant(MakeJitConstant("BROADCAST_GROUP_SIZE", config.group_size));
     }
 
-    auto sdpa_stage = kernel_idx == KernelsTypes::FINALIZATION ? 1 : 0;
+    auto sdpa_stage = kernel_idx == KernelsTypes::FINALIZATION || kernel_idx == KernelsTypes::FINALIZATION_MULTI_TOKENS ? 1 : 0;
     jit.AddConstant(MakeJitConstant("SDPA_STAGE_" + std::to_string(sdpa_stage), 1));
 
     if (config.has_scale_val)
@@ -157,6 +181,9 @@ JitConstants PagedAttentionSDPAKernelOpt::GetJitConstants(const pa_sdpa_params& 
 
     if (params.conf.has_alibi_input)
         jit.AddConstant(MakeJitConstant("HAS_ALIBI", 1));
+
+    if (kernel_idx == KernelsTypes::MULTI_TOKENS || kernel_idx == KernelsTypes::FINALIZATION_MULTI_TOKENS)
+        jit.AddConstant(MakeJitConstant("MULTI_TOKENS_PROCESSING", 1));
 
     jit.Merge(MakeTypeJitConstants(softmax_acc_dt, "SOFTMAX_ACCUMULATOR"));
 
@@ -193,13 +220,17 @@ void PagedAttentionSDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) cons
     kd.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const pa_sdpa_params&>(params);
 
-        const size_t expected_kernels_num = 2;
+        const size_t expected_kernels_num = 4;
         OPENVINO_ASSERT(kd.kernels.size() == expected_kernels_num, "[GPU] Invalid kernels size for update dispatch data func of SDPA kernel");
 
         auto dispatch_data1 = SetDefault(prim_params, KernelsTypes::SINGLE_TOKEN);
         kd.kernels[KernelsTypes::SINGLE_TOKEN].params.workGroups.global = dispatch_data1.gws;
         kd.kernels[KernelsTypes::SINGLE_TOKEN].params.workGroups.local = dispatch_data1.lws;
-        kd.kernels[KernelsTypes::SINGLE_TOKEN].skip_execution = false;
+        kd.kernels[KernelsTypes::SINGLE_TOKEN].skip_execution = prim_params.multi_tokens_mode;
+
+        kd.kernels[KernelsTypes::MULTI_TOKENS].params.workGroups.global = dispatch_data1.gws;
+        kd.kernels[KernelsTypes::MULTI_TOKENS].params.workGroups.local = dispatch_data1.lws;
+        kd.kernels[KernelsTypes::MULTI_TOKENS].skip_execution = !prim_params.multi_tokens_mode;
 
         const auto& input = prim_params.inputs[0];
         const size_t sequences_number = input.Batch().v;
@@ -208,13 +239,19 @@ void PagedAttentionSDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) cons
         auto dispatch_data2 = SetDefault(prim_params, KernelsTypes::FINALIZATION);
         kd.kernels[KernelsTypes::FINALIZATION].params.workGroups.global = dispatch_data2.gws;
         kd.kernels[KernelsTypes::FINALIZATION].params.workGroups.local = dispatch_data2.lws;
-        kd.kernels[KernelsTypes::FINALIZATION].skip_execution = num_of_partitions == 1;
+        kd.kernels[KernelsTypes::FINALIZATION].skip_execution = num_of_partitions == 1 || prim_params.multi_tokens_mode;
+
+        kd.kernels[KernelsTypes::FINALIZATION_MULTI_TOKENS].params.workGroups.global = dispatch_data2.gws;
+        kd.kernels[KernelsTypes::FINALIZATION_MULTI_TOKENS].params.workGroups.local = dispatch_data2.lws;
+        kd.kernels[KernelsTypes::FINALIZATION_MULTI_TOKENS].skip_execution = num_of_partitions == 1 || !prim_params.multi_tokens_mode;
 
         ScalarDescriptor num_of_partitions_scalar;
         num_of_partitions_scalar.t = ScalarDescriptor::Types::UINT32;
         num_of_partitions_scalar.v.u32 = static_cast<uint32_t>(num_of_partitions);
         kd.kernels[KernelsTypes::FINALIZATION].params.scalars.resize(1);
         kd.kernels[KernelsTypes::FINALIZATION].params.scalars[0] = num_of_partitions_scalar;
+        kd.kernels[KernelsTypes::FINALIZATION_MULTI_TOKENS].params.scalars.resize(1);
+        kd.kernels[KernelsTypes::FINALIZATION_MULTI_TOKENS].params.scalars[0] = num_of_partitions_scalar;
 
         auto buf_dt_size = BytesPerElement(softmax_acc_dt);
         auto buf_elements_count = sequences_number * prim_params.conf.heads_num * num_of_partitions;
@@ -229,6 +266,13 @@ void PagedAttentionSDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) cons
         kd.internalBufferSizes.push_back(buf_size);
         kd.internalBufferSizes.push_back(tmp_out_size);
         kd.internalBufferDataType = softmax_acc_dt;
+
+        if (prim_params.multi_tokens_mode) {
+            auto buf_dt_size = BytesPerElement(Datatype::INT32);
+            auto buf_elements_count = sequences_number;
+            auto buf_size = Align(buf_elements_count * buf_dt_size, BytesPerElement(softmax_acc_dt));
+            kd.internalBufferSizes.push_back(buf_size);
+        }
     };
 }
 
