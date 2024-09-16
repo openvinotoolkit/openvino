@@ -138,6 +138,8 @@ jobs:
             chmod -R 777 ${XUANTIE_TAR_NAME}
             ls -la ${XUANTIE_TAR_NAME}/libexec/gcc/riscv64-unknown-linux-gnu/10.4.0/
             python3 -m pip install --upgrade pip setuptools wheel
+            echo 'prepare py - riscv interaction'
+            ln -s /usr/include/riscv64-linux-gnu/ /usr/include/python3.10/
             # echo 'show old link'
             # ls -la ${XUANTIE_DIR}/libexec/gcc/riscv64-unknown-linux-gnu/10.4.0/
             # echo 'show new link'
