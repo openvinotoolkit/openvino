@@ -39,12 +39,9 @@ void regclass_graph_op_Result(py::module m) {
         },
         py::is_operator());
 
-    result.def(
-        "__hash__",
-        [](const ov::op::v0::Result& self) {
-            return std::hash<size_t>()(self.get_instance_id());
-        }
-    );
+    result.def("__hash__", [](const ov::op::v0::Result& self) {
+        return std::hash<size_t>()(self.get_instance_id());
+    });
 
     result.def("__repr__", [](const ov::op::v0::Result& self) {
         std::stringstream shapes_ss;

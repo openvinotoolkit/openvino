@@ -54,7 +54,7 @@ void regclass_graph_op_Parameter(py::module m) {
                            &ov::op::v0::Parameter::set_element_type);
 
     parameter.def_property("layout", &ov::op::v0::Parameter::get_layout, &ov::op::v0::Parameter::set_layout);
-        
+
     parameter.def(
         "__eq__",
         [](const ov::op::v0::Parameter& a, const ov::op::v0::Parameter& b) {
@@ -62,12 +62,9 @@ void regclass_graph_op_Parameter(py::module m) {
         },
         py::is_operator());
 
-    parameter.def(
-        "__hash__",
-        [](const ov::op::v0::Parameter& self) {
-            return std::hash<size_t>()(self.get_instance_id());
-        }
-    );
+    parameter.def("__hash__", [](const ov::op::v0::Parameter& self) {
+        return std::hash<size_t>()(self.get_instance_id());
+    });
 
     parameter.def("__repr__", [](const ov::op::v0::Parameter& self) {
         std::stringstream shapes_ss;
