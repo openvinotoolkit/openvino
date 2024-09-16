@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "../weights_bank.hpp"
+#include "../lazy_tensor.hpp"
 #include "intel_npu/al/config/config.hpp"
 #include "openvino/openvino.hpp"
 
@@ -41,6 +42,9 @@ struct Subgraph {
     std::vector<ov::Tensor> _closure;
     std::vector<ov::Tensor> _scales;  // Scale coeffs for manual unpacking
     std::vector<ov::Tensor> _zerops;  // Zero points for manual unpacking
+
+    // Stores transformation history for weights which will be applied before inference
+    std::vector<weights::LazyTensor> _transformations;
 
     using Ref = std::reference_wrapper<Subgraph>;
 };

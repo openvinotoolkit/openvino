@@ -272,6 +272,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 LOG_INFO("Subgraph[" << id << "] is a function call to [" << compiled_fcn_iter->second << "]");
             }
             m_compiled_submodels[id].param_base = fcn_template._param_offset;
+            // FIXME: at what stage closure and _closure should be filled?
             m_compiled_submodels[id].closure = subgraph._closure;
             m_compiled_submodels[id].scales = subgraph._scales;
             m_compiled_submodels[id].zerops = subgraph._zerops;
@@ -379,6 +380,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             compile(i);
         }
     }
+
+    // FIXME: at some point (probably here) apply all transformations and allocations to the _transformations
 
     // Print stats report when possible
     {

@@ -42,56 +42,40 @@ ov::Tensor Bank::update(const std::shared_ptr<ov::op::v0::Constant>& node) {
     return tensor;
 }
 
-void Bank::drop(const ov::Tensor& tensor) {
-    if (!tensor) {
-        return;
-    }
-
-    std::lock_guard<std::mutex> guard(m_mutex);
-
-    auto it = m_bank.find(tensor.data());
-    if (it != m_bank.end()) {
-        m_bank.erase(it);
-    }
-}
-
-ov::Tensor Bank::get(const ov::Tensor& tensor, const std::string& device) {
-    if (!tensor) {
-        OPENVINO_THROW("Uninitialized tensor in weights bank allocation!");
-    }
-
+ov::Tensor Bank::get(const LazyTensor& tensor, const std::string& device) {
     if (device != "CPU" && device != "NPU") {
         OPENVINO_THROW("Unsupported device in weights bank allocation: ", device);
     }
 
     std::lock_guard<std::mutex> guard(m_mutex);
 
-    auto iter_cpu = m_bank.find(tensor.data());
+    // Sanity check
+    auto iter_cpu = m_bank.find(tensor.get_orig_data());
     if (iter_cpu == m_bank.end()) {
         OPENVINO_THROW("Unknown tensor in weights bank allocation!");
     }
 
-    // If target device is CPU - just reuse the default bank
-    if (device == "CPU") {
-        return ov::npuw::util::tensor_from_const(iter_cpu->second);
+    // Check if already allocated and transformed
+    auto& device_bank = m_device_bank[device];
+    auto iter_device = device_bank.find(tensor);
+    if (iter_device != device_bank.end()) {
+        return iter_device->second;
     }
 
-    // Non-CPU - check if the tensor is already there
-    auto& device_bank = m_device_bank[device];
-    auto iter_device = device_bank.find(tensor.data());
-    if (iter_device != device_bank.end()) {
-        // Already allocated on the device - reuse
-        return iter_device->second;
+    // Run transformations
+    auto transformed_tensor = tensor.transform();
+    device_bank[tensor] = transformed_tensor;
+
+    if (device == "CPU") {
+        return transformed_tensor;
     }
 
     // Allocation needed
     m_remote_ctx = m_core->get_default_context(device)._ptr;
-    auto remote_tensor = m_remote_ctx->create_host_tensor(tensor.get_element_type(), tensor.get_shape());
+    auto remote_tensor = m_remote_ctx->create_host_tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
     auto allocated_tensor = ov::make_tensor(remote_tensor);
-    tensor.copy_to(allocated_tensor);
-    device_bank[tensor.data()] = allocated_tensor;
-    // Now can drop reference to the original CPU memory
-    drop(tensor);
+    transformed_tensor.copy_to(allocated_tensor);
+    device_bank[tensor] = allocated_tensor;
 
     return allocated_tensor;
 }

@@ -28,16 +28,13 @@ public:
     ov::Tensor update(const std::shared_ptr<ov::op::v0::Constant>& node);
 
     // Based on previously captured tensor allocate a new tensor (if needed) on a specified device
-    ov::Tensor get(const ov::Tensor& tensor, const std::string& device);
+    ov::Tensor get(const LazyTensor& tensor, const std::string& device);
 
 private:
-    // After get() allocates device memory, remove reference to the CPU Node
-    void drop(const ov::Tensor& tensor);
-
-    // Default CPU bank. Filled by update()
+    // Default CPU bank. Filled by update(). Owns CPU memory
     std::unordered_map<void*, std::shared_ptr<ov::op::v0::Constant>> m_bank;
     // Bank for specified device and their allocated memory
-    std::unordered_map<std::string, std::unordered_map<void*, ov::Tensor>> m_device_bank;
+    std::unordered_map<std::string, std::unordered_map<LazyTensor, ov::Tensor, LazyTensor::Hash>> m_device_bank;
     std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;
     std::shared_ptr<ov::IRemoteContext> m_remote_ctx = nullptr;

@@ -194,6 +194,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
             // No update required to this tensor in runtime - so it can be set only once
             if (!comp_model_desc.update_required[cidx]) {
+                // FIXME: itilize LazyTensor instead
                 request->set_tensor(iport, ov::get_tensor_impl(wbank->get(closure, *func_desc.device_it)));
             }
         }  // for(closure)

@@ -1403,6 +1403,8 @@ void Partitioner::matchResults(const std::string& func_name) {
 }
 
 void Partitioner::createFunction(FunctionPipeline& func_ggg) {
+    using namespace ov::npuw::weights;
+
     ov::npuw::Subgraph& body_sg = func_ggg.refs.front();
     const std::string func_name = body_sg._repeated_id;
 
@@ -1457,8 +1459,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
                 new_param_idx++;
 
                 LOG_DEBUG("Register " << prod_output << " in the function closure");
-                funcall._closure.push_back(
-                    bank->update(std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node)));  // (n)/1/i/c
+                funcall._transformations.push_back(LazyTensor(TransformType::TENSOR, bank->update(std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node)))); // (n)/1/i/c
             } else if (ov::op::util::is_parameter(input_node)) {
                 LOG_DEBUG("Handling a Parameter input " << prod_output);
                 LOG_BLOCK();
@@ -1492,6 +1493,8 @@ void Partitioner::createFunction(const std::string& func_name) {
 }
 
 void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
+    using namespace ov::npuw::weights;
+
     LOG_VERB("Process function " << func_name << " in model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
 
@@ -1531,6 +1534,7 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
         LOG_BLOCK();
         const auto& function = func_iter->second;
         funcall._closure.resize(function._num_params_total - function._param_offset);
+        funcall._transformations.resize(function._num_params_total - function._param_offset);
 
         auto tmp_model = *mod_iter;
         for (auto&& node_ptr : tmp_model->get_ordered_ops()) {
@@ -1551,8 +1555,7 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
                         std::make_pair(proto_layer_name, input_desc.get_index()));  // (t)/1/b
                     LOG_DEBUG("Register " << prod_output << " in the function closure[" << param_idx
                                           << "] (via prototype " << proto_layer_name << ")");
-                    funcall._closure[param_idx - function._param_offset] =
-                        bank->update(std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node));  // (t)/1/c
+                    funcall._transformations[param_idx - function._param_offset] = LazyTensor(TransformType::TENSOR, bank->update(std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node))); // (t)/1/c
                 }
             }  // for (inputs)
         }      // for(nodes)
@@ -1566,6 +1569,8 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
 }
 
 void Partitioner::optimize(const std::string& func_name) {
+    using namespace ov::npuw::weights;
+
     if (!cfg.get<::intel_npu::NPUW_DQ>()) {
         LOG_VERB("No optimizations will be done to  " << func_name << " in model " << model->get_friendly_name()
                                                       << "...");
@@ -1592,7 +1597,7 @@ void Partitioner::optimize(const std::string& func_name) {
         auto closure_idx = param_idx - f._param_offset;
         ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
             auto& funcall = func_group.refs[f_idx].get();
-            ov::npuw::util::permute(funcall._closure[closure_idx], p.second);
+            funcall._transformations[closure_idx].update(TransformType::PERMUTE, p.second);
         });
     }
 
@@ -1602,9 +1607,17 @@ void Partitioner::optimize(const std::string& func_name) {
         auto closure_idx = param_idx - f._param_offset;
         ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
             auto& funcall = func_group.refs[f_idx].get();
-            ov::npuw::util::to_f16(funcall._closure[closure_idx]);
+            funcall._transformations[closure_idx].update(TransformType::CONVERT, std::monostate{});
         });
     }
+
+    // Mark all transformations as finished
+    ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+        auto& funcall = func_group.refs[f_idx].get();
+        for (auto& tr : funcall._transformations) {
+            tr.update(TransformType::END, std::monostate{});
+        }
+    });
 
     LOG_VERB("Done");
 }
