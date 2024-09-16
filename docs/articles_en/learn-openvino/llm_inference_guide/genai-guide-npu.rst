@@ -73,7 +73,7 @@ Additional configuration options
 Prompt and response length options
 ++++++++++++++++++++++++++++++++++
 
-The LLM pipeline for NPUs leverages a static shape approach, optimizing performance during execution. However, this method may introduce certain usage limitations. By default, the LLM pipeline supports input prompts up to 1024 tokens in length and ensures that the generated response contains at least 150 tokens, unless the generation encounters an end-of-sequence (EOS) token or the user explicitly sets a lower limit for the response length.
+The LLM pipeline for NPUs leverages the static shape approach, optimizing execution performance, while potentially introducing certain usage limitations. By default, the LLM pipeline supports input prompts up to 1024 tokens in length. It also ensures that the generated response contains at least 150 tokens, unless the generation encounters the end-of-sequence (EOS) token or the user explicitly sets a lower length limit for the response.
 
 You may configure both the 'maximum input prompt length' and 'minimum response length' using the following parameters:
 
