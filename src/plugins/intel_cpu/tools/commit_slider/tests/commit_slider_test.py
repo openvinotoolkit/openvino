@@ -13,7 +13,7 @@ from test_data import FirstBadVersionData, FirstValidVersionData,\
     BmStableData, BmValidatorSteppedBreakData, BmValidatorSteppedBreakData2,\
     BenchmarkAppDataUnstable, BenchmarkAppDataStable, BenchmarkAppNoDegradationData,\
     BenchmarkAppUnstableDevData, BenchmarkAppWrongPathData, BenchmarkAppPathFoundData,\
-    BenchmarkFirstFixedAppData, AcModeData
+    BenchmarkFirstFixedAppData, AcModeData, BenchmarkMetricData
 
 
 class CommitSliderTest(TestCase):
@@ -57,6 +57,13 @@ class CommitSliderTest(TestCase):
     def testBmFirstFixed(self):
         breakCommit, updatedData = getExpectedCommit(
             BenchmarkFirstFixedAppData())
+        actualCommit, _ = getActualCommit(updatedData)
+        self.assertEqual(breakCommit, actualCommit)
+
+    @skip_commit_slider_devtest
+    def testBmLatencyMetric(self):
+        breakCommit, updatedData = getExpectedCommit(
+            BenchmarkMetricData("latency:average"))
         actualCommit, _ = getActualCommit(updatedData)
         self.assertEqual(breakCommit, actualCommit)
 
