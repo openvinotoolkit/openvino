@@ -80,7 +80,7 @@ You may configure both the 'maximum input prompt length' and 'minimum response l
 - ``MAX_PROMPT_LEN``: Defines the maximum number of tokens that the LLM pipeline can process for the input prompt (default: 1024).
 - ``MIN_RESPONSE_LEN``: Specifies the minimum number of tokens that the LLM pipeline will generate in its response (default: 150).
 
-Use the following code snippet to extend default lengths settings:
+Use the following code snippet to change the default settings:
 
 .. tab-set::
 
