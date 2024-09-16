@@ -138,7 +138,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     // FIXME: This pass should only run when pipeline is REP w/ FOLDing is enabled.
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::opt::DQGather>();
+    rewr.add_matcher<ov::npuw::patterns::opt::DQGatherAsymCW>();
+    rewr.add_matcher<ov::npuw::patterns::opt::DQGatherSymGQ>();
     rewr.run_on_model(model);
 
     auto partitioning = getPartitioning(model, m_cfg);

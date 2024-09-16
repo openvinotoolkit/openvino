@@ -53,6 +53,7 @@ struct Context {
     };
     std::map<PPtr, DQUnpack> params_to_unpack;
     PPtr unpack(PPtr w, PPtr z, PPtr s, ov::element::Type type);
+    PPtr unpack(PPtr w, PPtr s, ov::element::Type type);
 
     using Ref = std::reference_wrapper<Context>;
 };
@@ -65,6 +66,11 @@ public:
 class DQDictGatherCWu : public ov::pass::MatcherPass {
 public:
     DQDictGatherCWu(Context::Ref ctx);
+};
+
+class DQDictGatherGQi : public ov::pass::MatcherPass {
+public:
+    DQDictGatherGQi(Context::Ref ctx);
 };
 
 class DQMatMulGQi : public ov::pass::MatcherPass {
@@ -84,9 +90,14 @@ public:
 
 void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx);
 
-class DQGather : public ov::pass::MatcherPass {
+class DQGatherAsymCW : public ov::pass::MatcherPass {
 public:
-    DQGather();
+    DQGatherAsymCW();
+};
+
+class DQGatherSymGQ : public ov::pass::MatcherPass {
+public:
+    DQGatherSymGQ();
 };
 
 }  // namespace opt

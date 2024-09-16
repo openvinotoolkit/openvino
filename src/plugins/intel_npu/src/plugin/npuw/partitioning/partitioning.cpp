@@ -1574,6 +1574,7 @@ void Partitioner::optimize(const std::string& func_name) {
         ov::pass::GraphRewrite rewr;
         rewr.add_matcher<ov::npuw::patterns::opt::DQParMMGQ>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQDictGatherCWu>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::DQDictGatherGQi>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQDictMatMulCWu>(std::ref(ctx));
         rewr.run_on_model(f._model);
 
@@ -1615,21 +1616,30 @@ void Partitioner::optimize(const std::string& func_name) {
 
             new_params.push_back(p.first);
             to_remove.push_back(tensor_to_unpack.w);
-            to_remove.push_back(tensor_to_unpack.z);
             to_remove.push_back(tensor_to_unpack.s);
             to_remove_idx.insert(w_idx);
-            to_remove_idx.insert(z_idx);
             to_remove_idx.insert(s_idx);
+
+            if (tensor_to_unpack.z) {
+                to_remove.push_back(tensor_to_unpack.z);
+                to_remove_idx.insert(z_idx);
+            }
 
             ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
                 ov::Tensor cw = funcall._closure[w_idx - f._param_offset];
-                ov::Tensor cz = funcall._closure[z_idx - f._param_offset];
+                ov::Tensor cz = z_idx != -1 ? funcall._closure[z_idx - f._param_offset] : ov::Tensor{};
                 ov::Tensor cs = funcall._closure[s_idx - f._param_offset];
                 ov::Tensor dst(p.first->get_element_type(), p.first->get_shape());
 
                 const auto& gti = ov::get_tensor_impl;
-                ov::npuw::util::unpack(gti(cw), gti(cz), gti(cs), gti(dst));
+                if (cw && cz && cs) {
+                    ov::npuw::util::unpack(gti(cw), gti(cz), gti(cs), gti(dst));
+                } else if (cw && cs) {
+                    ov::npuw::util::unpack(gti(cw), gti(cs), gti(dst));
+                } else {
+                    NPUW_ASSERT(false && "Unsupported combination");
+                }
                 funcall._closure.push_back(std::move(dst));
             });
         }
