@@ -15,12 +15,13 @@ namespace fs = std_fs;
 using Path = fs::path;
 
 
-auto File = [](std::FILE* file) {
-    auto deleter = [](std::FILE* file) {
-        std::fclose(file);
-    };
-    return std::unique_ptr<std::FILE, decltype(deleter)>{file, deleter};
+auto deleter = [](std::FILE* file) {
+    std::fclose(file);
 };
+
+std::unique_ptr<std::FILE, decltype(deleter)> File(std::FILE* file){
+    return {file, deleter};
+}
 
 }  // namespace util
 }  // namespace ov
