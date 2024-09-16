@@ -101,7 +101,7 @@ Use the following code snippet to extend default lengths settings:
 
 
 Compilation options
-###################
++++++++++++++++++++
 
 Compiling models for NPU may take a while. By default, the LLMPipeline for the NPU
 is configured for faster compilation, but it may result in lower performance.
