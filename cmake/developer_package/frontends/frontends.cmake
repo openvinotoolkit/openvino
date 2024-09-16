@@ -212,7 +212,7 @@ macro(ov_add_frontend)
     endif()
 
     # remove -Wmissing-declarations warning, because of frontends implementation specific
-    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
         target_compile_options(${TARGET_NAME} PRIVATE -Wno-missing-declarations)
     endif()
 

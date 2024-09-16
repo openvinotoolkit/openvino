@@ -35,6 +35,15 @@ if(NOT DEFINED USE_DYNAMIC_VCXX_RUNTIME)
 endif()
 
 #
+# Suppress warnings
+#
+if(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
+    ov_add_compiler_flags("/Wno-macro-redefined")
+    ov_add_compiler_flags("/Wno-nonportable-include-path")
+    ov_add_compiler_flags("/Wno-comment")
+endif()
+
+#
 # Build OpenCL ICD loader
 #
 

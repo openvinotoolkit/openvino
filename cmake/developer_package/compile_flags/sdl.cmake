@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM OR
-    (UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel"))
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (UNIX AND OV_COMPILER_IS_INTEL_LLVM))
     set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -Wformat -Wformat-security")
 
     if (NOT ENABLE_SANITIZER)
@@ -32,21 +31,18 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM
         if(NOT MINGW AND NOT APPLE)
             set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} -z noexecstack -z relro -z now")
         endif()
-    elseif(OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
+    elseif(OV_COMPILER_IS_CLANG)
         if(EMSCRIPTEN)
-            # emcc does not support fortification 
+            # emcc does not support fortification
             # https://stackoverflow.com/questions/58854858/undefined-symbol-stack-chk-guard-in-libopenh264-so-when-building-ffmpeg-wit
         else()
             set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -fstack-protector-all")
         endif()
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        if (NOT ENABLE_SANITIZER)
-            set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -Wl,--strip-all")
-        endif()
+    elseif(OV_COMPILER_IS_INTEL_LLVM)
         set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -fstack-protector-strong")
         set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} -z noexecstack -z relro -z now")
     endif()
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
     set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} /sdl /guard:cf")
     set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} /guard:cf")
 endif()

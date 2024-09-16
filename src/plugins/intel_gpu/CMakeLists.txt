@@ -9,7 +9,17 @@ endif()
 set (TARGET_NAME "openvino_intel_gpu_plugin")
 
 if(OV_COMPILER_IS_INTEL_LLVM)
+    # For windows we need to disable warning as error option to make FindSYCL.cmake work
+    if (WIN32)
+        ov_add_compiler_flags(/WX-)
+    endif()
+
     find_package(IntelSYCL REQUIRED)
+
+    if (WIN32)
+        ov_add_compiler_flags(/WX)
+        ov_add_compiler_flags(/Wno-ignored-attributes)
+    endif()
 endif()
 
 if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
