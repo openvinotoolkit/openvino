@@ -126,6 +126,8 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
         if (node_has_requires_precision_conversion_attribute(node)) {
             remove_requires_precision_conversion_attribute(node);
             node = util::convert_to_supported_precision(node.get());
+        } else {
+            rewritten = restore_original_input_precision(node) || rewritten;
         }
 
         if (rewritten) {
