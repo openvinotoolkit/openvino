@@ -132,6 +132,18 @@ ov_status_e ov_core_read_model_from_memory_buffer(const ov_core_t* core,
     return ov_status_e::OK;
 }
 
+ov_status_e ov_core_add_extension(const ov_core_t* core, const char* extension_path) {
+    if (!core || !extension_path) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        core->object->add_extension(extension_path);
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
 ov_status_e ov_core_compile_model(const ov_core_t* core,
                                   const ov_model_t* model,
                                   const char* device_name,
