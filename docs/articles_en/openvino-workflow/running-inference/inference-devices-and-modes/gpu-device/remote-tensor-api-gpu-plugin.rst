@@ -350,7 +350,59 @@ For more details, see the code snippets below:
 
 The ``ov::intel_gpu::ocl::D3DContext`` and ``ov::intel_gpu::ocl::VAContext`` classes are derived from ``ov::intel_gpu::ocl::ClContext``.
 Therefore, they provide the functionality described above and extend it
-to allow creation of ``ov::RemoteTensor`` objects from ``ID3D11Buffer``, ``ID3D11Texture2D`` pointers or the ``VASurfaceID`` handle respectively.
+to allow creation of ``ov::RemoteTensor`` objects from ``ID3D11Buffer``, ``ID3D11Texture2D``
+pointers or the ``VASurfaceID`` handle respectively, as shown in the examples below:
+
+
+.. tab-set::
+
+   .. tab-item:: ID3D11Buffer
+      :sync: id3d11-buffer
+
+      .. code-block:: cpp
+
+          D3DBufferTensor create_tensor(const element::Type type, const Shape& shape, ID3D11Buffer* buffer) {
+              AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::DX_BUFFER},
+                                 {ov::intel_gpu::dev_object_handle.name(), static_cast<gpu_handle_param>(buffer)}};
+              return create_tensor(type, shape, params).as<D3DBufferTensor>();
+          }
+
+   .. tab-item:: ID3D11Texture2D
+      :sync: id3d11-texture
+
+      .. code-block:: cpp
+
+          D3DSurface2DTensor create_tensor(const element::Type type,
+                                           const Shape& shape,
+                                           ID3D11Texture2D* surface,
+                                           uint32_t plane = 0) {
+              AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::VA_SURFACE},
+                                 {ov::intel_gpu::dev_object_handle.name(), static_cast<gpu_handle_param>(surface)},
+                                 {ov::intel_gpu::va_plane.name(), plane}};
+              return create_tensor(type, shape, params).as<D3DSurface2DTensor>();
+          }
+
+   .. tab-item:: VASurfaceID
+      :sync: vasurfaceid
+
+      .. code-block:: cpp
+
+          std::pair<VASurfaceTensor, VASurfaceTensor> create_tensor_nv12(const size_t height,
+                                                                         const size_t width,
+                                                                         const VASurfaceID nv12_surf) {
+              AnyMap tensor_params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::VA_SURFACE},
+                                      {ov::intel_gpu::dev_object_handle.name(), nv12_surf},
+                                      {ov::intel_gpu::va_plane.name(), uint32_t(0)}};
+              auto y_tensor = create_tensor(element::u8, {1, height, width, 1}, tensor_params);
+              tensor_params[ov::intel_gpu::va_plane.name()] = uint32_t(1);
+              auto uv_tensor = create_tensor(element::u8, {1, height / 2, width / 2, 2}, tensor_params);
+              return std::make_pair(y_tensor.as<VASurfaceTensor>(), uv_tensor.as<VASurfaceTensor>());
+          }
+
+
+
+
+
 
 Direct NV12 Video Surface Input
 ###########################################################
