@@ -29,6 +29,11 @@ A chat-tuned TinyLlama model is used in this example. The following conversion &
 
    optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --group-size 128 --ratio 1.0 TinyLlama
 
+Note: For models exceeding 1 billion parameters, it's recommended to use channel-wise quantization. This approach is particularly effective, as demonstrated in the example with the llama-2-7b-chat-hf model:
+.. code-block:: python
+
+   optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --group-size -1 --ratio 1.0 TinyLlama
+
 Run generation using OpenVINO GenAI
 ###################################
 
@@ -61,6 +66,39 @@ Use the following code snippet to perform generation with OpenVINO GenAI API:
 
 Additional configuration options
 ################################
+
+Prompt and response length options
+##################################
+
+The LLM pipeline for NPUs leverages a static shape approach, optimizing performance during execution. However, this method may introduce certain usage limitations. By default, the LLM pipeline supports input prompts up to 1024 tokens in length and ensures that the generated response contains at least 150 tokens, unless the generation encounters an end-of-sequence (EOS) token or the user explicitly sets a lower limit for the response length.
+
+Both the maximum input prompt length and minimum response length are configurable using the parameters ``MAX_PROMPT_LEN`` and ``MIN_RESPONSE_LEN``:
+- **``MAX_PROMPT_LEN``**: Defines the maximum number of tokens that the LLM pipeline can process for the input prompt (default: 1024).
+- **``MIN_RESPONSE_LEN``**: Specifies the minimum number of tokens that the LLM pipeline will generate in its response (default: 150).
+
+Use the following code snippet to extend default lenghts settings:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+
+         pipeline_config = { "MAX_PROMPT_LEN": 1500, "MIN_RESPONSE_LEN": 500 }
+         pipe = ov_genai.LLMPipeline(model_path, "NPU", pipeline_config)
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. code-block:: cpp
+
+         ov::AnyMap pipeline_config = { { "MAX_PROMPT_LEN",  1500 }, { "MIN_RESPONSE_LEN", 500 } };
+         ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
+
+
+Compilation options
+###################
 
 Compiling models for NPU may take a while. By default, the LLMPipeline for the NPU
 is configured for faster compilation, but it may result in lower performance.
