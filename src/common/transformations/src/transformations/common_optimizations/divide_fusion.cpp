@@ -31,7 +31,7 @@ ov::pass::DivideFusion::DivideFusion() {
         const auto& pow = pattern_to_output.at(p_pow).get_node_shared_ptr();
         const auto& minus_one = pattern_to_output.at(p_pow_const).get_node_shared_ptr();
 
-        auto minus_one_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(minus_one);
+        auto minus_one_const = ov::as_type_ptr<ov::op::v0::Constant>(minus_one);
         if (!minus_one_const || !op::util::has_constant_value<float>(minus_one_const, -1.)) {
             return false;
         }

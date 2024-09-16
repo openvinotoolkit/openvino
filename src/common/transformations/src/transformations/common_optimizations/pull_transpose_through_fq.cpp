@@ -38,8 +38,7 @@ ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
             shape_size(fq->input_value(1).get_shape()) == 1 && shape_size(fq->input_value(2).get_shape()) == 1 &&
             shape_size(fq->input_value(3).get_shape()) == 1 && shape_size(fq->input_value(4).get_shape()) == 1;
         if (!are_inputs_scalars) {
-            auto perm =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map[m_transpose_perm].get_node_shared_ptr());
+            auto perm = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map[m_transpose_perm].get_node_shared_ptr());
             if (!perm)
                 return false;
             auto perm_val = perm->cast_vector<int64_t>();
