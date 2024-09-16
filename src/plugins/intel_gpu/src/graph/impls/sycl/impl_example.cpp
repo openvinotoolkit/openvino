@@ -58,18 +58,18 @@ template<typename AType, typename WType, typename ZPType, typename ScaleType, ty
     float dzp_value = dzp_s.value_or(0.0f);
     return queue.submit([=](::sycl::handler& cgh) {
         cgh.parallel_for(::sycl::range<3>(out_shape[0], out_shape[1], out_shape[2]), [=](::sycl::id<3> index) {
-            const uint b = index[0];
-            const uint m = index[1];
-            const uint n = index[2];
+            const uint32_t b = index[0];
+            const uint32_t m = index[1];
+            const uint32_t n = index[2];
             using accum_t = typename AccumulatorType<AType, WType>::type;
             accum_t accumulator = 0.0f;
 
-            const uint dst_index = n + m*N + b*N*M;
-            for (uint y = 0; y < K; ++y) {
-                const uint input0_offset = y + m*K + b*M*K;
-                const uint decomp_offset = (y / group_size % groups_num)*N + n % N;
-                const uint filter_offset = y + n*K;
-                const uint zp_offset = 0;
+            const uint32_t dst_index = n + m*N + b*N*M;
+            for (uint32_t y = 0; y < K; ++y) {
+                const uint32_t input0_offset = y + m*K + b*M*K;
+                const uint32_t decomp_offset = (y / group_size % groups_num)*N + n % N;
+                const uint32_t filter_offset = y + n*K;
+                const uint32_t zp_offset = 0;
 
 
                 accum_t zp_val = has_value ? static_cast<accum_t>(dzp_value) : static_cast<accum_t>(zp[zp_offset]);
@@ -102,17 +102,17 @@ template<typename AType, typename WType, typename ZPType, typename ScaleType, ty
 
     return queue.submit([=](::sycl::handler& cgh) {
         cgh.parallel_for(::sycl::range<3>(out_shape[0], out_shape[1], out_shape[2]), [=](::sycl::id<3> index) {
-            const uint b = index[0];
-            const uint m = index[1];
-            const uint n = index[2];
+            const uint32_t b = index[0];
+            const uint32_t m = index[1];
+            const uint32_t n = index[2];
             using accum_t = typename AccumulatorType<AType, WType>::type;
             accum_t accumulator = 0.0f;
 
-            for (uint y = 0; y < K; ++y) {
-                const uint input0_offset = y + m*K + b*M*K;
-                const uint zp_offset = (y / group_size % groups_num)*N + n % N;
-                const uint decomp_offset = (y / group_size % groups_num)*N + n % N;
-                const uint filter_offset = y + n*K;
+            for (uint32_t y = 0; y < K; ++y) {
+                const uint32_t input0_offset = y + m*K + b*M*K;
+                const uint32_t zp_offset = (y / group_size % groups_num)*N + n % N;
+                const uint32_t decomp_offset = (y / group_size % groups_num)*N + n % N;
+                const uint32_t filter_offset = y + n*K;
 
                 accum_t zp_val = has_value ? static_cast<accum_t>(dzp_value) : static_cast<accum_t>(zp[zp_offset]);
                 accum_t scale = s[decomp_offset];
@@ -120,7 +120,7 @@ template<typename AType, typename WType, typename ZPType, typename ScaleType, ty
                 accum_t filter_val = (filter_compressed - zp_val) * scale;
                 accumulator += a[input0_offset] * filter_val;
             }
-            const uint dst_index = n + m*N + b*N*M;
+            const uint32_t dst_index = n + m*N + b*N*M;
             dst[dst_index] = accumulator;
         });
     });
