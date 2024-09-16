@@ -64,6 +64,8 @@ namespace utils {
 
     std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback);
 
+    double get_stream_size(const py::object& model_stream);
+
 }; // namespace utils
 }; // namespace Common
 

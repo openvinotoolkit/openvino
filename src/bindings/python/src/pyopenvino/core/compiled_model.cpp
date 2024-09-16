@@ -7,6 +7,9 @@
 #include <pybind11/iostream.h>
 #include <pybind11/stl.h>
 
+#include <fstream>
+#include <random>
+
 #include "common.hpp"
 #include "pyopenvino/core/compiled_model.hpp"
 #include "pyopenvino/core/infer_request.hpp"
@@ -81,13 +84,42 @@ void regclass_CompiledModel(py::module m) {
                                      "`model_stream` must be an io.BytesIO object but " +
                                      (std::string)(py::repr(model_stream)) + "` provided");
             }
-            std::stringstream _stream;
-            {
-                py::gil_scoped_release release;
-                self.export_model(_stream);
+            model_stream.attr("seek")(0);  // Always rewind stream!
+            // std::stringstream cannot handle streams > 2GB, in that case we use std::fstream
+            // TODO: Determine model size after serialization
+            if (true) {
+                std::random_device rd;
+                std::mt19937 gen(rd());
+                std::uniform_int_distribution<> distr(1000, 9999);
+                std::string filename = "model_stream_" + std::to_string(distr(gen)) + ".txt";
+
+                std::fstream _fstream(filename, std::ios::out | std::ios::binary);
+                OPENVINO_ASSERT(_fstream.is_open(), "Failed to open temporary file for model stream");
+
+                // TODO: Assert all plugins' export_model functions work correctly for std::fstream and models > 2GB
+                self.export_model(_fstream);
+                _fstream.seekg(0, std::ios::beg);
+                {
+                    std::string str((std::istreambuf_iterator<char>(_fstream)), std::istreambuf_iterator<char>());
+                    _fstream.close();
+                    model_stream.attr("flush")();
+                    model_stream.attr("write")(py::bytes(str));
+                }
+                if (std::remove(filename.c_str()) != 0) {
+                    const std::string abs_path =
+                        py::module_::import("os").attr("getcwd")().cast<std::string>() + "/" + filename;
+                    const std::string warning_message = "Temporary file " + abs_path + " failed to delete!";
+                    PyErr_WarnEx(PyExc_RuntimeWarning, warning_message.c_str(), 1);
+                }
+            } else {
+                std::stringstream _stream;
+                {
+                    py::gil_scoped_release release;
+                    self.export_model(_stream);
+                }
+                model_stream.attr("flush")();
+                model_stream.attr("write")(py::bytes(_stream.str()));
             }
-            model_stream.attr("flush")();
-            model_stream.attr("write")(py::bytes(_stream.str()));
             model_stream.attr("seek")(0);  // Always rewind stream!
         },
         py::arg("model_stream"),
