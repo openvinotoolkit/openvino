@@ -65,7 +65,8 @@ class TestData():
         BmWrongPath = 10,
         BmPathFound = 11,
         BmFirstFixed = 12,
-        ACModeData = 13
+        ACModeData = 13,
+        AcModeDataBitwise = 14
 
     def requireTestData(self, reqLambda):
         # mapping json to test data holder
@@ -119,6 +120,19 @@ class BenchmarkAppDataStable(TestData):
 class AcModeData(TestData):
     def getTestCase():
         return TestData.TestCase.ACModeData
+
+    def getTestName(self):
+        return "ACMode"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+class AcModeDataBitwise(TestData):
+    def getTestCase():
+        return TestData.TestCase.AcModeDataBitwise
 
     def getTestName(self):
         return "ACMode"
