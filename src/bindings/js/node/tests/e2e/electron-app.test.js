@@ -1,3 +1,4 @@
+/* global describe, it, before, after */
 const fs = require('node:fs');
 const assert = require('node:assert');
 const { exec } = require('child_process');
