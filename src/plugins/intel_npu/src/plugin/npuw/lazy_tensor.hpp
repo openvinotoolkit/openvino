@@ -23,9 +23,7 @@ enum class TransformType {
     TENSOR,
     PERMUTE,
     CONVERT,
-    CONCAT,  // TODO: support
-    // FIXME: workaround to prevent the second model from pushing to transformations history
-    END // Once the first model finishes Tensor processing, need to notify the second model it's ready to be used
+    CONCAT  // TODO: support
 };
 
 using Transform = std::variant<ov::Tensor, std::vector<std::size_t>, std::monostate>;
@@ -72,8 +70,7 @@ public:
     void update(const TransformType& type, const Transform& transform) {
         // Sanity check
         NPUW_ASSERT((type == TransformType::PERMUTE && std::holds_alternative<std::vector<std::size_t>>(transform)) ||
-                    (type == TransformType::CONVERT && std::holds_alternative<std::monostate>(transform)) ||
-                    (type == TransformType::END && std::holds_alternative<std::monostate>(transform)));
+                    (type == TransformType::CONVERT && std::holds_alternative<std::monostate>(transform)));
         m_transforms.push_back({type, transform});
     }
 
@@ -86,15 +83,12 @@ public:
                     ov::npuw::util::permute(get_tensor(), std::get<std::vector<std::size_t>>(tr.second));
                 case TransformType::CONVERT:
                     ov::npuw::util::to_f16(get_tensor());
-                case TransformType::END:
-                    return get_tensor();
                 default:
                     NPUW_ASSERT(false);
             }
         }
-        // Should be unreachable
-        NPUW_ASSERT(false);
-        return {};
+
+        return get_tensor();
     }
 
     ov::Tensor& get_tensor() {

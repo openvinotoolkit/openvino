@@ -1611,14 +1611,6 @@ void Partitioner::optimize(const std::string& func_name) {
         });
     }
 
-    // Mark all transformations as finished
-    ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
-        auto& funcall = func_group.refs[f_idx].get();
-        for (auto& tr : funcall._transformations) {
-            tr.update(TransformType::END, std::monostate{});
-        }
-    });
-
     LOG_VERB("Done");
 }
 
