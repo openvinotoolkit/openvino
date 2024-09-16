@@ -85,9 +85,10 @@ static NamedOutputs interpolate(const NodeContext& node,
         out_flag |= out_h <= 0 || out_d <= 0;
     }
 
-    if (node.has_input("OutSize")) {
+    if (node.has_input("SizeTensor") || node.has_input("OutSize")) {
         attrs.shape_calculation_mode = ShapeCalcMode::SIZES;
-        const auto hw_shape = node.get_input("OutSize");
+        const auto hw_shapes =
+            node.has_input("SizeTensor") ? node.get_ng_inputs("SizeTensor") : node.get_ng_inputs("OutSize");
         const auto shape_of_x = std::make_shared<ShapeOf>(x);
         const auto shape_begin = Constant::create(element::i64, {1}, {0});
         const auto shape_end = Constant::create(element::i64, Shape{1}, {-space_dim});
@@ -96,8 +97,12 @@ static NamedOutputs interpolate(const NodeContext& node,
                                                             shape_end,
                                                             std::vector<int64_t>{0},
                                                             std::vector<int64_t>{0});
-        target_spatial_shape =
-            std::make_shared<Concat>(OutputVector{nc_node, std::make_shared<Convert>(hw_shape, element::i64)}, 0);
+        OutputVector shapes{nc_node};
+        const auto const_n1 = Constant::create(ov::element::i64, Shape{1}, {-1});
+        for (auto node : hw_shapes) {
+            shapes.push_back(std::make_shared<Reshape>(std::make_shared<Convert>(node, element::i64), const_n1, true));
+        }
+        target_spatial_shape = std::make_shared<Concat>(shapes, 0);
         scales = calculate_scales_based_on_sizes(x, target_spatial_shape);
     } else if (out_flag) {
         attrs.shape_calculation_mode = ShapeCalcMode::SCALES;

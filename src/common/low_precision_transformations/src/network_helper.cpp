@@ -1293,8 +1293,19 @@ FakeQuantizeDequantization NetworkHelper::normalizeDequantization(FakeQuantizeDe
         return dequantization;
     }
 
-    // task: 79740
-    if (dequantization.multiply != nullptr && ov::as_type_ptr<ov::opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(0))) {
+    // Note: Dequantization operations might have converts between DQ constant and eltwise
+    auto is_branch_const = [](const ov::Output<ov::Node>& in) {
+        auto node = in.get_node_shared_ptr();
+        return (ov::is_type<ov::opset1::Constant>(node)) ||
+               (ov::is_type<ov::opset1::Convert>(node) && ov::is_type<ov::opset1::Constant>(node->get_input_node_shared_ptr(0)));
+    };
+
+    // Eltwise is unnormalized if it has constant 0th input and non-constant 1st input
+    auto unnormalized_eltwise = [&is_branch_const](const std::shared_ptr<ov::Node>& eltwise) {
+        return eltwise != nullptr && is_branch_const(eltwise->input_value(0)) && !is_branch_const(eltwise->input_value(1));
+    };
+
+    if (unnormalized_eltwise(dequantization.multiply)) {
         const auto leftParent = dequantization.multiply->input_value(0);
         const auto rightParent = dequantization.multiply->input_value(1);
         std::shared_ptr<ov::opset1::Multiply> normalized_multiply = ov::as_type_ptr<ov::opset1::Multiply>(
@@ -1302,7 +1313,7 @@ FakeQuantizeDequantization NetworkHelper::normalizeDequantization(FakeQuantizeDe
         replace_node(dequantization.multiply, normalized_multiply);
         dequantization.multiply = normalized_multiply;
     }
-    if (dequantization.subtract != nullptr && ov::as_type_ptr<ov::opset1::Constant>(dequantization.subtract->get_input_node_shared_ptr(0))) {
+    if (unnormalized_eltwise(dequantization.subtract)) {
         const auto leftParent = dequantization.subtract->input_value(0);
         const auto rightParent = dequantization.subtract->input_value(1);
         std::shared_ptr<ov::opset1::Subtract> normalized_subtract = ov::as_type_ptr<ov::opset1::Subtract>(

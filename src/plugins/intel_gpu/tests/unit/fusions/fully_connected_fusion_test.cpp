@@ -188,6 +188,14 @@ public:
 #define CASE_FC_FP16_3D_1 { 2, 32, 3 }, { 2, 32, 16 }, { 16, 3, 1 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_FP16_3D_2 { 1, 1, 3 }, { 1, 1, 32 }, { 32, 3, 1 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
 
+#define DYN_CASE_FC_FP16_5 { 1, 128, 76 }, { 1, 128, 768 }, { 768, 76 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
+#define DYN_CASE_FC_FP16_6 { 2, 1, 76 }, { 2, 1, 768 }, { 768, 76 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
+#define DYN_CASE_FC_FP16_7 { 2, 128, 76 }, { 2, 128, 768 }, { 768, 76 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
+#define DYN_CASE_FC_FP16_3D_1 { 2, 32, 3 }, { 2, 32, 16 }, { 16, 3 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
+#define DYN_CASE_FC_FP16_3D_2 { 1, 1, 3 }, { 1, 1, 32 }, { 32, 3 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
+
+
+
 #define CASE_FC_FP16_INT4_COMP_1 { 1, 128 }, { 1, 128 }, { 128, 128 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
 
 /* ----------------------------------------------------------------------------------------------------- */
@@ -810,3 +818,44 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_activation_relu, ::testing::Values
     fully_connected_test_params{ CASE_FC_FP32_1, 2, 3 }
 }));
 #endif
+
+class fc_fp16_eltwise_add_ocl_dynamic : public FullyConnectedFusingTest {
+public:
+    void run_test() {
+        auto p = GetParam();
+        auto test_input_layout = get_input_layout(p);
+        auto dynamic_input_layout = layout{ov::PartialShape::dynamic(test_input_layout.get_partial_shape().size()), test_input_layout.data_type, test_input_layout.format};
+        auto eltwise_data_shape = p.out_shape.size() == 3 ? ov::PartialShape{1, 1, p.out_shape[2]} : ov::PartialShape{1, p.out_shape[1]};
+        auto eltwise_data_layout = layout{eltwise_data_shape, p.default_type, p.default_format};
+        create_topologies(
+            input_layout("input", dynamic_input_layout),
+            data("weights", get_mem(get_weights_layout(p))),
+            data("bias", get_mem(get_bias_layout(p))),
+            data("eltwise_data", get_mem(eltwise_data_layout, 1, 9)),
+            fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p)),
+            eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sum),
+            reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
+        );
+
+        tolerance = 1e-2f;
+        execute(p, true);
+    }
+};
+
+TEST_P(fc_fp16_eltwise_add_ocl_dynamic, basic) {
+    if (engine.get_device_info().supports_immad)
+        return;
+    run_test();
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_add_ocl_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_2, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_3, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_4, 2, 3 },
+    fully_connected_test_params{ DYN_CASE_FC_FP16_5, 2, 3 },
+    fully_connected_test_params{ DYN_CASE_FC_FP16_6, 2, 3 },
+    fully_connected_test_params{ DYN_CASE_FC_FP16_7, 2, 3 },
+    fully_connected_test_params{ DYN_CASE_FC_FP16_3D_1, 2, 3 },
+    fully_connected_test_params{ DYN_CASE_FC_FP16_3D_2, 2, 3 },
+}));

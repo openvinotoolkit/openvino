@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_pooling_MaxPool_8}
-
 MaxPool
 =======
 

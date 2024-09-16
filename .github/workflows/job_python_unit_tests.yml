@@ -16,12 +16,15 @@ on:
         description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
         type: string
         required: true
+      python-version:
+        description: 'Python version to setup. E.g., "3.11"'
+        type: string
+        required: true
 
 permissions: read-all
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
-  PYTHON_VERSION: '3.11'
 
 jobs:
   Python_Unit_Tests:
@@ -77,10 +80,10 @@ jobs:
           sparse-checkout-cone-mode: false
           path: 'action_root'
 
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
+      - name: Setup Python ${{ inputs.python-version }}
         uses: ./action_root/.github/actions/setup_python
         with:
-          version: ${{ env.PYTHON_VERSION }}
+          version: ${{ inputs.python-version }}
           pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
           should-setup-pip-paths: ${{ runner.os == 'Linux' }}
           self-hosted-runner: ${{ runner.os == 'Linux' }}
@@ -174,7 +177,7 @@ jobs:
             export LD_PRELOAD=${GOMP_LIB}
           fi
 
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -192,7 +195,7 @@ jobs:
             export LD_PRELOAD=${GOMP_LIB}
           fi
 
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -231,7 +234,7 @@ jobs:
           PYTORCH_TRACING_MODE: TORCHFX
 
       - name: ONNX Layer Tests
-        if: fromJSON(inputs.affected-components).ONNX_FE.test
+        if: ${{ fromJSON(inputs.affected-components).ONNX_FE.test }}
         run: |
           # requires 'unit_tests' from 'tools/mo'
           export PYTHONPATH=${INSTALL_TEST_DIR}/mo:$PYTHONPATH
@@ -296,7 +299,7 @@ jobs:
           python3 ${OPENVINO_REPO}/docs/articles_en/assets/snippets/main.py
 
       - name: Python API Tests -- numpy>=2.0.0
-        if: ${{ fromJSON(inputs.affected-components).Python_API.test }}
+        if: ${{ fromJSON(inputs.affected-components).Python_API.test && inputs.python-version != '3.12' }} # Ticket: 152242
         run: |
           python3 -m pip uninstall -y numpy
           python3 -m pip install "numpy>=2.0.0,<2.1.0"
