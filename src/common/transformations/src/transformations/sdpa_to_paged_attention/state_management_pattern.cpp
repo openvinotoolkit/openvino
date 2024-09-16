@@ -205,7 +205,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                 }
                 rank = rank.get_length();
                 auto axis = unsqueeze->input_value(1).get_node_shared_ptr();
-                auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(axis);
+                auto constant = ov::as_type_ptr<ov::op::v0::Constant>(axis);
                 if (!constant) {
                     return ov::Dimension();
                 }
@@ -343,8 +343,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                 // by -1. If we encounter the Alibi being a constant, we may do the additional
                 // checking of the values to be negative and, if it fails, we won't multiply
                 // the values by -1.
-                if (auto alibi_constant =
-                        std::dynamic_pointer_cast<v0::Constant>(pattern_map.at(alibi).get_node_shared_ptr())) {
+                if (auto alibi_constant = ov::as_type_ptr<v0::Constant>(pattern_map.at(alibi).get_node_shared_ptr())) {
                     auto alibi_constant_values = alibi_constant->cast_vector<float>();
                     bool all_values_nagative =
                         std::all_of(alibi_constant_values.begin(), alibi_constant_values.end(), [&](float value) {
@@ -409,7 +408,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         //  add_kv_parameter(mapping[v_gather])
 
         if (pattern_map.find(v_past_par) != pattern_map.end()) {
-            auto param = std::dynamic_pointer_cast<v0::Parameter>(pattern_map.at(v_past_par).get_node_shared_ptr());
+            auto param = ov::as_type_ptr<v0::Parameter>(pattern_map.at(v_past_par).get_node_shared_ptr());
             if (param) {
                 return false;
             }
@@ -417,7 +416,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         }
 
         if (pattern_map.find(k_past_par) != pattern_map.end()) {
-            auto param = std::dynamic_pointer_cast<v0::Parameter>(pattern_map.at(k_past_par).get_node_shared_ptr());
+            auto param = ov::as_type_ptr<v0::Parameter>(pattern_map.at(k_past_par).get_node_shared_ptr());
             if (param) {
                 return false;
             }

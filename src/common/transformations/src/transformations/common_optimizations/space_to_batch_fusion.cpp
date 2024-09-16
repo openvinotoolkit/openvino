@@ -96,8 +96,7 @@ ov::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
         auto pad = std::dynamic_pointer_cast<op::util::PadBase>(pattern_map.at(pad_pattern).get_node_shared_ptr());
         if (!pad || pad->get_pad_mode() != op::PadMode::CONSTANT)
             return false;
-        auto pad_value_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(pad_value).get_node_shared_ptr());
+        auto pad_value_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(pad_value).get_node_shared_ptr());
         if (!pad_value_const)
             return false;
         auto pad_value = pad_value_const->cast_vector<float>();
@@ -111,8 +110,8 @@ ov::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
         if (pads_are_negative(pads_end))
             return false;
 
-        auto space_to_depth = std::dynamic_pointer_cast<ov::op::v0::SpaceToDepth>(
-            pattern_map.at(space_to_depth_pattern).get_node_shared_ptr());
+        auto space_to_depth =
+            ov::as_type_ptr<ov::op::v0::SpaceToDepth>(pattern_map.at(space_to_depth_pattern).get_node_shared_ptr());
         if (!space_to_depth)
             return false;
         if (space_to_depth->get_mode() != ov::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST)

@@ -37,13 +37,13 @@ ov::pass::RandomUniformFusion::RandomUniformFusion() {
         const auto data = pattern_map.at(data_pattern);
         const auto random_uniform = pattern_map.at(random_uniform_pattern);
         const auto constant = pattern_map.at(const_pattern);
-        const auto ru = std::dynamic_pointer_cast<ov::op::v8::RandomUniform>(random_uniform.get_node_shared_ptr());
+        const auto ru = ov::as_type_ptr<ov::op::v8::RandomUniform>(random_uniform.get_node_shared_ptr());
         if (!ru)
             return false;
         if (!ru->get_out_type().is_real())
             return false;
 
-        const auto old_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(constant.get_node_shared_ptr());
+        const auto old_const = ov::as_type_ptr<ov::op::v0::Constant>(constant.get_node_shared_ptr());
         if (!old_const)
             return false;
         if (!old_const->get_element_type().is_real())

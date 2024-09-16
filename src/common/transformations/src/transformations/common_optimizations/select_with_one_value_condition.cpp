@@ -32,13 +32,13 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
         NodeRegistry copy_to;
         auto& pattern_map = m.get_pattern_value_map();
         auto& select_value = pattern_map.at(select_pattern);
-        auto select = std::dynamic_pointer_cast<ov::op::v1::Select>(select_value.get_node_shared_ptr());
+        auto select = ov::as_type_ptr<ov::op::v1::Select>(select_value.get_node_shared_ptr());
         if (!select) {
             return false;
         }
 
         auto condition_value = pattern_map.at(condition);
-        auto condition_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(condition_value.get_node_shared_ptr());
+        auto condition_const = ov::as_type_ptr<ov::op::v0::Constant>(condition_value.get_node_shared_ptr());
         if (!condition_const) {
             return false;
         }

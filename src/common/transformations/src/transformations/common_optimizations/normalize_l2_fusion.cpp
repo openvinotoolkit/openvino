@@ -53,19 +53,17 @@ ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto data_input = pattern_to_output.at(input);
-        const auto exp_input =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(exp).get_node_shared_ptr());
-        const auto axes_input =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
+        const auto exp_input = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(exp).get_node_shared_ptr());
+        const auto axes_input = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
         const auto eps_attr =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
         const auto exp2_input =
             pattern_to_output.count(exp2)
-                ? std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(exp2).get_node_shared_ptr())
+                ? ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(exp2).get_node_shared_ptr())
                 : nullptr;
         const auto exp3_input =
             pattern_to_output.count(exp3)
-                ? std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(exp3).get_node_shared_ptr())
+                ? ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(exp3).get_node_shared_ptr())
                 : nullptr;
 
         if (exp_input && !op::util::has_constant_value<float>(exp_input, 2.0f)) {

@@ -77,8 +77,8 @@ ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
         if (!check_input_output_shape(reshape_or_trans_after))
             return false;
 
-        auto depth_to_space = std::dynamic_pointer_cast<ov::op::v0::DepthToSpace>(
-            pattern_map.at(depth_to_space_pattern).get_node_shared_ptr());
+        auto depth_to_space =
+            ov::as_type_ptr<ov::op::v0::DepthToSpace>(pattern_map.at(depth_to_space_pattern).get_node_shared_ptr());
         if (!depth_to_space)
             return false;
         if (depth_to_space->get_mode() != ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST)
@@ -89,11 +89,10 @@ ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
         auto block_size = static_cast<int64_t>(depth_to_space->get_block_size());
         auto block_shape =
             ov::op::v0::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{1, 1, block_size, block_size});
-        auto starts =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(starts_pattern).get_node_shared_ptr());
+        auto starts = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(starts_pattern).get_node_shared_ptr());
         if (!starts)
             return false;
-        auto ends = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(ends_pattern).get_node_shared_ptr());
+        auto ends = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(ends_pattern).get_node_shared_ptr());
         if (!ends)
             return false;
         auto starts_value = starts->cast_vector<int64_t>();

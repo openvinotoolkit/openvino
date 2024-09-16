@@ -347,7 +347,7 @@ NodeVector InsertTransposeBeforeNode(const NodePtr& main_node,
 namespace {
 
 std::shared_ptr<ov::op::v0::Constant> GetTransposeConstant(Node* node) {
-    auto transpose_node = dynamic_cast<ov::op::v1::Transpose*>(node);
+    auto transpose_node = ov::as_type<ov::op::v1::Transpose>(node);
     if (!transpose_node)
         return {};
 
@@ -418,7 +418,7 @@ bool RemoveTransposeConsumers(const NodePtr& node) {
     ov::op::v1::Transpose* transpose_connected_to_result = nullptr;
     for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
         for (auto& consumer_input : node->get_output_target_inputs(output_idx)) {
-            auto transpose = dynamic_cast<ov::op::v1::Transpose*>(consumer_input.get_node());
+            auto transpose = ov::as_type<ov::op::v1::Transpose>(consumer_input.get_node());
             if (!transpose) {
                 // should never happen
                 // the check that all consumers of the main node are Transposes is added
@@ -428,7 +428,7 @@ bool RemoveTransposeConsumers(const NodePtr& node) {
             out_idx_to_redundant_transposes[output_idx].push_back(transpose);
 
             for (const auto& transpose_consumer_input : transpose->output(0).get_target_inputs()) {
-                if (dynamic_cast<ov::op::v0::Result*>(transpose_consumer_input.get_node())) {
+                if (ov::as_type<ov::op::v0::Result>(transpose_consumer_input.get_node())) {
                     transpose_connected_to_result = transpose;
                 }
             }

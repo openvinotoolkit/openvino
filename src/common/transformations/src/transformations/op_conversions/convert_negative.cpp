@@ -19,7 +19,7 @@ ov::pass::ConvertNegative::ConvertNegative() {
     auto neg = ov::pass::pattern::wrap_type<ov::op::v0::Negative>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto neg = std::dynamic_pointer_cast<ov::op::v0::Negative>(m.get_match_root());
+        auto neg = ov::as_type_ptr<ov::op::v0::Negative>(m.get_match_root());
         if (!neg) {
             return false;
         }

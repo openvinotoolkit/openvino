@@ -657,7 +657,7 @@ TEST(TransformationTests, ConvertPrecision_Roundings) {
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
 
-        auto casted_end = std::dynamic_pointer_cast<opset1::Constant>(ss->input_value(2).get_node_shared_ptr());
+        auto casted_end = ov::as_type_ptr<opset1::Constant>(ss->input_value(2).get_node_shared_ptr());
         ASSERT_TRUE(casted_end != nullptr);
         ASSERT_EQ(casted_end->get_element_type(), element::i32);
         ASSERT_EQ(casted_end->cast_vector<int32_t>(),
@@ -1409,7 +1409,7 @@ void constant_convert_test(element::Type type_from,
         manager.run_passes(f);
     }
     auto ops = f->get_ordered_ops();
-    auto c = std::dynamic_pointer_cast<opset4::Constant>(ops[0]);
+    auto c = ov::as_type_ptr<opset4::Constant>(ops[0]);
     ASSERT_NE(c, nullptr);
     ASSERT_EQ(c->get_friendly_name(), expected_friendly_name);
     std::vector<To> actual;
@@ -1439,7 +1439,7 @@ void constant_convert_test(element::Type_t type_from, element::Type_t type_to, F
         manager.run_passes(f);
     }
     auto ops = f->get_ordered_ops();
-    auto c = std::dynamic_pointer_cast<opset4::Constant>(ops[0]);
+    auto c = ov::as_type_ptr<opset4::Constant>(ops[0]);
     ASSERT_NE(c, nullptr);
     ASSERT_EQ(c->get_friendly_name(), expected_friendly_name);
 

@@ -24,7 +24,7 @@ ov::pass::ConvertBitwiseAndToLogicalAnd::ConvertBitwiseAndToLogicalAnd() {
                                                      pattern::any_input(pattern::type_matches(element::boolean))});
 
     const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        const auto bitwise = std::dynamic_pointer_cast<ov::op::v13::BitwiseAnd>(m.get_match_root());
+        const auto bitwise = ov::as_type_ptr<ov::op::v13::BitwiseAnd>(m.get_match_root());
         if (!bitwise || transformation_callback(bitwise)) {
             return false;
         }
@@ -48,7 +48,7 @@ ov::pass::ConvertBitwiseNotToLogicalNot::ConvertBitwiseNotToLogicalNot() {
         pattern::wrap_type<ov::op::v13::BitwiseNot>({pattern::any_input(pattern::type_matches(element::boolean))});
 
     const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        const auto bitwise = std::dynamic_pointer_cast<ov::op::v13::BitwiseNot>(m.get_match_root());
+        const auto bitwise = ov::as_type_ptr<ov::op::v13::BitwiseNot>(m.get_match_root());
         if (!bitwise || transformation_callback(bitwise)) {
             return false;
         }
@@ -72,7 +72,7 @@ ov::pass::ConvertBitwiseOrToLogicalOr::ConvertBitwiseOrToLogicalOr() {
                                                     pattern::any_input(pattern::type_matches(element::boolean))});
 
     const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        const auto bitwise = std::dynamic_pointer_cast<ov::op::v13::BitwiseOr>(m.get_match_root());
+        const auto bitwise = ov::as_type_ptr<ov::op::v13::BitwiseOr>(m.get_match_root());
         if (!bitwise || transformation_callback(bitwise)) {
             return false;
         }
@@ -98,7 +98,7 @@ ov::pass::ConvertBitwiseXorToLogicalXor::ConvertBitwiseXorToLogicalXor() {
                                                      pattern::any_input(pattern::type_matches(element::boolean))});
 
     const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        const auto bitwise = std::dynamic_pointer_cast<ov::op::v13::BitwiseXor>(m.get_match_root());
+        const auto bitwise = ov::as_type_ptr<ov::op::v13::BitwiseXor>(m.get_match_root());
         if (!bitwise || transformation_callback(bitwise)) {
             return false;
         }

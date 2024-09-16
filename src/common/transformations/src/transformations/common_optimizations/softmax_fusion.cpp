@@ -43,8 +43,8 @@ ov::pass::SoftmaxFusion::SoftmaxFusion() {
 
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto reduce_sum_axes = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-            pattern_map.at(reduce_sum_axes_pattern).get_node_shared_ptr());
+        auto reduce_sum_axes =
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(reduce_sum_axes_pattern).get_node_shared_ptr());
         if (!reduce_sum_axes || shape_size(reduce_sum_axes->get_shape()) != 1)
             return false;
         int64_t reduce_sum_axis = reduce_sum_axes->cast_vector<int64_t>()[0];
@@ -55,8 +55,8 @@ ov::pass::SoftmaxFusion::SoftmaxFusion() {
 
         auto exp_input_is_subtract = pattern_map.count(sub_pattern) != 0;
         if (exp_input_is_subtract) {
-            auto reduce_max_axes = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-                pattern_map.at(reduce_max_axes_pattern).get_node_shared_ptr());
+            auto reduce_max_axes =
+                ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(reduce_max_axes_pattern).get_node_shared_ptr());
             if (!reduce_max_axes || shape_size(reduce_max_axes->get_shape()) != 1)
                 return false;
             int64_t reduce_max_axis = reduce_max_axes->cast_vector<int64_t>()[0];

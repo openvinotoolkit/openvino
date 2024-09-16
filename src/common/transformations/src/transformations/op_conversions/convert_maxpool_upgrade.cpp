@@ -18,7 +18,7 @@ ov::pass::ConvertMaxPool1ToMaxPool8::ConvertMaxPool1ToMaxPool8() {
     auto maxpool_v1_pattern = ov::pass::pattern::wrap_type<ov::op::v1::MaxPool>({input});
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        auto maxpool_v1_node = std::dynamic_pointer_cast<ov::op::v1::MaxPool>(m.get_match_root());
+        auto maxpool_v1_node = ov::as_type_ptr<ov::op::v1::MaxPool>(m.get_match_root());
 
         if (!maxpool_v1_node)
             return false;

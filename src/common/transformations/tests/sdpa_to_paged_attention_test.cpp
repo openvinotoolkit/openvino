@@ -70,10 +70,10 @@ TEST(SDPATOPATest, GatherIdx_ConcatAxis_EQ) {
 
     EXPECT_TRUE(transformation_run);
     const auto new_convert =
-        std::dynamic_pointer_cast<op::v0::Convert>(result->input(0).get_source_output().get_node_shared_ptr());
+        ov::as_type_ptr<op::v0::Convert>(result->input(0).get_source_output().get_node_shared_ptr());
     EXPECT_TRUE(new_convert);
     const auto new_max_context_len =
-        std::dynamic_pointer_cast<op::v0::Parameter>(new_convert->input(0).get_source_output().get_node_shared_ptr());
+        ov::as_type_ptr<op::v0::Parameter>(new_convert->input(0).get_source_output().get_node_shared_ptr());
     EXPECT_TRUE(new_max_context_len);
     EXPECT_TRUE(new_max_context_len == max_context_len);
 }
@@ -113,7 +113,7 @@ TEST(SDPATOPATest, GatherIdx_ConcatAxis_NOTEQ_STATIC) {
 
     EXPECT_TRUE(transformation_run);
     const auto new_constant =
-        std::dynamic_pointer_cast<op::v0::Constant>(result->input(0).get_source_output().get_node_shared_ptr());
+        ov::as_type_ptr<op::v0::Constant>(result->input(0).get_source_output().get_node_shared_ptr());
     EXPECT_TRUE(new_constant);
 }
 

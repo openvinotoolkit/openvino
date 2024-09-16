@@ -36,12 +36,11 @@ ov::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         const auto& type = input.get_element_type();
         if (type.bitwidth() < element::f32.bitwidth())
             return false;
-        auto fq =
-            std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(pattern_value_map.at(fq_pattern).get_node_shared_ptr());
+        auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(pattern_value_map.at(fq_pattern).get_node_shared_ptr());
         if (!fq)
             return false;
         auto mul_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_value_map.at(const_pattern).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_value_map.at(const_pattern).get_node_shared_ptr());
         if (!mul_const)
             return false;
 

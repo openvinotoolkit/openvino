@@ -31,7 +31,7 @@ ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
         auto data = pattern_map[data_pattern];
         auto relu = pattern_map[relu_pattern];
         auto input_low = pattern_map[input_low_pattern];
-        auto input_low_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(input_low.get_node_shared_ptr());
+        auto input_low_const = ov::as_type_ptr<ov::op::v0::Constant>(input_low.get_node_shared_ptr());
         if (!input_low_const)
             return false;
         auto input_low_values = input_low_const->cast_vector<float>();
@@ -39,7 +39,7 @@ ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
                 return f < 0;
             }))
             return false;
-        auto fq = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(pattern_map[fq_pattern].get_node_shared_ptr());
+        auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(pattern_map[fq_pattern].get_node_shared_ptr());
         if (!fq)
             return false;
 

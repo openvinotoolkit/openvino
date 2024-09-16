@@ -41,8 +41,7 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
         }
 
         if (pad->inputs().size() == 4) {
-            if (auto pad_value =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(pad->input_value(3).get_node_shared_ptr())) {
+            if (auto pad_value = ov::as_type_ptr<ov::op::v0::Constant>(pad->input_value(3).get_node_shared_ptr())) {
                 // pad value is a scalar
                 if (pad_value->cast_vector<float>()[0] != 0) {
                     return false;

@@ -918,7 +918,7 @@ ov::pass::EliminateSlice::EliminateSlice() {
     auto pattern = pattern::wrap_type<ov::op::v8::Slice>({input, begin_const, end_const, step_const, axes});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
-        auto slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(m.get_match_root());
+        auto slice = ov::as_type_ptr<ov::op::v8::Slice>(m.get_match_root());
         if (!slice) {
             return false;
         }
@@ -950,7 +950,7 @@ ov::pass::EliminateStridedSlice::EliminateStridedSlice() {
     auto pattern = pattern::wrap_type<ov::op::v1::StridedSlice>({input, begin_const, end_const, optional_stride_const});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
-        auto strided_slice_node = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(m.get_match_root());
+        auto strided_slice_node = ov::as_type_ptr<ov::op::v1::StridedSlice>(m.get_match_root());
         if (!strided_slice_node) {
             return false;
         }
@@ -1046,7 +1046,7 @@ ov::pass::EliminateStridedSliceByShape::EliminateStridedSliceByShape() {
         if (node == nullptr) {
             return false;
         }
-        auto strided_slice_node = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(node);
+        auto strided_slice_node = ov::as_type_ptr<ov::op::v1::StridedSlice>(node);
         if (strided_slice_node) {
             // check that all values of the mask is equal 0
             auto check_mask = [](const std::vector<int64_t>& mask_to_check) {

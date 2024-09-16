@@ -30,8 +30,7 @@ ov::pass::SoftPlusFusion::SoftPlusFusion() {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
-        auto constant =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         if (!constant)
             return false;
 

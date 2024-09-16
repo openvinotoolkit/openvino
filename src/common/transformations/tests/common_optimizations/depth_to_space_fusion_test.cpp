@@ -35,7 +35,7 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionDepthFirst) {
         model = std::make_shared<ov::Model>(NodeVector{reshape_after}, ParameterVector{input0});
 
         auto callback = [](const std::shared_ptr<const Node>& node) -> bool {
-            return std::dynamic_pointer_cast<const opset3::DepthToSpace>(node) != nullptr;
+            return ov::as_type_ptr<const opset3::DepthToSpace>(node) != nullptr;
         };
 
         auto pass_config = manager.get_pass_config();
@@ -67,7 +67,7 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionDepthFirstDynamicBatch) {
         model = std::make_shared<ov::Model>(NodeVector{reshape_after}, ParameterVector{input});
 
         auto callback = [](const std::shared_ptr<const Node>& node) -> bool {
-            return std::dynamic_pointer_cast<const opset3::DepthToSpace>(node) != nullptr;
+            return ov::as_type_ptr<const opset3::DepthToSpace>(node) != nullptr;
         };
 
         auto pass_config = manager.get_pass_config();
@@ -99,7 +99,7 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionBlockFirst) {
         model = std::make_shared<ov::Model>(NodeVector{reshape_after}, ParameterVector{input0});
 
         auto callback = [](const std::shared_ptr<const Node>& node) -> bool {
-            return std::dynamic_pointer_cast<const opset3::DepthToSpace>(node) != nullptr;
+            return ov::as_type_ptr<const opset3::DepthToSpace>(node) != nullptr;
         };
 
         auto pass_config = manager.get_pass_config();
@@ -131,7 +131,7 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionBlockFirstDynamicBatch) {
         model = std::make_shared<ov::Model>(NodeVector{reshape_after}, ParameterVector{input});
 
         auto callback = [](const std::shared_ptr<const Node>& node) -> bool {
-            return std::dynamic_pointer_cast<const opset3::DepthToSpace>(node) != nullptr;
+            return ov::as_type_ptr<const opset3::DepthToSpace>(node) != nullptr;
         };
 
         auto pass_config = manager.get_pass_config();
@@ -163,7 +163,7 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionDynamicShape) {
         model = std::make_shared<ov::Model>(NodeVector{reshape_after}, ParameterVector{input0, shape_reshape_before});
 
         auto callback = [](const std::shared_ptr<const Node>& node) -> bool {
-            return std::dynamic_pointer_cast<const opset3::DepthToSpace>(node) != nullptr;
+            return ov::as_type_ptr<const opset3::DepthToSpace>(node) != nullptr;
         };
 
         auto pass_config = manager.get_pass_config();
@@ -204,7 +204,7 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionSeveralConsumers) {
 
         model = std::make_shared<ov::Model>(NodeVector{result, additional_consumer}, ParameterVector{input0});
         auto callback = [](const std::shared_ptr<const Node>& node) -> bool {
-            return std::dynamic_pointer_cast<const opset3::DepthToSpace>(node) != nullptr;
+            return ov::as_type_ptr<const opset3::DepthToSpace>(node) != nullptr;
         };
 
         auto pass_config = manager.get_pass_config();

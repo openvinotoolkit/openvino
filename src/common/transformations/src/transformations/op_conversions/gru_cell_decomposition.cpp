@@ -24,7 +24,7 @@ ov::pass::GRUCellDecomposition::GRUCellDecomposition() {
     MATCHER_SCOPE(GRUCellDecomposition);
     auto gru_cell = ov::pass::pattern::wrap_type<ov::op::v3::GRUCell>();
     matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
-        auto gru_cell = std::dynamic_pointer_cast<ov::op::v3::GRUCell>(m.get_match_root());
+        auto gru_cell = ov::as_type_ptr<ov::op::v3::GRUCell>(m.get_match_root());
         if (!gru_cell || transformation_callback(gru_cell)) {
             return false;
         }
