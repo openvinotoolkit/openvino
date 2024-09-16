@@ -955,17 +955,17 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         if (attention_mask)
             attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<T>({b, h, pq, 0}, true));
         uint8_t* cmask_ptr = causal_mask ? &causal_mask.at<uint8_t>({b, h, pq, 0}, true) : nullptr;
-        attn_softmax_kernel(buf_attn_w.ptr<T3>(b, h, pq),
-                            buf_attn_w.ptr<T3>(b, h, pq),
-                            d_scale,
-                            alibi_ptr,
-                            attn_mask_ptr,
-                            cmask_ptr,
-                            select_nfltmax_at_0,
-                            ncausal,
-                            cur_kv_len,
-                            attn_mask_prec,
-                            precision);
+        attn_softmax_kernel<T3>(buf_attn_w.ptr<T3>(b, h, pq),
+                buf_attn_w.ptr<T3>(b, h, pq),
+                        d_scale,
+                        alibi_ptr,
+                        attn_mask_ptr,
+                        cmask_ptr,
+                        select_nfltmax_at_0,
+                        ncausal,
+                        cur_kv_len,
+                        attn_mask_prec,
+                        precision);
     });
 
     // attn_w * V
