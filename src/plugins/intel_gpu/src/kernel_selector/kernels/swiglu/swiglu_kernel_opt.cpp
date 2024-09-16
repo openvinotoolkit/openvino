@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "swiglu_kernel_ref.h"
+#include "swiglu_kernel_opt.h"
 #include "kernel_selector_utils.h"
 #include <string>
 
 namespace kernel_selector {
-ParamsKey SwiGLUKernelRef::GetSupportedKey() const {
+ParamsKey SwiGLUKernelOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
@@ -17,15 +17,13 @@ ParamsKey SwiGLUKernelRef::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfzyx);
-    k.EnableTensorOffset();
-    k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableDynamicShapesSupport();
     return k;
 }
 
-KernelsPriority SwiGLUKernelRef::GetKernelsPriority(const Params& /*params*/) const {
-    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+KernelsPriority SwiGLUKernelOpt::GetKernelsPriority(const Params& /*params*/) const {
+    return FORCE_PRIORITY_1;
 }
 }  // namespace kernel_selector
