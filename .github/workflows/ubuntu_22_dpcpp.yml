@@ -77,6 +77,7 @@ jobs:
       build-js: false
       build-debian-packages: false
       build-contrib: false
+      build-rpm-packages: false
       cmake-options: |- 
             -G "Ninja Multi-Config" \
             -DENABLE_CPPLINT=OFF \
