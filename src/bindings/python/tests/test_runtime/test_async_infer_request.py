@@ -19,46 +19,12 @@ from openvino import (
     Tensor,
 )
 from tests import skip_need_mock_op
-from tests.utils.helpers import generate_image, get_relu_model
-
-
-def concat_model_with_data(device, ov_type, numpy_dtype):
-    core = Core()
-
-    input_shape = [5]
-
-    params = []
-    params += [ops.parameter(input_shape, ov_type)]
-    if ov_type == Type.bf16:
-        params += [ops.parameter(input_shape, ov_type)]
-    else:
-        params += [ops.parameter(input_shape, numpy_dtype)]
-
-    model = Model(ops.concat(params, 0), params)
-    compiled_model = core.compile_model(model, device)
-    request = compiled_model.create_infer_request()
-    tensor1 = Tensor(ov_type, input_shape)
-    tensor1.data[:] = np.array([6, 7, 8, 9, 0])
-    array1 = np.array([1, 2, 3, 4, 5], dtype=numpy_dtype)
-
-    return request, tensor1, array1
-
-
-def abs_model_with_data(device, ov_type, numpy_dtype):
-    input_shape = [1, 4]
-    param = ops.parameter(input_shape, ov_type)
-    model = Model(ops.abs(param), [param])
-    core = Core()
-    compiled_model = core.compile_model(model, device)
-
-    request = compiled_model.create_infer_request()
-
-    tensor1 = Tensor(ov_type, input_shape)
-    tensor1.data[:] = np.array([6, -7, -8, 9])
-
-    array1 = np.array([[-1, 2, 5, -3]]).astype(numpy_dtype)
-
-    return compiled_model, request, tensor1, array1
+from tests.utils.helpers import (
+    generate_image,
+    get_relu_model,
+    generate_concat_compiled_model_with_data,
+    generate_abs_compiled_model_with_data,
+)
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])
@@ -360,7 +326,7 @@ def test_start_async(device, share_inputs):
 ])
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_async_mixed_values(device, ov_type, numpy_dtype, share_inputs):
-    request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
+    request, tensor1, array1 = generate_concat_compiled_model_with_data(device=device, ov_type=ov_type, numpy_dtype=numpy_dtype)
 
     request.start_async([tensor1, array1], share_inputs=share_inputs)
     request.wait()
@@ -380,7 +346,7 @@ def test_async_mixed_values(device, ov_type, numpy_dtype, share_inputs):
 ])
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_async_single_input(device, ov_type, numpy_dtype, share_inputs):
-    _, request, tensor1, array1 = abs_model_with_data(device, ov_type, numpy_dtype)
+    _, request, tensor1, array1 = generate_abs_compiled_model_with_data(device, ov_type, numpy_dtype)
 
     request.start_async(array1, share_inputs=share_inputs)
     request.wait()
@@ -401,7 +367,7 @@ def test_array_like_input_async(device, share_inputs):
         def __array__(self):
             return np.array(self.data)
 
-    _, request, _, input_data = abs_model_with_data(device, Type.f32, np.single)
+    _, request, _, input_data = generate_abs_compiled_model_with_data(device, Type.f32, np.single)
     model_input_object = ArrayLikeObject(input_data.tolist())
     model_input_list = [ArrayLikeObject(input_data.tolist())]
     # Test single array-like object in InferRequest().start_async()

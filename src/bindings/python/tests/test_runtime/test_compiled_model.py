@@ -2,7 +2,6 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import sys
 import pytest
 import numpy as np
 
@@ -10,6 +9,7 @@ from tests.utils.helpers import (
     get_relu_model,
     generate_image,
     generate_model_and_image,
+    generate_concat_compiled_model,
     generate_relu_compiled_model,
     generate_relu_compiled_model_with_config,
     encrypt_base64,
@@ -18,6 +18,7 @@ from tests.utils.helpers import (
 from openvino import Model, Shape, Core, Tensor, serialize
 from openvino.runtime import ConstOutput
 
+import openvino.runtime.opset13 as ops
 import openvino.properties as props
 
 
@@ -276,3 +277,15 @@ def test_compiled_model_from_buffer_in_memory(request, tmp_path, device):
 
     compiled = core.compile_model(model=xml, weights=weights, device_name=device)
     _ = compiled([np.random.normal(size=list(input.shape)).astype(dtype=input.get_element_type().to_dtype()) for input in compiled.inputs])
+
+
+def test_memory_release(device):
+    compiled_model = generate_concat_compiled_model(device)
+    request = compiled_model.create_infer_request()
+
+    input_tensor = Tensor(compiled_model.inputs[0].get_element_type(), compiled_model.inputs[0].get_shape())
+    request.infer({0: input_tensor, 1: input_tensor})
+
+    # Release memory and perform inference again
+    compiled_model.release_memory()
+    request.infer({0: input_tensor, 1: input_tensor})
