@@ -490,6 +490,7 @@ void ov::npuw::JustInferRequest::unpack_closure(std::size_t idx, RqPtr request) 
             // Remember where the unpack is required
             closure_unpack_required.push_back(cidx);
         } else if (comp_model_desc.update_required[cidx]) {
+            // FIXME: remove once closures are reworked with weights bank
             if (needs_copy(idx)) {
                 // Remember where copy is requried
                 closure_copy_required.push_back(cidx);

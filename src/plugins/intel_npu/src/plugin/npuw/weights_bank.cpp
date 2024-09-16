@@ -30,17 +30,12 @@ private:
     std::mutex m_mutex;
 };
 
-ov::Tensor Bank::update(const std::shared_ptr<ov::Node>& node) {
-    if (!node) {
-        OPENVINO_THROW("Uninitialized ov::Node in weights bank allocation!");
-    }
-
+ov::Tensor Bank::update(const std::shared_ptr<ov::op::v0::Constant>& node) {
     std::lock_guard<std::mutex> guard(m_mutex);
 
     auto tensor = ov::npuw::util::tensor_from_const(node);
 
     if (m_bank.find(tensor.data()) == m_bank.end()) {
-        // need to allocate first
         m_bank[tensor.data()] = node;
     }
 

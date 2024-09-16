@@ -14,7 +14,6 @@
 #include <sstream>
 
 #include "logging.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"
 
@@ -39,12 +38,8 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt) {
     return false;
 }
 
-ov::Tensor ov::npuw::util::tensor_from_const(const std::shared_ptr<ov::Node>& node) {
-    NPUW_ASSERT(ov::op::util::is_constant(node));
-    NPUW_ASSERT(node->outputs().size() == 1);
-    const auto port = node->output(0);
-    auto cnst_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
-    return ov::Tensor(port.get_element_type(), port.get_shape(), const_cast<void*>(cnst_node->get_data_ptr()));
+ov::Tensor ov::npuw::util::tensor_from_const(const std::shared_ptr<ov::op::v0::Constant>& node) {
+    return ov::Tensor(node->get_element_type(), node->get_shape(), const_cast<void*>(node->get_data_ptr()));
 }
 
 bool ov::npuw::util::starts_with(const std::string& str, const std::string& prefix) {

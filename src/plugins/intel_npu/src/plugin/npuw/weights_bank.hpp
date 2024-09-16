@@ -9,6 +9,8 @@
 #include <tuple>
 #include <unordered_map>
 
+#include "lazy_tensor.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -23,7 +25,7 @@ public:
     explicit Bank(const std::shared_ptr<const ov::ICore>& core) : m_core(core) {}
 
     // Capture CPU version of the tensor
-    ov::Tensor update(const std::shared_ptr<ov::Node>& tensor);
+    ov::Tensor update(const std::shared_ptr<ov::op::v0::Constant>& node);
 
     // Based on previously captured tensor allocate a new tensor (if needed) on a specified device
     ov::Tensor get(const ov::Tensor& tensor, const std::string& device);
@@ -33,7 +35,7 @@ private:
     void drop(const ov::Tensor& tensor);
 
     // Default CPU bank. Filled by update()
-    std::unordered_map<void*, std::shared_ptr<ov::Node>> m_bank;
+    std::unordered_map<void*, std::shared_ptr<ov::op::v0::Constant>> m_bank;
     // Bank for specified device and their allocated memory
     std::unordered_map<std::string, std::unordered_map<void*, ov::Tensor>> m_device_bank;
     std::mutex m_mutex;

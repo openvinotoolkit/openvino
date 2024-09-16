@@ -7,6 +7,7 @@
 #include <string>
 
 #include "logging.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
@@ -18,7 +19,7 @@ bool is_set(const std::size_t sub_idx, const std::string& opt);
 
 // Every great project has its own string class...
 // NB: Newer C++ standards would allow to use string views or smt
-ov::Tensor tensor_from_const(const std::shared_ptr<ov::Node>& node);
+ov::Tensor tensor_from_const(const std::shared_ptr<ov::op::v0::Constant>& node);
 
 bool starts_with(const std::string& str, const std::string& prefix);
 
