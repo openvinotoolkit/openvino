@@ -19,6 +19,8 @@
 #include "patterns/dcoff.hpp"
 #include "patterns/opt.hpp"
 
+#include "openvino/runtime/make_tensor.hpp"
+
 namespace {
 
 class FuncallEverywhere {
@@ -1569,12 +1571,19 @@ void Partitioner::optimize(const std::string& func_name) {
     {
         ov::npuw::patterns::opt::Context ctx;
         ctx.pmm_dims = cfg.get<::intel_npu::NPUW_PMM>();
+
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::opt::DQParMMGQ>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWu>(std::ref(ctx));
+        rewr.run_on_model(f._model);
+
         mergeParallelMatMuls(f._model, ctx);
 
-        // Concatenate closures for "concatenated" parameters
         ov::ParameterVector new_params;
         std::vector<ov::npuw::patterns::opt::Context::PPtr> to_remove;
         std::set<std::size_t> to_remove_idx;
+
+        // Concatenate closures for "concatenated" parameters
         for (auto&& p : ctx.params_to_concat) {
             new_params.push_back(p.first);
             const auto& params_to_concat = p.second.first;
@@ -1595,6 +1604,40 @@ void Partitioner::optimize(const std::string& func_name) {
                 }
                 funcall._closure.push_back(ov::npuw::util::concat(to_concat, axis));
             });
+        }
+
+        // Unpack closures in compile time, where requested
+        for (auto&& p : ctx.params_to_unpack) {
+            const auto& tensor_to_unpack = p.second;
+            auto w_idx = f._model->get_parameter_index(tensor_to_unpack.w);
+            auto z_idx = f._model->get_parameter_index(tensor_to_unpack.z);
+            auto s_idx = f._model->get_parameter_index(tensor_to_unpack.s);
+
+            new_params.push_back(p.first);
+            std::cout << "Registered " << p.first << std::endl;
+            to_remove.push_back(tensor_to_unpack.w);
+            to_remove.push_back(tensor_to_unpack.z);
+            to_remove.push_back(tensor_to_unpack.s);
+            to_remove_idx.insert(w_idx);
+            to_remove_idx.insert(z_idx);
+            to_remove_idx.insert(s_idx);
+
+            ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+                auto& funcall = func_group.refs[f_idx].get();
+                ov::Tensor cw = funcall._closure[w_idx - f._param_offset];
+                ov::Tensor cz = funcall._closure[z_idx - f._param_offset];
+                ov::Tensor cs = funcall._closure[s_idx - f._param_offset];
+                ov::Tensor dst(p.first->get_element_type(), p.first->get_shape());
+
+                const auto& gti = ov::get_tensor_impl;
+                ov::npuw::util::unpack(gti(cw), gti(cz), gti(cs), gti(dst));
+                funcall._closure.push_back(std::move(dst));
+            });
+        }
+
+        // Add all new parameters introduced by this change
+        for (auto &&p : new_params) {
+            std::cout << "Adding " << p << std::endl;
         }
         f._model->add_parameters(new_params);
 
@@ -1628,7 +1671,6 @@ void Partitioner::optimize(const std::string& func_name) {
     ov::npuw::patterns::opt::Context ctx;
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi>();
-    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWu>();
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQi>(std::ref(ctx));
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQ2i>(std::ref(ctx));
     rewr.run_on_model(f._model);

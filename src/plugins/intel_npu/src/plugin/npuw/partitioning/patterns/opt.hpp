@@ -48,12 +48,18 @@ struct Context {
     std::map<PPtr, std::pair<ov::ParameterVector, std::size_t>> params_to_concat;
     PPtr concat(ov::ParameterVector&& v, std::size_t dim);
 
+    struct DQUnpack {
+        PPtr w, z, s;
+    };
+    std::map<PPtr, DQUnpack> params_to_unpack;
+    PPtr unpack(PPtr w, PPtr z, PPtr s, ov::element::Type type);
+
     using Ref = std::reference_wrapper<Context>;
 };
 
 class DQMatMulCWu : public ov::pass::MatcherPass {
 public:
-    DQMatMulCWu();
+    DQMatMulCWu(Context::Ref ctx);
 };
 
 class DQMatMulGQi : public ov::pass::MatcherPass {

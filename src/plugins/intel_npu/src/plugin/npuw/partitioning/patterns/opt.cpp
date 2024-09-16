@@ -66,6 +66,12 @@ Context::PPtr Context::concat(ov::ParameterVector&& v, std::size_t dim) {
     return new_param;
 }
 
+Context::PPtr Context::unpack(Context::PPtr w, Context::PPtr z, Context::PPtr s, ov::element::Type type) {
+    auto new_param = std::make_shared<ov::op::v0::Parameter>(type, w->get_shape());
+    params_to_unpack[new_param] = {w, z, s};
+    return new_param;
+}
+
 namespace opp = ov::pass::pattern;
 
 // FROM:
@@ -158,7 +164,7 @@ DQMatMulCWi::DQMatMulCWi() {
 //     Param(Z) -> to(f16) -> MatMul -> Subtract ->
 //     Param(S) ----------------------------------> Multiply -> to(f32)
 
-DQMatMulCWu::DQMatMulCWu() {
+DQMatMulCWu::DQMatMulCWu(Context::Ref ctx) {
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
     auto qzerop = opp::wrap_type<ov::op::v0::Parameter>();
@@ -194,21 +200,10 @@ DQMatMulCWu::DQMatMulCWu() {
         if (ov::element::u8 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
             !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             auto new_cvt_a = std::make_shared<ov::op::v0::Convert>(matched_mmi, ov::element::f16);
-            auto new_mm_w = std::make_shared<ov::op::v0::MatMul>(new_cvt_a, matched_node_cvtw, false, true);
 
-            const std::vector<std::size_t> bcast_v = {qzerop_shape[0], act_shape[2]};
-            auto new_bcast_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, bcast_v);
-            auto new_bcast_z = std::make_shared<ov::op::v1::Broadcast>(matched_node_cvtz, new_bcast_c);
-            auto new_mm_z = std::make_shared<ov::op::v0::MatMul>(new_cvt_a, new_bcast_z, false, true);
-
-            auto new_dims = std::vector<std::size_t>{qcoeff_shape[1], qcoeff_shape[0]};
-            auto new_rhsp_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, new_dims);
-            auto new_rshp = std::make_shared<ov::op::v1::Reshape>(matched_node_qcoeff, new_rhsp_c, false);
-
-            auto new_mw = std::make_shared<ov::op::v1::Multiply>(new_mm_w, new_rshp);
-            auto new_mz = std::make_shared<ov::op::v1::Multiply>(new_mm_z, new_rshp);
-            auto new_sub = std::make_shared<ov::op::v1::Subtract>(new_mw, new_mz);
-            auto new_out = std::make_shared<ov::op::v0::Convert>(new_sub, ov::element::f32);
+            auto new_wi = ctx.get().unpack(matched_qweight, matched_qzerop, matched_qcoeff, ov::element::f16);
+            auto new_mm = std::make_shared<ov::op::v0::MatMul>(new_cvt_a, new_wi, false, true);
+            auto new_out = std::make_shared<ov::op::v0::Convert>(new_mm, ov::element::f32);
 
             // Reconnect MatMul's old readers to Convert(Multiply)
             for (auto&& r : matched_matmul->output(0).get_target_inputs()) {
@@ -503,10 +498,6 @@ DQParMMGQ::DQParMMGQ(Context::Ref ctx) {
 }
 
 void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx) {
-    ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::opt::DQParMMGQ>(std::ref(ctx));
-    rewr.run_on_model(m);
-
     for (auto&& mul_to_mms : ctx.par_dq_mms) {
         auto& parallel_matmuls = mul_to_mms.second;
         if (parallel_matmuls.size() < 2) {

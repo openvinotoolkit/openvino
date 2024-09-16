@@ -122,6 +122,7 @@ inline __m128i avx2_i8tof16(__m128i vi8, __m256 s) {
     return _mm256_cvtps_ph(f32scl, _MM_FROUND_TO_NEAREST_INT);  // convert: 8 x f32 -> 8 x f16 [128b]
 }
 
+
 inline __m128i avx2_u8tof16_hi(__m128i vu8, __m256 z, __m256 s) {
     __m256i u32vec = _mm256_cvtepu8_epi32(vu8);                 // extend:   8 x u8  -> 8 x i32 [256b of 256b]
     __m256 f32vec = _mm256_cvtepi32_ps(u32vec);                 // convert:  8 x i32 -> 8 x f32 [256b of 256b]
@@ -133,6 +134,15 @@ inline __m128i avx2_u8tof16_hi(__m128i vu8, __m256 z, __m256 s) {
 inline __m128i avx2_u8tof16_lo(__m128i vu8, __m256 z, __m256 s) {
     __m128i vu8h = _mm_bsrli_si128(vu8, 8);
     return avx2_u8tof16_hi(vu8h, z, s);
+}
+
+
+inline __m128i avx2_u8tof16(__m128i vi8, __m256 z, __m256 s) {
+    __m256i i32vec = _mm256_cvtepu8_epi32(vi8);                 // extend:   8 x i8  -> 8 x i32 [256b of 256b]
+    __m256 f32vec = _mm256_cvtepi32_ps(i32vec);                 // convert:  8 x i32 -> 8 x f32 [256b of 256b]
+    __m256 f32sub = _mm256_sub_ps(f32vec, z);                   // subtract: 8 x f32 -> 8 x f32 [256b of 256b]
+    __m256 f32scl = _mm256_mul_ps(f32sub, s);                   // scale:    8 x f32 -> 8 x f32 [256b of 256b]
+    return _mm256_cvtps_ph(f32scl, _MM_FROUND_TO_NEAREST_INT);  // convert: 8 x f32 -> 8 x f16 [128b]
 }
 
 // NOTE: This routine implements the NEW ORDER
@@ -1232,6 +1242,57 @@ void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
     }  // sindex
 }
 
+void unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
+                  const ov::SoPtr<ov::ITensor>& zerop,
+                  const ov::SoPtr<ov::ITensor>& scale,
+                  const ov::SoPtr<ov::ITensor>& to,
+                  const ov::npuw::util::UnpackOptions&_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(zerop->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+    NPUW_ASSERT(from->get_size() % 8 == 0);
+    NPUW_ASSERT(scale->get_shape()[0] == from->get_shape()[0]);
+    NPUW_ASSERT(scale->get_shape()[1] == 1);
+    NPUW_ASSERT(zerop->get_shape()[0] == from->get_shape()[0]);
+    NPUW_ASSERT(zerop->get_shape()[1] == 1);
+
+    const auto scale_elem_type = scale->get_element_type();
+    NPUW_ASSERT(scale_elem_type == ov::element::f32 || scale_elem_type == ov::element::f16);
+
+    const auto zerop_elem_type = zerop->get_element_type();
+    NPUW_ASSERT(zerop_elem_type == ov::element::u8);
+
+    constexpr std::size_t VECSIZE = 8;
+
+    const std::size_t total = from->get_size();
+    const std::size_t stotal = scale->get_size();
+    uint8_t const* pSrc = from->data<uint8_t>();
+    uint8_t const* pZrp = zerop->data<uint8_t>();
+    int8_t const* pScl = static_cast<int8_t*>(scale->data());
+    int16_t* pDst = static_cast<int16_t*>(to->data());
+
+    for (std::size_t sindex = 0u; sindex < stotal; sindex++) {
+        __m256 svec = avx2_load_scale(pScl, scale_elem_type);
+        __m128i u8zp = _mm_set1_epi8(*pZrp);        // bcast:   8 x u8
+        __m256i u32zp = _mm256_cvtepu8_epi32(u8zp); // i32 zero point
+        __m256 f32zp = _mm256_cvtepi32_ps(u32zp);   // f32 zero point
+        for (std::size_t index = 0u; index < (total / stotal); index += VECSIZE) {
+            __m128i const* pSrcV = reinterpret_cast<const __m128i*>(pSrc);
+            __m128i* pDstV = reinterpret_cast<__m128i*>(pDst);
+            __m128i u8in = _mm_loadl_epi64(pSrcV);              // load:    8 x u8
+            __m128i f16vec = avx2_u8tof16(u8in, f32zp, svec);   // convert & scale
+            _mm_store_si128(pDstV, f16vec);                     // store:   8 x f16
+            pSrc += VECSIZE;
+            pDst += VECSIZE;
+        }  // index
+        pScl += scale_elem_type.size();
+        pZrp++;
+    }  // sindex
+}
+
+
 }  // namespace
 
 void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
@@ -1298,10 +1359,17 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     const auto type_scale = scale->get_element_type();
     const auto type_to = to->get_element_type();
 
-    NPUW_ASSERT(type_from == ov::element::u4);
-    NPUW_ASSERT(type_zerop == ov::element::u4 || type_zerop == ov::element::f16 || type_zerop == ov::element::f32);
-    NPUW_ASSERT(type_scale == ov::element::f16 || type_scale == ov::element::f32);
-    NPUW_ASSERT(type_to == ov::element::f16);
+    if (type_from == ov::element::u4) {
+        NPUW_ASSERT(type_zerop == ov::element::u4 || type_zerop == ov::element::f16 || type_zerop == ov::element::f32);
+        NPUW_ASSERT(type_scale == ov::element::f16 || type_scale == ov::element::f32);
+        NPUW_ASSERT(type_to == ov::element::f16);
+    } else if (type_from == ov::element::u8) {
+        NPUW_ASSERT(type_zerop == ov::element::u8);
+        NPUW_ASSERT(type_scale == ov::element::f16);
+        NPUW_ASSERT(type_to == ov::element::f16);
+    } else {
+        NPUW_ASSERT(false && "Unsupported combination");
+    }
 
     // This function determines the appropriate unpacking strategy for tensor multiplication
     // based on the 'scale' shape and 'from' shape.
@@ -1325,20 +1393,29 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     const auto& from_shape = from->get_shape();
     const auto& scale_shape = scale->get_shape();
 
-    if (scale_shape.size() == 3 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1 &&
-        scale_shape[2] == from_shape[2]) {
-        unpack_u4f16_z(from, zerop, scale, to, unpack_options);
-    } else if (scale_shape.size() == 3 && scale_shape[0] == from_shape[0] && scale_shape[1] == from_shape[1] &&
-               scale_shape[2] == 1) {
-        if (zerop->get_size() == 1) {
+    if (type_from == ov::element::u4) {
+        if (scale_shape.size() == 3 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1 &&
+            scale_shape[2] == from_shape[2]) {
+            unpack_u4f16_z(from, zerop, scale, to, unpack_options);
+        } else if (scale_shape.size() == 3 && scale_shape[0] == from_shape[0] && scale_shape[1] == from_shape[1] &&
+                   scale_shape[2] == 1) {
+            if (zerop->get_size() == 1) {
+                unpack_u4f16(from, zerop, scale, to, unpack_options);
+            } else {
+                unpack_u4f16_asymm_zp(from, zerop, scale, to, unpack_options);
+            }
+        } else if (scale_shape.size() == 2 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1) {
             unpack_u4f16(from, zerop, scale, to, unpack_options);
         } else {
-            unpack_u4f16_asymm_zp(from, zerop, scale, to, unpack_options);
+            NPUW_ASSERT(false);
         }
-    } else if (scale_shape.size() == 2 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1) {
-        unpack_u4f16(from, zerop, scale, to, unpack_options);
-    } else {
-        NPUW_ASSERT(false);
+    } else if (type_from == ov::element::u8) {
+        // Only support CW for now
+        if (scale_shape.size() == 2 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1) {
+            unpack_u8f16(from, zerop, scale, to, unpack_options);
+        } else {
+            NPUW_ASSERT(false);
+        }
     }
 }
 
