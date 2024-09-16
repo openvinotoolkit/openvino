@@ -11,6 +11,7 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/deformable_convolution.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/parameter.hpp"
@@ -181,7 +182,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
         } else if (std::dynamic_pointer_cast<ov::op::v8::Slice>(op)) {
             is_changed |= inherit_output_rank(op, {0});
             is_changed |= inherit_output_type(op, {0});
-        } else if (std::dynamic_pointer_cast<ov::op::v0::Squeeze>(op)) {
+        } else if (auto squeeze_op = std::dynamic_pointer_cast<ov::op::v0::Squeeze>(op)) {
             auto in0_pshape = op->get_input_partial_shape(0);
             auto in0_rank = in0_pshape.rank();
             if (output_shape.rank().is_static()) {
@@ -203,13 +204,19 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                     int64_t num_ones = in1_data.size();
                     if (num_ones == in0_rank.get_length() - output_shape.rank().get_length()) {
                         auto axes = ov::op::v0::Constant::create(element::i64, Shape{in1_data.size()}, in1_data);
-                        auto new_squeeze = std::make_shared<ov::op::v0::Squeeze>(op->get_input_source_output(0), axes);
+                        const auto axis_skip = squeeze_op->get_allow_axis_skip();
+                        auto new_squeeze =
+                            std::make_shared<ov::op::v0::Squeeze>(op->get_input_source_output(0), axes, axis_skip);
                         op->output(0).replace(new_squeeze->output(0));
                         copy_runtime_info(op, new_squeeze);
                     }
                 }
             }
             is_changed |= inherit_output_type(op, {0});
+
+            if (op->get_output_partial_shape(0).rank().is_static()) {
+                squeeze_op->set_deduced_output_shape(op->get_output_partial_shape(0));
+            }
         } else if (std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(op)) {
             auto in0_rank = op->get_input_partial_shape(0).rank();
             auto in1_pshape = op->get_input_partial_shape(1);
@@ -285,6 +292,21 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
         } else if (std::dynamic_pointer_cast<ov::op::v1::ConvertLike>(op)) {
             is_changed |= inherit_output_shape(op, {0});
             is_changed |= inherit_output_type(op, {1});
+        } else if (std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
+            is_changed |= inherit_output_shape(op, {0});
+            is_changed |= inherit_output_rank(op, {0});
+        } else if (auto gather_op = std::dynamic_pointer_cast<ov::op::v8::Gather>(op)) {
+            is_changed |= inherit_output_type(op, {0});
+
+            const auto& output_shape = op->get_output_partial_shape(0);
+            const auto& data_shape = op->get_input_partial_shape(0);
+            const auto batch = gather_op->get_batch_dims();
+
+            if (op->get_input_size() > 1 && batch >= 0 && op->get_input_partial_shape(1).rank().is_dynamic()) {
+                op->get_input_tensor(1).m_partial_shape =
+                    ov::PartialShape::dynamic(output_shape.rank() - data_shape.rank() + batch + 1);
+                is_changed = true;
+            }
         } else if (std::dynamic_pointer_cast<ov::op::v1::Transpose>(op)) {
             auto transpose_order = ov::util::get_constant_from_source(op->input_value(1));
             if (output_shape.rank().is_static()) {

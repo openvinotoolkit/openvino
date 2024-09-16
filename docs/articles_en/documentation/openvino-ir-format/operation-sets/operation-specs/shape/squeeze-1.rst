@@ -29,6 +29,12 @@ Squeeze
 
 
 **Attributes**: *Squeeze* operation doesn't have attributes.
+* *allow_axis_skip*
+
+  * **Description**: Shape inference result dynamic rank if selected axis has value 1 in range of its dynamic.
+  * **Range of values**: ``false`` or ``true``
+  * **Type**: ``boolean``
+  * **Required**: *no*
 
 **Inputs**:
 
