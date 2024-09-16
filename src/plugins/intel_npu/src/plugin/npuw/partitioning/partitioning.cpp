@@ -14,12 +14,11 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/validate.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
 #include "patterns/opt.hpp"
-
-#include "openvino/runtime/make_tensor.hpp"
 
 namespace {
 
@@ -1574,7 +1573,8 @@ void Partitioner::optimize(const std::string& func_name) {
 
         ov::pass::GraphRewrite rewr;
         rewr.add_matcher<ov::npuw::patterns::opt::DQParMMGQ>(std::ref(ctx));
-        rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWu>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::DQDictGatherCWu>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::DQDictMatMulCWu>(std::ref(ctx));
         rewr.run_on_model(f._model);
 
         mergeParallelMatMuls(f._model, ctx);
@@ -1614,7 +1614,6 @@ void Partitioner::optimize(const std::string& func_name) {
             auto s_idx = f._model->get_parameter_index(tensor_to_unpack.s);
 
             new_params.push_back(p.first);
-            std::cout << "Registered " << p.first << std::endl;
             to_remove.push_back(tensor_to_unpack.w);
             to_remove.push_back(tensor_to_unpack.z);
             to_remove.push_back(tensor_to_unpack.s);
@@ -1636,9 +1635,6 @@ void Partitioner::optimize(const std::string& func_name) {
         }
 
         // Add all new parameters introduced by this change
-        for (auto &&p : new_params) {
-            std::cout << "Adding " << p << std::endl;
-        }
         f._model->add_parameters(new_params);
 
         // Remove parameters and closures that were concatenated

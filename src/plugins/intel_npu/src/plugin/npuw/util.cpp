@@ -122,7 +122,6 @@ inline __m128i avx2_i8tof16(__m128i vi8, __m256 s) {
     return _mm256_cvtps_ph(f32scl, _MM_FROUND_TO_NEAREST_INT);  // convert: 8 x f32 -> 8 x f16 [128b]
 }
 
-
 inline __m128i avx2_u8tof16_hi(__m128i vu8, __m256 z, __m256 s) {
     __m256i u32vec = _mm256_cvtepu8_epi32(vu8);                 // extend:   8 x u8  -> 8 x i32 [256b of 256b]
     __m256 f32vec = _mm256_cvtepi32_ps(u32vec);                 // convert:  8 x i32 -> 8 x f32 [256b of 256b]
@@ -135,7 +134,6 @@ inline __m128i avx2_u8tof16_lo(__m128i vu8, __m256 z, __m256 s) {
     __m128i vu8h = _mm_bsrli_si128(vu8, 8);
     return avx2_u8tof16_hi(vu8h, z, s);
 }
-
 
 inline __m128i avx2_u8tof16(__m128i vi8, __m256 z, __m256 s) {
     __m256i i32vec = _mm256_cvtepu8_epi32(vi8);                 // extend:   8 x i8  -> 8 x i32 [256b of 256b]
@@ -1246,7 +1244,7 @@ void unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
                   const ov::SoPtr<ov::ITensor>& zerop,
                   const ov::SoPtr<ov::ITensor>& scale,
                   const ov::SoPtr<ov::ITensor>& to,
-                  const ov::npuw::util::UnpackOptions&_options) {
+                  const ov::npuw::util::UnpackOptions& _options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(zerop->is_continuous());
     NPUW_ASSERT(scale->is_continuous());
@@ -1275,15 +1273,15 @@ void unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
 
     for (std::size_t sindex = 0u; sindex < stotal; sindex++) {
         __m256 svec = avx2_load_scale(pScl, scale_elem_type);
-        __m128i u8zp = _mm_set1_epi8(*pZrp);        // bcast:   8 x u8
-        __m256i u32zp = _mm256_cvtepu8_epi32(u8zp); // i32 zero point
-        __m256 f32zp = _mm256_cvtepi32_ps(u32zp);   // f32 zero point
+        __m128i u8zp = _mm_set1_epi8(*pZrp);         // bcast:   8 x u8
+        __m256i u32zp = _mm256_cvtepu8_epi32(u8zp);  // i32 zero point
+        __m256 f32zp = _mm256_cvtepi32_ps(u32zp);    // f32 zero point
         for (std::size_t index = 0u; index < (total / stotal); index += VECSIZE) {
             __m128i const* pSrcV = reinterpret_cast<const __m128i*>(pSrc);
             __m128i* pDstV = reinterpret_cast<__m128i*>(pDst);
-            __m128i u8in = _mm_loadl_epi64(pSrcV);              // load:    8 x u8
-            __m128i f16vec = avx2_u8tof16(u8in, f32zp, svec);   // convert & scale
-            _mm_store_si128(pDstV, f16vec);                     // store:   8 x f16
+            __m128i u8in = _mm_loadl_epi64(pSrcV);             // load:    8 x u8
+            __m128i f16vec = avx2_u8tof16(u8in, f32zp, svec);  // convert & scale
+            _mm_store_si128(pDstV, f16vec);                    // store:   8 x f16
             pSrc += VECSIZE;
             pDst += VECSIZE;
         }  // index
@@ -1291,7 +1289,6 @@ void unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
         pZrp++;
     }  // sindex
 }
-
 
 }  // namespace
 
