@@ -79,7 +79,14 @@ function(ov_check_python_build_conditions)
         set(python_debug OFF)
     endif()
 
-    if((Python3_Development.Module_FOUND OR Python3_Development_FOUND) AND NOT python_debug)
+    set(is_compiler_supported ON)
+    # Python bindings compiled with the 14.28 toolset (19.28 compiler) could not be imported by another Pybind module linked with OpenVINO
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.29)
+        set(is_compiler_supported OFF)
+        message(${message_mode} "MSVC toolset version 14.28 or lower (19.28 compiler) is not supported. Please update your toolset (${CMAKE_CXX_COMPILER_VERSION}).")
+    endif()
+
+    if((Python3_Development.Module_FOUND OR Python3_Development_FOUND) AND NOT python_debug AND is_compiler_supported)
         set(ENABLE_PYTHON_DEFAULT ON PARENT_SCOPE)
     else()
         set(ENABLE_PYTHON_DEFAULT OFF PARENT_SCOPE)
