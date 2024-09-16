@@ -85,7 +85,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             check_node_successor(node);
             if (!final_successor_is_only_root) {
                 inputs.emplace_back(node);
-                std::cout << "== " << node->get_friendly_name() << " final successor have others." << std::endl;
+                // std::cout << "== " << node->get_friendly_name() << " final successor have others." << std::endl;
                 return;
             }
 
@@ -116,23 +116,23 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             return false;
         }
 
-        // ====== Debug log: ==================================
-        {
-            std::cout << "============================================1" << std::endl;
-            std::cout << "  == Found readvalue = " << readvalue->get_friendly_name() << std::endl;
-            std::cout << "  == Found inputs = ";
-            for (auto inp : inputs) {
-                std::cout << inp->get_friendly_name() << ", ";
-            }
-            std::cout << std::endl;
-            std::cout << "  == Found subgraph = ";
-            for (auto nd : subgraph) {
-                std::cout << nd->get_friendly_name() << ", ";
-            }
-            std::cout << std::endl;
-            std::cout << "  == Found corresponding_assign = " << corresponding_assign->get_friendly_name() << std::endl;
-            std::cout << "============================================2" << std::endl;
-        }
+        // // ====== Debug log: ==================================
+        // {
+        //     std::cout << "============================================1" << std::endl;
+        //     std::cout << "  == Found readvalue = " << readvalue->get_friendly_name() << std::endl;
+        //     std::cout << "  == Found inputs = ";
+        //     for (auto inp : inputs) {
+        //         std::cout << inp->get_friendly_name() << ", ";
+        //     }
+        //     std::cout << std::endl;
+        //     std::cout << "  == Found subgraph = ";
+        //     for (auto nd : subgraph) {
+        //         std::cout << nd->get_friendly_name() << ", ";
+        //     }
+        //     std::cout << std::endl;
+        //     std::cout << "  == Found corresponding_assign = " << corresponding_assign->get_friendly_name() << std::endl;
+        //     std::cout << "============================================2" << std::endl;
+        // }
 
         auto new_rv = std::make_shared<ov::intel_cpu::ReadValueWithSubgraphNode>(readvalue->get_variable());
 
@@ -151,8 +151,6 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             params.push_back(param);
             for (const auto& child : inp->get_output_target_inputs(0)) {
                 if (is_in_subgraph(child.get_node()->shared_from_this())) {
-                    std::cout << "-----> child.replace_source_output, child="
-                              << child.get_node()->shared_from_this()->get_friendly_name() << std::endl;
                     child.replace_source_output(param);
                 }
             }
@@ -175,7 +173,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         ov::replace_node(readvalue, new_rv);
         ov::copy_runtime_info(subgraph, new_rv);
         new_rv->validate_and_infer_types();
-        std::cout << "== MoveReadValueInputsToSubgraph Done, return true ================\n";
+        // std::cout << "== MoveReadValueInputsToSubgraph Done, return true ================\n";
         return true;
     };
 
