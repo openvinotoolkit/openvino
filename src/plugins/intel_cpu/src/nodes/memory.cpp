@@ -765,9 +765,6 @@ void MemoryInput::runStatic(dnnl::stream strm) {
     // copy data when necessary
     auto src = processInitGraph ? getSrcMemoryAtPort(0) : assignedMem;
     auto dst = getDstMemoryAtPort(0);
-    DEBUG_LOG("src->getData()= ", src->getData(), ", dst->getData()= ", dst->getData());
-    std::cout << "src = " << src->getDataAs<int32_t>()[0] << std::endl;
-    std::cout << "dst = " << dst->getDataAs<int32_t>()[0] << std::endl;
     if (src->getData() != dst->getData()) {
         dst->load(*src);
     }
