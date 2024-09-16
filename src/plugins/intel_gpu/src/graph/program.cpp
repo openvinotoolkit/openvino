@@ -34,6 +34,8 @@
 #include "custom_gpu_primitive_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
+#include "ctc_loss_inst.hpp"
+#include "group_normalization_inst.h"
 #include "quantize_inst.h"
 #include "activation_inst.h"
 #include "depth_to_space_inst.h"
@@ -68,6 +70,7 @@
 #include "reverse_inst.h"
 #include "unique_inst.hpp"
 #include "condition_inst.h"
+#include "scaled_dot_product_attention_inst.h"
 #include "to_string_utils.h"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
 

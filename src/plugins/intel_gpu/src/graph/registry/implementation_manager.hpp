@@ -136,3 +136,6 @@ private:
 };
 
 }  // namespace cldnn
+
+// TODO: Align namespace to ov::intel_gpu everywhere and remove using
+using namespace cldnn;
