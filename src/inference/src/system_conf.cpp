@@ -38,6 +38,16 @@
 
 namespace ov {
 
+#if defined(OPENVINO_ARCH_ARM64) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+bool with_cpu_arm_fp16() {
+    return true;
+}
+#else
+bool with_cpu_arm_fp16() {
+    return false;
+}
+#endif
+
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 
 // note: MSVC 2022 (17.4) is not able to compile the next line for ARM and ARM64
@@ -100,7 +110,8 @@ bool with_cpu_x86_avx512_core_amx() {
     return with_cpu_x86_avx512_core_amx_int8() || with_cpu_x86_avx512_core_amx_bf16();
 }
 
-#else  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
+
+#else
 
 bool with_cpu_x86_sse42() {
     return false;

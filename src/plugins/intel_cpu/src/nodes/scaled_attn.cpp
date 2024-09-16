@@ -405,15 +405,16 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
                 auto score = weight_score.ptr<float>(ithr, h, m - m_start);
-                attn_softmax(score,
+                attn_softmax(reinterpret_cast<void*>(score),
                             reinterpret_cast<T*>(score),
                             d_scale,
-                            alibi_ptr + m * alibi_stride,
+                            reinterpret_cast<void*>(alibi_ptr + m * alibi_stride),
                             attn_mask_ptr + m * attn_mask_stride,
                             cmask_ptr + m * cmask_stride,
                             select_nfltmax_at_0,
                             ncausal,
                             kv_len,
+                            precision_of<T>::value,
                             precision_of<T>::value,
                             precision_of<T>::value);
             }
@@ -603,15 +604,16 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                attn_softmax(qk + (m - m_start) * kv_len,
+                attn_softmax(reinterpret_cast<void*>(qk + (m - m_start) * kv_len),
                              qk + (m - m_start) * kv_len,
                              d_scale,
-                             alibi_ptr + m * alibi_stride,
+                             reinterpret_cast<void*>(alibi_ptr + m * alibi_stride),
                              attn_mask_ptr + m * attn_mask_stride,
                              cmask_ptr + m * cmask_stride,
                              select_nfltmax_at_0,
                              ncausal,
                              kv_len,
+                             precision,
                              precision,
                              precision);
             }
@@ -768,15 +770,16 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                attn_softmax(qk + (m - m_start) * qk_m_stride,
+                attn_softmax(reinterpret_cast<void*>(qk + (m - m_start) * qk_m_stride),
                             qk + (m - m_start) * qk_m_stride,
                             d_scale,
-                            alibi_ptr + m * alibi_stride,
+                            reinterpret_cast<void*>(alibi_ptr + m * alibi_stride),
                             attn_mask_ptr + m * attn_mask_stride,
                             cmask_ptr + m * cmask_stride,
                             select_nfltmax_at_0,
                             ncausal,
                             kv_len,
+                            ov::element::f32,
                             ov::element::f32,
                             ov::element::f32);
             }
@@ -1702,10 +1705,8 @@ ov::element::Type ScaledDotProductAttention::getRuntimePrecision() const {
     // bf16 should be enabled only when platform supports
     if (rtPrecision == ov::element::bf16 && ov::with_cpu_x86_bfloat16()) {
         rtPrecision = ov::element::bf16;
-#if defined(OPENVINO_ARCH_ARM64)
     } else if (rtPrecision == ov::element::f16 && ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         rtPrecision = ov::element::f16;
-#endif
     } else {
         rtPrecision = ov::element::f32;
     }

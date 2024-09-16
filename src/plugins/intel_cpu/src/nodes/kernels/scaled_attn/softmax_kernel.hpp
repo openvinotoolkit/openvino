@@ -798,11 +798,11 @@ inline void multiply_scalar(ov::float16* a, ov::float16* a_dst, const ov::float1
     }
 }
 #endif
-
-inline void attn_softmax_kernel(float* a,
+template <typename T>
+inline void attn_softmax_kernel(T* a,
                                 void* a_dst,
                                 float scale,
-                                float* alibi,
+                                T* alibi,
                                 void* attn_mask,
                                 uint8_t* causal_mask,
                                 bool select_nfltmax_at_0,
@@ -810,7 +810,21 @@ inline void attn_softmax_kernel(float* a,
                                 size_t total_size,
                                 ov::element::Type attn_mask_prec,
                                 ov::element::Type dst_precision,
-                                float alibi_slope = 0) {
+                                float alibi_slope = 0);
+
+template <>
+inline void attn_softmax_kernel<float>(float* a,
+                                       void* a_dst,
+                                       float scale,
+                                       float* alibi,
+                                       void* attn_mask,
+                                       uint8_t* causal_mask,
+                                       bool select_nfltmax_at_0,
+                                       size_t len,
+                                       size_t total_size,
+                                       ov::element::Type attn_mask_prec,
+                                       ov::element::Type dst_precision,
+                                       float alibi_slope) {
     using func_fp32_type = void (*)(float*, float, const float*, const float*, const uint8_t*, bool, size_t, float, float&);
     using func_bf16_type = void (*)(float*, float, const float*, const ov::bfloat16*, const uint8_t*, bool, size_t, float, float&);
     static constexpr func_fp32_type funcs_fp32[] = {
@@ -859,18 +873,19 @@ inline void attn_softmax_kernel(float* a,
     }
 }
 #if defined(OPENVINO_ARCH_ARM64) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-inline void attn_softmax_kernel(ov::float16* a,
-                                void* a_dst,
-                                float scale,
-                                ov::float16* alibi,
-                                void* attn_mask,
-                                uint8_t* causal_mask,
-                                bool select_nfltmax_at_0,
-                                size_t len,
-                                size_t total_size,
-                                ov::element::Type attn_mask_prec,
-                                ov::element::Type dst_precision,
-                                float alibi_slope = 0) {
+template <>
+inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
+                                             void* a_dst,
+                                             float scale,
+                                             ov::float16* alibi,
+                                             void* attn_mask,
+                                             uint8_t* causal_mask,
+                                             bool select_nfltmax_at_0,
+                                             size_t len,
+                                             size_t total_size,
+                                             ov::element::Type attn_mask_prec,
+                                             ov::element::Type dst_precision,
+                                             float alibi_slope) {
     using func_fp32_type = void (*)(ov::float16*, float, const ov::float16*, const float*, const uint8_t*, bool, size_t, float, ov::float16&);
     using func_bf16_type = void (*)(ov::float16*, float, const ov::float16*, const ov::bfloat16*, const uint8_t*, bool, size_t, float, ov::float16&);
     using func_fp16_type = void (*)(ov::float16*, float, const ov::float16*, const ov::float16*, const uint8_t*, bool, size_t, float, ov::float16&);
