@@ -32,7 +32,7 @@ A chat-tuned TinyLlama model is used in this example. The following conversion &
 Note: For models exceeding 1 billion parameters, it's recommended to use channel-wise quantization. This approach is particularly effective, as demonstrated in the example with the llama-2-7b-chat-hf model:
 .. code-block:: python
 
-   optimum-cli export openvino -m meta-llama/Llama-2-7b-chat-hf --weight-format int4 --sym --group-size -1 --ratio 1.0 TinyLlama
+   optimum-cli export openvino -m meta-llama/Llama-2-7b-chat-hf --weight-format int4 --sym --group-size -1 --ratio 1.0 Llama-2-7b-chat-hf
 
 Run generation using OpenVINO GenAI
 ###################################
