@@ -38,7 +38,7 @@ A chat-tuned TinyLlama model is used in this example. The following conversion &
 Run generation using OpenVINO GenAI
 ###################################
 
-It is recommended to install the latest available driver: https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html
+It is recommended to install the latest available `driver <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__.
 
 Use the following code snippet to perform generation with OpenVINO GenAI API:
 
