@@ -7,10 +7,10 @@
 #include "swiglu_kernel_base.h"
 
 namespace kernel_selector {
-class SwiGLUKernelRef : public SwiGLUKernelBase {
+class SwiGLUKernelOpt : public SwiGLUKernelBase {
 public:
-    SwiGLUKernelRef() : SwiGLUKernelBase("swiglu_gpu_ref") {}
-    virtual ~SwiGLUKernelRef() {}
+    SwiGLUKernelOpt() : SwiGLUKernelBase("swiglu_gpu_opt") {}
+    virtual ~SwiGLUKernelOpt() {}
 
 protected:
     KernelsPriority GetKernelsPriority(const Params& params) const override;
