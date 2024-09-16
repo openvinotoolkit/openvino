@@ -6,6 +6,8 @@
 
 #include "config.h"
 #include "cpu_memory.h"
+#include "nodes/input.h"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "node.h"
 #include "edge.h"
@@ -35,9 +37,10 @@ public:
 
     enum class Status {
         NotReady = 0,
-        ReadyStatic = 1,
-        ReadyDynamic = 2,
-        ReadyDynamicSeq = 3,
+        Initialized = 1,
+        ReadyStatic = 2,
+        ReadyDynamic = 3,
+        ReadyDynamicSeq = 4,
     };
 
     Graph() = default;
@@ -47,23 +50,26 @@ public:
     ~Graph();
 
     bool IsReady() {
-        return (status != Status::NotReady);
+        return one_of(status, Status::ReadyStatic, Status::ReadyDynamic, Status::ReadyDynamicSeq);
     }
 
     const Config & getConfig() const {
-        return context->getConfig();
+        return m_context->getConfig();
     }
 
     template<typename NET>
-    void CreateGraph(NET &network, const GraphContext::CPtr ctx);
+    void CreateGraph(NET &model, const GraphContext::CPtr context);
 
     void CreateGraph(const std::vector<NodePtr> &graphNodes,
                      const std::vector<EdgePtr> &graphEdges,
-                     const GraphContext::CPtr ctx,
+                     const GraphContext::CPtr context,
                      std::string name);
 
     void PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input);
     void PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output);
+
+    // Returns Output nodes memory descriptors
+    VecMemoryDescs getOutputMemoryDescriptors() const;
 
     void Infer(SyncInferRequest* request = nullptr);
 
@@ -98,11 +104,11 @@ public:
     }
 
     dnnl::engine getEngine() const {
-        return context->getEngine();
+        return m_context->getEngine();
     }
 
     GraphContext::CPtr getGraphContext() const {
-        return context;
+        return m_context;
     }
 
     void GetPerfData(std::vector<ov::ProfilingInfo> &perfMap) const;
@@ -189,7 +195,20 @@ public:
 
     Status getStatus() const {return status;}
     const std::unordered_map<std::string, node::MemoryStateNode*>& getInternalStateNodes() const;
-    void InitGraph(bool optimize = true);
+
+    /**
+     * Init graph using \p model, \p context, \p inputConfigs and \p outputConfigs
+     */
+    void Init(const std::shared_ptr<const ov::Model>& model,
+              const GraphContext::CPtr context,
+              const std::vector<node::Input::InputConfig>& inputConfigs = {},
+              const std::vector<node::Input::OutputConfig>& outputConfigs = {});
+
+    /**
+     * Activate execution graph using \p externalInputMemory and \p externalOutputMemory
+     */
+    void Activate(const std::vector<MemoryPtr>& externalInputMemory = {},
+                            const std::vector<MemoryPtr>& externalOutputMemory = {});
 
 protected:
     void ForgetGraphData() {
@@ -214,7 +233,12 @@ protected:
 
     bool graphHasDynamicInput = false;
 
-    void Replicate(const std::shared_ptr<const ov::Model> &subgraph);
+    void Replicate(const std::shared_ptr<const ov::Model> &subgraph,
+                   const std::vector<node::Input::InputConfig>& inputConfigs = {},
+                   const std::vector<node::Input::OutputConfig>& outputConfigs = {});
+
+    void Configure(bool optimize = true);
+
     void InitNodes();
     void InitDescriptors();
     void ResolveInplaceDirections();
@@ -274,7 +298,7 @@ private:
     std::vector<NodePtr> m_executableGraphNodes;
     std::vector<size_t> m_executableSyncNodesInds;
 
-    GraphContext::CPtr context;
+    GraphContext::CPtr m_context;
     dnnl::stream m_stream;
 
     MemoryControl* m_pMemoryControl = nullptr;

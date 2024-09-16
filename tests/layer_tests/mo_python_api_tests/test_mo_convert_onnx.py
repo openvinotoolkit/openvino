@@ -67,13 +67,13 @@ def create_bytes_io():
 
 
 class TestMoConvertONNX(CommonMOConvertTest):
-    test_data = [create_bytes_io]
+    test_data = ['create_bytes_io']
     @pytest.mark.parametrize("create_model", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_convert_onnx(self, create_model, ie_device, precision, ir_version,
                                              temp_dir):
-        fw_model, graph_ref, mo_params = create_model()
+        fw_model, graph_ref, mo_params = eval(create_model)()
 
         test_params = {'input_model': fw_model}
         if mo_params is not None:

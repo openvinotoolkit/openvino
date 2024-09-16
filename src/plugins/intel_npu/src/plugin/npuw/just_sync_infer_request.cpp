@@ -478,6 +478,8 @@ void ov::npuw::JustInferRequest::unpack_closure(std::size_t idx, RqPtr request) 
     // Bind extra parameters from the function's closure
     // First, do easy things & delay heavy stuff
     std::vector<std::size_t> closure_unpack_required;
+    std::vector<std::size_t> closure_copy_required;
+
     for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
         auto& closure = comp_model_desc.closure[cidx];
 
@@ -488,14 +490,27 @@ void ov::npuw::JustInferRequest::unpack_closure(std::size_t idx, RqPtr request) 
             // Remember where the unpack is required
             closure_unpack_required.push_back(cidx);
         } else if (comp_model_desc.update_required[cidx]) {
-            // Easy case, just set one to another. Copy_to is also possible
-            // and even may be preferrable for some devices, like this:
-            // ```ov::get_tensor_impl(closure)->copy_to(clparam._ptr);'''
-            request->set_tensor(iport, ov::get_tensor_impl(closure));
+            if (needs_copy(idx)) {
+                // Remember where copy is requried
+                closure_copy_required.push_back(cidx);
+            } else {
+                // Easy case, just set one to another
+                request->set_tensor(iport, ov::get_tensor_impl(closure));
+            }
         }
     }  // for(closure)
-       // m_ms_unpack += ov::npuw::perf::ms_to_run([&](){
-       //    ov::parallel_for(closure_unpack_required.size(), [&](std::size_t j) {
+
+    // m_ms_unpack += ov::npuw::perf::ms_to_run([&](){
+    ov::parallel_for(closure_copy_required.size(), [&](std::size_t j) {
+        auto cidx = closure_copy_required[j];
+        auto& closure = comp_model_desc.closure[cidx];
+        const auto closure_param_id = comp_model_desc.param_base + cidx;
+        auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
+        auto clparam = request->get_tensor(iport);
+        ov::get_tensor_impl(closure)->copy_to(clparam._ptr);
+    });
+    // }); // ms_to_run
+
     for (std::size_t j = 0; j != closure_unpack_required.size(); j++) {
         // NB: No need to protect anything here as containers are all
         // preallocated and we only access elements under particular (thread
@@ -525,8 +540,6 @@ void ov::npuw::JustInferRequest::unpack_closure(std::size_t idx, RqPtr request) 
             ov::npuw::util::unpack(ov::get_tensor_impl(closure), clparam);
         }
     }
-    //}); // ov_parallel_for
-    // }); // ms_to_run
 }
 
 void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
