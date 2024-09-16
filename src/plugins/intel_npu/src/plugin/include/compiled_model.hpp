@@ -28,10 +28,10 @@ public:
      * "compiler" parameter inside the newly created "CompiledModel".
      * @param config Custom configuration object
      */
-    CompiledModel(const std::shared_ptr<const ov::Model>& model,
-                  const std::shared_ptr<const ov::IPlugin> plugin,
-                  const std::shared_ptr<IDevice> device,
-                  const ov::SoPtr<ICompiler> compiler,
+    CompiledModel(std::shared_ptr<const ov::Model> model,
+                  std::shared_ptr<const ov::IPlugin> plugin,
+                  std::shared_ptr<IDevice> device,
+                  ov::SoPtr<ICompiler> compiler,
                   const bool profiling,
                   const Config& config);
 
@@ -45,11 +45,11 @@ public:
      * @param compiler If set, the module will be stored inside the newly created "CompiledModel"
      * @param config Custom configuration object
      */
-    CompiledModel(const std::shared_ptr<const ov::Model>& model,
-                  const std::shared_ptr<const ov::IPlugin> plugin,
-                  const std::shared_ptr<const NetworkDescription> networkDescription,
-                  const std::shared_ptr<IDevice> device,
-                  const ov::SoPtr<ICompiler> compiler,
+    CompiledModel(std::shared_ptr<const ov::Model> model,
+                  std::shared_ptr<const ov::IPlugin> plugin,
+                  std::shared_ptr<const NetworkDescription> networkDescription,
+                  std::shared_ptr<IDevice> device,
+                  ov::SoPtr<ICompiler> compiler,
                   const Config& config);
 
     CompiledModel(const CompiledModel&) = delete;
@@ -75,11 +75,11 @@ public:
 
     ov::Any get_property(const std::string& name) const override;
 
-    const std::shared_ptr<const NetworkDescription>& get_network_description() const override;
+    const NetworkDescription* get_network_description() const override;
 
     const Config& get_config() const override;
 
-    const ov::SoPtr<ICompiler>& get_compiler() const override;
+    const ICompiler* get_compiler() const override;
 
 private:
     void initialize_properties();
@@ -89,10 +89,10 @@ private:
     void create_executor();
 
     std::shared_ptr<const NetworkDescription> _networkPtr;
-    const std::shared_ptr<const ov::Model> _model;
+    std::shared_ptr<const ov::Model> _model;
     Config _config;
     Logger _logger;
-    const std::shared_ptr<IDevice> _device;
+    std::shared_ptr<IDevice> _device;
     mutable std::shared_ptr<IExecutor> _executorPtr;
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor;
 
@@ -100,7 +100,7 @@ private:
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
 
-    const ov::SoPtr<ICompiler> _compiler;
+    ov::SoPtr<ICompiler> _compiler;
 };
 
 }  //  namespace intel_npu

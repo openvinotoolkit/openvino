@@ -19,7 +19,7 @@ namespace intel_npu {
 
 class ZeroExecutor final : public IExecutor {
 public:
-    ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder> initStructs,
+    ZeroExecutor(std::shared_ptr<const ZeroInitStructsHolder> initStructs,
                  const NetworkDescription* networkDescription,
                  const Config& config,
                  const uint32_t& group_ordinal);
@@ -44,7 +44,7 @@ public:
     inline std::shared_ptr<const ZeroInitStructsHolder> getInitStructs() const {
         return _initStructs;
     }
-    inline const std::shared_ptr<CommandQueue> getCommandQueue() const {
+    inline std::shared_ptr<CommandQueue> getCommandQueue() const {
         return _command_queue;
     }
     inline const uint32_t& get_group_ordinal() const {
@@ -61,7 +61,7 @@ private:
     const Config _config;
     Logger _logger;
 
-    const std::shared_ptr<const ZeroInitStructsHolder> _initStructs;
+    std::shared_ptr<const ZeroInitStructsHolder> _initStructs;
 
     ze_graph_dditable_ext_curr_t* _graph_ddi_table_ext = nullptr;
 

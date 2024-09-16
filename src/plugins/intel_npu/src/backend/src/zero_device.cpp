@@ -14,7 +14,7 @@
 
 using namespace intel_npu;
 
-ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder> initStructs)
+ZeroDevice::ZeroDevice(std::shared_ptr<ZeroInitStructsHolder> initStructs)
     : _initStructs(std::move(initStructs)),
       _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
       log("ZeroDevice", Logger::global().level()) {
@@ -166,10 +166,9 @@ ov::device::Type ZeroDevice::getDeviceType() const {
     return ov::device::Type::INTEGRATED;
 }
 
-std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
-    const std::shared_ptr<const ICompiledModel> compiledModel,
-    IExecutor* executor,
-    const Config& config) {
+std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(std::shared_ptr<const ICompiledModel> compiledModel,
+                                                                 IExecutor* executor,
+                                                                 const Config& config) {
     return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, executor, config);
 }
 

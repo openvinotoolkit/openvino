@@ -20,8 +20,8 @@ namespace intel_npu {
 
 class ZeroInferRequest final : public SyncInferRequest {
 public:
-    explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder> backendPtr,
-                              const std::shared_ptr<const ICompiledModel> compiledModel,
+    explicit ZeroInferRequest(std::shared_ptr<ZeroInitStructsHolder> initStructs,
+                              std::shared_ptr<const ICompiledModel> compiledModel,
                               const IExecutor* executor,
                               const Config& config);
 
@@ -62,7 +62,7 @@ private:
      * @param index The index corresponding to the position of the tensor inside the I/O structures.
      * @param isInput Used for identifying the structures to which the tensor belongs.
      */
-    void set_tensor_data(const std::shared_ptr<ov::ITensor> tensor, const size_t index, const bool isInput);
+    void set_tensor_data(std::shared_ptr<ov::ITensor> tensor, const size_t index, const bool isInput);
 
     /**
      * @brief Check the received remote tensor and copy it to the Level Zero tensor
@@ -70,12 +70,12 @@ private:
      * @param index The index corresponding to the position of the tensor inside the I/O structures.
      * @param isInput Used for identifying the structures to which the tensor belongs.
      */
-    void set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTensor> tensor, const size_t index, const bool isInput);
+    void set_remote_tensor_data(std::shared_ptr<ZeroRemoteTensor> tensor, const size_t index, const bool isInput);
 
     void check_network_precision(const ov::element::Type_t precision) const override;
     void create_pipeline();
 
-    const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
+    std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const ZeroExecutor* _executor = nullptr;
     const Config _config;
     Logger _logger;

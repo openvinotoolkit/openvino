@@ -40,10 +40,10 @@ namespace intel_npu {
 
 using intel_npu::envVarStrToBool;
 
-CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
-                             const std::shared_ptr<const ov::IPlugin> plugin,
-                             const std::shared_ptr<IDevice> device,
-                             const ov::SoPtr<ICompiler> compiler,
+CompiledModel::CompiledModel(std::shared_ptr<const ov::Model> model,
+                             std::shared_ptr<const ov::IPlugin> plugin,
+                             std::shared_ptr<IDevice> device,
+                             ov::SoPtr<ICompiler> compiler,
                              const bool profiling,
                              const Config& config)
     : ICompiledModel(model, plugin),
@@ -75,11 +75,11 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
 
-CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
-                             const std::shared_ptr<const ov::IPlugin> plugin,
-                             const std::shared_ptr<const NetworkDescription> networkDescription,
-                             const std::shared_ptr<IDevice> device,
-                             const ov::SoPtr<ICompiler> compiler,
+CompiledModel::CompiledModel(std::shared_ptr<const ov::Model> model,
+                             std::shared_ptr<const ov::IPlugin> plugin,
+                             std::shared_ptr<const NetworkDescription> networkDescription,
+                             std::shared_ptr<IDevice> device,
+                             ov::SoPtr<ICompiler> compiler,
                              const Config& config)
     : ICompiledModel(model, plugin),
       _networkPtr(networkDescription),
@@ -187,16 +187,16 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     OPENVINO_THROW("Unsupported property ", name);
 }
 
-const std::shared_ptr<const NetworkDescription>& CompiledModel::get_network_description() const {
-    return _networkPtr;
+const NetworkDescription* CompiledModel::get_network_description() const {
+    return _networkPtr.get();
 }
 
 const Config& CompiledModel::get_config() const {
     return _config;
 }
 
-const ov::SoPtr<ICompiler>& CompiledModel::get_compiler() const {
-    return _compiler;
+const ICompiler* CompiledModel::get_compiler() const {
+    return _compiler._ptr.get();
 }
 
 void CompiledModel::configure_stream_executors() {
