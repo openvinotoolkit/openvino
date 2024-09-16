@@ -105,7 +105,8 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
 
     for (const auto& original_node : model->get_ordered_ops()) {
         auto node = original_node;
-        if (node_has_requires_precision_conversion_attribute(node)) {
+        if (original_node->can_constant_fold(original_node->input_values()) &&
+            node_has_requires_precision_conversion_attribute(node)) {
             remove_requires_precision_conversion_attribute(node);
             node = util::convert_to_supported_precision(node.get());
         } else {
