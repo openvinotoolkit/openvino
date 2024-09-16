@@ -56,6 +56,10 @@ bool SliceTransformation::canBeTransformed(const TransformationContext& context,
     }
 
     const auto dequantization = NetworkHelper::getDequantization(operation);
+    if (dequantization.empty()) {
+        return false;
+    }
+
     return dequantization.isPerTensor();
 }
 
