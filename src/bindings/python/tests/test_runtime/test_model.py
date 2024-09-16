@@ -748,6 +748,7 @@ def test_model_add_remove_result_parameter_sink():
 
     results = model.get_results()
     assert len(results) == 2
+    assert results.index(result2) == 1
     assert results[0].get_output_element_type(0) == Type.f32
     assert results[0].get_output_partial_shape(0) == PartialShape([1])
 

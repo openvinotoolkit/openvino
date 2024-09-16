@@ -61,6 +61,7 @@ def test_graph_api():
     assert list(model.get_output_shape(0)) == [2, 2]
     assert (model.get_parameters()[1].get_partial_shape()) == PartialShape([3, 4, 5])
     assert len(model.get_parameters()) == 3
+    assert model.get_parameters().index(parameter_c) == 2
     results = model.get_results()
     assert len(results) == 1
     assert results[0].get_output_element_type(0) == Type.f32

@@ -32,6 +32,20 @@ void regclass_graph_op_Result(py::module m) {
 
     result.def_property("layout", &ov::op::v0::Result::get_layout, &ov::op::v0::Result::set_layout);
 
+    result.def(
+        "__eq__",
+        [](const ov::op::v0::Result& a, const ov::op::v0::Result& b) {
+            return a.get_instance_id() == b.get_instance_id();
+        },
+        py::is_operator());
+
+    result.def(
+        "__hash__",
+        [](const ov::op::v0::Result& self) {
+            return std::hash<size_t>()(self.get_instance_id());
+        }
+    );
+
     result.def("__repr__", [](const ov::op::v0::Result& self) {
         std::stringstream shapes_ss;
         for (size_t i = 0; i < self.get_output_size(); ++i) {
