@@ -182,7 +182,6 @@ public:
 
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    void getSupportedDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
 
