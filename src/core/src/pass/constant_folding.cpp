@@ -114,13 +114,6 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                         run_on_model(sub_graph_node->get_function(static_cast<int>(sub_graph_ind))) || rewritten;
                 }
             }
-
-            // if CF was unsuccessful remove original precision attribute from inputs
-            bool restored = restore_original_input_precision(original_node);
-            if (restored) {
-                original_node->validate_and_infer_types();
-                rewritten = true;
-            }
             continue;
         }
         if (node_has_requires_precision_conversion_attribute(node)) {
@@ -159,6 +152,13 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
 
                     rewritten = true;
                 }
+            }
+        } else {
+            // if CF was unsuccessful remove original precision attribute from inputs
+            bool restored = restore_original_input_precision(original_node);
+            if (restored) {
+                original_node->validate_and_infer_types();
+                rewritten = true;
             }
         }
     }
