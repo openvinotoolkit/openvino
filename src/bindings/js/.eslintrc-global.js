@@ -2,7 +2,7 @@ module.exports = {
   rules: {
     'semi': ['error'],
     'no-var': ['error'],
-    'max-len': ['error'],
+    'max-len': ['error', { 'ignoreUrls': true }],
     'eol-last': ['error'],
     'indent': ['error', 2],
     'camelcase': ['error'],
