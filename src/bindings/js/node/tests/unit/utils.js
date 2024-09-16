@@ -28,7 +28,7 @@ module.exports = {
   testModels,
 };
 
-function getModelPath(isFP16=false) {
+function getModelPath(isFP16 = false) {
   const modelName = `test_model_fp${isFP16 ? 16 : 32}`;
 
   return {
@@ -70,5 +70,4 @@ async function isModelAvailable(model) {
     '\n\nTestModel cannot be found.\nPlease run `npm run test_setup`.\n\n',
   );
   process.exit(1);
-
 }

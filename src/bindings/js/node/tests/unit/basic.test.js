@@ -63,7 +63,7 @@ describe('ov basic tests.', () => {
   });
 
   describe('Core.compileModelSync()', () => {
-    const tput = { 'PERFORMANCE_HINT': 'THROUGHPUT' };
+    const tput = { PERFORMANCE_HINT: 'THROUGHPUT' };
 
     it('compileModelSync(model:Model, deviceName: string, config: {}) ', () => {
       const cm = core.compileModelSync(model, 'CPU', tput);

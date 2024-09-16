@@ -48,7 +48,7 @@ interface Core {
   compileModel(
     model: Model,
     deviceName: string,
-    config?: { [propertyName: string]: string }
+    config?: { [propertyName: string]: string },
   ): Promise<CompiledModel>;
   /**
    * Asynchronously reads a model and creates a compiled model
@@ -67,7 +67,7 @@ interface Core {
   compileModel(
     modelPath: string,
     deviceName: string,
-    config?: { [propertyName: string]: string }
+    config?: { [propertyName: string]: string },
   ): Promise<CompiledModel>;
   /**
    * A synchronous version of {@link Core.compileModel}.
@@ -76,7 +76,7 @@ interface Core {
   compileModelSync(
     model: Model,
     deviceName: string,
-    config?: { [propertyName: string]: string }
+    config?: { [propertyName: string]: string },
   ): CompiledModel;
   /**
    * A synchronous version of {@link Core.compileModel}.
@@ -85,7 +85,7 @@ interface Core {
   compileModelSync(
     modelPath: string,
     deviceName: string,
-    config?: { [propertyName: string]: string }
+    config?: { [propertyName: string]: string },
   ): CompiledModel;
   /**
    * It returns a list of available inference devices.
@@ -118,9 +118,9 @@ interface Core {
    */
   getVersions(deviceName: string): {
     [deviceName: string]: {
-      buildNumber: string,
-      description: string,
-    },
+      buildNumber: string;
+      description: string;
+    };
   };
   /**
    * Asynchronously imports a previously exported compiled model.
@@ -135,7 +135,7 @@ interface Core {
   importModel(
     modelStream: Buffer,
     device: string,
-    config?: { [key: string]: string | number | boolean }
+    config?: { [key: string]: string | number | boolean },
   ): Promise<CompiledModel>;
   /**
    * A synchronous version of {@link Core.importModel}.
@@ -144,7 +144,7 @@ interface Core {
   importModelSync(
     modelStream: Buffer,
     device: string,
-    config?: { [key: string]: string | number | boolean }
+    config?: { [key: string]: string | number | boolean },
   ): CompiledModel;
   /**
    * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
@@ -175,7 +175,9 @@ interface Core {
    * @param weightsBuffer Binary data with tensor data.
    */
   readModel(
-    modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Promise<Model>;
+    modelBuffer: Uint8Array,
+    weightsBuffer?: Uint8Array,
+  ): Promise<Model>;
   /**
    * A synchronous version of {@link Core.readModel}.
    * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
@@ -207,7 +209,7 @@ interface Core {
   ): void;
 }
 interface CoreConstructor {
-  new(): Core;
+  new (): Core;
 }
 
 /**
@@ -264,9 +266,9 @@ interface Model {
    */
   isDynamic(): boolean;
   /**
- * It gets the output of the model.
- * If a model has more than one output, this method throws an exception.
- */
+   * It gets the output of the model.
+   * If a model has more than one output, this method throws an exception.
+   */
   output(): Output;
   /**
    * It gets the output of the model identified by the tensor name.
@@ -359,15 +361,15 @@ interface CompiledModel {
    * @returns {Output} A compiled model input.
    */
   input(name: string): Output;
-   /**
+  /**
    * It sets properties for the current compiled model. Properties
    * can be retrieved via {@link CompiledModel.getProperty}.
    * @param property An object with the key-value pairs.
    * (property name, property value)
    */
-   setProperty(properties: {
-      [propertyName: string]: string | number | boolean
-    }): void;
+  setProperty(properties: {
+    [propertyName: string]: string | number | boolean;
+  }): void;
 }
 
 /**
@@ -425,7 +427,7 @@ interface TensorConstructor {
    * @param type The element type of the new tensor.
    * @param shape The shape of the new tensor.
    */
-  new(type: element | elementTypeString, shape: number[]): Tensor;
+  new (type: element | elementTypeString, shape: number[]): Tensor;
   /**
    * It constructs a tensor using the element type and shape. The new tensor
    * wraps allocated host memory.
@@ -434,14 +436,17 @@ interface TensorConstructor {
    * @param tensorData A subclass of TypedArray that will be wrapped
    * by a {@link Tensor}.
    */
-  new(type: element | elementTypeString, shape: number[],
-    tensorData: SupportedTypedArray): Tensor;
+  new (
+    type: element | elementTypeString,
+    shape: number[],
+    tensorData: SupportedTypedArray,
+  ): Tensor;
   /**
    * It constructs a tensor using the element type and shape. The strings from
    * the array are used to fill the new tensor. Each element of a string tensor
    * is a string of arbitrary length, including an empty string.
    */
-  new(tensorData: string[]): Tensor;
+  new (tensorData: string[]): Tensor;
 }
 
 /**
@@ -465,8 +470,9 @@ interface InferRequest {
    * TypedArray will be wrapped into Tensor underneath using the input shape
    * and element type of the deployed model.
    */
-  infer(inputData: { [inputName: string]: Tensor | SupportedTypedArray })
-    : { [outputName: string]: Tensor };
+  infer(inputData: { [inputName: string]: Tensor | SupportedTypedArray }): {
+    [outputName: string]: Tensor;
+  };
   /**
    * It infers specified input(s) in the synchronous mode.
    * @param inputData An array with tensors or TypedArrays. TypedArrays will be
@@ -474,16 +480,18 @@ interface InferRequest {
    * of the deployed model. If the model has multiple inputs, the Tensors
    * and TypedArrays must be passed in the correct order.
    */
-  infer(inputData: Tensor[] | SupportedTypedArray[])
-    : { [outputName: string]: Tensor };
+  infer(inputData: Tensor[] | SupportedTypedArray[]): {
+    [outputName: string]: Tensor;
+  };
   /**
    * It infers specified input(s) in the asynchronous mode.
    * @param inputData An object with the key-value pairs where the key is the
    * input name and value is a tensor or an array with tensors. If the model has
    * multiple inputs, the Tensors must be passed in the correct order.
    */
-  inferAsync(inputData: { [inputName: string]: Tensor }
-    | Tensor[]): Promise<{ [outputName: string]: Tensor }>;
+  inferAsync(
+    inputData: { [inputName: string]: Tensor } | Tensor[],
+  ): Promise<{ [outputName: string]: Tensor }>;
   /**
    * It gets the compiled model used by the InferRequest object.
    */
@@ -508,11 +516,11 @@ interface InferRequest {
    */
   getOutputTensor(): Tensor;
   /**
-    * It gets the output tensor for inference.
-    * @param idx An index of the tensor to get.
-    * @returns A tensor at the specified index. If the tensor with the specified
-    * idx is not found, an exception is thrown.
-    */
+   * It gets the output tensor for inference.
+   * @param idx An index of the tensor to get.
+   * @returns A tensor at the specified index. If the tensor with the specified
+   * idx is not found, an exception is thrown.
+   */
   getOutputTensor(idx?: number): Tensor;
   /**
    * It gets an input/output tensor for inference.
@@ -606,7 +614,7 @@ interface PrePostProcessor {
   output(idxOrTensorName?: number | string): OutputInfo;
 }
 interface PrePostProcessorConstructor {
-  new(model: Model): PrePostProcessor;
+  new (model: Model): PrePostProcessor;
 }
 
 interface PartialShape {
@@ -625,7 +633,7 @@ interface PartialShapeConstructor {
    * Omit parameter to create empty shape.
    * @param [shape] String representation of the shape.
    */
-  new(shape?: string): PartialShape;
+  new (shape?: string): PartialShape;
 }
 
 declare enum element {
@@ -649,18 +657,16 @@ declare enum resizeAlgorithm {
 }
 
 export interface NodeAddon {
-  Core: CoreConstructor,
-  Tensor: TensorConstructor,
-  PartialShape: PartialShapeConstructor,
+  Core: CoreConstructor;
+  Tensor: TensorConstructor;
+  PartialShape: PartialShapeConstructor;
 
   preprocess: {
-    resizeAlgorithm: typeof resizeAlgorithm,
-    PrePostProcessor: PrePostProcessorConstructor,
-  },
-  element: typeof element,
+    resizeAlgorithm: typeof resizeAlgorithm;
+    PrePostProcessor: PrePostProcessorConstructor;
+  };
+  element: typeof element;
 }
 
-export default
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  require('../bin/ov_node_addon.node') as
-  NodeAddon;
+export default // eslint-disable-next-line @typescript-eslint/no-var-requires
+require('../bin/ov_node_addon.node') as NodeAddon;

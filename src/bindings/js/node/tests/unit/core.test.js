@@ -15,7 +15,7 @@ describe('ov.Core tests', () => {
   it('Core.setProperty()', () => {
     const tmpDir = '/tmp';
 
-    core.setProperty({ 'CACHE_DIR': tmpDir });
+    core.setProperty({ CACHE_DIR: tmpDir });
 
     const cacheDir = core.getProperty('CACHE_DIR');
 
@@ -25,7 +25,7 @@ describe('ov.Core tests', () => {
   it('Core.setProperty(\'CPU\')', () => {
     const tmpDir = '/tmp';
 
-    core.setProperty('CPU', { 'CACHE_DIR': tmpDir });
+    core.setProperty('CPU', { CACHE_DIR: tmpDir });
 
     const cacheDir = core.getProperty('CPU', 'CACHE_DIR');
 
@@ -44,7 +44,7 @@ describe('ov.Core tests', () => {
   it('Core.setProperty(\'CPU\', { \'NUM_STREAMS\': 5 })', () => {
     const streams = 5;
 
-    core.setProperty('CPU', { 'NUM_STREAMS': streams });
+    core.setProperty('CPU', { NUM_STREAMS: streams });
     const result = core.getProperty('CPU', 'NUM_STREAMS');
 
     assert.equal(result, streams);
@@ -53,7 +53,7 @@ describe('ov.Core tests', () => {
   it('Core.setProperty(\'CPU\', { \'INFERENCE_NUM_THREADS\': 3 })', () => {
     const threads = 3;
 
-    core.setProperty('CPU', { 'INFERENCE_NUM_THREADS': threads });
+    core.setProperty('CPU', { INFERENCE_NUM_THREADS: threads });
     const result = core.getProperty('CPU', 'INFERENCE_NUM_THREADS');
 
     assert.equal(result, threads);

@@ -25,67 +25,79 @@ describe('ov.preprocess.PrePostProcessor tests', () => {
   describe('PrePostProcess', () => {
     it('input() ', () => {
       assert.doesNotThrow(() =>
-        new ov.preprocess.PrePostProcessor(model).input());
+        new ov.preprocess.PrePostProcessor(model).input(),
+      );
     });
 
     it('input(size_t input_index)', () => {
       assert.doesNotThrow(() =>
-        new ov.preprocess.PrePostProcessor(model).input(0));
+        new ov.preprocess.PrePostProcessor(model).input(0),
+      );
     });
 
     it('input(const std::string& tensor_name)', () => {
       assert.doesNotThrow(() =>
-        new ov.preprocess.PrePostProcessor(model).input('data'));
+        new ov.preprocess.PrePostProcessor(model).input('data'),
+      );
     });
 
     it('output() ', () => {
       assert.doesNotThrow(() =>
-        new ov.preprocess.PrePostProcessor(model).output());
+        new ov.preprocess.PrePostProcessor(model).output(),
+      );
     });
 
     it('output(size_t output_index)', () => {
       assert.doesNotThrow(() =>
-        new ov.preprocess.PrePostProcessor(model).output(0));
+        new ov.preprocess.PrePostProcessor(model).output(0),
+      );
     });
 
     it('output(const std::string& tensor_name)', () => {
       assert.doesNotThrow(() =>
-        new ov.preprocess.PrePostProcessor(model).output('fc_out'));
+        new ov.preprocess.PrePostProcessor(model).output('fc_out'),
+      );
     });
   });
 
   describe('InputInfo', () => {
     it('tensor()', () => {
       assert.doesNotThrow(() =>
-        new ov.preprocess.PrePostProcessor(model).input(0).tensor());
+        new ov.preprocess.PrePostProcessor(model).input(0).tensor(),
+      );
     });
 
     it('preprocess()', () => {
       assert.doesNotThrow(() =>
-        new ov.preprocess.PrePostProcessor(model).input(0).preprocess());
+        new ov.preprocess.PrePostProcessor(model).input(0).preprocess(),
+      );
     });
 
     it('model()', () => {
       assert.doesNotThrow(() =>
-        new ov.preprocess.PrePostProcessor(model).input(0).model());
+        new ov.preprocess.PrePostProcessor(model).input(0).model(),
+      );
     });
 
     it('tensor(param) throws', () => {
-      assert.throws(() =>
-        new ov.preprocess.PrePostProcessor(model).input(0).tensor(0),
-      /Function does not take any parameters./);
+      assert.throws(
+        () => new ov.preprocess.PrePostProcessor(model).input(0).tensor(0),
+        /Function does not take any parameters./,
+      );
     });
 
     it('preprocess(param) throws', () => {
-      assert.throws(() =>
-        new ov.preprocess.PrePostProcessor(model).input(0).preprocess(0),
-      /Function does not take any parameters./);
+      assert.throws(
+        () => new ov.preprocess.PrePostProcessor(model).input(0).preprocess(0),
+        /Function does not take any parameters./,
+      );
     });
 
     it('model(param) throws', () => {
-      assert.throws(() =>
-        new ov.preprocess.PrePostProcessor(model).input(0).model(0),
-      /Function does not take any parameters./);
+      assert.throws(
+        () => new ov.preprocess.PrePostProcessor(model).input(0).model(0),
+        /Function does not take any parameters./,
+      );
     });
 
     it('tensor().setElementType()', () => {
@@ -223,13 +235,15 @@ describe('ov.preprocess.PrePostProcessor tests', () => {
   describe('OutputInfo', () => {
     it('tensor()', () => {
       assert.doesNotThrow(() =>
-        new ov.preprocess.PrePostProcessor(model).output(0).tensor());
+        new ov.preprocess.PrePostProcessor(model).output(0).tensor(),
+      );
     });
 
     it('tensor(param) throws', () => {
-      assert.throws(() =>
-        new ov.preprocess.PrePostProcessor(model).output(0).tensor(0),
-      /Function does not take any parameters./);
+      assert.throws(
+        () => new ov.preprocess.PrePostProcessor(model).output(0).tensor(0),
+        /Function does not take any parameters./,
+      );
     });
 
     it('tensor().setElementType()', () => {

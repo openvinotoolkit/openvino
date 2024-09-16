@@ -29,7 +29,7 @@ async function main() {
     if (error instanceof RuntimeExistsError) {
       console.error(
         `Directory '${destinationPath}' already exists. ` +
-        'To force runtime downloading run \'npm run download_runtime -- -f\''
+          'To force runtime downloading run \'npm run download_runtime -- -f\'',
       );
     } else {
       throw error;
@@ -73,7 +73,7 @@ async function downloadRuntime(
     if (config.ignoreIfExists) {
       console.warn(
         `Directory '${destinationPath}' already exists. Skipping ` +
-        'runtime downloading because \'ignoreIfExists\' flag is passed.'
+          'runtime downloading because \'ignoreIfExists\' flag is passed.',
       );
 
       return;
@@ -81,7 +81,7 @@ async function downloadRuntime(
 
     throw new RuntimeExistsError(
       `Directory '${destinationPath}' already exists. ` +
-      'To force runtime downloading use \'force\' flag.'
+        'To force runtime downloading use \'force\' flag.',
     );
   }
 

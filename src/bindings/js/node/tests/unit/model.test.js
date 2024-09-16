@@ -168,21 +168,16 @@ describe('ov.Model tests', () => {
 
     it('should throw an error for out-of-range index', () => {
       const outputSize = model.getOutputSize();
-      assert.throws(
-        () => {
-          model.getOutputElementType(outputSize);
-        },
-        /^Error: /,
-      );
+      assert.throws(() => {
+        model.getOutputElementType(outputSize);
+      }, /^Error: /);
     });
   });
 
   describe('Model.clone()', () => {
     it('should return an object of type model', () => {
       const clonedModel = model.clone();
-      assert.ok(
-        clonedModel instanceof ov.Model
-      );
+      assert.ok(clonedModel instanceof ov.Model);
     });
 
     it('should return a model that is a clone of the calling model', () => {

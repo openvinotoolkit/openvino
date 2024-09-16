@@ -20,7 +20,7 @@ describe('ov.CompiledModel tests', () => {
 
   beforeEach(() => {
     const properties = {
-      'AUTO_BATCH_TIMEOUT': '1',
+      AUTO_BATCH_TIMEOUT: '1',
     };
     compiledModel = core.compileModelSync(testXml, 'BATCH:CPU', properties);
   });
@@ -44,7 +44,7 @@ describe('ov.CompiledModel tests', () => {
 
   describe('setProperty()', () => {
     it('sets a properties for compiled model', () => {
-      const properties = { 'AUTO_BATCH_TIMEOUT': '1000' };
+      const properties = { AUTO_BATCH_TIMEOUT: '1000' };
       assert.doesNotThrow(() => compiledModel.setProperty(properties));
     });
 
@@ -65,22 +65,22 @@ describe('ov.CompiledModel tests', () => {
       assert.throws(
         () =>
           compiledModel.setProperty(
-            { 'PERFORMANCE_HINT': 'THROUGHPUT' },
-            { 'NUM_STREAMS': 'AUTO' },
+            { PERFORMANCE_HINT: 'THROUGHPUT' },
+            { NUM_STREAMS: 'AUTO' },
           ),
         /'setProperty' method called with incorrect parameters/,
       );
     });
 
     it('returns the set property of the compiled model', () => {
-      const properties = { 'AUTO_BATCH_TIMEOUT': '123' };
+      const properties = { AUTO_BATCH_TIMEOUT: '123' };
       compiledModel.setProperty(properties);
       assert.strictEqual(compiledModel.getProperty('AUTO_BATCH_TIMEOUT'), 123);
     });
 
     it('retains the last set property when set multiple times', () => {
-      compiledModel.setProperty({ 'AUTO_BATCH_TIMEOUT': '321' });
-      compiledModel.setProperty({ 'AUTO_BATCH_TIMEOUT': '132' });
+      compiledModel.setProperty({ AUTO_BATCH_TIMEOUT: '321' });
+      compiledModel.setProperty({ AUTO_BATCH_TIMEOUT: '132' });
       assert.strictEqual(compiledModel.getProperty('AUTO_BATCH_TIMEOUT'), 132);
     });
 

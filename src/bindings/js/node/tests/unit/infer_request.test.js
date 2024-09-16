@@ -76,7 +76,7 @@ describe('ov.InferRequest tests', () => {
         [{}, /Invalid argument/], // Test for object that is not Tensor
       ];
 
-      inputMessagePairs.forEach( ([tl, msg]) => {
+      inputMessagePairs.forEach(([tl, msg]) => {
         assert.throws(
           () => inferRequest.infer([tl]),
           { message: new RegExp(msg) },
