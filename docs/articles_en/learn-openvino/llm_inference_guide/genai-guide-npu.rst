@@ -50,6 +50,7 @@ Use the following code snippet to perform generation with OpenVINO GenAI API:
       .. code-block:: python
 
          import openvino_genai as ov_genai
+         model_path = "TinyLlama"
          pipe = ov_genai.LLMPipeline(model_path, "NPU")
          print(pipe.generate("The Sun is yellow because", max_new_tokens=100))
 
@@ -62,7 +63,7 @@ Use the following code snippet to perform generation with OpenVINO GenAI API:
          #include <iostream>
 
          int main(int argc, char* argv[]) {
-            std::string model_path = argv[1];
+            std::string model_path = "TinyLlama";
             ov::genai::LLMPipeline pipe(model_path, "NPU");
             std::cout << pipe.generate("The Sun is yellow because", ov::genai::max_new_tokens(100));
          }
