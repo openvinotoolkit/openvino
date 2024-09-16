@@ -9,6 +9,7 @@
 #include "intel_npu/al/config/npuw.hpp"
 #include "online/compiler.hpp"
 #include "online/utils/utils.hpp"  // getMetaDesc
+#include "openvino/core/parallel.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -16,6 +17,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
+#include "patterns/opt.hpp"
 
 namespace {
 
@@ -238,7 +240,8 @@ private:
         if (!ov::is_type<ov::op::v0::Constant>(node_ptr)) {
             OPENVINO_THROW("NPUW: trying to get a unique name of a non-Constant node");
         }
-        return node_ptr->get_friendly_name() + " with meta " + ov::npuw::online::util::getMetaDesc(node_ptr);
+        return node_ptr->get_friendly_name() + " with meta " + ov::npuw::online::util::getMetaDesc(node_ptr) +
+               " with output " + (*node_ptr->output(0).get_target_inputs().begin()).get_node()->description();
     }
 
 public:
@@ -277,6 +280,7 @@ public:
     void matchResults(const std::string& func_name);
     void createFunction(const std::string& func_name);
     void matchRepeatedSubgraphs(const std::string& func_name);
+    void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
 
     // Final steps
@@ -1557,6 +1561,50 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
     LOG_VERB("Done");
 }
 
+void Partitioner::optimize(const std::string& func_name) {
+    if (!cfg.get<::intel_npu::NPUW_DQ>()) {
+        LOG_VERB("No optimizations will be done to  " << func_name << " in model " << model->get_friendly_name()
+                                                      << "...");
+        return;
+    }
+
+    LOG_VERB("Optimize function " << func_name << " in model " << model->get_friendly_name() << "...");
+    LOG_BLOCK();
+
+    ov::npuw::Function& f = P.functions.at(func_name);
+
+    ov::npuw::patterns::opt::Context ctx;
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi>();
+    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQi>(std::ref(ctx));
+    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQ2i>(std::ref(ctx));
+    rewr.run_on_model(f._model);
+    ov::pass::Validate().run_on_model(f._model);
+
+    // Permute tensors where required
+    auto& func_group = all_functions.at(func_name);
+    for (auto&& p : ctx.closures_to_permute) {
+        auto param_idx = f._model->get_parameter_index(p.first);
+        auto closure_idx = param_idx - f._param_offset;
+        ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+            auto& funcall = func_group.refs[f_idx].get();
+            ov::npuw::util::permute(funcall._closure[closure_idx], p.second);
+        });
+    }
+
+    // Convert tensors where required
+    for (auto&& p : ctx.closures_to_f16) {
+        auto param_idx = f._model->get_parameter_index(p);
+        auto closure_idx = param_idx - f._param_offset;
+        ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+            auto& funcall = func_group.refs[f_idx].get();
+            ov::npuw::util::to_f16(funcall._closure[closure_idx]);
+        });
+    }
+
+    LOG_VERB("Done");
+}
+
 void Partitioner::decompressionCutOff(const std::string& func_name) {
     LOG_VERB("Decompression cut-off for function " << func_name << " in model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
@@ -1826,6 +1874,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
                 p.matchRepeatedSubgraphs(func_group);
+                p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }
         } else if (cfg.get<::intel_npu::NPUW_CWAI>()) {
@@ -1841,6 +1890,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.saveTinyConstants(func_group);
                 p.saveScaleFactors(func_group);
                 p.createFunction(func_group);
+                p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }
         } else {

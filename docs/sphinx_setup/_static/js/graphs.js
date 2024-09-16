@@ -171,7 +171,8 @@ class ChartDisplay {
 
 $(document).ready(function () {
 
-    $('.ov-toolkit-benchmark-results').on('click', () => showModal());
+    $('.ov-toolkit-benchmark-results').on('click', () => showModal("graph-data-ov.json"));
+    $('.ovms-toolkit-benchmark-results').on('click', () => showModal("graph-data-ovms.json"));
     function clickBuildGraphs(graph, appConfig, networkModels, ieTypes, platforms, kpis, precisions) {
         renderData(graph, appConfig, networkModels, ieTypes, platforms, kpis, precisions);
         $('.modal-footer').show();
@@ -203,10 +204,10 @@ $(document).ready(function () {
         $('body').css('overflow', 'auto');
     }
 
-    function showModal() {
+    function showModal(file) {
         $('body').css('overflow', 'hidden');
 
-        fetch('../_static/benchmarks_files/graph-data-ov.json')
+        fetch('../_static/benchmarks_files/data/'+ file)
             .then((response) => response.json())
             .then((jsonData) => {
                 fetch('../_static/benchmarks_files/graph-config.json')
