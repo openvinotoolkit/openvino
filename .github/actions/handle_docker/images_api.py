@@ -62,6 +62,7 @@ class Image:
         cmd = f"{build_cmd} " \
               f"--file {self.dockerfile} " \
               f"--tag {self.ref()} " \
+              f"--build-arg REGISTRY={self.registry}/dockerio " \
               f"{cache_cmd} " \
               f"{push_cmd} " \
               "."

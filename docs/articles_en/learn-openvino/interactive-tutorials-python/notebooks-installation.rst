@@ -1,9 +1,5 @@
-.. {#notebooks_installation}
-
 Installation of OpenVINO™ Notebooks
 =====================================
-
-
 
 .. meta::
    :description: An installation guide for Jupyter notebooks on which Python
@@ -32,20 +28,20 @@ The table below lists the supported operating systems and Python versions.
 |                                     | (64-bit                        |
 |                                     | ) <https://www.python.org/>`__ |
 +=====================================+================================+
-| Ubuntu 20.04 LTS, 64-bit            | 3.8, 3.9, 3.10. 3.11           |
+| Ubuntu 20.04 LTS, 64-bit            |  3.9, 3.10, 3.11, 3.12         |
 +-------------------------------------+--------------------------------+
-| Ubuntu 22.04 LTS, 64-bit            | 3.8, 3.9, 3.10, 3.11           |
+| Ubuntu 22.04 LTS, 64-bit            |  3.9, 3.10, 3.11, 3.12         |
 +-------------------------------------+--------------------------------+
-| Red Hat Enterprise Linux 8          | 3.8, 3.9, 3.10, 3.11           |
+| Red Hat Enterprise Linux 8          |  3.9, 3.10, 3.11, 3.12         |
 +-------------------------------------+--------------------------------+
-| CentOS 7, 64 bit                    | 3.8, 3.9, 3.10, 3.11           |
+| CentOS 7, 64 bit                    |  3.9, 3.10, 3.11, 3.12         |
 +-------------------------------------+--------------------------------+
-| macOS 10.15.x versions or higher    | 3.8, 3.9, 3.10, 3.11           |
+| macOS 10.15.x versions or higher    |  3.9, 3.10, 3.11, 3.12         |
 +-------------------------------------+--------------------------------+
-| Windows 10, 64-bit Pro, Enterprise  | 3.8, 3.9, 3.10, 3.11           |
+| Windows 10, 64-bit Pro, Enterprise  |  3.9, 3.10, 3.11, 3.12         |
 | or Education editions               |                                |
 +-------------------------------------+--------------------------------+
-| Windows Server 2016 or higher       | 3.8, 3.9, 3.10, 3.11           |
+| Windows Server 2016 or higher       |  3.9, 3.10, 3.11, 3.12         |
 +-------------------------------------+--------------------------------+
 
 OpenVINO Notebooks also require Git. Follow the guide below for your
@@ -61,7 +57,7 @@ Installing prerequisites
 
       1. **Install Python**
 
-         Download 64 bit version of Python software (3.8, 3.9, 3.10, 3.11) from `python.org <https://www.python.org/downloads/windows/>`__
+         Download 64 bit version of Python software (3.9 - 3.12) from `python.org <https://www.python.org/downloads/windows/>`__
 
          Run the installer by double clicking it. Follow the installation steps to set up the software.
 
@@ -78,13 +74,7 @@ Installing prerequisites
 
          Run the installer by double clicking it. Follow the installation steps to set up the software.
 
-      3. **Install C++ Redistributable (For Python 3.8 only)**
-
-         Download 64 bit version of  C++ Redistributable from `here <https://download.visualstudio.microsoft.com/download/pr/4100b84d-1b4d-487d-9f89-1354a7138c8f/5B0CBB977F2F5253B1EBE5C9D30EDBDA35DBD68FB70DE7AF5FAAC6423DB575B5/VC_redist.x64.exe>`__
-
-         Run the installer by double clicking it. Follow the installation steps to set up the software.
-
-      4. (Optional) Install FFMPEG
+      3. Install FFMPEG (Optional)
 
          Download FFMPEG binary from `here <https://ffmpeg.org/download.html>`__
 
@@ -93,7 +83,7 @@ Installing prerequisites
    .. tab-item:: Linux
       :sync: linux
 
-      1. **Install Python and GIT**
+      4. **Install Python and GIT**
 
          .. note::
 
@@ -466,7 +456,7 @@ Installing notebooks
 
          .. code-block:: sh
 
-            conda create --name openvino_env python=3.8 -y
+            conda create --name openvino_env python=3.9 -y
 
       2. Activate the environment
 

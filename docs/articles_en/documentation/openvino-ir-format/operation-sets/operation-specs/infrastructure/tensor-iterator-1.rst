@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_infrastructure_TensorIterator_1}
-
 TensorIterator
 ==============
 
 
 .. meta::
-  :description: Learn about TensorIterator-1 - an infrastructure operation, which 
+  :description: Learn about TensorIterator-1 - an infrastructure operation, which
                 can be performed on multiple input tensors of any supported type and shape.
 
 **Versioned name**: *TensorIterator-1*
@@ -31,7 +29,7 @@ TensorIterator
   * **Port map attributes**:
 
     * *external_port_id*
-        
+
       * **Description**: *external_port_id* is a port ID of the ``TensorIterator`` layer.
       * **Range of values**: indexes of the *TensorIterator* outputs
       * **Type**: ``int``
@@ -124,7 +122,7 @@ How ``body`` is iterated:
 ``Parameter`` and ``Result`` layers are part of the ``body``. ``Parameters`` are stable entry points in the ``body``. The results of the execution of the ``body`` are presented as stable ``Result`` layers. Stable means that these nodes cannot be fused.
 
 *Next iterations:*
-Back edges define which data is copied back to ``Parameters`` layers from ``Results`` layers between IR iterations in TensorIterator ``body``. That means they pass data from source layer back to target layer. Each layer that is a target for back-edge has also an incoming ``port map`` edge as an input. The values from back-edges are used instead of corresponding edges from ``port map``. After each iteration of the network, all back edges are executed. 
+Back edges define which data is copied back to ``Parameters`` layers from ``Results`` layers between IR iterations in TensorIterator ``body``. That means they pass data from source layer back to target layer. Each layer that is a target for back-edge has also an incoming ``port map`` edge as an input. The values from back-edges are used instead of corresponding edges from ``port map``. After each iteration of the network, all back edges are executed.
 Iterations can be considered as statically unrolled sequence: all edges that flow between two neighbor iterations are back-edges. So in the unrolled loop, each back-edge is transformed to regular edge.
 
 ... -> [``Parameters:body:Results``] - back-edges -> [``Parameters:body:Results``] - back-edges -> [``Parameters:body:Results``] - back-edges -> ...
@@ -181,7 +179,7 @@ where ``Si`` is value of ``Result`` operation at i-th iteration in the tensor it
 
 .. code-block:: xml
    :force:
-  
+
     <layer type="TensorIterator" ...>
         <input>
             <port id="0">

@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_activation_Elu_1}
-
 Elu
 ===
 
 
 .. meta::
-  :description: Learn about Elu-1 - an element-wise, activation operation, which 
+  :description: Learn about Elu-1 - an element-wise, activation operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Elu-1*
@@ -58,7 +56,7 @@ where α corresponds to *alpha* attribute.
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="Elu">
        <data alpha="1.0"/>
        <input>
