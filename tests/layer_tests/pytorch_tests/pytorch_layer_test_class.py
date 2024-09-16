@@ -67,7 +67,26 @@ class PytorchLayerTest:
             return torch_compile_env == "EXPORT"
         return False
 
+
     def _test(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True,
+              **kwargs):
+        retries = 0
+        max_retries = 3
+        while retries < max_retries:
+            try:
+                return self._test_impl(model, ref_net, kind, ie_device, precision, ir_version, infer_timeout, dynamic_shapes, **kwargs)
+            except RuntimeError as e:
+                if "builtin cannot be used as a value" in e:
+                    # This is a potentially sporadic issue
+                    print(f"An error occurred: {e}. Retrying...")
+                    retries += 1
+                else:
+                    raise
+        else:
+            print("Max retries reached. Function execution failed.")
+
+
+    def _test_impl(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True,
               **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
