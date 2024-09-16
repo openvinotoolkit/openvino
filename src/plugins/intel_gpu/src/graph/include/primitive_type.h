@@ -30,9 +30,7 @@ struct primitive_type {
                                                             const program_node& node) const = 0;
 
     virtual std::unique_ptr<primitive_impl> create_impl(const program_node& node) const = 0;
-    virtual std::shared_ptr<ImplementationManager> choose_impl(const program_node& node,
-                                                               const kernel_impl_params& params,
-                                                               shape_types shape_type) const = 0;
+    virtual std::shared_ptr<ImplementationManager> choose_impl(const program_node& node, shape_types shape_type) const = 0;
 
     virtual std::set<impl_types> get_available_impl_types(const program_node& node) const = 0;
     virtual std::vector<std::shared_ptr<ImplementationManager>> get_supported_implementations(const program_node& node) const = 0;

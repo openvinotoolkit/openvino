@@ -2517,7 +2517,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
                 auto kernels = _program.get_kernels_cache().compile(updated_params, impl->get_kernels_source());
                 impl->set_kernels(kernels);
             }
-            cache.add(updated_params, impl->clone());
+            cache.add(updated_params, std::move(impl));
         });
     }
 

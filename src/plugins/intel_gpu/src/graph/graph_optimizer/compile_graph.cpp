@@ -40,7 +40,7 @@ void compile_graph::run(program& p) {
                 try {
                     const auto& params = node->get_kernel_impl_params();
                     auto shape_type = ImplementationManager::get_shape_type(*params);
-                    auto selected_impl_manager = node->type()->choose_impl(*node, *node->get_kernel_impl_params(), shape_type);
+                    auto selected_impl_manager = node->type()->choose_impl(*node, shape_type);
                     std::string fail_reason = "";
                     try {
                         if (selected_impl_manager) {

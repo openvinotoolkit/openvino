@@ -1199,13 +1199,12 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
     if (forced_impl != impl_types::any)
         return forced_impl;
 
-    const auto params = node.get_kernel_impl_params();
     auto shape_type = shape_types::any;
 
     auto impl = test_format<std::shared_ptr<ImplementationManager>>(node, preferred_format,
-        [&shape_type, &params](program_node& n) {
-            return test_no_input_pad<std::shared_ptr<ImplementationManager>>(n, [&shape_type, &params](program_node& n) {
-                return n.type()->choose_impl(n, *params, shape_type);
+        [&shape_type](program_node& n) {
+            return test_no_input_pad<std::shared_ptr<ImplementationManager>>(n, [&shape_type](program_node& n) {
+                return n.type()->choose_impl(n, shape_type);
         });
     });
 

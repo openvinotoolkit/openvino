@@ -44,9 +44,7 @@ struct primitive_type_base : primitive_type {
         return {};
     }
 
-    std::shared_ptr<ImplementationManager> choose_impl(const program_node& node,
-                                                       const kernel_impl_params& runtime_params,
-                                                       shape_types requested_shape_type) const override {
+    std::shared_ptr<ImplementationManager> choose_impl(const program_node& node, shape_types requested_shape_type) const override {
         OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::choose_impl: primitive type mismatch");
         for (auto& impl : get_supported_implementations(node)) {
             impl_types impl_type = impl->get_impl_type();
@@ -68,7 +66,7 @@ struct primitive_type_base : primitive_type {
     std::unique_ptr<primitive_impl> create_impl(const program_node& node) const override {
         OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::create_impl: primitive type mismatch");
         const auto params = node.get_kernel_impl_params();
-        auto impl = choose_impl(node, *params, ImplementationManager::get_shape_type(*params));
+        auto impl = choose_impl(node, ImplementationManager::get_shape_type(*params));
 
         const auto& p = node.get_primitive();
         OPENVINO_ASSERT(impl != nullptr, "[GPU] Can't choose implementation for ", node.id(), " node (type=", p->type_string(), ")\n",

@@ -100,7 +100,7 @@ void select_preferred_formats::run(program& p) {
         auto factory = test_format<std::shared_ptr<ImplementationManager>>(*n, format::any,
             [&shape_type](program_node& n) {
                 return test_no_input_pad<std::shared_ptr<ImplementationManager>>(n, [&shape_type](program_node& n) {
-                    return n.type()->choose_impl(n, *n.get_kernel_impl_params(), shape_type);
+                    return n.type()->choose_impl(n, shape_type);
             });
         });
 

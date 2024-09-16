@@ -602,11 +602,12 @@ inline RT test_format(program_node& node, format fmt, std::function<RT(program_n
         node.recalc_output_layouts(false);
 
     bool has_deps = !node.get_dependencies().empty();
-    layout prev_input_layout = has_deps ? node.get_input_layout(0) : layout();
+    layout prev_input_layout = layout();
     if (has_deps) {
+        auto dep_with_port = node.get_dependency_with_port(0);
+        prev_input_layout = dep_with_port.first->get_output_layout(false, dep_with_port.second);
         auto new_layout = prev_input_layout;
         set_format_no_any(new_layout, fmt);
-        auto dep_with_port = node.get_dependency_with_port(0);
         dep_with_port.first->set_output_layout(new_layout, false, dep_with_port.second);
     }
 
