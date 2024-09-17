@@ -92,6 +92,10 @@ bool RandomUniform::constant_fold(OutputVector& output_values, const OutputVecto
     return false;
 }
 
+bool RandomUniform::can_constant_fold(const OutputVector& input_values) {
+    return false;
+}
+
 /// \return The output tensor type.
 const ov::element::Type& RandomUniform::get_out_type() const {
     return m_output_type;

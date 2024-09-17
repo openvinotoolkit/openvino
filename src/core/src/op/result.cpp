@@ -71,6 +71,10 @@ bool Result::constant_fold(OutputVector& output_values, const OutputVector& inpu
     return false;
 }
 
+bool Result::can_constant_fold(const OutputVector& input_values) {
+    return false;
+}
+
 ov::Layout Result::get_layout() const {
     return ov::layout::get_layout(output(0));
 }

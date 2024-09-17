@@ -114,6 +114,10 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                         run_on_model(sub_graph_node->get_function(static_cast<int>(sub_graph_ind))) || rewritten;
                 }
             }
+            rewritten = restore_original_input_precision(original_node) || rewritten;
+            if (rewritten) {
+                original_node->validate_and_infer_types();
+            }
             continue;
         }
         if (node_has_requires_precision_conversion_attribute(node)) {
