@@ -10,8 +10,10 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestFakeQuantizePerTensorAffine(PytorchLayerTest):
+    rng = np.random.default_rng(seed=123)
+
     def _prepare_input(self):
-        return (np.random.randn(3, 2, 2).astype(np.float32),)
+        return (self.rng.standard_normal([3, 2, 2], dtype=np.float32),)
 
     def create_model(self, scale, zero_point, quant_min, quant_max):
         class fake_quantize_per_tensor_affine(torch.nn.Module):
@@ -62,9 +64,12 @@ class TestFakeQuantizePerTensorAffine(PytorchLayerTest):
             freeze_model=False
         )
 
+
 class TestFakeQuantizePerTensorAffineCacheMaskTensorQParams(PytorchLayerTest):
+    rng = np.random.default_rng(seed=123)
+
     def _prepare_input(self):
-        return (np.random.randn(3, 2, 2).astype(np.float32),)
+        return (self.rng.standard_normal([3, 2, 2], dtype=np.float32),)
 
     def create_model(self, scale, zero_point, quant_min, quant_max):
         class _fake_quantize_per_tensor_affine_cachemask_tensor_qparams(torch.nn.Module):
@@ -116,8 +121,10 @@ class TestFakeQuantizePerTensorAffineCacheMaskTensorQParams(PytorchLayerTest):
 
 
 class TestFakeQuantizePerChannelAffine(PytorchLayerTest):
+    rng = np.random.default_rng(seed=123)
+
     def _prepare_input(self):
-        return (np.random.randn(3, 2, 2).astype(np.float32),)
+        return (self.rng.standard_normal([3, 2, 2], dtype=np.float32),)
 
     def create_model(self, scale, zero_point, axis, quant_min, quant_max):
         class fake_quantize_per_channel_affine(torch.nn.Module):

@@ -9,6 +9,7 @@ import torch
 
 from pytorch_layer_test_class import PytorchLayerTest
 
+
 class quantized_add_relu(torch.nn.Module):
     def __init__(self, scale, zero_point, dtype) -> None:
         torch.nn.Module.__init__(self)
@@ -17,16 +18,19 @@ class quantized_add_relu(torch.nn.Module):
         self.dtype = dtype
 
     def forward(self, input_tensor1, input_tensor2):
-        quantized_tensor1 =  torch.quantize_per_tensor(input_tensor1, 1.0, 0, self.dtype)
-        quantized_tensor2 =  torch.quantize_per_tensor(input_tensor2, 1.0, 0, self.dtype)
-        quantized_add_relu = torch.ops.quantized.add_relu(quantized_tensor1, quantized_tensor2, self.scale, self.zero_point)
-        dequantized_tensor = torch.dequantize(quantized_add_relu)
+        quantized_tensor1 = torch.quantize_per_tensor(input_tensor1, 1.0, 0, self.dtype)
+        quantized_tensor2 = torch.quantize_per_tensor(input_tensor2, 1.0, 0, self.dtype)
+        q_add_relu = torch.ops.quantized.add_relu(quantized_tensor1, quantized_tensor2, self.scale, self.zero_point)
+        dequantized_tensor = torch.dequantize(q_add_relu)
         return dequantized_tensor
 
+
 class TestQuantizedAddReLU(PytorchLayerTest):
+    rng = np.random.default_rng(seed=123)
+
     def _prepare_input(self):
-        return (np.round(np.array(5.00 * np.random.rand(10, 10) - 2.50, dtype=np.float32), 4),
-                np.round(np.array(5.00 * np.random.rand(10, 10) - 2.50, dtype=np.float32), 4))
+        return (np.round(5.00 * self.rng.random([10, 10], dtype=np.float32) - 2.50, 4),
+                np.round(5.00 * self.rng.random([10, 10], dtype=np.float32) - 2.50, 4))
 
     @pytest.mark.parametrize("scale", [
         1.0, 0.21, 0.62, 0.9999
@@ -35,7 +39,7 @@ class TestQuantizedAddReLU(PytorchLayerTest):
         0, 4, -7
     ])
     @pytest.mark.parametrize("dtype", [
-        torch.quint8, 
+        torch.quint8,
         torch.qint8
     ])
     @pytest.mark.nightly
@@ -43,6 +47,7 @@ class TestQuantizedAddReLU(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_quantized_add_relu(self, scale, zero_point, dtype, ie_device, precision, ir_version):
-        if dtype == torch.quint8: zero_point = abs(zero_point)
-        self._test(quantized_add_relu(scale, zero_point, dtype), None, ["quantized::add_relu"], 
-                ie_device, precision, ir_version, quantized_ops=True, quant_size=scale)
+        if dtype == torch.quint8:
+            zero_point = abs(zero_point)
+        self._test(quantized_add_relu(scale, zero_point, dtype), None, ["quantized::add_relu"],
+                   ie_device, precision, ir_version, quantized_ops=True, quant_size=scale)

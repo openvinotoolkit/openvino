@@ -13,8 +13,10 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestQuantizedConv2D(PytorchLayerTest):
+    rng = np.random.default_rng(seed=123)
+
     def _prepare_input(self):
-        return (np.round(np.random.rand(2, 3, 25, 25).astype(np.float32), 4),)
+        return (np.round(self.rng.random([2, 3, 25, 25], dtype=np.float32), 4),)
 
     def create_model(self, weights_shape, strides, pads, dilations, groups, bias, relu, scale, zero_point):
         class quantized_conv2d(torch.nn.Module):

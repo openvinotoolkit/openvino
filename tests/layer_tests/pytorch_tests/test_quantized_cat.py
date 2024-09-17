@@ -67,8 +67,10 @@ class aten_add_quantized_cat(torch.nn.Module):
 
 
 class TestQuantizedCat(PytorchLayerTest):
+    rng = np.random.default_rng(seed=123)
+
     def _prepare_input(self):
-        return (np.round(np.random.rand(2, 1, 3).astype(np.float32), 4),)
+        return (np.round(self.rng.random([2, 1, 3], dtype=np.float32), 4),)
 
     @pytest.mark.parametrize("scale", [1.0, 0.3, 1.3])
     @pytest.mark.parametrize("zero_point", [0, 1])
