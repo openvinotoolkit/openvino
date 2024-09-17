@@ -183,11 +183,11 @@ template <typename TableExtension>
 LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(ze_driver_handle_t driverHandle,
                                                                      ze_device_handle_t deviceHandle,
                                                                      ze_context_handle_t zeContext,
-                                                                     ze_graph_dditable_ext_last_t* graph_ddi_table_ext)
+                                                                     ze_graph_dditable_ext_curr_t* graph_ddi_table_ext)
     : _driverHandle(driverHandle),
       _deviceHandle(deviceHandle),
       _context(zeContext),
-      _graphDdiTableExt(reinterpret_cast<TableExtension*>(graph_ddi_table_ext)),
+      _graphDdiTableExt(graph_ddi_table_ext),
       _logger("LevelZeroCompilerInDriver", Logger::global().level()) {}
 
 template <typename TableExtension>
@@ -1054,7 +1054,7 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
 
 template <typename TableExtension>
 template <typename T, std::enable_if_t<NotSupportArgumentMetadata(T), bool>>
-void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* graphDdiTableExt,
+void LevelZeroCompilerInDriver<TableExtension>::getMetadata(ze_graph_dditable_ext_curr_t* graphDdiTableExt,
                                                             ze_graph_handle_t graphHandle,
                                                             uint32_t index,
                                                             std::vector<IODescriptor>& inputs,
@@ -1085,7 +1085,7 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* grap
 
 template <typename TableExtension>
 template <typename T, std::enable_if_t<!NotSupportArgumentMetadata(T), bool>>
-void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* graphDdiTableExt,
+void LevelZeroCompilerInDriver<TableExtension>::getMetadata(ze_graph_dditable_ext_curr_t* graphDdiTableExt,
                                                             ze_graph_handle_t graphHandle,
                                                             uint32_t index,
                                                             std::vector<IODescriptor>& inputs,
