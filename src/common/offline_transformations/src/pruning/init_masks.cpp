@@ -66,8 +66,7 @@ public:
 
         ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
-            const auto& matmul =
-                ov::as_type_ptr<opset6::MatMul>(pattern_map.at(matmul_pattern).get_node_shared_ptr());
+            const auto& matmul = ov::as_type_ptr<opset6::MatMul>(pattern_map.at(matmul_pattern).get_node_shared_ptr());
             if (!matmul)
                 return false;
 

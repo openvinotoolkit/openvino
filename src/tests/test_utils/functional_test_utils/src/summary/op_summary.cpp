@@ -143,8 +143,7 @@ std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
 void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model>& model, const PassRate::Statuses& status, double k) {
     bool isFunctionalGraph = false;
     for (const auto& op : model->get_ordered_ops()) {
-        if (!ov::as_type_ptr<ov::op::v0::Parameter>(op) &&
-            !ov::as_type_ptr<ov::op::v0::Constant>(op) &&
+        if (!ov::as_type_ptr<ov::op::v0::Parameter>(op) && !ov::as_type_ptr<ov::op::v0::Constant>(op) &&
             !ov::as_type_ptr<ov::op::v0::Result>(op)) {
             // find all features
             isFunctionalGraph = true;
@@ -153,8 +152,7 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model>& model, const Pa
     }
 
     for (const auto& op : model->get_ordered_ops()) {
-        if ((ov::as_type_ptr<ov::op::v0::Parameter>(op) ||
-             ov::as_type_ptr<ov::op::v0::Constant>(op) ||
+        if ((ov::as_type_ptr<ov::op::v0::Parameter>(op) || ov::as_type_ptr<ov::op::v0::Constant>(op) ||
              ov::as_type_ptr<ov::op::v0::Result>(op)) &&
             isFunctionalGraph) {
             continue;
@@ -190,8 +188,7 @@ void OpSummary::updateOPsImplStatus(const std::shared_ptr<ov::Model>& model, con
     }
     bool isFunctionalGraph = false;
     for (const auto& op : model->get_ordered_ops()) {
-        if (!ov::as_type_ptr<ov::op::v0::Parameter>(op) &&
-            !ov::as_type_ptr<ov::op::v0::Constant>(op) &&
+        if (!ov::as_type_ptr<ov::op::v0::Parameter>(op) && !ov::as_type_ptr<ov::op::v0::Constant>(op) &&
             !ov::as_type_ptr<ov::op::v0::Result>(op)) {
             isFunctionalGraph = true;
             break;
@@ -199,8 +196,7 @@ void OpSummary::updateOPsImplStatus(const std::shared_ptr<ov::Model>& model, con
     }
 
     for (const auto& op : model->get_ordered_ops()) {
-        if ((ov::as_type_ptr<ov::op::v0::Parameter>(op) ||
-             ov::as_type_ptr<ov::op::v0::Constant>(op) ||
+        if ((ov::as_type_ptr<ov::op::v0::Parameter>(op) || ov::as_type_ptr<ov::op::v0::Constant>(op) ||
              ov::as_type_ptr<ov::op::v0::Result>(op)) &&
             isFunctionalGraph) {
             continue;

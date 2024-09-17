@@ -181,8 +181,7 @@ GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
         auto add_in0_ptr = add_input0_const->get_data_ptr<uint8_t>();
         uint32_t add_val = 0;
         if (convert_2_node) {
-            auto convert_2_input_const =
-                ov::as_type_ptr<v0::Constant>(convert_2_node->get_input_node_shared_ptr(0));
+            auto convert_2_input_const = ov::as_type_ptr<v0::Constant>(convert_2_node->get_input_node_shared_ptr(0));
             auto add_in1_ptr = convert_2_input_const->get_data_ptr<uint8_t>();
             if (!add_in1_ptr)
                 return false;

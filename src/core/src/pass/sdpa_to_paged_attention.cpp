@@ -137,8 +137,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     for (auto& param_name : {"beam_idx", "attention_mask"}) {
         if (has_parameter(model, param_name)) {
-            if (const auto& param =
-                    ov::as_type_ptr<v0::Parameter>(model->input(param_name).get_node_shared_ptr())) {
+            if (const auto& param = ov::as_type_ptr<v0::Parameter>(model->input(param_name).get_node_shared_ptr())) {
                 model->remove_parameter(param);
 
                 if (param->output(0).get_target_inputs().size() == 0) {
