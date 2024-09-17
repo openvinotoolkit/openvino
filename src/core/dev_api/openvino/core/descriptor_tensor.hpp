@@ -96,6 +96,12 @@ struct OPENVINO_API TensorExtension {
     };
 };
 
+/**
+ * @brief Set input descriptor as shared tensor on output descriptor.
+ *
+ * @param output_descriptor  Descriptor to set shared tensor.
+ * @param input_descriptor   Input descriptor to set in output as shared tensor.
+ */
 OPENVINO_API void set_shared_tensor(Output& output_descriptor, const Input& input_descriptor);
 }  // namespace descriptor
 }  // namespace ov

@@ -10,6 +10,9 @@ namespace ov {
 namespace descriptor {
 /**
  * @brief Dedicated tensor descriptor implementation to share input descriptor.
+ *
+ * Shared tensor share input tensor but have specific properties:
+ * - tensor names - if set these are used as descriptor names and appended to input tensor because is same tensor
  */
 class SharedTensor : public ITensorDescriptor {
 public:
@@ -62,7 +65,6 @@ public:
         return m_output_names.empty() ? m_shared_tensor->get_any_name() : *m_name_it;
     }
 
-    /** @brief Gets runtime map from shared tensor. */
     const RTMap& rt_map() const override {
         return m_shared_tensor->rt_map();
     }
@@ -85,6 +87,7 @@ public:
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
 
+    // --- SharedTensor specific interface
     void set_tensor(std::shared_ptr<ITensorDescriptor> tensor) {
         if (tensor != m_shared_tensor) {
             OPENVINO_ASSERT(tensor, "Cannot set NULL tensor descriptor");
