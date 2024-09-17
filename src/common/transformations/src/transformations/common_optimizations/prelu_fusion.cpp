@@ -86,7 +86,7 @@ ov::pass::PReluFusionNegativeSub::PReluFusionNegativeSub() {
 
 static std::function<bool(ov::Output<ov::Node>)> constant_value(const float target_value) {
     return [=](const ov::Output<ov::Node>& output) -> bool {
-        auto node = std::dynamic_pointer_cast<ov::op::v0::Constant>(output.get_node_shared_ptr());
+        auto node = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
         if (!node) {
             return false;
         }
