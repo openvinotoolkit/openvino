@@ -84,7 +84,6 @@ runs:
         event_name: "commit"
         trigger_repo_sha: ${{ env.OV_REVISION }}
         branch_name: ${{ inputs.branch_name }}
-        artifacts_key: ${{ inputs.ov_artifact_name || inputs.platform }}
         to_restore: ${{ inputs.commit_packages_to_provide }}
       env:
         OV_REVISION: ${{ inputs.revision == 'HEAD' && steps.get_openvino_head_commit.outputs.head || inputs.revision }}
