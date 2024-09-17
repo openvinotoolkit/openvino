@@ -24,6 +24,7 @@ cpu_isa_t get_primitive_isa(const ov::element::Type& dt_in0, bool is_with_amx) {
 #define SUPPORT(X, Y) if (mayiuse(X)) { isa = X; } else { Y }
 #define SUPPORT_ONE(X, MESSAGE) SUPPORT(X, OV_CPU_JIT_EMITTER_THROW(MESSAGE);)
 #define SUPPORT_TWO(X, Y, MESSAGE) SUPPORT(X, SUPPORT_ONE(Y, MESSAGE))
+#define SUPPORT_THREE(X, Y, Z, MESSAGE) SUPPORT(X, SUPPORT_TWO(Y, Z, MESSAGE))
 
     // Note: AMX might be not used even if it's supported by the hardware, check the BrgemmToBrgemmCPU pass for details
     if (is_with_amx) {
@@ -31,7 +32,7 @@ cpu_isa_t get_primitive_isa(const ov::element::Type& dt_in0, bool is_with_amx) {
     } else if (dt_in0 == ov::element::bf16) {
         SUPPORT_ONE(avx512_core_bf16, "Unsupported hardware configuration: bf16 is supported only on avx512 platforms")
     } else if (one_of(dt_in0, ov::element::u8, ov::element::i8)) {
-        SUPPORT_TWO(avx512_core_vnni, avx2_vnni, "Unsupported hardware configuration: int8 is supported only on vnni platforms")
+        SUPPORT_THREE(avx512_core_vnni, avx2_vnni_2, avx2_vnni, "Unsupported hardware configuration: int8 is supported only on vnni platforms")
     } else {
         SUPPORT_TWO(avx512_core, cpu::x64::avx2, "Unsupported hardware configuration: brgemm requires at least avx2 isa")
     }
@@ -56,9 +57,8 @@ BRGEMM_TYPE get_brgemm_type(const ov::element::Type& element_type_a, const Dimen
         return BRGEMM_TYPE::WITH_AMX;
     // Note: this condition reproduces logic from the OneDNN Brgemm implementation. This is needed to align with the
     // backend requirements. More details in onednn/src/cpu/x64/brgemm/brgemm_utils.cpp
-    if (element_type_a == ov::element::i8 &&
-       !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
-       return BRGEMM_TYPE::WITH_COMPENSATIONS;
+    if (element_type_a == ov::element::i8)
+       return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2) ? BRGEMM_TYPE::REPACKING_ONLY : BRGEMM_TYPE::WITH_COMPENSATIONS;
 
     if (one_of(element_type_a, element::u8, ov::element::bf16))
         return BRGEMM_TYPE::REPACKING_ONLY;
@@ -99,7 +99,9 @@ size_t get_repacking_buffer_size(const ov::snippets::lowered::ExpressionPtr& cop
         // Low precision repacking writes the result by m_brgemmVNNIFactor * m_inner_n_block blocks
         // despite the actual size of the input data. Because of that we have to round-up the allocation shape to always have enough memory allocated.
         // For the details, please see 'copy_4x64' and 'copy_2x32' implementations and usage in onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
-        return N_dim * rnd_up(k_blk, brgemm_utils::compute_vnni_factor(precision));
+        const auto brgemmVNNIFactor = brgemm_utils::compute_vnni_factor(precision);
+        OPENVINO_ASSERT(brgemmVNNIFactor > 0, "brgemmVNNIFactor value must be positive.");
+        return N_dim * rnd_up(k_blk, brgemmVNNIFactor);
     }
 }
 

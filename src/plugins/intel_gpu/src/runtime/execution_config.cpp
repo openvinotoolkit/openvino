@@ -57,7 +57,9 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::internal::exclusive_async_requests, false),
         std::make_tuple(ov::internal::query_model_ratio, 1.0f),
         std::make_tuple(ov::cache_mode, ov::CacheMode::OPTIMIZE_SPEED),
+        std::make_tuple(ov::cache_encryption_callbacks, EncryptionCallbacks{}),
         std::make_tuple(ov::hint::dynamic_quantization_group_size, 0),
+        std::make_tuple(ov::intel_gpu::hint::enable_kernels_reuse, false),
 
         // Legacy API properties
         std::make_tuple(ov::intel_gpu::nv12_two_inputs, false),
@@ -164,6 +166,13 @@ void ExecutionConfig::apply_performance_hints(const cldnn::device_info& info) {
     if (get_property(ov::internal::exclusive_async_requests)) {
         set_property(ov::num_streams(1));
     }
+
+    // Allow kernels reuse only for single-stream scenarios
+    if (get_property(ov::intel_gpu::hint::enable_kernels_reuse)) {
+        if (get_property(ov::num_streams) != 1) {
+            set_property(ov::intel_gpu::hint::enable_kernels_reuse(false));
+        }
+    }
 }
 
 void ExecutionConfig::apply_priority_hints(const cldnn::device_info& info) {
@@ -194,8 +203,11 @@ void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
         set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
     }
 
-    GPU_DEBUG_IF(debug_config->enable_dynamic_quantize) {
-        set_property(ov::hint::dynamic_quantization_group_size(UINT64_MAX));
+    GPU_DEBUG_IF(debug_config->dynamic_quantize_group_size) {
+        if (debug_config->dynamic_quantize_group_size == -1)
+            set_property(ov::hint::dynamic_quantization_group_size(UINT64_MAX));
+        else
+            set_property(ov::hint::dynamic_quantization_group_size(debug_config->dynamic_quantize_group_size));
     }
 }
 

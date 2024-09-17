@@ -53,6 +53,7 @@ struct primitive_impl {
     virtual ~primitive_impl() = default;
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
+    virtual std::set<size_t> get_lockable_internal_buffers() const { return {}; }
     virtual void set_node_params(const program_node&) {}
     virtual const std::string& get_type_info() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
@@ -99,6 +100,7 @@ struct primitive_impl {
 
     // If this flag is set as false, the memory allocated for this primitive is not allowed to be reused
     bool can_reuse_memory = true;
+    bool can_share_kernels = false;
 
     void set_dynamic(bool val) { _is_dynamic = val; }
     bool is_dynamic() const { return _is_dynamic; }
@@ -106,6 +108,11 @@ struct primitive_impl {
     virtual void update(primitive_inst& inst, const kernel_impl_params& impl_params) {
         OPENVINO_ASSERT(_is_dynamic, "[GPU] update() is called for static shape implementation ", _kernel_name);
         OPENVINO_ASSERT(false, "[GPU] update() is not implemented for dynamic implemenation ", _kernel_name);
+    }
+
+    virtual bool requires_update(primitive_inst& inst, const kernel_impl_params& impl_params) const {
+        OPENVINO_ASSERT(_is_dynamic, "[GPU] requires_update() is called for static shape implementation ", _kernel_name);
+        return false;
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params);
@@ -384,6 +391,7 @@ protected:
                                               bool reset_mem = true,
                                               bool runtime_alloc = false);
     memory::ptr allocate_internal_buffer(size_t idx, bool reset = true);
+    void allocate_shape_info_memory();
     static std::vector<primitive_inst*> build_exec_deps(
         std::vector<std::pair<primitive_inst*, int32_t>> const& mem_deps);
     int32_t get_index_in_deps(memory::cptr arg) const;

@@ -22,7 +22,7 @@ permissions: read-all
 jobs:
   PyTorch_Models_Tests:
     name: PyTorch Models tests
-    timeout-minutes: ${{ inputs.model_scope == 'precommit' && 30 || 400 }}
+    timeout-minutes: ${{ inputs.model_scope == 'precommit' && 35 || 400 }}
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
@@ -134,7 +134,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope1' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tv_${{ inputs.model_scope }}_tests.html --self-contained-html -v -n 2 -k "TestTimmConvertModel or TestTorchHubConvertModel"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tv_${{ inputs.model_scope }}_tests.html --self-contained-html -v -n 2 -k "TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel"
         env:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
@@ -144,7 +144,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_${{ inputs.model_scope }}_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel)"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_${{ inputs.model_scope }}_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel)"
         env:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
@@ -156,6 +156,15 @@ jobs:
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_tests.html --self-contained-html -v --tb=short -n 2
+        env:
+          TEST_DEVICE: CPU
+          USE_SYSTEM_CACHE: False
+
+      - name: RoPE Test
+        if: ${{ inputs.model_scope == 'precommit' }}
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_rope_tests.html --self-contained-html -v --tb=short -n 2
         env:
           TEST_DEVICE: CPU
           USE_SYSTEM_CACHE: False
@@ -180,7 +189,7 @@ jobs:
           df -h
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         if: ${{ !cancelled() }}
         with:
           name: test-results-torch-models-${{ inputs.model_scope }}

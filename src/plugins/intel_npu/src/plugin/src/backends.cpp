@@ -109,7 +109,7 @@ NPUBackends::NPUBackends(const std::vector<AvailableBackends>& backendRegistry, 
             }
 #endif
         } catch (const std::exception& ex) {
-            _logger.error("Got an error during backend '%s' loading : %s", backendName.c_str(), ex.what());
+            _logger.warning("Got an error during backend '%s' loading : %s", backendName.c_str(), ex.what());
         } catch (...) {
             _logger.error("Got an unknown error during backend '%s' loading", backendName.c_str());
         }
@@ -129,6 +129,10 @@ NPUBackends::NPUBackends(const std::vector<AvailableBackends>& backendRegistry, 
     } else {
         _logger.error("Cannot find backend for inference. Make sure the device is available.");
     }
+}
+
+ov::SoPtr<IEngineBackend> NPUBackends::getIEngineBackend() {
+    return _backend;
 }
 
 std::string NPUBackends::getBackendName() const {
@@ -217,6 +221,9 @@ void* NPUBackends::getContext() const {
 // TODO config should be also specified to backends, to allow use logging in devices and all levels below
 void NPUBackends::setup(const Config& config) {
     _logger.setLevel(config.get<LOG_LEVEL>());
+    if (_backend != nullptr) {
+        _backend->updateInfo(config);
+    }
 }
 
 std::string NPUBackends::getCompilationPlatform(const std::string_view platform, const std::string& deviceId) const {

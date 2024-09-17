@@ -36,6 +36,15 @@ static constexpr ov::Property<std::string> devices{"NPUW_DEVICES"};
  */
 static constexpr ov::Property<std::string> submodel_device{"NPUW_SUBMODEL_DEVICE"};
 
+/**
+ * @brief
+ * Type: std::string.
+ * Specify bank name to utilize for a particular model.
+ * Possible values: any std::string as a name.
+ * Default value: empty.
+ */
+static constexpr ov::Property<std::string> weights_bank{"NPUW_WEIGHTS_BANK"};
+
 namespace partitioning {
 namespace online {
 /**
@@ -149,6 +158,14 @@ static constexpr ov::Property<bool> fold{"NPUW_FOLD"};
  * Default value: false.
  */
 static constexpr ov::Property<bool> cwai{"NPUW_CWAI"};
+
+/**
+ * @brief
+ * Type: bool.
+ * Apply dynamic quantization transformations at the plugin side.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> dyn_quant{"NPUW_DQ"};
 
 /**
  * @brief

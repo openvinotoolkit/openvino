@@ -26,11 +26,13 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_PLAN>();
     desc.add<NPUW_FOLD>();
     desc.add<NPUW_CWAI>();
+    desc.add<NPUW_DQ>();
     desc.add<NPUW_DCOFF_TYPE>();
     desc.add<NPUW_DCOFF_SCALE>();
     desc.add<NPUW_FUNCALL_FOR_ALL>();
     desc.add<NPUW_PARALLEL_COMPILE>();
     desc.add<NPUW_FUNCALL_ASYNC>();
+    desc.add<NPUW_WEIGHTS_BANK>();
     desc.add<NPUW_ACC_CHECK>();
     desc.add<NPUW_ACC_THRESH>();
     desc.add<NPUW_ACC_DEVICE>();

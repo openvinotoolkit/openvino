@@ -11,6 +11,9 @@
 
 #include <memory>
 #include <string>
+#ifdef _WIN32
+#include <sstream>
+#endif
 
 namespace ov {
 

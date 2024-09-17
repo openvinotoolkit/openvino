@@ -14,6 +14,7 @@
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
+#include "utils/codec_xor.hpp"
 #include "utils/denormals.hpp"
 #include "utils/precision_support.h"
 #include "utils/serialize.hpp"
@@ -132,11 +133,13 @@ Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpec
     });
     auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
+    m_msg_manager = ov::threading::message_manager();
 }
 
 Plugin::~Plugin() {
     executor_manager()->clear("CPU");
     executor_manager()->clear("CPUStreamsExecutor");
+    executor_manager()->clear("CPUMainStreamExecutor");
     executor_manager()->clear("CPUCallbackExecutor");
 }
 
@@ -291,16 +294,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     conf.readProperties(config, modelType);
     calculate_streams(conf, cloned_model);
 
-    if (conf.streamExecutorConfig.get_sub_stream_mode() ==
-        IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_FOR_SOCKET) {
-        int num_sub_streams = conf.streamExecutorConfig.get_sub_streams();
-        transformations.SetSubStreamNum(num_sub_streams);
+    if (!conf.cacheEncrypt || !conf.cacheDecrypt) {
+        conf.cacheEncrypt = codec_xor_str;
+        conf.cacheDecrypt = codec_xor_str;
     }
 
     transformations.PostLpt();
     transformations.Snippets();
 
     transformations.CpuSpecificOpSet();
+
     DEBUG_LOG(PrintableModel(*cloned_model, "cpu_"));
 
     if ((cloned_model->inputs().size() != model->inputs().size()) ||
@@ -595,10 +598,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
-    ModelDeserializer deserializer(model_stream,
+    std::function<std::string(const std::string&)> decrypt;
+    if (config.count(ov::cache_encryption_callbacks.name())) {
+        auto encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
+        decrypt = encryption_callbacks.decrypt;
+    }
+
+    if (!decrypt) {
+        decrypt = codec_xor_str;
+    }
+
+    ModelDeserializer deserializer(
+        model_stream,
         [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
             return get_core()->read_model(model, weights);
-        });
+        },
+        std::move(decrypt));
 
     std::shared_ptr<ov::Model> model;
     deserializer >> model;

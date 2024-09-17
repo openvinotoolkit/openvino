@@ -8,9 +8,9 @@ Latin alphabet is available in `notebook
 This model is capable of processing only one line of symbols at a time.
 
 The models used in this notebook are
-`handwritten-japanese-recognition-0001 <https://docs.openvino.ai/2024/omz_models_model_handwritten_japanese_recognition_0001.html>`__
+`handwritten-japanese-recognition-0001 <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/handwritten-japanese-recognition-0001/README.md>`__
 and
-`handwritten-simplified-chinese-0001 <https://docs.openvino.ai/2024/omz_models_model_handwritten_simplified_chinese_recognition_0001.html>`__.
+`handwritten-simplified-chinese-0001 <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/handwritten-simplified-chinese-recognition-0001/README.md>`__.
 To decode model outputs as readable text
 `kondate_nakayosi <https://github.com/openvinotoolkit/open_model_zoo/blob/master/data/dataset_classes/kondate_nakayosi.txt>`__
 and
@@ -88,7 +88,7 @@ Imports
     )
 
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 Settings
 --------
@@ -207,15 +207,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
-
+    device = device_widget()
     device
 
 

@@ -2,7 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required (VERSION 3.10)
+if(WIN32)
+    cmake_minimum_required (VERSION 3.15)
+    if(POLICY CMP0091)
+        cmake_policy(SET CMP0091 NEW) # Enables use of MSVC_RUNTIME_LIBRARY
+    endif()
+else()
+    cmake_minimum_required (VERSION 3.10)
+endif()
 
 # Enable CMAKE_<LANG>_COMPILER_ID AppleClang
 if(POLICY CMP0025)
@@ -69,12 +76,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
     # disable some noisy warnings
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267 /wd4819")
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-    if(WIN32)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qdiag-disable:177")
-    else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable:177")
-    endif()
 endif()
 
 if(APPLE)

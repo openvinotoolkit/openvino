@@ -233,7 +233,7 @@ TEST(nop_elimination, squeeze_unsqueeze_elimination_dynamic_without_squeeze_axis
     EXPECT_NO_THROW(pass_manager.run_passes(f));
 }
 
-TEST(nop_elimination, reshape_elimination_v1_dynamic) {
+TEST(nop_elimination, reshape_elimination_v1_dynamic_negative) {
     auto arg = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic());
     auto pattern = make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
     auto reshape_v1 = std::make_shared<op::v1::Reshape>(arg, pattern, false);
@@ -243,6 +243,34 @@ TEST(nop_elimination, reshape_elimination_v1_dynamic) {
     pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
     ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(f) == 1);
+}
+
+TEST(nop_elimination, reshape_arithmetical_reduce_elimination_dynamic) {
+    auto arg = std::make_shared<op::v0::Parameter>(element::i64, PartialShape({-1, 96, 100, 100}));
+    auto reduce_axes = ov::op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
+    auto reduce = std::make_shared<op::v1::ReduceMean>(arg, reduce_axes, true);
+    auto pattern = op::v0::Constant::create(element::i64, Shape{4}, {0, 96, 1, 1});
+    auto reshape_v1 = std::make_shared<op::v1::Reshape>(reduce, pattern, true);
+    auto abs = std::make_shared<op::v0::Abs>(reshape_v1);
+    auto f = std::make_shared<ov::Model>(NodeVector{abs}, ParameterVector{arg});
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::NopElimination>(false);
+    pass_manager.run_passes(f);
+    ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(f) == 0);
+}
+
+TEST(nop_elimination, reshape_logical_reduce_elimination_dynamic) {
+    auto arg = std::make_shared<op::v0::Parameter>(element::boolean, PartialShape({-1, 96, 100, 100}));
+    auto reduce_axes = ov::op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
+    auto reduce = std::make_shared<op::v1::ReduceLogicalAnd>(arg, reduce_axes, true);
+    auto pattern = op::v0::Constant::create(element::i64, Shape{4}, {0, 96, 1, 1});
+    auto reshape_v1 = std::make_shared<op::v1::Reshape>(reduce, pattern, true);
+    auto nz = std::make_shared<op::v3::NonZero>(reshape_v1);
+    auto f = std::make_shared<ov::Model>(NodeVector{nz}, ParameterVector{arg});
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::NopElimination>(false);
+    pass_manager.run_passes(f);
+    ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(f) == 0);
 }
 
 TEST(nop_elimination, reshape_elimination_v1_check_consumer_count) {
@@ -1744,5 +1772,27 @@ TEST_F(TransformationTestsF, TransposeElimination) {
         auto relu = std::make_shared<op::v0::Relu>(data);
         auto result = std::make_shared<op::v0::Result>(relu);
         model_ref = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, ScatterNDUpdates15Elimination) {
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{100, 256, 10, 15});
+        auto indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{25, 0, 3});
+        auto updates = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{25, 0, 15});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto scatter = std::make_shared<op::v15::ScatterNDUpdate>(relu, indices, updates);
+
+        auto result = std::make_shared<op::v0::Result>(scatter);
+        model = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data, indices, updates});
+        manager.register_pass<ov::pass::EliminateScatterUpdate>();
+    }
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{100, 256, 10, 15});
+        auto indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{25, 0, 3});
+        auto updates = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{25, 0, 15});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto result = std::make_shared<op::v0::Result>(relu);
+        model_ref = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data, indices, updates});
     }
 }

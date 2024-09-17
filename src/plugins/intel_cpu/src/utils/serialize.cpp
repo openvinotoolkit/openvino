@@ -7,34 +7,15 @@
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "utils/codec_xor.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-inline void codec_xor(char* dst_str, const char* src_str, size_t len) {
-    static const char codec_key[] = {0x30, 0x60, 0x70, 0x02, 0x04, 0x08, 0x3F, 0x6F, 0x72, 0x74, 0x78, 0x7F};
-    auto key_size = sizeof(codec_key);
-
-    if (dst_str == src_str) {
-        parallel_for(len, [&](size_t key_idx) {
-            dst_str[key_idx] ^= codec_key[key_idx % key_size];
-        });
-    } else {
-        parallel_for(len, [&](size_t key_idx) {
-            dst_str[key_idx] = src_str[key_idx] ^ codec_key[key_idx % key_size];
-        });
-    }
-}
-
-std::string codec_xor_str(const std::string& source_str) {
-    std::string new_str(source_str);
-    codec_xor(&new_str[0], &new_str[0], new_str.size());
-    return new_str;
-}
-
 ////////// ModelSerializer //////////
 
-ModelSerializer::ModelSerializer(std::ostream& ostream) : m_ostream(ostream) {}
+ModelSerializer::ModelSerializer(std::ostream& ostream, CacheEncrypt encrypt_fn)
+    : m_ostream(ostream), m_cache_encrypt(std::move(encrypt_fn)) {}
 
 void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
     auto serialize_info = [&](std::ostream& stream) {
@@ -49,14 +30,14 @@ void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
         xml_doc.save(stream);
     };
 
-    ov::pass::StreamSerialize serializer(m_ostream, serialize_info, codec_xor_str);
+    ov::pass::StreamSerialize serializer(m_ostream, serialize_info, m_cache_encrypt);
     serializer.run_on_model(std::const_pointer_cast<ov::Model>(model->clone()));
 }
 
 ////////// ModelDeserializer //////////
 
-ModelDeserializer::ModelDeserializer(std::istream& model_stream, ModelBuilder fn)
-    : m_istream(model_stream), m_model_builder(fn) {}
+ModelDeserializer::ModelDeserializer(std::istream& model_stream, ModelBuilder fn, CacheDecrypt decrypt_fn)
+    : m_istream(model_stream), m_model_builder(std::move(fn)), m_cache_decrypt(std::move(decrypt_fn)) {}
 
 void ModelDeserializer::set_info(pugi::xml_node& root, std::shared_ptr<ov::Model>& model) {
     pugi::xml_node outputs = root.child("outputs");
@@ -119,8 +100,18 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
 
     // XML content
     std::string xml_buff;
-    xml_buff.reserve(hdr.model_size + 1);
-    codec_xor(&(xml_buff.front()), buffer_base + hdr.model_offset, hdr.model_size);
+    if (m_cache_decrypt) {
+        std::string (*const* dec_ptr)(const std::string&) = m_cache_decrypt.target<std::string(*)(const std::string&)>();
+        if (dec_ptr && *dec_ptr == codec_xor_str) {
+            xml_buff.reserve(hdr.model_size + 1);
+            codec_xor(&(xml_buff[0]), buffer_base + hdr.model_offset, hdr.model_size);
+        } else {
+            xml_buff.assign(buffer_base + hdr.model_offset, hdr.model_size);
+            xml_buff = m_cache_decrypt(xml_buff);
+        }
+    } else {
+        xml_buff.assign(buffer_base + hdr.model_offset, hdr.model_size);
+    }
     std::shared_ptr<ov::AlignedBuffer> model_buf =
             std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(&(xml_buff.front()),
                                                                               hdr.model_size,
@@ -179,7 +170,9 @@ void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model,
     m_istream.seekg(hdr.model_offset);
     xml_string.resize(hdr.model_size);
     m_istream.read(const_cast<char*>(xml_string.data()), hdr.model_size);
-    xml_string = codec_xor_str(xml_string);
+    if (m_cache_decrypt) {
+        xml_string = m_cache_decrypt(xml_string);
+    }
 
     auto model_buf = std::make_shared<ov::SharedBuffer<std::string*>>(const_cast<char*>(xml_string.data()),
                                                                       xml_string.size(),
