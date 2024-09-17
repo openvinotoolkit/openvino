@@ -30,8 +30,8 @@ if(ENABLE_ZEROAPI_BACKEND)
         endif()
     endif()
     set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
-    add_subdirectory(level-zero EXCLUDE_FROM_ALL)
 
-    # This VERSION file created by L0 may cause compilation issue of oneTBB headers, so remove it
-    file(REMOVE "${CMAKE_BINARY_DIR}/VERSION")
+    add_library(level-zero-ext INTERFACE)
+    set_property(TARGET level-zero-ext APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/level-zero-ext/>)
+    add_library(LevelZero::NPUExt ALIAS level-zero-ext)
 endif()
