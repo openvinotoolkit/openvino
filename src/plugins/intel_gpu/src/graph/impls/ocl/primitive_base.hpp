@@ -136,10 +136,6 @@ protected:
     }
 
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
-        if (is_cpu()) {
-            return;
-        }
-
         _kernels.clear();
         if (!_kernel_data.kernels.empty()) {
             auto compiled_kernels = kernels_cache.get_kernels(params);
@@ -153,15 +149,12 @@ protected:
         this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
 
-    void init_by_cached_kernels(const kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids) override {
-        if (is_cpu()) {
-            return;
-        }
+    void init_by_cached_kernels(const kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids, const engine& e) override {
         _kernels.clear();
 
         _kernels.reserve(cached_kernel_ids.size());
         for (size_t k = 0; k < cached_kernel_ids.size(); ++k) {
-            _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[k]));
+            _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[k], e));
         }
         this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
@@ -190,7 +183,7 @@ protected:
     }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
-        if (instance.can_be_optimized() || is_cpu()) {
+        if (instance.can_be_optimized()) {
             return;
         }
 
@@ -293,8 +286,6 @@ protected:
     }
 
     void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
-        if (is_cpu())
-            return;
         OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
         auto& kernel_vec = kernels.begin()->second;
         _kernels.clear();

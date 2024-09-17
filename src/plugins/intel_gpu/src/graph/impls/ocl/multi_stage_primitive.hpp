@@ -127,12 +127,12 @@ protected:
         this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
 
-    void init_by_cached_kernels(const kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids) override {
+    void init_by_cached_kernels(const kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids, const engine& e) override {
         _kernels.clear();
 
         _kernels.reserve(cached_kernel_ids.size());
         for (size_t k = 0; k < cached_kernel_ids.size(); ++k) {
-            _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[k]));
+            _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[k], e));
         }
         this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }

@@ -322,6 +322,9 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
         info.num_ccs = std::max<uint32_t>(num_queues, info.num_ccs);
     }
 
+    // Not supported
+    info.timer_resolution = 0;
+    info.kernel_timestamp_valid_bits = 0;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     using namespace dnnl::impl::gpu::intel::jit;

@@ -41,6 +41,12 @@ else()
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
 endif()
 
+ov_dependent_option (GPU_RT_TYPE "Type of GPU runtime. Should be either `OCL` or `L0`" "OCL" "ENABLE_INTEL_GPU" OFF)
+if (GPU_RT_TYPE STREQUAL L0)
+    # There's no interop with native L0 in onednn API. Temporary disable onednn when L0 runtime is selected
+    set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
+endif()
+
 ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
 
 ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ON "X86_64;WIN32 OR LINUX" OFF)

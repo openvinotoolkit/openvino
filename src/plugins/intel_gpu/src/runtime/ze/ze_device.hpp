@@ -1,0 +1,38 @@
+// Copyright (C) 2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "intel_gpu/runtime/device.hpp"
+#include <level_zero/ze_api.h>
+
+namespace cldnn {
+namespace ze {
+
+struct ze_device : public device {
+public:
+    ze_device(ze_driver_handle_t driver, ze_device_handle_t device);
+
+    const device_info& get_info() const override { return _info; }
+    memory_capabilities get_mem_caps() const override { return _mem_caps; }
+
+    const ze_driver_handle_t get_driver() const { return _driver; }
+    const ze_device_handle_t get_device() const { return _device; }
+    const ze_context_handle_t get_context() const { return _context; }
+
+    bool is_same(const device::ptr other) override;
+
+    ~ze_device();
+
+private:
+    ze_driver_handle_t _driver = nullptr;
+    ze_device_handle_t _device = nullptr;
+    ze_context_handle_t _context = nullptr;
+
+    device_info _info;
+    memory_capabilities _mem_caps;
+};
+
+}  // namespace ze
+}  // namespace cldnn
