@@ -215,7 +215,11 @@ KERNEL(pa_sdpa_opt)(
             // TODO: const uint global_data_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx
             const uint global_data_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
 
+#if SEQ_LEN_PARTITION_SIZE % SUBGROUPS_PER_WG * SUBGROUP_SIZE == 0
             if (global_data_idx < seq_len) {
+#else
+            if (global_data_idx < seq_len && local_data_idx < SEQ_LEN_PARTITION_SIZE) {
+#endif
                 SOFTMAX_ACCUMULATOR_TYPE qk_new = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[local_data_idx]) - qk_max);
                 slm_qk_vals[local_data_idx] = TO_OUTPUT_TYPE(qk_new);
 
@@ -242,7 +246,11 @@ KERNEL(pa_sdpa_opt)(
             const uint local_data_idx = qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
             const uint global_data_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
 
+#if SEQ_LEN_PARTITION_SIZE % SUBGROUPS_PER_WG * SUBGROUP_SIZE == 0
             if (global_data_idx < seq_len) {
+#else
+            if (global_data_idx < seq_len && local_data_idx < SEQ_LEN_PARTITION_SIZE) {
+#endif
                 SOFTMAX_ACCUMULATOR_TYPE qk_new = TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[local_data_idx]) / exp_sum;
                 slm_qk_vals[local_data_idx] = TO_OUTPUT_TYPE(qk_new);
             }
@@ -351,17 +359,29 @@ KERNEL(pa_sdpa_opt)(
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(pa_sdpa_finalization_stage)(
     const __global INPUT3_TYPE* past_lens,
+#if MULTI_TOKENS_PROCESSING
+    const __global INPUT6_TYPE* subsequence_begins,
+#endif
     __global OUTPUT_TYPE* output,
     const __global SOFTMAX_ACCUMULATOR_TYPE* exp_sums,
     const __global SOFTMAX_ACCUMULATOR_TYPE* max_logits,
     const __global OUTPUT_TYPE* tmp_out,
+#if MULTI_TOKENS_PROCESSING
+    const __global int* gws_subseq_mapping,
+#endif
     const uint total_partitions_num) {
     const uint seq_idx = get_global_id(0);
     const uint head_num_idx = get_global_id(1);
     const uint head_size_idx = get_global_id(2);
     const uint sglid = get_sub_group_local_id();
 
+#if MULTI_TOKENS_PROCESSING
+    const int subsequence_idx = gws_subseq_mapping[seq_idx];
+    const int subsequence_begin = subsequence_begins[subsequence_idx];
+    const uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
+#else
     const uint seq_len = past_lens[seq_idx] + 1;
+#endif
 
     const uint num_of_partitions = CEIL_DIV(seq_len, SEQ_LEN_PARTITION_SIZE);
 

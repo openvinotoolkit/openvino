@@ -44,6 +44,9 @@ outputs:
   ov_wheel_input:
     description: "Input for pip to install OpenVINO python wheel"
     value: ${{ steps.openvino_nightly_wheel.outputs.ov_wheel_input || steps.openvino_commit_wheel.outputs.ov_wheel_input }}
+  ov_wheel_source:
+    description: "Pip option for custom OV wheel location (--find-links or --extra-index-url)"
+    value: ${{ steps.openvino_nightly_wheel.outputs.ov_wheel_source || steps.openvino_commit_wheel.outputs.ov_wheel_source }}
 
 runs:
   using: "composite"
@@ -57,6 +60,8 @@ runs:
 
     - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       with:
+        repository: 'openvinotoolkit/openvino'
+        ref: ${{ inputs.branch_name || github.base_ref || github.event.merge_group.base_ref || github.ref }}
         sparse-checkout: .github/actions
 
     # --- Post-commit case ---
@@ -66,7 +71,7 @@ runs:
       with:
         repository: 'openvinotoolkit/openvino'
         path: 'openvino'
-        ref: ${{ inputs.branch_name }}
+        ref: ${{ inputs.branch_name || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
     - name: Get OpenVINO HEAD commit
       id: get_openvino_head_commit
@@ -111,9 +116,11 @@ runs:
         cd ${{ steps.openvino_commit_download.outputs.artifacts_workspace_path }}
         version=$(yq eval '.components.dldt.custom_params.wheel_product_version' manifest.yml)
         wheel_path=${{ steps.openvino_commit_output.outputs.ov_package_path }}/tools
-        find_links_cmd=$([[ -n "$PIP_FIND_LINKS" ]] && echo "" || echo "--find-links=./$wheel_path")
+        default_find_links_cmd="--find-links=./$wheel_path"
+        find_links_cmd=$([[ -n "$PIP_FIND_LINKS" ]] && echo "" || echo "$default_find_links_cmd")
         wheel_input="$find_links_cmd openvino==$version"
         echo "ov_wheel_input=$wheel_input" >> $GITHUB_OUTPUT
+        echo "ov_wheel_source=$default_find_links_cmd" >> $GITHUB_OUTPUT
 
 
     # --- Nightly case ---
@@ -153,5 +160,7 @@ runs:
       run: |
         version=$(echo ${{ steps.openvino_nightly_download.outputs.ov_package_path }} |
           grep -oP '(?<=_)\d{4}\.\d\.\d\.dev\d{8}(?=_)')
-        wheel_input="--pre --extra-index-url ${{ inputs.nightly_pip_extra_url }} openvino==$version"
+        extra_index="--pre --extra-index-url ${{ inputs.nightly_pip_extra_url }}"
+        wheel_input="$extra_index openvino==$version"
         echo "ov_wheel_input=$wheel_input" >> $GITHUB_OUTPUT
+        echo "ov_wheel_source=$extra_index" >> $GITHUB_OUTPUT

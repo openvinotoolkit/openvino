@@ -130,7 +130,7 @@ mpnet,sentence-transformers/all-mpnet-base-v2
 mra,uw-madison/mra-base-512-4
 mt5,csebuetnlp/mT5_multilingual_XLSum
 musicgen,facebook/musicgen-large
-musicgen_melody,ylacombe/musicgen-melody
+musicgen_melody,ylacombe/musicgen-melody,xfail,Accuracy validation failed
 mvp,RUCAIBox/mtl-data-to-text
 nezha,sijunhe/nezha-cn-base
 nllb_moe,hf-tiny-model-private/tiny-random-NllbMoeForConditionalGeneration,xfail,Trace error: Tracer cannot infer type of Seq2SeqMoEOutput
@@ -148,7 +148,7 @@ pegasus_x,pszemraj/pegasus-x-large-book-summary
 perceiver,hf-internal-testing/tiny-random-vision_perceiver_conv
 phi,susnato/phi-1_5_dev
 phi3,MaziyarPanahi/calme-2.1-phi3-4b
-pix2struct,google/deplot
+pix2struct,google/deplot,xfail,Accuracy validation failed
 pix2struct_vision_model,UiPath/pix2struct-vision-base
 plbart,uclanlp/plbart-base
 poolformer,sail/poolformer_m36

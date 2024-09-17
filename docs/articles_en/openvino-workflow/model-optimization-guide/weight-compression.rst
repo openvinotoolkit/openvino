@@ -1,5 +1,3 @@
-.. {#weight_compression}
-
 Weight Compression
 ==================
 
@@ -182,9 +180,18 @@ trade-offs after optimization:
       ratio=0.9,
     )
 
+* ``scale_estimation`` - boolean parameter that enables more accurate estimation of 
+  quantization scales. Especially helpful when the weights of all layers are quantized to
+  4 bits. Requires dataset.
+
+* ``awq`` - boolean parameter that enables the AWQ method for more accurate INT4 weight
+  quantization. Especially helpful when the weights of all the layers are quantized to
+  4 bits. The method can sometimes result in reduced accuracy when used with
+  Dynamic Quantization of activations. Requires dataset.
+
 * ``dataset`` - calibration dataset for data-aware weight compression. It is required
-  for some compression options, for example, some types ``sensitivity_metric`` can use
-  data for precision selection.
+  for some compression options, for example, ``scale_estimation`` or ``awq``. Some types
+  of ``sensitivity_metric`` can use data for precision selection.
 
 * ``sensitivity_metric`` - controls the metric to estimate the sensitivity of compressing
   layers in the bit-width selection algorithm. Some of the metrics require dataset to be
@@ -212,13 +219,14 @@ trade-offs after optimization:
 * ``all_layers`` - boolean parameter that enables INT4 weight quantization of all
   Fully-Connected and Embedding layers, including the first and last layers in the model.
 
-* ``awq`` - boolean parameter that enables the AWQ method for more accurate INT4 weight
-  quantization. Especially helpful when the weights of all the layers are quantized to
-  4 bits. The method can sometimes result in reduced accuracy when used with
-  Dynamic Quantization of activations. Requires dataset.
-
 For data-aware weight compression refer to the following
 `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama>`__.
+
+.. note::
+
+  Some methods can be stacked on top of one another to achieve a better
+  accuracy-performance trade-off after weight quantization. For example, the Scale Estimation
+  method can be applied along with AWQ and mixed-precision quantization (the ``ratio`` parameter).
 
 The example below shows data-free 4-bit weight quantization
 applied on top of OpenVINO IR. Before trying the example, make sure Optimum Intel
