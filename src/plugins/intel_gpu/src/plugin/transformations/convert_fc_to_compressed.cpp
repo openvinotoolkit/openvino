@@ -102,7 +102,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
             if (constant->get_element_type() != ov::element::u4 || !convert_u4zp_to_u8)
                 return std::dynamic_pointer_cast<ov::Node>(constant);
-            return ov::as_type_ptr<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
+            return std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
         };
 
 

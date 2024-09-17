@@ -1106,7 +1106,7 @@ std::shared_ptr<ov::Node> NetworkHelper::makeDequantizationSubtract(
     const ov::Output<ov::Node>& parent,
     const ov::Output<ov::Node>& subtract_constant) {
     return subtract_constant.get_element_type() != parent.get_element_type()
-               ? ov::as_type_ptr<ov::Node>(std::make_shared<ov::opset1::Subtract>(
+               ? std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::opset1::Subtract>(
                      parent,
                      std::make_shared<ov::opset1::Convert>(subtract_constant, parent.get_element_type())))
                : std::make_shared<ov::opset1::Subtract>(parent, subtract_constant);
