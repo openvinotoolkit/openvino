@@ -1575,8 +1575,14 @@ void Partitioner::optimize(const std::string& func_name) {
         rewr.add_matcher<ov::npuw::patterns::opt::DQParMMGQ>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQDictGatherCWu>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQDictGatherGQi>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::HostGather>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQDictMatMulCWu>(std::ref(ctx));
         rewr.run_on_model(f._model);
+
+        // For some reason, HostGather matches only after the above rewrite is done.
+        ov::pass::GraphRewrite rewr2;
+        rewr2.add_matcher<ov::npuw::patterns::opt::HostGather>(std::ref(ctx));
+        rewr2.run_on_model(f._model);
 
         mergeParallelMatMuls(f._model, ctx);
 
@@ -1644,6 +1650,17 @@ void Partitioner::optimize(const std::string& func_name) {
             });
         }
 
+        // Host-side gather, pt 1. Add new parameters first
+        if (ctx.params_to_gather) {
+            auto& params_to_gather = *ctx.params_to_gather;
+            new_params.push_back(params_to_gather.pnew);
+            for (auto &&funcall : func_group.refs) {
+                auto new_elem_type = params_to_gather.pnew->get_element_type();
+                auto new_shape = params_to_gather.pnew->get_shape();
+                funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
+            }
+        }
+
         // Add all new parameters introduced by this change
         f._model->add_parameters(new_params);
 
@@ -1662,7 +1679,19 @@ void Partitioner::optimize(const std::string& func_name) {
         for (auto&& now_remove : to_remove) {
             f._model->remove_parameter(now_remove);
         }
+
         f._model->validate_nodes_and_infer_types();
+
+        // Host-side gather, pt. 2: Write the gather mappings to funcall
+        if (ctx.params_to_gather) {
+            auto& params_to_gather = *ctx.params_to_gather;
+            auto gather_dst_id = f._model->get_parameter_index(params_to_gather.pnew);
+            auto gather_src_id = f._model->get_parameter_index(params_to_gather.pold);
+            auto gather_idx_id = f._model->get_parameter_index(params_to_gather.pids);
+            for (auto &&funcall : func_group.refs) {
+                funcall.get()._host_gather = ov::npuw::Subgraph::Gather{gather_dst_id, gather_src_id, gather_idx_id};
+            }
+        }
     }
 
     if (!cfg.get<::intel_npu::NPUW_DQ>()) {

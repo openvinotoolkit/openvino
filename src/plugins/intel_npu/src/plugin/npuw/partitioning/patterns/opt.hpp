@@ -7,6 +7,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <optional>
 
 #include "openvino/openvino.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -55,6 +56,12 @@ struct Context {
     PPtr unpack(PPtr w, PPtr z, PPtr s, ov::element::Type type);
     PPtr unpack(PPtr w, PPtr s, ov::element::Type type);
 
+    struct Gather {
+        PPtr pnew, pold, pids;
+    };
+    std::optional<Gather> params_to_gather;
+    PPtr host_gather(PPtr w, PPtr ids);
+
     using Ref = std::reference_wrapper<Context>;
 };
 
@@ -71,6 +78,11 @@ public:
 class DQDictGatherGQi : public ov::pass::MatcherPass {
 public:
     DQDictGatherGQi(Context::Ref ctx);
+};
+
+class HostGather : public ov::pass::MatcherPass {
+public:
+    HostGather(Context::Ref ctx);
 };
 
 class DQMatMulGQi : public ov::pass::MatcherPass {

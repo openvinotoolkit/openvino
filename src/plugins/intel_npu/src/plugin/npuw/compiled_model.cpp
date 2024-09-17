@@ -278,6 +278,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 m_compiled_submodels[id].replaced_by = compiled_fcn_iter->second;
                 LOG_INFO("Subgraph[" << id << "] is a function call to [" << compiled_fcn_iter->second << "]");
             }
+            m_compiled_submodels[id].host_gather = subgraph._host_gather;
             m_compiled_submodels[id].param_base = fcn_template._param_offset;
             m_compiled_submodels[id].closure = subgraph._closure;
             m_compiled_submodels[id].scales = subgraph._scales;

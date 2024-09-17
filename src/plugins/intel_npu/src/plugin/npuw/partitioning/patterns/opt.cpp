@@ -92,6 +92,20 @@ Context::PPtr Context::unpack(Context::PPtr w, Context::PPtr s, ov::element::Typ
     return new_param;
 }
 
+Context::PPtr Context::host_gather(Context::PPtr w, Context::PPtr ids) {
+    const auto w_shape = w->get_shape();
+    const auto ids_shape = ids->get_shape();
+
+    NPUW_ASSERT(w_shape.size() == 2);
+    NPUW_ASSERT(ids_shape.size() == 2);
+    NPUW_ASSERT(ids_shape[0] == 1);
+
+    ov::Shape new_shape = {1, ids_shape[1], w_shape[1]};
+    auto new_param = std::make_shared<ov::op::v0::Parameter>(w->get_element_type(), new_shape);
+    params_to_gather = Gather{new_param, w, ids};
+    return new_param;
+}
+
 namespace opp = ov::pass::pattern;
 
 // FROM:
@@ -256,6 +270,34 @@ DQDictGatherGQi::DQDictGatherGQi(Context::Ref ctx) {
         return true;  // root has changed
     };
     register_matcher(std::make_shared<opp::Matcher>(qcvtm, "DQDictGatherCWu"), std::move(callback));
+}
+
+HostGather::HostGather(Context::Ref ctx) {
+    auto pids = opp::wrap_type<ov::op::v0::Parameter>();
+    auto cvtids = opp::wrap_type<ov::op::v0::Convert>({pids});
+
+    auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight, cvtids, opp::any_input()});
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto out_shape = node_to_output.at(qgthrw).get_shape();
+        if (out_shape.back() > 2048) {
+            auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
+            auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
+            auto matched_out_gthr = node_to_output.at(qgthrw);
+            auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
+            auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
+
+            auto new_param = ctx.get().host_gather(matched_qweight, matched_ids);
+            for (auto &&r : matched_out_gthr.get_target_inputs()) {
+                r.replace_source_output(new_param);
+            }
+            return true; // Root has changed
+        }
+        return false; // Root hasn't changed (yet)
+    };
+    register_matcher(std::make_shared<opp::Matcher>(qgthrw, "HostGather"), std::move(callback));
 }
 
 // FROM:
