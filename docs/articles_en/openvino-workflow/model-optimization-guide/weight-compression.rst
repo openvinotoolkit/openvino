@@ -1,5 +1,5 @@
-Weight Compression
-==================
+LLM Weight Compression
+=========================
 
 Weight compression is a technique for enhancing the efficiency of models,
 especially those with large memory requirements. This method reduces the model's
@@ -180,7 +180,7 @@ trade-offs after optimization:
       ratio=0.9,
     )
 
-* ``scale_estimation`` - boolean parameter that enables more accurate estimation of 
+* ``scale_estimation`` - boolean parameter that enables more accurate estimation of
   quantization scales. Especially helpful when the weights of all layers are quantized to
   4 bits. Requires dataset.
 
