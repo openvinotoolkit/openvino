@@ -3,9 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import sys
 import pytest
 
 import tests
+import logging
 
 from pathlib import Path
 
@@ -49,6 +51,41 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "template_plugin")
     config.addinivalue_line("markers", "dynamic_library: Runs tests only in dynamic libraries case")
 
+    # Issue 148922: trying to print what models
+    # were found to debug test cases generation issue
+    # Credits to https://stackoverflow.com/questions/36726461/how-to-print-output-when-using-pytest-with-xdist
+
+    # Determine pytest-xdist worker id
+    # Also see: https://pytest-xdist.readthedocs.io/en/latest/how-to.html#creating-one-log-file-for-each-worker
+    worker_id = os.environ.get("PYTEST_XDIST_WORKER", default="gw0")
+
+    # Create logs folder
+    logs_folder = os.environ.get("LOGS_FOLDER", default="logs_folder")
+    os.makedirs(logs_folder, exist_ok=True)
+
+    # Create file handler to output logs into corresponding worker file
+    file_handler = logging.FileHandler(f"{logs_folder}/logs_worker_{worker_id}.log", mode="w")
+    file_handler.setFormatter(
+        logging.Formatter(
+            fmt="{asctime} {levelname}:{name}:{lineno}:{message}",
+            style="{",
+        )
+    )
+
+    # Create stream handler to output logs on console
+    # This is a workaround for a known limitation:
+    # https://pytest-xdist.readthedocs.io/en/latest/known-limitations.html
+    console_handler = logging.StreamHandler(sys.stderr)  # pytest only prints error logs
+    console_handler.setFormatter(
+        logging.Formatter(
+            # Include worker id in log messages, \r is needed to separate lines in console
+            fmt="\r{asctime} " + worker_id + ":{levelname}:{name}:{lineno}:{message}",
+            style="{",
+        )
+    )
+
+    # Configure logging
+    logging.basicConfig(level=logging.INFO, handlers=[console_handler, file_handler])
 
 def pytest_collection_modifyitems(config, items):
     backend_name = config.getvalue("backend")

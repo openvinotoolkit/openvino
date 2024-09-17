@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_shape_Unsqueeze_1}
-
 Unsqueeze
 =========
 

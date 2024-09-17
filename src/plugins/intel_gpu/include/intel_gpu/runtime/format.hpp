@@ -42,6 +42,7 @@ struct format_traits {
     std::string internal_order;
     /// @brief Block sizes as a vector of pairs of dimension number and block size ordered from rare to often.
     std::vector<std::pair<size_t, int>> block_sizes;
+    std::vector<std::pair<size_t, int>> logic_block_sizes;
     /// @brief Characters representing batch dimensions in an order.
     static const char* batch_chars() { return "bno"; }
     /// @brief Characters representing feature map/channel dimensions in an order.
@@ -257,6 +258,7 @@ struct format {
     static const std::string& internal_order(const format& fmt) { return fmt.traits().internal_order; }
     /// @brief Returns block sizes for @p format.
     static const std::vector<std::pair<size_t, int>>& block_sizes(const format& fmt) { return fmt.traits().block_sizes; }
+    static const std::vector<std::pair<size_t, int>>& logic_block_sizes(const format& fmt) { return fmt.traits().logic_block_sizes; }
     /// @brief Returns number of dimensions contained within a @p format
     static size_t dimension(const format& fmt) { return order(fmt).size(); }
     /// @brief Checks if @p format is a winograd format
@@ -340,6 +342,7 @@ struct format {
     const std::string& internal_order() const { return traits().internal_order; }
     /// @brief Returns block sizes as vector of pairs of dimension and block size for that dimension.
     const std::vector<std::pair<size_t, int>>& block_sizes() const { return traits().block_sizes; }
+    const std::vector<std::pair<size_t, int>>& logic_block_sizes() const { return traits().logic_block_sizes; }
     /// @brief Returns number of dimensions contained within this format
     size_t dimension() const { return traits()._order.size(); }
     /// @brief Checks if @p format is a winograd format

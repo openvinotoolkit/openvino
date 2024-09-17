@@ -37,7 +37,7 @@ can be run in asynchronous or synchronous manners.
 
 
 * **Defined in:**
-  `addon.ts:402 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L402>`__
+  `addon.ts:453 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L453>`__
 
 
 Methods
@@ -57,7 +57,7 @@ Methods
    * **Returns:** :doc:`CompiledModel <CompiledModel>`
 
    * **Defined in:**
-     `addon.ts:439 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L439>`__
+     `addon.ts:490 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L490>`__
 
 
 .. rubric:: getInputTensor
@@ -85,7 +85,7 @@ Methods
      an exception is thrown.
 
    * **Defined in:**
-     `addon.ts:445 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L445>`__
+     `addon.ts:496 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L496>`__
 
 
    .. code-block:: ts
@@ -110,7 +110,7 @@ Methods
      idx is not found, an exception is thrown.
 
    * **Defined in:**
-     `addon.ts:452 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L452>`__
+     `addon.ts:503 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L503>`__
 
 
 .. rubric:: getOutputTensor
@@ -129,7 +129,7 @@ Methods
      idx is not found, an exception is thrown.
 
    * **Defined in:**
-     `addon.ts:465 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L465>`__
+     `addon.ts:509 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L509>`__
 
 
    .. code-block:: ts
@@ -154,7 +154,7 @@ Methods
      idx is not found, an exception is thrown.
 
    * **Defined in:**
-     `addon.ts:465 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L465>`__
+     `addon.ts:516 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L516>`__
 
 .. rubric:: getTensor
 
@@ -177,7 +177,7 @@ Methods
    * **Returns:**  :doc:`Tensor <Tensor>`
 
    * **Defined in:**
-     `addon.ts:474 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L474>`__
+     `addon.ts:525 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L525>`__
 
 
 .. rubric:: infer
@@ -202,7 +202,7 @@ Methods
 
 
    * **Defined in:**
-     `addon.ts:409 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L409>`__
+     `addon.ts:460 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L460>`__
 
 
    .. code-block:: ts
@@ -237,7 +237,7 @@ Methods
         }
 
    * **Defined in:**
-     `addon.ts:417 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L417>`__
+     `addon.ts:468 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L468>`__
 
 
    .. code-block:: ts
@@ -271,7 +271,7 @@ Methods
         }
 
    * **Defined in:**
-     `addon.ts:426 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L426>`__
+     `addon.ts:477 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L477>`__
 
 
 .. rubric:: inferAsync
@@ -310,7 +310,7 @@ Methods
 
 
    * **Defined in:**
-     `addon.ts:434 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L434>`__
+     `addon.ts:485 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L485>`__
 
 
 .. rubric:: setInputTensor
@@ -336,7 +336,7 @@ Methods
    * **Returns:**  void
 
    * **Defined in:**
-     `addon.ts:481 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L481>`__
+     `addon.ts:532 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L532>`__
 
 
    .. code-block:: ts
@@ -360,7 +360,7 @@ Methods
    * **Returns:**  void
 
    * **Defined in:**
-     `addon.ts:489 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L489>`__
+     `addon.ts:540 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L540>`__
 
 
 .. rubric:: setOutputTensor
@@ -384,7 +384,7 @@ Methods
    * **Returns:**  void
 
    * **Defined in:**
-     `addon.ts:496 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L496>`__
+     `addon.ts:547 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L547>`__
 
 
    .. code-block:: ts
@@ -407,7 +407,7 @@ Methods
    * **Returns:**  void
 
    * **Defined in:**
-     `addon.ts:503 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L503>`__
+     `addon.ts:554 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L554>`__
 
 
 .. rubric:: setTensor
@@ -435,5 +435,5 @@ Methods
    * **Returns:**  void
 
    * **Defined in:**
-     `addon.ts:510 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L510>`__
+     `addon.ts:561 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L561>`__
 

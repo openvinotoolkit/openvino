@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_F3Net}
-
 Converting a PyTorch F3Net Model
 ================================
 
