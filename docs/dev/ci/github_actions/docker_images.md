@@ -63,7 +63,7 @@ The dockerfiles for these images are stored in openvino repository in [`.github/
 folder. Examples of custom dockerfiles:
 
 * [`.github/dockerfiles/ov_build`](./../../../../.github/dockerfiles/ov_build) - contains environment setup for 
-build workflows for different OSes (e.g. installation of [install_build_dependencies.sh](./../../../../install_build_dependencies.sh))
+build workflows for different OSes (e.g., installation of [install_build_dependencies.sh](./../../../../install_build_dependencies.sh))
 * [`.github/dockerfiles/ov_test`](./../../../../.github/dockerfiles/ov_test) - contains environment setup for 
 test workflows for different OSes (e.g. installation of [scripts/install_dependencies/install_openvino_dependencies.sh](./../../../../scripts/install_dependencies/install_openvino_dependencies.sh))
 
