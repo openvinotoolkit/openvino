@@ -28,7 +28,7 @@ struct BranchNodes {
 BranchNodes makeBranch(const MultiplyBranch& branch) {
     std::shared_ptr<Node> parent = branch.constant.empty() ?
         std::make_shared<ov::opset1::Parameter>(branch.input_precision, branch.inputShape) :
-        ov::as_type_ptr<Node>(std::make_shared<ov::opset1::Constant>(
+        std::dynamic_pointer_cast<Node>(std::make_shared<ov::opset1::Constant>(
             branch.constant.outPrecision,
             branch.constant.shape,
             branch.constant.values));

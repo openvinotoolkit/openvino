@@ -115,7 +115,7 @@ std::shared_ptr<ov::Model> FakeQuantizePrecisionSelectionFunction::getReference(
     // branch with limitation precision operation (Convolution)
     std::shared_ptr<ov::Node> branch1Pooling =
         values.operationBeforeLimitedOperationIsPrecisionTransparent
-            ? ov::as_type_ptr<ov::Node>(std::make_shared<ov::opset1::MaxPool>(fakeQuantize,
+            ? std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::opset1::MaxPool>(fakeQuantize,
                                                                                         Strides{1, 1},
                                                                                         Shape{1, 1},
                                                                                         Shape{0, 0},
