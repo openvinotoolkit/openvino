@@ -293,6 +293,7 @@ PATensorParallelFusion::PATensorParallelFusion(size_t world_size, size_t world_r
             std::shared_ptr<ov::intel_gpu::op::SyncTensor> sync_node =
                 std::make_shared<ov::intel_gpu::op::SyncTensor>(m_pa->output(0),
                                                                 world_size,
+                                                                world_rank,
                                                                 m_pa->get_output_partial_shape(0)[-1].get_length(),
                                                                 ov::element::f16);
             sync_node->set_friendly_name(m_pa->get_friendly_name() + "_TP_pa");
@@ -316,13 +317,14 @@ PATensorParallelFusion::PATensorParallelFusion(size_t world_size, size_t world_r
             sync_node =
                 std::make_shared<ov::intel_gpu::op::SyncTensor>(new_fc,
                                                                 world_size,
+                                                                world_rank,
                                                                 fc_node->get_input_node_shared_ptr(1)->get_shape()[-1],
                                                                 fc_node->get_element_type(),
                                                                 ov::intel_gpu::op::TP_MODE::ALL_REDUCE);
             sync_node->set_friendly_name(fc_node->get_friendly_name() + "_TP");
             copy_runtime_info(fc_node, new_fc);
             for (auto& iter : org_users) {
-                iter.second->input(iter.first).replace_source_output(sync_node->output(world_rank));
+                iter.second->input(iter.first).replace_source_output(sync_node->output(0));
             }
             fc_node->clear_control_dependencies();
         };

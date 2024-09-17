@@ -23,7 +23,7 @@ layout sync_tensor_inst::calc_output_layout(const sync_tensor_node& node, kernel
 template<typename ShapeType>
 std::vector<layout> sync_tensor_inst::calc_output_layouts(sync_tensor_node const& /*node*/, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<sync_tensor>();
-    ov::intel_gpu::op::SyncTensor op(impl_param.w_size, desc->m_tp_mode);
+    ov::intel_gpu::op::SyncTensor op(impl_param.w_size, impl_param.w_rank, desc->m_tp_mode);
     op.set_output_size(desc->num_outputs);
 
     std::vector<ShapeType> input_shapes = {impl_param.get_input_layout(0).get<ShapeType>()};
@@ -53,12 +53,14 @@ void sync_tensor_inst::on_execute() {
 
 void sync_tensor_inst::update_output_memory() {
     if (!can_be_optimized()) {
-        auto my_rank = get_impl_params()->w_rank;
-        auto my_size = get_impl_params()->w_size;
-        if (_outputs.size() == static_cast<size_t>(my_size) + 1) {
-            _outputs[my_rank + 1] = input_memory_ptr();
+        // auto my_rank = get_impl_params()->w_rank;
+        // auto my_size = get_impl_params()->w_size;
+        if (_outputs.size() == 2) {
+            // All gather need new shape output for concat
+            _outputs[1] = input_memory_ptr();
         } else {
-            _outputs[my_rank] = input_memory_ptr();
+            // All reduce will use input as addition's output
+            _outputs[0] = input_memory_ptr();
         }
         return;
     }

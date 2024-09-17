@@ -265,20 +265,20 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
         ev = get_network().get_stream().create_user_event(true);
         if (get_node().is_type<sync_tensor>()) {
             auto w_rank = get_network().get_program()->get_config().subStreamExecConfig.get_rank()[0];
-            auto w_size = get_network().get_program()->get_config().get_context_for_tp().size();
-            if (_outputs.size() == w_size + 1) {
+            // auto w_size = get_network().get_program()->get_config().get_context_for_tp().size();
+            if (_outputs.size() == 2) {
                 // All gather, need concat
                 // _outputs[w_rank + 1] = mem_new;
                 std::cout << "set_output_memory(sync_tensor gather): old = "
                           << _outputs[0]->get_layout().get_shape().to_string()
                           << ", new = " << mem_new->get_layout().get_shape().to_string() << std::endl;
-                _outputs[0] = mem_new;
+                _outputs[1] = mem_new;
             } else {
                 // All reduce
                 std::cout << "set_output_memory(sync_tensor reduce): old = "
                           << _outputs[w_rank]->get_layout().get_shape().to_string()
                           << ", new = " << mem_new->get_layout().get_shape().to_string() << std::endl;
-                _outputs[w_rank] = mem_new;
+                _outputs[0] = mem_new;
             }
         } else {
             _outputs[idx] = mem_new;

@@ -170,16 +170,17 @@ FCALLReduce::FCALLReduce(size_t world_size, size_t world_rank) {
                 auto new_fc = split_fc(m_fc, op::TP_MODE::ALL_REDUCE).first;
                 new_fc->get_rt_info().insert({"splitted", true});
                 std::shared_ptr<ov::intel_gpu::op::SyncTensor> sync_node;
-                sync_node = std::make_shared<ov::intel_gpu::op::SyncTensor>(
-                    new_fc,
-                    world_size,
-                    m_fc->get_input_node_shared_ptr(1)->get_shape()[-1],
-                    m_fc->get_element_type(),
-                    ov::intel_gpu::op::TP_MODE::ALL_REDUCE);
+                sync_node =
+                    std::make_shared<ov::intel_gpu::op::SyncTensor>(new_fc,
+                                                                    world_size,
+                                                                    world_rank,
+                                                                    m_fc->get_input_node_shared_ptr(1)->get_shape()[-1],
+                                                                    m_fc->get_element_type(),
+                                                                    ov::intel_gpu::op::TP_MODE::ALL_REDUCE);
                 sync_node->set_friendly_name(m_fc->get_friendly_name() + "_TP");
                 copy_runtime_info(m_fc, new_fc);
                 for (auto& iter : org_users) {
-                    iter.second->input(iter.first).replace_source_output(sync_node->output(world_rank));
+                    iter.second->input(iter.first).replace_source_output(sync_node->output(0));
                 }
                 m_fc->clear_control_dependencies();
             }

@@ -17,10 +17,11 @@ class SyncTensor : public ov::op::Op {
 public:
     OPENVINO_OP("SYNCTENSOR", "gpu_opset");
     SyncTensor() = default;
-    SyncTensor(const size_t world_size, const TP_MODE tp_mode = TP_MODE::ALL_GATHERH);
+    SyncTensor(const size_t world_size, const size_t rank, const TP_MODE tp_mode = TP_MODE::ALL_GATHERH);
 
     SyncTensor(const Output<Node>& input,
             const size_t world_size,
+            const size_t rank,
             int split_dimension,
             const ov::element::Type output_type,
             const TP_MODE tp_mode = TP_MODE::ALL_GATHERH);
@@ -35,6 +36,7 @@ public:
 
 protected:
     size_t m_world_size;
+    size_t m_rank;
     int m_split_dimension;
     ov::element::Type m_output_type;
     TP_MODE m_tp_mode;

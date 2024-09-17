@@ -22,8 +22,9 @@ public:
         bool flag;
         bool last_used;
         std::shared_ptr<cldnn::stream> stream_ptr;
-        std::vector<cldnn::memory::ptr> recv_bufs;  // todo: avoid mem copy
+        std::vector<cldnn::memory::ptr> recv_bufs;
         std::vector<cldnn::event::ptr> events;
+        cldnn::layout layout;
     };
 
     SubMemoryManager(int num_sub_streams) {
@@ -32,6 +33,8 @@ public:
         MemoryInfo memory_info;
         memory_info.flag = false;
         memory_info.last_used = false;
+        memory_info.layout = cldnn::layout();
+        memory_info.recv_bufs.assign(_num_sub_streams, nullptr);
         memory_info.events.assign(_num_sub_streams, nullptr);
         std::vector<MemoryInfo> memorys;
         memorys.assign(_num_sub_streams, memory_info);

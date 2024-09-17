@@ -24,7 +24,7 @@ MemoryTracker::MemoryTracker(engine* engine, void* buffer_ptr, size_t buffer_siz
     , m_alloc_type(alloc_type) {
     if (m_engine) {
         m_engine->add_memory_used(m_buffer_size, m_alloc_type);
-        GPU_DEBUG_LOG << "Allocate " << m_buffer_size << " bytes of " << m_alloc_type << " allocation type ptr = " << m_buffer_ptr
+        GPU_DEBUG_LOG << "Allocate " << std::dec << m_buffer_size << " bytes of " << m_alloc_type << " allocation type ptr = " << m_buffer_ptr
                       << " (current=" << m_engine->get_used_device_memory(m_alloc_type) << ";"
                       << " max=" << m_engine->get_max_used_device_memory(m_alloc_type) << ")" << std::endl;
     }
@@ -35,9 +35,9 @@ MemoryTracker::~MemoryTracker() {
         try {
             m_engine->subtract_memory_used(m_buffer_size, m_alloc_type);
         } catch (...) {}
-        //GPU_DEBUG_LOG << "Free " << m_buffer_size << " bytes of " << m_alloc_type << " allocation type ptr = " << m_buffer_ptr
-                      //<< " (current=" << m_engine->get_used_device_memory(m_alloc_type) << ";"
-                      //<< " max=" << m_engine->get_max_used_device_memory(m_alloc_type) << ")" << std::endl;
+        GPU_DEBUG_LOG << "Free " << std::dec << m_buffer_size << " bytes of " << m_alloc_type << " allocation type ptr = " << m_buffer_ptr
+                      << " (current=" << m_engine->get_used_device_memory(m_alloc_type) << ";"
+                      << " max=" << m_engine->get_max_used_device_memory(m_alloc_type) << ")" << std::endl;
     }
 }
 

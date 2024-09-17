@@ -185,8 +185,11 @@ RemainFCParallelFusion::RemainFCParallelFusion(size_t world_size, size_t world_r
                     }
                 }
                 std::shared_ptr<ov::intel_gpu::op::SyncTensor> sync_node;
-                sync_node = std::make_shared<ov::intel_gpu::op::SyncTensor>(node_to_operate, world_size, splitted_context.second,
-                                                                           new_fc->get_element_type());
+                sync_node = std::make_shared<ov::intel_gpu::op::SyncTensor>(node_to_operate,
+                                                                            world_size,
+                                                                            world_rank,
+                                                                            splitted_context.second,
+                                                                            new_fc->get_element_type());
                 sync_node->set_friendly_name(new_fc->get_friendly_name()+ "_TP_remain");
                 // auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node->outputs(), -1);
                 // concat_node->set_friendly_name(new_fc->get_friendly_name()+ "_ALLGATHER");
