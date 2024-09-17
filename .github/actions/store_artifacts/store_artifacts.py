@@ -12,7 +12,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parents[1]))
-from common import artifact_utils, action_utils
+from common import artifact_utils, action_utils, constants
 
 
 def parse_args():
@@ -67,6 +67,7 @@ def main():
     args = parse_args()
 
     storage_root = args.storage_root or os.getenv('ARTIFACTS_SHARE')
+    storage_dir = args.storage_dir or constants.PlatformMapping.get(args.platform)
     storage = artifact_utils.get_storage_dir(args.storage_dir, args.commit_sha, args.storage_root, args.branch_name,
                                              args.event_name)
     action_utils.set_github_output("artifacts_storage_path", str(storage))

@@ -13,7 +13,7 @@ import zipfile
 from pathlib import Path, PureWindowsPath
 
 sys.path.append(str(Path(__file__).parents[1]))
-from common import artifact_utils, action_utils
+from common import artifact_utils, action_utils, constants
 
 
 def parse_args():
@@ -53,7 +53,8 @@ def main():
         normalized_path = latest_artifacts_path.as_posix() if os.name == 'posix' else latest_artifacts_path
         storage = Path(args.storage_root) / normalized_path
     else:
-        storage = artifact_utils.get_storage_dir(args.storage_dir, args.commit_sha, args.storage_root, args.branch_name,
+        storage_dir = args.storage_dir or constants.PlatformMapping.get(args.platform)
+        storage = artifact_utils.get_storage_dir(storage_dir, args.commit_sha, args.storage_root, args.branch_name,
                                                  args.event_name)
 
     action_utils.set_github_output("artifacts_storage_path", str(storage))
