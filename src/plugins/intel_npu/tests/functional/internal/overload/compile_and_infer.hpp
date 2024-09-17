@@ -34,7 +34,7 @@ inline std::shared_ptr<ov::Model> getConstantGraph(element::Type type) {
 }
 
 inline bool isCommandQueueExtSupported() {
-    return std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getCommandQueueDdiTable() != nullptr;
+    return std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getCommandQueueDdiTable()->version() > 0;
 }
 
 typedef std::tuple<std::shared_ptr<ov::Model>,  // Model
