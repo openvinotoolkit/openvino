@@ -45,6 +45,14 @@ static constexpr ov::Property<std::string> submodel_device{"NPUW_SUBMODEL_DEVICE
  */
 static constexpr ov::Property<std::string> weights_bank{"NPUW_WEIGHTS_BANK"};
 
+/**
+ * @brief
+ * Type: std::string.
+ * Specify if weights bank is allowed to allocate NPU memory.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> weights_bank_alloc{"NPUW_WEIGHTS_BANK_ALLOC"};
+
 namespace partitioning {
 namespace online {
 /**

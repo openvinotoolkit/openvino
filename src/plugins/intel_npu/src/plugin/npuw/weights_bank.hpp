@@ -22,7 +22,9 @@ namespace weights {
 
 class Bank {
 public:
-    explicit Bank(const std::shared_ptr<const ov::ICore>& core) : m_core(core) {}
+    explicit Bank(const std::shared_ptr<const ov::ICore>& core, bool alloc_allowed)
+        : m_core(core),
+          m_alloc_allowed(alloc_allowed) {}
 
     // Capture CPU version of the tensor
     ov::Tensor update(const std::shared_ptr<ov::op::v0::Constant>& node);
@@ -42,9 +44,12 @@ private:
     std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;
     std::shared_ptr<ov::IRemoteContext> m_remote_ctx = nullptr;
+    bool m_alloc_allowed = false;
 };
 
-std::shared_ptr<Bank> bank(const std::string& bank_name, const std::shared_ptr<const ov::ICore>& core);
+std::shared_ptr<Bank> bank(const std::string& bank_name,
+                           const std::shared_ptr<const ov::ICore>& core,
+                           bool alloc_allowed);
 
 }  // namespace weights
 }  // namespace npuw

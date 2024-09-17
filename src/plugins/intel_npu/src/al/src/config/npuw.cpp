@@ -33,6 +33,7 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_PARALLEL_COMPILE>();
     desc.add<NPUW_FUNCALL_ASYNC>();
     desc.add<NPUW_WEIGHTS_BANK>();
+    desc.add<NPUW_WEIGHTS_BANK_ALLOC>();
     desc.add<NPUW_ACC_CHECK>();
     desc.add<NPUW_ACC_THRESH>();
     desc.add<NPUW_ACC_DEVICE>();

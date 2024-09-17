@@ -24,7 +24,9 @@ private:
 
 public:
     // Public API
-    std::shared_ptr<Bank> getBank(const std::string& bank_name, const std::shared_ptr<const ov::ICore>& core);
+    std::shared_ptr<Bank> getBank(const std::string& bank_name,
+                                  const std::shared_ptr<const ov::ICore>& core,
+                                  bool alloc_allowed);
 
 private:
     // Data
@@ -88,7 +90,7 @@ void Bank::store(const LazyTensor& tensor, const ov::Tensor& transformed_tensor,
         return;
     }
 
-    if (device == "CPU") {
+    if (device == "CPU" || !m_alloc_allowed) {
         // No allocation needed - store as is
         device_bank[tensor] = transformed_tensor;
         return;
@@ -120,12 +122,14 @@ bool Bank::has(const LazyTensor& tensor, const std::string& device) {
     return device_bank.find(tensor) != device_bank.end();
 }
 
-std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name, const std::shared_ptr<const ov::ICore>& core) {
+std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
+                                           const std::shared_ptr<const ov::ICore>& core,
+                                           bool alloc_allowed) {
     std::lock_guard<std::mutex> guard(m_mutex);
 
     auto iter = m_bank_map.find(bank_name);
     if (iter == m_bank_map.end()) {
-        auto bank = std::make_shared<Bank>(core);
+        auto bank = std::make_shared<Bank>(core, alloc_allowed);
         m_bank_map[bank_name] = bank;
         return bank;
     }
@@ -133,12 +137,13 @@ std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name, const s
 }
 
 std::shared_ptr<Bank> ov::npuw::weights::bank(const std::string& bank_name,
-                                              const std::shared_ptr<const ov::ICore>& core) {
+                                              const std::shared_ptr<const ov::ICore>& core,
+                                              bool alloc_allowed) {
     if (bank_name.empty()) {
         // Don't share this bank in manager
-        return std::make_shared<Bank>(core);
+        return std::make_shared<Bank>(core, alloc_allowed);
     }
 
     auto& instance = BankManager::getInstance();
-    return instance.getBank(bank_name, core);
+    return instance.getBank(bank_name, core, alloc_allowed);
 }

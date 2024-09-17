@@ -114,7 +114,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     // Initialize weights bank
     const std::string weights_bank_opt = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
-    m_weights_bank = ov::npuw::weights::bank(weights_bank_opt, plugin->get_core());
+    bool wbank_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
+    m_weights_bank = ov::npuw::weights::bank(weights_bank_opt, plugin->get_core(), wbank_alloc);
 
     LOG_VERB("*** Original model ***");
     const auto& orig_parameters = model->get_parameters();
@@ -813,6 +814,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                           BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),
                           BIND(npuw::weights_bank, NPUW_WEIGHTS_BANK),
+                          BIND(npuw::weights_bank_alloc, NPUW_WEIGHTS_BANK_ALLOC),
                           BIND(npuw::accuracy::check, NPUW_ACC_CHECK),
                           BIND(npuw::accuracy::threshold, NPUW_ACC_THRESH),
                           BIND(npuw::accuracy::reference_device, NPUW_ACC_DEVICE),
