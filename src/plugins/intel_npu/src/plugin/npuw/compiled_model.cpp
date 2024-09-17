@@ -410,6 +410,14 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
         const auto real_idx = comp_model_desc.replaced_by.value();
         auto& func_desc = m_compiled_submodels[real_idx];
 
+        // FIXME: why 0th function has those empty?
+        if (real_idx == idx) {
+            m_compiled_submodels[idx].closure.resize(m_compiled_submodels[idx].transformations.size());
+            m_compiled_submodels[idx].update_required.resize(m_compiled_submodels[idx].closure.size(),
+                                                             m_cfg.get<::intel_npu::NPUW_FOLD>() ? true : false);
+            m_compiled_submodels[idx].is_remote.resize(m_compiled_submodels[idx].closure.size(), false);
+        }
+
         ov::parallel_for(comp_model_desc.transformations.size(), [&](std::size_t tidx) {
             const auto& lt = m_compiled_submodels[idx].transformations[tidx];
 
