@@ -31,4 +31,7 @@ if(ENABLE_ZEROAPI_BACKEND)
     endif()
     set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
     add_subdirectory(level-zero EXCLUDE_FROM_ALL)
+
+    # This VERSION file created by L0 may cause compilation issue of oneTBB headers, so remove it
+    file(REMOVE "${CMAKE_BINARY_DIR}/VERSION")
 endif()

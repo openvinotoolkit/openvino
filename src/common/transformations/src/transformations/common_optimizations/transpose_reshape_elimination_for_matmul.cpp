@@ -143,18 +143,17 @@ ov::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMa
         const auto& input_1 = pattern_value_map.at(input_1_pattern);
         const auto& input_2 = pattern_value_map.at(input_2_pattern);
 
-        auto matmul =
-            std::dynamic_pointer_cast<ov::op::v0::MatMul>(pattern_value_map.at(matmul_pattern).get_node_shared_ptr());
+        auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_value_map.at(matmul_pattern).get_node_shared_ptr());
         if (!matmul)
             return false;
         const bool transposed_a = matmul->get_transpose_a();
         const bool transposed_b = matmul->get_transpose_b();
 
-        auto reshape_before = std::dynamic_pointer_cast<ov::op::v1::Reshape>(
-            pattern_value_map.at(reshape_before_pattern).get_node_shared_ptr());
-        auto reshape_after = std::dynamic_pointer_cast<ov::op::v1::Reshape>(
-            pattern_value_map.at(reshape_after_pattern).get_node_shared_ptr());
-        auto reshape_before_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(
+        auto reshape_before =
+            ov::as_type_ptr<ov::op::v1::Reshape>(pattern_value_map.at(reshape_before_pattern).get_node_shared_ptr());
+        auto reshape_after =
+            ov::as_type_ptr<ov::op::v1::Reshape>(pattern_value_map.at(reshape_after_pattern).get_node_shared_ptr());
+        auto reshape_before_constant = ov::as_type_ptr<ov::op::v0::Constant>(
             pattern_value_map.at(const_reshape_before_pattern).get_node_shared_ptr());
         if (!reshape_before || !reshape_after || !reshape_before_constant)
             return false;
@@ -162,17 +161,17 @@ ov::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMa
             return false;
 
         // check transpose order before and after matmul
-        auto transpose_before = std::dynamic_pointer_cast<ov::op::v1::Transpose>(
+        auto transpose_before = ov::as_type_ptr<ov::op::v1::Transpose>(
             pattern_value_map.at(transpose_before_pattern).get_node_shared_ptr());
-        auto transpose_after = std::dynamic_pointer_cast<ov::op::v1::Transpose>(
-            pattern_value_map.at(transpose_after_pattern).get_node_shared_ptr());
+        auto transpose_after =
+            ov::as_type_ptr<ov::op::v1::Transpose>(pattern_value_map.at(transpose_after_pattern).get_node_shared_ptr());
         if (!transpose_before || !transpose_after)
             return false;
 
         auto transpose_before_constant =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose_before->get_input_node_shared_ptr(1));
+            ov::as_type_ptr<ov::op::v0::Constant>(transpose_before->get_input_node_shared_ptr(1));
         auto transpose_after_constant =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose_after->get_input_node_shared_ptr(1));
+            ov::as_type_ptr<ov::op::v0::Constant>(transpose_after->get_input_node_shared_ptr(1));
         if (!transpose_before_constant || !transpose_after_constant)
             return false;
 
