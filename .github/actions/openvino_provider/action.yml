@@ -41,9 +41,6 @@ outputs:
   ov_artifact_name:
     description: "Name of the artifact to upload OpenVINO build artifacts under"
     value: ${{ steps.openvino_download.outputs.ov_artifact_name || steps.openvino_commit_output.outputs.ov_artifact_name }}
-  ov_package_path:
-    description: "Path to OpenVINO core package relative to the root of uploaded artifacts"
-    value: ${{ steps.openvino_download.outputs.ov_package_path || steps.openvino_commit_output.outputs.ov_package_path }}
   ov_wheel_source:
     description: "Pip option for custom OV wheel location (--find-links or --extra-index-url)"
     value: ${{ steps.openvino_wheel.outputs.ov_wheel_source || steps.openvino_commit_wheel.outputs.ov_wheel_source }}
@@ -104,10 +101,11 @@ runs:
       if: steps.openvino_commit_download.outcome == 'success'
       shell: bash
       run: |
-        ov_artifact_name=${{ inputs.ov_artifact_name || steps.openvino_commit_download.outputs.restored_artifacts_key }}
+        ov_artifact_name=${{ inputs.ov_artifact_name || inputs.commit_build_key }}
         cd ${{ steps.openvino_commit_download.outputs.artifacts_workspace_path }}
         ov_package_path=$(find . -name 'openvino_package*' -printf "%P\n" -quit)
         [ -z "$ov_package_path" ] && echo "No openvino_package found in restored artifacts" && exit 1
+        mv $ov_package_path/* . && rm -f $ov_package_path
         echo "ov_artifact_name=$ov_artifact_name" >> $GITHUB_OUTPUT
         echo "ov_package_path=$ov_package_path" >> $GITHUB_OUTPUT
 
@@ -124,6 +122,13 @@ runs:
         echo "ov_version=$version" >> $GITHUB_OUTPUT
         echo "ov_wheel_source=$default_find_links_cmd" >> $GITHUB_OUTPUT
 
+    - name: Upload commit OpenVINO archives
+      if: steps.openvino_commit_download.outcome == 'success'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.openvino_commit_output.outputs.ov_artifact_name }}
+        path: ${{ steps.openvino_commit_output.outputs.ov_package_path }}
+        if-no-files-found: 'error'
 
     # --- S3 case (nightly or direct URL) ---
     - name: Verify parameters
@@ -145,8 +150,9 @@ runs:
         fi
         package_basename=$(basename $ov_package_url)
         wget $ov_package_url --progress=bar:force:noscroll -O $package_basename
-        package_folder=${package_basename%.*} && mkdir $package_folder
-        [[ "$package_basename" == *.zip ]] && unzip "$package_basename" -d $package_folder || tar -xvf "$package_basename" -C $package_folder
+        package_folder=${package_basename%.*}
+        [[ "$package_basename" == *.zip ]] && unzip "$package_basename" || tar -xvf "$package_basename"
+        rm $package_basename && mv package_folder/* . && rm -f $package_folder
         ov_artifact_name=$([ ${{ inputs.ov_artifact_name }} ] && echo ${{ inputs.ov_artifact_name }} || echo $package_folder)
         echo "ov_artifact_name=$ov_artifact_name" >> $GITHUB_OUTPUT
         echo "ov_package_path=$package_folder" >> $GITHUB_OUTPUT

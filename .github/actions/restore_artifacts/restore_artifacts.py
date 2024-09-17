@@ -21,9 +21,6 @@ def parse_args():
     artifact_utils.add_common_args(parser)
     parser.add_argument('-t', '--target_dir', type=str, help='Path to a dir in a workspace to download artifacts into',
                         required=True)
-    parser.add_argument('-k', '--artifact_key', type=str,
-                        help='A key under which to upload the artifacts to storage, product type by default',
-                        required=False)
     parser.add_argument('-r', '--to_restore', type=str, required=False,
                         help='Comma-separated list of packages to restore, all available by default')
     parser.add_argument('-u', '--unpack_archives', action='store_true', required=False,
@@ -83,7 +80,6 @@ def main():
             file.unlink()
 
     action_utils.set_github_output("artifacts_workspace_path", args.target_dir)
-    action_utils.set_github_output("restored_artifacts_key", args.artifact_key or args.storage_dir)
 
 
 if __name__ == '__main__':

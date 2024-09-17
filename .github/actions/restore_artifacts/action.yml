@@ -1,5 +1,5 @@
 name: 'Restore artifacts'
-description: 'Take artifacts from a shared drive and load them back to GitHub'
+description: 'Take artifacts from a shared drive and store them in a workspace'
 inputs:
   storage_dir:
     description: "Subdirectory name for artifacts, same as product type"
@@ -16,9 +16,6 @@ inputs:
   trigger_repo_sha:
     description: "Commit hash of a trigger repo. If not set - taken from github context"
     required: false
-  artifacts_key:
-    description: "A key under which to upload the artifacts to storage, product type by default"
-    required: false
   to_restore:
     description: "Comma-separated list of packages to restore, all available by default"
     required: false
@@ -32,16 +29,12 @@ outputs:
   artifacts_workspace_path:
     description: "Path within the workspace where the artifacts are stored"
     value: ${{ steps.restore.outputs.artifacts_workspace_path }}
-  restored_artifacts_key:
-    description: "Key under which the restored artifacts, if any, were uploaded to GitHub"
-    value: ${{ steps.restore.outputs.restored_artifacts_key }}
 
 runs:
   using: "composite"
   steps:
     - name: Restore artifacts
       id: restore
-      if: "!inputs.artifacts"
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       run: >-
         python3 ${{ env.ACTION_PATH }}/restore_artifacts.py
@@ -58,11 +51,3 @@ runs:
         BRANCH_PARAM: "-b ${{ inputs.branch_name }}"
         EVENT_PARAM: "-e ${{ inputs.event_name }}"
         TO_RESTORE: "-r ${{ inputs.to_restore }}"
-
-    - name: Upload artifacts
-      if: "!inputs.artifacts"
-      uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
-      with:
-        name: ${{ inputs.artifacts_key || steps.restore.outputs.restored_artifacts_key }}
-        path: ${{ steps.restore.outputs.artifacts_workspace_path }}
-        if-no-files-found: 'error'
