@@ -3,6 +3,7 @@
 //
 
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/file_path.hpp"
 
 #include <sys/stat.h>
 

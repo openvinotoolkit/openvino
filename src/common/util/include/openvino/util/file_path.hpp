@@ -5,8 +5,10 @@
 #pragma once
 
 #include <memory>
+#include <cstdio>
 
-#include "ov_filesystem.hpp"
+#include "openvino/util/ov_filesystem.hpp"
+//#include "openvino/util/util.hpp"
 
 namespace ov {
 namespace util {
