@@ -386,6 +386,14 @@ details.sd-dropdown summary.sd-card-header:hover {
     background-color: #CCCCCC !important;
 }
 
+details.sd-dropdown summary.sd-card-header {
+    background-color: #E5E5E5 !important;
+}
+
+details.sd-dropdown summary.sd-card-header:hover {
+    background-color: #CCCCCC !important;
+}
+
 /* Table Sort Button */
 /* =================================================== */
 .sort-header {
@@ -867,6 +875,56 @@ h5 {
     font-weight: 500;
 }
 
+h1 {
+    display: block;
+    font-size: 1.9em;
+    margin-top: 0.67em;
+    margin-bottom: 0.67em;
+    margin-left: 0;
+    margin-right: 0;
+    font-weight: 480;
+}
+
+h2 {
+    display: block;
+    font-size: 1.6em;
+    margin-top: 0.83em;
+    margin-bottom: 0.83em;
+    margin-left: 0;
+    margin-right: 0;
+    font-weight: 480;
+}
+
+h3 {
+    display: block;
+    font-size: 1.35em;
+    margin-top: 1em;
+    margin-bottom: 1em;
+    margin-left: 0;
+    margin-right: 0;
+    font-weight: 500;
+}
+
+h4 {
+    display: block;
+    font-size: 1.15em;
+    margin-top: 1.33em;
+    margin-bottom: 1.33em;
+    margin-left: 0;
+    margin-right: 0;
+    font-weight: 500;
+}
+
+h5 {
+    display: block;
+    font-size: 1em;
+    margin-top: 1.67em;
+    margin-bottom: 1.67em;
+    margin-left: 0;
+    margin-right: 0;
+    font-weight: 500;
+}
+
 .modal-footer {
     display: none;
     padding: 0;
@@ -961,11 +1019,16 @@ h5 {
         column-gap: 1rem;
     }
 
-    .span-element-big {
+.span-element-big {
         grid-column: 1 / span 2;
     }
 }
 
+.close:hover, .close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
 
 /* Modal buttons */
 .modal-close {
@@ -1027,9 +1090,10 @@ h5 {
 }
 
 .close-btn {
-    padding: 4px 16px;
-    border-color: #0054AE;
-    background-color: #0054AE;
+    padding: 12px 24px;
+    cursor: pointer;
+    /* border-color: #0054AE;
+    background-color: #0054AE; */
     color: #fefefe;
     float: right;
     align-self: flex-start;
