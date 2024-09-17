@@ -178,8 +178,8 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
             return false;
         }
 
-        auto transpose_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
-        auto unsqueeze_axes = std::dynamic_pointer_cast<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(1));
+        auto transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+        auto unsqueeze_axes = ov::as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(1));
         if (!transpose_order || !unsqueeze_axes)
             return false;
 

@@ -61,10 +61,7 @@ LIRComparator::Result LIRComparator::compare(const LinearIRPtr& linear_ir,
     const auto& buffers_ref = linear_ir_ref->get_buffers();
     COMPARE("Number of buffers", buffers.size(), buffers_ref.size());
 
-    auto run_comparison = [&](const LinearIR::constExprIt& expr_it, const LinearIR::constExprIt& expr_it_ref) {
-        const auto& expr = expr_it->get();
-        const auto& expr_ref = expr_it_ref->get();
-
+    auto run_comparison = [&](const ExpressionPtr& expr, const ExpressionPtr& expr_ref) {
         const auto node = expr->get_node();
         const auto node_ref = expr_ref->get_node();
         if (m_nodes_cmp_values != NodesCmpValues::NONE)
@@ -90,11 +87,11 @@ LIRComparator::Result LIRComparator::compare(const LinearIRPtr& linear_ir,
     };
 
     for (auto param_it = parameters.begin(), param_it_ref = parameters_ref.begin(); param_it != parameters.end(); ++param_it, ++param_it_ref)
-        PROPAGATE_ERROR("", run_comparison(param_it, param_it_ref));
+        PROPAGATE_ERROR("", run_comparison(*param_it, *param_it_ref));
     for (auto expr_it = ops.begin(), expr_it_ref = ops_ref.begin(); expr_it != ops.end(); ++expr_it, ++expr_it_ref)
-        PROPAGATE_ERROR("", run_comparison(expr_it, expr_it_ref));
+        PROPAGATE_ERROR("", run_comparison(*expr_it, *expr_it_ref));
     for (auto result_it = results.begin(), result_it_ref = results_ref.begin(); result_it != results.end(); ++result_it, ++result_it_ref)
-        PROPAGATE_ERROR("", run_comparison(result_it, result_it_ref));
+        PROPAGATE_ERROR("", run_comparison(*result_it, *result_it_ref));
 
     if (should_compare(LIRCmpValues::LOOP_MANAGER)) {
         PROPAGATE_ERROR("Loop managers", compare_loop_managers(linear_ir->get_loop_manager(), linear_ir_ref->get_loop_manager()));

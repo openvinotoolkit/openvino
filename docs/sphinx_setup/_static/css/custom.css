@@ -795,6 +795,8 @@ details.sd-dropdown summary.sd-card-header:hover {
 }
 
 .modal-content-grid {
+    max-height: 400px;
+    margin-bottom: 20px;
     display: grid;
     padding-top: .5rem;
     grid-template-columns: 1fr;
