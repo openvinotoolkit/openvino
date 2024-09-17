@@ -930,16 +930,14 @@ class TestMoConvertTF(CommonMOConvertTest):
         model = LayerModel()
         ov_model = convert_model(model)
 
-        # set model's output names will not change connected node names
-        # output can have additional names from connected input node
         ov_model.outputs[0].get_tensor().set_names({"name1"})
-        assert "name1" in ov_model.outputs[0].names
+        assert ov_model.outputs[0].names == {"name1"}
 
         ov_model.validate_nodes_and_infer_types()
-        assert "name1" in ov_model.outputs[0].names
+        assert ov_model.outputs[0].names == {"name1"}
 
         ov_model.outputs[0].get_tensor().set_names({"name2"})
-        assert "name2" in ov_model.outputs[0].names
+        assert ov_model.outputs[0].names == {"name2"}
 
 
 class TFConvertTest(unittest.TestCase):

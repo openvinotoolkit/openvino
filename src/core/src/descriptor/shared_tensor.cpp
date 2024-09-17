@@ -51,6 +51,10 @@ public:
     }
 
     const std::unordered_set<std::string>& get_names() const override {
+        return m_output_names.empty() ? m_shared_tensor->get_names() : m_output_names;
+    }
+
+    const std::unordered_set<std::string>& get_all_names() const override {
         return m_shared_tensor->get_names();
     }
 

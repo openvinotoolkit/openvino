@@ -94,6 +94,10 @@ public:
         return m_names;
     }
 
+    const std::unordered_set<std::string>& get_all_names() const override {
+        return get_names();
+    }
+
     const std::string& get_any_name() const override {
         OPENVINO_ASSERT(!get_names().empty(), "Attempt to get a name for a Tensor without names");
         return *m_name_it;
@@ -128,13 +132,7 @@ private:
     std::string m_legacy_name;
 
     static decltype(m_name_it) find_new_any_name(const decltype(m_names)& names, decltype(m_name_it) name) {
-        for (auto it = names.cbegin(); it != names.cend(); ++it) {
-            if (name == names.end() || *it < *name) {
-                // Update any name
-                name = it;
-            }
-        }
-        return name;
+        return std::min_element(names.begin(), names.end());
     }
 };
 
@@ -281,6 +279,13 @@ void set_tensor_type(Tensor& tensor, const element::Type& element_type, const Pa
 
 void set_element_type(Tensor& tensor, const element::Type& element_type) {
     TensorExtension::get_descriptor_ptr(tensor)->set_type_shape(element_type, tensor.get_partial_shape());
+}
+
+void copy_tensor_names(Tensor& dst, const Tensor& src) {
+    dst.set_names(TensorExtension::get_descriptor(src).get_all_names());
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    ov::descriptor::set_ov_tensor_legacy_name(dst, ov::descriptor::get_ov_tensor_legacy_name(src));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 std::ostream& operator<<(std::ostream& out, const Tensor& tensor) {

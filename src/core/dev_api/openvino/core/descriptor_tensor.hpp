@@ -24,6 +24,15 @@ void set_element_type(Tensor& tensor, const element::Type& elemenet_type);
 OPENVINO_API
 void set_tensor_type(Tensor& tensor, const element::Type& element_type, const PartialShape& pshape);
 
+/**
+ * @brief Set destination tensor names as copy of all names from source tensor all tensor names.
+ *
+ * @param dst  The tensor descriptor to set names.
+ * @param src  The tensor descriptor as from which names will be copied.
+ */
+OPENVINO_API
+void copy_tensor_names(Tensor& dst, const Tensor& src);
+
 OPENVINO_DEPRECATED("get_ov_tensor_legacy_name() is deprecated. Please don't use this function.")
 OPENVINO_API
 std::string get_ov_tensor_legacy_name(const Tensor& tensor);
@@ -43,6 +52,7 @@ public:
     virtual void set_names(const std::unordered_set<std::string>& names) = 0;
     virtual void add_names(const std::unordered_set<std::string>& names) = 0;
     virtual const std::unordered_set<std::string>& get_names() const = 0;
+    virtual const std::unordered_set<std::string>& get_all_names() const = 0;
     virtual const std::string& get_any_name() const = 0;
 
     virtual RTMap& rt_map() = 0;
