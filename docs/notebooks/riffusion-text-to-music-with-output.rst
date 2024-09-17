@@ -50,25 +50,12 @@ represents time, and the y-axis represents frequency. The color of each
 pixel gives the amplitude of the audio at the frequency and time given
 by its row and column.
 
-.. figure:: https://www.riffusion.com/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Fspectrogram_label.8c8aea56.png&w=1920&q=75
-   :alt: spectrogram
-
-   spectrogram
-
-`\*image source <https://www.riffusion.com/about>`__
 
 The spectrogram can be computed from audio using the `Short-time Fourier
 transform
 (STFT) <https://en.wikipedia.org/wiki/Short-time_Fourier_transform>`__,
 which approximates the audio as a combination of sine waves of varying
 amplitudes and phases.
-
-.. figure:: https://www.riffusion.com/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ffourier_transform.9d53f3d7.png&w=640&q=75
-   :alt: stft.png
-
-   stft.png
-
-`\*image source <https://www.riffusion.com/about>`__
 
 The STFT is invertible, so the original audio can be reconstructed from
 a spectrogram. This idea is a behind approach to using Riffusion for
@@ -87,6 +74,16 @@ audio generation.
    image <#prepare-postprocessing-for-reconstruction-audio-from-spectrogram-image>`__
 -  `Run Inference pipeline <#run-inference-pipeline>`__
 -  `Interactive demo <#interactive-demo>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Prerequisites
 -------------
@@ -570,25 +567,3 @@ Interactive demo
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    /tmp/ipykernel_180612/330468370.py:56: GradioDeprecationWarning: The `style` method is deprecated. Please set these arguments in the constructor instead.
-      spectrogram_output.style(height=256)
-    /tmp/ipykernel_180612/330468370.py:63: GradioDeprecationWarning: The `enable_queue` parameter has been deprecated. Please use the `.queue()` method instead.
-      demo.launch(enable_queue=True, height=800)
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-

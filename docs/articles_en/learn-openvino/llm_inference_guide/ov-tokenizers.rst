@@ -1,12 +1,10 @@
-.. {#tokenizers}
-
 OpenVINO Tokenizers
 ===============================
 
-Tokenization is a necessary step in text processing using various models, including text generation with LLMs.
-Tokenizers convert the input text into a sequence of tokens with corresponding IDs, so that
-the model can understand and process it during inference. The transformation of a sequence of numbers into a
-string is called detokenization.
+Tokenization is a necessary step in text processing using various models, including text
+generation with LLMs. Tokenizers convert the input text into a sequence of tokens with
+corresponding IDs, so that the model can understand and process it during inference. The
+transformation of a sequence of numbers into a string is called detokenization.
 
 .. image:: ../../assets/images/tokenization.svg
    :align: center
@@ -238,8 +236,8 @@ Convert Tokenizers:
 
          tokenizer_dir = Path("tokenizer/")
          core = Core()
-         ov_tokenizer = core.read_model(tokenizer_dir / "openvino_tokenizer")
-         ov_detokenizer = core.read_model(tokenizer_dir / "openvino_detokenizer")
+         ov_tokenizer = core.read_model(tokenizer_dir / "openvino_tokenizer.xml")
+         ov_detokenizer = core.read_model(tokenizer_dir / "openvino_detokenizer.xml")
 
          tokenizer, detokenizer = core.compile_model(ov_tokenizer), core.compile_model(ov_detokenizer)
 
@@ -280,7 +278,7 @@ You can find more information and code snippets in the `OpenVINO Tokenizers Note
 
 .. code-block:: python
 
-   input numpy as np
+   import numpy as np
 
    text_input = ["Quick brown fox jumped"]
 
@@ -338,7 +336,7 @@ Additional Resources
 
 * `OpenVINO Tokenizers repo <https://github.com/openvinotoolkit/openvino_tokenizers>`__
 * `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/openvino-tokenizers>`__
-* `Text generation C++ samples that support most popular models like LLaMA 2 <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/greedy_causal_lm>`__
+* `Text generation C++ samples that support most popular models like LLaMA 2 <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
 
 

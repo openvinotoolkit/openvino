@@ -1571,6 +1571,10 @@ std::shared_ptr<ov::Model> generateBinaryEltwiseBitwise(const std::shared_ptr<ov
         eltwise = std::make_shared<ov::op::v13::BitwiseOr>(params[0], params[1]);
     } else if (ov::is_type<ov::op::v13::BitwiseXor>(node)) {
         eltwise = std::make_shared<ov::op::v13::BitwiseXor>(params[0], params[1]);
+    } else if (ov::is_type<ov::op::v15::BitwiseLeftShift>(node)) {
+        eltwise = std::make_shared<ov::op::v15::BitwiseLeftShift>(params[0], params[1]);
+    } else if (ov::is_type<ov::op::v15::BitwiseRightShift>(node)) {
+        eltwise = std::make_shared<ov::op::v15::BitwiseRightShift>(params[0], params[1]);
     } else {
         return nullptr;
     }
@@ -1907,6 +1911,34 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::Col2Im> &
     const auto Col2ImNode = std::make_shared<ov::op::v15::Col2Im>(data, output_size, kernel_size);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Col2ImNode)};
     return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "Col2ImGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::StringTensorUnpack> &node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::string, ov::PartialShape{2});
+    const auto StringTensorUnpackNode = std::make_shared<ov::op::v15::StringTensorUnpack>(data);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(StringTensorUnpackNode)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "StringTensorUnpackGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::StringTensorPack> &node) {
+    const auto begins = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{2});
+    const auto ends = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{2});
+    const auto symbols = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{5});
+    const auto StringTensorPackNode = std::make_shared<ov::op::v15::StringTensorPack>(begins, ends, symbols);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(StringTensorPackNode)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{begins, ends, symbols}, "StringTensorPackGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::SliceScatter> &node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{2, 4, 3, 5}}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 2, 2, 5}})};
+    const auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 0, 4});
+    const auto stop = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{2, 4, -5});
+    const auto step = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{3, 2, -2});
+    const auto axes = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 1, 2});
+    auto Node = std::make_shared<ov::op::v15::SliceScatter>(params.at(0), params.at(1), start, stop, step, axes);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node)};
+    return std::make_shared<ov::Model>(results, params, "SliceScatterGraph");
 }
 
 std::shared_ptr<ov::Model> generateRNNCellBase(const std::shared_ptr<ov::op::Op> &node) {

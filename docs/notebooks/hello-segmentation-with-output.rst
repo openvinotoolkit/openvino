@@ -4,7 +4,7 @@ Hello Image Segmentation
 A very basic introduction to using segmentation models with OpenVINO™.
 
 In this tutorial, a pre-trained
-`road-segmentation-adas-0001 <https://docs.openvino.ai/2024/omz_models_model_road_segmentation_adas_0001.html>`__
+`road-segmentation-adas-0001 <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/road-segmentation-adas-0001/README.md>`__
 model from the `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used.
 ADAS stands for Advanced Driver Assistance Services. The model
@@ -21,6 +21,16 @@ recognizes four classes: background, road, curb and mark.
 -  `Do Inference <#do-inference>`__
 -  `Prepare Data for Visualization <#prepare-data-for-visualization>`__
 -  `Visualize data <#visualize-data>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 .. code:: ipython3
 
@@ -62,7 +72,7 @@ Imports
 
     open("notebook_utils.py", "w").write(r.text)
 
-    from notebook_utils import segmentation_map_to_image, download_file
+    from notebook_utils import segmentation_map_to_image, download_file, device_widget
 
 Download model weights
 ----------------------
@@ -116,16 +126,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
-
+    device = device_widget()
     device
 
 
@@ -194,7 +195,7 @@ is provided.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f866f7dbac0>
+    <matplotlib.image.AxesImage at 0x7f2de8219340>
 
 
 
@@ -221,7 +222,7 @@ Do Inference
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f86340753a0>
+    <matplotlib.image.AxesImage at 0x7f2de80c1c10>
 
 
 

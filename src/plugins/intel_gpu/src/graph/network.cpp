@@ -26,6 +26,7 @@
 #include "primitive_inst.h"
 #include "input_layout_inst.h"
 #include "fully_connected_inst.h"
+#include "paged_attention_inst.h"
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
 #include "mutable_data_inst.h"
@@ -372,17 +373,17 @@ static std::string get_file_path_for_binary_dump(cldnn::layout layout, std::stri
 Network will always have net_id = 0 when it will be cldnn internal micronetwork (created i.e by propagate_constants
 opt pass).
 */
-network::network(program::ptr program, const ExecutionConfig& config, stream::ptr stream, bool is_internal, bool is_primary_stream)
+network::network(program::ptr program, stream::ptr stream, bool is_internal, bool is_primary_stream)
     : _program(program)
-    , _config(config)
+    , _config(program->get_config())
     , _engine(program->get_engine())
     , _stream(stream)
     , _memory_pool(new memory_pool(program->get_engine()))
     , _internal(is_internal)
     , _is_primary_stream(is_primary_stream)
-    , _enable_profiling(config.get_property(ov::enable_profiling))
+    , _enable_profiling(program->get_config().get_property(ov::enable_profiling))
     , _reset_arguments(true)
-    , _shape_predictor(new ShapePredictor(&program->get_engine(), config.get_property(ov::intel_gpu::buffers_preallocation_ratio))) {
+    , _shape_predictor(new ShapePredictor(&program->get_engine(), program->get_config().get_property(ov::intel_gpu::buffers_preallocation_ratio))) {
     if (!_internal) {
         net_id = get_unique_net_id();
     }
@@ -412,25 +413,28 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
     add_default_output_chains();
 }
 
+network::network(program::ptr program, bool is_internal, bool is_primary_stream)
+    :  network(program, program->get_engine().create_stream(program->get_config()), is_internal, is_primary_stream) {}
+
 network::network(engine& engine,
                  const topology& topo,
                  const ExecutionConfig& config,
                  bool is_internal,
                  std::shared_ptr<ov::threading::IStreamsExecutor> task_executor)
-    : network(program::build_program(engine, topo, config, task_executor, is_internal), config, engine.create_stream(config), is_internal) {}
+    : network(program::build_program(engine, topo, config, task_executor, is_internal), is_internal, true) {}
 
 network::network(engine& engine,
                  const std::set<std::shared_ptr<program_node>>& nodes,
                  const ExecutionConfig& config,
                  std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                  bool is_internal)
-    : network(program::build_program(engine, nodes, config, task_executor, is_internal), config, engine.create_stream(config), is_internal) {}
+    : network(program::build_program(engine, nodes, config, task_executor, is_internal), is_internal, true) {}
 
 network::network(program::ptr program, uint16_t stream_id)
-    : network(program, program->get_config(), program->get_engine().create_stream(program->get_config()), false, stream_id == 0) {}
+    : network(program, program->get_engine().create_stream(program->get_config()), false, stream_id == 0) {}
 
 network::network(program::ptr program, stream::ptr stream, uint16_t stream_id)
-    : network(program, program->get_config(), stream, false, stream_id == 0) {}
+    : network(program, stream, false, stream_id == 0) {}
 
 network::~network() {
     if (_program != nullptr)
@@ -443,12 +447,12 @@ network::~network() {
 }
 
 network::ptr network::allocate_network(stream::ptr stream, program::ptr program, bool is_internal, bool is_primary_stream) {
-    return std::make_shared<network>(program, program->get_config(), stream, is_internal, is_primary_stream);
+    return std::make_shared<network>(program, stream, is_internal, is_primary_stream);
 }
 
 network::ptr network::allocate_network(engine& engine, program::ptr program, bool is_internal, bool is_primary_stream) {
     auto stream = engine.create_stream(program->get_config());
-    return std::make_shared<network>(program, program->get_config(), stream, is_internal, is_primary_stream);
+    return std::make_shared<network>(program, stream, is_internal, is_primary_stream);
 }
 
 network::ptr network::build_network(engine& engine,
@@ -747,13 +751,25 @@ std::string network::get_primitive_info(const primitive_id& id) const {
     return node.type()->to_string(node);
 }
 
-bool network::is_cpu_impl(const primitive_id& id) const {
+bool network::does_node_need_lockable_output(const primitive_id& id) const {
     auto prim_inst = find_primitive(id);
 
     OPENVINO_ASSERT(prim_inst, "[GPU] Can't get implementation type, since topology ",
                                "doesn't contain primitive with requested id: ", id);
 
-    return prim_inst->get_impl() ? prim_inst->get_impl()->is_cpu() : true;
+    const auto& node = prim_inst->get_node();
+    if (node.is_type<input_layout>()) {
+        for (const auto& user : node.get_users()) {
+            const auto& lockable_input_ids = user->get_lockable_input_ids();
+            if (lockable_input_ids.count(user->get_dependency_index(node))) {
+                return true;
+            }
+        }
+
+        return false;
+    } else {
+        return prim_inst->get_impl() ? prim_inst->get_impl()->is_cpu() : true;
+    }
 }
 
 std::string network::get_implementation_info(const primitive_id& id) const {
@@ -1072,7 +1088,11 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                         OPENVINO_ASSERT(!bin.empty(), "Failure loading binary from OV_GPU_LoadDumpRawBinary : " + dump_file);
 
                         auto input_mem = get_primitive(inst->id())->dep_memory_ptr(i);
-                        OPENVINO_ASSERT(input_mem->size() == bin.size(), "memory size mis-match for OV_GPU_LoadDumpRawBinary : " + layer_name);
+                        if (input_mem->size() != bin.size()) {
+                            std::cout << "WARNING: memory size mis-match for OV_GPU_LoadDumpRawBinary : " + layer_name
+                                      << "  " << input_mem->size() << " / " << bin.size() << std::endl;
+                            bin.resize(input_mem->size());
+                        }
 
                         input_mem->copy_from(get_stream(), static_cast<void *>(&bin[0]), true);
                     }
@@ -1093,6 +1113,11 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                                         "_" + get_iteration_prefix(curr_iter) +
                                         layer_name + "_src" + std::to_string(i);
                     auto input_mem = get_primitive(inst->id())->dep_memory_ptr(i);
+                    if (input_mem == nullptr) {
+                        GPU_DEBUG_COUT  << " input_mem_" << i << " is nullptr. Nothing to dump." << std::endl;
+                        continue;
+                    }
+
                     auto dep = inst->dependencies().at(i);
                     auto input_layout = dep.first->get_output_layout(dep.second);
                     GPU_DEBUG_IF(debug_config->dump_layers_binary) {
@@ -1140,6 +1165,11 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                                         "_" + get_iteration_prefix(curr_iter) +
                                         layer_name + "_dst" + std::to_string(i);
                     auto output_mem = get_primitive(layer_name)->output_memory_ptr(i);
+                    if (output_mem == nullptr) {
+                        GPU_DEBUG_COUT  << " output_mem is nullptr. Nothing to dump." << std::endl;
+                        continue;
+                    }
+
                     GPU_DEBUG_IF(debug_config->dump_layers_binary) {
                         // Binary dump : raw
                         auto output_layout = inst->get_output_layout(i);
@@ -1511,8 +1541,10 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
     if (!get_engine().get_device_info().has_separate_cache)
         return;
 
-
     if (node.is_shape_infer_dep())
+        return;
+
+    if (inst_mem.count() == 0)
         return;
 
     if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {

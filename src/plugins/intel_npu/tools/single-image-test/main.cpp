@@ -17,6 +17,7 @@
 
 #include <gflags/gflags.h>
 
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -108,6 +109,10 @@ DEFINE_string(scale_values, "", scale_values_message);
 DEFINE_string(img_bin_precision, "", "Specify the precision of the binary input files. Eg: 'FP32,FP16,I32,I64,U8'");
 
 DEFINE_bool(run_test, false, "Run the test (compare current results with previously dumped)");
+DEFINE_string(
+    ref_dir,
+    "",
+    "A directory with reference blobs to compare with in run_test mode. Leave it empty to use the current folder.");
 DEFINE_string(mode, "", "Comparison mode to use");
 
 DEFINE_uint32(top_k, 1, "Top K parameter for 'classification' mode");
@@ -216,6 +221,8 @@ void parseCommandLine(int argc, char* argv[]) {
     std::cout << "    Mean_values [channel1,channel2,channel3]  " << FLAGS_mean_values << std::endl;
     std::cout << "    Scale_values [channel1,channel2,channel3] " << FLAGS_scale_values << std::endl;
     if (FLAGS_run_test) {
+        std::cout << "    Reference files direcotry:                "
+                  << (FLAGS_ref_dir.empty() ? "Current directory" : FLAGS_ref_dir) << std::endl;
         std::cout << "    Mode:             " << FLAGS_mode << std::endl;
         if (strEq(FLAGS_mode, "classification")) {
             std::cout << "    Top K:            " << FLAGS_top_k << std::endl;
@@ -1388,7 +1395,7 @@ void nameIOTensors(std::shared_ptr<ov::Model> model) {
     for (std::size_t id = 0ul; id < inputInfo.size(); ++id) {
         auto ii = inputInfo[id];
         if (ii.get_names().empty()) {
-            ii.add_names({"input_" + std::to_string(ii.get_index())});
+            ii.add_names({"input_" + std::to_string(ii.get_index()) + "_" + std::to_string(id)});
         }
     }
 
@@ -1396,7 +1403,7 @@ void nameIOTensors(std::shared_ptr<ov::Model> model) {
     for (std::size_t id = 0ul; id < outputInfo.size(); ++id) {
         auto oi = outputInfo[id];
         if (oi.get_names().empty()) {
-            oi.add_names({"output_" + std::to_string(oi.get_index())});
+            oi.add_names({"output_" + std::to_string(oi.get_index()) + "_" + std::to_string(id)});
         }
     }
 }
@@ -2027,7 +2034,9 @@ static int runSingleImageTest() {
                 LayoutMap outputLayouts;  // Several metrics may require this
 
                 // Load the reference data
-                for (const auto& [tensorName, tensor] : outputTensors) {
+                for (const auto& out : compiledModel.outputs()) {
+                    const auto& tensorName = out.get_any_name();
+                    const auto& tensor = outputTensors.at(tensorName);
                     const ov::element::Type& precision = tensor.get_element_type();
                     const ov::Shape& shape = tensor.get_shape();
 
@@ -2035,10 +2044,14 @@ static int runSingleImageTest() {
                     ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                     const auto blobFileName = ostr.str();
 
-                    std::cout << "Load reference output #" << outputInd << " from " << blobFileName << " as "
+                    std::filesystem::path fullPath = FLAGS_ref_dir;
+                    fullPath /= blobFileName;
+                    const auto blobFileFullName = fullPath.string();
+
+                    std::cout << "Load reference output #" << outputInd << " from " << blobFileFullName << " as "
                               << precision << std::endl;
 
-                    const ov::Tensor referenceTensor = loadTensor(precision, shape, blobFileName);
+                    const ov::Tensor referenceTensor = loadTensor(precision, shape, blobFileFullName);
                     referenceTensors.emplace(tensorName, referenceTensor);
 
                     // Determine the output layout
@@ -2067,7 +2080,8 @@ static int runSingleImageTest() {
                 outputInd = 0;
 
                 // Dump the outputs obtained upon prediction
-                for (const auto& tensorEntry : outputTensors) {
+                for (const auto& out : compiledModel.outputs()) {
+                    const auto& tensor = outputTensors.at(out.get_any_name());
                     std::ostringstream ostr;
                     ostr << netFileName << "_kmb_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                     const auto blobFileName = ostr.str();
@@ -2075,7 +2089,7 @@ static int runSingleImageTest() {
                     std::cout << "Dump device output #" << outputInd << "_case_" << numberOfTestCase << " to "
                               << blobFileName << std::endl;
 
-                    dumpTensor(tensorEntry.second, blobFileName);
+                    dumpTensor(tensor, blobFileName);
                     ++outputInd;
                 }
 
@@ -2174,13 +2188,14 @@ static int runSingleImageTest() {
                 }
             } else {
                 size_t outputInd = 0;
-                for (const auto& tensorEntry : outputTensors) {
+                for (const auto& out : compiledModel.outputs()) {
+                    const auto& tensor = outputTensors.at(out.get_any_name());
                     std::ostringstream ostr;
                     ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                     const auto blobFileName = ostr.str();
 
                     std::cout << "Dump reference output #" << outputInd << " to " << blobFileName << std::endl;
-                    dumpTensor(tensorEntry.second, blobFileName);
+                    dumpTensor(tensor, blobFileName);
 
                     ++outputInd;
                 }

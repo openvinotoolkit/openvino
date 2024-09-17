@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_movement_ScatterNDUpdate_3}
-
 ScatterNDUpdate
 ===============
 
 
 .. meta::
-  :description: Learn about ScatterNDUpdate-3 - a data movement operation, which can be 
+  :description: Learn about ScatterNDUpdate-3 - a data movement operation, which can be
                 performed on three required input tensors.
 
 **Versioned name**: *ScatterNDUpdate-3*

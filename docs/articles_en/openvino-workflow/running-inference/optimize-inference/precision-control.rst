@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_Precision_Control}
-
 Precision Control
 =================
 
@@ -26,6 +24,7 @@ Advanced Matrix Extensions (AMX) on CPU do not support ``f32``). Also, I/O opera
 requires less memory due to the smaller tensor byte size. This guide will focus on how
 to control inference precision.
 
+.. _execution-mode:
 
 Execution Mode
 ##############
@@ -36,8 +35,9 @@ may lower the accuracy for performance reasons (**PERFORMANCE mode**)
 
 * In **ACCURACY mode**, the device cannot convert floating point tensors to a smaller
   floating point type, so devices try to keep the accuracy metrics as close as possible to
-  the original values ​​obtained after training relative to the device's real capabilities.
+  the original values obtained after training relative to the device's real capabilities.
   This means that most devices will infer with ``f32`` precision if your device supports it.
+  In this mode, the :ref:`Dynamic Quantization <enabling-runtime-optimizations>` is disabled.
 * In **PERFORMANCE mode**, the device can convert to smaller data types and apply other
   optimizations that may have some impact on accuracy rates, although we still try to
   minimize accuracy loss and may use mixed precision execution in some cases.
@@ -80,14 +80,23 @@ to specify the exact precision the user wants, but is less portable. For example
 supports ``f32`` inference precision and ``bf16`` on some platforms, GPU supports ``f32``
 and ``f16``, so if a user wants to an application that uses multiple devices, they have
 to handle all these combinations manually or let OV do it automatically by using higher
-level ``execution_mode`` property. Another thing is that ``inference_precision`` is also
-a hint, so the value provided is not guaranteed to be used by Runtime (mainly in cases
-where the current device does not have the required hardware capabilities).
+level ``execution_mode`` property.
+
+.. note::
+
+   When using ``execution_mode``, you need to be aware that using **ACCURACY mode**
+   will result in enabling ``f32`` inference precision, but it will also disable
+   :ref:`dynamic quantization <enabling-runtime-optimizations>`. This may highly affect
+   inference performance (esp. on the Intel® Xeon® platforms and Intel® GPU devices)
+
+Another thing is that ``inference_precision`` is also a hint, so the value provided is not guaranteed
+to be used by Runtime (mainly in cases where the current device does not have the required hardware
+capabilities).
 
 .. note::
 
    All devices only support floating-point data types (``f32``, ``f16``, ``bf16``) as a value
-   for ``inference_precision`` attribute, because quantization cannot be done in Runtime.
+   for ``inference_precision`` attribute.
 
 
 .. _limited_inference_precision:

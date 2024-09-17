@@ -36,17 +36,16 @@ ov::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         const auto& type = input.get_element_type();
         if (type.bitwidth() < element::f32.bitwidth())
             return false;
-        auto fq =
-            std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(pattern_value_map.at(fq_pattern).get_node_shared_ptr());
+        auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(pattern_value_map.at(fq_pattern).get_node_shared_ptr());
         if (!fq)
             return false;
         auto mul_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_value_map.at(const_pattern).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_value_map.at(const_pattern).get_node_shared_ptr());
         if (!mul_const)
             return false;
 
         auto const_shape = mul_const->get_shape();
-        if (ov::op::util::check_for_broadcast(input.get_partial_shape(), const_shape)) {
+        if (!ov::op::util::check_for_broadcast(input.get_partial_shape(), const_shape)) {
             // We can't eliminate Multiply if Constant input broadcasts another input shape because
             // when we reconnect input from Multiply to FQ won't broadcast given input, so it will result
             // in shape collision.

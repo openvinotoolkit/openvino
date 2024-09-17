@@ -30,11 +30,10 @@ namespace ov {
 namespace op {
 namespace util {
 
-namespace {
-void visit_path_impl(ov::Node* node,
-                     std::unordered_set<ov::Node*>& visited,
-                     std::function<void(ov::Node*)> func,
-                     std::function<bool(ov::Node*)> skip_node_predicate) {
+void visit_path(ov::Node* node,
+                std::unordered_set<ov::Node*>& visited,
+                std::function<void(ov::Node*)> func,
+                std::function<bool(ov::Node*)> skip_node_predicate) {
     if (!node)
         return;
     visited.insert(node);
@@ -56,7 +55,6 @@ void visit_path_impl(ov::Node* node,
         }
     }
 }
-}  // namespace
 
 bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float& value, bool check_value_range) {
     switch (const_node->get_element_type()) {
@@ -128,8 +126,7 @@ bool constantIsEqualTo(const std::shared_ptr<op::v0::Constant>& const_node, floa
 
 bool has_f16_constants(const std::shared_ptr<const ov::Model>& function) {
     for (auto& layer : function->get_ops()) {
-        if (std::dynamic_pointer_cast<op::v0::Constant>(layer) &&
-            layer->output(0).get_element_type() == ov::element::f16) {
+        if (ov::as_type_ptr<op::v0::Constant>(layer) && layer->output(0).get_element_type() == ov::element::f16) {
             return true;
         }
     }
@@ -137,24 +134,37 @@ bool has_f16_constants(const std::shared_ptr<const ov::Model>& function) {
 }
 
 bool check_for_broadcast(const ov::PartialShape& ref_shape, const ov::PartialShape& other_shape) {
-    // Check that other_shape doesn't broadcast ref_shape
-    if (ref_shape.rank().is_dynamic() || other_shape.rank().is_dynamic() || other_shape.size() > ref_shape.size()) {
-        return true;
+    if (ref_shape.rank().is_dynamic() || other_shape.rank().is_dynamic()) {
+        return false;
+    }
+
+    // Check that other_shape's rank is not bigger
+    // than ref_shape's rank and the other way
+    // broadcasting is needed.
+    if (other_shape.size() > ref_shape.size()) {
+        return false;
     }
     auto ref_it = ref_shape.rbegin();
     auto other_it = other_shape.rbegin();
-    // Check that other_shape dims are equal to ref_shape dims
-    // In case if other_shape rank is less than ref_shape rank
-    // we stop comparison and return true
+
+    // Align shapes to the right and run iterator from
+    // the right of a smaller shape.
+    // Check if other_shape's dimension is equal to the
+    // corresponding dimension of ref_shape or if
+    // other_shape's dimension is equal to 1.
+    // (standard broadcasting rules)
     while (other_it != other_shape.rend()) {
-        if ((other_it->is_dynamic() || other_it->get_length() != 1) &&
-            (ref_it->is_dynamic() || ref_it->get_length() == 1)) {
-            return true;
+        if (other_it->is_dynamic() || ref_it->is_dynamic()) {
+            return false;
+        }
+
+        if (*other_it != *ref_it && *other_it != 1) {
+            return false;
         }
         ++other_it;
         ++ref_it;
     }
-    return false;
+    return true;
 }
 
 std::shared_ptr<ov::Node> activation(const std::string& activation_name, const ov::Output<ov::Node>& apply_to) {
@@ -215,7 +225,7 @@ bool is_seq_len_provided(const std::shared_ptr<Node>& X, const std::shared_ptr<N
     }
 
     auto max_seq_len_val = max_seq_dim.get_length();
-    if (const auto& seq_len_const = std::dynamic_pointer_cast<op::v0::Constant>(seq_len_input)) {
+    if (const auto& seq_len_const = ov::as_type_ptr<op::v0::Constant>(seq_len_input)) {
         const auto& seq_len_values = seq_len_const->cast_vector<int64_t>();
         return std::any_of(seq_len_values.begin(), seq_len_values.end(), [max_seq_len_val](const int64_t val) {
             return val != max_seq_len_val;
@@ -287,7 +297,7 @@ void visit_shape_path(Node* node, std::unordered_set<ov::Node*>& visited, std::f
     auto is_shapeof = [](ov::Node* node) {
         return ov::is_type<ov::op::v0::ShapeOf>(node) || ov::is_type<ov::op::v3::ShapeOf>(node);
     };
-    visit_path_impl(node, visited, func, is_shapeof);
+    visit_path(node, visited, func, is_shapeof);
 }
 
 void visit_constant_path(ov::Node* node, std::unordered_set<ov::Node*>& visited, std::function<void(ov::Node*)> func) {
@@ -296,7 +306,7 @@ void visit_constant_path(ov::Node* node, std::unordered_set<ov::Node*>& visited,
                         "visit_constant_path is called for non-constant path.");
         return false;
     };
-    visit_path_impl(node, visited, func, check_parameter);
+    visit_path(node, visited, func, check_parameter);
 }
 
 bool is_dequantization_subgraph(const Output<Node>& node) {
@@ -345,7 +355,7 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
     }
 
     // check if constant has a single value with either 0 (for Add, Subtract) or 1 (for Multiply, Divide)
-    auto constant_ptr = std::dynamic_pointer_cast<ov::op::v0::Constant>(constant.get_node_shared_ptr());
+    auto constant_ptr = ov::as_type_ptr<ov::op::v0::Constant>(constant.get_node_shared_ptr());
     if (!constant_ptr) {
         return false;
     }

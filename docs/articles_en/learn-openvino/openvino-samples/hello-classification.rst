@@ -1,5 +1,3 @@
-.. {#openvino_sample_hello_classification}
-
 Hello Classification Sample
 ===========================
 
@@ -101,6 +99,7 @@ To run the sample, you need to specify a model and an image:
      converted to the intermediate representation (IR) format (\*.xml + \*.bin)
      using the :doc:`model conversion API <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`.
    - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
+   - The sample supports NCHW model layout only.
 
 Example
 ++++++++++++++++++++

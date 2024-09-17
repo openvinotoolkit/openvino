@@ -6,8 +6,7 @@
 
 #include <pybind11/pybind11.h>
 
-#include <openvino/pass/graph_rewrite.hpp>
-#include <openvino/pass/pass.hpp>
+#include <openvino/pass/backward_graph_rewrite.hpp>
 
 #include "pyopenvino/core/common.hpp"
 
