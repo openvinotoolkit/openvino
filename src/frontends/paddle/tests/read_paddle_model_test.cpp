@@ -25,15 +25,16 @@ TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
 
     ov::Core core;
     auto read_file = [&](const ov::util::Path& file_name, size_t& size) {
-        auto sFile = ov::util::File(fopen(file_name.c_str(), "r"));
-        fseek(sFile.get(), 0, SEEK_END);
-        size = ftell(sFile.get());
+        FILE* sFile = fopen(file_name.c_str(), "r");
+        fseek(sFile, 0, SEEK_END);
+        size = ftell(sFile);
         uint8_t* ss = (uint8_t*)malloc(size);
-        rewind(sFile.get());
-        const size_t length = fread(&ss[0], 1, size, sFile.get());
+        rewind(sFile);
+        const size_t length = fread(&ss[0], 1, size, sFile);
         if (size != length) {
             std::cerr << "file size is not correct\n";
         }
+        fclose(sFile);
         return ss;
     };
 
