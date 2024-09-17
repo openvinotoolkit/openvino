@@ -19,6 +19,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH: /mount/caches/pip/win
   PYTHON_VERSION: '3.11'
+  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Build:
@@ -56,7 +57,7 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
-          ref: 'master'
+          ref: ${{ env.TARGET_BRANCH }}
 
       - name: Set CCACHE_REMOTE_DIR based on event
         shell: bash

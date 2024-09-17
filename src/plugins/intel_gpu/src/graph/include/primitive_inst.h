@@ -110,6 +110,11 @@ struct primitive_impl {
         OPENVINO_ASSERT(false, "[GPU] update() is not implemented for dynamic implemenation ", _kernel_name);
     }
 
+    virtual bool requires_update(primitive_inst& inst, const kernel_impl_params& impl_params) const {
+        OPENVINO_ASSERT(_is_dynamic, "[GPU] requires_update() is called for static shape implementation ", _kernel_name);
+        return false;
+    }
+
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params);
 
     virtual kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const {
@@ -386,6 +391,7 @@ protected:
                                               bool reset_mem = true,
                                               bool runtime_alloc = false);
     memory::ptr allocate_internal_buffer(size_t idx, bool reset = true);
+    void allocate_shape_info_memory();
     static std::vector<primitive_inst*> build_exec_deps(
         std::vector<std::pair<primitive_inst*, int32_t>> const& mem_deps);
     int32_t get_index_in_deps(memory::cptr arg) const;

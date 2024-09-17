@@ -33,10 +33,8 @@ TSFuse::TSFuse() {
         auto transpose2 = pattern_to_output.at(transpose_2_label);
         auto input = transpose1->input_value(0);
 
-        auto transpose1_order =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose1->get_input_node_shared_ptr(1));
-        auto transpose2_order =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose2->get_input_node_shared_ptr(1));
+        auto transpose1_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose1->get_input_node_shared_ptr(1));
+        auto transpose2_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose2->get_input_node_shared_ptr(1));
         if (!transpose1_order || !transpose2_order)
             return false;
 
