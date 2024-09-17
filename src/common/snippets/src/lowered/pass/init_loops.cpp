@@ -25,11 +25,11 @@ inline void init_is_incremented(LoopPort& port, size_t loop_id) {
         // Note: LoopPort connected to Buffer between two loops should not be incremented in the outermost loop
         // Consider the example below:
         //     Store; Loop ids [0,1,2,3]
-        //     IntermediateMemoryBuffer; Loop ids [0,1]
+        //     Buffer; Loop ids [0,1]
         //     Load; Loop ids [0,1,4,5]
         // Store is output port of Loop-1, but it should be incremented only in Loop-2 and Loop-3. Similar with Load.
         auto is_ignored = [=](const ExpressionPtr& target_expr) {
-            if (ov::is_type<op::IntermediateMemoryBuffer>(target_expr->get_node())) {
+            if (ov::is_type<BufferExpression>(target_expr)) {
                 const auto& target_loops = target_expr->get_loop_ids();
                 const auto i_max = std::min(expr_loops.size(), target_loops.size());
                 for (size_t i = 0; i < i_max && expr_loops[i] == target_loops[i]; i++) {
