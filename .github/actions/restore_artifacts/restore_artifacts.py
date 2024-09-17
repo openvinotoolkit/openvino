@@ -13,8 +13,8 @@ import zipfile
 from pathlib import Path, PureWindowsPath
 
 sys.path.append(str(Path(__file__).parents[1]))
-from common import artifact_utils, action_utils, constants
-
+from common import artifact_utils, action_utils
+from common.constants import PlatformMapping, PlatformKey
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Returns a path to artifacts for a given revision on a shared drive')
@@ -46,14 +46,15 @@ def main():
     logger = logging.getLogger(__name__)
     args = parse_args()
 
+    storage_dir = args.storage_dir or PlatformMapping[PlatformKey[args.platform.upper()]].value
+
     if args.commit_sha == 'latest_available':
-        latest_artifacts_link = artifact_utils.get_latest_artifacts_link(args.storage_dir, args.storage_root,
+        latest_artifacts_link = artifact_utils.get_latest_artifacts_link(storage_dir, args.storage_root,
                                                                          args.branch_name, args.event_name)
         latest_artifacts_path = PureWindowsPath(latest_artifacts_link.read_text())
         normalized_path = latest_artifacts_path.as_posix() if os.name == 'posix' else latest_artifacts_path
         storage = Path(args.storage_root) / normalized_path
     else:
-        storage_dir = args.storage_dir or constants.PlatformMapping.get(args.platform)
         storage = artifact_utils.get_storage_dir(storage_dir, args.commit_sha, args.storage_root, args.branch_name,
                                                  args.event_name)
 
