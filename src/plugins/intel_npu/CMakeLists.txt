@@ -44,7 +44,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
     remove_compiler_flags(/wd4996)
     if(CMAKE_VERSION VERSION_LESS 3.24)
-        ov_add_compiler_flags(/WX-)
+        ov_add_compiler_flags(/WX)
     endif()
 
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /WX")
