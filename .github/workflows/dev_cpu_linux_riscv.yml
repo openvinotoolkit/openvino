@@ -221,17 +221,110 @@ jobs:
     
       - name: Clean ccache
         run: ccache --cleanup
-
-  Overall_Status:
-    name: ci/gha_overall_status_linux_riscv
-    needs: [Smart_CI, Build]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
+  
+  CPU_Functional_Tests:
+    name: CPU functional tests
+    needs: [ Docker, Build, Smart_CI ]
+    timeout-minutes: 30
+    runs-on: aks-linux-8-cores-32gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv }}
+      volumes:
+        - /mount:/mount
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
     steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
+        run: |
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+          echo "PARALLEL_TEST_SCRIPT=$GITHUB_WORKSPACE/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py" >> "$GITHUB_ENV"
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd $INSTALL_DIR
+            tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
+          popd
+
+          pushd $INSTALL_TEST_DIR
+            tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
+          popd
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      # - name: Setup Python 3.11
+      #   uses: ./openvino/.github/actions/setup_python
+      #   with:
+      #     version: '3.11'
+      #     should-setup-pip-paths: 'false'
+      #     self-hosted-runner: ${{ runner.os == 'Linux' }}
+
+      # - name: Install python dependencies for run_parallel.py
+      #   run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
+
+      - name: Intel CPU plugin func tests
+        run: |
+          # Needed as the Linux CC does not require setupvars to work
+          if [[ -f "${INSTALL_DIR}/setupvars.sh" ]]; then
+            source ${INSTALL_DIR}/setupvars.sh
+          fi
+          # Needed as ze_loader.so is under INSTALL_TEST_DIR
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
+
+          ${INSTALL_TEST_DIR}/ov_cpu_func_tests -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_filter=*smoke_AdaPoolAvg4DLayoutTest* --gtest_print_time=1
+        timeout-minutes: 25
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        if: always()
+        with:
+          name: test-results-functional-cpu
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/temp/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hash_table.csv
+          if-no-files-found: 'error'
+
+
+  # Overall_Status:
+  #   name: ci/gha_overall_status_linux_riscv
+  #   needs: [Smart_CI, Build]
+  #   if: ${{ always() }}
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Check status of all jobs
+  #       if: >-
+  #         ${{
+  #           contains(needs.*.result, 'failure') ||
+  #           contains(needs.*.result, 'cancelled')
+  #         }}
+  #       run: exit 1
