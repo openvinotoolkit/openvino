@@ -1,7 +1,7 @@
-# How to extend OpenVINO™ JavaScript API code
+# How to extend the OpenVINO™ JavaScript API code
 
-## Building and environment
-Instructions can be found in [OpenVINO™ JavaScript API](./README.md).
+## Build the OpenVINO™ JavaScript API 
+For detailed build instructions, refer to the [OpenVINO™ JavaScript API documentation](./README.md).
 
 ## Project's naming conventions
 When implementing the C++ sources for the JavaScript API, it is essential to adhere to the OpenVINO naming conventions described in the [OpenVINO Coding Style Guide](../../../../docs/dev/coding_style.md). In summary, the naming style employs `Snake Case` for methods, functions, and variables, while `Camel Case` is used for class names. Additionally, the naming of entities in the C++ sources should closely mirror their equivalents in the C++ API to maintain consistency.
