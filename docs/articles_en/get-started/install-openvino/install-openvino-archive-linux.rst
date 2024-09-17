@@ -48,7 +48,7 @@ Install OpenVINO™ Runtime on Linux from an Archive File
       :sync: software
 
       * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
-      * `Python 3.8 - 3.11, 64-bit <https://www.python.org/downloads/>`__
+      * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/>`__
       * GCC:
 
       .. tab-set::
@@ -328,8 +328,3 @@ Additional Resources
 * Writing your own OpenVINO™ applications: :doc:`OpenVINO™ Runtime User Guide <../../../openvino-workflow/running-inference>`
 * Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <../../../learn-openvino/openvino-samples>`
 * Pre-trained deep learning models: :doc:`Overview of OpenVINO™ Toolkit Pre-Trained Models <../../../documentation/legacy-features/model-zoo>`
-* IoT libraries and code samples in the GitHub repository: `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__
-
-
-
-

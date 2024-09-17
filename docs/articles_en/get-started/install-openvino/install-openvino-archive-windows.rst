@@ -38,7 +38,7 @@ System Requirements
 
       * `Microsoft Visual Studio 2019 with MSBuild <https://visualstudio.microsoft.com/vs/older-downloads/>`__ or `Microsoft Visual Studio 2022 <http://visualstudio.microsoft.com/  downloads/>`__
       * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`__ (optional, only required for building sample applications)
-      * `Python 3.8 - 3.11, 64-bit <https://www.python.org/downloads/windows/>`__
+      * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/windows/>`__
 
       .. note::
 
@@ -249,5 +249,3 @@ Additional Resources
 * :doc:`Write your own OpenVINO™ applications <../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 * Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <../../../learn-openvino/openvino-samples>`
 * Pre-trained deep learning models: :doc:`Overview of OpenVINO™ Toolkit Pre-Trained Models <../../../documentation/legacy-features/model-zoo>`
-* IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__
-
