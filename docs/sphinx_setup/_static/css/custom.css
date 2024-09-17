@@ -20,16 +20,27 @@ main .searchForm {
 pre {
     white-space: pre-wrap;
     word-wrap: break-word;
-    /*background-color: white;
-     color: red !important; */
+    border-radius: 0 !important;
+    margin-bottom: 10px !important;
 }
 
-/*confirm this is not necessary, if so, remove */
+div.sd-tab-content pre {
+    margin-bottom: 0 !important;
+    background-color: white !important;
+}
 
 button.copybtn {
     opacity: 100;
     border: white 1px solid;
+}
+
+.sd-tab-content button.copybtn {
     background-color: white !important;
+}
+
+ul.simple,
+ul.simple li ul {
+    margin-bottom: 15px;
 }
 
 /* cookie wap requirement */
@@ -96,6 +107,9 @@ a#wap_dns {
     padding-right: 4px;
     padding-left: 4px;
     padding-bottom: 6px;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-bottom: 12px;
     margin: 0 0 0 0;
 }
 
@@ -171,8 +185,10 @@ li.breadcrumb-item {
     align-items: center !important;
 }
 
-.bd-sidebar-primary {
+div.bd-page-width .bd-sidebar-primary {
     display: block !important;
+    border-right: 0 !important;
+    /* top: 0 !important; */
 }
 
 a.nav-link:hover {
@@ -194,12 +210,26 @@ a.nav-link:hover {
     transform: rotate(270deg);
 }
 
-/* Move sidebar menu arrows to the left */
 .bd-sidebar label {
     left: 5px;
     height: 20px;
     width: 20px;
     top: 5px;
+
+}
+
+#bd-resizer {
+    flex-basis: 2px;
+    z-index: 2;
+    cursor: col-resize;
+    background: #e3e3e3;
+    margin-left: 0px;
+}
+
+#bd-resizer:hover {
+    background: #0068b5;
+    flex-basis: 2px;
+    box-shadow: 0 5px 5px rgba(36, 36, 36, 0.5) !important;
 }
 
 nav.bd-links li>a {
@@ -348,6 +378,14 @@ details.sd-dropdown summary.sd-card-header+div.sd-summary-content {
     background-color: rgb(242, 248, 251);
 }
 
+details.sd-dropdown summary.sd-card-header {
+    background-color: #E5E5E5 !important;
+}
+
+details.sd-dropdown summary.sd-card-header:hover {
+    background-color: #CCCCCC !important;
+}
+
 /* Table Sort Button */
 /* =================================================== */
 .sort-header {
@@ -434,6 +472,7 @@ div.highlight {
     margin-bottom: 0;
 }
 
+
 .transition-banner .close-banner {
     position: absolute;
     top: 0;
@@ -496,7 +535,9 @@ div.highlight {
     }
 }
 
+
 /* Performance Benchmark Graphs */
+/* =================================================== */
 .configure-graphs-header {
     padding-left: 16px;
     display: flex;
@@ -505,6 +546,10 @@ div.highlight {
 
 .configure-graphs-header h3 {
     float: left;
+}
+
+.configure-graphs-content {
+    overflow: auto;
 }
 
 .header-inactive {
@@ -731,6 +776,7 @@ div.highlight {
 }
 
 .modal-content {
+    overflow: auto;
     background-color: #fefefe;
     margin: 3% auto;
     padding: 36px;
@@ -817,6 +863,56 @@ div.highlight {
     margin-left: 22px;
 }
 
+h1 {
+    display: block;
+    font-size: 1.9em;
+    margin-top: 0.67em;
+    margin-bottom: 0.67em;
+    margin-left: 0;
+    margin-right: 0;
+    font-weight: 480;
+}
+
+h2 {
+    display: block;
+    font-size: 1.6em;
+    margin-top: 0.83em;
+    margin-bottom: 0.83em;
+    margin-left: 0;
+    margin-right: 0;
+    font-weight: 480;
+}
+
+h3 {
+    display: block;
+    font-size: 1.35em;
+    margin-top: 1em;
+    margin-bottom: 1em;
+    margin-left: 0;
+    margin-right: 0;
+    font-weight: 500;
+}
+
+h4 {
+    display: block;
+    font-size: 1.15em;
+    margin-top: 1.33em;
+    margin-bottom: 1.33em;
+    margin-left: 0;
+    margin-right: 0;
+    font-weight: 500;
+}
+
+h5 {
+    display: block;
+    font-size: 1em;
+    margin-top: 1.67em;
+    margin-bottom: 1.67em;
+    margin-left: 0;
+    margin-right: 0;
+    font-weight: 500;
+}
+
 .modal-footer {
     display: none;
     padding: 0;
@@ -891,6 +987,10 @@ div.highlight {
         gap: .5rem;
     }
 
+    .clear-all-btn {
+        padding: 0;
+    }
+
     .modal-content-grid-container {
         grid-template-columns: 1fr;
         grid-template-rows: auto;
@@ -906,6 +1006,10 @@ div.highlight {
         grid-template-columns: 1fr 1fr;
         column-gap: 1rem;
     }
+
+    .span-element-big {
+        grid-column: 1 / span 2;
+    }
 }
 
 .show-allcheckbox {
@@ -919,8 +1023,8 @@ div.highlight {
     text-decoration: none;
     cursor: pointer;
 }
-/* Modal buttons */
 
+/* Modal buttons */
 .modal-close {
     color: #aaaaaa;
     float: right;
@@ -1011,17 +1115,16 @@ div.highlight {
 .close-btn {
     padding: 12px 24px;
     cursor: pointer;
+    /* border-color: #0054AE;
+    background-color: #0054AE; */
     color: #fefefe;
     float: right;
     align-self: flex-start;
 }
 
-.close-filters{
-    cursor: pointer;
-    float: right;
-}
 
 /* Content formatting for the benchmark pages */
+/* =================================================== */
 .picker-options {
     margin: 15px 0;
 }
@@ -1435,4 +1538,49 @@ input:-webkit-autofill {
 
 nav.bd-links p.bd-links__title {
     display: none;
+}
+
+div[class*="highlight-"] {
+    margin: 0 0;
+}
+
+.bd-sidebar::-webkit-scrollbar,
+.scrollbox::-webkit-scrollbar {
+    height: 8px;
+    width: 5px;
+}
+
+.bd-sidebar::-webkit-scrollbar-track,
+.scrollbox::-webkit-scrollbar-track {
+    border-radius: 4px;
+    background-color: white;
+}
+
+.bd-sidebar::-webkit-scrollbar-track:hover,
+.scrollbox::-webkit-scrollbar-track:hover {
+    background-color: white;
+}
+
+.bd-sidebar::-webkit-scrollbar-track:active,
+.scrollbox::-webkit-scrollbar-track:active {
+    background-color: white;
+}
+
+.bd-sidebar::-webkit-scrollbar-thumb,
+.scrollbox::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background-color: #cdcdcd;
+    width: 8px !important;
+}
+
+.bd-sidebar::-webkit-scrollbar-thumb:hover,
+.scrollbox::-webkit-scrollbar-thumb:hover {
+    background-color: #7a7676;
+    width: 8px !important;
+}
+
+.bd-sidebar::-webkit-scrollbar-thumb:active,
+.scrollbox::-webkit-scrollbar-thumb:active {
+    background-color: #7a7676;
+    width: 8px !important;
 }
