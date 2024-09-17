@@ -42,9 +42,9 @@ private:
 
     void throwWhenUnsupported(std::string_view func, uint32_t since) {
         if (_driverExtVersion < since) {
-            OPENVINO_THROW("L0 extension function ",
+            OPENVINO_THROW("Driver Graph extension function ",
                            func,
-                           " is only available with graph version ",
+                           " is only available with version ",
                            ZE_MAJOR_VERSION(since),
                            ".",
                            ZE_MINOR_VERSION(since),
@@ -172,9 +172,9 @@ private:
 
     void throwWhenUnsupported(std::string_view func, uint32_t since) {
         if (_commandQueueExtVersion < since) {
-            OPENVINO_THROW("Command Queue extension function ",
+            OPENVINO_THROW("Driver Command Queue extension function ",
                            func,
-                           " is only available with command queue version ",
+                           " is only available with version ",
                            ZE_MAJOR_VERSION(since),
                            ".",
                            ZE_MINOR_VERSION(since),

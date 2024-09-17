@@ -20,10 +20,11 @@ namespace intel_npu {
 
 const ze_driver_uuid_t ZeroInitStructsHolder::uuid = ze_intel_npu_driver_uuid;
 
-static std::tuple<uint32_t, std::string> queryDriverExtVersion(const char* extName,
-                                                               uint32_t expCurrentVersion,
-                                                               std::vector<ze_driver_extension_properties_t>& extProps,
-                                                               uint32_t count) {
+static std::tuple<uint32_t, std::string> queryDriverExtensionVersion(
+    const char* extName,
+    uint32_t extCurrentVersion,
+    std::vector<ze_driver_extension_properties_t>& extProps,
+    uint32_t count) {
     const char* functionExtName = nullptr;
     uint32_t targetVersion = 0;
 
@@ -34,7 +35,7 @@ static std::tuple<uint32_t, std::string> queryDriverExtVersion(const char* extNa
             continue;
         }
 
-        if (property.version == expCurrentVersion) {
+        if (property.version == extCurrentVersion) {
             functionExtName = property.name;
             targetVersion = property.version;
             break;
@@ -108,9 +109,8 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     std::string graph_ext_name;
     uint32_t graph_ext_version = 0;
 
-    log.debug("ZeroInitStructsHolder - tie output of queryGraphExtensionVersion");
     std::tie(graph_ext_version, graph_ext_name) =
-        queryDriverExtVersion(ZE_GRAPH_EXT_NAME, ZE_GRAPH_EXT_VERSION_CURRENT, extProps, count);
+        queryDriverExtensionVersion(ZE_GRAPH_EXT_NAME, ZE_GRAPH_EXT_VERSION_CURRENT, extProps, count);
 
     if (graph_ext_name.empty()) {
         OPENVINO_THROW("queryGraphExtensionVersion: Failed to find Graph extension in NPU Driver");
@@ -135,9 +135,11 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     // Query our command queue extension version
     std::string command_queue_ext_name;
     uint32_t command_queue_ext_version = 0;
-    log.debug("ZeroInitStructsHolder - tie output of queryCommandQueueVersion");
     std::tie(command_queue_ext_version, command_queue_ext_name) =
-        queryDriverExtVersion(ZE_COMMAND_QUEUE_NPU_EXT_NAME, ZE_COMMAND_QUEUE_NPU_EXT_VERSION_CURRENT, extProps, count);
+        queryDriverExtensionVersion(ZE_COMMAND_QUEUE_NPU_EXT_NAME,
+                                    ZE_COMMAND_QUEUE_NPU_EXT_VERSION_CURRENT,
+                                    extProps,
+                                    count);
 
     log.debug("NPU command queue version %d.%d",
               ZE_MAJOR_VERSION(command_queue_ext_version),
@@ -172,12 +174,11 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     if (driver_properties.driverVersion != WIN_DRIVER_NO_MCL_SUPPORT) {
 #endif
         [[maybe_unused]] std::string mutuable_command_list_ext_name;
-        log.debug("ZeroInitStructsHolder - tie output of queryMutableCommandListVersion");
         std::tie(mutable_command_list_version, mutuable_command_list_ext_name) =
-            queryDriverExtVersion(ZE_MUTABLE_COMMAND_LIST_EXP_NAME,
-                                  ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_CURRENT,
-                                  extProps,
-                                  count);
+            queryDriverExtensionVersion(ZE_MUTABLE_COMMAND_LIST_EXP_NAME,
+                                        ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_CURRENT,
+                                        extProps,
+                                        count);
 #ifdef _WIN32
     }
 #endif
