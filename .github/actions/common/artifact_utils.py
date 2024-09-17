@@ -15,7 +15,7 @@ def add_common_args(parser: argparse.ArgumentParser):
     parser.add_argument('--storage_root', help='Root path of the artifacts storage', required=False,
                         default=os.getenv('ARTIFACTS_SHARE'))
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-s', '--storage_dir', help='Subdirectory name for artifacts, same as product type',
+    group.add_argument('-d', '--storage_dir', help='Subdirectory name for artifacts, same as product type',
                        choices=[platform_key.value for platform_key in PlatformKey])
     group.add_argument('-p', '--platform', type=str,
                        help='Platform for which to restore artifacts. Used if storage_dir is not set',
