@@ -25,7 +25,7 @@ on:
       arch:
         description: 'Target architecture'
         type: string
-        default: 'intel64'
+        default: 'x86_64'
         required: false
       cmake-options:
         description: 'A string of options passed to CMake'
