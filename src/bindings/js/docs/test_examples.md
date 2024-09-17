@@ -1,47 +1,47 @@
-# How to test OpenVINO™ JavaScript API?
+# How to test the OpenVINO™ JavaScript API
 
-## Building and environment
-Instructions can be found in [OpenVINO™ JavaScript API](./README.md).
+## Build the OpenVINO™ JavaScript API 
+For detailed build instructions, refer to the [OpenVINO™ JavaScript API documentation](./README.md).
 
 
 ## Run OpenVINO™ JavaScript API tests
-*For simplicity, all of these commands require to navigate to the [main JavaScript API folder](./../node) first:*
+*For simplicity, begin by navigating to the [main JavaScript API folder](./../node):*
 ```shell
 cd <openvino_repo>/src/bindings/js/node
 ```
 
-To run OpenVINO JavaScript API tests:
+Use this command to run OpenVINO JavaScript API tests:
 ```shell
 npm run test
 ```
 
-To run specific test files you can pass one or more glob patterns.
+To run specific test files, you can pass one or more glob patterns:
 ```shell
 node --test "tests/unit/core.test.js" "tests/unit/*model.test.js" 
 ```
 
-Before executing individual test files, a one-time setup is required. If you have not previously executed `npm run test`, please initiate the setup by running the following command:
+Before executing individual test files, a one-time setup is required. If you have not previously executed `npm run test`, initiate the setup by running the following command:
 
 ```shell
 npm run test_setup
 ``` 
 
-More information on running tests from the command line can be found [here]( https://nodejs.org/docs/latest/api/test.html#running-tests-from-the-command-line).
+More information on running tests from the command line can be found in the [Node.js documentation]( https://nodejs.org/docs/latest/api/test.html#running-tests-from-the-command-line).
 
 
-## Check the codestyle of JavaScript API
+## Check the code style of the JavaScript API
 *ESLint* is a tool to enforce a consistent coding style and to identify and fix potential issues in JavaScript code.
 
-To check the codestyle of the JavaScript API, run the following commands:
+To check the code style of the JavaScript API, run the following commands:
 ```shell
 npm run lint
 ```
-*ESLint* can automatically fix many of the issues it detects. The following command will run *ESLint* with the fix command on a single file:
+*ESLint* can automatically fix many of the issues it detects. Use following command to run *ESLint* with the fix option on a single file:
 ```shell
 npx eslint --fix "tests/unit/core.test.js"
 ```
 
-It's recommended to run the mentioned codestyle check whenever new tests are added.
+It is recommended to run the code style check each time new tests are added.
 
 
 ## Writing OpenVINO™ JavaScript API tests
@@ -51,16 +51,16 @@ Follow and complete [Examples of OpenVINO™ JavaScript API code](./code_example
 
 
 ### Adding new test-case in the correct place
-The new test should confirm that the new functionality (e.g. class, method) is behaving correctly.
+Each new test should verify the correct behavior of the new functionality (e.g. class, method).
 
-Unit test files are located in `<openvino_repo>/src/bindings/js/node/tests/unit/` directory and their names are connected to the class/module to be tested.
+Unit test files are located in the `<openvino_repo>/src/bindings/js/node/tests/unit/` directory and their names correspond to the class/module to be tested.
 
- Always add tests to correct places, new files should be created only when necessary. Don't forget to include license on the top of each new file!
+Always add tests to the correct locations and create new files only when necessary. *Remember to include the license on top of each new file*.
 
-### Writing of the test itself
-At the top of the test file, there is a describe block to group all tests related to that class or module. The name of the describe block should match the name of the class or module being tested, such as *ov.Core tests*.
+### Test writing guidelines 
+Each test file starts with a `describe` block to group all tests related to a specific class or module. The name of the `describe` block should match the name of the class or module being tested, for example *ov.Core tests*.
 
-Within the describe block, individual tests are defined using `test` or `it` blocks, with the name of the test reflecting what is being tested. If multiple tests relate to the same method, they can be grouped within a nested describe block.
+Within the `describe` block, individual tests are defined using `test` or `it` blocks, with the name of the test reflecting what is being tested. If multiple tests relate to the same method, they can be grouped within a nested `describe` block.
 
  ```js
  const { describe, it, beforeEach } = require('node:test');
