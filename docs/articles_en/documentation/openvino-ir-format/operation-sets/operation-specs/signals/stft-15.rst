@@ -1,7 +1,7 @@
 .. {#openvino_docs_ops_signals_STFT_15}
 
 Short Time Fourier Transformation for real-valued input (STFT)
-============================================================
+==============================================================
 
 
 .. meta::
@@ -14,7 +14,7 @@ Short Time Fourier Transformation for real-valued input (STFT)
 **Short description**: *STFT* operation performs Short-Time Fourier Transform (real-to-complex).
 
 
-**Detailed description**: *STFT* performs Short-Time Fourier Transform of real-valued batched input tensor of shape ``[batch, signal_size]``, and produce complex result represented by separate values for real and imaginary part.
+**Detailed description**: *STFT* performs Short-Time Fourier Transform of real-valued batched input tensor of shape ``[batch, signal_size]``, and produces complex result represented by separate values for real and imaginary part.
 
 
 **Attributes**:
@@ -60,8 +60,6 @@ Short Time Fourier Transformation for real-valued input (STFT)
 
 
 **Example**:
-
-There is no ``signal_size`` input (3D input tensor):
 
 .. code-block:: xml
    :force:
