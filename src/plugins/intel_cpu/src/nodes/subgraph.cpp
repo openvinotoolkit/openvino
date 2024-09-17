@@ -21,6 +21,7 @@
 #include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
+#include "snippets/lowered/pass/insert_buffers.hpp"
 #include "transformations/defs.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/snippets/common/pass/mul_add_to_fma.hpp"
@@ -32,7 +33,7 @@
 #else
 #include "emitters/snippets/x64/cpu_generator.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
-#include "transformations/snippets/x64/pass/lowered/set_brgemm_copy_b_buffers_shape.hpp"
+#include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_b_buffers.hpp"
 #include "transformations/snippets/x64/pass/remove_converts.hpp"
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
@@ -682,8 +683,8 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
                                     ov::intel_cpu::pass::FuseLoadStoreConvert);
 
 #if defined(OPENVINO_ARCH_X86_64)
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
-                                    ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
+    SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::snippets::lowered::pass::InsertBuffers,
+                                    ov::intel_cpu::pass::InsertBrgemmCopyBBuffers);
 #endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
