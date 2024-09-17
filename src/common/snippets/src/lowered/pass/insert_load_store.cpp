@@ -76,9 +76,9 @@ bool InsertLoadStore::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt be
             modified |= insert_load(linear_ir, expr_it);
         } else if (ov::is_type<ov::op::v0::Result>(node)) {
             modified |= insert_store(linear_ir, expr_it);
-        } else if (ov::is_type<op::Buffer>(node)) {
+        } else if (ov::is_type<BufferExpression>(expr)) {
             modified |= insert_load(linear_ir, expr_it);
-            if (ov::is_type<op::IntermediateMemoryBuffer>(node))
+            if (expr->get_input_count() > 0)
                 modified |= insert_store(linear_ir, expr_it);
         }
     }

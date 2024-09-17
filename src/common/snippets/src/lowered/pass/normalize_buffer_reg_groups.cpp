@@ -18,17 +18,13 @@ bool NormalizeBufferRegisterGroups::run(lowered::LinearIR& linear_ir, lowered::L
 
     // [ original Buffer reg group -> normalized ]
     std::map<size_t, size_t> buffer_reg_groups;
-    for (auto expr_it = begin; expr_it != end; ++expr_it) {
-        const auto& expr = *expr_it;
-        const auto op = expr->get_node();
-        if (const auto buffer = ov::as_type_ptr<op::Buffer>(op)) {
-            const auto group = buffer->get_reg_group();
-            if (buffer_reg_groups.count(group) == 0) {
-                const auto new_id = buffer_reg_groups.size();
-                buffer_reg_groups[group] = new_id;
-            }
-            buffer->set_reg_group(buffer_reg_groups[group]);
+    for (const auto& buffer_expr : linear_ir.get_buffers()) {
+        const auto group = buffer_expr->get_reg_group();
+        if (buffer_reg_groups.count(group) == 0) {
+            const auto new_id = buffer_reg_groups.size();
+            buffer_reg_groups[group] = new_id;
         }
+        buffer_expr->set_reg_group(buffer_reg_groups[group]);
     }
     return buffer_reg_groups.size();
 }

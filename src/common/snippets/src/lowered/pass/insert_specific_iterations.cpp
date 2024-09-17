@@ -32,15 +32,19 @@ void connect_cloned_body_with_buffers_outside(LinearIR::constExprIt cur_begin, L
                 const auto& consumers = original_expr->get_output_port_connector(i)->get_consumers();
                 for (const auto& consumer : consumers) {
                     const auto consumer_expr = consumer.get_expr();
-                    const auto buffer = ov::as_type_ptr<op::IntermediateMemoryBuffer>(consumer_expr->get_node());
-                    if (buffer && std::find(cur_begin, cur_end, consumer.get_expr()) == cur_end) {
-                        OutputVector new_inputs = {result_expr->get_node()->output(i)};
-                        for (const auto& input : consumer_expr->get_input_port_connectors()) {
-                            const auto& source = input->get_source();
-                            new_inputs.push_back(source.get_expr()->get_node()->output(source.get_index()));
+                    const auto buffer_expr = ov::as_type_ptr<BufferExpression>(consumer_expr);
+                    if (buffer_expr && std::find(cur_begin, cur_end, consumer.get_expr()) == cur_end) {
+                        std::vector<PortDescriptorPtr> new_descs = {buffer_expr->get_input_port_descriptor(consumer.get_index())->clone()};
+                        std::vector<PortConnectorPtr> new_inputs = {result_expr->get_output_port_connector(i)};
+                        OutputVector new_op_inputs = {result_expr->get_node()->output(i)};
+                        for (size_t j = 0; j < buffer_expr->get_input_count(); ++j) {
+                            const auto& source = buffer_expr->get_input_port_connector(j)->get_source();
+                            new_op_inputs.push_back(source.get_expr()->get_node()->output(source.get_index()));
+                            new_descs.push_back(buffer_expr->get_input_port_descriptor(j)->clone());
+                            new_inputs.push_back(buffer_expr->get_input_port_connector(j));
                         }
-                        const auto new_buffer = buffer->clone_with_new_inputs(new_inputs);
-                        linear_ir.replace_with_node({consumer_expr}, new_buffer);
+                        const auto new_buffer_op = buffer_expr->get_node()->clone_with_new_inputs(new_op_inputs);
+                        linear_ir.replace_with_expr({consumer_expr}, buffer_expr->clone_with_new_inputs(new_buffer_op, new_inputs, new_descs));
                         break;
                     }
                 }

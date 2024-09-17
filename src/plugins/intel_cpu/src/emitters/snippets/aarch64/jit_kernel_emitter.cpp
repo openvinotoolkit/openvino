@@ -38,6 +38,7 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     const auto& parameters = body->get_parameters();
     const auto& results = body->get_results();
+    const auto& buffers = body->get_buffers();
     num_inputs = parameters.size();
     num_outputs = results.size();
     for (const auto& param : parameters)
@@ -46,18 +47,21 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
         mem_access_exprs.push_back(result);
 
     std::set<size_t> unique_buffers;
-    for (const auto& expr : *body) {
-        if (const auto buffer = ov::as_type_ptr<snippets::op::Buffer>(expr->get_node())) {
-            const auto buffer_id = buffer->get_cluster_id();
-            if (unique_buffers.count(buffer_id) == 0) {
-                mem_access_exprs.push_back(expr);
-                unique_buffers.insert(buffer_id);
-            }
-        } else {
-            if (std::find(parameters.cbegin(), parameters.cend(), expr) == parameters.cend() &&
-                std::find(results.cbegin(), results.cend(), expr) == results.cend())
-                general_exprs.emplace_back(expr);
+    for (const auto& buffer_expr : buffers) {
+        const auto buffer_reg_group = buffer_expr->get_reg_group();
+        if (unique_buffers.count(buffer_reg_group) == 0) {
+            mem_access_exprs.push_back(buffer_expr);
+            unique_buffers.insert(buffer_reg_group);
         }
+    }
+
+    using ExprSet = std::unordered_set<snippets::lowered::ExpressionPtr>;
+    const ExprSet params_set(parameters.cbegin(), parameters.cend());
+    const ExprSet results_set(results.cbegin(), results.cend());
+    const ExprSet buffers_set(buffers.cbegin(), buffers.cend());
+    for (const auto& expr : *body) {
+        if (params_set.count(expr) == 0 && results_set.count(expr) == 0 && buffers_set.count(expr) == 0)
+            general_exprs.emplace_back(expr);
     }
     num_unique_buffers = unique_buffers.size();
 }

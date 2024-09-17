@@ -51,8 +51,7 @@ DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&
     jitters[ov::snippets::op::PerfCountEnd::get_type_info_static()] = dummy_functor;
 #endif
     jitters[ov::snippets::op::Brgemm::get_type_info_static()] = dummy_functor;
-    jitters[ov::snippets::op::IntermediateMemoryBuffer::get_type_info_static()] = dummy_functor;
-    jitters[ov::snippets::op::NewMemoryBuffer::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::Buffer::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::VectorBuffer::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::Fill::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::ReduceMax::get_type_info_static()] = dummy_functor;

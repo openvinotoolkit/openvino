@@ -25,7 +25,8 @@ LinearIR::LinearIR(Config config, const std::shared_ptr<IShapeInferSnippetsFacto
       m_config(std::move(config)),
       m_loop_manager(std::make_shared<LoopManager>()),
       m_shape_infer_factory(factory),
-      m_shape_infer(std::make_shared<LIRShapeInfer>(m_expressions, m_parameter_expressions, m_result_expressions)) {}
+      m_shape_infer(std::make_shared<LIRShapeInfer>(m_expressions, m_parameter_expressions, m_result_expressions)),
+      m_expression_factory(std::make_shared<ExpressionFactory>(m_shape_infer_factory)) {}
 
 LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
                    const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
@@ -34,7 +35,7 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
     constExprIt last_param = m_expressions.end();
     for (const auto& n : get_ordered_ops(model)) {
         constExprIt insertion_pos = m_expressions.end();
-        const auto expr = create_expression(n);
+        const auto expr = get_expr_factory()->build(n, get_expression_inputs_by_node(n));
 
         // Scalar should be on the Linear IR beginning after Parameters to have valid expression order after Loop passes.
         // After these passes we must call pass MoveScalarToConsumer() to have a correct accuracy.
@@ -43,7 +44,6 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
             insertion_pos = std::next(last_param);
         }
 
-        // exec_num = 0 since `insertion_pos` can be changed
         register_expression(expr, true, 0);
         const auto& it = m_expressions.insert(insertion_pos, expr);
         if (ov::is_type<ov::op::v0::Parameter>(n))
@@ -57,12 +57,21 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
     enumerate_expressions();
 }
 
-ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n) {
-    return ExpressionFactory::build(n, *this);
+const ExpressionFactoryPtr& LinearIR::get_expr_factory() const {
+    OPENVINO_ASSERT(m_expression_factory, "ExpresstionFactory is missed!");
+    return m_expression_factory;
 }
 
-ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) const {
-    return ExpressionFactory::build(n, inputs, *this);
+std::vector<PortConnectorPtr> LinearIR::get_expression_inputs_by_node(const std::shared_ptr<Node>& n) const {
+    OPENVINO_ASSERT(n != nullptr, "Failed expression inputs getting: node is null");
+    std::vector<PortConnectorPtr> inputs(n->get_input_size(), nullptr);
+    for (const auto& input : n->inputs()) {
+        const auto input_source = input.get_source_output();
+        const auto in_index = input.get_index();
+        const auto& parent_expr = get_expr_by_node(input_source.get_node_shared_ptr());
+        inputs[in_index] = parent_expr->get_output_port_connector(input_source.get_index());
+    }
+    return inputs;
 }
 
 namespace {
@@ -84,7 +93,7 @@ void update_consumers_and_regs(const ExpressionPtr& new_expr, const std::vector<
 ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& new_inputs,
                                           const std::vector<size_t>& loop_ids, bool update_loop_ports,
                                           const std::vector<std::set<ExpressionPort>>& consumers) {
-    const auto new_expr = create_expression(n, new_inputs);
+    const auto new_expr = get_expr_factory()->build(n, new_inputs);
     update_consumers_and_regs(new_expr, consumers);
     new_expr->set_loop_ids(loop_ids);
 
@@ -178,12 +187,13 @@ void LinearIR::register_expression(const ExpressionPtr& expr, bool io_allowed, d
                     "LinearIR::insert can't be used to add Parameters or Results to IR");
     const auto& res = m_node2expression_map.insert({node, expr});
     OPENVINO_ASSERT(res.second, "Duplicate node is detected in linear IR: ", node);
+
     if (ov::is_type<ov::op::v0::Parameter>(node))
         m_parameter_expressions.push_back(expr);
     if (ov::is_type<ov::op::v0::Result>(node))
         m_result_expressions.push_back(expr);
-    if (ov::is_type<op::Buffer>(node))
-        m_buffer_expressions.push_back(expr);
+    if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(expr))
+        m_buffer_expressions.push_back(buffer_expr);
     expr->m_exec_num = exec_num;
 }
 
@@ -197,9 +207,9 @@ void LinearIR::unregister_expression(const ExpressionPtr& expr) {
     m_node2expression_map.erase(node);
     OPENVINO_ASSERT(!ov::is_type<ov::op::v0::Parameter>(node) && !ov::is_type<ov::op::v0::Result>(node),
                     "unregister_expression mustn't be called for parameter or result expressions");
-    if (ov::is_type<op::Buffer>(node)) {
-        const auto& it = std::find(m_buffer_expressions.cbegin(), m_buffer_expressions.cend(), expr);
-        OPENVINO_ASSERT(it != m_buffer_expressions.cend(), "Buffer Expression has not been found in the list of LinearIR Buffers!");
+    if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(expr)) {
+        const auto& it = std::find(m_buffer_expressions.cbegin(), m_buffer_expressions.cend(), buffer_expr);
+        OPENVINO_ASSERT(it != m_buffer_expressions.cend(), "BufferExpression has not been found in the list of LinearIR Buffers!");
         m_buffer_expressions.erase(it);
     }
 }
@@ -245,7 +255,7 @@ LinearIR::exprIt LinearIR::insert(LinearIR::constExprIt pos, const NodeVector& n
 }
 
 LinearIR::exprIt LinearIR::insert(LinearIR::constExprIt pos, const std::shared_ptr<Node>& n) {
-    const auto& expr = create_expression(n);
+    const auto& expr = get_expr_factory()->build(n, get_expression_inputs_by_node(n));
     register_expression(expr, m_config.m_manual_build_support, get_inserted_expr_exec_num(pos));
     return m_expressions.insert(pos, expr);
 }
@@ -336,6 +346,18 @@ LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node
         new_inputs[i] = args[i].get_port_connector_ptr();
     }
     return insert_node(new_node, new_inputs, loop_ids, update_loop_ports, place, consumers);
+}
+
+LinearIR::exprIt LinearIR::insert_expr(const ExpressionPtr& new_expr, const std::vector<size_t>& loop_ids,
+                                       bool update_loop_ports, const constExprIt& place, const std::vector<std::set<ExpressionPort>>& consumers) {
+    update_consumers_and_regs(new_expr, consumers);
+    new_expr->set_loop_ids(loop_ids);
+
+    const auto expr_it = insert(place, new_expr);
+    if (update_loop_ports)
+        get_loop_manager()->update_loop_ports(new_expr);
+
+    return expr_it;
 }
 
 LinearIR::exprIt LinearIR::replace_with_node(const std::vector<ExpressionPtr>& old_exprs, const std::shared_ptr<ov::Node>& new_node,
@@ -473,11 +495,10 @@ double LinearIR::get_inserted_expr_exec_num(constExprIt insertion_pos) const {
     return left_order + (right_order - left_order) / 2;
 }
 
-LinearIR::LIRShapeInfer::LIRShapeInfer(const container& body_exprs, const container& param_exprs, const container& result_exprs)
-                                       : ShapeInferSnippetsNode(),
-                                         m_exprs(body_exprs),
-                                         m_input_exprs(param_exprs),
-                                         m_output_exprs(result_exprs) {
+LinearIR::LIRShapeInfer::LIRShapeInfer(const container& body_exprs,
+                                       const std::vector<ExpressionPtr>& param_exprs,
+                                       const std::vector<ExpressionPtr>& result_exprs)
+    : ShapeInferSnippetsNode(), m_exprs(body_exprs), m_input_exprs(param_exprs), m_output_exprs(result_exprs) {
     // Note that if all output shapes are static, as in the case when the first shape infer was performed on nGraph,
     // we can treat them as the last result
     std::vector<VectorDims> outputDims;

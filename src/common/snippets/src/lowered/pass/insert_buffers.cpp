@@ -115,7 +115,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
             //          Current expr Loop identifies:  3, 4, 6
             //          Need to insert between 2nd and 4th Loops - after 2nd Loop
             const auto pos = insertion_position(linear_ir, loop_manager, parent_expr, expr);
-            const auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(parent->output(parent_port));
+            const auto buffer = std::make_shared<op::Buffer>(parent->output(parent_port));
             const auto buffer_consumer = has_shape_infer_parent ? top_shape_infer_expr->get_input_port(0)  : *entry_port;
             linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ parent_expr_output }, buffer_loop_ids, false, pos, { buffer_consumer  });
         }
@@ -191,7 +191,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
             // Note: All potential consumers must have the same count of first equal Loop identifies and the same count of different last identifies
             const auto pos = insertion_position(linear_ir, loop_manager, expr, consumer_expr);
 
-            auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(node->output(port_idx));
+            auto buffer = std::make_shared<op::Buffer>(node->output(port_idx));
             // We cannot insert Node output connector on Buffer output because not all consumers of Node needs Buffer
             //  Example:
             //       Add

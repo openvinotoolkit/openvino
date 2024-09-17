@@ -28,7 +28,7 @@ bool operator!=(const SetBufferRegGroup::ShiftPtrParams& lhs, const SetBufferReg
     return !(rhs == lhs);
 }
 
-size_t SetBufferRegGroup::get_buffer_idx(const ExpressionPtr& target, const BufferPool& pool) {
+size_t SetBufferRegGroup::get_buffer_idx(const BufferExpressionPtr& target, const BufferPool& pool) {
     const auto iter = std::find(pool.cbegin(), pool.cend(), target);
     OPENVINO_ASSERT(iter != pool.cend(), "Buffer wasn't find in Buffer system of Subgraph");
     return std::distance(pool.cbegin(), iter);
@@ -44,8 +44,8 @@ bool SetBufferRegGroup::can_be_in_one_group(const ShiftPtrParams& lhs, const Shi
     return are_static && equal_ptr_params_shifting && (equal_element_type_sizes || (lhs.ptr_increment == 0 && lhs.finalization_offset == 0));
 }
 
-bool SetBufferRegGroup::are_adjacent(const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,
-                                   const std::pair<ExpressionPtr, ShiftPtrParams>& rhs) {
+bool SetBufferRegGroup::are_adjacent(const std::pair<BufferExpressionPtr, ShiftPtrParams>& lhs,
+                                     const std::pair<BufferExpressionPtr, ShiftPtrParams>& rhs) {
     const auto& lhs_ids = lhs.first->get_loop_ids();
     const auto& rhs_ids = rhs.first->get_loop_ids();
     const auto equal_loop_ids = lhs_ids == rhs_ids;
@@ -64,10 +64,10 @@ bool SetBufferRegGroup::are_adjacent(const std::pair<ExpressionPtr, ShiftPtrPara
     }
 }
 
-void SetBufferRegGroup::update_adj_matrix(const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,
-                                        const std::pair<ExpressionPtr, ShiftPtrParams>& rhs,
-                                        const BufferPool& buffers,
-                                        std::vector<bool>& adj) {
+void SetBufferRegGroup::update_adj_matrix(const std::pair<BufferExpressionPtr, ShiftPtrParams>& lhs,
+                                          const std::pair<BufferExpressionPtr, ShiftPtrParams>& rhs,
+                                          const BufferPool& buffers,
+                                          std::vector<bool>& adj) {
     const auto size = buffers.size();
     const auto lhs_idx = get_buffer_idx(lhs.first, buffers);
     const auto rhs_idx = get_buffer_idx(rhs.first, buffers);
@@ -125,14 +125,14 @@ SetBufferRegGroup::BufferMap SetBufferRegGroup::get_buffer_loop_neighbours(const
     BufferMap buffer_neighbours;
     for (size_t i = 0; i < input_count; ++i) {
         const auto& parent_output = loop_end_expr->get_input_port_connector(i)->get_source().get_expr();
-        if (ov::is_type<op::Buffer>(parent_output->get_node())) {
-            if (buffer_neighbours.count(parent_output) > 0) {
-                OPENVINO_ASSERT(buffer_neighbours[parent_output].ptr_increment == ptr_increments[i] &&
-                                buffer_neighbours[parent_output].finalization_offset == finalization_offsets[i],
+        if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(parent_output)) {
+            if (buffer_neighbours.count(buffer_expr) > 0) {
+                OPENVINO_ASSERT(buffer_neighbours[buffer_expr].ptr_increment == ptr_increments[i] &&
+                                buffer_neighbours[buffer_expr].finalization_offset == finalization_offsets[i],
                                 "Invalid data pointer shifts: If Buffer has several consumers, this consumers must have the same shifts or zero");
                 continue;
             }
-            buffer_neighbours[parent_output] = { data_sizes[i], ptr_increments[i], finalization_offsets[i] };
+            buffer_neighbours[buffer_expr] = { data_sizes[i], ptr_increments[i], finalization_offsets[i] };
         }
     }
     for (size_t i = input_count; i < input_count + output_count; ++i) {
@@ -142,8 +142,8 @@ SetBufferRegGroup::BufferMap SetBufferRegGroup::get_buffer_loop_neighbours(const
         size_t loop_count = 0;
         for (const auto& consumer_input : consumer_inputs) {
             const auto& child_expr = consumer_input.get_expr();
-            if (ov::is_type<op::Buffer>(child_expr->get_node())) {
-                buffer_neighbours[child_expr] = { data_sizes[i], ptr_increments[i], finalization_offsets[i] };
+            if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(child_expr)) {
+                buffer_neighbours[buffer_expr] = { data_sizes[i], ptr_increments[i], finalization_offsets[i] };
                 buffer_count++;
             } else if (ov::is_type<op::LoopEnd>(child_expr->get_node())) {
                 loop_count++;
@@ -163,10 +163,10 @@ SetBufferRegGroup::BufferMap SetBufferRegGroup::get_buffer_loop_inside(const Lin
     BufferMap inner_buffers;
     for (auto it = std::reverse_iterator<LinearIR::constExprIt>(loop_end_it); (*it)->get_node() != loop_begin; ++it) {
         const auto& inner_expr = *it;
-        if (ov::is_type<op::Buffer>(inner_expr->get_node())) {
+        if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(inner_expr)) {
             // Set default zero values since it's not used for adjacency definition in case with Buffers in Loop
-            if (inner_buffers.count(inner_expr) == 0)
-                inner_buffers[inner_expr] = { 0, 0, 0 };
+            if (inner_buffers.count(buffer_expr) == 0)
+                inner_buffers[buffer_expr] = { 0, 0, 0 };
         }
     }
     return inner_buffers;
@@ -176,7 +176,7 @@ auto SetBufferRegGroup::coloring(BufferPool& buffers, std::vector<bool>& adj) ->
     size_t color = 0;
     std::map<size_t, BufferPool> color_groups;
     const auto size = buffers.size();
-    for (size_t i = 0; i < size; i++) {
+    for (size_t i = 0; i < size; ++i) {
         // The Buffer is already colored (visited) - skip
         if (!buffers[i])
             continue;
@@ -186,7 +186,7 @@ auto SetBufferRegGroup::coloring(BufferPool& buffers, std::vector<bool>& adj) ->
         buffers[i] = nullptr;  // Remove from graph vertices
 
         // While Buffer `i` has non-coloured non-neighbours (while row `i` contains 0)
-        while (!std::accumulate(adj.begin() + i * size, adj.begin() + (i + 1) * size, true, std::logical_and<bool>())) {
+        while ((i + 1 < size) && !std::accumulate(adj.begin() + i * size, adj.begin() + (i + 1) * size, true, std::logical_and<bool>())) {
             size_t j = i + 1;
             // Find first non-adjacent and non-visited (non-colored) Buffer to color him to the same color
             for (; j < size; ++j) {
@@ -220,14 +220,10 @@ auto SetBufferRegGroup::coloring(BufferPool& buffers, std::vector<bool>& adj) ->
 bool SetBufferRegGroup::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SetBufferRegGroup")
     // Identify Buffers using Graph coloring algorithm.
-    BufferPool buffer_pool;
-
-    for (auto expr_it = begin; expr_it != end; ++expr_it) {
-        const auto& expr = *expr_it;
-        if (ov::is_type<op::Buffer>(expr->get_node())) {
-            buffer_pool.push_back(expr);
-        }
-    }
+    BufferPool buffer_pool = linear_ir.get_buffers();
+    // For the better coloring Buffers should be stored in the order of execution numbers
+    std::sort(buffer_pool.begin(), buffer_pool.end(),
+              [](const BufferExpressionPtr& lhs, const BufferExpressionPtr& rhs) { return lhs->get_exec_num() < rhs->get_exec_num(); });
 
     // Creation of Adj matrix
     auto adj = create_adjacency_matrix(begin, end, buffer_pool);
@@ -238,9 +234,8 @@ bool SetBufferRegGroup::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt 
     for (const auto& pair : color_groups) {
         const auto color = pair.first;
         const auto& united_buffers = pair.second;
-        for (const auto& buffer_expr : united_buffers) {
-            ov::as_type_ptr<op::Buffer>(buffer_expr->get_node())->set_reg_group(color);
-        }
+        for (const auto& buffer_expr : united_buffers)
+            buffer_expr->set_reg_group(color);
     }
 
     return true;

@@ -88,7 +88,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
                 set_full_port_desc(output);
 
             if (with_amx(brgemm_type)) {
-                const auto scratch = std::make_shared<snippets::op::NewMemoryBuffer>(ov::Shape{BrgemmCPU::SCRATCH_BYTE_SIZE});
+                const auto scratch = std::make_shared<snippets::op::Buffer>(ov::Shape{BrgemmCPU::SCRATCH_BYTE_SIZE});
                 brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), brgemm_repacking->output(0), scratch, brgemm_type,
                                                          offset_a, offset_b, 0, offset_c,
                                                          layout_a, std::vector<size_t>{}, layout_c);

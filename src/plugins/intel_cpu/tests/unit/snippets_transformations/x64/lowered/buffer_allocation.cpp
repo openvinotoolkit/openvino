@@ -17,7 +17,7 @@
 
 #include "transformations/snippets/x64/shape_inference.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
-#include "transformations/snippets/x64/pass/lowered/set_brgemm_copy_b_buffers_shape.hpp"
+#include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_b_buffers.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 
@@ -85,22 +85,20 @@ protected:
         pipeline.register_pass<ov::snippets::lowered::pass::ReduceDecomposition>(m_vector_size);
         pipeline.register_pass<ov::snippets::lowered::pass::FuseLoops>();
         pipeline.register_pass<ov::snippets::lowered::pass::SplitLoops>();
+        pipeline.register_pass<ov::intel_cpu::pass::InsertBrgemmCopyBBuffers>();
         pipeline.register_pass<ov::snippets::lowered::pass::InsertBuffers>();
         pipeline.register_pass<ov::snippets::lowered::pass::InsertLoadStore>(m_vector_size);
         pipeline.register_pass<ov::snippets::lowered::pass::InitLoops>();
         pipeline.register_pass<ov::snippets::lowered::pass::InsertLoops>();
-        pipeline.register_pass<ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape>();
         pipeline.register_pass<ov::snippets::lowered::pass::AllocateBuffers>(m_is_buffer_optimized);
         pipeline.run(m_linear_ir);
     }
 
     void Validate() {
         std::set<size_t> reg_groups, clusters;
-        for (const auto& expr : m_linear_ir) {
-            if (const auto buffer = ov::as_type_ptr<ov::snippets::op::Buffer>(expr->get_node())) {
-                reg_groups.insert(buffer->get_reg_group());
-                clusters.insert(buffer->get_cluster_id());
-            }
+        for (const auto& buffer : m_linear_ir.get_buffers()) {
+            reg_groups.insert(buffer->get_reg_group());
+            clusters.insert(buffer->get_cluster_id());
         }
         EXPECT_EQ(reg_groups.size(), m_expected_reg_group_count);
         EXPECT_EQ(clusters.size(), m_expected_cluster_count);
@@ -211,7 +209,7 @@ protected:
         const auto convert1 = std::make_shared<ov::snippets::op::ConvertSaturation>(relu0, ov::element::bf16);
 
         const auto brgemm_copyb0 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(convert1, ov::element::bf16);
-        const auto scratch0 = std::make_shared<ov::snippets::op::NewMemoryBuffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
+        const auto scratch0 = std::make_shared<ov::snippets::op::Buffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
         const auto brgemm_cpu0 = std::make_shared<ov::intel_cpu::BrgemmCPU>(
             parameter0, brgemm_copyb0->output(0), scratch0, BRGEMM_TYPE::WITH_AMX);
 
@@ -231,7 +229,7 @@ protected:
         const auto convert2 = std::make_shared<ov::snippets::op::ConvertSaturation>(multiply, ov::element::bf16);
 
         const auto brgemm_copyb1 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(parameter2, ov::element::bf16);
-        const auto scratch1 = std::make_shared<ov::snippets::op::NewMemoryBuffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
+        const auto scratch1 = std::make_shared<ov::snippets::op::Buffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
         const auto brgemm_cpu1 = std::make_shared<ov::intel_cpu::BrgemmCPU>(
             convert2, brgemm_copyb1->output(0), scratch1, BRGEMM_TYPE::WITH_AMX);
 
