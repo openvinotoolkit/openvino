@@ -72,6 +72,8 @@ private:
 
     void implement_properties();
 
+    void finalize_weights_bank();
+
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
     GetPropertiesMap m_prop_to_opt;
@@ -118,9 +120,11 @@ private:
         // w.r.t. function calls
         std::size_t param_base = 0;
         std::vector<ov::Tensor> closure;
+        std::vector<weights::LazyTensor> transformations;
         std::vector<ov::Tensor> scales;
         std::vector<ov::Tensor> zerops;
         std::vector<bool> update_required;
+        std::vector<bool> is_remote;
 
         // FIXME: Take it out of structure
         ov::SoPtr<ov::ICompiledModel> ref_compiled_model;

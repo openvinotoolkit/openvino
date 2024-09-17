@@ -296,6 +296,19 @@ bool ov::npuw::IBaseInferRequest::needs_copy(std::size_t idx) const {
     return true;
 }
 
+bool ov::npuw::IBaseInferRequest::needs_copy(std::size_t idx, std::size_t cidx) const {
+    if (!needs_copy(idx)) {
+        return false;
+    }
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+    if (comp_model_desc.is_remote[cidx]) {
+        // FIXME: Test if the tensor device and the request device are
+        // the same or compatible!
+        return false;
+    }
+    return true;
+}
+
 std::size_t ov::npuw::IBaseInferRequest::next(std::size_t idx_base) const {
     // Answer the next valid subrequest which is possible to prepare
     // FIXME: this could be a predefined map, not a lookup

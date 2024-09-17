@@ -1402,7 +1402,7 @@ void ov::npuw::util::to_f32(const ov::Tensor& in, ov::Tensor& out) {
     }
 }
 
-void ov::npuw::util::to_f16(ov::Tensor& t) {
+ov::Tensor ov::npuw::util::to_f16(const ov::Tensor& t) {
     ov::Shape shape = t.get_shape();
     NPUW_ASSERT(t.get_element_type() == ov::element::f32);
     NPUW_ASSERT(t.get_size() % 8 == 0);
@@ -1422,7 +1422,7 @@ void ov::npuw::util::to_f16(ov::Tensor& t) {
         pdst += (8 * 2);  // offset in bytes
     }
 
-    t = std::move(tnew);
+    return tnew;
 }
 
 inline uint8_t tread_4b(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
@@ -1446,7 +1446,7 @@ inline void twrite_4b(ov::Tensor& t, uint8_t value, std::size_t r, std::size_t c
     }
 }
 
-void ov::npuw::util::transpose(ov::Tensor& t) {
+ov::Tensor ov::npuw::util::transpose(const ov::Tensor& t) {
     ov::Shape shape = t.get_shape();
     NPUW_ASSERT(shape.size() == 3);  // Yes, so far only transpose 3D tensors
     NPUW_ASSERT(t.get_element_type() == ov::element::i4);
@@ -1462,16 +1462,16 @@ void ov::npuw::util::transpose(ov::Tensor& t) {
             twrite_4b(tnew, value, j, i, IN_ROWS);
         }
     }
-    t = std::move(tnew);
+    return tnew;
 }
 
-void ov::npuw::util::permute(ov::Tensor& t, const std::vector<std::size_t>& axes) {
+ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::size_t>& axes) {
     ov::Shape shape = t.get_shape();
     NPUW_ASSERT(shape.size() == 3);                        // Yes, so far only transpose 3D tensors
     NPUW_ASSERT(t.get_element_type() == ov::element::i4);  // And, yes, 4bit only!
 
     if (axes[0] == 2 && axes[1] == 0 && axes[2] == 1) {
-        transpose(t);
+        return transpose(t);
     } else if (axes[0] == 0 && axes[1] == 2 && axes[2] == 1) {
         ov::Shape tshape = {shape[0], shape[2], shape[1]};
         ov::Tensor tnew(t.get_element_type(), tshape);
@@ -1484,7 +1484,7 @@ void ov::npuw::util::permute(ov::Tensor& t, const std::vector<std::size_t>& axes
                 }
             }
         }
-        t = std::move(tnew);
+        return tnew;
     } else if (axes[0] == 1 && axes[1] == 0 && axes[2] == 2) {
         ov::Shape tshape = {shape[1], shape[0], shape[2]};
         ov::Tensor tnew(t.get_element_type(), tshape);
@@ -1498,7 +1498,7 @@ void ov::npuw::util::permute(ov::Tensor& t, const std::vector<std::size_t>& axes
                 }
             }
         }
-        t = std::move(tnew);
+        return tnew;
     } else {
         NPUW_ASSERT(false && "Not supported yet");
     }

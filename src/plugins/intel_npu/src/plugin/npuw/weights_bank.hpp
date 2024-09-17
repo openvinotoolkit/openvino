@@ -27,8 +27,12 @@ public:
     // Capture CPU version of the tensor
     ov::Tensor update(const std::shared_ptr<ov::op::v0::Constant>& node);
 
-    // Based on previously captured tensor allocate a new tensor (if needed) on a specified device
+    // Based on previously captured lazy tensor allocate a new tensor (if needed) on a specified device
     ov::Tensor get(const LazyTensor& tensor, const std::string& device);
+    // Store transformed and allocated tensor
+    void store(const LazyTensor& tensor, const ov::Tensor& transformed_tensor, const std::string& device);
+    // Check if there is an allocated and transformed tensor
+    bool has(const LazyTensor& tensor, const std::string& device);
 
 private:
     // Default CPU bank. Filled by update(). Owns CPU memory

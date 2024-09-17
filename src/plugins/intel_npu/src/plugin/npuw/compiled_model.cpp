@@ -272,12 +272,13 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 LOG_INFO("Subgraph[" << id << "] is a function call to [" << compiled_fcn_iter->second << "]");
             }
             m_compiled_submodels[id].param_base = fcn_template._param_offset;
-            // FIXME: at what stage closure and _closure should be filled?
             m_compiled_submodels[id].closure = subgraph._closure;
+            m_compiled_submodels[id].transformations = subgraph._transformations;
             m_compiled_submodels[id].scales = subgraph._scales;
             m_compiled_submodels[id].zerops = subgraph._zerops;
             m_compiled_submodels[id].update_required.resize(subgraph._closure.size(),
                                                             m_cfg.get<::intel_npu::NPUW_FOLD>() ? true : false);
+            m_compiled_submodels[id].is_remote.resize(subgraph._closure.size(), false);
         }  // if(!funcall)
 
         if (!m_compiled_submodels[id].model && !m_compiled_submodels[id].replaced_by) {
@@ -381,7 +382,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         }
     }
 
-    // FIXME: at some point (probably here) apply all transformations and allocations to the _transformations
+    // Finalize memory in closures and weight banks
+    finalize_weights_bank();
 
     // Print stats report when possible
     {
@@ -394,6 +396,29 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     m_finalized = true;
     reset_io();
+}
+
+void ov::npuw::CompiledModel::finalize_weights_bank() {
+    for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+        auto& comp_model_desc = m_compiled_submodels[idx];
+
+        if (!comp_model_desc.replaced_by) {
+            continue;
+        }
+
+        const auto real_idx = comp_model_desc.replaced_by.value();
+        auto& func_desc = m_compiled_submodels[real_idx];
+
+        ov::parallel_for(comp_model_desc.transformations.size(), [&](std::size_t tidx) {
+            const auto& lt = m_compiled_submodels[idx].transformations[tidx];
+
+            if (!m_weights_bank->has(lt, *func_desc.device_it)) {
+                m_weights_bank->store(lt, lt.eval(), *func_desc.device_it);
+            }
+
+            m_compiled_submodels[idx].closure[tidx] = m_weights_bank->get(lt, *func_desc.device_it);
+        });
+    }
 }
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {

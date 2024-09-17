@@ -4,9 +4,11 @@
 
 #include "weights_bank.hpp"
 
+#include "logging.hpp"
 #include "util.hpp"
 
 using ov::npuw::weights::Bank;
+using ov::npuw::weights::LazyTensor;
 
 class BankManager {
 public:
@@ -58,26 +60,64 @@ ov::Tensor Bank::get(const LazyTensor& tensor, const std::string& device) {
     // Check if already allocated and transformed
     auto& device_bank = m_device_bank[device];
     auto iter_device = device_bank.find(tensor);
-    if (iter_device != device_bank.end()) {
-        return iter_device->second;
+    if (iter_device == device_bank.end()) {
+        OPENVINO_THROW("There is no allocated/transformed tensor found!");
     }
 
-    // Run transformations
-    auto transformed_tensor = tensor.transform();
-    device_bank[tensor] = transformed_tensor;
+    return iter_device->second;
+}
+
+void Bank::store(const LazyTensor& tensor, const ov::Tensor& transformed_tensor, const std::string& device) {
+    if (device != "CPU" && device != "NPU") {
+        OPENVINO_THROW("Unsupported device in weights bank allocation: ", device);
+    }
+
+    std::lock_guard<std::mutex> guard(m_mutex);
+
+    // Sanity check
+    auto iter_cpu = m_bank.find(tensor.get_orig_data());
+    if (iter_cpu == m_bank.end()) {
+        OPENVINO_THROW("Unknown tensor in weights bank allocation!");
+    }
+
+    // Check if already allocated and transformed
+    auto& device_bank = m_device_bank[device];
+    auto iter_device = device_bank.find(tensor);
+    if (iter_device != device_bank.end()) {
+        LOG_WARN("Tensor is already allocated and stored in the bank.");
+        return;
+    }
 
     if (device == "CPU") {
-        return transformed_tensor;
+        // No allocation needed - store as is
+        device_bank[tensor] = transformed_tensor;
+        return;
     }
 
     // Allocation needed
     m_remote_ctx = m_core->get_default_context(device)._ptr;
-    auto remote_tensor = m_remote_ctx->create_host_tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
+    auto remote_tensor =
+        m_remote_ctx->create_host_tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
     auto allocated_tensor = ov::make_tensor(remote_tensor);
     transformed_tensor.copy_to(allocated_tensor);
     device_bank[tensor] = allocated_tensor;
+}
 
-    return allocated_tensor;
+bool Bank::has(const LazyTensor& tensor, const std::string& device) {
+    if (device != "CPU" && device != "NPU") {
+        OPENVINO_THROW("Unsupported device in weights bank allocation: ", device);
+    }
+
+    std::lock_guard<std::mutex> guard(m_mutex);
+
+    // Sanity check
+    auto iter_cpu = m_bank.find(tensor.get_orig_data());
+    if (iter_cpu == m_bank.end()) {
+        OPENVINO_THROW("Unknown tensor in weights bank allocation!");
+    }
+
+    const auto& device_bank = m_device_bank[device];
+    return device_bank.find(tensor) != device_bank.end();
 }
 
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name, const std::shared_ptr<const ov::ICore>& core) {

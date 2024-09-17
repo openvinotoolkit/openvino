@@ -1459,7 +1459,9 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
                 new_param_idx++;
 
                 LOG_DEBUG("Register " << prod_output << " in the function closure");
-                funcall._transformations.push_back(LazyTensor(TransformType::TENSOR, bank->update(std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node)))); // (n)/1/i/c
+                funcall._transformations.push_back(LazyTensor(
+                    TransformType::TENSOR,
+                    bank->update(std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node))));  // (n)/1/i/c
             } else if (ov::op::util::is_parameter(input_node)) {
                 LOG_DEBUG("Handling a Parameter input " << prod_output);
                 LOG_BLOCK();
@@ -1555,7 +1557,9 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
                         std::make_pair(proto_layer_name, input_desc.get_index()));  // (t)/1/b
                     LOG_DEBUG("Register " << prod_output << " in the function closure[" << param_idx
                                           << "] (via prototype " << proto_layer_name << ")");
-                    funcall._transformations[param_idx - function._param_offset] = LazyTensor(TransformType::TENSOR, bank->update(std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node))); // (t)/1/c
+                    funcall._transformations[param_idx - function._param_offset] = LazyTensor(
+                        TransformType::TENSOR,
+                        bank->update(std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node)));  // (t)/1/c
                 }
             }  // for (inputs)
         }      // for(nodes)

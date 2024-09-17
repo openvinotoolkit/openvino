@@ -52,9 +52,9 @@ void unpack(const ov::SoPtr<ov::ITensor>& from,
             const UnpackOptions& unpack_options = UnpackOptions{true, 16, false});
 
 void to_f32(const ov::Tensor& in, ov::Tensor& out);
-void to_f16(ov::Tensor& t);
-void transpose(ov::Tensor& t);
-void permute(ov::Tensor& t, const std::vector<std::size_t>& axes);
+ov::Tensor to_f16(const ov::Tensor& t);
+ov::Tensor transpose(const ov::Tensor& t);
+ov::Tensor permute(const ov::Tensor& t, const std::vector<std::size_t>& axes);
 
 namespace at {
 template <class M>

@@ -9,8 +9,8 @@
 #include <variant>
 #include <vector>
 
-#include "../weights_bank.hpp"
 #include "../lazy_tensor.hpp"
+#include "../weights_bank.hpp"
 #include "intel_npu/al/config/config.hpp"
 #include "openvino/openvino.hpp"
 

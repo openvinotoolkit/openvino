@@ -111,6 +111,7 @@ protected:
     std::size_t m_run_iter = 0u;
 
     bool needs_copy(std::size_t idx) const;
+    bool needs_copy(std::size_t idx, std::size_t cidx) const;
     std::size_t next(std::size_t idx_base) const;
     std::size_t real(std::size_t idx) const;
 
