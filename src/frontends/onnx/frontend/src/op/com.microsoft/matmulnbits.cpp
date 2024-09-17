@@ -36,7 +36,7 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
     const auto& scales = inputs[2];                                                      // required
     ov::Output<ov::Node> zero_points;                                                    // optional, input[3]
     ov::Output<ov::Node> group_idx;                                                      // optional, input[4]
-    ov::Output<ov::Node> bias;                                                           // optionsl, input[5]
+    ov::Output<ov::Node> bias;                                                           // optional, input[5]
     const auto K = node.get_attribute_value<int64_t>("K");                               // required
     const auto N = node.get_attribute_value<int64_t>("N");                               // required
     const auto accuracy_level = node.get_attribute_value<int64_t>("accuracy_level", 0);  // optional, default unset(0)
@@ -139,6 +139,7 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         }
 
         // Possible issue with slice implementation, had to move convertion before slice, instead of slicing uint4
+        // TODO: Ticket
         const auto converted_b = std::make_shared<v1::ConvertLike>(casted_b, a);
 
         // Simple case
