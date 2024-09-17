@@ -147,7 +147,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
 
     // Load our command queue extension
     ze_command_queue_npu_dditable_ext_last_t* _command_queue_npu_dditable_ext = nullptr;
-    if (command_queue_ext_version >= ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_0) {
+    if (command_queue_ext_version) {
         zeroUtils::throwOnFail(
             "zeDriverGetExtensionFunctionAddress " + command_queue_ext_name,
             zeDriverGetExtensionFunctionAddress(driver_handle,

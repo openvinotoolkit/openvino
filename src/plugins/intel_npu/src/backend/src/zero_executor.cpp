@@ -70,7 +70,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
 
         zeroUtils::throwOnFail(
             "pfnCreate",
-            _graph_ddi_table_ext->pfnCreate(_initStructs->getContext(), _initStructs->getDevice(), &desc, &_graph));
+            _graph_ddi_table_ext.pfnCreate(_initStructs->getContext(), _initStructs->getDevice(), &desc, &_graph));
 
     } else {
         _logger.debug("reuse graph handle created from compiler");
@@ -79,8 +79,8 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
 
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetProperties");
     _logger.debug("performing pfnGetProperties");
-    zeroUtils::throwOnFail("pfnGetProperties", _graph_ddi_table_ext->pfnGetProperties(_graph, &_props));
-    auto targetDriverExtVersion = _graph_ddi_table_ext->version();
+    zeroUtils::throwOnFail("pfnGetProperties", _graph_ddi_table_ext.pfnGetProperties(_graph, &_props));
+    auto targetDriverExtVersion = _graph_ddi_table_ext.version();
     if (targetDriverExtVersion <= ZE_GRAPH_EXT_VERSION_1_1) {
         OPENVINO_THROW("Incompatibility between the NPU plugin and driver! The driver version is too old, please "
                        "update the driver version");
@@ -91,7 +91,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
     for (uint32_t index = 0; index < _props.numGraphArgs; ++index) {
         ze_graph_argument_properties_3_t arg3;
         zeroUtils::throwOnFail("pfnGetArgumentProperties3",
-                               _graph_ddi_table_ext->pfnGetArgumentProperties3(_graph, index, &arg3));
+                               _graph_ddi_table_ext.pfnGetArgumentProperties3(_graph, index, &arg3));
 
         if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
             _input_descriptors.push_back(ArgumentDescriptor{arg3, index});
@@ -135,7 +135,7 @@ void ZeroExecutor::setWorkloadType(const ov::WorkloadType workloadType) const {
 }
 
 void ZeroExecutor::setArgumentValue(uint32_t argi_, const void* argv_) const {
-    zeroUtils::throwOnFail("zeGraphSetArgumentValue", _graph_ddi_table_ext->pfnSetArgumentValue(_graph, argi_, argv_));
+    zeroUtils::throwOnFail("zeGraphSetArgumentValue", _graph_ddi_table_ext.pfnSetArgumentValue(_graph, argi_, argv_));
 }
 
 void ZeroExecutor::mutexLock() const {
@@ -148,8 +148,8 @@ void ZeroExecutor::mutexUnlock() const {
 
 ZeroExecutor::~ZeroExecutor() {
     _logger.debug("~ZeroExecutor() - pfnDestroy _graph ");
-    auto result = _graph_ddi_table_ext->pfnDestroy(_graph);
+    auto result = _graph_ddi_table_ext.pfnDestroy(_graph);
     if (ZE_RESULT_SUCCESS != result) {
-        _logger.error("_graph_ddi_table_ext->pfnDestroy failed %#X", uint64_t(result));
+        _logger.error("_graph_ddi_table_ext.pfnDestroy failed %#X", uint64_t(result));
     }
 }

@@ -26,15 +26,15 @@ uint32_t ZeroEngineBackend::getDriverVersion() const {
 }
 
 uint32_t ZeroEngineBackend::getGraphExtVersion() const {
-    return _instance->getGraphDdiTable()->version();
+    return _instance->getGraphDdiTable().version();
 }
 
 bool ZeroEngineBackend::isBatchingSupported() const {
-    return _instance->getGraphDdiTable()->version() >= ZE_GRAPH_EXT_VERSION_1_6;
+    return _instance->getGraphDdiTable().version() >= ZE_GRAPH_EXT_VERSION_1_6;
 }
 
 bool ZeroEngineBackend::isCommandQueueExtSupported() const {
-    return _instance->getCommandQueueDdiTable()->version() >= ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_0;
+    return _instance->getCommandQueueDdiTable().version() >= ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_0;
 }
 
 ZeroEngineBackend::~ZeroEngineBackend() = default;
@@ -76,7 +76,7 @@ void* ZeroEngineBackend::getDeviceHandle() const {
     return _instance->getDevice();
 }
 
-ze_graph_dditable_ext_curr_t* ZeroEngineBackend::getGraphDdiTable() const {
+ze_graph_dditable_ext_curr_t& ZeroEngineBackend::getGraphDdiTable() const {
     return _instance->getGraphDdiTable();
 }
 
