@@ -471,7 +471,7 @@ ov::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSequen
     auto tensor_iterator = pattern::wrap_type<ov::op::v0::TensorIterator>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto ti = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(m.get_match_root());
+        auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(m.get_match_root());
         if (!ti || transformation_callback(ti))
             return false;
 
@@ -531,7 +531,7 @@ ov::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequence
     auto tensor_iterator = pattern::wrap_type<ov::op::v0::TensorIterator>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto ti = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(m.get_match_root());
+        auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(m.get_match_root());
         if (!ti || transformation_callback(ti))
             return false;
 
@@ -565,8 +565,7 @@ ov::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequence
             return false;
 
         const auto& pattern_map = matcher.get_pattern_value_map();
-        const auto& rnn_cell =
-            std::dynamic_pointer_cast<ov::op::v0::RNNCell>(pattern_map.at(cell).get_node_shared_ptr());
+        const auto& rnn_cell = ov::as_type_ptr<ov::op::v0::RNNCell>(pattern_map.at(cell).get_node_shared_ptr());
         if (rnn_cell == nullptr)
             return false;
 
@@ -590,7 +589,7 @@ ov::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequence
     auto tensor_iterator = pattern::wrap_type<ov::op::v0::TensorIterator>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto ti = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(m.get_match_root());
+        auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(m.get_match_root());
         if (!ti || transformation_callback(ti))
             return false;
 
@@ -625,8 +624,7 @@ ov::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequence
             return false;
 
         const auto& pattern_map = matcher.get_pattern_value_map();
-        const auto& gru_cell =
-            std::dynamic_pointer_cast<ov::op::v3::GRUCell>(pattern_map.at(cell).get_node_shared_ptr());
+        const auto& gru_cell = ov::as_type_ptr<ov::op::v3::GRUCell>(pattern_map.at(cell).get_node_shared_ptr());
         if (gru_cell == nullptr)
             return false;
 
