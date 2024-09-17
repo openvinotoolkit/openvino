@@ -156,10 +156,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-ccache
 
-      - name: Configure Developer Command Prompt for Microsoft Visual C++
+      - name: Configure Developer Command Prompt for Microsoft Visual C++ (2019)
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
-          toolset: 14.40
+          toolset: 14.29
+          vsversion: 2019
 
       - name: Set SSL_CERT_FILE for model downloading for unit tests
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
