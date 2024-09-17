@@ -417,6 +417,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             }
 
             m_compiled_submodels[idx].closure[tidx] = m_weights_bank->get(lt, *func_desc.device_it);
+            m_compiled_submodels[idx].is_remote[tidx] = true;
         });
     }
 }

@@ -1706,7 +1706,7 @@ void Partitioner::decompressionCutOff(const std::string& func_name) {
 
             // Build a closure remap here: which input tensors are no
             // longer parameters but move to the unpack procedure?
-            auto closure_remap = ov::npuw::patterns::build_remap(f, params_to, bank);
+            auto closure_remap = ov::npuw::patterns::build_remap(f, params_to);
 
             // Now modify the each function call's closure accordingly
             // according to the remaps.

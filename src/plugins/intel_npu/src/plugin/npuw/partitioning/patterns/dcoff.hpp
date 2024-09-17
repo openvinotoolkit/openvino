@@ -45,7 +45,7 @@ struct ClosureRemap {
     std::vector<ov::Tensor> zero_points;  // zero points for closures, if needed
 };
 
-ClosureRemap build_remap(const Function& fbody, const DCOFFParams& p, const std::shared_ptr<weights::Bank>& bank);
+ClosureRemap build_remap(const Function& fbody, const DCOFFParams& p);
 void apply_remap(Subgraph& fcall, const ClosureRemap& m);
 void finalize_remap(Function& fbody, const ClosureRemap& m);
 
