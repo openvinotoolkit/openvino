@@ -87,7 +87,7 @@ to use in workflow jobs.
 ### Using custom images in workflow jobs
 
 * Make sure that Docker job is called in your workflow. Pass a path or multiple paths to the folders with dockerfiles, 
-that are going to be used further in a workflow, to `images` parameter of handle_docker action. Example:
+that are going to be used further in a workflow, to `images` parameter of the `handle_docker` action. Example:
 ```yaml
   Docker:
     needs: Smart_CI
