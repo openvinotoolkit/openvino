@@ -45,7 +45,12 @@ It's recommended to run the mentioned codestyle check whenever new tests are add
 
 
 ## Writing OpenVINO™ JavaScript API tests
+### Before start
+Follow and complete [Examples of OpenVINO™ JavaScript API code](./code_examples.md).
 
+
+
+### Adding new test-case in the correct place
 The new test should confirm that the new functionality (e.g. class, method) is behaving correctly.
 
 Unit test files are located in `<openvino_repo>/src/bindings/js/node/tests/unit/` directory and their names are connected to the class/module to be tested.
@@ -60,8 +65,8 @@ Within the describe block, individual tests are defined using `test` or `it` blo
  ```js
  const { describe, it, beforeEach } = require('node:test');
 describe('ov.Tensor tests', () => {
-  test('Tensor.getElementType()', () => {
-    const tensor = new ov.Tensor(ov.element.f32, [1, 3]);
+  test('MyTensor.getElementType()', () => {
+    const tensor = new ov.MyTensor(ov.element.f32, [1, 3]);
     assert.strictEqual(tensor.getElementType(), ov.element.f32);
   });
 
