@@ -579,10 +579,10 @@ private:
     }
 
     static int64_t get_num_iterations(ov::op::util::SubGraphOp* sub) {
-        if (const auto ti = dynamic_cast<const ov::op::v0::TensorIterator*>(sub)) {
+        if (const auto ti = ov::as_type<const ov::op::v0::TensorIterator>(sub)) {
             return ti->get_num_iterations();
         }
-        if (const auto l = dynamic_cast<const ov::op::v5::Loop*>(sub)) {
+        if (const auto l = ov::as_type<const ov::op::v5::Loop>(sub)) {
             return l->get_num_iterations();
         }
 

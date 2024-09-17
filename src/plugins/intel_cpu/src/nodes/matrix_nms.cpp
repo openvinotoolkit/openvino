@@ -25,7 +25,7 @@ using ngNmseDcayFunction = ov::op::v8::MatrixNms::DecayFunction;
 
 bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto nms = std::dynamic_pointer_cast<const ov::op::v8::MatrixNms>(op);
+        const auto nms = ov::as_type_ptr<const ov::op::v8::MatrixNms>(op);
         if (!nms) {
             errorMessage = "Only MatrixNms operation is supported";
             return false;
@@ -65,7 +65,7 @@ MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
     if (getOriginalOutputsNumber() != 3)
         OPENVINO_THROW(m_errorPrefix, "has incorrect number of output edges: ", getOriginalOutputsNumber());
 
-    const auto matrix_nms = std::dynamic_pointer_cast<const ov::op::v8::MatrixNms>(op);
+    const auto matrix_nms = ov::as_type_ptr<const ov::op::v8::MatrixNms>(op);
 
     auto& attrs = matrix_nms->get_attrs();
     if (attrs.sort_result_type == ov::op::v8::MatrixNms::SortResultType::CLASSID)

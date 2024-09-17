@@ -71,7 +71,7 @@ OutputVector translate_to(const NodeContext& context) {
     if (dtype_fw_node && dtype_fw_node->get_op_type() == "prim::dtype") {
         auto type_input = dtype_fw_node->input_value(0);
         cast = context.mark_node(std::make_shared<v1::ConvertLike>(context.get_input(0), type_input));
-    } else if (const auto dtype_const = std::dynamic_pointer_cast<v0::Constant>(dtype_ext_node)) {
+    } else if (const auto dtype_const = ov::as_type_ptr<v0::Constant>(dtype_ext_node)) {
         auto pt_type = dtype_const->cast_vector<int64_t>()[0];
         auto dtype = convert_dtype(pt_type);
         cast = context.mark_node(std::make_shared<v0::Convert>(context.get_input(0), dtype));

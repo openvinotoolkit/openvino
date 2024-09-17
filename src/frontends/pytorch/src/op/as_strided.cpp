@@ -55,7 +55,7 @@ OutputVector translate_as_strided(const NodeContext& context) {
     auto flat_input = context.mark_node(std::make_shared<v1::Reshape>(transposed_input, const_neg_1, false));
     std::deque<Output<Node>> sizes;
     std::deque<Output<Node>> strides;
-    if (std::dynamic_pointer_cast<v0::Constant>(context.get_input_from_visible_context(1).get_node_shared_ptr())) {
+    if (ov::as_type_ptr<v0::Constant>(context.get_input_from_visible_context(1).get_node_shared_ptr())) {
         auto input_vector = context.const_input<std::vector<int64_t>>(1);
         std::for_each(input_vector.rbegin(), input_vector.rend(), [&](int64_t input_val) {
             auto const_input = context.mark_node(v0::Constant::create(element::i32, Shape{}, {input_val}));
@@ -64,7 +64,7 @@ OutputVector translate_as_strided(const NodeContext& context) {
     } else {
         sizes = get_list_as_outputs(context.get_input(1));
     }
-    if (std::dynamic_pointer_cast<v0::Constant>(context.get_input_from_visible_context(2).get_node_shared_ptr())) {
+    if (ov::as_type_ptr<v0::Constant>(context.get_input_from_visible_context(2).get_node_shared_ptr())) {
         auto input_vector = context.const_input<std::vector<int64_t>>(2);
         std::for_each(input_vector.rbegin(), input_vector.rend(), [&](int64_t input_val) {
             auto const_input = context.mark_node(v0::Constant::create(element::i32, Shape{}, {input_val}));

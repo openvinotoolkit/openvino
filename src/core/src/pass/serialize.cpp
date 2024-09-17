@@ -1040,7 +1040,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
             pugi::xml_node input = layer.append_child("input");
             for (auto& i : node->inputs()) {
                 // WA for LSTMCellv0, peephole input shall not be serialized
-                if (i.get_index() == 6 && dynamic_cast<ov::opset1::LSTMCell*>(node)) {
+                if (i.get_index() == 6 && ov::as_type<ov::opset1::LSTMCell>(node)) {
                     port_id++;
                     continue;
                 }

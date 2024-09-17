@@ -65,7 +65,7 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
             // If aten::__getitem__, expect inputs to be equivalent of pytorch Tensor[][].
             // Tensor selected by aten::__getitem__ index needs to be splitted in axis 0.
             auto getitem_index_ptr = getitem_node->input_value(1).get_node_shared_ptr();
-            auto getitem_index_const = std::dynamic_pointer_cast<v0::Constant>(getitem_index_ptr);
+            auto getitem_index_const = ov::as_type_ptr<v0::Constant>(getitem_index_ptr);
             auto index_val = getitem_index_const->cast_vector<int64_t>();
             if (index_val.size() != 1) {
                 add_exception_to_fw_node(list_unpack, "prim::ListUnpack: index of aten::__getitem__ is not scalar.");

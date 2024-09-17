@@ -118,7 +118,7 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
     // for each ordered op in the graph
     for (const auto& op : m_nodes) {
         CHECK_TERMINATE()
-        if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op)) {
+        if (ov::as_type_ptr<ov::op::v0::Parameter>(op)) {
             continue;
         }
         // get op inputs from map

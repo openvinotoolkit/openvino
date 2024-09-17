@@ -11,7 +11,7 @@ namespace intel_cpu {
 DecomposeIntegerDivide::DecomposeIntegerDivide() {
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::wrap_type<ov::opset1::Divide>(), "DecomposeIntegerDivide"),
          [](ov::pass::pattern::Matcher& m) {
-             auto divide = std::dynamic_pointer_cast<ov::opset1::Divide>(m.get_match_root());
+             auto divide = ov::as_type_ptr<ov::opset1::Divide>(m.get_match_root());
              if (!divide) {
                  return false;
              }

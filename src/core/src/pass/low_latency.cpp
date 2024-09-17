@@ -159,7 +159,7 @@ std::vector<std::shared_ptr<ov::opset9::Assign>> process_sequence(const std::sha
     std::vector<std::shared_ptr<ov::opset9::Assign>> new_assigns;
     bool unroll = false;
     OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto lstm_seq_v0 = std::dynamic_pointer_cast<ov::opset1::LSTMSequence>(op)) {
+    if (auto lstm_seq_v0 = ov::as_type_ptr<ov::opset1::LSTMSequence>(op)) {
         unroll = need_unroll(op);
         new_assigns = replace_with_memory(op, {1, 2}, m_use_const_initializer, to);
         if (unroll) {

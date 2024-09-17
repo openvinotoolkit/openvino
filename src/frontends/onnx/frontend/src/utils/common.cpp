@@ -246,7 +246,7 @@ bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_
                 failures->insert(node_fail);
             }
 
-        } else if (const auto& if_node = std::dynamic_pointer_cast<ov::op::v8::If>(node)) {
+        } else if (const auto& if_node = ov::as_type_ptr<ov::op::v8::If>(node)) {
             collect_translation_exceptions(if_node->get_then_body(),
                                            telemetry,
                                            output_stream,
@@ -257,7 +257,7 @@ bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_
                                            output_stream,
                                            unsupported_operations,
                                            failures);
-        } else if (const auto& loop_node = std::dynamic_pointer_cast<ov::op::v5::Loop>(node)) {
+        } else if (const auto& loop_node = ov::as_type_ptr<ov::op::v5::Loop>(node)) {
             collect_translation_exceptions(loop_node->get_function(),
                                            telemetry,
                                            output_stream,

@@ -61,7 +61,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
         size_t hidden_size = 0;
         std::vector<int> proj_size;
         for (auto& child : children) {
-            auto mm = dynamic_cast<opset1::MatMul*>(child.get_node());
+            auto mm = ov::as_type<opset1::MatMul>(child.get_node());
             if (!mm) {
                 // maybe a ShapeOf
                 continue;

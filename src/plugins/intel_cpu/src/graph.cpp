@@ -131,7 +131,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model,
     auto createNode = [&](std::shared_ptr<ov::Node> op) -> NodePtr {
         // special handling for Parameters and Results
         if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
-            auto input_index = model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op));
+            auto input_index = model->get_parameter_index(ov::as_type_ptr<op::v0::Parameter>(op));
             OPENVINO_ASSERT(input_index >= 0,
                             "CPU plugin cannot find op: ", op->get_friendly_name(), " in model parameter list!");
 
@@ -148,7 +148,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model,
         }
 
         if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
-            auto output_index = model->get_result_index(std::dynamic_pointer_cast<op::v0::Result>(op));
+            auto output_index = model->get_result_index(ov::as_type_ptr<op::v0::Result>(op));
             OPENVINO_ASSERT(output_index >= 0,
                             "CPU plugin cannot find op: ", op->get_friendly_name(), " in model result list!");
 

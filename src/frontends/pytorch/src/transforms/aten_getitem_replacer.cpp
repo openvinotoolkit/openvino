@@ -95,7 +95,7 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 replace_node(getitem, split);
             } else {
                 auto getitem_index_ptr = getitem->input_value(1).get_node_shared_ptr();
-                auto getitem_index_const = std::dynamic_pointer_cast<v0::Constant>(getitem_index_ptr);
+                auto getitem_index_const = ov::as_type_ptr<v0::Constant>(getitem_index_ptr);
                 auto split = rg.make<v1::VariadicSplit>(torch_split->get_input_source_output(0),
                                                         torch_split->get_input_source_output(2),
                                                         torch_split->get_input_source_output(1));
@@ -112,7 +112,7 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
             }
         } else if (auto list_construct = cast_fw_node(input_node, "prim::ListConstruct")) {
             auto getitem_idx = getitem->input_value(1).get_node_shared_ptr();
-            auto getitem_idx_const = std::dynamic_pointer_cast<v0::Constant>(getitem_idx);
+            auto getitem_idx_const = ov::as_type_ptr<v0::Constant>(getitem_idx);
             if (getitem_idx_const) {
                 auto idx = getitem_idx_const->cast_vector<int64_t>();
                 getitem->output(0).replace(list_construct->input_value(idx[0]));

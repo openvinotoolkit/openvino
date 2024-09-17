@@ -84,7 +84,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         bool grouped = std::count_if(scale_shape.begin(), scale_shape.end(), [](size_t d) { return d > 1; }) > 1;
 
         auto reshape_const_to_2d = [has_transpose, grouped](std::shared_ptr<ov::Node> node) {
-            auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
             OPENVINO_ASSERT(constant != nullptr);
             ov::Shape current_shape = constant->get_shape();
             if (current_shape.size() <= 2)
@@ -99,10 +99,10 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         };
 
         auto convert_u4const_to_u8 = [convert_u4zp_to_u8](std::shared_ptr<ov::Node> node) {
-            auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
             if (constant->get_element_type() != ov::element::u4 || !convert_u4zp_to_u8)
                 return std::dynamic_pointer_cast<ov::Node>(constant);
-            return std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
+            return ov::as_type_ptr<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
         };
 
 

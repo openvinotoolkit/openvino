@@ -33,10 +33,10 @@ namespace {
             return "INT8";
         }
         for (auto & node : model->get_ordered_ops()) {
-            if (std::dynamic_pointer_cast<ov::op::v1::Convolution>(node) ||
-                std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(node) ||
-                std::dynamic_pointer_cast<ov::op::v1::GroupConvolutionBackpropData>(node) ||
-                std::dynamic_pointer_cast<ov::op::v1::ConvolutionBackpropData>(node)) {
+            if (ov::as_type_ptr<ov::op::v1::Convolution>(node) ||
+                ov::as_type_ptr<ov::op::v1::GroupConvolution>(node) ||
+                ov::as_type_ptr<ov::op::v1::GroupConvolutionBackpropData>(node) ||
+                ov::as_type_ptr<ov::op::v1::ConvolutionBackpropData>(node)) {
                 auto layer_type = node->input(1).get_element_type().get_type_name();
                 if (layer_type == "f32")
                     return "FP32";

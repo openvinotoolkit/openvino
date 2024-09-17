@@ -28,7 +28,7 @@ static void TopKImpl(ProgramBuilder& p,
     if (p.use_new_shape_infer()) {
         size_t num_outputs = op->get_output_size();
 
-        auto topk_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
+        auto topk_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
         auto argmaxPrim = cldnn::arg_max_min(layerName,
                                             inputs[0],
                                             inputs[1],

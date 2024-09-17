@@ -1190,7 +1190,7 @@ public:
                 if (rt_info.count("symbolic_const_value")) {
                     // symbolic constant node, a symbol reference is observed
                     auto& symbols = rt_info["symbolic_const_value"].as<std::vector<Symbol>>();
-                    auto constop = std::dynamic_pointer_cast<op::v0::Constant>(value_node);
+                    auto constop = ov::as_type_ptr<op::v0::Constant>(value_node);
                     if (!constop) {
                         _VERBOSE_LOG("symbolic_const_value unexpected OP: ", value_node->get_friendly_name());
                         return false;
@@ -1220,9 +1220,9 @@ public:
                 }
                 continue;
             }
-            if (auto pconst_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(pnode)) {
+            if (auto pconst_node = ov::as_type_ptr<ov::op::v0::Constant>(pnode)) {
                 // const_node needs to match type/shape/value
-                auto vconst_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(value_node);
+                auto vconst_node = ov::as_type_ptr<ov::op::v0::Constant>(value_node);
                 if (!vconst_node) {
                     _VERBOSE_LOG("expecting Constant op, but got ", value_node);
                     return false;

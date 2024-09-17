@@ -583,13 +583,13 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 // We can't add all Sink operations to sinks vector, as there can be a FrameworkNode,
                 // which we might need to remove from graph
                 if (ov::as_type_ptr<KeepInGraphOp>(node)) {
-                    sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(node));
+                    sinks.push_back(ov::as_type_ptr<ov::op::Sink>(node));
                 } else {
                     auto multi_subgraph = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node);
                     if (multi_subgraph) {
                         for (const auto& body_model : multi_subgraph->get_functions()) {
                             if (body_model->get_sinks().size()) {
-                                sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(multi_subgraph));
+                                sinks.push_back(ov::as_type_ptr<ov::op::Sink>(multi_subgraph));
                                 break;
                             }
                         }
@@ -738,7 +738,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             for (size_t output_ind = 0; output_ind < node_output_vector.second.size(); ++output_ind) {
                 auto output = node_output_vector.second[output_ind].port;
                 if (output.get_target_inputs().empty() &&
-                    !std::dynamic_pointer_cast<ov::op::v0::Result>(output.get_node_shared_ptr())) {
+                    !ov::as_type_ptr<ov::op::v0::Result>(output.get_node_shared_ptr())) {
                     auto model_output_name =
                         output.get_node_shared_ptr()->get_friendly_name() + ":" + std::to_string(output_ind);
                     auto result_node = std::make_shared<ov::op::v0::Result>(output);

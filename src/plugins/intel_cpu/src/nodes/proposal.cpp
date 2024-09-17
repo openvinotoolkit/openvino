@@ -80,7 +80,7 @@ bool Proposal::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
             errorMessage = "Node is not an instance of the Proposal from the operations set v0 or v4.";
             return false;
         }
-        auto proposalOp = std::dynamic_pointer_cast<const ov::op::v0::Proposal>(op);
+        auto proposalOp = ov::as_type_ptr<const ov::op::v0::Proposal>(op);
         if (proposalOp->get_attrs().framework != "tensorflow" && !proposalOp->get_attrs().framework.empty()) {
             errorMessage = "Unsupported framework attribute: " + proposalOp->get_attrs().framework;
             return false;
@@ -98,7 +98,7 @@ Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    auto proposalOp = std::dynamic_pointer_cast<const ov::op::v0::Proposal>(op);
+    auto proposalOp = ov::as_type_ptr<const ov::op::v0::Proposal>(op);
     auto proposalAttrs = proposalOp->get_attrs();
 
     conf.feat_stride_ = proposalAttrs.feat_stride;

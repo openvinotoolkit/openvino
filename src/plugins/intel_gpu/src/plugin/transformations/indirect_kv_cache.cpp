@@ -69,7 +69,7 @@ IndirectGemmOpt::IndirectGemmOpt() {
 
         auto beam_idx_node = pattern_map.at(beam_idx).get_node_shared_ptr();
         auto gather_input_node = pattern_map.at(gather_input).get_node_shared_ptr();
-        auto gather_node = std::dynamic_pointer_cast<ov::op::v8::Gather>(pattern_map.at(gather_past).get_node_shared_ptr());
+        auto gather_node = ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_past).get_node_shared_ptr());
         auto gather_axis = gather_node->get_axis();
         ov::replace_node(gather_node, gather_input_node);
 
@@ -151,8 +151,8 @@ IndirectSDPAOpt::IndirectSDPAOpt() {
         auto beam_idx_node = pattern_map.at(beam_idx).get_node_shared_ptr();
         auto gather_input_node_0 = pattern_map.at(gather_input_0).get_node_shared_ptr();
         auto gather_input_node_1 = pattern_map.at(gather_input_1).get_node_shared_ptr();
-        auto gather_node_0 = std::dynamic_pointer_cast<ov::op::v8::Gather>(pattern_map.at(gather_past_0).get_node_shared_ptr());
-        auto gather_node_1 = std::dynamic_pointer_cast<ov::op::v8::Gather>(pattern_map.at(gather_past_1).get_node_shared_ptr());
+        auto gather_node_0 = ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_past_0).get_node_shared_ptr());
+        auto gather_node_1 = ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_past_1).get_node_shared_ptr());
         auto gather_axis_0 = gather_node_0->get_axis();
         auto gather_axis_1 = gather_node_1->get_axis();
         OPENVINO_ASSERT(gather_axis_0 == gather_axis_1);

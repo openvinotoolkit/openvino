@@ -114,7 +114,7 @@ jit_clamp_emitter::jit_clamp_emitter(dnnl::impl::cpu::aarch64::jit_generator* ho
                                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                      const std::shared_ptr<ov::Node>& node)
                                      : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
-    const auto clamp = std::dynamic_pointer_cast<ov::op::v0::Clamp>(node);
+    const auto clamp = ov::as_type_ptr<ov::op::v0::Clamp>(node);
     if (clamp == nullptr) {
         OV_CPU_JIT_EMITTER_THROW("Can't cast to ov::op::v0::Clamp");
     }
@@ -267,7 +267,7 @@ jit_elu_emitter::jit_elu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                  dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                  const std::shared_ptr<ov::Node>& node)
         : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
-    const auto elu = std::dynamic_pointer_cast<ov::op::v0::Elu>(node);
+    const auto elu = ov::as_type_ptr<ov::op::v0::Elu>(node);
     if (elu == nullptr) {
         OV_CPU_JIT_EMITTER_THROW("Can't cast to ov::op::v0::Clamp");
     }

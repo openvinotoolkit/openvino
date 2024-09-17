@@ -106,7 +106,7 @@ void EltwiseChainTest::SetUp() {
 
             const auto inputNode = (conversion == ov::element::undefined) ?
                 param :
-                std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(param, conversion));
+                ov::as_type_ptr<ov::Node>(std::make_shared<ov::op::v0::Convert>(param, conversion));
             if (inputNodes1.empty()) {
                 inputNodes1.push_back(inputNode);
             }
@@ -117,7 +117,7 @@ void EltwiseChainTest::SetUp() {
         inputNodes1.push_back(
                 conversion == ov::element::undefined ?
                 paramVec.front() :
-                std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(paramVec.front(), conversion)));
+                ov::as_type_ptr<ov::Node>(std::make_shared<ov::op::v0::Convert>(paramVec.front(), conversion)));
 
         for (size_t i = 1; i < inputPrecisions.size(); i++) {
             std::vector<float> input1Data(ov::shape_size(targetStaticShapes[0][i]));

@@ -49,12 +49,12 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     const size_t scale_idx = 9;
     const size_t alibi_idx = 11;
 
-    std::shared_ptr<ov::op::v0::Constant> scale_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(scale_idx));
+    std::shared_ptr<ov::op::v0::Constant> scale_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(scale_idx));
     OPENVINO_ASSERT(scale_const != nullptr);
     OPENVINO_ASSERT(ov::shape_size(scale_const->get_output_shape(0)) == 1);
     prim.scale_val = scale_const->cast_vector<float>()[0];
 
-    std::shared_ptr<ov::op::v0::Constant> alibi_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(alibi_idx));
+    std::shared_ptr<ov::op::v0::Constant> alibi_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(alibi_idx));
     OPENVINO_ASSERT(alibi_const != nullptr);
     prim.has_alibi = ov::shape_size(alibi_const->get_output_shape(0)) > 0;
 

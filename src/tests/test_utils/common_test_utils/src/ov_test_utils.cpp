@@ -152,7 +152,7 @@ ov::TensorVector infer_on_template(const std::shared_ptr<ov::Model>& model,
 bool is_tensor_iterator_exist(const std::shared_ptr<ov::Model>& model) {
     const auto& ops = model->get_ops();
     for (const auto& node : ops) {
-        const auto& ti = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(node);
+        const auto& ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(node);
         if (ti) {
             return true;
         }

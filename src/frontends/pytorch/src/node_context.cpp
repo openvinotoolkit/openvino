@@ -110,7 +110,7 @@ Output<Node> NodeContext::get_input_from_visible_context(size_t index) const {
     FRONT_END_GENERAL_CHECK(index < get_input_size(), "Index ", index, " is lower then number of inputs.");
     auto input_tensor = get_input(static_cast<int>(index));
     auto input_node = input_tensor.get_node_shared_ptr();
-    if (std::dynamic_pointer_cast<v0::Parameter>(input_node)) {
+    if (ov::as_type_ptr<v0::Parameter>(input_node)) {
         // We need to look into external context for inputs that would be feed into this parameter
         size_t tensor_idx = m_translate_session->decode_tensor_name(input_node->output(0));
         if (m_ext_tensor_map.count(tensor_idx)) {

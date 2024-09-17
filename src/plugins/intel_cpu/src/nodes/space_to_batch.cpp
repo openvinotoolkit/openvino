@@ -13,7 +13,7 @@ namespace node {
 
 bool SpaceToBatch::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto spaceToBatch = std::dynamic_pointer_cast<const ov::op::v1::SpaceToBatch>(op);
+        const auto spaceToBatch = ov::as_type_ptr<const ov::op::v1::SpaceToBatch>(op);
         if (!spaceToBatch) {
             errorMessage = "Only opset2 SpaceToBatch operation is supported";
             return false;

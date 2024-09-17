@@ -15,7 +15,7 @@ namespace node {
 bool ExperimentalDetectronPriorGridGenerator::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                                              std::string& errorMessage) noexcept {
     try {
-        const auto priorGridGen = std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronPriorGridGenerator>(op);
+        const auto priorGridGen = ov::as_type_ptr<const ov::opset6::ExperimentalDetectronPriorGridGenerator>(op);
         if (!priorGridGen) {
             errorMessage = "Only opset6 ExperimentalDetectronPriorGridGenerator operation is supported";
             return false;
@@ -36,7 +36,7 @@ ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator
     }
 
     errorPrefix = "ExperimentalDetectronPriorGridGenerator layer with name '" + op->get_friendly_name() + "'";
-    const auto priorGridGen = std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronPriorGridGenerator>(op);
+    const auto priorGridGen = ov::as_type_ptr<const ov::opset6::ExperimentalDetectronPriorGridGenerator>(op);
     if (getOriginalInputsNumber() != 3 || getOriginalOutputsNumber() != 1)
         OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
 

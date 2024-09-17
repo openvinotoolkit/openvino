@@ -1824,7 +1824,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
         if (mergedConvNode != nullptr)
             childPort = mergedConvNode->getParentEdges().size();
 
-        auto* mergedBinConvNode = dynamic_cast<node::BinaryConvolution*>(mergedConv.get());
+        auto* mergedBinConvNode = ov::as_type<node::BinaryConvolution>(mergedConv.get());
         if (mergedBinConvNode != nullptr)
             childPort = mergedBinConvNode->getParentEdges().size();
 

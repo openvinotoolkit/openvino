@@ -1542,7 +1542,7 @@ TEST(pre_post_process, postprocess_convert_element_type_explicit) {
     EXPECT_EQ(old_names.count("tensor_output1"), 1);
     auto ops = f->get_ordered_ops();
     auto res_count = std::count_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& n) {
-        return std::dynamic_pointer_cast<ov::op::v0::Result>(n) != nullptr;
+        return ov::as_type_ptr<ov::op::v0::Result>(n) != nullptr;
     });
     EXPECT_EQ(res_count, 1);
     auto names_count = std::count_if(ops.begin(), ops.end(), [](std::shared_ptr<ov::Node> n) {

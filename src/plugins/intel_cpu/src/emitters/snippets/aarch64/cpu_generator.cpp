@@ -44,7 +44,7 @@ namespace ov {
 #define CREATE_GELU_V7_EMITTER(e_type_erf, e_type_tanh) { \
     [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
         const auto& n = expr->get_node(); \
-        const auto& gelu = std::dynamic_pointer_cast<ov::op::v7::Gelu>(n); \
+        const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n); \
         if (gelu == nullptr) { \
             OPENVINO_THROW("Can't cast to ov::op::v7::Gelu"); \
         } \
@@ -58,7 +58,7 @@ namespace ov {
         } \
     }, \
     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> { \
-        const auto& gelu = std::dynamic_pointer_cast<ov::op::v7::Gelu>(n); \
+        const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n); \
         if (gelu == nullptr) { \
             OPENVINO_THROW("Can't cast to ov::op::v7::Gelu"); \
         } \

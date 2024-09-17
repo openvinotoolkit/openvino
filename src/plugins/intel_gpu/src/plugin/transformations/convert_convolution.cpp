@@ -73,9 +73,9 @@ ov::Tensor get_compensation(ov::Tensor* w_tensor, ov::Tensor* azp_tensor, ov::Te
 }
 
 ov::Tensor get_compensation(std::shared_ptr<ov::Node> w, std::shared_ptr<ov::Node> azp, std::shared_ptr<ov::Node> wzp, int64_t groups) {
-    auto w_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(w);
-    auto azp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(azp);
-    auto wzp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(wzp);
+    auto w_const = ov::as_type_ptr<ov::op::v0::Constant>(w);
+    auto azp_const = ov::as_type_ptr<ov::op::v0::Constant>(azp);
+    auto wzp_const = ov::as_type_ptr<ov::op::v0::Constant>(wzp);
 
     OPENVINO_ASSERT(w_const != nullptr && azp_const != nullptr);
 
@@ -135,14 +135,14 @@ AsymmetricConvolutionMatcher::AsymmetricConvolutionMatcher() {
         auto conv_node = std::dynamic_pointer_cast<ov::op::util::ConvolutionFwdPropBase>(pattern_map.at(convolution_m).get_node_shared_ptr());
 
         int64_t groups = -1;
-        if (auto grouped_conv = std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(conv_node)) {
+        if (auto grouped_conv = ov::as_type_ptr<ov::op::v1::GroupConvolution>(conv_node)) {
             auto weights_shape = grouped_conv->get_input_partial_shape(1);
             if (weights_shape[0].is_dynamic())
                 return false;
             groups = weights_shape[0].get_length();
         }
 
-        auto weights = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(weights_m).get_node_shared_ptr());
+        auto weights = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(weights_m).get_node_shared_ptr());
         std::shared_ptr<ov::Node> no_bias = std::make_shared<op::Placeholder>();
         std::shared_ptr<ov::Node> optional_wzp_point = std::make_shared<op::Placeholder>();
         std::shared_ptr<ov::Node> optional_azp_point = std::make_shared<op::Placeholder>();
@@ -199,7 +199,7 @@ ConvolutionMatcher::ConvolutionMatcher() {
         auto conv_node = std::dynamic_pointer_cast<ov::op::util::ConvolutionFwdPropBase>(pattern_map.at(convolution_m).get_node_shared_ptr());
 
         int64_t groups = -1;
-        if (auto grouped_conv = std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(conv_node)) {
+        if (auto grouped_conv = ov::as_type_ptr<ov::op::v1::GroupConvolution>(conv_node)) {
             auto weights_shape = grouped_conv->get_input_partial_shape(1);
             if (weights_shape[0].is_dynamic())
                 return false;

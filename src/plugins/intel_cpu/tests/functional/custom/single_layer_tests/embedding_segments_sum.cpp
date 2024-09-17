@@ -77,7 +77,7 @@ protected:
         auto emb_table_node = std::make_shared<ov::op::v0::Parameter>(inType, inputShapes.first);
         ov::ParameterVector params = {emb_table_node};
 
-        auto embBag = std::dynamic_pointer_cast<ov::op::v3::EmbeddingSegmentsSum>(
+        auto embBag = ov::as_type_ptr<ov::op::v3::EmbeddingSegmentsSum>(
             ov::test::utils::make_embedding_segments_sum(inType,
                                                          indPrecision,
                                                          emb_table_node,

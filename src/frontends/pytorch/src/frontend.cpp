@@ -185,7 +185,7 @@ std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& mo
             auto place = inputs[i];
             if (place->get_names().size() != 0 && input_names.find(place->get_names().at(0)) != input_names.end()) {
                 auto input = converted_model->input(place->get_names().at(0));
-                auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(input.get_node_shared_ptr());
+                auto param = ov::as_type_ptr<ov::op::v0::Parameter>(input.get_node_shared_ptr());
                 FRONT_END_GENERAL_CHECK(param, "Input is not a Parameter.");
                 update_parameter_info(param, place, converted_model);
             } else {
@@ -207,7 +207,7 @@ std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& mo
                 update_parameter_info(parameters[idx], fplace, converted_model);
             } else {
                 auto input = converted_model->input(fplace->get_names().at(0));
-                auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(input.get_node_shared_ptr());
+                auto param = ov::as_type_ptr<ov::op::v0::Parameter>(input.get_node_shared_ptr());
                 FRONT_END_GENERAL_CHECK(param, "Input is not a Parameter.");
                 update_parameter_info(param, fplace, converted_model);
             }

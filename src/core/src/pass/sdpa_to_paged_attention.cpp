@@ -54,7 +54,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});  // sliding_window
 
     std::shared_ptr<v0::Parameter> input_ids_node =
-        std::dynamic_pointer_cast<v0::Parameter>(model->input("input_ids").get_node_shared_ptr());
+        ov::as_type_ptr<v0::Parameter>(model->input("input_ids").get_node_shared_ptr());
     input_ids_node->set_partial_shape(PartialShape{-1});
     auto unsqueezed_input_ids =
         std::make_shared<v0::Unsqueeze>(input_ids_node, v0::Constant::create(element::i32, Shape{}, {1}));
@@ -88,7 +88,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         position_ids = setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1}), "position_ids");
         model->add_parameters({position_ids});
     } else {
-        position_ids = std::dynamic_pointer_cast<v0::Parameter>(model->input("position_ids").get_node_shared_ptr());
+        position_ids = ov::as_type_ptr<v0::Parameter>(model->input("position_ids").get_node_shared_ptr());
         position_ids->set_partial_shape(PartialShape{-1});
         position_ids->validate_and_infer_types();
     }
@@ -138,7 +138,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     for (auto& param_name : {"beam_idx", "attention_mask"}) {
         if (has_parameter(model, param_name)) {
             if (const auto& param =
-                    std::dynamic_pointer_cast<v0::Parameter>(model->input(param_name).get_node_shared_ptr())) {
+                    ov::as_type_ptr<v0::Parameter>(model->input(param_name).get_node_shared_ptr())) {
                 model->remove_parameter(param);
 
                 if (param->output(0).get_target_inputs().size() == 0) {

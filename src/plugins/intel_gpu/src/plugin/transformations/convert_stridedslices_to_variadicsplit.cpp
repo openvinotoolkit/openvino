@@ -49,7 +49,7 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
         int64_t begin_offset = 0;
         int64_t end_offset = 0;
         for (const auto& user : fc->get_users()) {
-            const auto strided_slice_node = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(user);
+            const auto strided_slice_node = ov::as_type_ptr<ov::op::v1::StridedSlice>(user);
             if (strided_slice_node) {
                 auto valid_ps = [](const ov::PartialShape& shape) -> bool {
                     return shape.rank().is_static() && shape[shape.rank().get_length() - 1].is_static();

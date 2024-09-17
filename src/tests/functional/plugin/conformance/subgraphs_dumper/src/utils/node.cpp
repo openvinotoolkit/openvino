@@ -86,7 +86,7 @@ get_input_info_by_node(const std::shared_ptr<ov::Node>& node) {
         }
         ov::conformance::InputInfo in_info(node->get_input_partial_shape(port_id));
         std::string input_name = input_node->get_friendly_name();
-        if (std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node)) {
+        if (ov::as_type_ptr<ov::op::v0::Constant>(input_node)) {
             if (ov::shape_size(input_node->get_output_shape(0)) == 0) {
                 auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(input_node);
                 in_info.is_const = true;

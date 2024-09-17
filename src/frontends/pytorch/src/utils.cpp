@@ -186,7 +186,7 @@ element::Type convert_dtype(int64_t pt_type) {
 };
 
 Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor) {
-    if (std::dynamic_pointer_cast<v0::Constant>(
+    if (ov::as_type_ptr<v0::Constant>(
             context.get_input_from_visible_context(dtype_port).get_node_shared_ptr())) {
         auto dtype = convert_dtype(context.const_input<int64_t>(dtype_port));
         return context.mark_node(std::make_shared<v0::Convert>(input_tensor, dtype));

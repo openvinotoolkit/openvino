@@ -24,7 +24,7 @@ static void CreateEmbeddingBagOffsetsSumOp(ProgramBuilder& p, const std::shared_
 
     int32_t defaultIndex = -1;
     if (inputs.size() > 3) {
-        auto index_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
+        auto index_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
         OPENVINO_ASSERT(index_node != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         float val;
@@ -110,7 +110,7 @@ static void CreateEmbeddingSegmentsSumOp(ProgramBuilder& p, const std::shared_pt
     int32_t defaultIndex = -1;
     // port of default_index is 4 by default, but we removed "num_segments" above, so now it's equal to 3
     if (inputs.size() > 3) {
-        auto index_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(4));
+        auto index_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(4));
         OPENVINO_ASSERT(index_node != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         float val;

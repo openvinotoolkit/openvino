@@ -53,7 +53,7 @@ SwiGLUFusion::SwiGLUFusion() {
         OPENVINO_ASSERT(pattern_map.count(variadic_split_m));
         OPENVINO_ASSERT(pattern_map.count(split_lengths_const_m));
         OPENVINO_ASSERT(pattern_map.count(axis_const_m));
-        auto mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(pattern_map.at(mul_m).get_node_shared_ptr());
+        auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(mul_m).get_node_shared_ptr());
         if (!mul || transformation_callback(mul))
             return false;
 
@@ -63,7 +63,7 @@ SwiGLUFusion::SwiGLUFusion() {
         ov::intel_gpu::op::SwiGLU::GluType glu_type = ov::intel_gpu::op::SwiGLU::GluType::Swish;
 
         if (isSwiGLU) {
-            auto swish = std::dynamic_pointer_cast<ov::op::v4::Swish>(pattern_map.at(swish_m).get_node_shared_ptr());
+            auto swish = ov::as_type_ptr<ov::op::v4::Swish>(pattern_map.at(swish_m).get_node_shared_ptr());
             glu_type = ov::intel_gpu::op::SwiGLU::GluType::Swish;
             split_to_glu_idx = swish->input_value(0).get_index();
 
@@ -71,7 +71,7 @@ SwiGLUFusion::SwiGLUFusion() {
             if (mul->input_value(split_in_idx).get_index() == split_to_glu_idx)
                 return false;
         } else if (isGeGLU) {
-            auto gelu = std::dynamic_pointer_cast<ov::op::v7::Gelu>(pattern_map.at(gelu_m).get_node_shared_ptr());
+            auto gelu = ov::as_type_ptr<ov::op::v7::Gelu>(pattern_map.at(gelu_m).get_node_shared_ptr());
             glu_type = (gelu->get_approximation_mode() == ov::op::GeluApproximationMode::ERF) ? ov::intel_gpu::op::SwiGLU::GluType::Gelu
                                                                                               : ov::intel_gpu::op::SwiGLU::GluType::Gelu_Tanh;
             split_to_glu_idx = gelu->input_value(0).get_index();
@@ -83,18 +83,18 @@ SwiGLUFusion::SwiGLUFusion() {
             OPENVINO_THROW("'glu_type' not initialized");
         }
 
-        auto variadic_split = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(pattern_map.at(variadic_split_m).get_node_shared_ptr());
+        auto variadic_split = ov::as_type_ptr<ov::op::v1::VariadicSplit>(pattern_map.at(variadic_split_m).get_node_shared_ptr());
         auto variadic_split_in_ps = variadic_split->get_input_partial_shape(0);
         auto last_dim = variadic_split_in_ps.rank().get_length() - 1;
 
-        auto axis = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(axis_const_m).get_node_shared_ptr());
+        auto axis = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(axis_const_m).get_node_shared_ptr());
         bool valid_axis_const_values = ov::op::util::has_constant_value<int64_t>(axis, -1) ||
                                        ov::op::util::has_constant_value<int64_t>(axis, last_dim);
         if (!valid_axis_const_values)
             return false;
         auto axis_value = axis->cast_vector<int64_t>()[0];
 
-        auto split_lengths = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(split_lengths_const_m).get_node_shared_ptr());
+        auto split_lengths = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(split_lengths_const_m).get_node_shared_ptr());
         auto split_lengths_value = split_lengths->cast_vector<int64_t>()[0];
         // Allow only case that exactly splits in half along the last dimension
         auto split_length = variadic_split_in_ps[last_dim].get_length() / 2;

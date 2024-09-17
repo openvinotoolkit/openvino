@@ -324,7 +324,7 @@ std::shared_ptr<ov::Model> AddFunction::getReference(
     const auto dequantizationOp2 = ov::is_type<ov::opset1::Constant>(parent) ? parent : makeDequantization(parent, dequantizationStructure2);
 
     const std::shared_ptr<Node> add =
-        operationType == "Add" ? std::dynamic_pointer_cast<Node>(std::make_shared<ov::op::TypeRelaxed<ov::opset1::Add>>(
+        operationType == "Add" ? ov::as_type_ptr<Node>(std::make_shared<ov::op::TypeRelaxed<ov::opset1::Add>>(
                                      std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
                                      std::vector<ov::element::Type>{ov::element::f32},
                                      ov::op::TemporaryReplaceOutputType(dequantizationOp1, ov::element::f32).get(),

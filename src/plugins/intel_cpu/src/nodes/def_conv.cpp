@@ -772,7 +772,7 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
     autoPadding = one_of(defConvNodeBase->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
 
     if (op->get_type_info() == ov::op::v8::DeformableConvolution::get_type_info_static()) {
-        auto defConvNode = std::dynamic_pointer_cast<ov::op::v8::DeformableConvolution>(op);
+        auto defConvNode = ov::as_type_ptr<ov::op::v8::DeformableConvolution>(op);
         if (defConvNode == nullptr)
             OPENVINO_THROW(errorPrefix, " is not an instance of DeformableConvolution from opset8.");
         defConvAttr.with_bilinear_pad = defConvNode->get_bilinear_interpolation_pad();

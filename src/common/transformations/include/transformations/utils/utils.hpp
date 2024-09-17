@@ -54,7 +54,7 @@ bool has_op_with_type(const std::shared_ptr<const ov::Model>& function) {
 
 inline bool has_decompression_converts(const std::shared_ptr<const ov::Model>& function) {
     for (const auto& op : function->get_ops()) {
-        if (std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
+        if (ov::as_type_ptr<ov::op::v0::Convert>(op)) {
             if (ov::is_decompression(op))
                 return true;
         }
@@ -133,7 +133,7 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
         return false;
     }
 
-    auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+    auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
     if (!constant) {
         return false;
     }
@@ -167,7 +167,7 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
         return false;
     }
 
-    auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+    auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
     if (!constant) {
         return false;
     }

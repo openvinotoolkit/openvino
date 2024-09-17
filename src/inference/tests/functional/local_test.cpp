@@ -235,7 +235,7 @@ protected:
         for (const auto& op : model->get_ops()) {
             if (!isLSTM) {
                 if (op->get_friendly_name() == "output") {
-                    const auto roi = std::dynamic_pointer_cast<ov::op::v3::ROIAlign>(op);
+                    const auto roi = ov::as_type_ptr<ov::op::v3::ROIAlign>(op);
                     ASSERT_TRUE(roi);
                     ASSERT_EQ(roi->get_pooled_h(), 7);
                     ASSERT_EQ(roi->get_pooled_w(), 7);

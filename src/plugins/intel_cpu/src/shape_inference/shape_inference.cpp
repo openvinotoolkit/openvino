@@ -213,7 +213,7 @@ public:
             if (auto t = tensor_accessor(i)) {
                 new_inputs.push_back(
                     std::make_shared<ov::opset1::Constant>(t));
-            } else if (dynamic_cast<ov::opset1::Constant*>(op->get_input_node_ptr(i))) {
+            } else if (ov::as_type<ov::opset1::Constant>(op->get_input_node_ptr(i))) {
                 new_inputs.push_back(op->get_input_node_ptr(i)->clone_with_new_inputs(ov::OutputVector{}));
             } else {
                 new_inputs.push_back(std::make_shared<ov::opset1::Parameter>(op->get_input_element_type(i),

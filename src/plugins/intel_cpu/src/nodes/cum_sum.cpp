@@ -18,7 +18,7 @@ namespace node {
 
 bool CumSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto cumsum = std::dynamic_pointer_cast<const ov::opset3::CumSum>(op);
+        const auto cumsum = ov::as_type_ptr<const ov::opset3::CumSum>(op);
         if (!cumsum) {
             errorMessage = "Only opset3 CumSum operation is supported";
             return false;
@@ -46,7 +46,7 @@ CumSum::CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
         OPENVINO_THROW(errorPrefix, " doesn't support 'data' input tensor with rank: ", numOfDims);
     }
 
-    const auto cumsum = std::dynamic_pointer_cast<const ov::opset3::CumSum>(op);
+    const auto cumsum = ov::as_type_ptr<const ov::opset3::CumSum>(op);
     if (cumsum == nullptr)
         OPENVINO_THROW("Operation with name '", op->get_friendly_name(), "' is not an instance of CumSum from opset3.");
 

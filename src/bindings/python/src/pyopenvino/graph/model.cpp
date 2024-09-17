@@ -54,7 +54,7 @@ ov::SinkVector cast_to_sink_vector(const std::vector<T>& items) {
     sinks.reserve(items.size());
     for (const auto& item : items) {
         const auto node = get_node_ptr(item);
-        auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node);
+        auto sink = ov::as_type_ptr<ov::op::Sink>(node);
         OPENVINO_ASSERT(sink != nullptr, "Node " + node->get_name() + " is not instance of Sink");
         sinks.push_back(std::move(sink));
     }
@@ -893,7 +893,7 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, const ov::Output<ov::Node>& value) -> int64_t {
             auto node = value.get_node_shared_ptr();
             if (ov::is_type<ov::op::v6::Assign>(node)) {
-                return find_sink_position(self.get_sinks(), std::dynamic_pointer_cast<ov::op::Sink>(node));
+                return find_sink_position(self.get_sinks(), ov::as_type_ptr<ov::op::Sink>(node));
             } else {
                 throw py::type_error("Incorrect argument type. Output sink node is expected as argument.");
             }
@@ -915,7 +915,7 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, const ov::Output<const ov::Node>& value) -> int64_t {
             auto node = value.get_node_shared_ptr();
             if (ov::is_type<ov::op::v6::Assign>(node)) {
-                return find_sink_position(self.get_sinks(), std::dynamic_pointer_cast<const ov::op::Sink>(node));
+                return find_sink_position(self.get_sinks(), ov::as_type_ptr<const ov::op::Sink>(node));
             } else {
                 throw py::type_error("Incorrect argument type. Output sink node is expected as argument.");
             }
@@ -936,10 +936,10 @@ void regclass_graph_Model(py::module m) {
         "get_sink_index",
         [](ov::Model& self, const py::object& node) -> int64_t {
             if (py::isinstance<ov::op::v6::Assign>(node)) {
-                auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node.cast<std::shared_ptr<ov::op::v6::Assign>>());
+                auto sink = ov::as_type_ptr<ov::op::Sink>(node.cast<std::shared_ptr<ov::op::v6::Assign>>());
                 return find_sink_position(self.get_sinks(), sink);
             } else if (py::isinstance<ov::Node>(node)) {
-                auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node.cast<std::shared_ptr<ov::Node>>());
+                auto sink = ov::as_type_ptr<ov::op::Sink>(node.cast<std::shared_ptr<ov::Node>>());
                 return find_sink_position(self.get_sinks(), sink);
             } else {
                 throw py::type_error("Incorrect argument type. Sink node is expected as argument.");
@@ -1139,10 +1139,10 @@ void regclass_graph_Model(py::module m) {
         "remove_sink",
         [](ov::Model& self, const py::object& node) {
             if (py::isinstance<ov::op::v6::Assign>(node)) {
-                auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node.cast<std::shared_ptr<ov::op::v6::Assign>>());
+                auto sink = ov::as_type_ptr<ov::op::Sink>(node.cast<std::shared_ptr<ov::op::v6::Assign>>());
                 self.remove_sink(sink);
             } else if (py::isinstance<ov::Node>(node)) {
-                auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node.cast<std::shared_ptr<ov::Node>>());
+                auto sink = ov::as_type_ptr<ov::op::Sink>(node.cast<std::shared_ptr<ov::Node>>());
                 self.remove_sink(sink);
             } else {
                 throw py::type_error("Incorrect argument type. Sink node is expected as an argument.");
@@ -1202,7 +1202,7 @@ void regclass_graph_Model(py::module m) {
             ov::SinkVector sinks_cpp;
             for (py::handle sink : sinks) {
                 const auto assign = sink.cast<std::shared_ptr<ov::op::v6::Assign>>();
-                auto sink_cpp = std::dynamic_pointer_cast<ov::op::Sink>(assign);
+                auto sink_cpp = ov::as_type_ptr<ov::op::Sink>(assign);
                 OPENVINO_ASSERT(sink_cpp != nullptr, "Assign " + assign->get_name() + " is not instance of Sink");
                 sinks_cpp.push_back(sink_cpp);
             }

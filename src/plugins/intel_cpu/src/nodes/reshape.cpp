@@ -19,9 +19,9 @@ namespace node {
 
 bool Reshape::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!std::dynamic_pointer_cast<const ov::opset1::Reshape>(op) &&
-            !std::dynamic_pointer_cast<const ov::opset1::Squeeze>(op) &&
-                !std::dynamic_pointer_cast<const ov::opset1::Unsqueeze>(op)) {
+        if (!ov::as_type_ptr<const ov::opset1::Reshape>(op) &&
+            !ov::as_type_ptr<const ov::opset1::Squeeze>(op) &&
+                !ov::as_type_ptr<const ov::opset1::Unsqueeze>(op)) {
             errorMessage = "Only opset1 Reshape, Squeeze, Unsqueeze operations are supported";
             return false;
         }
@@ -47,13 +47,13 @@ Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
             }
         };
 
-        if (std::dynamic_pointer_cast<const ov::opset1::Reshape>(op)) {
+        if (ov::as_type_ptr<const ov::opset1::Reshape>(op)) {
             checkSecondInput(op, "Reshape");
-        } else if (std::dynamic_pointer_cast<const ov::opset1::Squeeze>(op)) {
+        } else if (ov::as_type_ptr<const ov::opset1::Squeeze>(op)) {
             if (op->get_input_size() == 1)
                 OPENVINO_THROW("CPU plug-in doesn't support Squeeze node with inputs num equal 1");
             checkSecondInput(op, "Squeeze");
-        } else if (std::dynamic_pointer_cast<const ov::opset1::Unsqueeze>(op)) {
+        } else if (ov::as_type_ptr<const ov::opset1::Unsqueeze>(op)) {
             checkSecondInput(op, "Unsqueeze");
         } else {
             OPENVINO_THROW("Unsupported operation type via reshape node");

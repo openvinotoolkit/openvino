@@ -179,7 +179,7 @@ PostOps getPostOps(std::vector<NodePtr> fused) {
             }
         }
 
-        if (const auto fq = std::dynamic_pointer_cast<node::FakeQuantize>(node)) {
+        if (const auto fq = ov::as_type_ptr<node::FakeQuantize>(node)) {
             ops.push_back(std::make_shared<FakeQuantizePostOp>(fq->getCropLow(),
                                                                fq->getCropHigh(),
                                                                fq->getInputScale(),

@@ -87,7 +87,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getOrigina
             parent2->set_friendly_name("lastFakeQuantize2");
         }
     }
-    auto parent = std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::opset1::Concat>(ov::OutputVector{ parent1, parent2 }, 1));
+    auto parent = ov::as_type_ptr<ov::Node>(std::make_shared<ov::opset1::Concat>(ov::OutputVector{ parent1, parent2 }, 1));
     parent->set_friendly_name("concat");
 
     {
@@ -202,7 +202,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getReferen
             parent2->set_friendly_name("lastFakeQuantize2");
         }
     }
-    auto parent = std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::opset1::Concat>(ov::OutputVector{ parent1, parent2 }, 1));
+    auto parent = ov::as_type_ptr<ov::Node>(std::make_shared<ov::opset1::Concat>(ov::OutputVector{ parent1, parent2 }, 1));
     parent->set_friendly_name("concat");
 
     if (!dequantizationBefore.empty()) {

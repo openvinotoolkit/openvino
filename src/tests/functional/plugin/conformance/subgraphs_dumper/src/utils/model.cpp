@@ -22,7 +22,7 @@ get_input_info_by_model(const std::shared_ptr<ov::Model>& model) {
         ov::conformance::InputInfo::Range ranges(ov::conformance::DEFAULT_MIN_VALUE, ov::conformance::DEFAULT_MAX_VALUE);
         bool is_const = false;
         if (ov::shape_size(node->get_output_shape(0)) != 0 && ov::op::util::is_constant(node)) {
-            std::shared_ptr<ov::op::v0::Constant> constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+            std::shared_ptr<ov::op::v0::Constant> constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
             auto const_ranges = get_const_ranges(constant,
                                                  constant->get_default_output().get_element_type());
             ranges = const_ranges;

@@ -31,7 +31,7 @@ struct BranchNodes {
 BranchNodes getBranch(const MultiplyPartialBranch& branch) {
     const std::shared_ptr<Node> parent = branch.constant.empty() ?
         std::make_shared<ov::opset1::Parameter>(branch.precisionBeforeDequantization, branch.inputShape) :
-        std::dynamic_pointer_cast<Node>(std::make_shared<ov::opset1::Constant>(
+        ov::as_type_ptr<Node>(std::make_shared<ov::opset1::Constant>(
             branch.constant.outPrecision,
             branch.constant.shape,
             branch.constant.values));
@@ -69,10 +69,10 @@ std::shared_ptr<ov::Model> MultiplyPartialFunction::get(const ov::element::Type 
 
     ov::ParameterVector inputs;
     if (ov::is_type<ov::opset1::Parameter>(branchNodes1.input)) {
-        inputs.push_back(std::dynamic_pointer_cast<ov::opset1::Parameter>(branchNodes1.input));
+        inputs.push_back(ov::as_type_ptr<ov::opset1::Parameter>(branchNodes1.input));
     }
     if (ov::is_type<ov::opset1::Parameter>(branchNodes2.input)) {
-        inputs.push_back(std::dynamic_pointer_cast<ov::opset1::Parameter>(branchNodes2.input));
+        inputs.push_back(ov::as_type_ptr<ov::opset1::Parameter>(branchNodes2.input));
     }
 
     return std::make_shared<ov::Model>(results, inputs, "MultiplyTransformation");

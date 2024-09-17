@@ -228,7 +228,7 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
     auto bitwise_and_candidate = list_elems[0].get_node_shared_ptr();
     std::shared_ptr<Node> bitwise_and = cast_fw_node(bitwise_and_candidate, "aten::bitwise_and");
     if (!bitwise_and) {
-        bitwise_and = std::dynamic_pointer_cast<v13::BitwiseAnd>(bitwise_and_candidate);
+        bitwise_and = ov::as_type_ptr<v13::BitwiseAnd>(bitwise_and_candidate);
         if (!bitwise_and)
             return nullptr;
     }
@@ -237,8 +237,8 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
     if (!bitwise_shift)
         return nullptr;
 
-    auto weights_u8 = std::dynamic_pointer_cast<v0::Constant>(bitwise_and->get_input_node_shared_ptr(0));
-    if (weights_u8 != std::dynamic_pointer_cast<v0::Constant>(bitwise_shift->get_input_node_shared_ptr(0)))
+    auto weights_u8 = ov::as_type_ptr<v0::Constant>(bitwise_and->get_input_node_shared_ptr(0));
+    if (weights_u8 != ov::as_type_ptr<v0::Constant>(bitwise_shift->get_input_node_shared_ptr(0)))
         return nullptr;
 
     if (weights_u8->get_output_element_type(0) != element::u8)

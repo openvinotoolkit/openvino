@@ -529,17 +529,17 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
         auto node = create_node(inputs, p.xml, weights, p.params);
         id_to_node[layer_id] = node;
 
-        if (const auto& parameter_node = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node)) {
+        if (const auto& parameter_node = ov::as_type_ptr<ov::op::v0::Parameter>(node)) {
             io_map.inputs.insert({layer_id, func_nodes.parameters.size()});
             func_nodes.parameters.emplace_back(parameter_node);
         }
 
-        if (const auto& result_node = std::dynamic_pointer_cast<ov::op::v0::Result>(node)) {
+        if (const auto& result_node = ov::as_type_ptr<ov::op::v0::Result>(node)) {
             io_map.outputs.insert({layer_id, func_nodes.results.size()});
             func_nodes.results.emplace_back(result_node);
         }
 
-        if (const auto& sink = std::dynamic_pointer_cast<ov::op::Sink>(node)) {
+        if (const auto& sink = ov::as_type_ptr<ov::op::Sink>(node)) {
             auto subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node);
             if (subgraph_op) {
                 for (const auto& body_model : subgraph_op->get_functions()) {
@@ -896,7 +896,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
             OPENVINO_THROW("Opset ", params.version, " doesn't contain the operation with type: ", type_name);
         }
         // Share Weights form constant blob
-        if (auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(ovNode)) {
+        if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(ovNode)) {
             constant->alloc_buffer_on_visit_attributes(false);
         }
         ovNode->set_arguments(inputs);
