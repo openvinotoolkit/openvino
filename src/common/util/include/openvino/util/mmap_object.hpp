@@ -12,7 +12,7 @@
 #include <memory>
 #include <string>
 #ifdef _WIN32
-#include <sstream>
+#    include <sstream>
 #endif
 
 namespace ov {

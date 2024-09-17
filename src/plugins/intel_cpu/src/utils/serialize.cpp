@@ -158,10 +158,9 @@ void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model,
     }
 
     // read blob content
-    ov::Tensor data_blob;
+    ov::Tensor data_blob = ov::Tensor(ov::element::u8, ov::Shape({hdr.consts_size}));
     m_istream.seekg(hdr.consts_offset);
     if (hdr.consts_size) {
-        data_blob = ov::Tensor(ov::element::u8, ov::Shape({hdr.consts_size}));
         m_istream.read(static_cast<char *>(data_blob.data(ov::element::u8)), hdr.consts_size);
     }
 

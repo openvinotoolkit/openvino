@@ -1396,6 +1396,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
     return compiled_model;
 }
 
+static bool does_plugin_support_model_caching_with_mmap(const ov::Plugin& plugin) {
+    bool supported = plugin.supports_model_caching();
+    supported &=
+        ov::util::contains(plugin.get_property(ov::internal::supported_properties), ov::internal::caching_with_mmap);
+    return supported;
+}
+
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
     const CacheContent& cacheContent,
     ov::Plugin& plugin,
@@ -1447,7 +1454,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 compiled_model = context ? plugin.import_model(networkStream, context, update_config)
                                          : plugin.import_model(networkStream, update_config);
             },
-            plugin.supports_model_caching_with_mmap());
+            does_plugin_support_model_caching_with_mmap(plugin));
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
         cacheContent.cacheManager->remove_cache_entry(cacheContent.blobId);

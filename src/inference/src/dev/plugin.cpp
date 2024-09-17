@@ -108,9 +108,3 @@ bool ov::Plugin::supports_model_caching() const {
                 util::contains(get_property(ov::internal::supported_properties), ov::internal::caching_properties);
     return supported;
 }
-
-bool ov::Plugin::supports_model_caching_with_mmap() const {
-    bool supported = supports_model_caching();
-    supported &= util::contains(get_property(ov::internal::supported_properties), ov::internal::caching_with_mmap);
-    return supported;
-}

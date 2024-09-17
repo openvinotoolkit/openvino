@@ -34,7 +34,7 @@ static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> cac
  * which should affect the loading time from cache
  * @ingroup ov_dev_api_plugin_api
  */
-static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> caching_with_mmap{"CACHING_WITH_MMAP"};
+static constexpr Property<bool, PropertyMutability::RO> caching_with_mmap{"CACHING_WITH_MMAP"};
 
 /**
  * @brief Allow to create exclusive_async_requests with one executor

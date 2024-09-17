@@ -20,7 +20,6 @@
 #include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
-#include "openvino/util/mmap_object.hpp"
 #include "openvino/util/pp.hpp"
 
 namespace ov {

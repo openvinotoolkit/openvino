@@ -75,8 +75,6 @@ public:
         return get_property(property.name(), arguments).template as<T>();
     }
     bool supports_model_caching() const;
-
-    bool supports_model_caching_with_mmap() const;
 };
 
 }  // namespace ov
