@@ -146,7 +146,7 @@ docker pull ubuntu:22.04
 Status: Downloaded newer image for ubuntu:22.04
 docker.io/library/ubuntu:22.04
 ```
-Note the last line starting with `docker.io`, replace `docker.io` to `openvinogithubactions.azurecr.io` and use the 
+Note the last line starting with `docker.io`, replace `docker.io` with `openvinogithubactions.azurecr.io` and use the 
 resulting image reference in your workflow:
 ```yaml
   SomeJob:
