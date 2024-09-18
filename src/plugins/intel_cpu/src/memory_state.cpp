@@ -164,7 +164,6 @@ VariableStateSingleBuffer::VariableStateSingleBuffer(const std::string& name,
     reset_prime_mem(external_buffer);
     m_internal_desc = prime_mem()->getDescPtr();
     auto&& shape = m_internal_desc->getShape();
-    // TODO what if by some reason we already have internal static state while the node is dynamic, is it even possible?
 
     if (shape.isStatic()) {
         prime_mem()->nullify();

@@ -591,60 +591,66 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
 }
 
 void MemoryInput::selectOptimalPrimitiveDescriptor() {
-    // for the input configution, just always use the parent configuration
-    std::vector<PortConfig> inConfs;
-    std::vector<Input::InputConfig> graphInputConfig;
+    if (body) {
+        // for the input configution, just always use the parent configuration
+        std::vector<PortConfig> inConfs;
+        std::vector<Input::InputConfig> graphInputConfig;
 
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto desc = getParentOutputMemDesc(getParentEdgeAt(i));
-        inConfs.emplace_back(desc);
-        graphInputConfig.emplace_back(node::Input::InputConfig{desc, true});
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            auto desc = getParentOutputMemDesc(getParentEdgeAt(i));
+            inConfs.emplace_back(desc);
+            graphInputConfig.emplace_back(node::Input::InputConfig{desc, true});
+        }
+
+        std::vector<Input::OutputConfig> graphOutputConfig;
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            graphOutputConfig.emplace_back(node::Input::OutputConfig{true, true});
+        }
+
+        // configure the inner graph to get the information about output memory descriptors
+        subGraph.Init(body, context, graphInputConfig, graphOutputConfig);
+
+        // for the output decriptors, use the configuration of the graph's output nodes
+        auto outputDescriptors = subGraph.getOutputMemoryDescriptors();
+
+        std::vector<PortConfig> outConfs;
+        for (const auto& desc : outputDescriptors) {
+            outConfs.emplace_back(desc);
+        }
+
+        const NodeConfig config(inConfs, outConfs);
+
+        supportedPrimitiveDescriptors.clear();
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef);
+
+        selectPrimitiveDescriptorByIndex(0);
+    } else {
+        MemoryInputBase::selectOptimalPrimitiveDescriptor();
     }
-
-    std::vector<Input::OutputConfig> graphOutputConfig;
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        graphOutputConfig.emplace_back(node::Input::OutputConfig{true, true});
-    }
-
-    // configure the inner graph to get the information about output memory descriptors
-    subGraph.Init(body, context, graphInputConfig, graphOutputConfig);
-
-    // for the output decriptors, use the configuration of the graph's output nodes
-    auto outputDescriptors = subGraph.getOutputMemoryDescriptors();
-
-    std::vector<PortConfig> outConfs;
-    for (const auto& desc : outputDescriptors) {
-        outConfs.emplace_back(desc);
-    }
-
-    const NodeConfig config(inConfs, outConfs);
-
-    supportedPrimitiveDescriptors.clear();
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef);
-
-    selectPrimitiveDescriptorByIndex(0);
 }
 
 // @todo add ascii diagramm for memory mapping / reuse
 void MemoryInput::createPrimitive() {
     MemoryInputBase::createPrimitive();
-    OPENVINO_ASSERT(getOriginalInputsNumber() == subGraph.GetInputNodesMap().size(),
-                    "Number of node inputs must be equal the number of inner graph's inputs");
+    if (body) {
+        OPENVINO_ASSERT(getOriginalInputsNumber() == subGraph.GetInputNodesMap().size(),
+                        "Number of node inputs must be equal the number of inner graph's inputs");
 
-    std::vector<MemoryPtr> inputMemory;
-    for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
-        inputMemory.emplace_back(getSrcMemoryAtPort(i));
+        std::vector<MemoryPtr> inputMemory;
+        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
+            inputMemory.emplace_back(getSrcMemoryAtPort(i));
+        }
+
+        OPENVINO_ASSERT(getOriginalOutputsNumber() == subGraph.GetOutputNodesMap().size(),
+                        "Number of node outputs must be equal the number of inner graph's outputs");
+
+        std::vector<MemoryPtr> outputMemory;
+        for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
+            outputMemory.emplace_back(getDstMemoryAtPort(i));
+        }
+
+        subGraph.Activate(inputMemory, outputMemory);
     }
-
-    OPENVINO_ASSERT(getOriginalOutputsNumber() == subGraph.GetOutputNodesMap().size(),
-                    "Number of node outputs must be equal the number of inner graph's outputs");
-
-    std::vector<MemoryPtr> outputMemory;
-    for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
-        outputMemory.emplace_back(getDstMemoryAtPort(i));
-    }
-
-    subGraph.Activate(inputMemory, outputMemory);
 }
 
 void MemoryInput::runDynamic(dnnl::stream strm) {
