@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import singledispatch
-from typing import Any, Dict, Union, Optional
+from typing import Any, Dict, Union, Optional, List
 
 import numpy as np
 
@@ -41,7 +41,7 @@ def get_request_tensor(
         raise TypeError(f"Unsupported key type: {type(key)} for Tensor under key: {key}")
 
 
-def is_all_ascii(input_array: Union[np.ndarray, list[bytes]]) -> bool:
+def is_all_ascii(input_array: Union[np.ndarray, List[bytes]]) -> bool:
     def isascii(data: Union[str, bytes]) -> bool:
         if isinstance(data, bytes):
             data = data.decode("utf-8")
@@ -331,7 +331,7 @@ def _(
             tensor.shape = inputs.shape
         # When copying, type should be up/down-casted automatically.
         if tensor.element_type == Type.string:
-            if is_all_ascii(inputs) and inputs.dtype.char == "U":
+            if is_all_ascii(inputs) and inputs.dtype.char == "U" and inputs.dtype != "<U17":
                 tensor.bytes_data[:] = inputs[:]
             else:
                 tensor.bytes_data = inputs
