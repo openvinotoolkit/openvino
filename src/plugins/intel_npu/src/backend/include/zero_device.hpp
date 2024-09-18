@@ -61,7 +61,7 @@ public:
 private:
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
 
-    ze_graph_dditable_ext_curr_t* _graph_ddi_table_ext = nullptr;
+    ze_graph_dditable_ext_curr_t& _graph_ddi_table_ext;
 
     ze_device_properties_t device_properties = {};
 
