@@ -41,7 +41,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
                               "Jit emitter is called when the shapes are unknown");
     auto get_cluster_id = [](const snippets::lowered::ExpressionPort& p) {
         // Note: NewMemoryBuffer is used as a scratchpad and can't be dynamic, so we don't need to account for them here
-        if (const auto buffer = ov::as_type_ptr<ov::snippets::op::IntermediateMemoryBuffer>(p.get_expr()->get_node()))
+        if (const auto buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(p.get_expr()))
             return buffer->get_cluster_id();
         else
             return SIZE_MAX;

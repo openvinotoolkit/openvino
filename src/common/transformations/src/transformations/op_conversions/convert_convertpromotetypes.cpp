@@ -19,7 +19,7 @@ ov::pass::ConvertConvertPromoteTypes::ConvertConvertPromoteTypes() {
     auto convert_promote_types = pattern::wrap_type<ov::op::v14::ConvertPromoteTypes>(has_static_defined_type);
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto convert_promote_types = std::dynamic_pointer_cast<ov::op::v14::ConvertPromoteTypes>(m.get_match_root());
+        auto convert_promote_types = ov::as_type_ptr<ov::op::v14::ConvertPromoteTypes>(m.get_match_root());
         if (!convert_promote_types) {
             return false;
         }
