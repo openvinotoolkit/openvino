@@ -53,14 +53,17 @@ void sync_tensor_inst::on_execute() {
 
 void sync_tensor_inst::update_output_memory() {
     if (!can_be_optimized()) {
-        // auto my_rank = get_impl_params()->w_rank;
-        // auto my_size = get_impl_params()->w_size;
-        if (_outputs.size() == 2) {
-            // All gather need new shape output for concat
-            _outputs[1] = input_memory_ptr();
+        if (node->get_preferred_impl_type() == impl_types::ocl) {
+            if (_outputs.size() == 2) {
+                // All gather need new shape output for concat
+                _outputs[1] = input_memory_ptr();
+            } else {
+                // All reduce will use input as addition's output
+                _outputs[0] = input_memory_ptr();
+            }
         } else {
-            // All reduce will use input as addition's output
-            _outputs[0] = input_memory_ptr();
+            auto my_rank = get_impl_params()->w_rank;
+            _outputs[my_rank] = input_memory_ptr();
         }
         return;
     }

@@ -78,6 +78,7 @@
 #include "intel_gpu/primitives/kv_cache.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "intel_gpu/primitives/rope.hpp"
+#include "intel_gpu/primitives/sync_tensor.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -180,6 +181,7 @@ REGISTER_OCL(unique_count);
 REGISTER_OCL(unique_gather);
 REGISTER_OCL(scaled_dot_product_attention);
 REGISTER_OCL(rope);
+REGISTER_OCL(sync_tensor);
 
 #undef REGISTER_OCL
 

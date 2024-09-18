@@ -13,6 +13,7 @@
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
 #include "select_inst.h"
+#include "sync_tensor_inst.h"
 #include "condition_inst.h"
 #include "strided_slice_inst.h"
 #include <sstream>
@@ -1517,6 +1518,15 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
     if (node.is_in_shape_of_subgraph() && !node.is_type<reshape>())
         return impl_types::cpu;
+
+    if (node.is_type<sync_tensor>()) {
+        // TODO: add code to check whether GPU support GPU P2P feature.
+        const char* env = getenv("OV_GPU_P2P_DISABLED");
+        if (env)
+            return impl_types::cpu;
+        else
+            return impl_types::ocl;
+    }
 
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
         preferred_impl = _forcing_map.at(node.id()).second;

@@ -191,11 +191,18 @@ RemainFCParallelFusion::RemainFCParallelFusion(size_t world_size, size_t world_r
                                                                             splitted_context.second,
                                                                             new_fc->get_element_type());
                 sync_node->set_friendly_name(new_fc->get_friendly_name()+ "_TP_remain");
-                // auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node->outputs(), -1);
-                // concat_node->set_friendly_name(new_fc->get_friendly_name()+ "_ALLGATHER");
-                copy_runtime_info(new_fc, sync_node);
-                for (auto& iter : org_users) {
-                    iter.second->input(iter.first).replace_source_output(sync_node->output(0));
+                if (sync_node->get_gpu_p2p_enabled()) {
+                    copy_runtime_info(new_fc, sync_node);
+                    for (auto& iter : org_users) {
+                        iter.second->input(iter.first).replace_source_output(sync_node->output(0));
+                    }
+                } else {
+                    auto concat_node = std::make_shared<ov::op::v0::Concat>(sync_node->outputs(), -1);
+                    concat_node->set_friendly_name(new_fc->get_friendly_name() + "_ALLGATHER");
+                    copy_runtime_info(new_fc, concat_node);
+                    for (auto& iter : org_users) {
+                        iter.second->input(iter.first).replace_source_output(concat_node->output(0));
+                    }
                 }
                 new_fc->clear_control_dependencies();
             }

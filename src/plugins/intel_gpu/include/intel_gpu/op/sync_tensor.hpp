@@ -33,6 +33,10 @@ public:
     size_t get_world_size() const {
         return m_world_size;
     }
+    bool get_gpu_p2p_enabled() const {
+        return m_gpu_p2p_enabled;
+    }
+    void validate_and_infer_types_fallback();
 
 protected:
     size_t m_world_size;
@@ -40,6 +44,7 @@ protected:
     int m_split_dimension;
     ov::element::Type m_output_type;
     TP_MODE m_tp_mode;
+    bool m_gpu_p2p_enabled;
 };
 
 std::vector<ov::PartialShape> shape_infer(const SyncTensor* op, std::vector<ov::PartialShape> input_shapes);
