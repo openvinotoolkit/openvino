@@ -29,7 +29,7 @@ Install OpenVINO™ Runtime on macOS from an Archive File
       :sync: software-requirements
 
       * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default install).
-      * `Python 3.8 - 3.11 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.8 - 3.11). Install and add to path.
+      * `Python 3.9 - 3.12 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.9 - 3.12). Install and add to path.
       * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory
       * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
@@ -61,7 +61,7 @@ Step 1: Install OpenVINO Core Components
       cd <user_home>/Downloads
 
 
-4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.3/macos/>`__, extract the files, rename the extracted folder and move it to the desired path:
+4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.4/macos/>`__, extract the files, rename the extracted folder and move it to the desired path:
 
    .. tab-set::
 
@@ -71,9 +71,9 @@ Step 1: Install OpenVINO Core Components
          .. code-block:: sh
 
 
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.3/macos/m_openvino_toolkit_macos_12_6_2024.3.0.16041.1e3b88e4e3f_x86_64.tgz --output openvino_2024.3.0.tgz
-            tar -xf openvino_2024.3.0.tgz
-            sudo mv m_openvino_toolkit_macos_12_6_2024.3.0.16041.1e3b88e4e3f_x86_64 /opt/intel/openvino_2024.3.0
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.4/macos/m_openvino_toolkit_macos_12_6_2024.4.0.16579.c3152d32c9c_x86_64.tgz --output openvino_2024.4.0.tgz
+            tar -xf openvino_2024.4.0.tgz
+            sudo mv m_openvino_toolkit_macos_12_6_2024.4.0.16579.c3152d32c9c_x86_64 /opt/intel/openvino_2024.4.0
 
       .. tab-item:: ARM, 64-bit
          :sync: arm-64
@@ -81,9 +81,9 @@ Step 1: Install OpenVINO Core Components
          .. code-block:: sh
 
 
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.3/macos/m_openvino_toolkit_macos_12_6_2024.3.0.16041.1e3b88e4e3f_arm64.tgz --output openvino_2024.3.0.tgz
-            tar -xf openvino_2024.3.0.tgz
-            sudo mv m_openvino_toolkit_macos_12_6_2024.3.0.16041.1e3b88e4e3f_arm64 /opt/intel/openvino_2024.3.0
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.4/macos/m_openvino_toolkit_macos_12_6_2024.4.0.16579.c3152d32c9c_arm64.tgz --output openvino_2024.4.0.tgz
+            tar -xf openvino_2024.4.0.tgz
+            sudo mv m_openvino_toolkit_macos_12_6_2024.4.0.16579.c3152d32c9c_arm64 /opt/intel/openvino_2024.4.0
 
 
 5. (Optional) Install *numpy* Python Library:
@@ -92,11 +92,11 @@ Step 1: Install OpenVINO Core Components
 
       This step is required only when you decide to use Python API.
 
-   You can use the ``requirements.txt`` file from the ``/opt/intel/openvino_2024.3.0/python`` folder:
+   You can use the ``requirements.txt`` file from the ``/opt/intel/openvino_2024.4.0/python`` folder:
 
    .. code-block:: sh
 
-      cd /opt/intel/openvino_2024.3.0
+      cd /opt/intel/openvino_2024.4.0
       python3 -m pip install -r ./python/requirements.txt
 
 6. For simplicity, it is useful to create a symbolic link as below:
@@ -104,7 +104,7 @@ Step 1: Install OpenVINO Core Components
    .. code-block:: sh
 
 
-      sudo ln -s /opt/intel/openvino_2024.3.0 /opt/intel/openvino_2024
+      sudo ln -s /opt/intel/openvino_2024.4.0 /opt/intel/openvino_2024
 
 
    .. note::
@@ -205,7 +205,3 @@ Additional Resources
 * :doc:`Write your own OpenVINO™ applications <../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 * Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <../../../learn-openvino/openvino-samples>`
 * Pre-trained deep learning models: :doc:`Overview of OpenVINO™ Toolkit Pre-Trained Models <../../../documentation/legacy-features/model-zoo>`
-* IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__
-
-
-

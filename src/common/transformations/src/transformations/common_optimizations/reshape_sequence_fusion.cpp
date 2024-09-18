@@ -18,7 +18,7 @@
 
 namespace {
 bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
-    const auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node_out.get_node_shared_ptr());
+    const auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(node_out.get_node_shared_ptr());
     constexpr auto has_special_value = ov::cmp::Less<int64_t>(1);
     if (!const_node) {
         // evaluate bounds
@@ -82,7 +82,7 @@ ov::pass::ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimin
 
         // vector of nodes which runtime info must be copied
         NodeVector nodes{pattern_map.at(reshape_a).get_node_shared_ptr(), reshape};
-        while (std::dynamic_pointer_cast<ov::op::v1::Reshape>(input.get_node_shared_ptr())) {
+        while (ov::as_type_ptr<ov::op::v1::Reshape>(input.get_node_shared_ptr())) {
             auto node = input.get_node_shared_ptr();
             if (!has_valid_pattern(node->get_input_node_shared_ptr(1)) || input.get_target_inputs().size() != 1) {
                 break;

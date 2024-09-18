@@ -39,6 +39,9 @@ TEST(test_select_preferred_formats, setting_target_conv_format) {
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv1", impl} }));
 
     auto prog = program::build_program(engine, topology, config, false, true);
+    if (engine.get_device_info().supports_immad) {
+        prog->get_layout_optimizer().set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
+    }
 
     // It initializes output_layout.
     // It's necessary because this test runs select_preferred_formats pass alone.
@@ -85,6 +88,9 @@ TEST(test_select_preferred_formats, fsv2_fallback_to_byxf) {
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv1", impl} }));
 
     auto prog = program::build_program(engine, topology, config, false, true);
+    if (engine.get_device_info().supports_immad) {
+        prog->get_layout_optimizer().set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
+    }
 
     // It initializes output_layout.
     // It's necessary because this test runs select_preferred_formats pass alone.

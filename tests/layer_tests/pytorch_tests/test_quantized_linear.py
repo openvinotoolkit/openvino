@@ -10,8 +10,10 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestQuantizedLinear(PytorchLayerTest):
+    rng = np.random.default_rng(seed=123)
+
     def _prepare_input(self, input_shape=(2, 2)):
-        return (np.round(np.random.rand(*input_shape).astype(np.float32), 4),)
+        return (np.round(self.rng.random(input_shape, dtype=np.float32), 4),)
 
     def create_model(self, weight_shape, is_bias, scale, zero_point):
 
@@ -57,9 +59,7 @@ class TestQuantizedLinear(PytorchLayerTest):
                 inp_q = self.hardtanh(inp_q)
                 return torch.dequantize(self.linear(inp_q))
 
-        ref_net = None
-
-        return aten_quantized_linear(weight_shape, is_bias, scale, zero_point, inplace), ref_net, ["quantized::linear", "aten::hardtanh_" if inplace else "aten::hardtanh"]
+        return aten_quantized_linear(weight_shape, is_bias, scale, zero_point, inplace), None, ["quantized::linear", "aten::hardtanh_" if inplace else "aten::hardtanh"]
 
     @pytest.mark.parametrize("params", [
         {'input_shape': [3, 9], 'weight_shape': [10, 9]},

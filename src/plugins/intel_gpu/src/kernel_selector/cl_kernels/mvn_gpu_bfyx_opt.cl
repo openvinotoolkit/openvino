@@ -4,10 +4,6 @@
 
 #include "include/batch_headers/fetch_data.cl"
 
-#if IS_DYNAMIC
-#define CALC_POWER(n) ({uint pos = 0; uint i = n; do { i >>= 1; ++pos; } while (i); --pos;})
-#endif
-
 #if !IS_DYNAMIC
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 #endif
@@ -24,16 +20,8 @@ KERNEL (mvn_gpu_bfyx_opt)(
     const uint in_data_set_idx = get_global_id(0);  // this WI's id in group of items processing single data set
     const uint data_set_size = DATA_SET_SIZE;       // how many elements are in one data set
     const uint data_sets_count = DATA_SETS_COUNT;   // how many data sets are in the processing payload
-#if !IS_DYNAMIC
-    const uint items_num = ITEMS_NUM;               // how many elements are processed per one WI
-    const uint leftovers = LEFTOVERS;
-#else
-    // since workers_per_data_set is calculated by power of 2
-    // items_num can be calculated by dividing data_set_size by power of 2
-    const uint power = CALC_POWER(workers_per_data_set);
-    const uint items_num = data_set_size>>power;
-    const uint leftovers = data_set_size-(items_num<<power);
-#endif
+    const uint items_num = data_set_size / workers_per_data_set;
+    const uint leftovers = data_set_size % workers_per_data_set;
 
     const uint data_set_offset = data_set_idx * data_set_size;
     const uint my_data_offset = data_set_offset + in_data_set_idx;

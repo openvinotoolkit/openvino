@@ -3,6 +3,7 @@
 import numpy as np
 import openvino.runtime as ov
 import os
+import sys
 import pytest
 import tempfile
 import tensorflow as tf
@@ -688,32 +689,32 @@ def create_ref_model_single_input(shape=[1, 2, 3, 4], dtype=np.float32):
 class TestMoConvertTF(CommonMOConvertTest):
     test_data = [
         # TF2
-        create_keras_model,
-        create_keras_layer,
-        create_tf_function,
-        create_tf_module,
-        create_tf_checkpoint,
-        create_keras_layer_dynamic,
-        create_tf_module_dynamic,
-        create_tf_stateful_partioned_call_net,
-        create_keras_layer_with_example_input_1,
-        create_keras_layer_with_example_input_2,
-        create_keras_layer_with_input_shapes_case1,
-        create_keras_layer_with_input_shapes_case2,
-        create_keras_layer_with_input_shapes_case3,
-        create_keras_layer_with_input_shapes_case4,
-        create_keras_layer_with_tf_function_call,
-        create_keras_layer_with_tf_function_call_default_compressed_to_fp16,
-        create_keras_layer_with_compressed_constants,
-        create_keras_layer_with_tf_function_call_no_signature,
-        create_keras_layer_with_tf_function_call_no_signature_single_input,
-        create_keras_layer_with_string_tensor,
+        'create_keras_model',
+        'create_keras_layer',
+        'create_tf_function',
+        'create_tf_module',
+        'create_tf_checkpoint',
+        'create_keras_layer_dynamic',
+        'create_tf_module_dynamic',
+        'create_tf_stateful_partioned_call_net',
+        'create_keras_layer_with_example_input_1',
+        'create_keras_layer_with_example_input_2',
+        'create_keras_layer_with_input_shapes_case1',
+        'create_keras_layer_with_input_shapes_case2',
+        'create_keras_layer_with_input_shapes_case3',
+        'create_keras_layer_with_input_shapes_case4',
+        'create_keras_layer_with_tf_function_call',
+        'create_keras_layer_with_tf_function_call_default_compressed_to_fp16',
+        'create_keras_layer_with_compressed_constants',
+        'create_keras_layer_with_tf_function_call_no_signature',
+        'create_keras_layer_with_tf_function_call_no_signature_single_input',
+        'create_keras_layer_with_string_tensor',
 
         # TF1
-        create_tf_graph,
-        create_tf_graph_def,
-        create_tf1_wrap_function,
-        create_tf_session,
+        'create_tf_graph',
+        'create_tf_graph_def',
+        'create_tf1_wrap_function',
+        'create_tf_session',
     ]
 
     @pytest.mark.parametrize("create_model", test_data)
@@ -722,7 +723,7 @@ class TestMoConvertTF(CommonMOConvertTest):
     @pytest.mark.precommit
     def test_mo_import_from_memory_tf_fe(self, create_model, ie_device, precision, ir_version,
                                          temp_dir):
-        fw_model, graph_ref, mo_params = create_model(temp_dir)
+        fw_model, graph_ref, mo_params = eval(create_model)(temp_dir)
 
         test_params = {'input_model': fw_model}
         if mo_params is not None:
@@ -731,6 +732,10 @@ class TestMoConvertTF(CommonMOConvertTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.skipif(
+        condition=(sys.version_info[0], sys.version_info[1]) == (3, 12),
+        reason='Ticket: 152216'
+    )
     def test_unnamed_saved_model_dir(self, ie_device, precision, ir_version, temp_dir):
         saved_model_dir, graph_ref = create_tf_saved_model_dir(temp_dir)
 
@@ -1046,33 +1051,59 @@ class TestTFConversionParams(CommonMOConvertTest):
     test_data = [
         {'params_test': {
             'input': [tf.shape(tf.zeros((2, 3, 4))), tf.zeros((2, 3, 4)).shape, tf.TensorShape((2, 3, 4))]},
-         'fw_model': create_tf_model_three_inputs([1, 2, 3, 4]),
-         'ref_model': create_ref_model_three_inputs([2, 3, 4])},
+         'fw_model': {
+            'create_model': 'create_tf_model_three_inputs',
+             'params': [[1, 2, 3, 4]]},
+         'ref_model': {
+             'create_model': 'create_ref_model_three_inputs',
+             'params': [[2, 3, 4]]}},
         {'params_test': {'input': [tf.float32, tf.float32, tf.float32]},
-         'fw_model': create_tf_model_three_inputs([2, 3], tf.int32),
-         'ref_model': create_ref_model_three_inputs([2, 3], np.float32)},
+         'fw_model': {
+            'create_model': 'create_tf_model_three_inputs',
+            'params': [[2, 3], tf.int32]},
+         'ref_model': {
+            'create_model': 'create_ref_model_three_inputs',
+            'params': [[2, 3], np.float32]}},
         {'params_test': {'input': tf.shape(tf.zeros((5, 8, 2)))},
-         'fw_model': create_tf_model_single_input(),
-         'ref_model': create_ref_model_single_input([5, 8, 2])},
+         'fw_model': {
+            'create_model': 'create_tf_model_single_input',
+            'params': []},
+          'ref_model': {
+            'create_model': 'create_ref_model_single_input',
+            'params': [[5, 8, 2]]}},
         {'params_test': {'input': tf.zeros((9, 2)).shape},
-         'fw_model': create_tf_model_single_input(),
-         'ref_model': create_ref_model_single_input([9, 2])},
+         'fw_model': {
+            'create_model': 'create_tf_model_single_input',
+            'params': []},
+         'ref_model': {
+            'create_model': 'create_ref_model_single_input',
+            'params': [[9, 2]]}},
         {'params_test': {'input': tf.TensorShape((4, 8, 3))},
-         'fw_model': create_tf_model_single_input(),
-         'ref_model': create_ref_model_single_input([4, 8, 3])},
+         'fw_model': {
+            'create_model': 'create_tf_model_single_input',
+            'params': []},
+         'ref_model': {
+            'create_model': 'create_ref_model_single_input',
+            'params': [[4, 8, 3]]}},
         {'params_test': {'input': tf.int32},
-         'fw_model': create_tf_model_single_input(),
-         'ref_model': create_ref_model_single_input([1, 2, 3, 4], np.int32)}
+         'fw_model': {
+            'create_model': 'create_tf_model_single_input',
+            'params': []},
+         'ref_model': {
+            'create_model': 'create_ref_model_single_input',
+            'params': [[1, 2, 3, 4], np.int32]}},
     ]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_mo_convert_tf_model(self, params, ie_device, precision, ir_version,
                                  temp_dir, use_legacy_frontend):
-        fw_model = params['fw_model']
+        fw_model_dict = params['fw_model']
+        ref_model_dict = params['ref_model']
         test_params = params['params_test']
-        ref_model = params['ref_model']
 
+        ref_model = eval(ref_model_dict['create_model'])(*ref_model_dict['params'])
+        fw_model = eval(fw_model_dict['create_model'])(*fw_model_dict['params'])
         test_params.update({'input_model': fw_model})
         self._test_by_ref_graph(temp_dir, test_params, ref_model, compare_tensor_names=False)
 
@@ -1148,6 +1179,10 @@ class TestOutputTensorName(unittest.TestCase):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.skipif(
+        condition=(sys.version_info[0], sys.version_info[1]) == (3, 12),
+        reason='Ticket: 152216'
+    )
     def test_tf2_from_file_single_tensor_name(self):
         tf.keras.backend.clear_session()
         tf.compat.v1.reset_default_graph()
