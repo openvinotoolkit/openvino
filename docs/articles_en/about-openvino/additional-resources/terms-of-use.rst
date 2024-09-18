@@ -59,5 +59,3 @@ Your costs and results may vary.
 No product or component can be absolutely secure.
 
 Intel technologies may require enabled hardware, software or service activation.
-
-OpenCL and the OpenCL logo are trademarks of Apple Inc. used by permission by Khronos.
