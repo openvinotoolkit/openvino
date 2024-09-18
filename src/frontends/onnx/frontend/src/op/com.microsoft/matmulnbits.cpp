@@ -142,9 +142,13 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         // TODO: Ticket
         const auto converted_b = std::make_shared<v1::ConvertLike>(casted_b, a);
 
+        // TODO: Need to collect performance data in case constant folding is applied. Possible some perf/mem-gap
+        
         // Simple case
         if (n_blocks_per_col == 1) {
             // Removing unused items in case block is bigger than column count
+            // For example, if data is (uint8)[1,2,3,4,5,6] then block will be (uint8)[1,2,3,4,5,6,0,0,0,0,0,0,0,0,0,0].
+            // And last zeros are unused.
             const auto zero_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 0);
             const auto one_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 1);
             const auto elements_const =
@@ -174,7 +178,9 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                 b = std::make_shared<v1::Add>(scaled_b, bias);
             }
         } else {
-            // Transpose matrix
+            // Transpose matrix. Quantized B matrix is transposed and has a shape [N,K].
+            // To apply further operations on it which operand's shape is [N] we do this
+            // transpose to have a matrix [K,N]...
             const auto transposed_shape =
                 std::make_shared<v0::Constant>(ov::element::i64, Shape{2}, std::vector<int64_t>{1, 0});
             ov::Output<ov::Node> transposed_b = std::make_shared<v1::Transpose>(converted_b, transposed_shape);
@@ -196,7 +202,8 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                                   ov::Shape{static_cast<size_t>(casted_b_shape[0] / n_blocks_per_col),
                                             static_cast<size_t>(casted_b_shape[1] * n_blocks_per_col)});
 
-            // Removing unused items in case block is bigger than column count
+            // Removing unused items in case block is bigger than column count (see description for
+            // Slice above)
             const auto zero_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 0);
             const auto one_const = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 1);
             const auto elements_const =
