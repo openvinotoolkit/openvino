@@ -89,7 +89,6 @@ class CheckOutputMode(Mode):
 class BenchmarkAppPerformanceMode(Mode):
     def __init__(self, cfg):
         super().__init__(cfg)
-        self.outPattern = "Throughput:\s*([0-9]*[.][0-9]*)\s*FPS"
         self.perfRel = 0
         self.createCash()
 
@@ -128,6 +127,31 @@ class BenchmarkAppPerformanceMode(Mode):
             raise CfgError("Appropriate deviation is not configured")
         else:
             self.apprDev = cfg["runConfig"]["perfAppropriateDeviation"]
+        if ("metric" in cfg["runConfig"]):
+            self.outPattern = self.specifyMetric(cfg["runConfig"]["metric"])
+        else:
+            self.outPattern = self.specifyMetric()
+
+
+    def specifyMetric(self, metric: str = "throughput"):
+        if metric in [
+            "throughput",
+            "latency:max",
+            "latency:min",
+            "latency:median",
+            "latency:average"]:
+            spec = metric.split(":")
+            idStr = "FPS"
+            if len(spec) == 2:
+                spec = spec[1]
+                idStr = "ms"
+            else:
+                spec = spec[0]
+            spec = spec.title()
+            res = r'{spec}:\s*([0-9]*[.][0-9]*)\s*{idStr}'.format(
+                spec=spec, idStr=idStr)
+            return res
+        raise CfgError("Benchmark metric {} is not supported".format(metric))
 
     def preliminaryCheck(self, list, cfg):
         # model path checking

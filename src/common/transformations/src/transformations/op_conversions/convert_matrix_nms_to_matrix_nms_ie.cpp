@@ -20,7 +20,7 @@ ov::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool forc
     auto nms = ov::pass::pattern::wrap_type<ov::op::v8::MatrixNms>();
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        auto nms = std::dynamic_pointer_cast<ov::op::v8::MatrixNms>(m.get_match_root());
+        auto nms = ov::as_type_ptr<ov::op::v8::MatrixNms>(m.get_match_root());
         if (!nms || transformation_callback(nms)) {
             return false;
         }

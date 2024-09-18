@@ -78,7 +78,7 @@ ov::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
         auto exp_input = pattern_to_output.at(input);
         auto beta_input = pattern_to_output.at(beta);
 
-        auto beta_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(beta_input.get_node_shared_ptr());
+        auto beta_constant = ov::as_type_ptr<ov::op::v0::Constant>(beta_input.get_node_shared_ptr());
         Output<Node> new_beta;
         if (beta_constant) {
             if (check_beta_value(beta_constant)) {
@@ -126,8 +126,7 @@ ov::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
-        auto constant =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         if (!op::util::has_constant_value<float>(constant, 1.0f)) {
             return false;
         }
@@ -165,8 +164,7 @@ ov::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
-        auto constant =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         if (!op::util::has_constant_value<float>(constant, 1.0f)) {
             return false;
         }

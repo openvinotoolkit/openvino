@@ -22,6 +22,10 @@ RUN apt-get update && \
         git \
         gpg-agent \
         tzdata \
+        # Pythons
+        python3.9-dev \
+        python3.9-venv \
+        python3.9-distutils \
         # For Java API
         default-jdk \
         # Compiler \
@@ -51,10 +55,17 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
 ENV PATH="$SCCACHE_HOME:$PATH"
+
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
+    python3.9 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
+
+# Use Python 3.9 as default instead of Python 3.8
+# Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
+RUN python3.9 -m venv venv
+ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
