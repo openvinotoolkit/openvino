@@ -41,7 +41,7 @@ runs:
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       run: >-
         python3 ${{ env.ACTION_PATH }}/restore_artifacts.py
-        -t "${{ env.GITHUB_WORKSPACE }}/${{ inputs.storage_dir }}"
+        -t "${{ env.GITHUB_WORKSPACE }}/${{ inputs.storage_dir || inputs.platform }}"
         --storage_root "${{ inputs.storage_root }}"
         -s "${{ inputs.trigger_repo_sha || github.event.pull_request.head.sha || github.sha }}"
         ${{ inputs.storage_dir && env.STORAGE_PARAM || env.PLATFORM_PARAM }}
