@@ -369,21 +369,19 @@ div.admonition.warning {
     background-color: #fbf5f0 !important;
 }
 
+ul.bd-sidenav a {
+    white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 .admonition.note,
 div.admonition.note {
     background-color: #f1fafe;
 }
 
 details.sd-dropdown summary.sd-card-header+div.sd-summary-content {
-    background-color: #F8F8F8;
-}
-
-details.sd-dropdown summary.sd-card-header {
-    background-color: #E5E5E5 !important;
-}
-
-details.sd-dropdown summary.sd-card-header:hover {
-    background-color: #CCCCCC !important;
+    background-color: rgb(242, 248, 251);
 }
 
 details.sd-dropdown summary.sd-card-header {
@@ -424,6 +422,10 @@ details.sd-dropdown summary.sd-card-header:hover {
 
 .sort-btn.sort-active {
     background-image: url('media/union-up.svg');
+}
+
+div.highlight {
+    margin-bottom: 1.15rem;
 }
 
 .highlight .err {
@@ -755,6 +757,30 @@ details.sd-dropdown summary.sd-card-header:hover {
     background-color: rgba(0, 0, 0, 0.4);
 }
 
+/* The Modal (filters modal) */
+.modal-filter {
+    display: none;
+    position: fixed;
+    z-index: 2;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgb(0, 0, 0);
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+/* Modal Content/Box */
+.modal-filters-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 36px;
+    border: 1px solid #888;
+    width: 50%;
+    border-radius: var(--bs-modal-border-radius)
+}
+
 .modal-content {
     overflow: auto;
     background-color: #fefefe;
@@ -764,6 +790,7 @@ details.sd-dropdown summary.sd-card-header:hover {
     width: 95%;
     max-width: 1140px;
     max-height: 85%;
+    border-radius: var(--bs-modal-border-radius)
 }
 
 .modal-content h2 {
@@ -778,6 +805,7 @@ details.sd-dropdown summary.sd-card-header:hover {
     width: 100%;
     border-bottom: 1px solid lightgray;
     padding-bottom: 1px;
+    margin-bottom: 5px;
 }
 
 .modal-header {
@@ -803,9 +831,12 @@ details.sd-dropdown summary.sd-card-header:hover {
 }
 
 .modal-content-grid {
+    max-height: 400px;
+    margin-bottom: 20px;
     display: grid;
     padding-top: .5rem;
     grid-template-columns: 1fr;
+    overflow: auto;
 }
 
 .modal-content-grid-container .column {
@@ -825,54 +856,18 @@ details.sd-dropdown summary.sd-card-header:hover {
     margin-left: -14px;
 }
 
-h1 {
-    display: block;
-    font-size: 1.9em;
-    margin-top: 0.67em;
-    margin-bottom: 0.67em;
-    margin-left: 0;
-    margin-right: 0;
-    font-weight: 480;
+.modal-content-grid-item h5 {
+    display: inline-block;
+    font-weight: 530;
+    margin: 0;
+    margin-left: 22px;
 }
 
-h2 {
-    display: block;
-    font-size: 1.6em;
-    margin-top: 0.83em;
-    margin-bottom: 0.83em;
-    margin-left: 0;
-    margin-right: 0;
-    font-weight: 480;
-}
-
-h3 {
-    display: block;
-    font-size: 1.35em;
-    margin-top: 1em;
-    margin-bottom: 1em;
-    margin-left: 0;
-    margin-right: 0;
-    font-weight: 500;
-}
-
-h4 {
-    display: block;
-    font-size: 1.15em;
-    margin-top: 1.33em;
-    margin-bottom: 1.33em;
-    margin-left: 0;
-    margin-right: 0;
-    font-weight: 500;
-}
-
-h5 {
-    display: block;
-    font-size: 1em;
-    margin-top: 1.67em;
-    margin-bottom: 1.67em;
-    margin-left: 0;
-    margin-right: 0;
-    font-weight: 500;
+.modal-filters-content h5 {
+    display: inline-block;
+    font-weight: 530;
+    margin: 0;
+    margin-left: 22px;
 }
 
 h1 {
@@ -1019,12 +1014,18 @@ h5 {
         column-gap: 1rem;
     }
 
-.span-element-big {
+    .span-element-big {
         grid-column: 1 / span 2;
     }
 }
 
-.close:hover, .close:focus {
+.show-allcheckbox {
+    cursor: pointer;
+    float: left;
+}
+
+.close:hover,
+.close:focus {
     color: black;
     text-decoration: none;
     cursor: pointer;
@@ -1054,9 +1055,11 @@ h5 {
 }
 
 .build-graphs-btn {
+    border: 1.5px solid black;
     border-color: #0054AE;
     background-color: #0054AE;
     color: #fff;
+    padding: 4px 10px;
 }
 
 .build-graphs-btn:disabled {
@@ -1066,10 +1069,14 @@ h5 {
 
 .clear-all-btn {
     cursor: pointer;
+    padding: 0;
+    /* Disabled Clear All button. It is temporary solution */
+    display: none;
 }
 
 .clear-all-btn-content {
     border: 1.5px solid black;
+    display: none;
     padding: 6px 10px;
 }
 
@@ -1087,6 +1094,29 @@ h5 {
 .edit-settings-icon {
     vertical-align: middle;
     content: url('media/edit-settings.svg');
+}
+
+.arrow-back-icon {
+    content: url('media/arrow-back.svg');
+}
+
+.filters-label {
+    position: absolute;
+    font-weight: 400;
+    font-size: small;
+    /* top: -2px; */
+    right: 0px;
+    width: 90px;
+}
+
+.show-filter {
+    cursor: pointer;
+    position: relative;
+    float: right;
+}
+
+.show-filters-icon {
+    content: url('media/show-filters.svg');
 }
 
 .close-btn {
@@ -1521,28 +1551,38 @@ div[class*="highlight-"] {
     margin: 0 0;
 }
 
+.chart-placeholder::-webkit-scrollbar,
+.modal-content-grid::-webkit-scrollbar,
 .bd-sidebar::-webkit-scrollbar,
 .scrollbox::-webkit-scrollbar {
     height: 8px;
     width: 5px;
 }
 
+.chart-placeholder::-webkit-scrollbar-track,
+.modal-content-grid::-webkit-scrollbar-track,
 .bd-sidebar::-webkit-scrollbar-track,
 .scrollbox::-webkit-scrollbar-track {
     border-radius: 4px;
     background-color: white;
 }
 
+.chart-placeholder::-webkit-scrollbar-track:hover,
+.modal-content-grid::-webkit-scrollbar-track:hover,
 .bd-sidebar::-webkit-scrollbar-track:hover,
 .scrollbox::-webkit-scrollbar-track:hover {
     background-color: white;
 }
 
+.chart-placeholder::-webkit-scrollbar-track:active,
+.modal-content-grid::-webkit-scrollbar-track:active,
 .bd-sidebar::-webkit-scrollbar-track:active,
 .scrollbox::-webkit-scrollbar-track:active {
     background-color: white;
 }
 
+.chart-placeholder::-webkit-scrollbar-thumb,
+.modal-content-grid::-webkit-scrollbar-thumb,
 .bd-sidebar::-webkit-scrollbar-thumb,
 .scrollbox::-webkit-scrollbar-thumb {
     border-radius: 4px;
@@ -1550,12 +1590,16 @@ div[class*="highlight-"] {
     width: 8px !important;
 }
 
+.chart-placeholder::-webkit-scrollbar-thumb:hover
+.modal-content-grid::-webkit-scrollbar-thumb:hover
 .bd-sidebar::-webkit-scrollbar-thumb:hover,
 .scrollbox::-webkit-scrollbar-thumb:hover {
     background-color: #7a7676;
     width: 8px !important;
 }
 
+.chart-placeholder::-webkit-scrollbar-thumb:active,
+.modal-content-grid::-webkit-scrollbar-thumb:active,
 .bd-sidebar::-webkit-scrollbar-thumb:active,
 .scrollbox::-webkit-scrollbar-thumb:active {
     background-color: #7a7676;
