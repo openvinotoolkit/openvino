@@ -265,8 +265,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 
     // the following 2 transformations are needed for keypoint detectron2 models to work.
     // AtenIndexToSelect will be called twice
-    manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
     manager.register_pass<ov::pass::ConvertConvertLike>();
+    manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
 
     // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
     // so that not extra memory is used for intermediate decompressed constants.
