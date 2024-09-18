@@ -359,11 +359,14 @@ bool DefineBufferClusters::run(lowered::LinearIR& linear_ir, lowered::LinearIR::
 
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto& expr = *expr_it;
-        const auto& inplace_buffer = ov::as_type_ptr<op::InplaceMemoryBuffer>(expr->get_node());
-        if (inplace_buffer) {
-            const auto& inplace_from_buffer = ov::as_type_ptr<op::Buffer>(inplace_buffer->get_inplace_from());
-            if (inplace_from_buffer) {
-                inplace_buffer->set_cluster_id(inplace_from_buffer->get_cluster_id());
+        if (const auto& buffer_expr = ov::as_type_ptr<BufferExpression>(expr)) {
+            if (const auto& inplace_from = buffer_expr->get_inplace_node()) {
+                if (ov::as_type_ptr<op::Buffer>(inplace_from)) {
+                    const auto& inplace_from_expr = std::find_if(begin, end, [inplace_from](const ExpressionPtr& expr) {
+                        return expr->get_node() == inplace_from;
+                    });
+                    buffer_expr->set_cluster_id(ov::as_type_ptr<BufferExpression>(*inplace_from_expr)->get_cluster_id());
+                }
             }
         }
     }

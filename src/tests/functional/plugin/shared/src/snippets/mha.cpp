@@ -210,6 +210,10 @@ std::shared_ptr<SnippetsFunctionBase> MHAWithoutSoftmax::get_subgraph() const {
     return std::make_shared<ov::test::snippets::MHAWithoutSoftmaxFunction>(inputDynamicShapes);
 }
 
+std::shared_ptr<SnippetsFunctionBase> MHAWithSoftmax::get_subgraph() const {
+    return std::make_shared<ov::test::snippets::MHAWithSoftmaxFunction>(inputDynamicShapes);
+}
+
 std::shared_ptr<SnippetsFunctionBase> MHATransposedB::get_subgraph() const {
     return std::make_shared<ov::test::snippets::MHATransposedInputFunction>(inputDynamicShapes, true);
 }
@@ -253,6 +257,12 @@ TEST_P(MHAMulAdd, CompareWithRefImpl) {
 }
 
 TEST_P(MHAWithoutSoftmax, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHAWithSoftmax, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();

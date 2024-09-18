@@ -246,6 +246,48 @@ bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begi
         insertion(linear_ir, begin, end, loop_manager, loop_entries, loop_exits);
     }
 
+    for (auto expr_it = begin; expr_it != end; ++expr_it) {
+        const auto& expr = *expr_it;
+        if (const auto& buffer_expr = ov::as_type_ptr<BufferExpression>(expr)) {
+            if (const auto& inplace_from = buffer_expr->get_inplace_node()) {
+                if (ov::as_type_ptr<op::Buffer>(inplace_from)) {
+                    const auto& inplace_from_expr = std::find_if(begin, end, [inplace_from](const ExpressionPtr& expr) {
+                        return expr->get_node() == inplace_from;
+                    });
+                    buffer_expr->set_cluster_id(ov::as_type_ptr<BufferExpression>(*inplace_from_expr)->get_cluster_id());
+                }
+            }
+        }
+    }
+
+    for (auto expr_it = begin; expr_it != end; expr_it++) {
+        const auto expr = *expr_it;
+        const auto& inplace_buffer = ov::as_type_ptr<BufferExpression>(expr);
+        if (inplace_buffer) {
+            // const auto& inplace_from = inplace_buffer->get_inplace_from();  // max
+            // auto child = inplace_from->get_output_target_inputs(0).begin()->get_node(); // sub
+            // if (ov::is_type<ov::op::v0::Result>(child) || ov::is_type<op::Buffer>(child)) {
+            //     continue; // alraedy have memory that share, no need to allocate
+            // } else {
+            //     // inplace from inplace_from node output, if inplace_from is not stored, need insert buffer after inplace_from is used.
+            //     auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(inplace_from->output(0));
+            //     const auto pos = std::find_if(begin, end, [&child](const ExpressionPtr& expr) {
+            //          return expr->get_node().get() == child;
+            //     });
+            //     const auto inplace_from_expr = std::find_if(begin, end, [&inplace_from](const ExpressionPtr& expr) {
+            //          return expr->get_node() == inplace_from;
+            //     });
+            //     OPENVINO_ASSERT(pos != end, "can not find inplace_from node for InplaceMemoryBuffer.");
+            //     auto buffer_loop_ids = std::vector<size_t>{};
+            //     auto input =(*inplace_from_expr)->get_output_port_connectors();
+            //     std::set<ExpressionPort> potential_consumers = input[0]->get_consumers();
+            //     // insert buffer, with input of inplace_from output connectors.
+            //     linear_ir.insert_node(
+            //         buffer, input, buffer_loop_ids, false, pos, potential_consumers);
+            // }
+        }
+    }
+
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto expr = *expr_it;
         const auto node = (*expr_it)->get_node();
