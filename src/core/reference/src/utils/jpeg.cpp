@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#if WITH_JPEG
 
 #include "openvino/reference/utils/jpeg.hpp"
 
@@ -147,3 +148,5 @@ int JPEG::getData(Tensor& output) {
 }  // namespace img
 }  // namespace reference
 }  // namespace ov
+
+#endif // WITH_JPEG
