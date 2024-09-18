@@ -361,46 +361,126 @@ pointers or the ``VASurfaceID`` handle respectively, as shown in the examples be
 
       .. code-block:: cpp
 
-          D3DBufferTensor create_tensor(const element::Type type, const Shape& shape, ID3D11Buffer* buffer) {
-              AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::DX_BUFFER},
-                                 {ov::intel_gpu::dev_object_handle.name(), static_cast<gpu_handle_param>(buffer)}};
-              return create_tensor(type, shape, params).as<D3DBufferTensor>();
-          }
+         // ...
+
+         // initialize the core and load the network
+         ov::Core core;
+         auto model = core.read_model("model.xml");
+         auto compiled_model = core.compile_model(model, "GPU");
+         auto infer_request = compiled_model.create_infer_request();
+
+
+         // obtain the RemoteContext from the compiled model object and cast it to D3DContext
+         auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::D3DContext>();
+         // obtain the D3D context handle from the RemoteContext,
+         // get device info and create a queue
+         cl::Context cl_context = gpu_context;
+         cl::Device device = cl::Device(cl_context.getInfo<CL_CONTEXT_DEVICES>()[0].get(), true);
+         cl_command_queue_properties props = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
+         cl::CommandQueue queue = cl::CommandQueue(cl_context, device, props);
+
+         // create the D3D buffer within the obtained context
+         auto input = model->get_parameters().at(0);
+         auto input_size = ov::shape_size(input->get_shape());
+         cl_int err;
+         cl::Buffer shared_buffer(cl_context, CL_MEM_READ_WRITE, input_size, NULL, &err);
+         // wrap the buffer into RemoteBlob
+         auto shared_blob = gpu_context.create_tensor(input->get_element_type(), input->get_shape(), shared_buffer);
+
+         // ...
+         // execute user kernel
+         cl::Program program;
+         cl::Kernel kernel(program, "user_kernel");
+         kernel.setArg(0, shared_buffer);
+         queue.enqueueNDRangeKernel(kernel,
+                                    cl::NDRange(0),
+                                    cl::NDRange(input_size),
+                                    cl::NDRange(1),
+                                    nullptr,
+                                    nullptr);
+         queue.finish();
+         // ...
+         // pass results to the inference
+         infer_request.set_tensor(input, shared_blob);
+         infer_request.infer();
 
    .. tab-item:: ID3D11Texture2D
       :sync: id3d11-texture
 
       .. code-block:: cpp
 
-          D3DSurface2DTensor create_tensor(const element::Type type,
-                                           const Shape& shape,
-                                           ID3D11Texture2D* surface,
-                                           uint32_t plane = 0) {
-              AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::VA_SURFACE},
-                                 {ov::intel_gpu::dev_object_handle.name(), static_cast<gpu_handle_param>(surface)},
-                                 {ov::intel_gpu::va_plane.name(), plane}};
-              return create_tensor(type, shape, params).as<D3DSurface2DTensor>();
-          }
+         using namespace ov::preprocess;
+         auto p = PrePostProcessor(model);
+         p.input().tensor().set_element_type(ov::element::u8)
+                           .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                           .set_memory_type(ov::intel_gpu::memory_type::surface);
+         p.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+         p.input().model().set_layout("NCHW");
+         model = p.build();
+
+         CComPtr<ID3D11Device> device_ptr = get_d3d_device_ptr()
+         // create the shared context object
+         auto shared_va_context = ov::intel_gpu::ocl::D3DContext(core, device_ptr);
+         // compile model within a shared context
+         auto compiled_model = core.compile_model(model, shared_va_context);
+
+         auto input0 = model->get_parameters().at(0);
+         auto input1 = model->get_parameters().at(1);
+
+         auto shape = input0->get_shape();
+         auto width = shape[1];
+         auto height = shape[2];
+
+         D3D11_TEXTURE2D_DESC texture_description = get_texture_desc();
+         CComPtr<ID3D11Texture2D> dx11_texture = get_texture();
+         //     ...
+         //wrap decoder output into RemoteBlobs and set it as inference input
+         auto nv12_blob = shared_va_context.create_tensor_nv12(texture_description.Heights, texture_description.Width, dx11_texture);
+
+         auto infer_request = compiled_model.create_infer_request();
+         infer_request.set_tensor(input0->get_friendly_name(), nv12_blob.first);
+         infer_request.set_tensor(input1->get_friendly_name(), nv12_blob.second);
+         infer_request.start_async();
+         infer_request.wait();
 
    .. tab-item:: VASurfaceID
       :sync: vasurfaceid
 
       .. code-block:: cpp
 
-          std::pair<VASurfaceTensor, VASurfaceTensor> create_tensor_nv12(const size_t height,
-                                                                         const size_t width,
-                                                                         const VASurfaceID nv12_surf) {
-              AnyMap tensor_params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::VA_SURFACE},
-                                      {ov::intel_gpu::dev_object_handle.name(), nv12_surf},
-                                      {ov::intel_gpu::va_plane.name(), uint32_t(0)}};
-              auto y_tensor = create_tensor(element::u8, {1, height, width, 1}, tensor_params);
-              tensor_params[ov::intel_gpu::va_plane.name()] = uint32_t(1);
-              auto uv_tensor = create_tensor(element::u8, {1, height / 2, width / 2, 2}, tensor_params);
-              return std::make_pair(y_tensor.as<VASurfaceTensor>(), uv_tensor.as<VASurfaceTensor>());
-          }
+         using namespace ov::preprocess;
+         auto p = PrePostProcessor(model);
+         p.input().tensor().set_element_type(ov::element::u8)
+                           .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                           .set_memory_type(ov::intel_gpu::memory_type::surface);
+         p.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+         p.input().model().set_layout("NCHW");
+         model = p.build();
 
+         CComPtr<ID3D11Device> device_ptr = get_d3d_device_ptr()
+         // create the shared context object
+         auto shared_va_context = ov::intel_gpu::ocl::VAContext(core, device_ptr);
+         // compile model within a shared context
+         auto compiled_model = core.compile_model(model, shared_va_context);
 
+         auto input0 = model->get_parameters().at(0);
+         auto input1 = model->get_parameters().at(1);
 
+         auto shape = input0->get_shape();
+         auto width = shape[1];
+         auto height = shape[2];
+
+         D3D11_TEXTURE2D_DESC texture_description = get_texture_desc();
+         CComPtr<ID3D11Texture2D> dx11_texture = get_texture();
+         //     ...
+         //wrap decoder output into RemoteBlobs and set it as inference input
+         auto nv12_blob = shared_va_context.create_tensor_nv12(texture_description.Heights, texture_description.Width, dx11_texture);
+
+         auto infer_request = compiled_model.create_infer_request();
+         infer_request.set_tensor(input0->get_friendly_name(), nv12_blob.first);
+         infer_request.set_tensor(input1->get_friendly_name(), nv12_blob.second);
+         infer_request.start_async();
+         infer_request.wait();
 
 
 
