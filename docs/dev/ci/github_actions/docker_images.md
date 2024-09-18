@@ -114,7 +114,7 @@ that are going to be used further in a workflow, to `images` parameter of the `h
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
 ```
 * Add "Docker" to the `needs:` block of the job that will be executed with the desired custom image and set 
-`container.image` key in this job to point to the docker image taken from handle_docker's outputs, like that: 
+`container.image` key in this job to point to the docker image taken from `handle_docker`'s outputs, like that: 
 ```yaml
   Build:
     needs: [Smart_CI, Docker]
