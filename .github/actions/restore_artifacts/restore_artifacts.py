@@ -61,7 +61,7 @@ def main():
     action_utils.set_github_output("artifacts_storage_path", str(storage))
     logger.info(f"Artifacts are taken from here: {storage}")
 
-    main_package_extension = 'zip' if 'windows' in args.storage_dir else 'tar.gz'
+    main_package_extension = 'zip' if 'windows' in storage_dir else 'tar.gz'
     main_package_name = f'openvino_package.{main_package_extension}'
     defaults = [main_package_name, 'manifest.yml']
     to_restore = set(args.to_restore.split(',')).union(defaults) if args.to_restore else defaults
