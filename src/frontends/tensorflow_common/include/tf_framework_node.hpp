@@ -16,7 +16,7 @@ namespace tensorflow {
 class FrameworkNode : public ov::op::util::FrameworkNode {
 public:
     static constexpr const char* failed_conversion_key = "tensorflow::FrameworkNode::failed_conversion_key";
-    OPENVINO_OP("TFFrameworkNode", "util", ::ov::op::util::FrameworkNode);
+    OPENVINO_OP("TFFrameworkNode", "ov::frontend::tensorflow", ::ov::op::util::FrameworkNode);
 
     FrameworkNode(const std::shared_ptr<DecoderBase>& decoder, const OutputVector& inputs, size_t num_outputs)
         : ov::op::util::FrameworkNode(inputs, std::max(num_outputs, size_t(1))),
