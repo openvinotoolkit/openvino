@@ -116,24 +116,6 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             return false;
         }
 
-        // // ====== Debug log: ==================================
-        // {
-        //     std::cout << "============================================1" << std::endl;
-        //     std::cout << "  == Found readvalue = " << readvalue->get_friendly_name() << std::endl;
-        //     std::cout << "  == Found inputs = ";
-        //     for (auto inp : inputs) {
-        //         std::cout << inp->get_friendly_name() << ", ";
-        //     }
-        //     std::cout << std::endl;
-        //     std::cout << "  == Found subgraph = ";
-        //     for (auto nd : subgraph) {
-        //         std::cout << nd->get_friendly_name() << ", ";
-        //     }
-        //     std::cout << std::endl;
-        //     std::cout << "  == Found corresponding_assign = " << corresponding_assign->get_friendly_name() << std::endl;
-        //     std::cout << "============================================2" << std::endl;
-        // }
-
         auto new_rv = std::make_shared<ov::intel_cpu::ReadValueWithSubgraphNode>(readvalue->get_variable());
 
         auto is_in_subgraph = [&subgraph](std::shared_ptr<ov::Node> n) {
@@ -158,8 +140,6 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
 
         // Subgraph's output
         auto last_node = readvalue->get_input_node_shared_ptr(0);
-        // auto rv_subgraph = readvalue->clone_with_new_inputs({last_node});
-        // auto assign_subgraph = corresponding_assign->clone_with_new_inputs({rv_subgraph});
         auto output = std::make_shared<ov::op::v0::Result>(last_node);
         auto func = std::make_shared<Model>(ov::ResultVector({output}), params);
         new_rv->set_body(func);
@@ -173,7 +153,6 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         ov::replace_node(readvalue, new_rv);
         ov::copy_runtime_info(subgraph, new_rv);
         new_rv->validate_and_infer_types();
-        // std::cout << "== MoveReadValueInputsToSubgraph Done, return true ================\n";
         return true;
     };
 

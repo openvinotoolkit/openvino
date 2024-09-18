@@ -683,7 +683,7 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
         DEBUG_LOG("dst memory=", getDstMemoryAtPort(0)->getData(), ", state memory=", assignedMem->getData());
         if (getDstMemoryAtPort(0)->getData() != assignedMem->getData()) {
             auto outputMem = getDstMemoryAtPort(0);
-            // Save to state
+            // Save output data to state
             assignedMem->load(*outputMem);
         }
         return;
@@ -743,7 +743,7 @@ void MemoryInput::runStatic(dnnl::stream strm) {
         DEBUG_LOG("dst memory=", getDstMemoryAtPort(0)->getData(), ", state memory=", assignedMem->getData());
         if (getDstMemoryAtPort(0)->getData() != assignedMem->getData()) {
             auto outputMem = getDstMemoryAtPort(0);
-            // Save to state
+            // Save output data to state
             assignedMem->load(*outputMem);
         }
         return;

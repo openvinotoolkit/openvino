@@ -209,28 +209,6 @@ private:
     std::vector<std::deque<MemoryPtr>> inputMem;
     std::deque<MemoryPtr> outputMem;
 
-    // struct PortMap {
-    //     int from; /**< Index of external/internal out data */
-    //     int to;   /**< Index of external/internal in data */
-    // };
-    // class PortMapHelper {
-    // public:
-    //     PortMapHelper(const MemoryPtr& from, const std::deque<MemoryPtr>& to, const dnnl::engine& eng);
-    //     ~PortMapHelper() = default;
-    //     void execute(dnnl::stream& strm);
-
-    // private:
-    //     void redefineTo();
-
-    //     MemoryPtr srcMemPtr;
-    //     std::deque<MemoryPtr> dstMemPtrs;
-    //     std::deque<MemoryDescPtr> originalDstMemDescs;
-
-    //     ptrdiff_t size;
-    // };
-
-    // std::vector<PortMap> inputPortMap, outputPortMap;
-    // std::vector<std::shared_ptr<PortMapHelper>> beforeMappers, afterMappers;
     ProxyMemoryBlockPtr memBlock = nullptr;
 };
 

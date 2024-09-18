@@ -196,11 +196,12 @@ MemoryPtr VariableStateSingleBuffer::internal_state_mem() const {
     return prime_mem();
 }
 
-VariableStateKVcache::VariableStateKVcache(const std::string& name,
-                                           const MemoryDescPtr& external_desc,
-                                           const BlockedMemoryDescPtr& dense_internal_desc)
-    : VariableStateBase(name, external_desc),
-      m_dense_internal_desc(dense_internal_desc) {
+VariableStateKVcache::VariableStateKVcache(
+        const std::string& name,
+        const MemoryDescPtr& external_desc,
+        const BlockedMemoryDescPtr& dense_internal_desc) :
+        VariableStateBase(name, external_desc),
+    m_dense_internal_desc(dense_internal_desc) {
     auto&& shape = external_desc->getShape();
 
     OPENVINO_ASSERT(shape.isDynamic(), "VariableStateKVcache is unexpectedly initalized with a static tensor");

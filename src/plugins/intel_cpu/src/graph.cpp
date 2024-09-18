@@ -40,7 +40,6 @@
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
 #include "utils/precision_support.h"
-#include "utils/my_profiler.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
 #include "common/primitive_desc_iface.hpp"
@@ -944,8 +943,8 @@ void Graph::Allocate(const std::vector<size_t>& syncNodesInds) {
             } else if (one_of(edge->getParent()->getType(), Type::MemoryInput)) {
                 auto memInp = std::dynamic_pointer_cast<node::MemoryInput>(edge->getParent());
                 if (memInp && memInp->isHaveSubgraph()) {
-                    // Since the ReadValueWithSubgraph is middle node, in order to use ProxyMemoryBlock to share memory,
-                    // just add this branch.
+                    // Since the ReadValueWithSubgraph is middle node, just add this branch in order to use
+                    // ProxyMemoryBlock to share memory
                     edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
                 }
             }
@@ -1099,17 +1098,7 @@ VecMemoryDescs Graph::getOutputMemoryDescriptors() const {
 }
 
 void Graph::InferStatic(SyncInferRequest* request, int numaId) {
-    auto _prof0 = MY_PROFILE("::InferStatic#" + std::to_string(infer_count));
     for (const auto& node : m_executableGraphNodes) {
-        VERBOSE(node, getConfig().debugCaps.verbose);
-        PERF(node, getConfig().collectPerfCounters);
-
-        if (request)
-            request->throw_if_canceled();
-
-        auto _prof = MY_PROFILE_ARGS(node->getTypeStr(),
-                                     {{"Name", node->getName()}, {"Impl", node->getPrimitiveDescriptorType()}});
-
         ExecuteNodeWithCatch(node, request, numaId);
     }
 }
@@ -1343,7 +1332,6 @@ inline void Graph::ExecuteNodeWithCatch(const NodePtr& node, SyncInferRequest* r
 
 template<typename UpdateStrategy>
 void Graph::InferDynamic(SyncInferRequest* request, int numaId, UpdateStrategy&& update) {
-    auto _prof0 = MY_PROFILE("::InferDynamic_#" + std::to_string(infer_count));
     size_t inferCounter = 0;
     for (auto stopIndx : m_executableSyncNodesInds) {
         update(stopIndx);
@@ -1351,25 +1339,7 @@ void Graph::InferDynamic(SyncInferRequest* request, int numaId, UpdateStrategy&&
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = m_executableGraphNodes[inferCounter];
 
-            VERBOSE(node, getConfig().debugCaps.verbose);
-            PERF(node, getConfig().collectPerfCounters);
-
-            auto _prof = MY_PROFILE_ARGS(node->getTypeStr(),
-                                         {{"Name", node->getName()}, {"Impl", node->getPrimitiveDescriptorType()}});
-            if (request)
-                request->throw_if_canceled();
-            try {
-                ExecuteNodeWithCatch(node, request, numaId);
-                // if (!one_of(node->getType(), Type::MemoryOutput, Type::Output)) {
-                //     std::cout << "Infer node:" << node->getName()
-                //               << ", output=" << node->getDstMemoryAtPort(0)->getDataAs<int>()[0] << std::endl;
-                // } else if (node->getType() == Type::Output) {
-                //     std::cout << "Infer node:" << node->getName()
-                //               << ", output=" << node->getSrcMemoryAtPort(0)->getDataAs<int>()[0] << std::endl;
-                // }
-            } catch (const std::exception& exp) {
-                OPENVINO_THROW(node, exp.what());
-            }
+            ExecuteNodeWithCatch(node, request, numaId);
         }
     }
 }
@@ -1411,8 +1381,7 @@ void Graph::Infer(SyncInferRequest* request) {
         OPENVINO_ASSERT(IsReady(), "Wrong state of the ov::intel_cpu::Graph. Topology is not ready: ", static_cast<int>(status));
     }
 
-    // if (infer_count != -1) infer_count++;
-    infer_count++;
+    if (infer_count != -1) infer_count++;
 }
 
 void Graph::SortTopologically() {
