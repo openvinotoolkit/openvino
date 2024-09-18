@@ -54,6 +54,7 @@ void to_f32(const ov::Tensor& in, ov::Tensor& out);
 void to_f16(ov::Tensor& t);
 void transpose(ov::Tensor& t);
 void permute(ov::Tensor& t, const std::vector<std::size_t>& axes);
+ov::Tensor concat(const std::vector<ov::Tensor>& tt, std::size_t axis);
 
 namespace at {
 template <class M>

@@ -43,18 +43,6 @@ size_t get_elems_in_vec(const ov::element::Type& precision);
 
 namespace repacking {
 /**
- * @brief Computes buffer size that OneDNN impl needs for repacked tensor
- * @param copy_b_expr Repacking expression whose information (tensor precision, layout, subtensors) is used for
- * buffer size computations
- */
-size_t get_repacking_buffer_size(const ov::snippets::lowered::ExpressionPtr& copy_b_expr);
-/**
- * @brief Computes buffer size that OneDNN impl needs for compensations
- * @param copy_b_expr Repacking expression whose information (tensor precision, subtensors) is used for
- * buffer size computations
- */
-size_t get_compensations_buffer_size(const ov::snippets::lowered::ExpressionPtr& copy_b_expr);
-/**
  * @brief Computes leading dimension (LDB) which must be used in brgemm and brgemm_copy_b emitters
  * @param n_block N block size shared between BrgemmCPU and BrgemmCopyB node
  * @param precision tensor precision
