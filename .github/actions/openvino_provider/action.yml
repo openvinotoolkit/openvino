@@ -18,7 +18,7 @@ inputs:
   platform:
     description: "Platform for which to get artifacts: centos7_x86_64 | debian10_armhf | rhel8_x86_64 | ubuntu20_arm64 | 
       ubuntu20_x86_64 | ubuntu22_x86_64 | ubuntu24_x86_64 | macos_12_6_arm64 | macos_12_6_x86_64 | windows_x86_64"
-    required: true
+    required: false
   commit_packages_to_provide:
     description: "Comma-separated list of OpenVINO packages from post-commit to provide ('all' to get everything)"
     required: false
@@ -51,6 +51,13 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Verify parameters
+      if: ${{ !inputs.platform && !inputs.package_url }}
+      shell: bash
+      run: |
+        echo 'Please specify either platform or package_url param'
+        exit 1
+
     - name: Get action revision
       id: get_action_revision
       run: echo "action_ref=${{ env.ACTION_REF }}" >> $GITHUB_OUTPUT
@@ -140,7 +147,7 @@ runs:
 
     - name: Download OpenVINO archives
       id: openvino_s3_download
-      if: inputs.artifacts_source == 's3'
+      if: inputs.artifacts_source == 's3' || inputs.package_url
       shell: bash
       run: |
         if [ ${{ inputs.package_url }} ]; then
