@@ -2400,7 +2400,8 @@ bool primitive_inst::is_valid_fusion() const {
         // TODO: Only fc_bf_tiled_kernel & ref kernel are verified for fused eltwise. To support more fc kernels for eltwise fusion
         if (!_node->get_selected_impl())
             return false;
-        if ((_node->get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bf_tiled") == std::string::npos)
+        if (!data_type_traits::is_i8_u8(_node->get_input_layout(0).data_type)
+            && (_node->get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bf_tiled") == std::string::npos)
             && (_node->get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bfyx_ref") == std::string::npos)) {
             return false;
         }
