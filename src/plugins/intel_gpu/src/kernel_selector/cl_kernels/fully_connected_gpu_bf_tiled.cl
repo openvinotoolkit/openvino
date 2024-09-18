@@ -913,8 +913,12 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         }
                     }
                 #else
-                    DQ_SLM_FILTER_UNPACKED_VEC dzp = (DQ_SLM_FILTER_UNPACKED_VEC)(d_zps[0]);
-                    dq_wei_unpacked -= dzp;
+                    DQ_TYPE* w = (DQ_TYPE*)(&dq_wei_unpacked);
+                    unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                        unroll_for(uint kii = 0; kii < FILTER_LOAD_BLOCK_SIZE; ++kii) {
+                            w[W_DYN_QUAN_IDX] = w[W_DYN_QUAN_IDX] - d_zps[fi % DECOMPRESSION_ZP_LENGTH];
+                        }
+                    }
                 #endif
             #else
                 DQ_SLM_FILTER_UNPACKED_VEC dzp = (DQ_SLM_FILTER_UNPACKED_VEC)(ACCUMULATOR_VAL_ZERO);
