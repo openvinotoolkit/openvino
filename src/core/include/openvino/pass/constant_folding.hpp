@@ -19,7 +19,7 @@ namespace pass {
 class OPENVINO_API ConstantFolding : public ModelPass {
 public:
     OPENVINO_RTTI("ConstantFolding");
-    explicit ConstantFolding(int64_t increase_threshold = 1024, int64_t execution_threshold = 10000)
+    explicit ConstantFolding(int64_t increase_threshold = 1024, int64_t execution_threshold = 100000)
         : m_increase_threshold(increase_threshold),
           m_execution_threshold(execution_threshold) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
