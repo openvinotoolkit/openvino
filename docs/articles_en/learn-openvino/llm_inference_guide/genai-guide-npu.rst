@@ -102,34 +102,6 @@ Use the following code snippet to change the default settings:
          ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
 
 
-Compilation options
-+++++++++++++++++++
-
-Compiling models for NPU may take a while. By default, the LLMPipeline for the NPU
-is configured for faster compilation, but it may result in lower performance.
-To achieve better performance at the expense of compilation time, you may try these settings:
-
-.. tab-set::
-
-   .. tab-item:: Python
-      :sync: py
-
-      .. code-block:: python
-
-         plugin_config = { "NPU_COMPILATION_MODE_PARAMS": "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm" }
-         pipeline_config = { "PREFILL_CONFIG": plugin_config, "GENERATE_CONFIG": plugin_config }
-         pipe = ov_genai.LLMPipeline(model_path, "NPU", pipeline_config)
-
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. code-block:: cpp
-
-         ov::AnyMap plugin_config = { { "NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm" } };
-         ov::AnyMap pipeline_config = { { "PREFILL_CONFIG",  plugin_config }, { "GENERATE_CONFIG", plugin_config } };
-         ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
-
-
 Additional Resources
 ####################
 
