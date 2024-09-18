@@ -1470,14 +1470,36 @@ void ov::npuw::util::transpose(ov::Tensor& t) {
     t = std::move(tnew);
 }
 
+template <typename T>
+void permute120(const ov::Tensor& src, ov::Tensor& dst) {
+    const ov::Shape src_shape = src.get_shape();
+    const ov::Shape dst_shape = dst.get_shape();
+    NPUW_ASSERT(src_shape.size() == 3);  // Yes, so far only transpose 3D tensors
+
+    const T* pSrc = static_cast<T*>(src.data());
+    T* pDst = static_cast<T*>(dst.data());
+
+    // DSTs [b,r,c] map to SRC's [r,c,b]
+
+    for (std::size_t b = 0; b < dst_shape[0]; b++) {
+        for (std::size_t r = 0; r < dst_shape[1]; r++) {
+            for (std::size_t c = 0; c < dst_shape[2]; c++) {
+                auto dst_idx = b * dst_shape[1] * dst_shape[2] + r * dst_shape[2] + c;
+                auto src_idx = r * src_shape[1] * src_shape[2] + c * src_shape[1] + b;
+                pDst[dst_idx] = pSrc[src_idx];
+            }
+        }
+    }
+}
+
 void ov::npuw::util::permute(ov::Tensor& t, const std::vector<std::size_t>& axes) {
     ov::Shape shape = t.get_shape();
-    NPUW_ASSERT(shape.size() == 3);                        // Yes, so far only transpose 3D tensors
-    NPUW_ASSERT(t.get_element_type() == ov::element::i4);  // And, yes, 4bit only!
+    NPUW_ASSERT(shape.size() == 3);  // Yes, so far only transpose 3D tensors
 
     if (axes[0] == 2 && axes[1] == 0 && axes[2] == 1) {
         transpose(t);
     } else if (axes[0] == 0 && axes[1] == 2 && axes[2] == 1) {
+        NPUW_ASSERT(t.get_element_type() == ov::element::i4);  // 4bit only here
         ov::Shape tshape = {shape[0], shape[2], shape[1]};
         ov::Tensor tnew(t.get_element_type(), tshape);
 
@@ -1491,6 +1513,7 @@ void ov::npuw::util::permute(ov::Tensor& t, const std::vector<std::size_t>& axes
         }
         t = std::move(tnew);
     } else if (axes[0] == 1 && axes[1] == 0 && axes[2] == 2) {
+        NPUW_ASSERT(t.get_element_type() == ov::element::i4);  // 4bit only here too
         ov::Shape tshape = {shape[1], shape[0], shape[2]};
         ov::Tensor tnew(t.get_element_type(), tshape);
 
@@ -1504,6 +1527,88 @@ void ov::npuw::util::permute(ov::Tensor& t, const std::vector<std::size_t>& axes
             }
         }
         t = std::move(tnew);
+    } else if (axes[0] == 1 && axes[1] == 2 && axes[2] == 0) {
+        ov::Shape tshape = {shape[1], shape[2], shape[0]};
+        ov::Tensor tnew(t.get_element_type(), tshape);
+        switch (t.get_element_type()) {
+        case ov::element::f32:
+            permute120<uint32_t>(t, tnew);
+            break;
+        case ov::element::f16:
+            permute120<uint16_t>(t, tnew);
+            break;
+        default:
+            NPUW_ASSERT("Element type is not supported yet");
+        }
+        t = std::move(tnew);
+    } else {
+        NPUW_ASSERT(false && "Not supported yet");
+    }
+}
+
+ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t axis) {
+    NPUW_ASSERT(axis == 0 || axis == 2);
+
+    const auto type = tt.front().get_element_type();
+    auto shape = tt.front().get_shape();
+    std::size_t new_dim = 0;
+
+    std::vector<std::size_t> offsets;
+    std::vector<std::size_t> lens;
+    for (auto&& t : tt) {
+        NPUW_ASSERT(tt.front().get_element_type() == t.get_element_type());
+        NPUW_ASSERT(t.is_continuous());
+
+        auto tshape = t.get_shape();
+        for (std::size_t d = 0; d < tshape.size(); d++) {
+            if (d != axis) {
+                NPUW_ASSERT(shape[d] == tshape[d]);
+            } else {
+                offsets.push_back(new_dim);
+                lens.push_back(tshape[d]);
+                new_dim += tshape[d];
+            }
+        }
+    }
+    shape[axis] = new_dim;
+
+    if (axis == 0) {
+        ov::Tensor tnew(tt.front().get_element_type(), shape);
+        uint8_t* pDst = static_cast<uint8_t*>(tnew.data());
+
+        const bool is_4bit = (type == ov::element::i4 || type == ov::element::u4);
+        for (std::size_t t_idx = 0; t_idx < tt.size(); t_idx++) {
+            const uint8_t* pSrc = static_cast<uint8_t*>(tt[t_idx].data());
+
+            const auto copy_size = lens[t_idx] * shape[1] * shape[2];
+            const auto copy_len = is_4bit ? copy_size / 2 : copy_size * type.size();
+
+            std::copy_n(pSrc, copy_len, pDst);
+            pDst += copy_len;
+        }
+        return tnew;
+    } else if (axis == 2) {
+        ov::Tensor tnew(tt.front().get_element_type(), shape);
+        uint8_t* pDst = static_cast<uint8_t*>(tnew.data());
+
+        const bool is_4bit = (type == ov::element::i4 || type == ov::element::u4);
+        for (std::size_t t_idx = 0; t_idx < tt.size(); t_idx++) {
+            const auto& t_src = tt[t_idx];
+
+            for (std::size_t r = 0; r < shape[0] * shape[1]; r++) {
+                const auto r_offset = is_4bit ? new_dim * r / 2 : new_dim * r * type.size();
+                const auto c_offset = is_4bit ? offsets[t_idx] / 2 : offsets[t_idx] * type.size();
+                const auto copy_len = is_4bit ? lens[t_idx] / 2 : lens[t_idx] * type.size();
+                uint8_t* pDstRow = pDst + r_offset + c_offset;
+
+                const auto r_offset_src = is_4bit ? lens[t_idx] * r / 2 : lens[t_idx] * r * type.size();
+                const uint8_t* pSrc = static_cast<uint8_t*>(t_src.data());
+                const uint8_t* pSrcRow = pSrc + r_offset_src;
+
+                std::copy_n(pSrcRow, copy_len, pDstRow);
+            }
+        }
+        return tnew;
     } else {
         NPUW_ASSERT(false && "Not supported yet");
     }
