@@ -70,5 +70,9 @@
     {
         "error_text": "Unable to make request: ECONNRESET",
         "ticket": 148702
+    },
+    {
+        "error_text": "json.decoder.JSONDecodeError: Unterminated string starting at",
+        "ticket": 151796
     }
 ]
