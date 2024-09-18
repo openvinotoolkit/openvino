@@ -139,7 +139,7 @@ in a workflow as described above.
 
 If you don't need any system dependencies to be installed in your pipeline, it might be enough to use a plain
 image from DockerHub. In this case, refer to the mirror of this DockerHub image in our 
-private Azure Container Registry. For example, if you need to use ubuntu:22.04 image, which you locally pull like that:
+private Azure Container Registry. For example, if you need to use the `ubuntu:22.04` image, which you locally pull like that:
 ```
 docker pull ubuntu:22.04
 ...
