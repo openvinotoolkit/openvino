@@ -674,7 +674,7 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
     const bool processInitGraph = needInitGraphProcessing();
 
     // Subgraph infer
-    if (haveSubgraph) {
+    if (body) {
         if (processInitGraph) {
             subGraph.ResetInferCount();
             subGraph.Infer();
@@ -736,7 +736,7 @@ void MemoryInput::runStatic(dnnl::stream strm) {
     const auto processInitGraph = needInitGraphProcessing();
 
     // Subgraph infer
-    if (haveSubgraph) {
+    if (body) {
         if (processInitGraph) {
             subGraph.Infer();
         }
@@ -797,7 +797,7 @@ MemStatePtr MemoryInput::makeState() const {
         state_name = state_name.substr(0, suffix_idx);
     }
 
-    if (haveSubgraph) {
+    if (body) {
         return std::make_shared<VariableStateSingleBuffer>(state_name,
                                                            std::make_shared<Memory>(eng, mem_desc),
                                                            original_desc);
@@ -810,11 +810,9 @@ MemStatePtr MemoryInput::makeState() const {
 }
 
 MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : MemoryInputBase::MemoryInputBase(op, context),
-      ovOp(op) {
+    : MemoryInputBase::MemoryInputBase(op, context) {
     auto rvWithSubgraph = ov::as_type_ptr<ov::intel_cpu::ReadValueWithSubgraphNode>(op);
     if (rvWithSubgraph) {
-        haveSubgraph = true;
         body = rvWithSubgraph->get_body();
     }
 }

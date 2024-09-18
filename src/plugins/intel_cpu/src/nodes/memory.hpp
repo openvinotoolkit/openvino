@@ -187,8 +187,8 @@ public:
 
     MemStatePtr makeState() const override;
 
-    bool isHaveSubgraph() {
-        return haveSubgraph;
+    bool haveSubgraph() {
+        return body != nullptr;
     }
 
 private:
@@ -197,17 +197,9 @@ private:
     void assignStateHook() override {/*pass*/}
     bool needInitGraphProcessing() const;
 
-    void prepareBeforeMappers(const dnnl::engine& eng);
-    void prepareAfterMappers(const dnnl::engine& eng);
-    std::deque<MemoryPtr> getToMemories(const Node* node, const size_t port) const;
-
 private:
-    const std::shared_ptr<ov::Node> ovOp;
-    bool haveSubgraph = false;
-    std::shared_ptr<ov::Model> body;
+    std::shared_ptr<ov::Model> body = nullptr;
     ov::intel_cpu::Graph subGraph;
-    std::vector<std::deque<MemoryPtr>> inputMem;
-    std::deque<MemoryPtr> outputMem;
 
     ProxyMemoryBlockPtr memBlock = nullptr;
 };

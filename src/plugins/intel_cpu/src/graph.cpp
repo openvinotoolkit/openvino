@@ -942,7 +942,7 @@ void Graph::Allocate(const std::vector<size_t>& syncNodesInds) {
                 edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
             } else if (one_of(edge->getParent()->getType(), Type::MemoryInput)) {
                 auto memInp = std::dynamic_pointer_cast<node::MemoryInput>(edge->getParent());
-                if (memInp && memInp->isHaveSubgraph()) {
+                if (memInp && memInp->haveSubgraph()) {
                     // Since the ReadValueWithSubgraph is middle node, just add this branch in order to use
                     // ProxyMemoryBlock to share memory
                     edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);

@@ -3077,7 +3077,7 @@ void GraphOptimizer::ReplaceMemoryOutputWithMemoryOutputStub(Graph& graph) {
         }
         auto memInput = std::dynamic_pointer_cast<node::MemoryInput>(node);
         if (memInput) {
-            return memInput->isHaveSubgraph();
+            return memInput->haveSubgraph();
         }
 
         return false;
