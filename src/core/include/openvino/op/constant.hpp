@@ -277,13 +277,33 @@ public:
     /// \return The initialization literals for the tensor constant.
     std::vector<std::string> get_value_strings() const;
 
-    template <typename T>
+    /// @brief Get constant buffer as vector of element type T.
+    ///
+    /// For low precision the vector do not perform bit unpacks.
+    /// The returned vector has N elements where:
+    /// - N is (elements count * (precision byte size / T byte size)) for standard precisions.
+    /// - N is (byte size) for low precisions.
+    ///
+    /// @tparam T Output vector type which byte size must be less or equal of byte size of Constant's precision.
+    /// @return Vector of N elements of Type T.
+    template <typename T, typename std::enable_if<!std::is_same<bool, T>::value>::type* = nullptr>
     std::vector<T> get_vector() const {
-        const T* p = get_data_ptr<T>();
-        if (p == nullptr) {
-            OPENVINO_THROW("Cannot create vector! Buffer is not allocated.");
+        const auto p = get_data_ptr<T>();
+        OPENVINO_ASSERT(p != nullptr, "Cannot create vector! Buffer is not allocated.");
+        auto v = std::vector<T>(p, p + (get_byte_size() / sizeof(T)));
+        if (!m_alloc_buffer_on_visit_attributes) {
+            // result vector requires update when Constant share data (e.g read weight from IR binary file)
+            set_unused_bits(v.data());
         }
-        return std::vector<T>(p, p + shape_size(m_shape));
+        return v;
+    }
+
+    template <typename T, typename std::enable_if<std::is_same<bool, T>::value>::type* = nullptr>
+    std::vector<T> get_vector() const {
+        const auto p = get_data_ptr<T>();
+        OPENVINO_ASSERT(p != nullptr, "Cannot create vector! Buffer is not allocated.");
+        auto v = std::vector<T>(p, p + (get_byte_size() / sizeof(T)));
+        return v;
     }
 
     /// \brief Return the Constant's value as a vector cast to type T
@@ -403,7 +423,7 @@ public:
     void alloc_buffer_on_visit_attributes(bool val);
 
     /// @brief Get view on constant data as tensor.
-    /// @return OV::Tensor with constant data.
+    /// @return ov::Tensor with constant data.
     const Tensor get_tensor_view() const;
 
     /// @return Constant's strides in bytes.
@@ -413,6 +433,13 @@ private:
     Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
 
     size_t get_num_elements_to_cast(const int64_t n) const;
+
+    /// \brief Sets buffer's not used bits to zero.
+    ///
+    /// In case of low precision there can be some storage area which is not used (not defined state).
+    ///
+    /// \param buffer  Pointer to buffer with Constant values.
+    void set_unused_bits(void* buffer) const;
 
 #ifdef __clang__
 #    pragma clang diagnostic push
