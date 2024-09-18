@@ -24,6 +24,7 @@ struct ConcatenationImplementationManager : public ImplementationManager {
         static const std::vector<ov::element::Type_t> supported_types = { ov::element::f16, ov::element::u8, ov::element::i8 };
         static const std::vector<format::type> supported_in_fmts = {
             format::any,
+            format::bfyx,
             format::byxf,
             format::b_fs_yx_fsv16,
             format::b_fs_yx_fsv32,

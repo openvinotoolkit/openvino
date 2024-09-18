@@ -27,7 +27,7 @@ struct PoolingImplementationManager : public ImplementationManager {
         auto in_dt = in_layout.data_type;
         auto out_dt = out_layout.data_type;
 
-        if (!in_layout.data_padding || out_layout.data_padding)
+        if (in_layout.data_padding || out_layout.data_padding)
             return false;
 
         static const std::vector<format::type> supported_formats = {
