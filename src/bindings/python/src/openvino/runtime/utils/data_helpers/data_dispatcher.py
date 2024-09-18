@@ -331,7 +331,8 @@ def _(
             tensor.shape = inputs.shape
         # When copying, type should be up/down-casted automatically.
         if tensor.element_type == Type.string:
-            if is_all_ascii(inputs) and inputs.dtype.char == "U":
+            # Edge case resolving assignment segfaults on GPU
+            if is_all_ascii(inputs) and inputs.dtype.char == "U" and inputs.flags["F_CONTIGUOUS"]:
                 tensor.bytes_data[:] = inputs[:]
             else:
                 tensor.bytes_data = inputs
