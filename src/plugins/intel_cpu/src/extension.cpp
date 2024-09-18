@@ -27,9 +27,9 @@
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/snippets/x64/op/load_convert.hpp"
+#include "transformations/snippets/common/op/load_convert.hpp"
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
-#include "transformations/snippets/x64/op/store_convert.hpp"
+#include "transformations/snippets/common/op/store_convert.hpp"
 
 namespace {
 
@@ -161,12 +161,11 @@ private:
     OP_EXTENSION(ov::snippets::op::HorizonSum)               \
     OP_EXTENSION(ov::snippets::op::KernelStatic)             \
     OP_EXTENSION(ov::snippets::op::KernelDynamic)            \
-    OP_EXTENSION(ov::snippets::op::IntermediateMemoryBuffer) \
     OP_EXTENSION(ov::snippets::op::Load)                     \
     OP_EXTENSION(ov::snippets::op::LoadReshape)              \
     OP_EXTENSION(ov::snippets::op::LoopBegin)                \
     OP_EXTENSION(ov::snippets::op::LoopEnd)                  \
-    OP_EXTENSION(ov::snippets::op::NewMemoryBuffer)          \
+    OP_EXTENSION(ov::snippets::op::Buffer)                   \
     OP_EXTENSION(ov::snippets::op::Nop)                      \
     OP_EXTENSION(ov::snippets::op::PowerStatic)              \
     OP_EXTENSION(ov::snippets::op::Scalar)                   \

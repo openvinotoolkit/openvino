@@ -20,29 +20,36 @@ struct TensorData {
 
 struct Pipeline {
 public:
-    Pipeline() = default;
+    Pipeline(const Config& config,
+             const std::shared_ptr<const IExecutor>& executorPtr,
+             zeroProfiling::ProfilingPool& profiling_pool,
+             zeroProfiling::ProfilingQuery& profiling_query,
+             std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
+             const std::vector<std::optional<TensorData>>& inputTensorsData,
+             const std::vector<std::optional<TensorData>>& outputTensorsData,
+             const size_t numberOfCommandLists);
+
     Pipeline(const Pipeline&) = delete;
-    Pipeline(Pipeline&&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
-    Pipeline& operator=(Pipeline&&) = delete;
     virtual ~Pipeline() = default;
 
-    virtual void push(size_t batch_index) = 0;
-    virtual void pull(size_t batch_index) = 0;
-    virtual void reset(size_t batch_index) const = 0;
+    void push();
+    void pull();
+    void reset() const;
 
-    virtual void updateCommandList(const TensorData& tensors_data, uint32_t index, size_t batch_size) = 0;
+    void updateCommandList(const TensorData& tensorsData, const uint32_t index);
 
 protected:
-    zeroMemory::MemoryManagementUnit _deviceInputs;
-    zeroMemory::MemoryManagementUnit _deviceOutputs;
+    const Config _config;
+    const ZeroExecutor* _executor;
+    CommandQueue& _command_queue;
+    std::vector<std::unique_ptr<CommandList>> _command_lists;
+    std::vector<std::unique_ptr<Fence>> _fences;
+    EventPool _event_pool;
+    std::vector<std::unique_ptr<Event>> _events;
+    bool sync_output_with_fences_ = true;
+    std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
+    Logger _logger;
 };
 
-std::unique_ptr<Pipeline> makePipeline(const std::shared_ptr<const IExecutor>& executorPtr,
-                                       const Config& config,
-                                       zeroProfiling::ProfilingPool& profiling_pool,
-                                       zeroProfiling::ProfilingQuery& profiling_query,
-                                       std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
-                                       std::unordered_map<std::string, TensorData>& tensors_data,
-                                       const size_t batch_size);
 }  // namespace intel_npu

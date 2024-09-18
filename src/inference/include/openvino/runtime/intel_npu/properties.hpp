@@ -61,5 +61,39 @@ static constexpr ov::Property<uint32_t, ov::PropertyMutability::RO> driver_versi
  */
 static constexpr ov::Property<std::string> compilation_mode_params{"NPU_COMPILATION_MODE_PARAMS"};
 
+/**
+ * @brief [Only for NPU plugin]
+ * Type: std::bool
+ * Set turbo on or off. The turbo mode, where available, provides a hint to the system to maintain the
+ * maximum NPU frequency and memory throughput within the platform TDP limits.
+ * Turbo mode is not recommended for sustainable workloads due to higher power consumption and potential impact on other
+ * compute resources.
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<bool> turbo{"NPU_TURBO"};
+
+/**
+ * @brief [Only for NPU Compiler]
+ * Type: integer, default is -1
+ * Sets the number of npu tiles to compile the model for.
+ */
+static constexpr ov::Property<int64_t> tiles{"NPU_TILES"};
+
+/**
+ * @brief
+ * Type: integer, default is -1
+ * Maximum number of tiles supported by the device we compile for. Can be set for offline compilation. If not set, it
+ * will be populated by driver.
+ */
+static constexpr ov::Property<int64_t> max_tiles{"NPU_MAX_TILES"};
+
+/**
+ * @brief [Only for NPU plugin]
+ * Type: std::bool
+ * Bypass caching of the compiled model by UMD cache.
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<bool> bypass_umd_caching{"NPU_BYPASS_UMD_CACHING"};
+
 }  // namespace intel_npu
 }  // namespace ov

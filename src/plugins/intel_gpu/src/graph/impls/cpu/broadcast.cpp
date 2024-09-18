@@ -4,9 +4,7 @@
 
 #include "register.hpp"
 #include "broadcast_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
+#include "impls/registry/implementation_map.hpp"
 
 #include "openvino/op/broadcast.hpp"
 
@@ -47,14 +45,14 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
     void save(BinaryOutputBuffer& ob) const override {
         parent::save(ob);
         ob << make_data(&broadcast_mode, sizeof(ov::op::BroadcastModeSpec));
-        ob << make_data(&target_shape, sizeof(ov::Shape));
+        ob << target_shape;
         ob << axes_mapping;
     }
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
         ib >> make_data(&broadcast_mode, sizeof(ov::op::BroadcastModeSpec));
-        ib >> make_data(&target_shape, sizeof(ov::Shape));
+        ib >> target_shape;
         ib >> axes_mapping;
     }
 
@@ -124,7 +122,7 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
-    void update_dispatch_data(const kernel_impl_params& impl_param) override {}
+    void update(primitive_inst& inst, const kernel_impl_params& impl_param) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const broadcast_node& arg, const kernel_impl_params& impl_param) {

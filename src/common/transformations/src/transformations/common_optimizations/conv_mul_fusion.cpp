@@ -46,7 +46,7 @@ ov::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
         auto expected_shape = Shape(weights_rank, 1);
         expected_shape[1] = channel_dim;
 
-        if (op::util::check_for_broadcast(expected_shape, const_shape)) {
+        if (!op::util::check_for_broadcast(expected_shape, const_shape)) {
             return false;
         }
 
@@ -110,11 +110,11 @@ ov::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
         auto expected_shape = Shape(weights_rank - 1, 1);
         expected_shape[1] = G * O;
 
-        if (op::util::check_for_broadcast(expected_shape, const_shape)) {
+        if (!op::util::check_for_broadcast(expected_shape, const_shape)) {
             return false;
         }
 
-        auto reshape = std::dynamic_pointer_cast<ov::op::v1::Reshape>(m_weights.get_node_shared_ptr());
+        auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(m_weights.get_node_shared_ptr());
         bool are_weights_reshaped = reshape != nullptr;
         if (are_weights_reshaped) {
             m_weights = reshape->input_value(0);
@@ -198,7 +198,7 @@ ov::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMultiply
         auto expected_shape = Shape(weights_rank, 1);
         expected_shape[1] = channel_dim;
 
-        if (op::util::check_for_broadcast(expected_shape, const_shape)) {
+        if (!op::util::check_for_broadcast(expected_shape, const_shape)) {
             return false;
         }
 
@@ -275,7 +275,7 @@ ov::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpropDa
         auto expected_shape = Shape(weights_rank - 1, 1);
         expected_shape[1] = G * O;
 
-        if (op::util::check_for_broadcast(expected_shape, const_shape)) {
+        if (!op::util::check_for_broadcast(expected_shape, const_shape)) {
             return false;
         }
 

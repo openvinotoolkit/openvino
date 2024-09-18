@@ -61,6 +61,16 @@ first inference.
    -  `Inference with LATENCY hint <#inference-with-latency-hint>`__
    -  `Difference in FPS and latency <#difference-in-fps-and-latency>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Import modules and create Core
 ------------------------------
 
@@ -105,7 +115,7 @@ Import modules and create Core
 
 
 
-.. container:: alert alert-block alert-danger
+.. warning::
 
    Warning: A GPU device is not available. This notebook requires GPU
    device to have meaningful results.
@@ -186,16 +196,16 @@ By default, ``compile_model`` API will select **AUTO** as
 
 .. parsed-literal::
 
-    [23:26:37.1843]I[plugin.cpp:421][AUTO] device:CPU, config:LOG_LEVEL=LOG_INFO
-    [23:26:37.1844]I[plugin.cpp:421][AUTO] device:CPU, config:PERFORMANCE_HINT=LATENCY
-    [23:26:37.1844]I[plugin.cpp:421][AUTO] device:CPU, config:PERFORMANCE_HINT_NUM_REQUESTS=0
-    [23:26:37.1844]I[plugin.cpp:421][AUTO] device:CPU, config:PERF_COUNT=NO
-    [23:26:37.1844]I[plugin.cpp:426][AUTO] device:CPU, priority:0
-    [23:26:37.1844]I[schedule.cpp:17][AUTO] scheduler starting
-    [23:26:37.1844]I[auto_schedule.cpp:134][AUTO] select device:CPU
-    [23:26:37.3288]I[auto_schedule.cpp:336][AUTO] Device: [CPU]: Compile model took 144.341797 ms
-    [23:26:37.3290]I[auto_schedule.cpp:112][AUTO] device:CPU compiling model finished
-    [23:26:37.3291]I[plugin.cpp:454][AUTO] underlying hardware does not support hardware context
+    [23:28:52.0942]I[plugin.cpp:421][AUTO] device:CPU, config:LOG_LEVEL=LOG_INFO
+    [23:28:52.0942]I[plugin.cpp:421][AUTO] device:CPU, config:PERFORMANCE_HINT=LATENCY
+    [23:28:52.0942]I[plugin.cpp:421][AUTO] device:CPU, config:PERFORMANCE_HINT_NUM_REQUESTS=0
+    [23:28:52.0942]I[plugin.cpp:421][AUTO] device:CPU, config:PERF_COUNT=NO
+    [23:28:52.0943]I[plugin.cpp:426][AUTO] device:CPU, priority:0
+    [23:28:52.0943]I[schedule.cpp:17][AUTO] scheduler starting
+    [23:28:52.0943]I[auto_schedule.cpp:181][AUTO] select device:CPU
+    [23:28:52.2507]I[auto_schedule.cpp:346][AUTO] Device: [CPU]: Compile model took 156.383395 ms
+    [23:28:52.2510]I[auto_schedule.cpp:112][AUTO] device:CPU compiling model finished
+    [23:28:52.2512]I[plugin.cpp:454][AUTO] underlying hardware does not support hardware context
     Successfully compiled model without a device_name.
 
 
@@ -209,7 +219,7 @@ By default, ``compile_model`` API will select **AUTO** as
 .. parsed-literal::
 
     Deleted compiled_model
-    [23:26:37.3399]I[schedule.cpp:308][AUTO] scheduler ending
+    [23:28:52.2625]I[schedule.cpp:308][AUTO] scheduler ending
 
 
 Explicitly pass AUTO as device_name to Core::compile_model API
@@ -367,7 +377,7 @@ executed on CPU until GPU is ready.
 
 .. parsed-literal::
 
-    Time to load model using AUTO device and get first inference: 0.17 seconds.
+    Time to load model using AUTO device and get first inference: 0.16 seconds.
 
 
 .. code:: ipython3
@@ -539,12 +549,12 @@ Loop for inference and update the FPS/Latency every
 
     Compiling Model for AUTO device with THROUGHPUT hint
     Start inference,  6 groups of FPS/latency will be measured over  10s intervals
-    throughput:  179.02fps, latency:  31.75ms, time interval: 10.02s
-    throughput:  179.80fps, latency:  32.59ms, time interval: 10.00s
-    throughput:  179.17fps, latency:  32.63ms, time interval: 10.01s
-    throughput:  179.81fps, latency:  32.58ms, time interval: 10.01s
-    throughput:  178.74fps, latency:  32.75ms, time interval: 10.00s
-    throughput:  179.33fps, latency:  32.57ms, time interval: 10.02s
+    throughput:  183.93fps, latency:  30.99ms, time interval: 10.02s
+    throughput:  183.54fps, latency:  31.90ms, time interval: 10.01s
+    throughput:  182.94fps, latency:  32.06ms, time interval: 10.00s
+    throughput:  183.07fps, latency:  31.98ms, time interval: 10.01s
+    throughput:  183.57fps, latency:  31.91ms, time interval: 10.01s
+    throughput:  184.26fps, latency:  31.79ms, time interval: 10.00s
     Done
 
 
@@ -590,12 +600,12 @@ Loop for inference and update the FPS/Latency for each
 
     Compiling Model for AUTO Device with LATENCY hint
     Start inference,  6 groups fps/latency will be out with  10s interval
-    throughput:  137.56fps, latency:  6.70ms, time interval: 10.00s
-    throughput:  140.27fps, latency:  6.69ms, time interval: 10.00s
-    throughput:  140.43fps, latency:  6.68ms, time interval: 10.00s
-    throughput:  140.33fps, latency:  6.69ms, time interval: 10.01s
-    throughput:  140.45fps, latency:  6.68ms, time interval: 10.00s
-    throughput:  140.42fps, latency:  6.68ms, time interval: 10.01s
+    throughput:  136.75fps, latency:  6.79ms, time interval: 10.00s
+    throughput:  140.82fps, latency:  6.69ms, time interval: 10.01s
+    throughput:  141.15fps, latency:  6.71ms, time interval: 10.00s
+    throughput:  141.14fps, latency:  6.71ms, time interval: 10.00s
+    throughput:  140.99fps, latency:  6.70ms, time interval: 10.00s
+    throughput:  141.25fps, latency:  6.71ms, time interval: 10.00s
     Done
 
 

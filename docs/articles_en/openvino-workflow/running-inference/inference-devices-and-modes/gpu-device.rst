@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_supported_plugins_GPU}
-
 GPU Device
 ==========
 
@@ -59,14 +57,14 @@ Then, the device name can be passed to the ``ov::Core::compile_model()`` method,
          .. tab-item:: Python
             :sync: py
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.py
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/compile_model_gpu.py
                :language: Python
                :fragment: compile_model_default_gpu
 
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/compile_model_gpu.cpp
                :language: cpp
                :fragment: compile_model_default_gpu
 
@@ -77,14 +75,14 @@ Then, the device name can be passed to the ``ov::Core::compile_model()`` method,
          .. tab-item:: Python
             :sync: py
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.py
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/compile_model_gpu.py
                :language: Python
                :fragment: compile_model_gpu_with_id
 
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/compile_model_gpu.cpp
                :language: cpp
                :fragment: compile_model_gpu_with_id
 
@@ -95,14 +93,14 @@ Then, the device name can be passed to the ``ov::Core::compile_model()`` method,
          .. tab-item:: Python
             :sync: py
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.py
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/compile_model_gpu.py
                :language: Python
                :fragment: compile_model_gpu_with_id_and_tile
 
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/compile_model_gpu.cpp
                :language: cpp
                :fragment: compile_model_gpu_with_id_and_tile
 
@@ -152,14 +150,14 @@ It is done by specifying ``AUTO:GPU.1,GPU.0`` as a target device, and adding the
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/compile_model_gpu.py
          :language: Python
          :fragment: compile_model_auto
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/compile_model_gpu.cpp
          :language: cpp
          :fragment: compile_model_auto
 
@@ -183,14 +181,14 @@ Alternatively, it can be enabled explicitly via the device notion, for example `
          .. tab-item:: Python
             :sync: py
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.py
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/compile_model_gpu.py
                :language: Python
                :fragment: compile_model_batch_plugin
 
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/compile_model_gpu.cpp
                :language: cpp
                :fragment: compile_model_batch_plugin
 
@@ -201,14 +199,14 @@ Alternatively, it can be enabled explicitly via the device notion, for example `
          .. tab-item:: Python
             :sync: py
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.py
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/compile_model_gpu.py
                :language: Python
                :fragment: compile_model_auto_batch
 
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/compile_model_gpu.cpp
                :language: cpp
                :fragment: compile_model_auto_batch
 
@@ -275,14 +273,14 @@ The code snippet below demonstrates examples of a bounded dynamic batch:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/articles_en/assets/snippets/dynamic_batch.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/dynamic_batch.py
          :language: Python
          :fragment: dynamic_batch
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/articles_en/assets/snippets/dynamic_batch.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/dynamic_batch.cpp
          :language: cpp
          :fragment: dynamic_batch
 
@@ -351,14 +349,14 @@ The GPU plugin has the following additional preprocessing options:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_two_planes.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/preprocessing_nv12_two_planes.py
          :language: Python
          :fragment: init_preproc
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_two_planes.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/preprocessing_nv12_two_planes.cpp
          :language: cpp
          :fragment: init_preproc
 

@@ -8,6 +8,7 @@
 
 #include "core/tensor.hpp"
 #include "onnx_framework_node.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -41,6 +42,10 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::f16;
     case TensorProto_DataType::TensorProto_DataType_FLOAT:
         return ov::element::f32;
+#ifdef ONNX_VERSION_116
+    case TensorProto_DataType::TensorProto_DataType_INT4:
+        return ov::element::i4;
+#endif
     case TensorProto_DataType::TensorProto_DataType_INT8:
         return ov::element::i8;
     case TensorProto_DataType::TensorProto_DataType_INT16:
@@ -49,6 +54,10 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::i32;
     case TensorProto_DataType::TensorProto_DataType_INT64:
         return ov::element::i64;
+#ifdef ONNX_VERSION_116
+    case TensorProto_DataType::TensorProto_DataType_UINT4:
+        return ov::element::u4;
+#endif
     case TensorProto_DataType::TensorProto_DataType_UINT8:
         return ov::element::u8;
     case TensorProto_DataType::TensorProto_DataType_UINT16:
@@ -68,9 +77,15 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
     case TensorProto_DataType::TensorProto_DataType_STRING:
         return ov::element::string;
     }
+#ifdef ONNX_VERSION_116
+    ONNX_UNSUPPORTED_DATA_TYPE(onnx_type,
+                               "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, "
+                               "INT32, INT64, UINT4, UINT8, UINT16, UINT32, UINT64, STRING, UNDEFINED");
+#else
     ONNX_UNSUPPORTED_DATA_TYPE(onnx_type,
                                "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT8, INT16, "
                                "INT32, INT64, UINT8, UINT16, UINT32, UINT64, STRING, UNDEFINED");
+#endif
 }
 
 std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<ov::Node>& value,
@@ -278,6 +293,20 @@ bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_
     }
 
     return unsupported_operations->size() != 0 || failures->size() != 0;
+}
+
+int64_t normalize_axis(const std::string& description, const int64_t axis, const Rank& rank) {
+    const auto r = rank.get_length();
+    FRONT_END_GENERAL_CHECK(ov::util::is_axis_valid(axis, r),
+                            description,
+                            "Parameter axis ",
+                            axis,
+                            " out of tensor range [",
+                            -r,
+                            ", ",
+                            r == 0 ? 0 : r - 1,
+                            "]");
+    return ov::util::normalize(axis, r);
 }
 
 }  // namespace  common

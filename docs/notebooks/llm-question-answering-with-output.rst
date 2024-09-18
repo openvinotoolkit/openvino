@@ -63,6 +63,16 @@ The tutorial consists of the following steps:
 -  `Run instruction-following
    pipeline <#run-instruction-following-pipeline>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -71,18 +81,8 @@ Prerequisites
 .. code:: ipython3
 
     %pip uninstall -q -y optimum optimum-intel
-    %pip install -q "openvino-genai>=2024.2"
+    %pip install  -Uq "openvino>=2024.3.0" "openvino-genai"
     %pip install -q "torch>=2.1" "nncf>=2.7" "transformers>=4.40.0" onnx "optimum>=1.16.1" "accelerate" "datasets>=2.14.6" "gradio>=4.19" "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
-
-
-.. parsed-literal::
-
-    WARNING: Skipping optimum as it is not installed.
-    WARNING: Skipping optimum-intel as it is not installed.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Select model for inference
 --------------------------
@@ -187,7 +187,7 @@ The available options are:
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
     if not Path("./config.py").exists():
         download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-question-answering/config.py")
@@ -277,7 +277,7 @@ Optimum Intel supports weight compression via NNCF out of the box. For
 command line. For 4 bit compression we provide ``--weight-format int4``
 and some other options containing number of bits and other compression
 parameters. An example of this approach usage you can find in
-`llm-chatbot notebook <../llm-chatbot>`__
+`llm-chatbot notebook <llm-chatbot-with-output.html>`__
 
 Weights Compression using NNCF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -463,16 +463,7 @@ Select device for inference and model variant
 
     core = ov.Core()
 
-    support_devices = core.available_devices
-    if "NPU" in support_devices:
-        support_devices.remove("NPU")
-
-    device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget("CPU", exclude=["NPU"])
 
     device
 

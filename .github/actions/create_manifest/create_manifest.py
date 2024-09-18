@@ -7,8 +7,12 @@ from datetime import timezone
 from pathlib import Path
 import re
 import git
+import sys
 
 from manifest_manager import Manifest, Repository, Component
+
+sys.path.append(str(Path(__file__).parents[1]))
+from common import artifact_utils
 
 
 def parse_args():
@@ -50,7 +54,7 @@ def get_repo_data(repo_dir: str | Path) -> dict:
 
     branch = os.getenv('GITHUB_REF') if is_trigger_repo else repo.references[0].name
     target_branch = os.getenv('GITHUB_BASE_REF') if is_trigger_repo else None
-    revision = os.getenv('PR_HEAD_SHA') or os.getenv('GITHUB_SHA') if is_trigger_repo else repo.head.commit.hexsha
+    revision = os.getenv('TRIGGER_REPO_SHA') if is_trigger_repo else repo.head.commit.hexsha
     target_revision = os.getenv('BASE_SHA') if is_trigger_repo else None
     # Commit time of a merge commit (in case of PR merged to target)
     # TODO: Save commit time of a head commit in PR as well?
@@ -95,8 +99,12 @@ def generate_manifest(repos: list, product_type: str, event_type: str, build_typ
     custom_branch_name = f'-{trigger_repo.branch}' if trigger_repo.branch != 'master' else ''
     run_number_postfix = f'-{os.environ.get("GITHUB_RUN_NUMBER")}' if os.environ.get("GITHUB_RUN_NUMBER") else ''
     product_version = f"{ov_version}{run_number_postfix}-{trigger_repo.revision[:11]}{custom_branch_name}"
-    ci_build_dev_tag = f'dev{trigger_repo.commit_time.strftime("%Y%m%d")}'
-    wheel_product_version = f'{ov_version}.{ci_build_dev_tag}'
+
+    merge_queue_target_branch = next(iter(re.findall(f'^gh-readonly-queue/(.*)/', trigger_repo.branch)), None)
+    target_branch = merge_queue_target_branch or trigger_repo.target_branch or trigger_repo.branch
+    is_release_branch = re.match('^releases/.+$', target_branch)
+    ci_build_dev_tag = f'dev{trigger_repo.commit_time.strftime("%Y%m%d")}' if not is_release_branch else ''
+    wheel_product_version = f'{ov_version}.{ci_build_dev_tag}' if not is_release_branch else ov_version
 
     set_github_output('CI_BUILD_NUMBER', product_version, 'GITHUB_ENV')
     set_github_output('CI_BUILD_DEV_TAG', ci_build_dev_tag, 'GITHUB_ENV')
@@ -115,7 +123,7 @@ def main():
     args = parse_args()
 
     event_name = args.event_name or os.getenv('GITHUB_EVENT_NAME')
-    event_type = 'pre_commit' if event_name == 'pull_request' else 'commit'
+    event_type = artifact_utils.get_event_type(event_name)
 
     repos = args.repos.split()
     manifest = generate_manifest(repos, args.product_type, event_type, args.build_type, args.target_arch)

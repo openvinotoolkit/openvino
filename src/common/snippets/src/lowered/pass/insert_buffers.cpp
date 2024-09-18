@@ -115,7 +115,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
             //          Current expr Loop identifies:  3, 4, 6
             //          Need to insert between 2nd and 4th Loops - after 2nd Loop
             const auto pos = insertion_position(linear_ir, loop_manager, parent_expr, expr);
-            const auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(parent->output(parent_port));
+            const auto buffer = std::make_shared<op::Buffer>(parent->output(parent_port));
             const auto buffer_consumer = has_shape_infer_parent ? top_shape_infer_expr->get_input_port(0)  : *entry_port;
             linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ parent_expr_output }, buffer_loop_ids, false, pos, { buffer_consumer  });
         }
@@ -178,18 +178,11 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
 
             // potential_consumers is unsorted by linear IR set.
             // We have to find first expr in Linear IR from the set to insert Buffer before *all* consumers
-            // [113536]: Remove this logic with `std::find` using, when expression numeration will be supported
             OPENVINO_ASSERT(!potential_consumers.empty(), "Buffer should have one consumer at least");
-            auto consumer_expr = potential_consumers.begin()->get_expr();
-            if (potential_consumers.size() > 1) {
-                std::set<ExpressionPtr> consumers;
-                for (const auto& port : potential_consumers)
-                    consumers.insert(port.get_expr());
-                const auto it = std::find_if(begin_it, end_it,
-                                             [&consumers](const ExpressionPtr& expr) { return consumers.count(expr) > 0; });
-                OPENVINO_ASSERT(it != end_it, "Consumer of Buffer has not been found in Linear IR");
-                consumer_expr = *it;
-            }
+            const auto& consumer_expr = std::min_element(potential_consumers.begin(), potential_consumers.end(),
+                                                         [](const ExpressionPort& l, const ExpressionPort& r) {
+                                                             return l.get_expr()->get_exec_num() < r.get_expr()->get_exec_num();
+                                                         })->get_expr();
 
             // We should insert Buffer between first different Loops.
             // Example: Current expr Loop identifies: 3, 2, 1
@@ -198,7 +191,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
             // Note: All potential consumers must have the same count of first equal Loop identifies and the same count of different last identifies
             const auto pos = insertion_position(linear_ir, loop_manager, expr, consumer_expr);
 
-            auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(node->output(port_idx));
+            auto buffer = std::make_shared<op::Buffer>(node->output(port_idx));
             // We cannot insert Node output connector on Buffer output because not all consumers of Node needs Buffer
             //  Example:
             //       Add

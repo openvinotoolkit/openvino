@@ -159,6 +159,44 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_bool_init_raw) {
     test_case.run();
 }
 
+#ifdef ONNX_VERSION_116
+OPENVINO_TEST(${BACKEND_NAME}, onnx_int4_const) {
+    auto model = convert_model("int4_const.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_expected_output(std::vector<int64_t>{4});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_int4_input) {
+    const auto model = convert_model("int4_input.onnx");
+    auto test_case = test::TestCase(model);
+    test_case.add_input<uint8_t>({0xEF, 0x01, 0x70});
+    test_case.add_expected_output<int64_t>({5});
+    test_case.add_expected_output<uint8_t>({0xEF, 0x01, 0x70});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_uint4_const) {
+    auto model = convert_model("uint4_const.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_expected_output(std::vector<int64_t>{4});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_uint4_input) {
+    const auto model = convert_model("uint4_input.onnx");
+    auto test_case = test::TestCase(model);
+    test_case.add_input<uint8_t>({0x01, 0xF0});
+    test_case.add_expected_output<int64_t>({3});
+    test_case.add_expected_output<uint8_t>({0x01, 0xF0});
+
+    test_case.run();
+}
+#endif
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_add_abc_initializers) {
     auto model = convert_model("add_abc_initializers.onnx");
 
@@ -912,12 +950,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_nonmaxsuppression_v9_single_box) {
     test_case.run();
 }
 
-#if (defined _WIN32 || defined _WIN64)
-// Ticket: 127743
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_nonmaxsuppression_default_score_threshold) {
-#else
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_nonmaxsuppression_default_score_threshold) {
-#endif
+    // TEMPLATE plugin has a run-to-run issue with this test, CVS-127743, CVS-122120
+    if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
+        GTEST_SKIP();
+    }
+
     auto model = convert_model("nms_default_score_threshold.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
 
@@ -1044,6 +1082,22 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_exp) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_exp_18) {
+    auto model = convert_model("reduce_log_sum_exp_18.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+
+    // output data shape (4)
+    auto expected_output = ov::test::NDArray<float, 1>({2.38629f, 2.38629f, 2.38629f, 2.38629f}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1) {
     auto model = convert_model("reduce_l1.onnx");
 
@@ -1057,6 +1111,35 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1) {
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1_18) {
+    auto model = convert_model("reduce_l1_18.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<float, 4>({{{{16}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1_18_axes_as_input) {
+    auto model = convert_model("reduce_l1_18_axes_as_input.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, {2, 1, 4, 2, 3, 1, 3, 2, 4, 2, 4, 2, 2, 2, 1, 4});
+    test_case.add_input<int64_t>({3});
+
+    test_case.add_expected_output(Shape{1, 1, 4, 1}, std::vector<float>{9, 9, 12, 9});
+
     test_case.run();
 }
 
@@ -1224,6 +1307,27 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_prod) {
 
     // output data shape (1,)
     auto expected_output = ov::test::NDArray<float, 4>({{{{1}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_prod_18) {
+    // TEMPLATE plugin has an issue with evaluation for reduceprod, CVS-148827
+    if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
+        GTEST_SKIP();
+    }
+
+    auto model = convert_model("reduce_prod_18.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    std::vector<std::vector<uint8_t>> inputs{
+        ov::test::NDArray<uint8_t, 4>({{{{1, 1, 1, 1}, {1, 2, 3, 4}, {1, 1, 1, 1}, {2, 2, 2, 2}}}}).get_vector()};
+
+    // output data shape (4)
+    auto expected_output = ov::test::NDArray<uint8_t, 1>({2, 4, 6, 8}).get_vector();
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_multiple_inputs(inputs);

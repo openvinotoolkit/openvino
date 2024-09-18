@@ -50,7 +50,7 @@ public:
 private:
     class OutputControlBlock {
     public:
-        using MemMngrPtr = std::shared_ptr<MemoryMngrWithReuse>;
+        using MemBlockPtr = std::shared_ptr<MemoryBlockWithReuse>;
 
     public:
         OutputControlBlock(const ov::element::Type& precision, const Shape& shape);
@@ -69,26 +69,26 @@ private:
             return m_tensor->get_memory()->getData();
         }
 
-        MemMngrPtr currentMemMngr() const {
+        MemBlockPtr currentMemBlock() const {
             return m_buffers[m_buffIndx];
         }
 
-        MemMngrPtr nextMemMngr() {
+        MemBlockPtr nextMemBlock() {
             m_buffIndx ^= 0x1;
             if (!m_buffers[m_buffIndx]) {
-                m_buffers[m_buffIndx] = std::make_shared<MemoryMngrWithReuse>();
+                m_buffers[m_buffIndx] = std::make_shared<MemoryBlockWithReuse>();
             }
             return m_buffers[m_buffIndx];
         }
 
         void update() {
-            m_proxyMemMngr->setMemMngrResize(currentMemMngr());
+            m_proxyMemBlock->setMemBlockResize(currentMemBlock());
         }
 
     private:
         std::shared_ptr<Tensor> m_tensor = nullptr;
-        ProxyMemoryMngrPtr m_proxyMemMngr = nullptr;
-        std::array<MemMngrPtr, 2> m_buffers;
+        ProxyMemoryBlockPtr m_proxyMemBlock = nullptr;
+        std::array<MemBlockPtr, 2> m_buffers;
         int m_buffIndx = 0;
     };
 
@@ -103,6 +103,8 @@ private:
     void change_default_ptr();
 
     const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
+
+    void sub_streams_infer();
 
 private:
     std::unordered_map<std::size_t, OutputControlBlock> m_outputControlBlocks;

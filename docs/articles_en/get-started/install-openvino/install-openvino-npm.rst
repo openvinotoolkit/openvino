@@ -1,5 +1,3 @@
-.. {#openvino_docs_install_guides_installing_openvino_npm}
-
 Install Intel® Distribution of OpenVINO™ Toolkit from npm Registry
 ==================================================================
 
@@ -28,7 +26,7 @@ Install Intel® Distribution of OpenVINO™ Toolkit from npm Registry
    .. tab-item:: Software Requirements
       :sync: software-requirements
 
-      `Node.js version 20.5.1 and higher <https://nodejs.org/en/download/>`__
+      `Node.js version 21.0.0 and higher <https://nodejs.org/en/download/>`__
 
 
 Installing OpenVINO Node.js
@@ -58,4 +56,3 @@ Additional Resources
 ####################
 
 - Intel® Distribution of OpenVINO™ toolkit home page: https://software.intel.com/en-us/openvino-toolkit
-- For IoT Libraries & Code Samples, see `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__.
