@@ -77,8 +77,6 @@ else()
     message(STATUS "GIF is not found, build libgif in thirdparty") 
 endif()
 
-#set(CMAKE_FIND_LIBRARY_SUFFIXES .so;.a)
-
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 # install & export
