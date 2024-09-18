@@ -80,6 +80,12 @@ jobs:
             Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_DIR }}"
           popd
 
+      - name: Check Archive contents
+        run: |
+          ls -la ${{ env.INSTALL_DIR }}
+          echo "123"
+          ls -al ${{ env.INSTALL_TEST_DIR }}
+
       #
       # Tests
       #
