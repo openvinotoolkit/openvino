@@ -56,7 +56,7 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       LSAN_IGNORE: /__w/openvino/openvino/openvino/tests/sanitizers/lsan/suppressions.txt
       ASAN_IGNORE: /__w/openvino/openvino/openvino/tests/sanitizers/asan/suppressions.supp
-      TSAN_IGNORE: /__w/openvino/openvino/openvino/tests/sanitizers/lsan/suppressions.txt
+      TSAN_IGNORE: /__w/openvino/openvino/openvino/tests/sanitizers/tsan/suppressions.txt
       CXX: clang++
       CC: clang
 
@@ -259,6 +259,7 @@ jobs:
 
           echo "ASAN_OPTIONS=halt_on_error=0:suppressions=$GITHUB_WORKSPACE/openvino/tests/sanitizers/asan/suppressions.supp" >> "$GITHUB_ENV"
           echo "LSAN_OPTIONS=suppressions=$GITHUB_WORKSPACE/openvino/tests/sanitizers/lsan/suppressions.txt:NEOReadDebugKeys=1:DisableDeepBind=1" >> "$GITHUB_ENV"
+          echo "TSAN_OPTIONS=suppressions=$GITHUB_WORKSPACE/openvino/tests/sanitizers/tsan/suppressions.txt" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO packages
         run: |
