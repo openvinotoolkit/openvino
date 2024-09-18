@@ -1573,9 +1573,8 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
 }
 
 void Partitioner::optimize(const std::string& func_name) {
-<<<<<<< HEAD
     using namespace ov::npuw::weights;
-=======
+
     ov::npuw::Function& f = P.functions.at(func_name);
     auto& func_group = all_functions.at(func_name);
 
@@ -1607,6 +1606,7 @@ void Partitioner::optimize(const std::string& func_name) {
                 for (auto&& cidx : to_concat_idx) {
                     to_concat.push_back(funcall._closure[cidx]);
                 }
+                // FIXME: work with bank here instead
                 funcall._closure.push_back(ov::npuw::util::concat(to_concat, axis));
             });
         }
@@ -1622,6 +1622,7 @@ void Partitioner::optimize(const std::string& func_name) {
                     new_closure.push_back(funcall._closure[cidx]);
                 }
             }
+            // FIXME: work with bank here instead
             funcall._closure = std::move(new_closure);
         }
         for (auto&& now_remove : to_remove) {
@@ -1629,7 +1630,6 @@ void Partitioner::optimize(const std::string& func_name) {
         }
         f._model->validate_nodes_and_infer_types();
     }
->>>>>>> 77dfb1de59debe9c59cb45c44de520bb781db81c
 
     if (!cfg.get<::intel_npu::NPUW_DQ>()) {
         LOG_VERB("No optimizations will be done to  " << func_name << " in model " << model->get_friendly_name()
