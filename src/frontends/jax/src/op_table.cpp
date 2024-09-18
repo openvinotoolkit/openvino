@@ -8,6 +8,8 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/erf.hpp"
 #include "openvino/op/exp.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_max.hpp"
@@ -29,6 +31,7 @@ namespace op {
     template <class T>     \
     OutputVector op(const ov::frontend::jax::NodeContext& node)
 
+OP_T_CONVERTER(translate_binary_op);
 OP_CONVERTER(translate_broadcast_in_dim);
 OP_CONVERTER(translate_concatenate);
 OP_CONVERTER(translate_constant);
@@ -62,6 +65,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"dot_general", op::translate_dot_general},
             {"erf", op::translate_1to1_match_1_input<v0::Erf>},
             {"exp", op::translate_1to1_match_1_input<v0::Exp>},
+            {"ge", op::translate_binary_op<v1::GreaterEqual>},
+            {"gt", op::translate_binary_op<v1::Greater>},
             {"integer_pow", op::translate_integer_pow},
             {"max", op::translate_1to1_match_2_inputs<v1::Maximum>},
             {"mul", op::translate_1to1_match_2_inputs<v1::Multiply>},
