@@ -88,7 +88,8 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
             ze_host_mem_alloc_flag_t flag = ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
             desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, static_cast<ze_host_mem_alloc_flags_t>(flag)};
         } else {
-            desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, 0};
+            ze_host_mem_alloc_flag_t flag = ZE_HOST_MEM_ALLOC_FLAG_BIAS_CACHED;
+            desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, static_cast<ze_host_mem_alloc_flags_t>(flag)};
         }
         zeroUtils::throwOnFail("zeMemAllocHost",
                                zeMemAllocHost(_init_structs->getContext(), &desc, size, STANDARD_PAGE_SIZE, &_data));
