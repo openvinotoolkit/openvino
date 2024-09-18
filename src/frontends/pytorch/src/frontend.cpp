@@ -263,9 +263,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::frontend::pytorch::pass::GPTQMultPatternReplacer>();
     }
 
-    // the following 2 transformations are needed for keypoint detectron2 models to work.
+    // the following transformation is needed for keypoint detectron2 models to work.
     // AtenIndexToSelect will be called twice
-    manager.register_pass<ov::pass::ConvertConvertLike>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
 
     // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
@@ -317,6 +316,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);
+    // the following transformation is needed for keypoint detectron2 models to work.
+    manager.register_pass<ov::pass::ConvertConvertLike>();
     manager.run_passes(model);
 
     // Usually if nn.Module.forward is given as a source model for conversion, there is the first Parameter
