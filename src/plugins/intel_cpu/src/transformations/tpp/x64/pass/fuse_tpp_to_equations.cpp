@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,15 +97,6 @@ bool FuseTPPToEquations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::FuseTPPToEquations")
     bool modified = false;
     const auto& results = m->get_results();
-    uint64_t seed = 0;
-    ov::snippets::pass::Hash hash_function(seed);
-    hash_function.run_on_model(m);
-    {
-        std::cout << "Ops_before_equation: " << m->get_ops().size() << "\n";
-//        const std::string base_name = "snsdebug_before_" + std::to_string(seed);
-//        std::cout << "Model_before_equation: " << base_name << ".xml" << "\n";
-//        ov::pass::Serialize(base_name + ".xml", base_name + ".bin").run_on_model(m);
-    }
 
     NodeVector to_visit(results.begin(), results.end());
 
@@ -117,12 +108,6 @@ bool FuseTPPToEquations::run_on_model(const std::shared_ptr<ov::Model>& m) {
         for (size_t i = 0; i < in_size; i++) {
             to_visit.push_back(node->get_input_node_shared_ptr(in_size - i - 1));
         }
-    }
-    {
-        std::cout << "Ops_after_equation: " << m->get_ops().size() << "\n";
-        const std::string base_name = "snsdebug_after_" + std::to_string(seed);
-        std::cout << "Model_after_equation: " << base_name << ".xml" << "\n";
-        ov::pass::Serialize(base_name + ".xml", base_name + ".bin").run_on_model(m);
     }
     return modified;
 }
