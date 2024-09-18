@@ -59,13 +59,13 @@ so no manual upload from a public DockerHub to OpenVINO ACR instance is required
 
 To optimize the time required to install dependencies in workflows and to make local reproduction of workflow steps easier, 
 we create custom docker images for different types of validation and use them in our workflows. 
-The dockerfiles for these images are stored in the OpenVINO/`openvino` repository in [`.github/dockerfiles`](./../../../../.github/dockerfiles) 
-folder. Examples of custom dockerfiles:
+The dockerfiles for these images are stored in the OpenVINO repository in [`.github/dockerfiles`](./../../../../.github/dockerfiles) 
+folder. Example of how dockerfiles are organized:
 
 * [`.github/dockerfiles/ov_build`](./../../../../.github/dockerfiles/ov_build) - contains environment setup for 
 build workflows for different OSes (e.g., installation of [install_build_dependencies.sh](./../../../../install_build_dependencies.sh))
 * [`.github/dockerfiles/ov_test`](./../../../../.github/dockerfiles/ov_test) - contains environment setup for 
-test workflows for different OSes (e.g. installation of [scripts/install_dependencies/install_openvino_dependencies.sh](./../../../../scripts/install_dependencies/install_openvino_dependencies.sh))
+test workflows for different OSes (e.g., installation of [scripts/install_dependencies/install_openvino_dependencies.sh](./../../../../scripts/install_dependencies/install_openvino_dependencies.sh))
 
 The changes to these dockerfiles are getting checked and applied automatically in pre-commits via a custom action
 [handle_docker](./../../../../.github/actions/handle_docker), which is executed in workflows before starting actual 
