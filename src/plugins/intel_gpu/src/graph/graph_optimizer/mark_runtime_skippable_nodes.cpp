@@ -9,6 +9,7 @@
 #include "strided_slice_inst.h"
 #include "kv_cache_inst.h"
 #include "gemm_inst.h"
+#include "shape_of_inst.h"
 #include "broadcast_inst.h"
 #include "program_helpers.h"
 
@@ -16,10 +17,14 @@ using namespace cldnn;
 
 void mark_runtime_skippable_nodes::run(program& p) {
     auto itr = p.get_processing_order().begin();
+
     while (itr != p.get_processing_order().end()) {
         auto& node = *itr++;
         // Set gathers that might be skipped at runtime as can_be_optimized.
         // If not set, memory dependency will not work for the nodes that are skipped at runtime
+        if (node->is_type<data>() || node->is_constant())
+            continue;
+
         program_helpers::do_for_types<gather>(*node, [](gather_node& node){
             // Check pattern
             auto impl_params = node.get_kernel_impl_params();
@@ -47,6 +52,24 @@ void mark_runtime_skippable_nodes::run(program& p) {
             // if node is already optimized at compilation time, do not handle at runtime
             if (node.can_be_optimized())
                 return;
+
+            std::function<bool(const program_node& node)> all_users_are_shape_of = [&](const program_node& node) {
+                if (node.is_input() || node.is_output())
+                    return false;
+                for (auto& u : node.get_users()) {
+                    if (!u->is_type<shape_of>())
+                        return false;
+                }
+                return true;
+            };
+
+            // TODO: if this pattern is observed frequently, to add this as a separate pass.
+            if (!node.is_output() && all_users_are_shape_of(node)) {
+                // always to skip, no runtime execution
+                node.can_be_optimized(true);
+                return;
+            }
+
             auto impl_params = node.get_kernel_impl_params();
             if (node.is_output() ||
                 node.has_fused_primitives() ||
@@ -64,6 +87,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                     return;
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
+
                 node.set_runtime_skippable(true);
                 GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
