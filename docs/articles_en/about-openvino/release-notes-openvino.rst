@@ -77,6 +77,8 @@ Common
 
 * Encryption and decryption of topology in model cache is now supported with callback functions
   provided by the user (CPU only for now; ov::cache_encryption_callbacks).
+* The Ubuntu20 and Ubuntu22 Docker images now include the tokenizers and GenAI CPP modules,
+  including pre-installed Python modules, in development versions of these images.
 * Python 3.12 is now supported.
 
 CPU Device Plugin
@@ -1299,15 +1301,18 @@ Discontinued in 2024
 Deprecated and to be removed in the future
 --------------------------------------------
 
-* The macOS x86_64 debug bins will no longer be provided with the  OpenVINO toolkit, starting
+* The macOS x86_64 debug bins will no longer be provided with the OpenVINO toolkit, starting
   with OpenVINO 2024.5.
 * Python 3.8 is now considered deprecated, and it will not be available beyond the 2024.4
   OpenVINO version.
 * dKMB support is now considered deprecated and will be fully removed with OpenVINO 2024.5
 * Intel® Streaming SIMD Extensions (Intel® SSE) will be supported in source code form, but not
   enabled in the binary package by default, starting with OpenVINO 2025.0
+* The openvino-nightly PyPI module will soon be discontinued. End-users should proceed with the
+  Simple PyPI nightly repo instead. More information in
+  `Release Policy <https://docs.openvino.ai/2024/about-openvino/release-notes-openvino/release-policy.html#nightly-releases>`__.
 * The OpenVINO™ Development Tools package (pip install openvino-dev) will be removed from
-  installation options and distribution channels beginning with OpenVINO 2025.
+  installation options and distribution channels beginning with OpenVINO 2025.0.
 * Model Optimizer will be discontinued with OpenVINO 2025.0. Consider using the
   :doc:`new conversion methods <../openvino-workflow/model-preparation/convert-model-to-ir>`
   instead. For more details, see the
@@ -1430,15 +1435,13 @@ are available on request.
 
 Intel technologies' features and benefits depend on system configuration and may require
 enabled hardware, software or service activation. Learn more at
-`http://www.intel.com/ <http://www.intel.com/>`__
+`www.intel.com <http://www.intel.com/>`__
 or from the OEM or retailer.
 
 No computer system can be absolutely secure.
 
-Intel, Atom, Arria, Core, Movidius, Xeon, OpenVINO, and the Intel logo are trademarks
+Intel, Atom, Core, Xeon, OpenVINO, and the Intel logo are trademarks
 of Intel Corporation in the U.S. and/or other countries.
-
-OpenCL and the OpenCL logo are trademarks of Apple Inc. used by permission by Khronos
 
 Other names and brands may be claimed as the property of others.
 
@@ -1446,7 +1449,6 @@ Copyright © 2024, Intel Corporation. All rights reserved.
 
 For more complete information about compiler optimizations, see our Optimization Notice.
 
-Performance varies by use, configuration and other factors. Learn more at
-`www.Intel.com/PerformanceIndex <www.Intel.com/PerformanceIndex>`__.
+Performance varies by use, configuration and other factors.
 
 
