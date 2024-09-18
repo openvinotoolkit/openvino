@@ -104,7 +104,7 @@ runs:
         cd ${{ steps.openvino_commit_download.outputs.artifacts_workspace_path }}
         ov_package_path=$(find . -name 'openvino_package*' -printf "%P\n" -quit)
         [ -z "$ov_package_path" ] && echo "No openvino_package found in restored artifacts" && exit 1
-        mv $ov_package_path/* . && rm -f $ov_package_path
+        mv $ov_package_path/* . && rm -rf $ov_package_path
         echo "ov_artifact_name=$ov_artifact_name" >> $GITHUB_OUTPUT
         echo "ov_package_path=$ov_package_path" >> $GITHUB_OUTPUT
 
@@ -151,7 +151,7 @@ runs:
         wget $ov_package_url --progress=bar:force:noscroll -O $package_basename
         package_folder=${package_basename%.*}
         [[ "$package_basename" == *.zip ]] && unzip "$package_basename" || tar -xvf "$package_basename"
-        rm $package_basename && mv package_folder/* . && rm -f $package_folder
+        rm $package_basename && mv package_folder/* . && rm -rf $package_folder
         ov_artifact_name=$([ ${{ inputs.ov_artifact_name }} ] && echo ${{ inputs.ov_artifact_name }} || echo $package_folder)
         echo "ov_artifact_name=$ov_artifact_name" >> $GITHUB_OUTPUT
         echo "ov_package_path=$package_folder" >> $GITHUB_OUTPUT
