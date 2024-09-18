@@ -58,7 +58,7 @@ so no manual upload from a public DockerHub to OpenVINO ACR instance is required
 ## Custom docker images and handle_docker action
 
 To optimize the time required to install dependencies in workflows and to make local reproduction of workflow steps easier, 
-we create custom docker images for different types of validation and use them in our workflows. 
+we create custom Docker images for different types of validation and use them in our workflows. 
 The dockerfiles for these images are stored in the OpenVINO repository in [`.github/dockerfiles`](./../../../../.github/dockerfiles) 
 folder. Example of how dockerfiles are organized:
 
