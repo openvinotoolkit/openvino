@@ -510,11 +510,8 @@ std::vector<ExpandedLoopInfoPtr> RuntimeConfigurator::MHAParallelWAOptimizer::fi
 
     const auto& loops_map = linear_ir->get_loop_manager()->get_map();
     std::vector<ExpandedLoopInfoPtr> loops_to_split;
-    for (const auto& id : loop_idces_to_split) {
-        const auto expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(loops_map.at(id));
-        OPENVINO_ASSERT(expanded_loop_info, "Loop info to split must be ExpandedLoopInfo");
-        loops_to_split.push_back(expanded_loop_info);
-    }
+    for (const auto& id : loop_idces_to_split)
+        loops_to_split.push_back(ov::as_type_ptr<ExpandedLoopInfo>(loops_map.at(id)));
     return loops_to_split;
 }
 
