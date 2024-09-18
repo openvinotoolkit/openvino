@@ -10,10 +10,13 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert_promote_types.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gather_nd.hpp"
 #include "openvino/op/mod.hpp"
+#include "openvino/op/non_zero.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reshape.hpp"
@@ -22,6 +25,7 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
@@ -590,6 +594,13 @@ Output<Node> concat_list_from_inputs(const NodeContext& context, size_t begin, s
     }
     auto concat = std::make_shared<ov::op::v0::Concat>(list_elems, 0);
     return concat;
+}
+
+Output<Node> masked_select(const NodeContext& context, const Output<Node>& data, const Output<Node>& mask) {
+    auto input_order = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {1, 0}));
+    auto nonzero = context.mark_node(std::make_shared<v3::NonZero>(mask));
+    auto masked_id = context.mark_node(std::make_shared<v1::Transpose>(nonzero, input_order));
+    return context.mark_node(std::make_shared<v8::GatherND>(data, masked_id));
 }
 
 }  // namespace pytorch

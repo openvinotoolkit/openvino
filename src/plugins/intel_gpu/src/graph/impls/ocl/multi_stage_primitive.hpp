@@ -54,6 +54,7 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         this->can_reuse_memory = other.can_reuse_memory;
         this->can_share_kernels = other.can_share_kernels;
         this->_kernel_name = other._kernel_name;
+        this->can_reuse_memory = other.can_reuse_memory;
         this->_is_dynamic = other._is_dynamic;
     }
 
@@ -103,17 +104,6 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
 
 protected:
     virtual kernel_arguments_data get_arguments(const typed_primitive_inst<PType>& instance, size_t stage) const = 0;
-
-    event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
-        if (events.size() == 1 && !is_output)
-            return events[0];
-
-        if (group && !is_output)
-            return stream.group_events(events);
-
-        return events.empty() ? stream.create_user_event(true)
-                              : stream.enqueue_marker(events, is_output);
-    }
 
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
         _kernels.clear();

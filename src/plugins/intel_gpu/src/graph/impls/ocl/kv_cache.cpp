@@ -187,7 +187,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         if (can_be_optimized) {
             GPU_DEBUG_TRACE_DETAIL << desc->id  << " : Output is same as variable memory! Skip copying " << std::endl;
             // When primitive is optimized, concat kernel writes directly to variable memory
-            return aggregate_events(res_events, stream, res_events.size() > 1);
+            return stream.aggregate_events(res_events, res_events.size() > 1);
         } else {
             // Othwerise, we need to copy result from out buffer to state memory
             GPU_DEBUG_TRACE_DETAIL << desc->id  << " : Copying output to variable meomry" << std::endl;

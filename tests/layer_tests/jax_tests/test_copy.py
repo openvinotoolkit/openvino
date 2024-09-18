@@ -23,7 +23,7 @@ class TestCopy(JaxLayerTest):
             copy = jnp.array(add)
             return lax.rsqrt(copy)
 
-        return jax_copy, None
+        return jax_copy, None, 'copy'
 
     @pytest.mark.parametrize("input_shape", [
         [10],
@@ -34,6 +34,7 @@ class TestCopy(JaxLayerTest):
         [1, 1, 9, 1]
     ])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     def test_copy(self, ie_device, precision, ir_version, input_shape):
         self._test(*self.create_model(input_shape=input_shape),

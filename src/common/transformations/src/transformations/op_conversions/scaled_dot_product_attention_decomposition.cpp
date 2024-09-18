@@ -37,7 +37,7 @@ ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecom
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto node = std::dynamic_pointer_cast<ov::op::v13::ScaledDotProductAttention>(
+        auto node = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(
             pattern_to_output.at(pattern_node).get_node_shared_ptr());
 
         if (node == nullptr || transformation_callback(node)) {

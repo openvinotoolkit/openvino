@@ -1,0 +1,106 @@
+
+{
+    "PrecisionsMap": {
+        "OVMSINT8": "ovmsint8",
+        "OVMSFP32": "ovmsfp32",
+        "INT4": "int4",
+        "INT8": "int8",
+        "FP16": "fp16",
+        "FP32": "fp32",
+        "BF16": "bf16"
+    },
+    "ParametersMap": {
+        "Throughput": "throughput",
+        "Latency": "latency"
+    },
+    "UnitDescription": {
+        "msec.": "(lower is better)",
+        "ms": "(lower is better)",
+        "msec/token": "(lower is better)",
+        "Generating time, sec.": "(lower is better)",
+        "msec/token/TDP": "(lower is better)",
+        "FPS": "(higher is better)",
+        "FPS/$": "(higher is better)",
+        "FPS/TDP": "(higher is better)",
+        "No unit.": "Data not complete!"
+    },
+    "PrecisionData": {
+        "int4": {
+            "data": null,
+            "color": "#5bd0f0",
+            "label": "INT4"
+        },
+        "int8": {
+            "data": null,
+            "color": "#00C7FD",
+            "label": "INT8"
+        },
+        "fp16": {
+            "data": null,
+            "color": "#009fca",
+            "label": "FP16"
+        },
+        "fp32": {
+            "data": null,
+            "color": "#007797",
+            "label": "FP32"
+        },
+        "bf16": {
+            "data": null,
+            "color": "#00536a",
+            "label": "BF16"
+        },
+        "ovmsint8": {
+            "data": null,
+            "color": "#009fca",
+            "label": "FPS( OV Ref. INT8)"
+        },
+        "ovmsfp32": {
+            "data": null,
+            "color": "#00536a",
+            "label": "BF16"
+        }
+    },
+    "Filters": [
+        "PlatformType"
+    ],
+    "DefaultSelections": {
+        "platformTypes": {
+            "name": "ietype",
+            "data": [
+                "Client Platforms (Intel® Core™)"
+            ]
+        },
+        "platforms": {
+            "name": "platform",
+            "data": [
+            ]
+        },
+        "platformFilters": {
+            "name": "coretype",
+            "data": [
+                "CPU"
+            ]
+        },
+        "models": {
+            "name": "networkmodel",
+            "data": [
+                "bert-base-cased"
+            ]
+        },
+        "parameters": {
+            "name": "parameters",
+            "data": [
+                "Throughput",
+                "Latency"
+            ]
+        },
+        "precision": {
+            "name": "precision",
+            "data": [
+                "INT4",
+                "INT8"
+            ]
+        }
+    }
+}
