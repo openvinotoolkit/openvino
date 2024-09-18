@@ -60,7 +60,7 @@ so no manual upload from a public DockerHub to OpenVINO ACR instance is required
 To optimize the time required to install dependencies in workflows and to make local reproduction of workflow steps easier, 
 we create custom Docker images for different types of validation and use them in our workflows. 
 The dockerfiles for these images are stored in the OpenVINO repository in [`.github/dockerfiles`](./../../../../.github/dockerfiles) 
-folder. Example of how dockerfiles are organized:
+folder. Dockerfiles are organized as follows:
 
 * [`.github/dockerfiles/ov_build`](./../../../../.github/dockerfiles/ov_build) - contains environment setup for 
 build workflows for different OSes (e.g., installation of [install_build_dependencies.sh](./../../../../install_build_dependencies.sh))
