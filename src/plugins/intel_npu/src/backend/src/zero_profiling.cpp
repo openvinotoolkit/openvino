@@ -4,7 +4,6 @@
 
 #include "zero_profiling.hpp"
 
-#include <ze_api.h>
 #include <ze_graph_profiling_ext.h>
 
 #include "intel_npu/al/config/compiler.hpp"
@@ -36,19 +35,19 @@ struct ZeProfilingTypeId<uint8_t> {
 };
 
 bool ProfilingPool::create() {
-    auto ret = _graph_profiling_ddi_table_ext->pfnProfilingPoolCreate(_graph_handle, _profiling_count, &_handle);
+    auto ret = _graph_profiling_ddi_table_ext.pfnProfilingPoolCreate(_graph_handle, _profiling_count, &_handle);
     return ((ZE_RESULT_SUCCESS == ret) && (_handle != nullptr));
 }
 
 ProfilingPool::~ProfilingPool() {
     if (_handle) {
-        _graph_profiling_ddi_table_ext->pfnProfilingPoolDestroy(_handle);
+        _graph_profiling_ddi_table_ext.pfnProfilingPoolDestroy(_handle);
     }
 }
 
 void ProfilingQuery::create(const ze_graph_profiling_pool_handle_t& profiling_pool) {
     zeroUtils::throwOnFail("pfnProfilingQueryCreate",
-                           _graph_profiling_ddi_table_ext->pfnProfilingQueryCreate(profiling_pool, _index, &_handle));
+                           _graph_profiling_ddi_table_ext.pfnProfilingQueryCreate(profiling_pool, _index, &_handle));
 }
 
 LayerStatistics ProfilingQuery::getLayerStatistics() const {
@@ -59,7 +58,7 @@ LayerStatistics ProfilingQuery::getLayerStatistics() const {
 
 ProfilingQuery::~ProfilingQuery() {
     if (_handle) {
-        _graph_profiling_ddi_table_ext->pfnProfilingQueryDestroy(_handle);
+        _graph_profiling_ddi_table_ext.pfnProfilingQueryDestroy(_handle);
     }
 }
 
@@ -69,7 +68,7 @@ void ProfilingQuery::queryGetData(const ze_graph_profiling_type_t profilingType,
     if (_handle && pSize) {
         zeroUtils::throwOnFail(
             "pfnProfilingQueryGetData",
-            _graph_profiling_ddi_table_ext->pfnProfilingQueryGetData(_handle, profilingType, pSize, pData));
+            _graph_profiling_ddi_table_ext.pfnProfilingQueryGetData(_handle, profilingType, pSize, pData));
     }
 }
 
@@ -95,7 +94,7 @@ void ProfilingQuery::getProfilingProperties(ze_device_profiling_data_properties_
     if (_handle && properties) {
         zeroUtils::throwOnFail(
             "getProfilingProperties",
-            _graph_profiling_ddi_table_ext->pfnDeviceGetProfilingDataProperties(_device_handle, properties));
+            _graph_profiling_ddi_table_ext.pfnDeviceGetProfilingDataProperties(_device_handle, properties));
     }
 }
 

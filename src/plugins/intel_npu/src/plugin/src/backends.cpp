@@ -151,9 +151,9 @@ uint32_t NPUBackends::getDriverVersion() const {
     OPENVINO_THROW("No available backend");
 }
 
-uint32_t NPUBackends::getDriverExtVersion() const {
+uint32_t NPUBackends::getGraphExtVersion() const {
     if (_backend != nullptr) {
-        return _backend->getDriverExtVersion();
+        return _backend->getGraphExtVersion();
     }
 
     OPENVINO_THROW("No available backend");
