@@ -19,10 +19,10 @@ using namespace ov;
 
 namespace {
 bool is_node_casts_to_float_or_shapeof(const Node* node) {
-    if (dynamic_cast<const ov::op::v3::ShapeOf*>(node)) {
+    if (ov::as_type<const ov::op::v3::ShapeOf>(node)) {
         return true;
     }
-    auto convert = dynamic_cast<const ov::op::v0::Convert*>(node);
+    auto convert = ov::as_type<const ov::op::v0::Convert>(node);
     if (convert && convert->get_destination_type() == element::f32) {
         return true;
     }

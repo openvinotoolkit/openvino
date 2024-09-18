@@ -163,12 +163,11 @@ private:
     OP_EXTENSION(ov::snippets::op::HorizonSum)               \
     OP_EXTENSION(ov::snippets::op::KernelStatic)             \
     OP_EXTENSION(ov::snippets::op::KernelDynamic)            \
-    OP_EXTENSION(ov::snippets::op::IntermediateMemoryBuffer) \
     OP_EXTENSION(ov::snippets::op::Load)                     \
     OP_EXTENSION(ov::snippets::op::LoadReshape)              \
     OP_EXTENSION(ov::snippets::op::LoopBegin)                \
     OP_EXTENSION(ov::snippets::op::LoopEnd)                  \
-    OP_EXTENSION(ov::snippets::op::NewMemoryBuffer)          \
+    OP_EXTENSION(ov::snippets::op::Buffer)                   \
     OP_EXTENSION(ov::snippets::op::Nop)                      \
     OP_EXTENSION(ov::snippets::op::PowerStatic)              \
     OP_EXTENSION(ov::snippets::op::Scalar)                   \
