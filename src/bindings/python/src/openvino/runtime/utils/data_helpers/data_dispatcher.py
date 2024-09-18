@@ -324,7 +324,6 @@ def _(
     request: _InferRequestWrapper,
     key: Optional[ValidKeys] = None,
 ) -> None:
-    
     if inputs.ndim != 0:
         tensor = get_request_tensor(request, key)
         # Update shape if there is a mismatch
