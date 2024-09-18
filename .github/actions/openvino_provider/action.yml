@@ -101,12 +101,13 @@ runs:
       shell: bash
       run: |
         ov_artifact_name=${{ inputs.ov_artifact_name || inputs.platform }}
-        cd ${{ steps.openvino_commit_download.outputs.artifacts_workspace_path }}
+        workspace_path=${{ steps.openvino_commit_download.outputs.artifacts_workspace_path }}
+        cd $workspace_path
         ov_package_path=$(find . -name 'openvino_package*' -printf "%P\n" -quit)
         [ -z "$ov_package_path" ] && echo "No openvino_package found in restored artifacts" && exit 1
         mv $ov_package_path/* . && rm -rf $ov_package_path
         echo "ov_artifact_name=$ov_artifact_name" >> $GITHUB_OUTPUT
-        echo "ov_package_path=$ov_package_path" >> $GITHUB_OUTPUT
+        echo "ov_package_path=$workspace_path" >> $GITHUB_OUTPUT
 
     - name: Get commit wheel
       id: openvino_commit_wheel
