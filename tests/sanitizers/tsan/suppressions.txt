@@ -1,1 +1,1 @@
-race:google::protobuf::*
+race:thirdparty/protobuf
