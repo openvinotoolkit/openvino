@@ -41,8 +41,8 @@ def get_request_tensor(
         raise TypeError(f"Unsupported key type: {type(key)} for Tensor under key: {key}")
 
 
-def is_all_ascii(input_array):
-    def isascii(data):
+def is_all_ascii(input_array: Union[np.ndarray, list[bytes]]) -> bool:
+    def isascii(data: Union[str, bytes]) -> bool:
         if isinstance(data, bytes):
             data = data.decode("utf-8")
         return data.isascii()
