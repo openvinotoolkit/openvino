@@ -287,7 +287,7 @@ void Input::cloneBlobIfRequired() {
         return ptr;
     };
 
-    auto isBlobAligned = [&, this] () {
+    auto isBlobAligned = [&] () {
         bool blobAlignedOnSSE = true;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         // Majority of arithmetic and data processing instructions in legacy SSE isa requires
@@ -300,7 +300,7 @@ void Input::cloneBlobIfRequired() {
     };
 
     // The presence of subnormals is better to determined at IR read time.
-    auto hasSubnormals = [&, this] () {
+    auto hasSubnormals = [&] () {
         if (prec == ov::element::f32) {
             uint32_t const *u32data = constOp->get_data_ptr<uint32_t>();
 
@@ -343,7 +343,7 @@ void Input::cloneBlobIfRequired() {
         return false;
     };
 
-    auto blobKey = [&, this] () {
+    auto blobKey = [&] () {
         char ptr[32];
         snprintf(ptr, sizeof ptr, "%p", constOp->get_data_ptr());
         return getName()

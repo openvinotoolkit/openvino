@@ -9,11 +9,9 @@
 
 #pragma once
 
+#include <fstream>
 #include <memory>
 #include <string>
-#ifdef _WIN32
-#    include <sstream>
-#endif
 
 namespace ov {
 
@@ -53,12 +51,15 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::wstring& path);
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
-class MmapStreamBuffer final : public std::stringbuf {
+class MmapStream final : public std::ifstream {
 public:
-    MmapStreamBuffer(std::shared_ptr<ov::MappedMemory> mem) {
-        m_memory = mem;
-        this->basic_streambuf::pubsetbuf(mem->data(), mem->size());
+    MmapStream(const std::string& path) : std::ifstream(path, std::ios_base::binary) {
+        m_memory = ov::load_mmap_object(path);
     }
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    MmapStream(const std::wstring& path);
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
     std::shared_ptr<ov::MappedMemory> m_memory;
 };

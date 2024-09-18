@@ -28,14 +28,19 @@ inline size_t get_ir_version(pugi::xml_node& root) {
     return static_cast<size_t>(ov::util::pugixml::get_uint64_attr(root, "version", 0));
 }
 
+constexpr size_t HEADER_SIZE_LIM = 512lu;
+
 /**
  * @brief Extracts IR version from model stream
  * @param model Models stream
  * @return IR version, 0 if model does represent IR
  */
-size_t get_ir_version(char* header) {
+size_t get_ir_version(const char* header, size_t header_size) {
     pugi::xml_document doc;
-    auto res = doc.load_buffer(header, 512, pugi::parse_default | pugi::parse_fragment, pugi::encoding_utf8);
+    if (header_size > HEADER_SIZE_LIM) {
+        header_size = HEADER_SIZE_LIM;
+    }
+    auto res = doc.load_buffer(header, header_size, pugi::parse_default | pugi::parse_fragment, pugi::encoding_utf8);
 
     if (res == pugi::status_ok) {
         pugi::xml_node root = doc.document_element();
@@ -52,14 +57,14 @@ size_t get_ir_version(char* header) {
 }
 
 size_t get_ir_version(std::istream& model) {
-    char header[512];
+    char header[HEADER_SIZE_LIM];
 
     model.seekg(0, model.beg);
-    model.read(header, 512);
+    model.read(header, HEADER_SIZE_LIM);
     model.clear();
     model.seekg(0, model.beg);
 
-    return get_ir_version(header);
+    return get_ir_version(header, HEADER_SIZE_LIM);
 }
 
 }  // namespace
@@ -105,7 +110,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         version = get_ir_version(local_model_stream);
         local_model_stream.close();
     } else if (model_buffer) {
-        version = get_ir_version(model_buffer->get_ptr<char>());
+        version = get_ir_version(model_buffer->get_ptr<char>(), model_buffer->size());
     } else {
         return false;
     }

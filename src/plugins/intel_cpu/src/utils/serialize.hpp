@@ -42,7 +42,7 @@ protected:
 
     inline void process_mmap(std::shared_ptr<ov::Model>& model, const std::shared_ptr<ov::MappedMemory>& memory);
 
-    inline void process_stream(std::shared_ptr<ov::Model>& model, const std::istream& stream);
+    inline void process_stream(std::shared_ptr<ov::Model>& model);
 
     std::istream& m_istream;
     ModelBuilder m_model_builder;

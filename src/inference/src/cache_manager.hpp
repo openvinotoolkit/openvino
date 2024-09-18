@@ -133,17 +133,13 @@ private:
     void read_cache_entry(const std::string& id, StreamReader reader, bool mmap = false) override {
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         ScopedLocale plocal_C(LC_ALL, "C");
-        auto blobFileName = getBlobFile(id);
-        if (ov::util::file_exists(blobFileName)) {
+        auto blob_file_name = getBlobFile(id);
+        if (ov::util::file_exists(blob_file_name)) {
             if (mmap) {
-                auto mmap_buffer = ov::load_mmap_object(blobFileName);
-                MmapStreamBuffer stream_buf(mmap_buffer);
-                std::istringstream stream;
-                stream.basic_ios::rdbuf(&stream_buf);
-
+                MmapStream stream(blob_file_name);
                 reader(stream);
             } else {
-                std::ifstream stream(blobFileName, std::ios_base::binary);
+                std::ifstream stream(blob_file_name, std::ios_base::binary);
                 reader(stream);
             }
         }
