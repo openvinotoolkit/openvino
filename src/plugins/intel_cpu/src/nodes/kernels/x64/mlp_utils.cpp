@@ -66,8 +66,22 @@ void llm_mlp_quantize_bf16_i8(ov::bfloat16* psrc,
         // (q - z) * s = f
         //  (-128 - z) * s = f_min;
         //  ( 127 - z) * s = f_max;
-        float scale, zp;
-        if (asym) {
+                float scale, zp;
+        if (f_max == f_min || std::isnan(f_max) || std::isnan(f_min)) {
+            // special case
+            p_zp[y] = 0;
+            p_scales[y] = std::isnan(f_min) ? 0 : f_min;
+#if defined(HAVE_AVX512F)
+            auto vi8x16 = _mm_set1_epi8(1);
+            for (; x + 16 <= cols; x += 16) {
+                _mm_storeu_si128(reinterpret_cast<__m128i*>(pdst + x), vi8x16);
+            }
+#endif
+            for (; x < cols; x++) {
+                pdst[x] = 1;
+            }
+            continue;
+        } else if (asym) {
             scale = (f_max - f_min) / 255.0f;
             zp = 127 - (f_max / scale);
         } else {
