@@ -477,21 +477,21 @@ std::unordered_set<size_t> RuntimeConfigurator::MHAParallelWAOptimizer::find_uns
     return unsqueezed_params;
 }
 
-std::unordered_set<ExpandedLoopInfoPtr> RuntimeConfigurator::MHAParallelWAOptimizer::find_loops_to_split(
+std::vector<ExpandedLoopInfoPtr> RuntimeConfigurator::MHAParallelWAOptimizer::find_loops_to_split(
     const lowered::LinearIRCPtr& linear_ir,
     const std::unordered_set<size_t>& unsqueezed_params) {
     const auto loop_manager = linear_ir->get_loop_manager();
-    std::unordered_set<ExpandedLoopInfoPtr> loops_to_split;
+    std::set<size_t> loop_idces_to_split;
     std::vector<size_t> prev_loop_idces;
 
-    auto add_loops_to_split = [&](const ExpressionPtr& expr) {
+    auto add_loop_idx_to_split = [&](const ExpressionPtr& expr) {
         const auto& loop_idces = expr->get_loop_ids();
         if (loop_idces != prev_loop_idces) {
             prev_loop_idces = loop_idces;
             for (const auto& loop_id : loop_idces) {
                 const auto expanded_loop_info = loop_manager->get_loop_info<ExpandedLoopInfo>(loop_id);
                 if (expanded_loop_info->get_dim_idx() == m_dim_idx) {
-                    loops_to_split.insert(expanded_loop_info);
+                    loop_idces_to_split.insert(loop_id);
                 }
             }
         }
@@ -505,7 +505,15 @@ std::unordered_set<ExpandedLoopInfoPtr> RuntimeConfigurator::MHAParallelWAOptimi
         // Ops after non related params mustn't be traversed
         if (unsqueezed_params.count(i++))
             continue;
-        utils::visit_path(param, visited, add_loops_to_split, false);
+        utils::visit_path(param, visited, add_loop_idx_to_split, false);
+    }
+
+    const auto& loops_map = linear_ir->get_loop_manager()->get_map();
+    std::vector<ExpandedLoopInfoPtr> loops_to_split;
+    for (const auto& id : loop_idces_to_split) {
+        const auto expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(loops_map.at(id));
+        OPENVINO_ASSERT(expanded_loop_info, "Loop info to split must be ExpandedLoopInfo");
+        loops_to_split.push_back(expanded_loop_info);
     }
     return loops_to_split;
 }
