@@ -55,7 +55,7 @@ std::shared_ptr<ov::Model> SharedMatmulAndGatherWeightsDecompression::initSubgra
                                                                         false);
     const auto gather = std::make_shared<ov::op::v8::Gather>(decompression_subgraph, indices_data, axis_const, batch_dims);
 
-    const auto fc_data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, indices_shape);
+    const auto fc_data = std::make_shared<ov::op::v0::Parameter>(output_precision, indices_shape);
     const auto matmul = std::make_shared<ov::op::v0::MatMul>(fc_data, decompression_subgraph, false, true);
     const ov::OutputVector last_nodes{gather, matmul};
     const ov::ParameterVector params{indices_data, fc_data};

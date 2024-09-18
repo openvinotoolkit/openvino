@@ -24,7 +24,6 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
     auto compressed_constant = [](const ov::Output<ov::Node>& output) {
         return (output.get_element_type() == ov::element::u8 || output.get_element_type() == ov::element::i8 ||
                 output.get_element_type() == ov::element::u4 || output.get_element_type() == ov::element::i4) &&
-               output.get_target_inputs().size() == 1 &&
                (output.get_shape().size() == 2 || output.get_shape().size() == 3);
     };
 
