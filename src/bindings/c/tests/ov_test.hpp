@@ -12,6 +12,7 @@
 #include "openvino/c/openvino.h"
 #include "openvino/openvino.hpp"
 #include "test_model_repo.hpp"
+#include "common_test_utils/file_utils.hpp"
 
 #define OV_EXPECT_OK(...)           EXPECT_EQ(ov_status_e::OK, __VA_ARGS__)
 #define OV_ASSERT_OK(...)           ASSERT_EQ(ov_status_e::OK, __VA_ARGS__)
@@ -25,12 +26,15 @@
 extern std::map<ov_element_type_e, size_t> element_type_size_map;
 #define GET_ELEMENT_TYPE_SIZE(a) element_type_size_map[a]
 
+inline std::string get_extension_file_path();
+
 class ov_capi_test_base : public ::testing::TestWithParam<std::string> {
 public:
     void SetUp() override {
         TestDataHelpers::generate_test_model();
         xml_file_name = TestDataHelpers::get_model_xml_file_name();
         bin_file_name = TestDataHelpers::get_model_bin_file_name();
+        extension_file_path = get_extension_file_path();
     }
 
     void TearDown() override {
@@ -38,8 +42,13 @@ public:
     }
 
 public:
-    std::string xml_file_name, bin_file_name;
+    std::string xml_file_name, bin_file_name, extension_file_path;
 };
+
+inline std::string get_extension_file_path() {
+    return ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
+                                                    std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
+}
 
 inline size_t find_device(ov_available_devices_t avai_devices, const char* device_name) {
     for (size_t i = 0; i < avai_devices.size; ++i) {

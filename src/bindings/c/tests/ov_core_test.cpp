@@ -126,6 +126,15 @@ TEST_P(ov_core_test, ov_core_compile_model) {
     ov_core_free(core);
 }
 
+TEST_P(ov_core_test, ov_core_add_extension) {
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    OV_EXPECT_OK(ov_core_add_extension(core, extension_file_path.c_str()));
+    ov_core_free(core);
+}
+
 TEST_P(ov_core_test, ov_core_compile_model_with_property) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
