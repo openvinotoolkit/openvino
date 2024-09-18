@@ -275,7 +275,7 @@ jobs:
 
           pushd $INSTALL_TEST_DIR
             tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
-            ls -la $INSTALL_DIR
+            ls -la $INSTALL_DIR/tests
           popd
 
 #       - name: Fetch setup_python action
@@ -293,8 +293,8 @@ jobs:
 #       #     should-setup-pip-paths: 'false'
 #       #     self-hosted-runner: ${{ runner.os == 'Linux' }}
 
-      - name: Install python dependencies for run_parallel.py
-        run: python3 -m pip install -r ${INSTALL_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
+      # - name: Install python dependencies for run_parallel.py
+      #   run: python3 -m pip install -r ${INSTALL_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
 
 #       - name: Intel CPU plugin func tests
 #         run: |
