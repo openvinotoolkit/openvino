@@ -77,7 +77,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnected, TransposeMatMul,
                                  ::testing::Values(0), // Transpose on 0th Matmul input
                                  ::testing::ValuesIn(precisions(true)),
                                  ::testing::Values(MatMulType::FullyConnected),
-                                 ::testing::Values(1), // MatMul
+                                 ::testing::Values(1), // Fused MatMul + Transpose
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);

@@ -22,9 +22,10 @@ typedef std::tuple<
 
 class MatMulBase : public SnippetsTestsCommon {
 protected:
-    static void filter_shape_info(const std::set<size_t> idces_to_remove,
-                                  std::vector<ov::PartialShape>& dynamic_shapes,
-                                  std::vector<std::vector<ov::Shape>>& static_shapes);
+    /**
+     * @brief Erases shapes with the given indices from inputDynamicShapes and targetStaticShapes
+     */
+    void filter_shape_info(const std::set<size_t>& idces_to_remove);
     virtual void init_subgraph(const std::vector<ov::element::Type>& types) = 0;
 
     MatMulType matmul_type;

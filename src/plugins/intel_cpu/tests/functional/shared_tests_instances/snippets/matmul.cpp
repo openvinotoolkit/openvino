@@ -199,8 +199,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedEltwiseChainCascade, MatMu
                              ::testing::ValuesIn(fc_cascade_shapes),
                              ::testing::ValuesIn(precisions()),
                              ::testing::Values(MatMulType::FullyConnected),
-                             ::testing::Values(2), // 2 MatMuls
-                             ::testing::Values(2), // Tokenized MatMuls
+                             ::testing::Values(1),
+                             ::testing::Values(1),
                              ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MatMul::getTestCaseName);
 

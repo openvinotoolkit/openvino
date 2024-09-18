@@ -38,7 +38,6 @@ std::string TransposeMatMul::getTestCaseName(testing::TestParamInfo<ov::test::sn
 void TransposeMatMul::SetUp() {
     std::vector<InputShape> input_shapes;
     std::vector<ov::element::Type> elem_types;
-    MatMulType matmul_type;
     std::tie(input_shapes, transpose_position, elem_types, matmul_type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes(input_shapes);
 
@@ -51,25 +50,25 @@ void TransposeMatMul::SetUp() {
 void TransposeMatMul::init_subgraph(const std::vector<ov::element::Type>& types) {
     auto f = ov::test::snippets::Transpose0213MatMulFunction(inputDynamicShapes, types, matmul_type, transpose_position);
     function = f.getOriginal();
-    MatMulBase::filter_shape_info(f.get_constant_input_idces(), inputDynamicShapes, targetStaticShapes);
+    MatMulBase::filter_shape_info(f.get_constant_input_idces());
 }
 
 void TransposeMatMulFQ::init_subgraph(const std::vector<ov::element::Type>& types) {
     auto f = ov::test::snippets::FQMatMulFunction(inputDynamicShapes, matmul_type, transpose_position);
     function = f.getOriginal();
-    MatMulBase::filter_shape_info(f.get_constant_input_idces(), inputDynamicShapes, targetStaticShapes);
+    MatMulBase::filter_shape_info(f.get_constant_input_idces());
 }
 
 void ExplicitTransposeMatMul::init_subgraph(const std::vector<ov::element::Type>& types) {
     auto f = ov::test::snippets::TransposeMatMulFunction(inputDynamicShapes);
     function = f.getOriginal();
-    MatMulBase::filter_shape_info(f.get_constant_input_idces(), inputDynamicShapes, targetStaticShapes);
+    MatMulBase::filter_shape_info(f.get_constant_input_idces());
 }
 
 void ExplicitTransposeMatMulBias::init_subgraph(const std::vector<ov::element::Type>& types) {
     auto f = ov::test::snippets::TransposeMatMulBiasFunction(inputDynamicShapes);
     function = f.getOriginal();
-    MatMulBase::filter_shape_info(f.get_constant_input_idces(), inputDynamicShapes, targetStaticShapes);
+    MatMulBase::filter_shape_info(f.get_constant_input_idces());
 }
 
 TEST_P(TransposeMatMul, CompareWithRefImpl) {
