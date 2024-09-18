@@ -32,16 +32,19 @@ bool InitBuffersDefault::run(lowered::LinearIR& linear_ir, lowered::LinearIR::co
     }
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto& expr = *expr_it;
-        const auto op = expr->get_node();
-        if (const auto inplace_buffer = ov::as_type_ptr<op::InplaceMemoryBuffer>(op)) {
-            const auto& inplace_from_buffer = ov::as_type_ptr<op::Buffer>(inplace_buffer->get_inplace_from());
-            if (inplace_from_buffer) {
-                inplace_buffer->set_reg_group(inplace_from_buffer->get_reg_group());
-                inplace_buffer->set_cluster_id(inplace_from_buffer->get_cluster_id());
-                if (!inplace_buffer->is_defined()) {
-                    inplace_buffer->set_offset(utils::get_dynamic_value<size_t>());
-                } else {
-                    inplace_buffer->set_offset(inplace_from_buffer->get_offset());
+        if (const auto& buffer_expr = ov::as_type_ptr<BufferExpression>(expr)) {
+            if (const auto& inplace_from = buffer_expr->get_inplace_node()) {
+                if (ov::as_type_ptr<op::Buffer>(inplace_from)) {
+                    const auto& inplace_from_expr = std::find_if(begin, end, [inplace_from](const ExpressionPtr& expr) {
+                        return expr->get_node() == inplace_from;
+                    });
+                    buffer_expr->set_reg_group(ov::as_type_ptr<BufferExpression>(*inplace_from_expr)->get_reg_group());
+                    buffer_expr->set_cluster_id(ov::as_type_ptr<BufferExpression>(*inplace_from_expr)->get_cluster_id());
+                    if (!buffer_expr->is_defined()) {
+                        buffer_expr->set_offset(utils::get_dynamic_value<size_t>());
+                    } else {
+                        buffer_expr->set_offset(ov::as_type_ptr<BufferExpression>(*inplace_from_expr)->get_offset());
+                    }
                 }
             }
         }
