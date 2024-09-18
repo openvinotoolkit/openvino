@@ -27,7 +27,7 @@ running on an Intel® Core™ Ultra 7-165H based system, on built-in GPUs.
 
 
 For complete information on the system config, see:
-`Hardware Platforms [PDF] <https://docs.openvino.ai/2024/_static/benchmarks_files/OV-2024.3-platform_list.pdf>`__
+`Hardware Platforms [PDF] <https://docs.openvino.ai/2024/_static/benchmarks_files/OV-2024.4-platform_list.pdf>`__
 
 To view the data in an editable form, you can download the .csv file here:
 
