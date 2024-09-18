@@ -252,29 +252,30 @@ jobs:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
         
+      # # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      # - name: Setup Variables
+      #   run: |
+      #     echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+      #     echo 'show tests dir'
+      #     ls -la ${{ env.INSTALL_TEST_DIR }}
+
+
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
         run: |
-          echo 'show tests dir'
-          ls -la ${{ env.INSTALL_TEST_DIR }}
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+#          echo "PARALLEL_TEST_SCRIPT=$GITHUB_WORKSPACE/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py" >> "$GITHUB_ENV"
 
+      - name: Extract OpenVINO packages
+        run: |
+          pushd $INSTALL_DIR
+            tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
+          popd
 
-#       # Needed as ${{ github.workspace }} is not working correctly when using Docker
-#       - name: Setup Variables
-#         run: |
-#           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
-#           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
-# #          echo "PARALLEL_TEST_SCRIPT=$GITHUB_WORKSPACE/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py" >> "$GITHUB_ENV"
-
-#       - name: Extract OpenVINO packages
-#         run: |
-#           pushd $INSTALL_DIR
-#             tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
-#           popd
-
-#           pushd $INSTALL_TEST_DIR
-#             tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
-#           popd
+          pushd $INSTALL_TEST_DIR
+            tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
+          popd
 
 #       - name: Fetch setup_python action
 #         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
