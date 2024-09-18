@@ -44,7 +44,7 @@ Here are some pros and cons of having your own container registry:
     * The registry does not automatically mirror images available on Docker Hub
     * The necessary images must be manually added to the registry
 
-The available Docker images use the following pattern for their names: `openvinogithubactions.azurecr.io/<image-name>:<image-tag>`.
+The available Docker images use the following pattern for their names: `openvinogithubactions.azurecr.io/<image-name>:<image-tag>` or `openvinogithubactions.azurecr.io/library/<image-name>:<image-tag>`
 
 Most of the images on the OpenVINO ACR are either mirrors of the images from Docker Hub or based on them.
 
