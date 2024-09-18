@@ -42,10 +42,10 @@ def get_request_tensor(
 
 
 def is_all_ascii(input_array):
-    def isascii(s):
-        if isinstance(s, bytes):
-            s = s.decode('utf-8')
-        return s.isascii()
+    def isascii(data):
+        if isinstance(data, bytes):
+            data = data.decode("utf-8")
+        return data.isascii()
     v_isascii = np.vectorize(isascii)
     ascii_flags = v_isascii(input_array)
     return ascii_flags.all()
@@ -331,7 +331,7 @@ def _(
             tensor.shape = inputs.shape
         # When copying, type should be up/down-casted automatically.
         if tensor.element_type == Type.string:
-            if is_all_ascii(inputs) and inputs.dtype.char == 'U':
+            if is_all_ascii(inputs) and inputs.dtype.char == "U":
                 tensor.bytes_data[:] = inputs[:]
             else:
                 tensor.bytes_data = inputs
