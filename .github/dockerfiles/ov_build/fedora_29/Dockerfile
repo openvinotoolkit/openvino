@@ -28,9 +28,9 @@ RUN chmod +x /install_build_dependencies.sh && \
 
 # Setup Python
 RUN cd /usr/src && \
-    wget https://www.python.org/ftp/python/3.8.9/Python-3.8.9.tar.xz && \
-    tar xvf Python-3.8.9.tar.xz
-RUN cd /usr/src/Python-3.8.9 && \
+    wget https://www.python.org/ftp/python/3.9.9/Python-3.9.9.tar.xz && \
+    tar xvf Python-3.9.9.tar.xz
+RUN cd /usr/src/Python-3.9.9 && \
     ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
     make altinstall
 
@@ -46,15 +46,15 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 
 ENV PATH="$SCCACHE_HOME:$PATH"
 
-# Use Python 3.8 as default
-RUN python3.8 -m venv venv
+# Use Python 3.9 as default
+RUN python3.9 -m venv venv
 ENV PATH="/venv/bin:$PATH"
-RUN alternatives --install /usr/bin/python python /usr/bin/python3.8 10
+RUN alternatives --install /usr/bin/python python /usr/bin/python3.9 10
 
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.8 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.9 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}

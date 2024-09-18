@@ -1,5 +1,5 @@
 ARG REGISTRY="docker.io"
-FROM ${REGISTRY}/library/fedora:32
+FROM ${REGISTRY}/library/fedora:33
 
 USER root
 
