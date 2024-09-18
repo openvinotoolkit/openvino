@@ -74,6 +74,7 @@
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/group_norm_composition.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -165,33 +166,39 @@ static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> n
     return false;
 }
 
-static bool is_non_supported_decompression_op(const std::shared_ptr<const ov::Node> node) {
-    auto get_single_consumer = [](const std::shared_ptr<const ov::Node> node) -> std::shared_ptr<ov::Node> {
-        const auto consumers = node->get_output_target_inputs(0);
-        if (consumers.size() != 1)
-            return nullptr;
-        return consumers.begin()->get_node()->shared_from_this();
+static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node) {
+    auto all_has_types = [](const std::set<ov::Input<ov::Node>>& consumers, const std::vector<ov::DiscreteTypeInfo>& types) {
+        return std::all_of(consumers.begin(), consumers.end(), [&types](const ov::Input<ov::Node>& input) {
+            return cldnn::one_of(input.get_node()->get_type_info(), types);
+        });
     };
 
-    auto consumer = get_single_consumer(node);
-    if (!consumer)
+    const auto consumers = node->get_output_target_inputs(0);
+    if (all_has_types(consumers, { ov::op::v0::MatMul::get_type_info_static(), ov::op::v8::Gather::get_type_info_static() }))
         return true;
 
-    if (ov::is_type<ov::opset1::MatMul>(consumer) || ov::is_type<ov::op::v8::Gather>(consumer)) {
-        return false;
-    } else if (ov::is_type<ov::opset1::Reshape>(consumer)) {
-        consumer = get_single_consumer(consumer);
-        if (consumer != nullptr && (ov::is_type<ov::opset1::MatMul>(consumer) || ov::is_type<ov::op::v8::Gather>(consumer))) {
+
+    auto are_converts_from_decompression = [&all_has_types](const std::set<ov::Input<ov::Node>>& consumers) {
+        if (!all_has_types(consumers, { ov::opset1::Convert::get_type_info_static() }))
             return false;
+        for (const auto& consumer : consumers) {
+            const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
+            if (!all_has_types(child_consumers, { ov::opset1::MatMul::get_type_info_static(), ov::op::v8::Gather::get_type_info_static() }))
+                return false;
+        }
+        return true;
+    };
+
+    if (all_has_types(consumers, { ov::opset1::Reshape::get_type_info_static() })) {
+        for (const auto& consumer : consumers) {
+            const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
+            if (all_has_types(child_consumers, { ov::opset1::MatMul::get_type_info_static(), ov::op::v8::Gather::get_type_info_static() }) ||
+                are_converts_from_decompression(child_consumers)) {
+                return true;
+            }
         }
     }
-    if (consumer != nullptr && ov::is_type<ov::opset1::Convert>(consumer)) {
-        consumer = get_single_consumer(consumer);
-        if (consumer != nullptr && (ov::is_type<ov::opset1::MatMul>(consumer) || ov::is_type<ov::op::v8::Gather>(consumer))) {
-            return false;
-        }
-    }
-    return true;
+    return are_converts_from_decompression(consumers);
 }
 }  // namespace
 
@@ -307,8 +314,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, !device_info.supports_immad);
 
         // Need to check if transformations work correctly for mixed models with both compression and quantization at the same time.
-        if (!is_model_quantized)
-            pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>(is_non_supported_decompression_op);
+        if (!is_model_quantized) {
+            pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>([&](const std::shared_ptr<const ov::Node> node) {
+                return !is_decompression_multiply(node);
+            });
+        }
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
@@ -878,6 +888,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             });
             manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size);
         }
+
+        // Remove Pad in front of MaxPool if both the pads_begin and pads_end are zero.
+        manager.register_pass<ov::pass::EliminatePad>();
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation

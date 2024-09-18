@@ -24,7 +24,7 @@ bool has_constant_value<bool>(const std::shared_ptr<Node>& node, const bool valu
         return false;
     }
 
-    auto constant = std::dynamic_pointer_cast<opset4::Constant>(node);
+    auto constant = ov::as_type_ptr<opset4::Constant>(node);
     if (!constant) {
         return false;
     }

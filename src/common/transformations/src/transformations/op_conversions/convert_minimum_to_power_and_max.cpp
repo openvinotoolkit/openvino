@@ -20,7 +20,7 @@ ov::pass::ConvertMinimum::ConvertMinimum() {
     auto minimum = ov::pass::pattern::wrap_type<ov::op::v1::Minimum>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto minimum = std::dynamic_pointer_cast<ov::op::v1::Minimum>(m.get_match_root());
+        auto minimum = ov::as_type_ptr<ov::op::v1::Minimum>(m.get_match_root());
         if (!minimum || transformation_callback(minimum) || !minimum->get_output_element_type(0).is_signed()) {
             return false;
         }

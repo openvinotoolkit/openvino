@@ -1,5 +1,3 @@
-.. {#openvino_docs_Extensibility_UG_model_pass}
-
 OpenVINO Model Pass
 ===================
 
@@ -21,7 +19,7 @@ Template for ModelPass transformation class
 
    .. tab-item:: C++
       :sync: cpp
-      
+
       .. doxygensnippet:: docs/articles_en/assets/snippets/template_model_transformation.cpp
          :language: cpp
          :fragment: [model_pass:template_transformation_cpp]

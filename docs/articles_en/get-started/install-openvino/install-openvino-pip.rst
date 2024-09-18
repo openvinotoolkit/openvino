@@ -1,5 +1,3 @@
-.. {#openvino_docs_install_guides_installing_openvino_pip}
-
 Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository
 ========================================================================
 
@@ -151,5 +149,3 @@ Additional Resources
 ####################
 
 - Intel® Distribution of OpenVINO™ `toolkit home page <https://software.intel.com/en-us/openvino-toolkit>`__
-- For IoT Libraries & Code Samples, see `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__.
-
