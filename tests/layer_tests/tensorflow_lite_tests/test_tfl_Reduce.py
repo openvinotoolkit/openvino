@@ -6,13 +6,13 @@ from common.utils.tflite_utils import additional_test_params
 from common.utils.tflite_utils import parametrize_tests
 
 test_ops = [
-    {'op_name': 'MEAN', 'op_func': tf.math.reduce_mean},
-    {'op_name': 'REDUCE_ALL', 'op_func': tf.math.reduce_all, 'kwargs_to_prepare_input': 'boolean', 'dtype': tf.bool},
-    {'op_name': 'REDUCE_ANY', 'op_func': tf.math.reduce_any, 'kwargs_to_prepare_input': 'boolean', 'dtype': tf.bool},
-    {'op_name': 'REDUCE_MAX', 'op_func': tf.math.reduce_max},
-    {'op_name': 'REDUCE_MIN', 'op_func': tf.math.reduce_min},
-    {'op_name': 'REDUCE_PROD', 'op_func': tf.math.reduce_prod, 'kwargs_to_prepare_input': 'short_range'},
-    {'op_name': 'SUM', 'op_func': tf.math.reduce_sum},
+    {'op_name': 'MEAN', 'op_func': 'tf.math.reduce_mean'},
+    {'op_name': 'REDUCE_ALL', 'op_func': 'tf.math.reduce_all', 'kwargs_to_prepare_input': 'boolean', 'dtype': tf.bool},
+    {'op_name': 'REDUCE_ANY', 'op_func': 'tf.math.reduce_any', 'kwargs_to_prepare_input': 'boolean', 'dtype': tf.bool},
+    {'op_name': 'REDUCE_MAX', 'op_func': 'tf.math.reduce_max'},
+    {'op_name': 'REDUCE_MIN', 'op_func': 'tf.math.reduce_min'},
+    {'op_name': 'REDUCE_PROD', 'op_func': 'tf.math.reduce_prod', 'kwargs_to_prepare_input': 'short_range'},
+    {'op_name': 'SUM', 'op_func': 'tf.math.reduce_sum'},
 ]
 
 test_params = [
@@ -36,7 +36,7 @@ class TestTFLiteReduceLayerTest(TFLiteLayerTest):
         with tf.compat.v1.Session() as sess:
             place_holder = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
                                                     name=self.inputs[0])
-            params['op_func'](place_holder, axis=params['axis'], name=self.outputs[0])
+            eval(params['op_func'])(place_holder, axis=params['axis'], name=self.outputs[0])
             net = sess.graph_def
         return net
 
