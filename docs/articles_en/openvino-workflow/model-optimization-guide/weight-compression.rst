@@ -1,6 +1,13 @@
 Weight Compression
 ==================
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   weight-compression/microscaling-quantization
+
+
 Weight compression is a technique for enhancing the efficiency of models,
 especially those with large memory requirements. This method reduces the model's
 memory footprint, a crucial factor for Large Language Models (LLMs).
@@ -289,6 +296,7 @@ from Optimum Intel instead of NNCF to compress the model to INT8_ASYM.
       results = pipe(phrase)
       print(results)
 
+
 Exporting and Loading Compressed Models
 ########################################
 
@@ -485,3 +493,4 @@ Additional Resources
 - `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
 - :doc:`Post-training Quantization <quantizing-models-post-training>`
 - :doc:`Training-time Optimization <compressing-models-during-training>`
+- `OCP Microscaling Formats (MX) Specification <https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf>`__
