@@ -1,2 +1,3 @@
 race:google::protobuf::*
 race:protobuf::*
+race:onnx::*
