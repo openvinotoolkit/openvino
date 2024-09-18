@@ -91,7 +91,7 @@ jobs:
             ${{ env.OPENVINO_REPO }}
             ${{ env.OPENVINO_CONTRIB_REPO }}
           product_type: ${{ env.PRODUCT_TYPE }}
-          target_arch: 'intel64'
+          target_arch: 'x86_64'
           build_type: ${{ inputs.build-type }}
           save_to: ${{ env.MANIFEST_PATH }}
 
