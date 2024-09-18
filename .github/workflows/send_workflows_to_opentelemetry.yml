@@ -11,7 +11,8 @@ on:
       - Code Style
       - Code coverage
       - Coverity (Ubuntu 20.04, Python 3.11)
-      - Fedora (RHEL), Python 3.9
+      - Debian 10 ARM
+      - Fedora 29 (RHEL 8.4), Python 3.8
       - Linux (Ubuntu 20.04, Python 3.8)
       - Linux (Ubuntu 22.04, Python 3.11)
       - Linux (Ubuntu 24.04, Python 3.12)
@@ -36,6 +37,7 @@ jobs:
   otel-export-trace:
     name: Export finished workflow metrics
     runs-on: aks-linux-2-cores-8gb
+    if: github.repository == 'openvinotoolkit/openvino'
 
     steps:
       - name: Checkout

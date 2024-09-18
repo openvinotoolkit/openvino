@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_sequence_RNNSequence_5}
-
 RNNSequence
 ===========
 

@@ -18,6 +18,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
+  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Smart_CI:
@@ -118,7 +119,7 @@ jobs:
           repository: 'openvinotoolkit/testdata'
           path: ${{ env.MODELS_PATH }}
           lfs: 'true'
-          ref: 'master'
+          ref: ${{ env.TARGET_BRANCH }}
 
       #
       # Print system info
@@ -191,8 +192,8 @@ jobs:
       - name: Perform code tracing via ITT collector
         run: |
           python3 ${OPENVINO_REPO}/thirdparty/itt_collector/runtool/sea_runtool.py \
-            --bindir ${OPENVINO_REPO}/bin/intel64/Release -o ${SELECTIVE_BUILD_STAT_DIR}/itt_stat ! \
-          ${OPENVINO_REPO}/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
+            --bindir ${OPENVINO_REPO}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }} -o ${SELECTIVE_BUILD_STAT_DIR}/itt_stat ! \
+          ${OPENVINO_REPO}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/benchmark_app -niter 1 -nireq 1 \
             -m ${MODELS_PATH}/models/test_model/test_model_fp32.xml -d CPU
 
       - name: Pack Artifacts
@@ -291,7 +292,7 @@ jobs:
           repository: 'openvinotoolkit/testdata'
           path: ${{ env.MODELS_PATH }}
           lfs: 'true'
-          ref: 'master'
+          ref: ${{ env.TARGET_BRANCH }}
 
       - name: Download selective build statistics package
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
@@ -314,6 +315,7 @@ jobs:
             -DSELECTIVE_BUILD=ON \
             -DENABLE_TEMPLATE=OFF \
             -DENABLE_INTEL_GPU=OFF \
+            -DENABLE_INTEL_NPU=OFF \
             -DENABLE_OV_TF_FRONTEND=OFF \
             -DENABLE_OV_TF_LITE_FRONTEND=OFF \
             -DENABLE_OV_PADDLE_FRONTEND=OFF \

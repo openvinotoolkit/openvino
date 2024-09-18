@@ -54,7 +54,6 @@
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_min.hpp"
-#include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/sigmoid.hpp"
@@ -202,7 +201,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Max", CreatorFunction(translate_direct_reduce_op<v1::ReduceMax>)},
         {"Mean", CreatorFunction(translate_direct_reduce_op<v1::ReduceMean>)},
         {"Min", CreatorFunction(translate_direct_reduce_op<v1::ReduceMin>)},
-        {"Prod", CreatorFunction(translate_direct_reduce_op<v1::ReduceProd>)},
         {"Sum", CreatorFunction(translate_direct_reduce_op<v1::ReduceSum>)},
 
         // Separate translators:
@@ -345,6 +343,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Placeholder", CreatorFunction(translate_placeholder_linked_op)},
         {"PlaceholderWithDefault", CreatorFunction(translate_placeholder_with_default_op)},
         {"PreventGradient", CreatorFunction(translate_identity_op)},
+        {"Prod", CreatorFunction(translate_prod_op)},
         {"Range", CreatorFunction(translate_range_op)},
         {"Rank", CreatorFunction(translate_rank_op)},
         {"RandomUniform", CreatorFunction(translate_random_uniform_op)},
@@ -380,6 +379,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Softmax", CreatorFunction(translate_softmax_op)},
         {"SpaceToDepth", CreatorFunction(translate_space_to_depth_op)},
         {"SparseReshape", CreatorFunction(translate_sparse_reshape_op)},
+        {"SparseSegmentMean", CreatorFunction(translate_sparse_segment_mean_op)},
         {"SparseTensorDenseAdd", CreatorFunction(translate_sparse_tensor_dense_add_op)},
         {"SparseTensorDenseMatMul", CreatorFunction(translate_sparse_tensor_dense_mat_mul_op)},
         {"SparseToDense", CreatorFunction(translate_sparse_to_dense_op)},

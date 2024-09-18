@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_lpt}
-
 OpenVINO™ Low Precision Transformations
 =========================================
 
@@ -314,13 +312,13 @@ This step is optional. It modifies the transformation function to a device-speci
 Result model overview
 #####################
 
-Let's explore quantized `TensorFlow implementation of ResNet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__ model. Use :doc:`Model Downloader <../../../../omz_tools_downloader>` tool to download the ``fp16`` model from `OpenVINO™ Toolkit - Open Model Zoo repository <https://github.com/openvinotoolkit/open_model_zoo>`__:
+Let's explore quantized `TensorFlow implementation of ResNet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__ model. Use `Model Downloader <https://github.com/openvinotoolkit/open_model_zoo/blob/master/tools/model_tools/README.md>`__ tool to download the ``fp16`` model from `OpenVINO™ Toolkit - Open Model Zoo repository <https://github.com/openvinotoolkit/open_model_zoo>`__:
 
 .. code-block:: sh
 
    omz_downloader --name resnet-50-tf --precisions FP16-INT8
 
-After that you should quantize model by the :doc:`Model Quantizer <../../../../omz_tools_downloader>` tool.
+After that you should quantize model by the `Model Quantizer <https://github.com/openvinotoolkit/open_model_zoo/blob/releases/2023/3/tools/model_tools/README.md>`__ tool.
 
 .. code-block:: sh
 
