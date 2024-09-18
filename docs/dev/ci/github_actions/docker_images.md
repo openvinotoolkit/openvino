@@ -163,7 +163,7 @@ Custom docker images can also be built locally to reproduce CI results in the sa
 1. Install [Docker](https://docs.docker.com/engine/install) on your local machine (Linux is the best option).
 2. If you're running behind proxy on a host where you run a docker build, 
 [add proxy](https://docs.docker.com/engine/cli/proxy/#configure-the-docker-client) to your `~/.docker/config.json`.
-3. Clone openvino repo, go to the root of the repository, and execute docker build for a desired image, for example:
+3. Clone openvino repo, go to the root of the repository, and execute `docker build` for a desired image, for example:
 ```
 cd _git/openvino
 docker build -f .github/dockerfiles/ov_test/ubuntu_22_04_x64/Dockerfile -t my_local_ov_test_build .
