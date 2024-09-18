@@ -22,15 +22,6 @@ template<typename T> post_optimize_weights::weights_bias_offset post_optimize_we
     return weights_bias_offset(node.get_primitive()->input.size(), program_helpers::wrap_if_single(node.get_primitive()->weights).size());
 }
 
-template<typename T> void update_weights_id(const T& node, const primitive_id& new_id) {
-    const_cast<primitive_id&>(node.get_primitive()->weights) = new_id;
-}
-
-template <>
-void update_weights_id<deconvolution_node>(const deconvolution_node& node, const primitive_id& new_id) {
-    const_cast<primitive_id&>(node.get_primitive()->weights[0]) = new_id;
-}
-
 // function which prepares given primitive for weights optimization
 template<typename T>
 void post_optimize_weights::optimize_weights(T& node, program& p) {
@@ -119,7 +110,6 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                 if (!weights_reorder.second) {
                     set_implementation(weights_reorder_node);
                 }
-                update_weights_id(node, weights_reorder_node.id());
             } else {
                 auto weights_reorder = _rf.get_weights_reorder(prev_node.id(), weights_reorder_params);
                 // insert new weights reorder node to topology
@@ -131,7 +121,6 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                 if (!weights_reorder.second) {
                     set_implementation(weights_reorder_node);
                 }
-                update_weights_id(node, weights_reorder_node.id());
             }
         }
     }

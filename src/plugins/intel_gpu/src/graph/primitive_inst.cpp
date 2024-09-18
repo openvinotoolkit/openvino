@@ -1627,7 +1627,15 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                     auto& engine = _network.get_engine();
                     // Need to use actual layout, not the fake aligned memory layout
                     auto actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
-                    subgraph->set_input_data(d.first->id(), std::move(actual_mem));
+
+                    cldnn::primitive_id dep_id = d.first->id();
+                    if (_node->is_type<fully_connected>() || _node->is_type<convolution>() || _node->is_type<deconvolution>()) {
+                        const auto& prim = _node->get_primitive();
+                        if (static_cast<size_t>(d.second) == prim->input_size()) {
+                            dep_id = prim->dependencies()[prim->input_size()].pid;
+                        }
+                    }
+                    subgraph->set_input_data(dep_id, std::move(actual_mem));
                 }
             }
             GPU_DEBUG_TRACE_DETAIL << "[Start] Executing unfused subgraph of " << id() << std::endl;
@@ -2305,6 +2313,13 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 data data_prim(dep_id, data_node.get_attached_memory_ptr());
                 t.add(data_prim);
             } else {
+                cldnn::primitive_id dep_id = dep.first->id();
+                if (_node->is_type<fully_connected>() || _node->is_type<convolution>() || _node->is_type<deconvolution>()) {
+                    const auto& prim = _node->get_primitive();
+                    if (static_cast<size_t>(dep.second) == prim->input_size()) {
+                        dep_id = prim->dependencies()[prim->input_size()].pid;
+                    }
+                }
                 input_layout in_prim(dep_id, dep.first->get_output_layout());
                 t.add(in_prim);
             }
