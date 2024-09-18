@@ -41,6 +41,16 @@ def get_request_tensor(
         raise TypeError(f"Unsupported key type: {type(key)} for Tensor under key: {key}")
 
 
+def is_all_ascii(input_array):
+    def isascii(s):
+        if isinstance(s, bytes):
+            s = s.decode('utf-8')
+        return s.isascii()
+    v_isascii = np.vectorize(isascii)
+    ascii_flags = v_isascii(input_array)
+    return ascii_flags.all()
+
+
 @singledispatch
 def value_to_tensor(
     value: Union[Tensor, np.ndarray, ScalarTypes, str],
@@ -314,6 +324,7 @@ def _(
     request: _InferRequestWrapper,
     key: Optional[ValidKeys] = None,
 ) -> None:
+    
     if inputs.ndim != 0:
         tensor = get_request_tensor(request, key)
         # Update shape if there is a mismatch
@@ -321,7 +332,10 @@ def _(
             tensor.shape = inputs.shape
         # When copying, type should be up/down-casted automatically.
         if tensor.element_type == Type.string:
-            tensor.bytes_data[:] = inputs[:]
+            if is_all_ascii(inputs) and inputs.dtype.char == 'U':
+                tensor.bytes_data[:] = inputs[:]
+            else:
+                tensor.bytes_data = inputs
         else:
             tensor.data[:] = inputs[:]
     else:
