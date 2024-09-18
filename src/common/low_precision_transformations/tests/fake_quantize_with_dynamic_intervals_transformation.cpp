@@ -97,19 +97,19 @@ private:
         const std::vector<float> high = { 1.f };
 
         const auto inputLow = inputLowConst ?
-            ov::as_type_ptr<ov::Node>(std::make_shared<ov::op::v0::Constant>(constantPresition, constantShape, low)) :
+            std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Constant>(constantPresition, constantShape, low)) :
             std::make_shared<ov::op::v0::Parameter>(constantPresition, constantShape);
 
         const auto inputHigh = inputLowConst ?
-            ov::as_type_ptr<ov::Node>(std::make_shared<ov::op::v0::Constant>(constantPresition, constantShape, high)) :
+           std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Constant>(constantPresition, constantShape, high)) :
             std::make_shared<ov::op::v0::Parameter>(constantPresition, constantShape);
 
         const auto outputLow = outputLowConst ?
-            ov::as_type_ptr<ov::Node>(std::make_shared<ov::op::v0::Constant>(constantPresition, constantShape, low)) :
+                               std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Constant>(constantPresition, constantShape, low)) :
             std::make_shared<ov::op::v0::Parameter>(constantPresition, constantShape);
 
         const auto outputHigh = outputHighConst ?
-            ov::as_type_ptr<ov::Node>(std::make_shared<ov::op::v0::Constant>(constantPresition, constantShape, high)) :
+                                std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Constant>(constantPresition, constantShape, high)) :
             std::make_shared<ov::op::v0::Parameter>(constantPresition, constantShape);
 
         const auto levels = 256ul;
