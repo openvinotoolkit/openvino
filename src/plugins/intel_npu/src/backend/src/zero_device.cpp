@@ -4,8 +4,6 @@
 
 #include "zero_device.hpp"
 
-#include <ze_api.h>
-
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "zero_executor.hpp"
@@ -142,7 +140,7 @@ uint64_t ZeroDevice::getAllocMemSize() const {
     ze_graph_memory_query_t query{};
     zeroUtils::throwOnFail(
         "pfnQueryContextMemory",
-        _graph_ddi_table_ext->pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query));
+        _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query));
     return query.allocated;
 }
 
@@ -150,7 +148,7 @@ uint64_t ZeroDevice::getTotalMemSize() const {
     ze_graph_memory_query_t query{};
     zeroUtils::throwOnFail(
         "pfnQueryContextMemory",
-        _graph_ddi_table_ext->pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query));
+        _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query));
     return query.total;
 }
 

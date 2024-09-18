@@ -31,7 +31,7 @@ public:
     ov::SoPtr<IEngineBackend> getIEngineBackend();
     std::string getBackendName() const;
     uint32_t getDriverVersion() const;
-    uint32_t getDriverExtVersion() const;
+    uint32_t getGraphExtVersion() const;
     bool isBatchingSupported() const;
     bool isCommandQueueExtSupported() const;
     void registerOptions(OptionsDesc& options) const;
