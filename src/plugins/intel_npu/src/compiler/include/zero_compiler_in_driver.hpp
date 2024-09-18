@@ -43,6 +43,12 @@ using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
     (std::is_same<T, ze_graph_dditable_ext_1_2_t>::value || std::is_same<T, ze_graph_dditable_ext_1_3_t>::value || \
      std::is_same<T, ze_graph_dditable_ext_1_4_t>::value || std::is_same<T, ze_graph_dditable_ext_1_5_t>::value)
 
+// For ext verion >= 1.7, pfnLoad is available
+#define NotSupportGraphLoad(T)                                                                                     \
+    (std::is_same<T, ze_graph_dditable_ext_1_2_t>::value || std::is_same<T, ze_graph_dditable_ext_1_3_t>::value || \
+     std::is_same<T, ze_graph_dditable_ext_1_4_t>::value || std::is_same<T, ze_graph_dditable_ext_1_5_t>::value || \
+     std::is_same<T, ze_graph_dditable_ext_1_6_t>::value)
+
 /**
  * Adapter to use CiD through ZeroAPI
  */
@@ -173,6 +179,18 @@ private:
     template <typename T = TableExtension, typename std::enable_if_t<NotSupportLogHandle(T), bool> = true>
     std::string getLatestBuildError() const {
         return "";
+    }
+
+    // For ext version < 1.7, load is scheduled by driver
+    template <typename T = TableExtension, typename std::enable_if_t<NotSupportGraphLoad(T), bool> = true>
+    ze_result_t loadGraph(ze_graph_handle_t hGraph) const {
+        return ZE_RESULT_SUCCESS;
+    }
+
+    // For ext version > 1.7, load is called by plugin
+    template <typename T = TableExtension, typename std::enable_if_t<!NotSupportGraphLoad(T), bool> = true>
+    ze_result_t loadGraph(ze_graph_handle_t hGraph) const {
+        return _graphDdiTableExt->pfnLoad(hGraph);
     }
 
 private:

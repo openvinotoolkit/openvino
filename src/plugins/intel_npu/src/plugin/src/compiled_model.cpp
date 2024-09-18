@@ -139,6 +139,12 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
+
+    if (_networkPtr->metadata.imported) {
+        OPENVINO_THROW("The CompiledModel is created from import_model path."
+                       "Application shall already hold a compiled model in memory!");
+    }
+
     const auto&& blob = _compiler->getCompiledNetwork(_networkPtr);
     stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
     std::stringstream str;

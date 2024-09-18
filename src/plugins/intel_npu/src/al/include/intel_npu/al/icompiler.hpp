@@ -115,6 +115,9 @@ struct NetworkMetadata final {
     // Used primarily in the CID path to pass the level zero graph handle from compiler to the backend executor
     void* graphHandle = nullptr;
 
+    // The model is imported from user with blob
+    bool imported = false;
+
     /**
      * @brief Binds the (state input, state output) and (dynamic tensor, shape tensor) pairs using the
      * "relatedDescriptorIndex" attribute.

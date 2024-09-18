@@ -72,6 +72,15 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
             "pfnCreate",
             _graph_ddi_table_ext->pfnCreate(_initStructs->getContext(), _initStructs->getDevice(), &desc, &_graph));
 
+        _logger.debug("load graph on executor");
+        zeroUtils::throwOnFail("pfnLoad", _graph_ddi_table_ext->pfnLoad(_graph));
+
+        // Release blob earlier if the blob is from user, unless need profiling info later
+        if (!_config.get<PERF_COUNT>() && _networkDesc->metadata.imported) {
+            NetworkDescription* network = const_cast<NetworkDescription*>(_networkDesc.get());
+            network->compiledNetwork.clear();
+            network->compiledNetwork.shrink_to_fit();
+        }
     } else {
         _logger.debug("reuse graph handle created from compiler");
         _graph = static_cast<ze_graph_handle_t>(_networkDesc->metadata.graphHandle);

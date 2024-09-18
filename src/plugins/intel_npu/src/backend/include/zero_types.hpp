@@ -13,7 +13,7 @@
 /**
  * @brief Last version of Table of Graph Extension functions used within plugin
  */
-using ze_graph_dditable_ext_last_t = ze_graph_dditable_ext_1_6_t;
+using ze_graph_dditable_ext_last_t = ze_graph_dditable_ext_1_7_t;
 
 /**
  * @brief Table of Graph Extension functions pointers and function wrappers
@@ -131,6 +131,15 @@ public:
                                                         ze_device_graph_properties_2_t* pDeviceGraphProperties) {
         throwWhenUnsupported("pfnDeviceGetGraphProperties2", ZE_GRAPH_EXT_VERSION_1_6);
         return _impl->pfnDeviceGetGraphProperties2(hDevice, pDeviceGraphProperties);
+    }
+
+    // version 1.7
+    ze_result_t ZE_APICALL pfnLoad(ze_graph_handle_t hGraph) {
+        if (_driverExtVersion < ZE_GRAPH_EXT_VERSION_1_7) {
+            // Load already done by driver, always successful here
+            return ZE_RESULT_SUCCESS;
+        }
+        return _impl->pfnLoad(hGraph);
     }
 };
 
