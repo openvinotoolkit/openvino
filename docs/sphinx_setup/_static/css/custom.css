@@ -369,6 +369,12 @@ div.admonition.warning {
     background-color: #fbf5f0 !important;
 }
 
+ul.bd-sidenav a {
+    white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 .admonition.note,
 div.admonition.note {
     background-color: #f1fafe;
@@ -799,6 +805,7 @@ div.highlight {
     width: 100%;
     border-bottom: 1px solid lightgray;
     padding-bottom: 1px;
+    margin-bottom: 5px;
 }
 
 .modal-header {
@@ -1544,28 +1551,38 @@ div[class*="highlight-"] {
     margin: 0 0;
 }
 
+.chart-placeholder::-webkit-scrollbar,
+.modal-content-grid::-webkit-scrollbar,
 .bd-sidebar::-webkit-scrollbar,
 .scrollbox::-webkit-scrollbar {
     height: 8px;
     width: 5px;
 }
 
+.chart-placeholder::-webkit-scrollbar-track,
+.modal-content-grid::-webkit-scrollbar-track,
 .bd-sidebar::-webkit-scrollbar-track,
 .scrollbox::-webkit-scrollbar-track {
     border-radius: 4px;
     background-color: white;
 }
 
+.chart-placeholder::-webkit-scrollbar-track:hover,
+.modal-content-grid::-webkit-scrollbar-track:hover,
 .bd-sidebar::-webkit-scrollbar-track:hover,
 .scrollbox::-webkit-scrollbar-track:hover {
     background-color: white;
 }
 
+.chart-placeholder::-webkit-scrollbar-track:active,
+.modal-content-grid::-webkit-scrollbar-track:active,
 .bd-sidebar::-webkit-scrollbar-track:active,
 .scrollbox::-webkit-scrollbar-track:active {
     background-color: white;
 }
 
+.chart-placeholder::-webkit-scrollbar-thumb,
+.modal-content-grid::-webkit-scrollbar-thumb,
 .bd-sidebar::-webkit-scrollbar-thumb,
 .scrollbox::-webkit-scrollbar-thumb {
     border-radius: 4px;
@@ -1573,12 +1590,16 @@ div[class*="highlight-"] {
     width: 8px !important;
 }
 
+.chart-placeholder::-webkit-scrollbar-thumb:hover
+.modal-content-grid::-webkit-scrollbar-thumb:hover
 .bd-sidebar::-webkit-scrollbar-thumb:hover,
 .scrollbox::-webkit-scrollbar-thumb:hover {
     background-color: #7a7676;
     width: 8px !important;
 }
 
+.chart-placeholder::-webkit-scrollbar-thumb:active,
+.modal-content-grid::-webkit-scrollbar-thumb:active,
 .bd-sidebar::-webkit-scrollbar-thumb:active,
 .scrollbox::-webkit-scrollbar-thumb:active {
     background-color: #7a7676;
