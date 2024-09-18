@@ -64,8 +64,8 @@ public:
     static bool can_be_in_one_group(const ShiftPtrParams& lhs, const ShiftPtrParams& rhs);
 
 private:
-    using BufferPool = std::vector<ExpressionPtr>;
-    using BufferMap = std::map<ExpressionPtr, ShiftPtrParams>;
+    using BufferPool = std::vector<BufferExpressionPtr>;
+    using BufferMap = std::map<BufferExpressionPtr, ShiftPtrParams>;
 
     /**
      * @brief Get Buffer Index in Buffer set
@@ -73,7 +73,7 @@ private:
      * @param pool set of Buffers from the Linear IR
      * @return index of target Buffer expression in set
      */
-    static size_t get_buffer_idx(const ExpressionPtr& target, const BufferPool& pool);
+    static size_t get_buffer_idx(const BufferExpressionPtr& target, const BufferPool& pool);
     /**
      * @brief Create adjacency matrix for Buffer system. See comment in the method for more details.
      * @param linear_ir the target Linear IR
@@ -99,8 +99,8 @@ private:
      * @param buffers set of Buffers from the Linear IR
      * @param adj Target adjacency matrix
      */
-    static void update_adj_matrix(const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,
-                                  const std::pair<ExpressionPtr, ShiftPtrParams>& rhs,
+    static void update_adj_matrix(const std::pair<BufferExpressionPtr, ShiftPtrParams>& lhs,
+                                  const std::pair<BufferExpressionPtr, ShiftPtrParams>& rhs,
                                   const BufferPool& buffers,
                                   std::vector<bool>& adj);
     /**
@@ -109,8 +109,8 @@ private:
      * @param rhs Pair where first value is Expression with second Buffer and second value is data pointer shift params for it
      * @return Returns True if they are adjacent, otherwise returns False
      */
-    static bool are_adjacent(const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,
-                             const std::pair<ExpressionPtr, ShiftPtrParams>& rhs);
+    static bool are_adjacent(const std::pair<BufferExpressionPtr, ShiftPtrParams>& lhs,
+                             const std::pair<BufferExpressionPtr, ShiftPtrParams>& rhs);
 
     /**
      * @brief Find all buffers that are connected to the current LoopEnd
