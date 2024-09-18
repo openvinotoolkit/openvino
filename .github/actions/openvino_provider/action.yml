@@ -51,10 +51,17 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Get action revision
+      id: get_action_revision
+      run: echo "action_ref=${{ env.ACTION_REF }}" >> $GITHUB_OUTPUT
+      shell: bash
+      env:
+        ACTION_REF: ${{ github.action_ref || github.base_ref || github.event.merge_group.base_ref || github.ref }}
+
     - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       with:
         repository: 'openvinotoolkit/openvino'
-        ref: ${{ inputs.branch_name || github.base_ref || github.event.merge_group.base_ref || github.ref }}
+        ref: ${{ steps.get_action_revision.outputs.action_ref }}
         sparse-checkout: .github/actions
 
     - name: Clone OpenVINO to get HEAD commit
