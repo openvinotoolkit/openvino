@@ -321,7 +321,8 @@ def _(
             tensor.shape = inputs.shape
         # When copying, type should be up/down-casted automatically.
         if tensor.element_type == Type.string:
-            tensor.bytes_data = inputs
+            for i in range(inputs.size):
+                tensor.bytes_data[i] = inputs[i]
         else:
             tensor.data[:] = inputs[:]
     else:
