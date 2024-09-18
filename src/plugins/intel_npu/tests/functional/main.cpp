@@ -3,6 +3,9 @@
 //
 
 #include <signal.h>
+#ifdef WIN32
+#include <process.h>
+#endif
 #include <functional_test_utils/summary/op_summary.hpp>
 #include <iostream>
 #include <sstream>
@@ -38,7 +41,12 @@ int main(int argc, char** argv, char** envp) {
     }
     oss << std::endl;
 
-    oss << "Process id: " << getpid() << std::endl;
+#   ifdef WIN32
+        oss << "Process id: " << _getpid() << std::endl;
+#   else
+        oss << "Process id: " << getpid() << std::endl;
+#   endif
+
     std::cout << oss.str();
     oss.str("");
 
