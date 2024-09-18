@@ -85,6 +85,8 @@ jobs:
           ls -la ${{ env.INSTALL_DIR }}
           echo "123"
           ls -al ${{ env.INSTALL_TEST_DIR }}
+          echo "456"
+          ls -la ${{ env.INSTALL_TEST_DIR }}/ov_core_unit_tests
 
       #
       # Tests
