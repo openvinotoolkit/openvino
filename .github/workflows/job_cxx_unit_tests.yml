@@ -96,7 +96,7 @@ jobs:
         if: fromJSON(inputs.affected-components).Core.test
         run: |
           ls -la ${{ env.INSTALL_TEST_DIR }}/ov_core_unit_tests
-          ${{ env.INSTALL_TEST_DIR }}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVCoreUT.xml
+          ${INSTALL_TEST_DIR}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVCoreUT.xml
 
       - name: OpenVINO Inference Functional Tests
         if: fromJSON(inputs.affected-components).inference.test
