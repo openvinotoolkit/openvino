@@ -39,8 +39,8 @@ set(gif_srcs
 
 
 set(gif_hdrs
-    giflib-5.1.9/gif_hash.h
-    giflib-5.1.9/gif_lib.h
+    giflib-5.1.9/gif_hash.h 
+    giflib-5.1.9/gif_lib.h 
     giflib-5.1.9/gif_lib_private.h)
 
 
@@ -59,9 +59,14 @@ if(result_var STREQUAL  "1")
 
     ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
+    foreach(comp IN ITEMS ${gif_hdrs})
+        message(STATUS "COPY file ${comp} to ${CMAKE_CURRENT_BINARY_DIR}/include")
+        file(COPY ${comp} DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/include")
+    endforeach()
+
     set_target_properties(${TARGET_NAME} PROPERTIES FOLDER thirdparty)
 
-    set(GIF_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/giflib-5.1.9" PARENT_SCOPE)
+    set(GIF_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include" PARENT_SCOPE)
     set(GIF_FOUND TRUE PARENT_SCOPE)
 else()
     message(STATUS "Failed to build GIF from thirdparty, disable GIF supported. result_var=${result_var}") 

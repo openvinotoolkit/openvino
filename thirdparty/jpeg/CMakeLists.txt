@@ -32,12 +32,21 @@ endfunction()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/developer_package/download/extract.cmake")
 
+set(jpeg_hdrs
+    libjpeg/jpeglib.h
+    libjpeg/jpegcomp.h
+    libjpeg/jmorecfg.h)
+
 extract(${CMAKE_CURRENT_SOURCE_DIR}/libjpeg.tgz ${CMAKE_CURRENT_SOURCE_DIR} TRUE "*" result_var)
 
 if(result_var STREQUAL  "1")
     ov_build_jpeg()
     ov_install_static_lib(jpeg ${OV_CPACK_COMP_CORE})
-    set(JPEG_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libjpeg" "${CMAKE_CURRENT_BINARY_DIR}/libjpeg" PARENT_SCOPE)
+    
+    foreach(comp IN ITEMS ${jpeg_hdrs})
+        file(COPY ${comp} DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/libjpeg")
+    endforeach()
+    set(JPEG_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/libjpeg" PARENT_SCOPE)
     set(JPEG_FOUND TRUE PARENT_SCOPE)
 else()
     message(STATUS "Failed to build JPEG from thirdparty, disable JPEG supported. result_var=${result_var}") 

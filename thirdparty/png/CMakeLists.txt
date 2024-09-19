@@ -28,6 +28,10 @@ function(ov_build_png)
     add_library(openvino::png ALIAS png_static)
 endfunction()
 
+set(png_hdrs
+    libpng-1.6.37/pngconf.h
+    libpng-1.6.37/png.h)
+
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/developer_package/download/extract.cmake")
 
 extract(${CMAKE_CURRENT_SOURCE_DIR}/libpng-1.6.37.tar.gz ${CMAKE_CURRENT_SOURCE_DIR} TRUE "*" result_var)
@@ -35,7 +39,12 @@ extract(${CMAKE_CURRENT_SOURCE_DIR}/libpng-1.6.37.tar.gz ${CMAKE_CURRENT_SOURCE_
 if(result_var STREQUAL  "1")
     ov_build_png()
     ov_install_static_lib(png ${OV_CPACK_COMP_CORE})
-    set(PNG_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libpng-1.6.37" "${CMAKE_CURRENT_BINARY_DIR}/libpng-1.6.37" PARENT_SCOPE)
+
+    foreach(comp IN ITEMS ${png_hdrs})
+        file(COPY ${comp} DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/libpng-1.6.37")
+    endforeach()
+
+    set(PNG_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/libpng-1.6.37" PARENT_SCOPE)
     set(PNG_FOUND TRUE PARENT_SCOPE)
 else()
     message(STATUS "Failed to build PNG from thirdparty, disable PNG supported. result_var=${result_var}") 
