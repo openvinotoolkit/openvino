@@ -15,7 +15,7 @@ ov::snippets::pass::TokenizeFCSnippets::TokenizeFCSnippets(const SnippetsTokeniz
     // TODO: extend constant path coverage:
     // 1. Transpose support
     // 2. Convert support
-    // 2. Decompression subgraphs support (and all the possible compressed weights related precisions)
+    // 3. Decompression subgraphs support (and all the possible compressed weights related precisions)
     auto constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_matmul = ov::pass::pattern::wrap_type<ov::opset1::MatMul>({ov::pass::pattern::any_input(), constant});
 
