@@ -30,12 +30,18 @@ class DecoderBase : public ov::frontend::DecoderBase {};
 class DecoderBaseOperation : public ov::frontend::tensorflow_lite::DecoderBase {
 public:
     /// \brief Get input tensor name by index
+    /// Operation nodes are connected between each other by tensors.
+    /// Each tensor must have unique name in a graph
+    /// This method returns tensor name that comes to this operation node by input index idx
     virtual std::string get_input_tensor_name(size_t idx) const = 0;
 
     /// \brief Get input tensor type by index
     virtual ov::element::Type get_input_tensor_type(size_t idx) const = 0;
 
     /// \brief Get output tensor name by index
+    /// Operation nodes are connected between each other by tensors.
+    /// Each tensor must have unique name in a graph
+    /// This method returns tensor name that outputs by output index idx from this operation
     virtual std::string get_output_tensor_name(size_t idx) const = 0;
 
     /// \brief Get output tensor type by index
@@ -59,9 +65,15 @@ public:
     virtual TensorMetaInfo get_tensor_info() const = 0;
 
     /// \brief Get input index for tensor
+    /// returns index of this input in the list of inputs in the model
+    /// it must be from 0 to n-1, where n - number of inputs in the model
+    /// if it is not input, returns  -1
     virtual int64_t get_input_idx() const = 0;
 
     /// \brief Get output index for tensor
+    /// returns index of this output in the list of outputs in the model
+    /// it must be from 0 to m-1, where m - number of outputs in the model
+    /// if it is not input, returns  -1
     virtual int64_t get_output_idx() const = 0;
 };
 
