@@ -39,6 +39,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
                            ::testing::ValuesIn(inputShapes),
                            ::testing::Values(true, false)),
         ConcatSDPTest::getTestCaseName);
+
 }  // namespace
 
 }  // namespace test
