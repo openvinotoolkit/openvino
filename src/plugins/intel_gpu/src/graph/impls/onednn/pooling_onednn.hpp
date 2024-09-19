@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/utils.hpp"
 #include "pooling_inst.h"
 #include "impls/registry/implementation_manager.hpp"
 #include "utils.hpp"
@@ -64,7 +65,7 @@ struct PoolingImplementationManager : public ImplementationManager {
             format::bs_fs_zyx_bsv32_fsv32,
         };
 
-        bool fp_case = data_type_traits::is_floating_point(in_dt) && in_dt == out_dt;
+        bool fp_case = everyone_is(ov::element::f16, in_dt, out_dt);
         bool u8s8_case = one_of(in_dt, {ov::element::i8, ov::element::u8}) &&
                          one_of(out_dt, {ov::element::i8, ov::element::u8, ov::element::f32, ov::element::f16});
 
