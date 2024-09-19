@@ -18,7 +18,6 @@
 #include "openvino/op/topk.hpp"
 
 using namespace ov;
-using namespace ov::op;
 using namespace std;
 
 TEST(node_input_output, input_create) {
@@ -156,3 +155,4 @@ TEST(node_input_output, create_wrong_input_output) {
     EXPECT_THROW(ov::Input<ov::Node>(nullptr, 0), ov::Exception);
     EXPECT_THROW(ov::Input<const ov::Node>(nullptr, 0), ov::Exception);
 }
+
