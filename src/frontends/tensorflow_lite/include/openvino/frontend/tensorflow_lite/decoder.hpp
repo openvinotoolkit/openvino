@@ -48,9 +48,13 @@ public:
     virtual ov::element::Type get_output_tensor_type(size_t idx) const = 0;
 
     /// \brief Get input tensor info
+    /// returns TensorInfo by input idx index that corresponds to a tensor
+    /// (it can be Constant or just connection between this tensor producer and this current node)
     virtual TensorMetaInfo get_input_tensor_info(size_t idx) const = 0;
 
     /// \brief Get output tensor info
+    /// returns TensorInfo by output idx index that corresponds to a tensor
+    /// (it can be connection between this tensor consumer and this current node)
     virtual TensorMetaInfo get_output_tensor_info(size_t idx) const = 0;
 
     /// \brief Get a number of outputs
