@@ -140,11 +140,12 @@ std::optional<size_t> ZeroInferRequest::getBatchSize(const NetworkMetadata& meta
 
 //------------------------------------------------------------------------------
 ZeroInferRequest::ZeroInferRequest(std::shared_ptr<ZeroInitStructsHolder> initStructs,
-                                   const std::shared_ptr<const ICompiledModel>& compiledModel,
+                                   std::shared_ptr<const ICompiledModel> compiledModel,
                                    const Config& config)
     : SyncInferRequest(compiledModel),
       _initStructs(initStructs),
-      _executor(static_cast<const ZeroExecutor&>(compiledModel->get_executor())),
+      _compiledModel(compiledModel),
+      _executor(static_cast<const ZeroExecutor&>(_compiledModel->get_executor())),
       _config(config),
       _logger("ZeroInferRequest", config.get<LOG_LEVEL>()),
       _levelZeroInputTensors(_metadata.inputs.size(), nullptr),

@@ -21,7 +21,7 @@ namespace intel_npu {
 class ZeroInferRequest final : public SyncInferRequest {
 public:
     explicit ZeroInferRequest(std::shared_ptr<ZeroInitStructsHolder> initStructs,
-                              const std::shared_ptr<const ICompiledModel>& compiledModel,
+                              std::shared_ptr<const ICompiledModel> compiledModel,
                               const Config& config);
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
@@ -75,6 +75,7 @@ private:
     void create_pipeline();
 
     std::shared_ptr<ZeroInitStructsHolder> _initStructs;
+    std::shared_ptr<const ICompiledModel> _compiledModel;
     const ZeroExecutor& _executor;
     const Config _config;
     Logger _logger;
