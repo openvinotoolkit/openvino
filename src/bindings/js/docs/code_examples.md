@@ -10,7 +10,7 @@ For methods that are exposed to JavaScript, the naming convention transitions to
 
 ## node-addon-api module
 
-[node addon api](https://github.com/nodejs/node-addon-api) is used to create Openvino JavaScript API for Node.js. The quickest way to learn is to follow the official [examples](https://github.com/nodejs/node-addon-examples). It is recommended to check out the tutorial [how to create a JavaScript object from a C++ object](https://github.com/nodejs/node-addon-examples/tree/main/src/2-js-to-native-conversion/object-wrap-demo/node-addon-api).
+[node addon api](https://github.com/nodejs/node-addon-api) is used to create OpenVINO JavaScript API for Node.js. The quickest way to learn is to follow the official [examples](https://github.com/nodejs/node-addon-examples). It is recommended to check out the tutorial on [how to create a JavaScript object from a C++ object](https://github.com/nodejs/node-addon-examples/tree/main/src/2-js-to-native-conversion/object-wrap-demo/node-addon-api).
 
 
 
@@ -78,10 +78,10 @@ add_library(${PROJECT_NAME} SHARED
 ### Argument validation and conversion
 
 When binding JavaScript arguments with C++ functions, it is crucial to validate and convert the arguments appropriately. The template `ov::js::validate` function is a utility that facilitates this process. It is particularly useful for handling different overloads of functions and ensuring standardized error messages when arguments do not match expected signatures.
-Before implementing a new conversion function, such as `js_to_cpp<ov::Shape>`, review the existing [helper methods](../include/helper.hpp). There may already be a function that suits your needs.
+Before implementing a new conversion function, such as `js_to_cpp<ov::Shape>`, review the existing [helper methods](../../node/include/helper.hpp) to see if one already meets your requirements.
 
 ### New class initialization
-When a new class is introduced to the `openvino-node` module, it must be initialized upon module loading. This is done in the [addon.cpp](../src/addon.cpp) file. The initialization process registers the class with the Node.js environment so that it can be used within JavaScript code.
+When a new class is introduced to the `openvino-node` module, it must be initialized upon module loading. This is done in the [addon.cpp](../../src/addon.cpp) file. The initialization process registers the class with the Node.js environment so that it can be used within JavaScript code.
 ```cpp
 Napi::Object init_module(Napi::Env env, Napi::Object exports) {
     auto addon_data = new AddonData();
@@ -130,7 +130,7 @@ export interface NodeAddon {
 
 ## Testing the new code
 
-Coding is now finished. Don't forget to rebuild the project and test it out.
+Now that coding is finished, remember to rebuild the project and test it out.
 
 To learn how to test your code, refer to the guide on [how to test OpenVINO™ JavaScript API.](./test_examples.md) 
 
