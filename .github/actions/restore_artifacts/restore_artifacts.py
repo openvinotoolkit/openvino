@@ -81,7 +81,7 @@ def main():
             shutil.unpack_archive(file, output_dir)
             file.unlink()
 
-    action_utils.set_github_output("artifacts_workspace_path", args.target_dir)
+    action_utils.set_github_output("artifacts_path", args.target_dir)
 
 
 if __name__ == '__main__':

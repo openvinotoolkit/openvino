@@ -26,12 +26,14 @@ inputs:
     description: "Whether to unpack all artifact archives once retrieved"
     required: false
     default: 'true'
-
+  target_dir:
+    description: "Where to place artifact archives once retrieved"
+    required: false
 
 outputs:
-  artifacts_workspace_path:
-    description: "Path within the workspace where the artifacts are stored"
-    value: ${{ steps.restore.outputs.artifacts_workspace_path }}
+  artifacts_path:
+    description: "Path where the artifacts are stored"
+    value: ${{ steps.restore.outputs.artifacts_path }}
 
 runs:
   using: "composite"
@@ -41,7 +43,7 @@ runs:
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       run: >-
         python3 ${{ env.ACTION_PATH }}/restore_artifacts.py
-        -t "${{ env.GITHUB_WORKSPACE }}/${{ inputs.storage_dir || inputs.platform }}"
+        -t "${{ inputs.target_dir || env.DEFAULT_TARGET_DIR }}"
         --storage_root "${{ inputs.storage_root }}"
         -s "${{ inputs.trigger_repo_sha || github.event.pull_request.head.sha || github.sha }}"
         ${{ inputs.storage_dir && env.STORAGE_PARAM || env.PLATFORM_PARAM }}
@@ -57,3 +59,4 @@ runs:
         BRANCH_PARAM: "-b ${{ inputs.branch_name }}"
         EVENT_PARAM: "-e ${{ inputs.event_name }}"
         TO_RESTORE: "-r ${{ inputs.to_restore }}"
+        DEFAULT_TARGET_DIR: "${{ env.GITHUB_WORKSPACE }}/${{ inputs.storage_dir || inputs.platform }}"
