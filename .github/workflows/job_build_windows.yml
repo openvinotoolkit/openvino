@@ -64,7 +64,7 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
-          ref: ${{ env.TARGET_BRANCH }}
+          ref: 'master'
 
       - name: Set CCACHE_REMOTE_DIR based on event
         shell: bash

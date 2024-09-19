@@ -111,7 +111,7 @@ jobs:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           submodules: 'true'
-          ref: ${{ env.TARGET_BRANCH }}
+          ref: 'master'
 
       - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
         id: create_manifest
@@ -203,7 +203,7 @@ jobs:
       - name: Build Debian packages
         if: ${{ inputs.build-debian-packages }}
         run: |
-          # Ubuntu 24 does not allow using the system Python directly so 
+          # Ubuntu 24 does not allow using the system Python directly so
           # we have to use Python from the virtual environment created in Docker
           [[ ${{ inputs.os }} == "ubuntu_24_04" ]] && python_exec=/venv/bin/python3 || python_exec=/usr/bin/python3
           $python_exec -m pip install -U pip

@@ -92,7 +92,7 @@ jobs:
       build-contrib: true
       build-debian-packages: true
       build-rpm-packages: false
-      cmake-options: |- 
+      cmake-options: |-
             -G "Ninja Multi-Config" \
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
@@ -451,7 +451,7 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
-          ref: ${{ env.TARGET_BRANCH }}
+          ref: 'master'
 
       #
       # Build

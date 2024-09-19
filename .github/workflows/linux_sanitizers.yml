@@ -76,7 +76,7 @@ jobs:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           submodules: 'true'
-          ref: ${{ env.TARGET_BRANCH }}
+          ref: 'master'
 
       #
       # Print system info
