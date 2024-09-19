@@ -150,7 +150,7 @@ void parse_producer_name(const std::string& producer_port_name,
                                 "Port id is not specified or not a number. Value: ",
                                 port_id);
         producer_output_port_index = std::stoi(port_id);
-        producer_output_port_name = port_name;
+        producer_output_port_name = std::move(port_name);
         return;
     } else if (first_colon != std::string::npos) {
         // just one colon case
@@ -186,7 +186,7 @@ std::vector<::tensorflow::AttrValue> DecoderProto::decode_attribute_helper(const
     auto attr_map = m_node_def->attr();
     if (attr_map.contains(name)) {
         auto value = m_node_def->attr().at(name);
-        return {value};
+        return {std::move(value)};
     } else {
         return {};
     }
