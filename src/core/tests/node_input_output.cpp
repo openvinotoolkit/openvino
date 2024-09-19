@@ -150,4 +150,3 @@ TEST(node_input_output, create_wrong_input_output) {
     EXPECT_THROW(ov::Input<ov::Node>(nullptr, 0), ov::Exception);
     EXPECT_THROW(ov::Input<const ov::Node>(nullptr, 0), ov::Exception);
 }
-
