@@ -109,8 +109,6 @@ function(ov_add_onednn)
             ov_add_compiler_flags(-Wno-deprecated-this-capture)
             ov_add_compiler_flags(-Wno-deprecated-enum-enum-conversion)
         endif()
-    elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable=10121")
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # C4849 OpenMP 'reduction' clause ignored in 'simd' directive
         ov_add_compiler_flags(/wd4849)

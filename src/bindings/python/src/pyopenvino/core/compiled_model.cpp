@@ -177,6 +177,16 @@ void regclass_CompiledModel(py::module m) {
                 :rtype: openvino.runtime.Model
             )");
 
+    cls.def("release_memory",
+            &ov::CompiledModel::release_memory,
+            py::call_guard<py::gil_scoped_release>(),
+            R"(
+                Release intermediate memory.
+
+                This method forces the Compiled model to release memory allocated for intermediate structures,
+                e.g. caches, tensors, temporal buffers etc., when possible
+            )");
+
     cls.def_property_readonly("inputs",
                               &ov::CompiledModel::inputs,
                               R"(

@@ -4,15 +4,19 @@
 
 const { addon: ov } = require('../..');
 const assert = require('assert');
-const { describe, it, beforeEach } = require('node:test');
+const { describe, it, before, beforeEach } = require('node:test');
+const { testModels, isModelAvailable, getModelPath } = require('./utils.js');
 
 describe('ov.Core tests', () => {
-
   let core = null;
+  before(async () => {
+    await isModelAvailable(testModels.testModelFP32);
+  });
+ 
   beforeEach(() => {
     core = new ov.Core();
   });
-
+  
   it('Core.setProperty()', () => {
     const tmpDir = '/tmp';
 
@@ -71,5 +75,34 @@ describe('ov.Core tests', () => {
       () => core.addExtension(notExistsExt),
       /Cannot load library 'not_exists'/
     );
+  });
+
+  it('Core.queryModel() with empty parameters should throw an error', () => {
+    assert.throws(
+      () => core.queryModel().then(),
+      /'queryModel' method called with incorrect parameters./
+    )
+  });
+
+  it('Core.queryModel() with less arguments should throw an error', () => {
+    assert.throws(
+      () => core.queryModel("Unexpected Argument").then(),
+      /'queryModel' method called with incorrect parameters./
+    )
+  });
+
+  it('Core.queryModel() with incorrect arguments should throw an error', () => {
+    const model = core.readModelSync(getModelPath().xml);
+    assert.throws(
+      () => core.queryModel(model, "arg1", "arg2").then(),
+      /'queryModel' method called with incorrect parameters./
+    )
+  });
+
+  it('Core.queryModel() should have device in the result values', () => {
+    const model = core.readModelSync(getModelPath().xml);
+    const device = 'CPU';
+    const query_model = core.queryModel(model, device);
+    assert(Object.values(query_model).includes(device));
   });
 });

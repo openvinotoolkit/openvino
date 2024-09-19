@@ -452,11 +452,13 @@ if(ENABLE_SNAPPY_COMPRESSION)
                 ov_add_compiler_flags(/wd4245)
                 # 'var' : conversion from 'size_t' to 'type', possible loss of data
                 ov_add_compiler_flags(/wd4267)
-            elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
+            elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
                 # we need to pass -Wextra first, then -Wno-sign-compare
                 # otherwise, snappy's CMakeLists.txt will do it for us
                 ov_add_compiler_flags(-Wextra)
                 ov_add_compiler_flags(-Wno-sign-compare)
+            elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
+                ov_add_compiler_flags(/WX-)
             endif()
 
             add_subdirectory(thirdparty/snappy EXCLUDE_FROM_ALL)

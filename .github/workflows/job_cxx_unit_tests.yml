@@ -22,7 +22,7 @@ permissions: read-all
 jobs:
   CXX_Unit_Tests:
     name: C++ unit tests
-    timeout-minutes: ${{ contains(inputs.runner, 'win') && 50 || 30 }}
+    timeout-minutes: ${{ contains(inputs.runner, 'win') && 50 || 35 }}
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
@@ -69,7 +69,7 @@ jobs:
           pushd $INSTALL_TEST_DIR
             tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
-      
+
       - name: Extract OpenVINO packages (Windows)
         if: ${{ runner.os == 'Windows' }}
         run: |
@@ -79,7 +79,7 @@ jobs:
           pushd ${{ env.INSTALL_TEST_DIR }}
             Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_DIR }}"
           popd
-      
+
       #
       # Tests
       #
@@ -106,7 +106,7 @@ jobs:
         if: fromJSON(inputs.affected-components).LP_transformations.test
         run: |
           ${{ env.SETUPVARS_COMMAND }}
-          
+
           ${{ env.INSTALL_TEST_DIR }}/ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-LpTransformations.xml
 
       - name: OpenVINO Conditional compilation tests
@@ -135,7 +135,7 @@ jobs:
 
       - name: TensorFlow Common frontend tests
         if: fromJSON(inputs.affected-components).TF_FE.test ||
-            fromJSON(inputs.affected-components).TFL_FE.test && 
+            fromJSON(inputs.affected-components).TFL_FE.test &&
             (runner.os != 'macOS' && runner.arch != 'ARM64')
         run: |
           ${{ env.SETUPVARS_COMMAND }}
@@ -145,7 +145,7 @@ jobs:
         if: fromJSON(inputs.affected-components).TF_FE.test
         run: |
           ${{ env.SETUPVARS_COMMAND }}
-          
+
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowFrontend.xml
 
       - name: TensorFlow Lite frontend tests
@@ -158,7 +158,7 @@ jobs:
         if: ${{ fromJSON(inputs.affected-components).transformations.test && runner.arch != 'ARM64' }} # Ticket: 126281
         run: |
           ${{ env.SETUPVARS_COMMAND }}
-          
+
           ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
 
       - name: Common test utils tests

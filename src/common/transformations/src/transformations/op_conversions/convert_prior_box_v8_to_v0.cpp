@@ -15,7 +15,7 @@ ov::pass::ConvertPriorBox8To0::ConvertPriorBox8To0() {
     auto prior_box_v8 = pattern::wrap_type<ov::op::v8::PriorBox>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto prior_box_v8_node = std::dynamic_pointer_cast<ov::op::v8::PriorBox>(m.get_match_root());
+        auto prior_box_v8_node = ov::as_type_ptr<ov::op::v8::PriorBox>(m.get_match_root());
         if (!prior_box_v8_node)
             return false;
 

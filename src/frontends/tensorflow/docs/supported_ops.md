@@ -1130,7 +1130,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | SparseReduceSumSparse                                   | NO                            |                               |
 | SparseReorder                                           | NO                            |                               |
 | SparseReshape                                           | YES                           |                               |
-| SparseSegmentMean                                       | NO                            |                               |
+| SparseSegmentMean                                       | YES                           |                               |
 | SparseSegmentMeanGrad                                   | NO                            |                               |
 | SparseSegmentMeanGradV2                                 | NO                            |                               |
 | SparseSegmentMeanWithNumSegments                        | NO                            |                               |
