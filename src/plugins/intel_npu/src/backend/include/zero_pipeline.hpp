@@ -22,6 +22,7 @@ struct Pipeline {
 public:
     Pipeline(const Config& config,
              const ZeroExecutor& executor,
+             const ZeroInitStructsHolder& initStructs,
              zeroProfiling::ProfilingPool& profiling_pool,
              zeroProfiling::ProfilingQuery& profiling_query,
              std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,

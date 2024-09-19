@@ -17,6 +17,7 @@ namespace intel_npu {
 
 Pipeline::Pipeline(const Config& config,
                    const ZeroExecutor& executor,
+                   const ZeroInitStructsHolder& initStructs,
                    zeroProfiling::ProfilingPool& profiling_pool,
                    zeroProfiling::ProfilingQuery& profiling_query,
                    std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
@@ -25,8 +26,8 @@ Pipeline::Pipeline(const Config& config,
                    const size_t numberOfCommandLists)
     : _config(config),
       _command_queue(*executor.getCommandQueue()),
-      _event_pool{executor.getInitStructs()->getDevice(),
-                  executor.getInitStructs()->getContext(),
+      _event_pool{initStructs.getDevice(),
+                  initStructs.getContext(),
                   numberOfCommandLists ? static_cast<uint32_t>(numberOfCommandLists) : 1,
                   _config},
       _npu_profiling(std::move(npu_profiling)),
@@ -44,12 +45,12 @@ Pipeline::Pipeline(const Config& config,
     _logger.debug("IntegratedPipeline - emplace_back _event_pool and _command_queue");
     for (size_t i = 0; i < numberOfCommandLists; i++) {
         _command_lists.emplace_back(
-            std::make_unique<CommandList>(executor.getInitStructs()->getDevice(),
-                                          executor.getInitStructs()->getContext(),
-                                          executor.getInitStructs()->getGraphDdiTable(),
+            std::make_unique<CommandList>(initStructs.getDevice(),
+                                          initStructs.getContext(),
+                                          initStructs.getGraphDdiTable(),
                                           _config,
                                           executor.get_group_ordinal(),
-                                          executor.getInitStructs()->getMutableCommandListVersion() ? true : false));
+                                          initStructs.getMutableCommandListVersion() ? true : false));
         _events.emplace_back(std::make_unique<Event>(_event_pool.handle(), static_cast<uint32_t>(i), _config));
         _fences.emplace_back(std::make_unique<Fence>(_command_queue, _config));
     }

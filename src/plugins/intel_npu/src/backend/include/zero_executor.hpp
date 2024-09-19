@@ -42,9 +42,6 @@ public:
     inline ze_graph_handle_t graph() const {
         return _graph;
     }
-    inline std::shared_ptr<const ZeroInitStructsHolder> getInitStructs() const {
-        return _initStructs;
-    }
     inline const std::shared_ptr<CommandQueue>& getCommandQueue() const {
         return _command_queues;
     }

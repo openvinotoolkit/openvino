@@ -152,8 +152,8 @@ ZeroInferRequest::ZeroInferRequest(std::shared_ptr<ZeroInitStructsHolder> initSt
       _levelZeroOutputTensors(_metadata.outputs.size(), nullptr),
       _inputTensorsData(_metadata.inputs.size(), std::nullopt),
       _outputTensorsData(_metadata.outputs.size(), std::nullopt),
-      _profilingPool(_executor.graph(), zeroProfiling::POOL_SIZE, _executor.getInitStructs()->getProfilingDdiTable()),
-      _profilingQuery(0, _executor.getInitStructs()->getDevice(), _executor.getInitStructs()->getProfilingDdiTable()) {
+      _profilingPool(_executor.graph(), zeroProfiling::POOL_SIZE, _initStructs->getProfilingDdiTable()),
+      _profilingQuery(0, _initStructs->getDevice(), _initStructs->getProfilingDdiTable()) {
     _logger.debug("ZeroInferRequest::ZeroInferRequest - SyncInferRequest");
     const std::vector<ZeroExecutor::ArgumentDescriptor>& executorInputDescriptors = _executor.get_input_descriptors();
     const std::vector<ZeroExecutor::ArgumentDescriptor>& executorOutputDescriptors = _executor.get_output_descriptors();
@@ -161,14 +161,13 @@ ZeroInferRequest::ZeroInferRequest(std::shared_ptr<ZeroInitStructsHolder> initSt
     auto proftype = config.get<PROFILING_TYPE>();
     if (proftype == ov::intel_npu::ProfilingType::INFER) {
         _logger.debug("ZeroInferRequest::ZeroInferRequest - profiling type == ov::intel_npu::ProfilingType::INFER");
-        _npuProfiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_executor.getInitStructs()->getContext(),
-                                                                           _executor.getInitStructs()->getDevice(),
+        _npuProfiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_initStructs->getContext(),
+                                                                           _initStructs->getDevice(),
                                                                            _config.get<LOG_LEVEL>());
     }
 
     _properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    zeroUtils::throwOnFail("zeDeviceGetProperties",
-                           zeDeviceGetProperties(_executor.getInitStructs()->getDevice(), &_properties));
+    zeroUtils::throwOnFail("zeDeviceGetProperties", zeDeviceGetProperties(_initStructs->getDevice(), &_properties));
 
     _outputAllocator = std::make_shared<const zeroMemory::HostMemAllocator>(_initStructs);
     _inputAllocator =
@@ -256,6 +255,7 @@ void ZeroInferRequest::create_pipeline() {
 
     _pipeline = std::make_unique<Pipeline>(_config,
                                            _executor,
+                                           *_initStructs,
                                            _profilingPool,
                                            _profilingQuery,
                                            _npuProfiling,
