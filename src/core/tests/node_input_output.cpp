@@ -10,12 +10,7 @@
 #include <vector>
 
 #include "openvino/op/add.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/variadic_split.hpp"
-#include "openvino/op/topk.hpp"
 
 using namespace ov;
 using namespace std;
