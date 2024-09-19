@@ -53,8 +53,9 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
                                      const PostOps &postOps) {
     DEBUG_LOG("ACLFullyConnectedExecutor: prepack weights");
     const auto& wgtDims = memory.at(ARG_WEI)->getStaticDims();
-    const auto N = wgtDims[0];
-    const auto K = wgtDims[1];
+    const auto N = std::accumulate(wgtDims.begin(), wgtDims.end() - 1, Dim{1}, std::multiplies<Dim>());
+    const auto K = wgtDims.back();
+    const VectorDims wgtDims2D = {N, K};
 
     auto create = [&]() {
         MemoryPtr final_ptr = memory.at(ARG_WEI);
@@ -91,9 +92,9 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
                 memoryArgs[ARG_WEI]   = final_ptr;
                 if (memory.at(ARG_SRC_0)->getShape().isDynamic()) {
                     const auto& inShape = memory.at(ARG_SRC_0)->getShape();
-                    const auto& wShape = final_ptr->getShape();
-                    const auto& inDymmyDims = makeDummyInputDims(inShape, wShape);
-                    const auto& outDymmyDims = makeDummyOutputDims(inDymmyDims, wShape.getStaticDims(), memory.at(ARG_DST)->getShape().getRank());
+                    const Shape wShape2D{wgtDims2D};
+                    const auto& inDymmyDims = makeDummyInputDims(inShape, wShape2D);
+                    const auto& outDymmyDims = makeDummyOutputDims(inDymmyDims, wShape2D.getStaticDims(), memory.at(ARG_DST)->getShape().getRank());
                     memoryArgs[ARG_SRC_0] = std::make_shared<Memory>(context->getEngine(),
                                                                      memory.at(ARG_SRC_0)->getDescPtr()->cloneWithNewDims(inDymmyDims));
                     memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(),
@@ -121,11 +122,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
         }
         // Transpose weights
         if (!aclfcAttrs.weightsNonTransposed) {
-            auto reverse_weights_dims = memory.at(ARG_WEI)->getStaticDims();
-            if (reverse_weights_dims.size() == 3) {
-                reverse_weights_dims = VectorDims(
-                        {reverse_weights_dims[0] * reverse_weights_dims[1], reverse_weights_dims[2]});
-            }
+            auto reverse_weights_dims = wgtDims2D;
             std::reverse(reverse_weights_dims.begin(), reverse_weights_dims.end());
             MemoryArgs memoryArgs;
             memoryArgs[ARG_SRC_0] = final_ptr;
@@ -215,8 +212,8 @@ bool ACLFullyConnectedExecutor::supports(const FCConfig &config) {
 static void updateFCTensorsShapes(ACLShapes& aclMemoryShapes) {
     if (aclMemoryShapes[ACLArgs::ACL_WEI].num_dimensions() == 3U) {
         aclMemoryShapes[ACLArgs::ACL_WEI] = arm_compute::TensorShape(
-                {aclMemoryShapes[ACLArgs::ACL_WEI][0] * aclMemoryShapes[ACLArgs::ACL_WEI][1],
-                 aclMemoryShapes[ACLArgs::ACL_WEI][2]});
+                {aclMemoryShapes[ACLArgs::ACL_WEI][0],
+                 aclMemoryShapes[ACLArgs::ACL_WEI][1] * aclMemoryShapes[ACLArgs::ACL_WEI][2]});
     }
 
     if (one_of(aclMemoryShapes[ACLArgs::ACL_SRC_0].num_dimensions(), 3U, 4U)) {

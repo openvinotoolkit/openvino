@@ -158,7 +158,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const ConvAttrs& attrs,
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(dstDesc->getPrecision());
 
     DnnlPostOpsComposer
-        dnnlpoc(postOps, context->getEngine(), dims, 1, isINT8, 1 << 0, {}, attrs.withBias, outputDataType);
+        dnnlpoc(postOps, context->getEngine(), dims, 1, isINT8, 1 << 0, weiDesc->getShape().getRank() == 3, memory, outputDataType);
 
     return dnnlpoc.compose();
 }

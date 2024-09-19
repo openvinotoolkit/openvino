@@ -5,6 +5,7 @@
 #include "node.h"
 #include "cpu_types.h"
 #include "edge.h"
+#include "openvino/core/type/element_type.hpp"
 #include "partitioned_mem_mgr.h"
 
 #include <memory>
@@ -1555,7 +1556,7 @@ bool Node::isInputTensorAtPortEmpty(size_t port) const {
     auto edge = getParentEdgeAt(port);
     if (one_of(edge->getStatus(), Edge::Status::Allocated, Edge::Status::Validated)) {
         auto&& mem = edge->getMemory();
-        if (mem.isDefined()) {
+        if (mem.isDefined() && !mem.getDesc().empty()) {
             return mem.getShape().hasZeroDims();
         }
     }

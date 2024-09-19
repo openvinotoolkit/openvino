@@ -11,11 +11,12 @@
 
 #include <openvino/core/model.hpp>
 #include <openvino/opsets/opset1.hpp>
-#include <transformations/cpu_opset/common/op/fully_connected.hpp>
+#include "ov_ops/fully_connected.hpp"
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "ov_ops/placeholder.hpp"
 
 using namespace testing;
 using namespace ov::intel_cpu;
@@ -115,7 +116,8 @@ public:
             auto transpose_const = ov::opset1::Constant::create(ov::element::i32, {2}, {1, 0});
             weights_path = std::make_shared<ov::opset1::Transpose>(weights_path, transpose_const);
         }
-        auto fully_connected = std::make_shared<FullyConnectedNode>(data, weights_path, ov::Rank(3));
+
+        auto fully_connected = std::make_shared<ov::op::internal::FullyConnected>(data, weights_path, std::make_shared<ov::op::internal::Placeholder>());
         return std::make_shared<ov::Model>(ov::NodeVector{fully_connected}, ov::ParameterVector{data});
     }
 

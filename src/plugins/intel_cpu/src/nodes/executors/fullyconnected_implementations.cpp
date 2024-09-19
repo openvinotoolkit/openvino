@@ -439,8 +439,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         const ExecutorContext::CPtr context,
                         std::shared_ptr<DnnlShapeAgnosticData> shareAgnosticData) const {
                         MatMulAttrs matMulAttrs{false,
-                                                false,
-                                                attrs.dequantizationScales};
+                                                false};
                         auto primitive =
                             DefaultInstantiator<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData>{}(
                             memory,
