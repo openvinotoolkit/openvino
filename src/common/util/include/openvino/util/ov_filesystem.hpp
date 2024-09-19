@@ -6,30 +6,30 @@
 
 #if !(defined(_MSC_VER) && __cplusplus == 199711L)
 #    if __cplusplus >= 201103L
-#       define CPP_VER_11
-#       if __cplusplus >= 201402L
-#           define CPP_VER_14
-#           if __cplusplus >= 201703L
-#               define CPP_VER_17
-#               if __cplusplus >= 202002L
-#                   define CPP_VER_20
-#               endif
-#           endif
-#       endif
+#        define CPP_VER_11
+#        if __cplusplus >= 201402L
+#            define CPP_VER_14
+#            if __cplusplus >= 201703L
+#                define CPP_VER_17
+#                if __cplusplus >= 202002L
+#                    define CPP_VER_20
+#                endif
+#            endif
+#        endif
 #    endif
 #elif defined(_MSC_VER) && __cplusplus == 199711L
-#   if _MSVC_LANG >= 201103L
-#       define CPP_VER_11
-#       if _MSVC_LANG >= 201402L
-#           define CPP_VER_14
-#           if _MSVC_LANG > 201402L
-#               define CPP_VER_17
-#               if _MSVC_LANG >= 202002L
-#                   define CPP_VER_20
-#               endif
-#           endif
-#       endif
-#   endif
+#    if _MSVC_LANG >= 201103L
+#        define CPP_VER_11
+#        if _MSVC_LANG >= 201402L
+#            define CPP_VER_14
+#            if _MSVC_LANG > 201402L
+#                define CPP_VER_17
+#                if _MSVC_LANG >= 202002L
+#                    define CPP_VER_20
+#                endif
+#            endif
+#        endif
+#    endif
 #endif
 
 #ifdef __has_include
@@ -49,9 +49,9 @@
 #if !defined(HAS_FILESYSTEM) && !defined(HAS_EXP_FILESYSTEM)
 #    error "Neither #include <filesystem> nor #include <experimental/filesystem> is available."
 #elif defined(HAS_FILESYSTEM)
-#include <filesystem>
+#    include <filesystem>
 namespace std_fs = std::filesystem;
 #elif defined(HAS_EXP_FILESYSTEM)
-#include <experimental/filesystem>
+#    include <experimental/filesystem>
 namespace std_fs = std::experimental::filesystem;
 #endif
