@@ -19,7 +19,7 @@
 #include "openvino/pass/manager.hpp"
 
 namespace {
-// Validate scenario where a single Constant has multiple users (like one constant is used for Convolution, ConvolutionBackpropData, Multiply, etc.)
+// validate the batch axis padding for sdpa_micro kernel.
 class SDPA : virtual public ov::test::SubgraphBaseStaticTest {
 protected:
     void SetUp() override {
