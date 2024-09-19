@@ -932,6 +932,7 @@ struct MHAHelper {
                 if (_sliding_window) {
                     size_t start_idx = 0;
                     auto new_causal = ncausal;
+                    float* alibi_lookup = nullptr;
                     if (ncausal > _sliding_window) {
                         start_idx = ncausal - static_cast<size_t>(_sliding_window);
                         new_causal = _sliding_window;
@@ -939,7 +940,7 @@ struct MHAHelper {
                     attn_softmax_kernel<float>(score + start_idx,
                                                reinterpret_cast<DATA_TYPE*>(score) + start_idx,
                                                _d_scale,
-                                               nullptr,
+                                               alibi_lookup,
                                                nullptr,
                                                nullptr,
                                                false,
@@ -1157,18 +1158,18 @@ struct MHAHelper {
                 alibi_slope = alibi_slopes.ptr<float>()[h];
                 alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
             }
-            attn_softmax_kernel(_weight_bhl.ptr<float>(b, h, pq),
-                                _weight_bhl.ptr<float>(b, h, pq),
-                                _d_scale,
-                                alibi_lookup,
-                                nullptr,
-                                nullptr,
-                                false,
-                                ncausal,
-                                cur_kv_len,
-                                ov::element::f32,
-                                ov::element::f32,
-                                alibi_slope);
+            attn_softmax_kernel<float>(_weight_bhl.ptr<float>(b, h, pq),
+                                       _weight_bhl.ptr<float>(b, h, pq),
+                                       _d_scale,
+                                       alibi_lookup,
+                                       nullptr,
+                                       nullptr,
+                                       false,
+                                       ncausal,
+                                       cur_kv_len,
+                                       ov::element::f32,
+                                       ov::element::f32,
+                                       alibi_slope);
         });
 
         if (output_score) {

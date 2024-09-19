@@ -111,7 +111,7 @@ bool with_cpu_x86_avx512_core_amx() {
 }
 
 
-#else
+#else // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 bool with_cpu_x86_sse42() {
     return false;
