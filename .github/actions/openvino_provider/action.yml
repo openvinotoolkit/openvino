@@ -168,12 +168,15 @@ runs:
         else
           ov_package_url=$(curl -s ${{ inputs.nightly_package_source }} | jq -r '.${{ inputs.platform }}')
         fi
-        cd ${{ inputs.install_dir || env.GITHUB_WORKSPACE }} 
+        cd ${{ inputs.install_dir || env.GITHUB_WORKSPACE }}
         package_basename=$(basename $ov_package_url)
         wget $ov_package_url --progress=bar:force:noscroll -O $package_basename
         package_folder=${package_basename%.*}
         [[ "$package_basename" == *.zip ]] && unzip "$package_basename" || tar -xvf "$package_basename"
-        rm $package_basename && mv package_folder/* . && rm -rf $package_folder
+        rm $package_basename
+        if [ ${{ inputs.install_dir }} ]; then
+          mv $package_folder/* . && rm -rf $package_folder
+        fi
         ov_artifact_name=$([ ${{ inputs.ov_artifact_name }} ] && echo ${{ inputs.ov_artifact_name }} || echo $package_folder)
         echo "ov_artifact_name=$ov_artifact_name" >> $GITHUB_OUTPUT
         echo "ov_package_path=$package_folder" >> $GITHUB_OUTPUT
