@@ -179,13 +179,13 @@ protected:
         static std::unordered_set<size_t> find_unsqueezed_params(
             const ov::snippets::lowered::LinearIRCPtr& linear_ir,
             const std::unordered_set<snippets::lowered::ExpressionPtr>& brgemms);
-        static std::unordered_set<ov::snippets::lowered::ExpandedLoopInfoPtr> find_loops_to_split(
+        static std::vector<ov::snippets::lowered::ExpandedLoopInfoPtr> find_loops_to_split(
             const ov::snippets::lowered::LinearIRCPtr& linear_ir,
             const std::unordered_set<size_t>& unsqueezed_params);
 
         RuntimeConfigurator* configurator = nullptr;
 
-        std::unordered_set<ov::snippets::lowered::ExpandedLoopInfoPtr> loops_to_split{};
+        std::vector<ov::snippets::lowered::ExpandedLoopInfoPtr> loops_to_split{};
         std::unordered_set<size_t> unsqueezed_params{};
         std::vector<std::vector<size_t>> optimized_layouts{};
         std::vector<size_t> m_dim_idces{};
