@@ -50,10 +50,12 @@ BrgemmKernel::BrgemmKernel(size_t M,
     bool is_f16 = inType == ov::element::f16;
     if (is_f16 && !mayiuse(avx512_core_fp16))
         THROW_ERROR("brgemm f16 kernel could only be used above avx512_f16");
+
+    is_avx_f16_only = inType == ov::element::f16 && mayiuse(avx512_core_fp16) && !mayiuse(avx512_core_amx_fp16);
     // TODO: AMX_FP16
     srcType = weiType = inType;
     // f16 is supported by upconverted to f32
-    if (is_f16) {
+    if (is_avx_f16_only) {
         srcType = ov::element::f32;
         weiType = ov::element::f32;
     }
@@ -65,8 +67,8 @@ BrgemmKernel::BrgemmKernel(size_t M,
         bf16      Y      Y
         fp16      Y      N(TODO: AMX_FP16)
     */
-    bool isAMXSupported = is_bf16 && mayiuse(avx512_core_amx);
-    bool isBrgWithAMX = isAMXSupported && !is_f32;
+    bool isAMXSupported = (is_bf16 && mayiuse(avx512_core_amx)) || (is_f16 && mayiuse(avx512_core_amx_fp16));
+    bool isBrgWithAMX = isAMXSupported && !is_avx_f16_only;
 
     size_t vlen;
     if (mayiuse(avx512_core))
@@ -100,7 +102,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
                 brgemmCtx.N = N_;
                 brgemmCtx.K = K_;
                 // brgemmCtx.LDA = k ? K_blk : lda;
-                brgemmCtx.LDA = k ? K_blk : (is_f16 ? K : lda); // TODO: f16 use f32 internally
+                brgemmCtx.LDA = k ? K_blk : (is_avx_f16_only ? K : lda); // TODO: f16 use f32 internally
                 brgemmCtx.LDB = (!is_f32 || b_transposed) ? rnd_up(N, N_blk) : ldb;  // bf16/fp16/b_transposed needs copy
                 brgemmCtx.LDC = ldc;
                 brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(srcType));
@@ -119,14 +121,14 @@ BrgemmKernel::BrgemmKernel(size_t M,
 
     auto& brgemmCtx0 = brgCtxs[brg0BaseIdx];
 
-    if ((brgemmCtx0.is_with_amx && K_tail) || is_f16) {
+    if ((brgemmCtx0.is_with_amx && K_tail) || is_avx_f16_only) {
         // AMX_BF16 needs to copy tail
         // TODO: fp16 needs to copy all
         init_brgemm_copy_a(brgCopyAKernel,
                            K,
                            K_blk,
                            K_tail,
-                           is_f16 ? K : K_blk, // TODO: AMX_FP16
+                           is_avx_f16_only ? K : K_blk, // TODO: AMX_FP16
                            brgemmCtx0.dt_in0,
                            false,
                            lda * inType.size());
@@ -251,18 +253,18 @@ void BrgemmKernel::init_brgemm_copy_a(
     brgCopyKernelConf.wei_zp_type = dnnl::impl::cpu::x64::none;
     brgCopyKernelConf.src_zp_type = dnnl::impl::cpu::x64::none;
     // TODO: AMX_FP16
-    brgCopyKernelConf.src_dt = inType == ov::element::f16 ? dnnl_data_type_t::dnnl_f32 : dt_in0;
+    brgCopyKernelConf.src_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in0;
     brgCopyKernelConf.copy_A_src_stride = copy_A_src_stride;
     // TODO: AMX_FP16
     // copy_a_kernel assumes that in/out tensor has same data type except f16
     // copy_a_kernel has special path for f16: assuming input(f16) -> output(f32)
-    brgCopyKernelConf.a_dt_sz = inType == ov::element::f16 ? sizeof(ov::float16) : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
+    brgCopyKernelConf.a_dt_sz = is_avx_f16_only ? sizeof(ov::float16) : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
     // copied A has the same precision of original
     // TODO: AMX_FP16
-    brgCopyKernelConf.tr_a_dt_sz = inType == ov::element::f16 ? sizeof(float) : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
+    brgCopyKernelConf.tr_a_dt_sz = is_avx_f16_only ? sizeof(float) : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
     brgCopyKernelConf.transposed_A = transpose;
     // TODO: AMX_FP16
-    brgCopyKernelConf.isa = inType == ov::element::f16 ? avx512_core_fp16 : avx512_core_amx;
+    brgCopyKernelConf.isa = is_avx_f16_only ? avx512_core_fp16 : avx512_core_amx;
 
     create_brgemm_matmul_copy_a(brgCopyKernel, &brgCopyKernelConf);
 }
@@ -281,8 +283,8 @@ void BrgemmKernel::init_brgemm_copy_b(
     size_t copy_B_wei_stride) {
     brgemm_matmul_conf_t brgCopyKernelConf;
     // TODO: AMX_FP16
-    brgCopyKernelConf.src_dt = inType == ov::element::f16 ? dnnl_data_type_t::dnnl_f32 : dt_in0;
-    brgCopyKernelConf.wei_dt = inType == ov::element::f16 ? dnnl_data_type_t::dnnl_f32 : dt_in1;
+    brgCopyKernelConf.src_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in0;
+    brgCopyKernelConf.wei_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in1;
     brgCopyKernelConf.orig_wei_dt = dt_in1;
     brgCopyKernelConf.wei_n_blk = N_blk;
     brgCopyKernelConf.wei_tag =  transpose ? dnnl_ba : dnnl_ab;
@@ -299,14 +301,14 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgCopyKernelConf.K_tail = 0;
     brgCopyKernelConf.N_chunk_elems = brgCopyKernelConf.N_blk;
     // f16 is computed by upconverting. in(f16) -> out(f32)
-    brgCopyKernelConf.b_dt_sz = inType == ov::element::f16 ? sizeof(ov::float16) :
+    brgCopyKernelConf.b_dt_sz = is_avx_f16_only ? sizeof(ov::float16) :
         DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
-    brgCopyKernelConf.tr_b_dt_sz = inType == ov::element::f16 ?  sizeof(float) :
+    brgCopyKernelConf.tr_b_dt_sz = is_avx_f16_only ?  sizeof(float) :
         DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
     brgCopyKernelConf.req_wei_vnni_downconvert = false;
 
     if (is_with_amx) {
-        brgCopyKernelConf.isa = avx512_core_amx;
+        brgCopyKernelConf.isa = inType == ov::element::f16 ? avx512_core_amx_fp16 : avx512_core_amx;
         brgCopyKernelConf.s8s8_compensation_required = false;
     } else {
         if (inType == ov::element::f16) {
@@ -366,7 +368,7 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
         // TODO: AMX_FP16
         // bf16 only copy tailed data;
         // f16 copy all data
-        size_t K_offset = inType == ov::element::f16 ? 0 : (K < K_blk ? 0 : K0_step0 * srcType.size());
+        size_t K_offset = is_avx_f16_only ? 0 : (K < K_blk ? 0 : K0_step0 * srcType.size());
         auto pCopyKernelIn = ptr_A + K_offset;
         auto pCopyKernelOut = ptr_scartch_a;
 
@@ -394,7 +396,7 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
             auto& brgemmCtx = brgCtxs[getBrgIdx(mIdx, k, n)];
             if (brgemmCtx.K != 0 && brgemmCtx.N != 0 && brgemmCtx.M != 0) {
                 // TODO: AMX_FP16
-                auto local_a_ptr = inType == ov::element::f16 ? ptr_scartch_a : (k > 0 ? ptr_scartch_a : ptr_A);
+                auto local_a_ptr = is_avx_f16_only ? ptr_scartch_a : (k > 0 ? ptr_scartch_a : ptr_A);
                 auto B_stride = (k * count_K + n * count_N * brgVnniFactor) * weiType.size();
                 auto weight_ptr = ptr_scartch_b + B_stride;
                 auto C_stride = n * count_N * ov::element::f32.size();
