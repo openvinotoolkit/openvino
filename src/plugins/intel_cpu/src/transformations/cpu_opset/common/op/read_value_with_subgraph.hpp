@@ -12,7 +12,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class ReadValueWithSubgraphNode : public op::util::MultiSubGraphOp {
+class ReadValueWithSubgraphNode : public ov::op::util::SubGraphOp {
 public:
     OPENVINO_OP("ReadValueWithSubgraph", "cpu_plugin_opset");
 
@@ -24,9 +24,6 @@ public:
     void set_body(const std::shared_ptr<Model>& body) {
         m_bodies[0] = body;
     }
-    const std::shared_ptr<Model>& get_body() const {
-        return m_bodies[0];
-    }
 
     void set_input(const Output<Node>& value, const std::shared_ptr<op::v0::Parameter>& body_parameter);
 
@@ -37,7 +34,6 @@ public:
     void validate_and_infer_types() override;
 
 private:
-    std::shared_ptr<Model> m_subgraph;
     std::shared_ptr<op::util::Variable> m_variable;
 };
 

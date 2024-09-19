@@ -187,7 +187,7 @@ public:
 
     MemStatePtr makeState() const override;
 
-    bool haveSubgraph() {
+    bool haveSubgraph() const {
         return body != nullptr;
     }
 

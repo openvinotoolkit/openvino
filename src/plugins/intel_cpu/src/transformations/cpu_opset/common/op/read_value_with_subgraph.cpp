@@ -6,7 +6,7 @@
 #include "itt.hpp"
 #include "transformations/itt.hpp"
 
-ov::intel_cpu::ReadValueWithSubgraphNode::ReadValueWithSubgraphNode() : ov::op::util::MultiSubGraphOp(1) {}
+ov::intel_cpu::ReadValueWithSubgraphNode::ReadValueWithSubgraphNode() : ov::op::util::SubGraphOp() {}
 
 ov::intel_cpu::ReadValueWithSubgraphNode::ReadValueWithSubgraphNode(
     const std::shared_ptr<ov::op::util::Variable>& variable)
@@ -53,7 +53,7 @@ std::shared_ptr<ov::Node> ov::intel_cpu::ReadValueWithSubgraphNode::clone_with_n
                     get_friendly_name());
     op->set_arguments(new_args);
     op->set_output_size(m_output_descriptions[0].size());
-    op->set_body(get_body()->clone());
+    op->set_body(get_function()->clone());
     for (const auto& m_input_descr : m_input_descriptions[0]) {
         op->m_input_descriptions[0].push_back(m_input_descr->copy());
     }
@@ -86,7 +86,7 @@ void ov::intel_cpu::ReadValueWithSubgraphNode::validate_and_infer_types() {
                           "If contains incorrect number of body output descriptions:",
                           m_output_descriptions.size());
 
-    validate_and_infer_type_body(get_body(), m_input_descriptions[0]);
+    validate_and_infer_type_body(get_function(), m_input_descriptions[0]);
 
     auto output_nodes = outputs();
 

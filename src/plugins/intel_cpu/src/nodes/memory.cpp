@@ -591,7 +591,7 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
 }
 
 void MemoryInput::selectOptimalPrimitiveDescriptor() {
-    if (body) {
+    if (haveSubgraph()) {
         // for the input configution, just always use the parent configuration
         std::vector<PortConfig> inConfs;
         std::vector<Input::InputConfig> graphInputConfig;
@@ -632,7 +632,7 @@ void MemoryInput::selectOptimalPrimitiveDescriptor() {
 // @todo add ascii diagramm for memory mapping / reuse
 void MemoryInput::createPrimitive() {
     MemoryInputBase::createPrimitive();
-    if (body) {
+    if (haveSubgraph()) {
         OPENVINO_ASSERT(getOriginalInputsNumber() == subGraph.GetInputNodesMap().size(),
                         "Number of node inputs must be equal the number of inner graph's inputs");
 
@@ -680,7 +680,7 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
     const bool processInitGraph = needInitGraphProcessing();
 
     // Subgraph infer
-    if (body) {
+    if (haveSubgraph()) {
         if (processInitGraph) {
             subGraph.ResetInferCount();
             subGraph.Infer();
@@ -742,7 +742,7 @@ void MemoryInput::runStatic(dnnl::stream strm) {
     const auto processInitGraph = needInitGraphProcessing();
 
     // Subgraph infer
-    if (body) {
+    if (haveSubgraph()) {
         if (processInitGraph) {
             subGraph.Infer();
         }
@@ -803,7 +803,7 @@ MemStatePtr MemoryInput::makeState() const {
         state_name = state_name.substr(0, suffix_idx);
     }
 
-    if (body) {
+    if (haveSubgraph()) {
         return std::make_shared<VariableStateSingleBuffer>(state_name,
                                                            std::make_shared<Memory>(eng, mem_desc),
                                                            original_desc);
@@ -819,7 +819,7 @@ MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext
     : MemoryInputBase::MemoryInputBase(op, context) {
     auto rvWithSubgraph = ov::as_type_ptr<ov::intel_cpu::ReadValueWithSubgraphNode>(op);
     if (rvWithSubgraph) {
-        body = rvWithSubgraph->get_body();
+        body = rvWithSubgraph->get_function();
     }
 }
 
