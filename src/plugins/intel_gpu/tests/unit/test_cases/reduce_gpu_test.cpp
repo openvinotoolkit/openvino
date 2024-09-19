@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/implementation_desc.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -2230,6 +2232,13 @@ TEST(reduce_f32_fw_gpu, large_buffer) {
     layout in_l = { sz_8gb, data_types::f32, format::bfyx };
 
     auto config = get_test_default_config(*engine);
+    ov::intel_gpu::ImplementationDesc reduce_impl = {format::bfyx, "", impl_types::any};
+    if (engine->get_device_info().supports_immad) {
+        reduce_impl.impl_type = impl_types::onednn;
+    } else {
+        reduce_impl.impl_type = impl_types::ocl;
+    }
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reduce", reduce_impl}}));
     topology topology(input_layout("input", in_l),
                       reduce("reduce", input_info("input"), reduce_mode::mean, {2}, true));
     network network(*engine, topology, config);
