@@ -85,9 +85,8 @@ ZeroDevice::ZeroDevice(std::shared_ptr<ZeroInitStructsHolder> initStructs)
     log.debug("ZeroDevice::ZeroDevice - init completed");
 }
 
-std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
-    const std::shared_ptr<const NetworkDescription>& networkDescription,
-    const Config& config) {
+std::shared_ptr<IExecutor> ZeroDevice::createExecutor(const NetworkDescription& networkDescription,
+                                                      const Config& config) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Device::createExecutor");
     return std::make_shared<ZeroExecutor>(_initStructs, networkDescription, config, _group_ordinal);
 }

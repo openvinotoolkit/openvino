@@ -108,7 +108,7 @@ CompiledModel::~CompiledModel() {
     // Call compiler to destroy graphHandle only if no executor created
     if (_executorPtr == nullptr) {
         _logger.debug("~CompiledModel() - _executorPtr is a nullptr, compiler release _executorPtr");
-        _compiler->release(_networkPtr);
+        _compiler->release(*_networkPtr);
     }
 }
 
@@ -116,7 +116,7 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
 
     if (_executorPtr == nullptr && _device != nullptr) {
-        _executorPtr = _device->createExecutor(_networkPtr, _config);
+        _executorPtr = _device->createExecutor(*_networkPtr, _config);
     }
     if (_executorPtr == nullptr) {
         OPENVINO_THROW(NO_EXECUTOR_FOR_INFERENCE);
@@ -190,8 +190,8 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     OPENVINO_THROW("Unsupported property ", name);
 }
 
-const std::shared_ptr<const NetworkDescription>& CompiledModel::get_network_description() const {
-    return _networkPtr;
+const NetworkDescription& CompiledModel::get_network_description() const {
+    return *_networkPtr;
 }
 
 const Config& CompiledModel::get_config() const {
@@ -410,7 +410,7 @@ void CompiledModel::create_executor() {
         // If no device has been defined, the executor shall keep the default value of "nullptr". In this scenario,
         // only export operations will be allowed
         if (_device != nullptr) {
-            _executorPtr = _device->createExecutor(_networkPtr, _config);
+            _executorPtr = _device->createExecutor(*_networkPtr, _config);
         }
     } else {
         _logger.info("Executor will not be created inside the \"CompiledModel\" constructor");

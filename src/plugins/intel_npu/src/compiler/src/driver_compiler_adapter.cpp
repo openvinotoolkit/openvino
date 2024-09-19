@@ -110,9 +110,9 @@ std::vector<ov::ProfilingInfo> LevelZeroCompilerAdapter::process_profiling_outpu
     OPENVINO_THROW("Profiling post-processing is not implemented.");
 }
 
-void LevelZeroCompilerAdapter::release(std::shared_ptr<const NetworkDescription> networkDescription) {
+void LevelZeroCompilerAdapter::release(const NetworkDescription& networkDescription) {
     _logger.info("release - using adapter to release networkDescription");
-    apiAdapter->release(std::move(networkDescription));
+    apiAdapter->release(networkDescription);
 }
 
 CompiledNetwork LevelZeroCompilerAdapter::getCompiledNetwork(const NetworkDescription& networkDescription) {

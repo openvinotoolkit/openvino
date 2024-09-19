@@ -75,7 +75,7 @@ public:
 
     ov::Any get_property(const std::string& name) const override;
 
-    const std::shared_ptr<const NetworkDescription>& get_network_description() const override;
+    const NetworkDescription& get_network_description() const override;
 
     const Config& get_config() const override;
 

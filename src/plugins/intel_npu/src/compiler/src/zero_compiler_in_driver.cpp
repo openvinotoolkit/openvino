@@ -345,11 +345,11 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
 }
 
 template <typename TableExtension>
-void LevelZeroCompilerInDriver<TableExtension>::release(std::shared_ptr<const NetworkDescription> networkDescription) {
+void LevelZeroCompilerInDriver<TableExtension>::release(const NetworkDescription& networkDescription) {
     _logger.debug("performing release networkDescription");
-    if (networkDescription->metadata.graphHandle != nullptr) {
+    if (networkDescription.metadata.graphHandle != nullptr) {
         _logger.debug("release - graphHandle is not nullptr");
-        ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription->metadata.graphHandle);
+        ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription.metadata.graphHandle);
         _logger.debug("release - pfnDestroy graphHandle");
         auto result = _graphDdiTableExt.pfnDestroy(graphHandle);
 
@@ -434,6 +434,7 @@ CompiledNetwork LevelZeroCompilerInDriver<TableExtension>::getCompiledNetwork(
         getNativeBinary(_graphDdiTableExt, graphHandle, blob, blobPtr, blobSize);
 
         _logger.info("LevelZeroCompilerInDriver getCompiledNetwork returning blob");
+
         return CompiledNetwork(blobPtr, blobSize, std::move(blob));
     }
     _logger.info("return the blob from network description");

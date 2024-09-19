@@ -17,7 +17,7 @@ class ICompiledModel : public ov::ICompiledModel {
 public:
     using ov::ICompiledModel::ICompiledModel;
 
-    virtual const std::shared_ptr<const NetworkDescription>& get_network_description() const = 0;
+    virtual const NetworkDescription& get_network_description() const = 0;
 
     virtual const Config& get_config() const = 0;
 
@@ -25,7 +25,7 @@ public:
     virtual const ov::SoPtr<ICompiler>& get_compiler() const = 0;
 
     const NetworkMetadata& get_network_metadata() const {
-        return get_network_description()->metadata;
+        return get_network_description().metadata;
     }
 
 protected:

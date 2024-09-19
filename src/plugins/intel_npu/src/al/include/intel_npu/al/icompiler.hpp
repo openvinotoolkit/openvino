@@ -227,7 +227,7 @@ public:
                                                                     const Config& config) const = 0;
 
     // Driver compiler can use this to release graphHandle, if we do not have executor
-    virtual void release([[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription){};
+    virtual void release([[maybe_unused]] const NetworkDescription& networkDescription){};
 
     virtual CompiledNetwork getCompiledNetwork(const NetworkDescription& networkDescription) {
         return CompiledNetwork(networkDescription.compiledNetwork.data(),

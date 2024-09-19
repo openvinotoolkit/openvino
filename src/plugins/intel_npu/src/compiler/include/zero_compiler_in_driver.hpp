@@ -103,7 +103,7 @@ public:
      */
     static std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
 
-    void release(std::shared_ptr<const NetworkDescription> networkDescription) override;
+    void release(const NetworkDescription& networkDescription) override;
 
     CompiledNetwork getCompiledNetwork(const NetworkDescription& networkDescription) override;
 
