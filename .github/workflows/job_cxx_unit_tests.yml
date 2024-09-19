@@ -92,6 +92,9 @@ jobs:
       # Tests
       #
 
+      - name: Sleep
+        run: sleep 2000
+
       - name: OpenVINO Core Unit Tests
         if: fromJSON(inputs.affected-components).Core.test
         run: |
