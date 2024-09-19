@@ -123,7 +123,7 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     }
 
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =
-        _device->createInferRequest(shared_from_this(), _executorPtr, _config);
+        _device->createInferRequest(shared_from_this(), _config);
     syncInferRequest->initialize_states();
 
     return std::make_shared<AsyncInferRequest>(syncInferRequest,
@@ -200,6 +200,10 @@ const Config& CompiledModel::get_config() const {
 
 const ICompiler& CompiledModel::get_compiler() const {
     return *_compiler._ptr;
+}
+
+const IExecutor& CompiledModel::get_executor() const {
+    return *_executorPtr;
 }
 
 void CompiledModel::configure_stream_executors() {

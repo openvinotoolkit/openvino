@@ -81,6 +81,8 @@ public:
 
     const ICompiler& get_compiler() const override;
 
+    const IExecutor& get_executor() const override;
+
 private:
     void initialize_properties();
 

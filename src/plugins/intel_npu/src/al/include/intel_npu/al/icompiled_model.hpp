@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "executor.hpp"
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/icompiler.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
@@ -23,6 +24,8 @@ public:
 
     // Compiler is used for post-processing profiling data when using PERF_COUNT property
     virtual const ICompiler& get_compiler() const = 0;
+
+    virtual const IExecutor& get_executor() const = 0;
 
     const NetworkMetadata& get_network_metadata() const {
         return get_network_description().metadata;
