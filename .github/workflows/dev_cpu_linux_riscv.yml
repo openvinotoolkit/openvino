@@ -275,7 +275,7 @@ jobs:
 
           pushd $INSTALL_TEST_DIR
             tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
-            ls -la $INSTALL_DIR/tests
+            ls -la $INSTALL_DIR/install
           popd
 
 #       - name: Fetch setup_python action
