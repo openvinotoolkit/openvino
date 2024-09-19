@@ -5,6 +5,9 @@ on:
       openvinoRef:
         description: 'Branch, tag or commit hash to clone openvino from. Taken from event context if not set'
         type: string
+      openvinoContribRef:
+        description: 'Branch, tag or commit hash to clone openvino_contrib from. Taken from event context if not set'
+        type: string
   schedule:
     # run daily at 00:00
     - cron: '0 0 * * *'
@@ -19,6 +22,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
+  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Build:
@@ -58,7 +62,7 @@ jobs:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           submodules: 'true'
-          ref: 'master'
+          ref: ${{ inputs.openvinoContribRef || env.TARGET_BRANCH }}
 
       #
       # Dependencies

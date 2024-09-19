@@ -30,7 +30,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
             message(WARNING "Intel GPU plugin unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
         endif()
 
-        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
+        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
             ov_add_compiler_flags(-Wno-undef)
             ov_add_compiler_flags(-Wno-missing-declarations)
             if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)

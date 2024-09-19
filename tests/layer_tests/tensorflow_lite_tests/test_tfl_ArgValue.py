@@ -6,8 +6,8 @@ from common.utils.tflite_utils import additional_test_params
 from common.utils.tflite_utils import parametrize_tests
 
 test_ops = [
-    {'op_name': 'ARG_MAX', 'op_func': tf.math.argmax},
-    {'op_name': 'ARG_MIN', 'op_func': tf.math.argmin},
+    {'op_name': 'ARG_MAX', 'op_func': 'tf.math.argmax'},
+    {'op_name': 'ARG_MIN', 'op_func': 'tf.math.argmin'},
 ]
 
 test_params = [
@@ -31,7 +31,7 @@ class TestTFLiteArgValueLayerTest(TFLiteLayerTest):
         with tf.compat.v1.Session() as sess:
             place_holder = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
                                                     name=self.inputs[0])
-            params['op_func'](place_holder, axis=params['axis'], name=self.outputs[0])
+            eval(params['op_func'])(place_holder, axis=params['axis'], name=self.outputs[0])
             net = sess.graph_def
         return net
 

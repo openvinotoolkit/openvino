@@ -24,7 +24,7 @@ namespace pass {
 
 static std::function<bool(ov::Output<ov::Node>)> constant_value(const float target_value) {
     return [=](const ov::Output<ov::Node>& output) -> bool {
-        auto node = std::dynamic_pointer_cast<ov::op::v0::Constant>(output.get_node_shared_ptr());
+        auto node = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
         if (!node) {
             return false;
         }
@@ -94,8 +94,7 @@ RMSFusion::RMSFusion(bool force_tail_convert) {
 
         auto x_output = pattern_map.at(x);
 
-        auto const_eps_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(eps).get_node_shared_ptr());
+        auto const_eps_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(eps).get_node_shared_ptr());
         float eps_value;
         if (!ov::op::util::get_single_value(const_eps_node, eps_value)) {
             return false;
@@ -106,7 +105,7 @@ RMSFusion::RMSFusion(bool force_tail_convert) {
 
         const auto& mean_node = pattern_map.at(mean).get_node_shared_ptr();
         const auto& axes = pattern_map.at(mean_axes).get_node_shared_ptr();
-        auto axes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(axes);
+        auto axes_constant = ov::as_type_ptr<ov::op::v0::Constant>(axes);
         auto axes_val = axes_constant->cast_vector<int64_t>();
         // allow last dimension only
         if ((axes_val[0] != -1) &&
