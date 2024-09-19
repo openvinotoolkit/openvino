@@ -2291,18 +2291,24 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         std::vector<primitive_id> outer_dep_ids;
         // Add input primitives: constants are moved as is
         // Any other primitive types are replaced with input_layout
+        auto prim_of_fused_node = std::const_pointer_cast<primitive>(_impl_params->desc);
+        size_t dep_idx = 0;
         for (auto& dep : _node->get_dependencies()) {
+            cldnn::primitive_id dep_id = dep.first->id();
+
             if (dep.first->is_type<data>()) {
                 auto& data_node = dep.first->as<data>();
-                auto data_prim = *data_node.get_primitive();
+                if (dep_idx < prim_of_fused_node->dependencies().size())
+                    dep_id = prim_of_fused_node->dependencies()[dep_idx].pid;
                 // mem field of original primitive can be nullified during transfer_memory_to_device pass, thus use mem from program_node
-                data_prim.mem = data_node.get_attached_memory_ptr();
+                cldnn::data data_prim(dep_id, data_node.get_attached_memory_ptr());
                 t.add(data_prim);
             } else {
-                input_layout in_prim(dep.first->id(), dep.first->get_output_layout());
+                input_layout in_prim(dep_id, dep.first->get_output_layout());
                 t.add(in_prim);
             }
-            outer_dep_ids.push_back(dep.first->id());
+            outer_dep_ids.push_back(dep_id);
+            dep_idx += 1;
         }
 
         // Create the primitive itself
@@ -2346,7 +2352,6 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
             outer_dep_ids.push_back(prim->id);
         }
         // Samely, need to update dependency of the current fused nodes' input primitive ids with those in the current program
-        auto prim_of_fused_node = std::const_pointer_cast<primitive>(_impl_params->desc);
         for (size_t i = 0; i < prim_of_fused_node->input.size(); ++i) {
             auto& in = prim_of_fused_node->input[i];
             if (std::find_if(outer_dep_ids.begin(), outer_dep_ids.end(),
@@ -2355,10 +2360,6 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                              }) == outer_dep_ids.end()) {
                 in = _node->get_dependency(i).id();
             }
-        }
-        // need to update additional deps that are not in 'input' of fully_connected primitive
-        if (_node->is_type<fully_connected>()) {
-            fully_connected_inst::rename_deps_in_primitive(*_node, prim_of_fused_node);
         }
         ExecutionConfig subgraph_config{
             ov::intel_gpu::allow_static_input_reorder(true),

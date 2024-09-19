@@ -287,25 +287,6 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
     return primitive_description.str();
 }
 
-void fully_connected_inst::rename_deps_in_primitive(fully_connected_node const& node, std::shared_ptr<cldnn::primitive> prim) {
-    auto fc_prim = std::dynamic_pointer_cast<fully_connected>(prim);
-    size_t dep_idx = fc_prim->input.size();
-
-    fc_prim->weights = node.get_dependency(dep_idx++).id();
-
-    if (!fc_prim->bias.empty())
-        fc_prim->bias = node.get_dependency(dep_idx++).id();
-
-    if (!fc_prim->decompression_scale.empty())
-        fc_prim->decompression_scale = node.get_dependency(dep_idx++).id();
-
-    if (!fc_prim->decompression_zero_point.empty())
-        fc_prim->decompression_zero_point = node.get_dependency(dep_idx++).id();
-
-    if (fc_prim->activation_scale.is_valid())
-        fc_prim->activation_scale.pid = node.get_dependency(dep_idx++).id();
-}
-
 fully_connected_inst::typed_primitive_inst(network& network, fully_connected_node const& node)
     : parent(network, node) { }
 }  // namespace cldnn
