@@ -382,7 +382,7 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
     });
 
 
-    // Run host_side gather, if required
+    // Run host-side gather, if required
     if (comp_model_desc.host_gather.dst_idx != -1) {
         auto &dst = comp_model_desc.closure[comp_model_desc.host_gather.dst_idx - comp_model_desc.param_base];
         const auto& vocab = comp_model_desc.closure[comp_model_desc.host_gather.src_idx - comp_model_desc.param_base];

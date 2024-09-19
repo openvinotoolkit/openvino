@@ -1571,12 +1571,13 @@ void Partitioner::optimize(const std::string& func_name) {
         ov::npuw::patterns::opt::Context ctx;
         ctx.pmm_dims = cfg.get<::intel_npu::NPUW_PMM>();
 
+        // Run Gather passes
         ov::pass::GraphRewrite rewr;
         rewr.add_matcher<ov::npuw::patterns::opt::DQParMMGQ>(std::ref(ctx));
-        rewr.add_matcher<ov::npuw::patterns::opt::DQDictGatherCWu>(std::ref(ctx));
-        rewr.add_matcher<ov::npuw::patterns::opt::DQDictGatherGQi>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherCWu>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherGQi>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::HostGather>(std::ref(ctx));
-        rewr.add_matcher<ov::npuw::patterns::opt::DQDictMatMulCWu>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWu>(std::ref(ctx));
         rewr.run_on_model(f._model);
 
         // For some reason, HostGather matches only after the above rewrite is done.
@@ -1584,6 +1585,7 @@ void Partitioner::optimize(const std::string& func_name) {
         rewr2.add_matcher<ov::npuw::patterns::opt::HostGather>(std::ref(ctx));
         rewr2.run_on_model(f._model);
 
+        // Run parallel matmul merge
         mergeParallelMatMuls(f._model, ctx);
 
         ov::ParameterVector new_params;
@@ -1703,6 +1705,7 @@ void Partitioner::optimize(const std::string& func_name) {
     LOG_VERB("Optimize function " << func_name << " in model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
 
+    // Run "dynamic quantization"
     ov::npuw::patterns::opt::Context ctx;
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi>();

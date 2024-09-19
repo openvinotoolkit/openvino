@@ -1420,9 +1420,11 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
 void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor> &src,
                             const ov::SoPtr<ov::ITensor> &idx,
                             const ov::SoPtr<ov::ITensor> &dst) {
+    const auto src_type = src->get_element_type();
+    const auto dst_type = dst->get_element_type();
     NPUW_ASSERT(idx->get_element_type() == ov::element::i64);
-    NPUW_ASSERT(src->get_element_type() == ov::element::f16);
-    NPUW_ASSERT(dst->get_element_type() == ov::element::f16);
+    NPUW_ASSERT(src_type == ov::element::f16 || src_type == ov::element::f32);
+    NPUW_ASSERT(src_type == dst_type);
 
     const auto idx_shape = idx->get_shape();
     NPUW_ASSERT(idx_shape.size() == 2);
@@ -1430,20 +1432,20 @@ void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor> &src,
 
     const auto src_shape = src->get_shape();
     NPUW_ASSERT(src_shape.size() == 2);
-    
+
     const auto dst_shape = dst->get_shape();
     NPUW_ASSERT(dst_shape.size() == 3);
     NPUW_ASSERT(src_shape[1] == dst_shape[2]);
 
     const int64_t* pIdx = idx->data<int64_t>();
-    const uint16_t* pSrc = static_cast<uint16_t*>(src->data());
-    uint16_t *pDst = static_cast<uint16_t*>(dst->data());
+    const uint8_t* pSrc = static_cast<uint8_t*>(src->data());
+    uint8_t *pDst = static_cast<uint8_t*>(dst->data());
 
     for (std::size_t r = 0; r < idx_shape[1]; r++) {
         auto srcRowIdx = pIdx[r];
-        auto pSrcRow = pSrc + src_shape[1]*srcRowIdx;
-        std::copy_n(pSrcRow, src_shape[1], pDst);
-        pDst += dst_shape[2];
+        auto pSrcRow = pSrc + src_shape[1]*srcRowIdx*src_type.size();
+        std::copy_n(pSrcRow, src_shape[1]*src_type.size(), pDst);
+        pDst += dst_shape[2]*dst_type.size();
     }
 }
 

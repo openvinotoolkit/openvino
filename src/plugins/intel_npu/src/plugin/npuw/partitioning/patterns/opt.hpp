@@ -65,26 +65,6 @@ struct Context {
     using Ref = std::reference_wrapper<Context>;
 };
 
-class DQDictMatMulCWu : public ov::pass::MatcherPass {
-public:
-    DQDictMatMulCWu(Context::Ref ctx);
-};
-
-class DQDictGatherCWu : public ov::pass::MatcherPass {
-public:
-    DQDictGatherCWu(Context::Ref ctx);
-};
-
-class DQDictGatherGQi : public ov::pass::MatcherPass {
-public:
-    DQDictGatherGQi(Context::Ref ctx);
-};
-
-class HostGather : public ov::pass::MatcherPass {
-public:
-    HostGather(Context::Ref ctx);
-};
-
 class DQMatMulGQi : public ov::pass::MatcherPass {
 public:
     explicit DQMatMulGQi(Context::Ref ctx);
@@ -102,15 +82,42 @@ public:
 
 void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx);
 
-class DQGatherAsymCW : public ov::pass::MatcherPass {
+// Gather-related passes
+
+class DQLiftGatherAsymCW : public ov::pass::MatcherPass {
 public:
-    DQGatherAsymCW();
+    DQLiftGatherAsymCW();
 };
 
-class DQGatherSymGQ : public ov::pass::MatcherPass {
+class DQLiftGatherSymGQ : public ov::pass::MatcherPass {
 public:
-    DQGatherSymGQ();
+    DQLiftGatherSymGQ();
 };
+
+// Head vocab unpacks
+
+class DQUnpackDictGatherCWu : public ov::pass::MatcherPass {
+public:
+    DQUnpackDictGatherCWu(Context::Ref ctx);
+};
+
+class DQUnpackDictGatherGQi : public ov::pass::MatcherPass {
+public:
+    DQUnpackDictGatherGQi(Context::Ref ctx);
+};
+
+class HostGather : public ov::pass::MatcherPass {
+public:
+    HostGather(Context::Ref ctx);
+};
+
+// Tail vocab unpacks
+class DQUnpackDictMatMulCWu : public ov::pass::MatcherPass {
+public:
+    DQUnpackDictMatMulCWu(Context::Ref ctx);
+};
+
+
 
 }  // namespace opt
 }  // namespace patterns
