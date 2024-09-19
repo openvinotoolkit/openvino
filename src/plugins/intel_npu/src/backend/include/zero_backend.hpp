@@ -23,12 +23,17 @@ public:
     }
     const std::vector<std::string> getDeviceNames() const override;
     uint32_t getDriverVersion() const override;
-    uint32_t getDriverExtVersion() const override;
+    uint32_t getGraphExtVersion() const override;
 
     bool isBatchingSupported() const override;
-    bool isWorkloadTypeSupported() const override;
+    bool isCommandQueueExtSupported() const override;
 
     void* getContext() const override;
+    void* getDriverHandle() const;
+    void* getDeviceHandle() const;
+    ze_graph_dditable_ext_curr_t& getGraphDdiTable() const;
+
+    void updateInfo(const Config& config) override;
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _instance;

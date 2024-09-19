@@ -90,8 +90,7 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding) {
                                   {2, 2},  /*pad_above*/
                                   {2, 2},  /*pad_below*/
                                   false,
-                                  ov::op::PadType::EXPLICIT,
-                                  padding{{0, 0, 0, 0}, 0}),
+                                  ov::op::PadType::EXPLICIT),
                       reorder("output", input_info("conv"), format::bfyx, data_types::f32)); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -104,7 +103,7 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding) {
     auto outputs_2 = network.execute();
     auto output_mem_2 = outputs_2.begin()->second.get_memory();
     cldnn::mem_lock<float> output_mem_2_ptr(output_mem_2, get_test_stream());
-    for (size_t i = 0; i < output_mem_2->get_layout().get_buffer_size().count(); ++i) {
+    for (size_t i = 0; i < output_mem_2->get_layout().get_linear_size(); ++i) {
         ASSERT_EQ(output_mem_2_ptr[i], ref_output_2[i]);
     }
     // check padding of second run of reorder
@@ -339,8 +338,7 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding_reorder) {
                                   {2, 2},  /*pad_above*/
                                   {2, 2},  /*pad_below*/
                                   false,
-                                  ov::op::PadType::EXPLICIT,
-                                  padding{{0, 0, 0, 0}, 0}),
+                                  ov::op::PadType::EXPLICIT),
                       reorder("output", input_info("conv"), format::bfyx, data_types::f32)); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);

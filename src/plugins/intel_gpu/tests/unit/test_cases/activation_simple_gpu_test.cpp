@@ -673,7 +673,7 @@ TEST(activation_f32_fw_gpu, relu_basic_yxfb) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        activation("relu", input_info("input"), activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
+        activation("relu", input_info("input"), activation_func::relu_negative_slope, { 0.5f, 0.f }));
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -749,7 +749,7 @@ TEST(activation_f32_fw_gpu, relu_basic_bfzyx) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        activation("relu", input_info("input"), activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0, 0 }, 0 }));
+        activation("relu", input_info("input"), activation_func::relu_negative_slope, { 0.5f, 0.f }));
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1160,7 +1160,7 @@ TEST(activation_f32_fw_gpu, relu_basic_acosh_yxfb) {
     topology topology(
             input_layout("input", input->get_layout()),
             reorder("reorder", input_info("input"), input->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })),
-            activation("relu", input_info("reorder"), activation_func::acosh, {0.5f, 0.f}, padding{ { 0, 0, 0, 0 }, 0 }));
+            activation("relu", input_info("reorder"), activation_func::acosh, {0.5f, 0.f}));
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1226,7 +1226,7 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_yxfb) {
     topology topology(
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), input->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })),
-        activation("relu", input_info("reorder"), activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
+        activation("relu", input_info("reorder"), activation_func::relu_negative_slope, { 0.5f, 0.f }));
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1313,7 +1313,7 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_bfzyx) {
     topology topology(
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), input->get_layout().with_padding(padding{ { 0, 0, 2, 1, 0 }, 0 })),
-        activation("relu", input_info("reorder"), activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0, 0 }, 0 }));
+        activation("relu", input_info("reorder"), activation_func::relu_negative_slope, { 0.5f, 0.f }));
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1384,9 +1384,10 @@ TEST(activation_f32_fw_gpu, relu_basic_output_padding_yxfb) {
         0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
 
-    topology topology(
-        input_layout("input", input->get_layout()),
-        activation("relu", input_info("input"), activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 3, 3 }, 0 }));
+    auto act = activation("relu", input_info("input"), activation_func::relu_negative_slope, { 0.5f, 0.f });
+    act.output_paddings = {padding{ { 0, 0, 3, 3 }, 0 } };
+    topology topology(input_layout("input", input->get_layout()),
+                      act);
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1395,13 +1396,13 @@ TEST(activation_f32_fw_gpu, relu_basic_output_padding_yxfb) {
 
     auto output_memory = outputs.at("relu").get_memory();
     auto output_layout = output_memory->get_layout();
-    auto output_size = output_layout.get_buffer_size();
+    auto output_size = output_layout.get_padded_dims();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_size.spatial[1];
-    int x_size = output_size.spatial[0];
-    int f_size = output_size.feature[0];
-    int b_size = output_size.batch[0];
+    int y_size = output_size[2 + 0];
+    int x_size = output_size[2 + 1];
+    int f_size = output_size[1];
+    int b_size = output_size[0];
     ASSERT_EQ(output_layout.format, format::yxfb);
     ASSERT_EQ(y_size, 10);
     ASSERT_EQ(x_size, 11);
@@ -1777,17 +1778,17 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
         auto l = mem->get_layout();
-        size_t b = l.batch();
-        size_t f = l.feature();
-        size_t x = l.spatial(0);
-        size_t y = l.spatial(1);
+        auto b = l.batch();
+        auto f = l.feature();
+        auto x = l.spatial(0);
+        auto y = l.spatial(1);
 
         auto data = rg.generate_random_4d<T>(b, f, y, x, min, max, k);
         mem_lock<T> ptr{mem, get_test_stream()};
-        for (size_t bi = 0; bi < b; ++bi) {
-            for (size_t fi = 0; fi < f; ++fi) {
-                for (size_t yi = 0; yi < y; ++yi) {
-                    for (size_t xi = 0; xi < x; ++xi) {
+        for (auto bi = 0; bi < b; ++bi) {
+            for (auto fi = 0; fi < f; ++fi) {
+                for (auto yi = 0; yi < y; ++yi) {
+                    for (auto xi = 0; xi < x; ++xi) {
                         auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
                         auto offset = mem->get_layout().get_linear_offset(coords);
                         ptr[offset] = data[bi][fi][yi][xi];
@@ -1821,23 +1822,23 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
     void compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = out_opt->get_layout();
-        size_t b = output_lay.batch();
-        size_t f = output_lay.feature();
-        size_t x = output_lay.spatial(0);
-        size_t y = output_lay.spatial(1);
+        auto b = output_lay.batch();
+        auto f = output_lay.feature();
+        auto x = output_lay.spatial(0);
+        auto y = output_lay.spatial(1);
         cldnn::mem_lock<T> ref_ptr(out_ref, get_test_stream());
         cldnn::mem_lock<T> opt_ptr(out_opt, get_test_stream());
 
         auto ref_x_pitch = get_x_pitch(output_lay);
         auto opt_x_pitch = get_x_pitch(opt_output_lay);
 
-        for (size_t bi = 0; bi < b; ++bi) {
-            for (size_t fi = 0; fi < f; ++fi) {
-                for (size_t yi = 0; yi < y; ++yi) {
+        for (auto bi = 0; bi < b; ++bi) {
+            for (auto fi = 0; fi < f; ++fi) {
+                for (auto yi = 0; yi < y; ++yi) {
                     auto ref_out_coords = tensor(batch(bi), feature(fi), spatial(0, yi, 0, 0));
                     auto ref_out_offset = output_lay.get_linear_offset(ref_out_coords);
                     auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
-                    for (size_t xi = 0; xi < x; ++xi) {
+                    for (auto xi = 0; xi < x; ++xi) {
                         auto ref_out_val = ref_ptr[ref_out_offset + xi * ref_x_pitch];
                         auto opt_out_val = opt_ptr[opt_out_offset + xi * opt_x_pitch];
                         if (ref_out_val != opt_out_val) {

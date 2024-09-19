@@ -18,7 +18,7 @@ Quantize the model using the :doc:`Post-Training Quantization <../quantizing-mod
 2. Fine-tune the Model
 ########################
 
-This step assumes applying fine-tuning to the model the same way it is done for the baseline model. For QAT, it is required to train the model for a few epochs with a small learning rate, for example, 10e-5.
+This step assumes applying fine-tuning to the model the same way it is done for the baseline model. For QAT, it is required to train the model for a few epochs with a small learning rate, for example, 1e-5.
 Quantized models perform all computations in floating-point precision during fine-tuning by modeling quantization errors in both forward and backward passes.
 
 .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py

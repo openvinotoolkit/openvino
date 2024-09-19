@@ -53,6 +53,13 @@ available at openvino.ai
 
    -  `Download and Convert Model <#download-and-convert-model>`__
 
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -73,7 +80,7 @@ useful modules.
 
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
-    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install -q --upgrade transformers "torch>=2.1" "gradio>=4.19" accelerate onnx ipywidgets "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
 

@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_Model_caching_overview}
-
 Model Caching Overview
 ======================
 
@@ -61,7 +59,8 @@ To enable model caching, the application must specify a folder to store the cach
 
 
 With this code, if the device specified by ``device_name`` supports import/export model capability,
-a cached blob is automatically created inside the ``/path/to/cache/dir`` folder.
+a cached blob (the ``.cl_cache`` and ``.blob`` file for GPU and CPU respectively) is automatically
+created inside the ``/path/to/cache/dir`` folder.
 If the device does not support the import/export capability, cache is not created and no error is thrown.
 
 Note that the first ``compile_model`` operation takes slightly longer, as the cache needs to be created -
@@ -137,3 +136,27 @@ To check in advance if a particular device supports model caching, your applicat
          :language: cpp
          :fragment: [ov:caching:part3]
 
+Set "cache_encryption_callbacks" config option to enable cache encryption
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+If model caching is enabled, the model topology can be encrypted when saving to the cache and decrypted when loading from the cache. This property can currently be set only in ``compile_model``.
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.py
+         :language: py
+         :fragment: [ov:caching:part4]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
+         :language: cpp
+         :fragment: [ov:caching:part4]
+
+.. important::
+
+   Currently, this property is supported only by the CPU plugin. For other HW plugins, setting this property will not encrypt/decrypt the model topology in cache and will not affect performance. 

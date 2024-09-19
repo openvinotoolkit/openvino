@@ -10,7 +10,6 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include <string>
 #include <exception>
 #include <algorithm>
@@ -446,8 +445,7 @@ void loop_inst::preprocess_output_memory(const int64_t num_iterations) {
                 auto memory_mapping_info = create_concat_memory_map(output_mapping, memory, num_iterations);
                 concatenated_output_mem_mappings.push_back(memory_mapping_info);
                 GPU_DEBUG_LOG << i << ") generate concat output memory mapping: " << memory_mapping_info->to_string() << std::endl;
-            }
-            GPU_DEBUG_IF(iter != concatenated_output_mem_mappings.end()) {
+            } else {
                 GPU_DEBUG_LOG << i << ") memory_mapping_info is already existed : " << (*iter)->to_string() << std::endl;
             }
         }

@@ -34,8 +34,7 @@ void canonicalization_test(cldnn::topology topology, std::string prim_name,
 
     auto prog = program::build_program(engine, topology, config, false, true);
     if (enable_fusing) {
-        layout_optimizer lo;
-        program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+        program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
     }
     program_wrapper::run_graph_compilation(*prog);
 
@@ -57,24 +56,6 @@ void canonicalization_test(cldnn::topology topology, std::string prim_name,
 
 layout create_default_layout(const ov::PartialShape& pshape) {
     return layout {pshape, data_types::f32, format::bfyx};
-}
-
-std::vector<Shapes> shape_of_shapes {
-    {{{3}}, {{3, 1, 1, 1, 1, 1, 1, 1}}, {{1, 1, 1, 1, 1, 1, 1, 1}}},
-    {{{1, 2, 3}}, {{1, 2, 3, 1, 1, 1, 1, 1}}, {{3, 1, 1, 1, 1, 1, 1, 1}}},
-    {{{1, 2, 3, 4, 5}}, {{1, 2, 3, 4, 5, 1, 1, 1}}, {{5, 1, 1, 1, 1, 1, 1, 1}}}
-};
-
-TEST(canonicalization, shape_of) {
-    for (const auto& shapes : shape_of_shapes) {
-        layout in_layout {std::get<0>(shapes)[0], data_types::f32, format::bfyx};
-
-        cldnn::topology topology;
-        topology.add(input_layout("input", in_layout));
-        topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
-
-        canonicalization_test(topology, "shape_of", std::get<1>(shapes), std::get<2>(shapes));
-    }
 }
 
 std::vector<Shapes> select_shapes {
@@ -158,7 +139,7 @@ TEST(canonicalization, fully_connected) {
         topology topology;
         topology.add(input_layout("input", input0_layout));
         topology.add(data("weights", weights_prim));
-        topology.add(fully_connected("fully_connected", input_info("input"), "weights", "", {}, input_rank, weights_rank));
+        topology.add(fully_connected("fully_connected", input_info("input"), "weights", "", input_rank, weights_rank));
 
         canonicalization_test(topology, "fully_connected", std::get<1>(shapes), std::get<2>(shapes));
     }

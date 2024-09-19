@@ -719,7 +719,9 @@ inline std::ostream& operator<<(std::ostream& os, const WorkloadType& mode) {
 inline std::istream& operator>>(std::istream& is, WorkloadType& mode) {
     std::string str;
     is >> str;
-    std::transform(str.begin(), str.end(), str.begin(), tolower);
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
+        return std::tolower(c);
+    });
     if (str == "default") {
         mode = WorkloadType::DEFAULT;
     } else if (str == "efficient") {
@@ -781,6 +783,22 @@ inline std::istream& operator>>(std::istream& is, CacheMode& mode) {
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<CacheMode, PropertyMutability::RW> cache_mode{"CACHE_MODE"};
+
+struct EncryptionCallbacks {
+    std::function<std::string(const std::string&)> encrypt;
+    std::function<std::string(const std::string&)> decrypt;
+};
+
+/**
+ * @brief Write-only property to set encryption/decryption function for saving/loading model cache.
+ * If cache_encryption_callbacks is set, the model topology will be encrypted when saving to the cache and decrypted
+ * when loading from the cache. This property is set in core.compile_model only.
+ * - First value of the struct is encryption function.
+ * - Second value of the struct is decryption function.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<EncryptionCallbacks, PropertyMutability::WO> cache_encryption_callbacks{
+    "CACHE_ENCRYPTION_CALLBACKS"};
 
 /**
  * @brief Read-only property to provide information about a range for streams on platforms where streams are supported.
@@ -940,7 +958,8 @@ struct Properties : public Property<std::map<std::string, std::map<std::string, 
     inline util::EnableIfAllStringAny<std::pair<std::string, Any>, Properties...> operator()(
         const std::string& device_name,
         Properties&&... configs) const {
-        return {name() + std::string("_") + device_name, AnyMap{std::pair<std::string, Any>{configs}...}};
+        return {name() + std::string("_") + device_name,
+                AnyMap{std::pair<std::string, Any>{std::forward<Properties>(configs)}...}};
     }
 };
 

@@ -7,8 +7,9 @@
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include <cpu/x64/brgemm/brgemm.hpp>
 #include <cpu/x64/amx_tile_configure.hpp>
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "utils.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -26,9 +27,9 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     const auto& brg0Prc = brgemm_node->get_input_element_type(0);
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
-    BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc,
-                                      brgemm_node->get_beta(), brgemm_node->is_amx(),
-                                      brgemm_node->is_with_compensations());
+    const auto brgemm_type = brgemm_node->get_type();
+    BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc, with_amx(brgemm_type), with_compensations(brgemm_type),
+                                     brgemm_utils::get_primitive_isa(brg0Prc, with_amx(brgemm_type)));
     m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr,
                                                                             compiled_kernel_cache,
                                                                             kernel_config);
@@ -40,13 +41,13 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
                               "Jit emitter is called when the shapes are unknown");
     auto get_cluster_id = [](const snippets::lowered::ExpressionPort& p) {
         // Note: NewMemoryBuffer is used as a scratchpad and can't be dynamic, so we don't need to account for them here
-        if (const auto buffer = ov::as_type_ptr<ov::snippets::op::IntermediateMemoryBuffer>(p.get_expr()->get_node()))
+        if (const auto buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(p.get_expr()))
             return buffer->get_cluster_id();
         else
             return SIZE_MAX;
     };
     m_memory_offsets = {brgemm_node->get_offset_a(), brgemm_node->get_offset_b(), brgemm_node->get_offset_c()};
-    if (brgemm_node->is_with_scratchpad())
+    if (with_scratchpad(brgemm_type))
         m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
 
     m_buffer_ids.assign(m_memory_offsets.size(), SIZE_MAX);
@@ -70,21 +71,24 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
 std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     const auto brgemm = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
     OV_CPU_JIT_EMITTER_ASSERT(brgemm, "get_supported_precisions() expects BrgemmCPU node");
-    switch (brgemm->get_type()) {
-        case BrgemmCPU::Type::Floating:
-            return {{element::f32, element::f32}};
-        case BrgemmCPU::Type::WithDataRepacking:
-            return {{element::u8, element::i8},
-                    {element::bf16, element::bf16}};
-        case BrgemmCPU::Type::WithCompensations:
-            return {{element::i8, element::i8, element::f32}};
-        case BrgemmCPU::Type::AMX:
-            return {{element::i8, element::i8, element::u8},
-                    {element::u8, element::i8, element::u8},
-                    {element::bf16, element::bf16, element::u8}};
-        default:
-            OV_CPU_JIT_EMITTER_THROW("got BrgemmCPU node with unsupported type");
+    using brgemm_utils::BRGEMM_TYPE;
+    if (brgemm->get_type() == BRGEMM_TYPE::STAND_ALONE) {
+        return {{element::f32, element::f32}};
+    } else if (brgemm->get_type() == BRGEMM_TYPE::REPACKING_ONLY) {
+        std::set<std::vector<element::Type>> supported_types = {{element::u8, element::i8},
+                                                                {element::bf16, element::bf16},
+                                                                {element::f32, element::f32}};
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
+            supported_types.insert({element::i8, element::i8});
+        return supported_types;
+    } else if (brgemm->get_type() == BRGEMM_TYPE::WITH_COMPENSATIONS) {
+        return {{element::i8, element::i8, element::f32}};
+    } else if (brgemm->get_type() == BRGEMM_TYPE::WITH_AMX) {
+        return {{element::i8, element::i8, element::u8},
+                {element::u8, element::i8, element::u8},
+                {element::bf16, element::bf16, element::u8}};
     }
+    OV_CPU_JIT_EMITTER_THROW("got BrgemmCPU node with unsupported type");
 }
 
 void jit_brgemm_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
@@ -94,14 +98,10 @@ void jit_brgemm_emitter::validate_arguments(const std::vector<size_t> &in, const
 
 void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     validate_arguments(in, out);
-    if (host_isa_ == cpu::x64::avx512_core) {
-        std::vector<size_t> mem_ptrs_idxs{in[0], in[1], out[0]};
-        if (in.size() > 2)
-            mem_ptrs_idxs.emplace_back(in[2]);
-        emit_brgemm_kernel_call(mem_ptrs_idxs, m_memory_offsets);
-    } else {
-        OV_CPU_JIT_EMITTER_THROW("requires at least avx512_core instruction set");
-    }
+    std::vector<size_t> mem_ptrs_idxs{in[0], in[1], out[0]};
+    if (in.size() > 2)
+        mem_ptrs_idxs.emplace_back(in[2]);
+    emit_brgemm_kernel_call(mem_ptrs_idxs, m_memory_offsets);
 }
 void jit_brgemm_emitter::emit_brgemm_kernel_call(const std::vector<size_t>& mem_ptrs_idxs, const std::vector<size_t>& mem_offsets) const {
     internal_call_preamble();

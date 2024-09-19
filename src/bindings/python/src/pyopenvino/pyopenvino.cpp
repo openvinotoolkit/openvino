@@ -36,6 +36,7 @@
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
+#include "pyopenvino/experimental/experimental.hpp"
 #include "pyopenvino/frontend/decoder.hpp"
 #include "pyopenvino/frontend/extension.hpp"
 #include "pyopenvino/frontend/frontend.hpp"
@@ -195,7 +196,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
             :type model: openvino.runtime.Model
             :param output_model: path to output model file
             :type output_model: Union[str, bytes, pathlib.Path]
-            :param compress_to_fp16: whether to compress floating point weights to FP16 (default: True)
+            :param compress_to_fp16: whether to compress floating point weights to FP16 (default: True). The parameter is ignored for pre-optimized models.
             :type compress_to_fp16: bool
 
             :Examples:
@@ -252,6 +253,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regmodule_graph_onnx_import(m);
 #endif
     regmodule_graph_op_util(m_op);
+    regmodule_experimental(m);
     py::module m_preprocess =
         m.def_submodule("preprocess", "Package openvino.runtime.preprocess that wraps ov::preprocess");
     regclass_graph_PrePostProcessor(m_preprocess);

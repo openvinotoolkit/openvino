@@ -1,0 +1,328 @@
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Machine on which the tests would run'
+        type: string
+        required: true
+      container:
+        description: 'JSON to be converted to the value of the "container" configuration for the job'
+        type: string
+        required: false
+        default: '{"image": null}'
+      affected-components:
+        description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
+        type: string
+        required: true
+      event-name:
+        description: 'Name of the event that triggered the workflow'
+        type: string
+        required: false
+      os:
+        description: 'OS that is used for building in the form of "ubuntu_20_04"'
+        type: string
+        required: true
+      arch:
+        description: 'Target architecture'
+        type: string
+        default: 'x86_64'
+        required: false
+      cmake-options:
+        description: 'A string of options passed to CMake'
+        type: string
+        required: true
+      build-js:
+        description: 'Whether to build OpenVINO JS Bindings'
+        type: boolean
+        required: false
+        default: false
+      build-debian-packages:
+        description: 'Whether to build Debian packages'
+        type: boolean
+        required: false
+        default: false
+      build-contrib:
+        description: 'Whether to build OpenVINO Contrib'
+        type: boolean
+        required: false
+        default: false
+      build-rpm-packages:
+        description: 'Whether to build RPM Packages'
+        type: boolean
+        required: false
+        default: false
+
+permissions: read-all
+
+env:
+  PIP_CACHE_PATH: /mount/caches/pip/linux
+  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+
+jobs:
+  Build:
+    name: Build
+    timeout-minutes: 150
+    runs-on: ${{ inputs.runner }}
+    container: ${{ fromJSON(inputs.container) }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
+      SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
+      SCCACHE_LOG: warn
+      GITHUB_WORKSPACE: /__w/openvino/openvino
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
+      OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
+      INSTALL_DIR: /__w/openvino/openvino/openvino_install
+      INSTALL_DIR_JS: /__w/openvino/openvino/openvino_install/js
+      INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
+      DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
+      BUILD_DIR: /__w/openvino/openvino/openvino_build
+      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}_Release
+      ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
+      ARTIFACTS_SHARE: "/mount/build-artifacts"
+      MANIFEST_PATH: '/__w/openvino/openvino/manifest.yml'
+      PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
+    steps:
+      - name: Clone OpenVINO
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          path: ${{ env.OPENVINO_REPO }}
+          submodules: 'true'
+
+      # Ticket: 139627
+      - name: Checkout the latest OneDNN for GPU in nightly
+        if: ${{ inputs.event-name == 'schedule' && inputs.os == 'ubuntu_20_04' }} # GPU tests are enabled only on U20
+        working-directory: ${{ env.OPENVINO_REPO }}/src/plugins/intel_gpu/thirdparty/onednn_gpu
+        run: |
+          git fetch origin
+          git checkout main
+          git rev-parse HEAD
+
+      - name: Clone OpenVINO Contrib
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          repository: 'openvinotoolkit/openvino_contrib'
+          path: ${{ env.OPENVINO_CONTRIB_REPO }}
+          submodules: 'true'
+          ref: ${{ env.TARGET_BRANCH }}
+
+      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
+        id: create_manifest
+        uses: ./openvino/.github/actions/create_manifest
+        with:
+          repos: |
+            ${{ env.OPENVINO_REPO }}
+            ${{ env.OPENVINO_CONTRIB_REPO }}
+          product_type: ${{ env.PRODUCT_TYPE }}
+          target_arch: ${{ inputs.arch }}
+          build_type: 'release'
+          save_to: ${{ env.MANIFEST_PATH }}
+
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
+      # Dependencies
+      #
+
+      - name: Install python dependencies
+        run: |
+          # For Python API: build and wheel packaging
+          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+
+          # For running ONNX frontend unit tests
+          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
+
+          # For running TensorFlow frontend unit tests
+          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow/tests/requirements.txt
+
+          # For running TensorFlow Lite frontend unit tests
+          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow_lite/tests/requirements.txt
+
+          # For running Paddle frontend unit tests
+          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
+
+      #
+      # Build
+      #
+
+      - name: CMake configure - OpenVINO
+        run: |
+          cmake \
+            ${{ inputs.cmake-options }} \
+            -S ${OPENVINO_REPO} \
+            -B ${BUILD_DIR}
+
+      - name: Clean sccache stats
+        run: ${SCCACHE_PATH} --zero-stats
+
+      - name: Cmake build - OpenVINO
+        run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+
+      - name: Show sccache stats
+        run: ${SCCACHE_PATH} --show-stats
+
+      - name: Cmake install - OpenVINO
+        run: |
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_TEST_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
+          cmake -DCMAKE_INSTALL_PREFIX=${DEVELOPER_PACKAGE_DIR} -DCOMPONENT=developer_package -P ${BUILD_DIR}/cmake_install.cmake
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DCOMPONENT=python_wheels -P ${BUILD_DIR}/cmake_install.cmake
+
+      - name: Pack Artifacts
+        run: |
+
+          # Add the ONNX Runtime version and skip tests list to the archive to use in the ONNX Runtime Job
+          # w/o the need to checkout repository
+
+          cp -R ${ONNX_RUNTIME_UTILS} ${INSTALL_DIR}
+
+          pushd ${INSTALL_DIR}
+            tar -czvf ${BUILD_DIR}/openvino_package.tar.gz *
+          popd
+
+          pushd ${DEVELOPER_PACKAGE_DIR}
+            tar -czvf ${BUILD_DIR}/openvino_developer_package.tar.gz *
+          popd
+
+          pushd ${INSTALL_TEST_DIR}
+            tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz *
+          popd
+
+      - name: Build Debian packages
+        if: ${{ inputs.build-debian-packages }}
+        run: |
+          # Ubuntu 24 does not allow using the system Python directly so 
+          # we have to use Python from the virtual environment created in Docker
+          [[ ${{ inputs.os }} == "ubuntu_24_04" ]] && python_exec=/venv/bin/python3 || python_exec=/usr/bin/python3
+          $python_exec -m pip install -U pip
+          $python_exec -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+          cmake -UPython* -U_Python* -UPYTHON* \
+                -UTBB* \
+                -DENABLE_SYSTEM_TBB=ON \
+                -DENABLE_PYTHON_PACKAGING=ON \
+                -DENABLE_TESTS=OFF \
+                -DPython3_EXECUTABLE=$python_exec \
+                -DCPACK_GENERATOR=DEB \
+                ${BUILD_DIR}
+          cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target package
+
+      - name: Cmake & Build - OpenVINO Contrib
+        if: ${{ inputs.build-contrib }}
+        run: |
+          cmake \
+            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
+            -DOPENVINO_EXTRA_MODULES="${OPENVINO_CONTRIB_REPO}/modules/java_api;${OPENVINO_CONTRIB_REPO}/modules/custom_operations" \
+            -S ${OPENVINO_REPO} \
+            -B ${BUILD_DIR}
+          cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+
+      - name: CMake configure, build and install - OpenVINO JS API
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+        run: |
+          cmake -UTBB* -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -S ${OPENVINO_REPO} -B ${BUILD_DIR}
+          cmake --build ${BUILD_DIR} --parallel
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR_JS} -P ${BUILD_DIR}/cmake_install.cmake
+
+      - name: Build RPM packages
+        if: ${{ inputs.build-rpm-packages }}
+        run: |
+          cmake -UTBB* \
+                -DCPACK_GENERATOR=RPM \
+                -DENABLE_SYSTEM_TBB=ON \
+                -DENABLE_PYTHON_PACKAGING=ON \
+                -DENABLE_TESTS=OFF \
+                ${BUILD_DIR}
+          cmake --build ${BUILD_DIR} --parallel --target package --verbose
+
+      #
+      # Upload build artifacts and logs
+      #
+      - name: Upload build logs
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        if: always()
+        with:
+          name: build_logs
+          path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'ignore'
+
+      - name: Upload openvino package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: openvino_package
+          path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+          if-no-files-found: 'error'
+
+      - name: Upload openvino js package
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: openvino_js_package
+          path: ${{ env.INSTALL_DIR_JS }}
+          if-no-files-found: 'error'
+
+      - name: Upload openvino developer package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: openvino_developer_package
+          path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
+          if-no-files-found: 'error'
+
+      - name: Upload openvino RPM packages
+        if: ${{ inputs.build-rpm-packages }}
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: openvino_rpm_packages
+          path: ${{ env.BUILD_DIR }}/*.rpm
+          if-no-files-found: 'error'
+
+      - name: Upload openvino debian packages
+        if: ${{ inputs.build-debian-packages }}
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: openvino_debian_packages
+          path: ${{ env.BUILD_DIR }}/*.deb
+          if-no-files-found: 'error'
+
+      - name: Upload openvino tests package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: openvino_tests
+          path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+          if-no-files-found: 'error'
+
+      - name: Prepare debian packages for storage on share
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          pushd ${{ env.BUILD_DIR }}
+          mkdir deb && mv *.deb deb/
+          popd
+
+      - name: Store artifacts to a shared drive
+        id: store_artifacts
+        if: ${{ always() }}
+        uses: ./openvino/.github/actions/store_artifacts
+        with:
+          artifacts: |
+            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+            ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
+            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+            ${{ env.BUILD_DIR }}/deb
+            ${{ env.MANIFEST_PATH }}
+          storage_dir: ${{ env.PRODUCT_TYPE }}
+          storage_root: ${{ env.ARTIFACTS_SHARE }}

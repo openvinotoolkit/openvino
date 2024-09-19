@@ -12,7 +12,9 @@ from openvino.runtime.utils.types import make_constant_node
 import openvino.runtime.opset1 as ov_opset1
 import openvino.runtime.opset5 as ov_opset5
 import openvino.runtime.opset10 as ov_opset10
+import openvino.runtime.opset15 as ov_opset15
 import openvino.runtime.opset11 as ov
+from openvino.runtime.op.util import VariableInfo, Variable
 
 np_types = [np.float32, np.int32]
 integral_np_types = [
@@ -884,6 +886,37 @@ def test_roi_align(data_shape, rois, batch_indices, pooled_h, pooled_w, sampling
     assert list(node.get_output_shape(0)) == expected_shape
 
 
+@pytest.mark.parametrize(
+    ("data_shape", "rois", "batch_indices", "pooled_h", "pooled_w", "sampling_ratio", "spatial_scale", "clockwise_mode", "expected_shape"),
+    [
+        ([2, 3, 5, 6], [7, 5], [7], 2, 2, 1, 1.0, True, [7, 3, 2, 2]),
+        ([10, 3, 5, 5], [7, 5], [7], 3, 4, 1, 1.0, True, [7, 3, 3, 4]),
+        ([10, 3, 5, 5], [3, 5], [3], 3, 4, 1, 1.0, False, [3, 3, 3, 4]),
+        ([10, 3, 5, 5], [3, 5], [3], 3, 4, 1, float(1), False, [3, 3, 3, 4]),
+    ],
+)
+def test_roi_align_rotated(data_shape, rois, batch_indices, pooled_h, pooled_w, sampling_ratio, spatial_scale, clockwise_mode, expected_shape):
+    data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
+    rois_parameter = ov.parameter(rois, name="Rois", dtype=np.float32)
+    batch_indices_parameter = ov.parameter(batch_indices, name="Batch_indices", dtype=np.int32)
+
+    node = ov_opset15.roi_align_rotated(
+        data_parameter,
+        rois_parameter,
+        batch_indices_parameter,
+        pooled_h,
+        pooled_w,
+        sampling_ratio,
+        spatial_scale,
+        clockwise_mode,
+    )
+
+    assert node.get_type_name() == "ROIAlignRotated"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == Type.f32
+    assert list(node.get_output_shape(0)) == expected_shape
+
+
 @pytest.mark.parametrize("op_name", ["psroipooling", "psroiPoolingOpset1"])
 def test_psroi_pooling(op_name):
     inputs = ov.parameter([1, 72, 4, 5], dtype=np.float32)
@@ -1218,6 +1251,32 @@ def test_read_value():
     assert read_value_attributes["variable_type"] == "i32"
     assert read_value_attributes["variable_id"] == "var_id_667"
     assert read_value_attributes["variable_shape"] == [2, 2]
+
+
+def test_read_value_ctors():
+    data = np.ones((1, 64), dtype=np.float32)
+    # check mixed args&kwargs creation
+    read_value = ov.read_value(data, "variable_id_1", name="read_value")
+    assert read_value.friendly_name == "read_value"
+
+    var_info = VariableInfo()
+    var_info.data_shape = PartialShape([1, 64])
+    var_info.data_type = Type.f32
+    var_info.variable_id = "v1"
+    variable_1 = Variable(var_info)
+
+    # check kwargs creation
+    read_value_1 = ov.read_value(init_value=data, ov_variable=variable_1)
+    assert list(read_value_1.get_output_shape(0)) == [1, 64]
+
+    # check args creation
+    read_value_2 = ov.read_value(variable_1)
+    assert list(read_value_2.get_output_shape(0)) == [1, 64]
+
+    with pytest.raises(TypeError) as e:
+        ov.read_value(data, "variable_id_1", 2)
+
+    assert "The necessary overload for read_value was not found" in str(e.value)
 
 
 def test_read_value_dyn_variable_pshape():

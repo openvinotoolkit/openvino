@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "compare.hpp"
 #include "itt.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -17,31 +18,26 @@
 
 namespace {
 bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
-    const auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node_out.get_node_shared_ptr());
+    const auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(node_out.get_node_shared_ptr());
+    constexpr auto has_special_value = ov::cmp::Less<int64_t>(1);
     if (!const_node) {
-        // Lower bound of the value
-        auto lb = ov::evaluate_lower_bound(node_out);
-        if (!lb)
+        // evaluate bounds
+        const auto bounds = ov::util::evaluate_both_bounds(node_out);
+        const auto& lb = std::get<0>(bounds);
+        const auto& ub = std::get<1>(bounds);
+        if (!lb || !ub) {
             return false;
-        const auto lb_const_node =
-            std::make_shared<ov::op::v0::Constant>(lb.get_element_type(), lb.get_shape(), lb.data());
+        }
+        const auto lb_const_node = std::make_shared<ov::op::v0::Constant>(lb);
         const auto& lb_values = lb_const_node->cast_vector<int64_t>();
 
         // The pattern is valid if all lower bound values are higher than zero (not a special number)
         // or if the lower and upper bounds values are a sign of full dynamism
-        const bool lb_has_special_val = std::any_of(lb_values.cbegin(), lb_values.cend(), [](int64_t value) {
-            return value < 1;
-        });
+        const bool lb_has_special_val = std::any_of(lb_values.cbegin(), lb_values.cend(), has_special_value);
         if (!lb_has_special_val)
             return true;
 
-        // Upper bound of the value
-        auto ub = ov::evaluate_upper_bound(node_out);
-        if (!ub)
-            return false;
-
-        const auto ub_const_node =
-            std::make_shared<ov::op::v0::Constant>(ub.get_element_type(), ub.get_shape(), ub.data());
+        const auto ub_const_node = std::make_shared<ov::op::v0::Constant>(ub);
         const auto& ub_values = ub_const_node->cast_vector<int64_t>();
         if (lb_values.size() != ub_values.size())
             return false;
@@ -59,9 +55,7 @@ bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
     }
     const auto& values = const_node->cast_vector<int64_t>();
     // We can not fuse Reshapes if their pattern values have special numbers like -1 and 0
-    return std::all_of(values.cbegin(), values.cend(), [](int64_t value) {
-        return value > 0;
-    });
+    return std::none_of(values.cbegin(), values.cend(), has_special_value);
 }
 }  // namespace
 
@@ -88,7 +82,7 @@ ov::pass::ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimin
 
         // vector of nodes which runtime info must be copied
         NodeVector nodes{pattern_map.at(reshape_a).get_node_shared_ptr(), reshape};
-        while (std::dynamic_pointer_cast<ov::op::v1::Reshape>(input.get_node_shared_ptr())) {
+        while (ov::as_type_ptr<ov::op::v1::Reshape>(input.get_node_shared_ptr())) {
             auto node = input.get_node_shared_ptr();
             if (!has_valid_pattern(node->get_input_node_shared_ptr(1)) || input.get_target_inputs().size() != 1) {
                 break;

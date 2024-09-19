@@ -37,20 +37,17 @@ public:
     inline ze_context_handle_t getContext() const {
         return context;
     }
-    inline ze_graph_dditable_ext_curr_t* getGraphDdiTable() const {
-        return graph_dditable_ext_decorator.get();
+    inline ze_graph_dditable_ext_curr_t& getGraphDdiTable() const {
+        return *graph_dditable_ext_decorator;
     }
-    inline ze_command_queue_npu_dditable_ext_curr_t* getCommandQueueDdiTable() const {
-        return _command_queue_npu_dditable_ext;
+    inline ze_command_queue_npu_dditable_ext_curr_t& getCommandQueueDdiTable() const {
+        return *command_queue_npu_dditable_ext_decorator;
     }
-    inline ze_graph_profiling_dditable_ext_t* getProfilingDdiTable() const {
-        return _graph_profiling_ddi_table_ext;
+    inline ze_graph_profiling_dditable_ext_curr_t& getProfilingDdiTable() const {
+        return *graph_profiling_npu_dditable_ext_decorator;
     }
     inline uint32_t getDriverVersion() const {
         return driver_properties.driverVersion;
-    }
-    inline uint32_t getDriverExtVersion() const {
-        return driver_ext_version;
     }
     inline uint32_t getMutableCommandListVersion() const {
         return mutable_command_list_version;
@@ -60,15 +57,15 @@ private:
     static const ze_driver_uuid_t uuid;
     Logger log;
 
+    ze_context_handle_t context = nullptr;
     ze_driver_handle_t driver_handle = nullptr;
     ze_device_handle_t device_handle = nullptr;
-    ze_context_handle_t context = nullptr;
+
     std::unique_ptr<ze_graph_dditable_ext_decorator> graph_dditable_ext_decorator;
-    ze_command_queue_npu_dditable_ext_curr_t* _command_queue_npu_dditable_ext = nullptr;
-    ze_graph_profiling_dditable_ext_t* _graph_profiling_ddi_table_ext = nullptr;
+    std::unique_ptr<ze_command_queue_npu_dditable_ext_decorator> command_queue_npu_dditable_ext_decorator;
+    std::unique_ptr<ze_graph_profiling_ddi_table_ext_decorator> graph_profiling_npu_dditable_ext_decorator;
 
     ze_driver_properties_t driver_properties = {};
-    uint32_t driver_ext_version = 0;
     uint32_t mutable_command_list_version = 0;
 };
 

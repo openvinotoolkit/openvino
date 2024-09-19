@@ -8,7 +8,7 @@
 #include "snippets/op/memory_access.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/op/buffer.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
@@ -17,28 +17,24 @@ namespace lowered {
 namespace pass {
 
 
-void PropagateBufferOffset::propagate(const ExpressionPtr& buffer_expr) {
+void PropagateBufferOffset::propagate(const BufferExpressionPtr& buffer_expr) {
     // If Buffer has offset We set this offset in the connected MemoryAccess ops
     // to correctly read and write data because all Buffers have the common data pointer on buffer scratchpad
 
-    const auto buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
-    OPENVINO_ASSERT(buffer, "Failed to propagate Buffer offset: PropagateBufferOffset expects Buffer op");
-    const auto offset = buffer->get_offset();
+    const auto offset = buffer_expr->get_offset();
 
     // Propagate to up: in Store. Buffer can have only one Store
-    if (ov::is_type<op::IntermediateMemoryBuffer>(buffer)) {
-        for (const auto& input : buffer_expr->get_input_port_connectors()) {
-            const auto& parent_output = input->get_source();
-            const auto& parent_expr = parent_output.get_expr();
-            const auto port = parent_output.get_index();
-            const auto& parent_node = parent_expr->get_node();
-            auto memory_access = std::dynamic_pointer_cast<modifier::MemoryAccess>(parent_node);
-            if (memory_access && memory_access->is_memory_access_output_port(port)) {
-                memory_access->set_output_offset(offset, port);
-            } else {
-                OPENVINO_THROW(
-                        "PropagateBufferOffset didn't find the connected MemoryAccess op to Buffer for offset propagation");
-            }
+    for (const auto& input : buffer_expr->get_input_port_connectors()) {
+        const auto& parent_output = input->get_source();
+        const auto& parent_expr = parent_output.get_expr();
+        const auto port = parent_output.get_index();
+        const auto& parent_node = parent_expr->get_node();
+        auto memory_access = std::dynamic_pointer_cast<modifier::MemoryAccess>(parent_node);
+        if (memory_access && memory_access->is_memory_access_output_port(port)) {
+            memory_access->set_output_offset(offset, port);
+        } else {
+            OPENVINO_THROW(
+                    "PropagateBufferOffset didn't find the connected MemoryAccess op to Buffer for offset propagation");
         }
     }
     // Propagate to down: in Load. Buffer can have several Load
@@ -65,10 +61,8 @@ void PropagateBufferOffset::propagate(const ExpressionPtr& buffer_expr) {
 bool PropagateBufferOffset::run(lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::PropagateBufferOffset");
 
-    const auto& buffer_expressions = linear_ir.get_buffers();
-    for (const auto& buffer_expr : buffer_expressions) {
+    for (const auto& buffer_expr : linear_ir.get_buffers())
         propagate(buffer_expr);
-    }
 
     return true;
 }

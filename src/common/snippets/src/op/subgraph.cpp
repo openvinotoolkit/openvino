@@ -21,7 +21,7 @@
 #include "snippets/pass/gn_decomposition.hpp"
 
 #include "snippets/runtime_configurator.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/lowered/linear_ir.hpp"
@@ -44,6 +44,7 @@
 #include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_perf_count.hpp"
 #include "snippets/lowered/pass/validate_shapes.hpp"
+#include "snippets/lowered/pass/validate_buffers.hpp"
 #include "snippets/lowered/pass/validate.hpp"
 #include "snippets/lowered/pass/pass_config.hpp"
 #include "snippets/lowered/pass/reduce_decomposition.hpp"
@@ -398,13 +399,17 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::data_flow_transformations")
 
-    ov::snippets::pass::Manager manager;
+    std::shared_ptr<ov::pass::PassConfig> pass_config = std::make_shared<ov::pass::PassConfig>();
     // If subgraph has its own specific canonicalization, which is different with common behavior, will skip the this common one.
     // for example in GN, scale and bias shape [c] are canonicalized to [1,c,1,1], not [1,1,1,c]. Common canonicalization is disabled in this case.
-    if (!blocked_input_shapes.empty() && !config.m_has_broadcast_sensitive_ops)
-        manager.register_pass<snippets::pass::Canonicalization>(blocked_input_shapes);
-    if (!input_precisions.empty() && !output_precisions.empty())
-        manager.register_pass<snippets::pass::AlignElementTypes>(input_precisions, output_precisions);
+    if (blocked_input_shapes.empty() || config.m_has_broadcast_sensitive_ops)
+        pass_config->disable<snippets::pass::Canonicalization>();
+    if (input_precisions.empty() || output_precisions.empty())
+        pass_config->disable<snippets::pass::AlignElementTypes>();
+
+    ov::snippets::pass::Manager manager(pass_config, "SnippetsDataFlowManager");
+    manager.register_pass<snippets::pass::Canonicalization>(blocked_input_shapes);
+    manager.register_pass<snippets::pass::AlignElementTypes>(input_precisions, output_precisions);
 
     if (config.m_has_domain_sensitive_ops) {
         manager.register_pass<snippets::pass::MatMulToBrgemm>();
@@ -468,11 +473,15 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.register_pass<lowered::pass::AllocateBuffers>(m_linear_ir->get_config().m_are_buffers_optimized);
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     pipeline.register_positioned_passes(lowered_backend_passes);
-    pipeline.register_pass<lowered::pass::Validate>(); // must be last
     pipeline.run(*m_linear_ir);
 
+    lowered::pass::PassPipeline validation_pipeline;
+    validation_pipeline.register_pass<lowered::pass::ValidateBuffers>();
+    validation_pipeline.register_pass<lowered::pass::Validate>();
+    validation_pipeline.run(*m_linear_ir);
+
 #ifdef SNIPPETS_DEBUG_CAPS
-    if (m_linear_ir->get_config().perf_count_mode != lowered::PerfCountMode::Disabled) {
+    if (m_linear_ir->get_config().debug_config.perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
         lowered::pass::InsertPerfCount perf_count_pass({});
         perf_count_pass.run(*m_linear_ir, m_linear_ir->cbegin(), m_linear_ir->cend());
     }
@@ -533,33 +542,28 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
     // Note: to not corrupt the lowered linear IR for the shape-dependent passes, we have to make a copy
     OPENVINO_ASSERT(m_linear_ir, "Attempt to call generate, when linear IR was not initialized");
     ov::snippets::lowered::ExpressionMap expression_map;
-    auto linear_ir = *lowered::LinearIRBuilder().clone(m_linear_ir, expression_map);
+    const auto linear_ir = lowered::LinearIRBuilder().clone(m_linear_ir, expression_map);
 
     if (is_dynamic()) {
         ov::snippets::lowered::pass::PassPipeline shape_dependent_pipeline;
         shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::SetLoadStoreScalar>();
         shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::InsertBroadcastMove>();
         shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
-        shape_dependent_pipeline.run(linear_ir);
+        shape_dependent_pipeline.run(*linear_ir);
     }
 
     auto lowering_result = m_generator->generate(linear_ir, compile_params);
-
-    // Note: Since the code emission is performed on a copy of LIR, but RuntimeConfigurator works with the initial instance,
-    //  we need to replace cloned expression pointers to original ones in the KernelExecutorTable. Ticket: 129772
-    const auto& exec_table = m_generator->get_target_machine()->get_runtime_configurator()->get_kernel_executor_table();
-    for (const auto& expr : *m_linear_ir)
-        exec_table->replace_key_expression(expression_map.at(expr.get()), expr);
-    // Some kernel executors might've been registered during code emission.
-    //  We need to update them, so appropriate kernels will be compiled.
-    exec_table->update_state();
     return {std::move(lowering_result)};
 }
 
-const std::shared_ptr<RuntimeConfig>& Subgraph::update_runtime_config() const {
+const std::shared_ptr<RuntimeConfigurator>& Subgraph::get_runtime_configurator() const {
     OPENVINO_ASSERT(m_generator, "Generator has not been inited!");
+    return m_generator->get_target_machine()->get_runtime_configurator();
+}
+
+const std::shared_ptr<RuntimeConfig>& Subgraph::update_runtime_config() const {
     OPENVINO_ASSERT(m_linear_ir, "LoweredLinearIR has not been inited!");
-    return m_generator->get_target_machine()->get_runtime_configurator()->get_updated_config(m_linear_ir);
+    return get_runtime_configurator()->get_updated_config(m_linear_ir);
 }
 
 void Subgraph::print() const {

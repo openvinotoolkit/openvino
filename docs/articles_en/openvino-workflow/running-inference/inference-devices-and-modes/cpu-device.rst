@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_supported_plugins_CPU}
-
 CPU Device
 ==========
 
@@ -55,24 +53,27 @@ the ``ov::Core::compile_model()`` method:
          :fragment: [compile_model_default]
 
 
-Supported Inference Data Types
-###########################################################
+Supported Model Precision
+#########################
 
 CPU plugin supports the following data types as inference precision of internal primitives:
 
 - Floating-point data types:
 
-  - ``f32`` (Intel® x86-64, Arm®)
-  - ``bf16`` (Intel® x86-64)
-  - ``f16`` (Intel® x86-64, Arm®)
+  - ``FP32`` (Intel® x86-64, Arm®)
+  - ``BF16`` (Intel® x86-64)
+  - ``FP16`` (Intel® x86-64, Arm®)
+  - ``:ref:`MXFP4 <mxfp4_support>``` (Intel® x86-64)
+
 - Integer data types:
 
-  - ``i32`` (Intel® x86-64, Arm®)
+  - ``INT32`` (Intel® x86-64, Arm®)
+
 - Quantized data types:
 
-  - ``u8`` (Intel® x86-64)
-  - ``i8`` (Intel® x86-64)
-  - ``u1`` (Intel® x86-64)
+  - ``uINT8`` (Intel® x86-64)
+  - ``INT8`` (Intel® x86-64)
+  - ``uINT1`` (Intel® x86-64)
 
 :doc:`Hello Query Device C++ Sample <../../../learn-openvino/openvino-samples/hello-query-device>` can be used to print out supported data types for all detected devices.
 

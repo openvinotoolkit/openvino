@@ -130,7 +130,7 @@ TEST_P(PluginCompileModelTest, PluginCompileModelBatchedModelWithRemoteContextTe
 }
 
 const std::vector<plugin_compile_model_param> plugin_compile_model_param_test = {
-    // Case 1: explict apply batch size by config of AUTO_BATCH_DEVICE_CONFIG
+    // Case 1: explicitly apply batch size by config of AUTO_BATCH_DEVICE_CONFIG
     plugin_compile_model_param{{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT},
                                 {ov::optimal_batch_size.name(), static_cast<unsigned int>(16)},
                                 {ov::hint::num_requests(12)},

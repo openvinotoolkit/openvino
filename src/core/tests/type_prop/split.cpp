@@ -216,7 +216,7 @@ TEST(type_prop, split_v1_invalid_axis_value) {
     // axis value not in the range [-2, 1]
     OV_EXPECT_THROW(const auto split = make_shared<op::v1::Split>(data, axis, num_splits),
                     ov::Exception,
-                    HasSubstr("Parameter axis -5 out of the tensor rank range"));
+                    HasSubstr("Axis -5 out of the tensor rank range"));
 }
 
 TEST(type_prop, split_v1_incompatible_data_shape_with_num_splits) {

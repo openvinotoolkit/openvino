@@ -6,6 +6,13 @@ NPU Device
                  a low-power processing device dedicated to running AI inference.
 
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   npu-device/remote-tensor-api-npu-plugin
+
+
 The Neural Processing Unit is a low-power hardware solution, introduced with the
 Intel® Core™ Ultra generation of CPUs (formerly known as Meteor Lake). It enables
 you to offload certain neural network computation tasks from other devices,
@@ -78,6 +85,9 @@ may be summarized in three stages:
 3. All subsequent requests to compile the same IR model with the same arguments
    use the pre-compiled model, reading it from the cache instead of recompiling.
 
+UMD Dynamic Model Caching can be bypassed for given model by setting boolean property
+ov::intel_npu::bypass_umd_caching (NPU_BYPASS_UMD_CACHE) to true at compilation. (default value is false)
+
 
 OpenVINO Model Caching
 +++++++++++++++++++++++++++++
@@ -126,9 +136,15 @@ offer a limited set of supported OpenVINO features.
          ov::hint::model_priority
          ov::hint::num_requests
          ov::hint::performance_mode
+         ov::hint::execution_mode
          ov::cache_dir
          ov::compilation_num_threads
          ov::enable_profiling
+         ov::workload_type
+         ov::intel_npu::compilation_mode_params
+         ov::intel_npu::turbo
+         ov::intel_npu::tiles
+         ov::intel_npu::max_tiles
 
    .. tab-item:: Read-only properties
 
@@ -140,13 +156,18 @@ offer a limited set of supported OpenVINO features.
          ov::range_for_async_infer_requests
          ov::range_for_streams
          ov::num_streams
+         ov::execution_devices
          ov::device::architecture
          ov::device::capabilities
          ov::device::full_name
          ov::device::uuid
+         ov::device::pci_info
+         ov::device::gops
+         ov::device::type
          ov::intel_npu::device_alloc_mem_size
          ov::intel_npu::device_total_mem_size
          ov::intel_npu::driver_version
+         ov::intel_npu::bypass_umd_caching
 
 
 .. note::
@@ -155,6 +176,91 @@ offer a limited set of supported OpenVINO features.
    based on the performance mode is **4 for THROUGHPUT** and **1 for LATENCY**.
    The default mode for the NPU device is LATENCY.
 
+**ov::intel_npu::compilation_mode_params**
+
+``ov::intel_npu::compilation_mode_params`` is an NPU-specific property that allows
+control of model compilation for NPU.
+
+.. note::
+
+   The functionality is in experimental stage currently, can be a subject for
+   deprecation and may be replaced with generic OV API in future OV releases.
+
+Following configuration options are supported:
+
+**optimization-level**
+
+Defines an optimization effort hint to the compiler.
+
+.. list-table::
+   :widths: 10 200
+   :header-rows: 1
+
+   * - **Value**
+     - **Description**
+   * - 0
+     - Reduced subset of optimization passes. May result in smaller compile time.
+   * - 1
+     - **Default.** Balanced performance/compile time.
+   * - 2
+     - Prioritize performance over compile time that may be an issue.
+
+**performance-hint-override**
+
+The LATENCY mode can be overridden by specifying ``ov::hint::performance_mode``
+Has no effect for other ``ov::hint::PerformanceMode`` hints.
+
+.. list-table::
+   :widths: 10 200
+   :header-rows: 1
+
+   * - **Value**
+     - **Description**
+   * - efficiency
+     - **Default.** Balanced performance and power consumption.
+   * - latency
+     - Prioritize performance over power efficiency.
+
+Usage example:
+
+.. code-block::
+
+   map<str, str> config = {ov::intel_npu::compilation_mode_params.name(), ov::Any("optimization-level=1 performance-hint-override=latency")};
+
+   compile_model(model, config);
+
+**npu_turbo**
+
+The turbo mode, where available, provides a hint to the system to maintain the
+maximum NPU frequency and memory throughput within the platform TDP limits.
+The turbo mode is not recommended for sustainable workloads due to higher power
+consumption and potential impact on other compute resources.
+
+.. code-block::
+
+   core.set_property("NPU", ov::intel_npu::turbo(true));
+
+or
+
+.. code-block::
+
+   core.compile_model(ov_model, "NPU", {ov::intel_npu::turbo(true)});
+
+**ov::intel_npu::max_tiles and ov::intel_npu::tiles**
+
+the ``max_tiles`` property is read-write to enable compiling models off-device. 
+When on NPU, ``max_tiles`` will return the number of tiles the device has.
+Setting the number of tiles to compile for (via ``intel_npu::tiles``), when on device,
+must be preceded by reading ``intel_npu::max_tiles`` first, to make sure that 
+``ov::intel_npu::tiles`` <= ``ov::intel_npu::max_tiles`` 
+to avoid exceptions from the compiler.
+
+.. note::
+
+   ``ov::intel_npu::tiles`` overrides the default number of tiles selected by the compiler based on performance hints
+   (``ov::hint::performance_mode``).
+   Any tile number other than 1 may be a problem for cross platform compatibility,
+   if not tested explicitly versus the max_tiles value.
 
 Limitations
 #############################

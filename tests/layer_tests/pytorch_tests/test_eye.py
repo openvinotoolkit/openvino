@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import torch
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -51,8 +52,10 @@ class TestEye(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("dtype", ["bool", "int8", "uint8", "int32", "int64", "float32", "float64"])
     @pytest.mark.parametrize("m", [2, 3, 4, 5])
+    @pytest.mark.skipif(torch.__version__ < '2.3.0', reason="`aten.eye` is not supported in PyTorch versions earlier than 2.3.")
     def test_eye_square(self, dtype, m, ie_device, precision, ir_version):
         if ie_device == "GPU":
             pytest.xfail(reason="eye is not supported on GPU")
@@ -60,8 +63,10 @@ class TestEye(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("dtype", ["bool", "int8", "uint8", "int32", "int64", "float32", "float64"])
     @pytest.mark.parametrize(("m", "n"), [[2, 2], [3, 4], [5, 3]])
+    @pytest.mark.skipif(torch.__version__ < '2.3.0', reason="`aten.eye` is not supported in PyTorch versions earlier than 2.3.")
     def test_eye(self, dtype, m, n, ie_device, precision, ir_version):
         if ie_device == "GPU":
             pytest.xfail(reason="eye is not supported on GPU")

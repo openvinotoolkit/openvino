@@ -34,7 +34,7 @@ SoftmaxDecomposition::SoftmaxDecomposition() {
 
         size_t axis;
         if (const auto softmax_v8 = ov::as_type_ptr<ov::op::v8::Softmax>(softmax)) {
-            axis = ov::util::normalize_axis(softmax->get_friendly_name(), softmax_v8->get_axis(), rank);
+            axis = ov::util::try_normalize_axis(softmax_v8->get_axis(), rank, *softmax);
         } else if (const auto softmax_v1 = ov::as_type_ptr<ov::op::v1::Softmax>(softmax)) {
             axis = softmax_v1->get_axis();
         } else {
@@ -55,10 +55,10 @@ SoftmaxDecomposition::SoftmaxDecomposition() {
         OPENVINO_ASSERT(axis < rank, "Softmax has incorrect axis");
         std::vector<size_t> subtensor(rank, 1);
         for (size_t i = axis; i < rank; ++i)
-            subtensor[i] = PortDescriptor::ServiceDimensions::FULL_DIM;
+            subtensor[i] = utils::get_full_dim_value();
 
-        PortDescriptorUtils::set_port_descriptor_ptr(power->input(0), std::make_shared<PortDescriptor>(power->input(0), subtensor));
-        PortDescriptorUtils::set_port_descriptor_ptr(power->output(0), std::make_shared<PortDescriptor>(power->output(0), subtensor));
+        PortDescriptorUtils::set_port_descriptor(power->input(0), subtensor);
+        PortDescriptorUtils::set_port_descriptor(power->output(0), subtensor);
 
         copy_runtime_info(softmax, {reduce_max, subtract, exp, reduce_sum, power, multiply});
         return ov::replace_node_update_name(softmax, multiply);
