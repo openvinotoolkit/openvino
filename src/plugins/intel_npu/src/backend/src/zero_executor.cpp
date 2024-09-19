@@ -79,11 +79,6 @@ ZeroExecutor::ZeroExecutor(std::shared_ptr<const ZeroInitStructsHolder> initStru
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetProperties");
     _logger.debug("performing pfnGetProperties");
     zeroUtils::throwOnFail("pfnGetProperties", _graph_ddi_table_ext.pfnGetProperties(_graph, &_props));
-    auto targetDriverExtVersion = _graph_ddi_table_ext.version();
-    if (targetDriverExtVersion <= ZE_GRAPH_EXT_VERSION_1_1) {
-        OPENVINO_THROW("Incompatibility between the NPU plugin and driver! The driver version is too old, please "
-                       "update the driver version");
-    }
 
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetArgumentProperties3");
     _logger.debug("performing pfnGetArgumentProperties3");
