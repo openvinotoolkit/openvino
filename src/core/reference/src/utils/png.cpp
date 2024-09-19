@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#if WITH_PNG
 
 #include "openvino/reference/utils/png.hpp"
 
@@ -111,3 +112,5 @@ int PNG::getData(Tensor& output) {
 }  // namespace img
 }  // namespace reference
 }  // namespace ov
+
+#endif //WITH_PNG

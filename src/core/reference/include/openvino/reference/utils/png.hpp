@@ -6,6 +6,7 @@
  * \brief JPEG reader
  * \file jpeg.hpp
  */
+#if WITH_PNG
 #pragma once
 
 #include <memory>
@@ -81,3 +82,4 @@ void input_callback(png_structp png_ptr, png_bytep buf, png_size_t size);
 }  // namespace img
 }  // namespace reference
 }  // namespace ov
+#endif// WITH_PNG

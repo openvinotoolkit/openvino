@@ -47,25 +47,22 @@ target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads openvino::core::de
 #find jpeg vars
 
 if(JPEG_FOUND)
-    include_directories(${JPEG_INCLUDE_DIR})
-    target_link_libraries(${TARGET_NAME} PRIVATE ${JPEG_LIBRARIES})
+    target_link_libraries(${TARGET_NAME} PRIVATE jpeg::jpeg)
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+        ${JPEG_INCLUDE_DIR})
     add_compile_definitions(WITH_JPEG)
-    message(STATUS "JPEG is found, JPEG_INCLUDE_DIR=${JPEG_INCLUDE_DIR}, JPEG_LIBRARIES=${JPEG_LIBRARIES}") 
-else()
-    message(STATUS "JPEG is not found, disable libjpeg support") 
+    message(STATUS "BUild JPEG from thirdparty, JPEG_INCLUDE_DIR=${JPEG_INCLUDE_DIR}") 
 endif()
 
 
-#find png vars
+# #find png vars
 if(PNG_FOUND)
-    include_directories(${PNG_INCLUDE_DIR})
-    target_link_libraries(${TARGET_NAME} PRIVATE ${PNG_LIBRARIES})
+    target_link_libraries(${TARGET_NAME} PRIVATE png::png)
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+        ${PNG_INCLUDE_DIR})
     add_compile_definitions(WITH_PNG)
-    message(STATUS "PNG is found, PNG_INCLUDE_DIR=${PNG_INCLUDE_DIR}, PNG_LIBRARIES=${PNG_LIBRARIES}") 
-else()
-    message(STATUS "PNG is not found, disable libpng support") 
+    message(STATUS "BUild PNG from thirdparty, PNG_INCLUDE_DIR=${PNG_INCLUDE_DIR}") 
 endif()
-
 
 #find gif vars
 if(GIF_FOUND)
