@@ -198,8 +198,8 @@ const Config& CompiledModel::get_config() const {
     return _config;
 }
 
-const ov::SoPtr<ICompiler>& CompiledModel::get_compiler() const {
-    return _compiler;
+const ICompiler& CompiledModel::get_compiler() const {
+    return *_compiler._ptr;
 }
 
 void CompiledModel::configure_stream_executors() {

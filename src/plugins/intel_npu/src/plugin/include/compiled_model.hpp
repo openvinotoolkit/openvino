@@ -79,7 +79,7 @@ public:
 
     const Config& get_config() const override;
 
-    const ov::SoPtr<ICompiler>& get_compiler() const override;
+    const ICompiler& get_compiler() const override;
 
 private:
     void initialize_properties();
