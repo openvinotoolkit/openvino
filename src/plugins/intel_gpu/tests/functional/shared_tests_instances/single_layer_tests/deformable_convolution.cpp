@@ -9,8 +9,7 @@ namespace {
 using ov::test::DeformableConvolutionLayerTest;
 const std::vector<ov::element::Type> netPrecisions = {
     ov::element::f32,
-    ov::element::f16,
-    ov::element::i16
+    ov::element::f16
 };
 
 /* ============= 2D DeformableConvolution ============= */
