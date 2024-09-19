@@ -173,7 +173,7 @@ runs:
         wget $ov_package_url --progress=bar:force:noscroll -O $package_basename
         package_folder=${package_basename%.*}
         [[ "$package_basename" == *.zip ]] && unzip "$package_basename" || tar -xvf "$package_basename"
-        rm $package_basename && mv package_folder/* . && rm -rf $package_folder
+        rm $package_basename && mv $package_folder/* . && rm -rf $package_folder
         ov_artifact_name=$([ ${{ inputs.ov_artifact_name }} ] && echo ${{ inputs.ov_artifact_name }} || echo $package_folder)
         echo "ov_artifact_name=$ov_artifact_name" >> $GITHUB_OUTPUT
         echo "ov_package_path=$package_folder" >> $GITHUB_OUTPUT
