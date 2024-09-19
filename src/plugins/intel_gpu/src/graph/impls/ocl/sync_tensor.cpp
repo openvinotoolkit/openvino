@@ -5,14 +5,12 @@
 #define CL_VERSION_3_0 1
 #include <CL/cl.h>
 #include <CL/cl_ext.h>
-
 #include <algorithm>
+#include <mutex>
+#include <condition_variable>
 
-#include "primitive_base.hpp"
 #include "impls/registry/implementation_map.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
-#include "openvino/core/parallel.hpp"
-#include "openvino/runtime/threading/cpu_message.hpp"
 #include "register.hpp"
 #include "runtime/ocl/ocl_event.hpp"
 #include "runtime/ocl/ocl_memory.hpp"
@@ -91,46 +89,28 @@ static std::map<int, std::string> oclErrorCode = {
 #define CHECK_OCL_ERROR(err, msg)                                                                            \
     if (err < 0) {                                                                                           \
         std::string errstr = (oclErrorCode.find(err) != oclErrorCode.end()) ? oclErrorCode[err] : "Unknown"; \
-        printf("ERROR: oclContext::%s, line = %d, %s! err = %d (%s)\n",                                      \
-               __FUNCTION__,                                                                                 \
-               __LINE__,                                                                                     \
-               msg,                                                                                          \
-               err,                                                                                          \
-               errstr.c_str());                                                                              \
+        OPENVINO_THROW("ERROR: ",                                                                            \
+                       __FUNCTION__,                                                                         \
+                       ", line = ",                                                                          \
+                       __LINE__,                                                                             \
+                       msg,                                                                                  \
+                       ", err = ",                                                                           \
+                       err,                                                                                  \
+                       ": ",                                                                                 \
+                       errstr.c_str(),                                                                       \
+                       "\n");                                                                                \
     }
 
-#define CHECK_OCL_ERROR_RETURN(err, msg, ret)                                                                \
-    if (err < 0) {                                                                                           \
-        std::string errstr = (oclErrorCode.find(err) != oclErrorCode.end()) ? oclErrorCode[err] : "Unknown"; \
-        printf("ERROR: oclContext::%s, line = %d, %s! err = %d (%s)\n",                                      \
-               __FUNCTION__,                                                                                 \
-               __LINE__,                                                                                     \
-               msg,                                                                                          \
-               err,                                                                                          \
-               errstr.c_str());                                                                              \
-        return ret;                                                                                          \
-    }
-
-#define CHECK_OCL_ERROR_EXIT(err, msg)                                                                       \
-    if (err < 0) {                                                                                           \
-        std::string errstr = (oclErrorCode.find(err) != oclErrorCode.end()) ? oclErrorCode[err] : "Unknown"; \
-        printf("ERROR: oclContext::%s, line = %d, %s! err = %d (%s)\n",                                      \
-               __FUNCTION__,                                                                                 \
-               __LINE__,                                                                                     \
-               msg,                                                                                          \
-               err,                                                                                          \
-               errstr.c_str());                                                                              \
-        exit(1);                                                                                             \
-    }
+static bool debug_enable = false;
 static std::mutex debug_mutex;
 static const std::chrono::_V2::system_clock::time_point perf_dump_start() {
     return std::chrono::high_resolution_clock::now();
 }
-static std::once_flag check_flag;
-static bool debug_enable = false;
+
 static void perf_dump_done(const std::chrono::_V2::system_clock::time_point& start,
                            std::string str,
                            bool enable = false) {
+    static std::once_flag check_flag;
     std::call_once(check_flag, [] {
         const char* env = getenv("OV_TP_P2P_DEBUG");
         if (env)
@@ -146,10 +126,35 @@ static void perf_dump_done(const std::chrono::_V2::system_clock::time_point& sta
     }
 }
 
-class ocl_p2p_helper {
+class gpu_semaphore {
 public:
-    ocl_p2p_helper() {}
-    ~ocl_p2p_helper() {}
+    gpu_semaphore(int count = 2) : count_(count), total_(count) {}
+    void signal() {
+        std::unique_lock<std::mutex> lock(mutex_);
+        if (count_ < total_)
+            ++count_;
+        cv_.notify_one();
+    }
+    void acquire() {
+        std::unique_lock<std::mutex> lock(mutex_);
+        cv_.wait(lock, [&] {
+            return count_ > 0;
+        });
+        --count_;
+    }
+
+private:
+    std::mutex mutex_;
+    std::condition_variable cv_;
+    int count_;
+    int total_;
+};
+
+static gpu_semaphore gpu_lock;
+class gpu_p2p_helper {
+public:
+    gpu_p2p_helper() {}
+    ~gpu_p2p_helper() {}
 
     uint64_t derive_handle(cl_mem clbuf) {
         cl_int err;
@@ -168,7 +173,6 @@ public:
                                                 (cl_mem_properties)fd,
                                                 0};
         cl_mem extMemBuffer = clCreateBufferWithProperties(context, extMemProperties, 0, size, NULL, &err);
-        // CHECK_OCL_ERROR(err, "clCreateBufferWithProperties - CL_EXTERNAL_MEMORY_HANDLE_DMA_BUF_KHR failed");
         if (err < 0) {
             OPENVINO_ASSERT(false,
                             "clCreateBufferWithProperties failed, clbuf = %p, fd = %ld, size = %ld, new_cl_mem = %p\n",
@@ -176,13 +180,6 @@ public:
                             fd,
                             size,
                             extMemBuffer);
-        }
-
-        if (0) {
-            cl_mem_object_type type;
-            err = clGetMemObjectInfo(extMemBuffer, CL_MEM_TYPE, sizeof(type), &type, NULL);
-            CHECK_OCL_ERROR(err, "clGetMemObjectInfo - CL_MEM_TYPE failed");
-            printf("size = %ld, remote_type = %d\n", size, type);
         }
 
         perf_dump_done(start, std::string("derive_map_remote_mem host time"));
@@ -228,63 +225,62 @@ public:
     }
 };
 
-#define KERNEL_DATA_TYPE_NUM 3
-typedef enum _kernel_data_type {
-    e_type_fp16 = 0,
-    e_type_int8 = 1,
-    e_type_fp32 = 2,
-} kernel_data_type;
-
-inline kernel_data_type element_type_to_kernel_data_type(ov::element::Type_t element_type) {
-    switch (element_type) {
-    case ov::element::f16:
-        return kernel_data_type::e_type_fp16;
-    case ov::element::i8:
-        return kernel_data_type::e_type_int8;
-    case ov::element::f32:
-        return kernel_data_type::e_type_fp32;
-    default:
-        printf("Error: unsupported element type for kernel adder - %s\n",
-               ov::element::Type(element_type).to_string().c_str());
-        break;
-    }
-    return kernel_data_type::e_type_int8;
-}
-
 static void dump_cl_buf(cl_command_queue queue, cl_mem clbuf, size_t count, size_t offset) {
     cl_int err;
     std::vector<float> outBuf(count, 0);
     err = clEnqueueReadBuffer(queue, clbuf, CL_TRUE, offset, count * 4, outBuf.data(), 0, NULL, NULL);
-    CHECK_OCL_ERROR_EXIT(err, "clEnqueueReadBuffer failed");
+    CHECK_OCL_ERROR(err, "clEnqueueReadBuffer failed");
     clFinish(queue);
 
-    printf("The first %ld elements in cl_mem = %p are: \n", count, clbuf);
+    std::cout << "The first " << count << "elements in cl_mem = " << clbuf << " are: " << std::endl;
     for (int i = 0; i < static_cast<int>(count); i++) {
         printf("%f, ", outBuf[i]);
+        std::cout << outBuf[i] << ", ";
         if (i && i % 16 == 0)
-            printf("\n");
+            std::cout << std::endl;
     }
-    printf("\n\n");
+    std::cout << std::endl;
 }
 
-class simple_ocl_add {
+class simple_tensor_add {
 public:
-    simple_ocl_add() {}
-    ~simple_ocl_add() {
-        if (inited_ == true) {
-            if (kernels[kernel_data_type::e_type_fp16])
-                clReleaseKernel(kernels[kernel_data_type::e_type_fp16]);
-            if (kernels[kernel_data_type::e_type_int8])
-                clReleaseKernel(kernels[kernel_data_type::e_type_int8]);
-            clReleaseProgram(program);
+    simple_tensor_add() {}
+    ~simple_tensor_add() {
+        for (auto& item : kernels) {
+            if (item.second)
+                clReleaseKernel(item.second);
         }
+        kernels.clear();
+        if (program)
+            clReleaseProgram(program);
+    }
+
+    typedef enum _kernel_data_type {
+        e_type_fp16 = 0,
+        e_type_int8 = 1,
+        e_type_fp32 = 2,
+    } kernel_data_type;
+
+    kernel_data_type element_type_to_kernel_data_type(ov::element::Type_t element_type) {
+        switch (element_type) {
+        case ov::element::f16:
+            return kernel_data_type::e_type_fp16;
+        case ov::element::i8:
+            return kernel_data_type::e_type_int8;
+        case ov::element::f32:
+            return kernel_data_type::e_type_fp32;
+        default:
+            OPENVINO_THROW("Error: unsupported element type for kernel adder - ",
+                           ov::element::Type(element_type).to_string().c_str());
+            break;
+        }
+        return kernel_data_type::e_type_int8;
     }
 
     cl_kernel create_kernel(cldnn::stream& stream, const char* kernel_code, const char* kernelName) {
         cl_int err;
         auto& ocl_stream = downcast<ocl::ocl_stream>(stream);
-
-        std::cout << "get_or_create_kernel_if_possible: create_kernel name = " << kernelName << std::endl;
+        std::cout << "create_kernel: name = " << kernelName << std::endl;
 
         cl_uint knlcount = 1;
         const char* knlstrList[] = {kernel_code};
@@ -292,10 +288,7 @@ public:
 
         cl_context context = ocl_stream.get_engine().get_cl_context().get();
         program = clCreateProgramWithSource(context, knlcount, knlstrList, knlsizeList, &err);
-        CHECK_OCL_ERROR_EXIT(err, "clCreateProgramWithSource failed");
-
-        std::cout << "get_or_create_kernel_if_possible: create_kernel->clCreateProgramWithSource " << kernelName
-                  << std::endl;
+        CHECK_OCL_ERROR(err, "clCreateProgramWithSource failed");
 
         std::string buildopt = "-cl-std=CL2.0 -cl-intel-greater-than-4GB-buffer-required";
         err = clBuildProgram(program, 0, NULL, buildopt.c_str(), NULL, NULL);
@@ -303,67 +296,47 @@ public:
             size_t logsize = 0;
             auto device = ocl_stream.get_engine().get_cl_device().get();
             err = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &logsize);
-            CHECK_OCL_ERROR_EXIT(err, "clGetProgramBuildInfo failed");
+            CHECK_OCL_ERROR(err, "clGetProgramBuildInfo failed");
 
             std::vector<char> logbuf(logsize + 1, 0);
             err = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, logsize + 1, logbuf.data(), NULL);
-            CHECK_OCL_ERROR_EXIT(err, "clGetProgramBuildInfo failed");
-            printf("%s\n", logbuf.data());
-
-            exit(1);
+            OPENVINO_ASSERT(err >= 0, "clGetProgramBuildInfo: ", logbuf.data());
         }
-        std::cout << "get_or_create_kernel_if_possible: create_kernel->clBuildProgram " << kernelName << std::endl;
         cl_kernel kernel = clCreateKernel(program, kernelName, &err);
-        CHECK_OCL_ERROR_EXIT(err, "clCreateKernel failed");
+        CHECK_OCL_ERROR(err, "clCreateKernel failed");
         return kernel;
     }
 
     cl_kernel get_or_create_kernel_if_possible(cldnn::stream& stream, kernel_data_type type) {
-        // std::cout << "get_or_create_kernel_if_possible: type = " << static_cast<int>(type) << std::endl;
+        auto it = kernels.find(type);
+        if (it != kernels.end()) {
+            // std::cout << "get_kernel: type = " << static_cast<int>(type) << std::endl;
+            return it->second;
+        }
+        #define ADD_OP_KERNEL_SOURCE_CODE(DATA_TYPE)                                                        \
+            "kernel void tensor_add_kernel_DATA_TYPE(const global DATA_TYPE* src, global DATA_TYPE* dst) {" \
+            "const int id = get_global_id(0);"                                                              \
+            "dst[id] += src[id];"                                                                           \
+            "}"
         if (type == kernel_data_type::e_type_fp16) {
-            if (kernels[type])
-                return kernels[type];
-            const char tensor_add_kernel_code_fp16[] = R"(
-            kernel void tensor_add_func_fp16(const global half *src, global half *dst)
-            {
-                const int id = get_global_id(0);
-                dst[id] += src[id];
-                // printf("tensor_add_func_fp16: dst[%d] = %f, src[%d] = %f\n", id, (float*)dst[id], id, (float*)src[id]);
-            })";
-            const char kernel_name_fp16[] = "tensor_add_func_fp16";
-            kernels[type] = create_kernel(stream, tensor_add_kernel_code_fp16, kernel_name_fp16);
+            const char tensor_add_kernel_fp16[] = ADD_OP_KERNEL_SOURCE_CODE(half);
+            const char kernel_name[] = "tensor_add_kernel_half";
+            kernels[type] = create_kernel(stream, tensor_add_kernel_fp16, kernel_name);
             return kernels[type];
         } else if (type == kernel_data_type::e_type_int8) {
-            if (kernels[type])
-                return kernels[type];
-            const char tensor_add_kernel_code_int8[] = R"(
-            kernel void tensor_add_func_int8(const global char *src, global char *dst)
-            {
-                const int id = get_global_id(0);
-                dst[id] += src[id];
-                // printf("tensor_add_func_int8: dst[%d] = %d, src[%d] = %d\n", id, dst[id], id, src[id]);
-            })";
-            const char kernel_name_int8[] = "tensor_add_func_int8";
-            kernels[type] = create_kernel(stream, tensor_add_kernel_code_int8, kernel_name_int8);
+            const char tensor_add_kernel_int8[] = ADD_OP_KERNEL_SOURCE_CODE(char);
+            const char kernel_name[] = "tensor_add_kernel_char";
+            kernels[type] = create_kernel(stream, tensor_add_kernel_int8, kernel_name);
             return kernels[type];
         } else if (type == kernel_data_type::e_type_fp32) {
-            if (kernels[type])
-                return kernels[type];
-            const char tensor_add_kernel_code_fp32[] = R"(
-            kernel void tensor_add_func_fp32(const global float *src, global float *dst)
-            {
-                const int id = get_global_id(0);
-                dst[id] += src[id];
-                // printf("tensor_add_func_fp32: dst[%d] = %f, src[%d] = %f\n", id, dst[id], id, src[id]);
-            })";
-            const char kernel_name_fp32[] = "tensor_add_func_fp32";
-            kernels[type] = create_kernel(stream, tensor_add_kernel_code_fp32, kernel_name_fp32);
+            const char tensor_add_kernel_fp32[] = ADD_OP_KERNEL_SOURCE_CODE(float);
+            const char kernel_name[] = "tensor_add_kernel_float";
+            kernels[type] = create_kernel(stream, tensor_add_kernel_fp32, kernel_name);
             return kernels[type];
         } else {
-            printf("error: unsuport adder kernel data type %d\n", static_cast<int>(type));
-            exit(1);
+            OPENVINO_THROW("error: unsupported adder kernel data type ", static_cast<int>(type));
         }
-
+        #undef ADD_OP_KERNEL_SOURCE_CODE
         return kernels[type];
     }
 
@@ -374,22 +347,23 @@ public:
                           kernel_data_type data_type) {
         cl_int err;
         auto& ocl_stream = downcast<ocl::ocl_stream>(stream);
+        OPENVINO_ASSERT(src != nullptr && dst != nullptr, "tensor_add: invalid arguments!");
+
         const auto start = perf_dump_start();
         cl_kernel kernel = get_or_create_kernel_if_possible(stream, data_type);
         perf_dump_done(start, std::string("get_or_create_kernel_if_possible"), false);
 
         err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &src);
-        CHECK_OCL_ERROR_EXIT(err, "clSetKernelArg src failed");
+        CHECK_OCL_ERROR(err, "clSetKernelArg src failed");
 
         err = clSetKernelArg(kernel, 1, sizeof(cl_mem), &dst);
-        CHECK_OCL_ERROR_EXIT(err, "clSetKernelArg dst failed");
-        perf_dump_done(start, std::string("tensor_add->clSetKernelArg"), false);
+        CHECK_OCL_ERROR(err, "clSetKernelArg dst failed");
 
         size_t global_size[] = {element_count};
         auto queue = ocl_stream.get_cl_queue().get();
         cl_event ret;
         err = clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, global_size, nullptr, 0, nullptr, &ret);
-        CHECK_OCL_ERROR_EXIT(err, "clEnqueueNDRangeKernel failed");
+        CHECK_OCL_ERROR(err, "clEnqueueNDRangeKernel failed");
         // clWaitForEvents(1, &ret);
 
         perf_dump_done(start, std::string("tensor add host time"), false);
@@ -403,28 +377,27 @@ public:
     }
 
 private:
-    bool inited_ = false;
     cl_program program;
-    cl_kernel kernels[KERNEL_DATA_TYPE_NUM];
+    std::map<kernel_data_type, cl_kernel> kernels;
 };
 
-class concat_mem {
+class tensor_concat_memory {
 public:
-    concat_mem() : buf(nullptr), width(0), height(0), type(ov::element::f16) {}
-    concat_mem(cl_mem _buf, size_t _w, size_t _h, size_t _stride, ov::element::Type _type)
+    tensor_concat_memory() : buf(nullptr), width(0), height(0), type(ov::element::f16) {}
+    tensor_concat_memory(cl_mem _buf, size_t _w, size_t _h, size_t _stride, ov::element::Type _type)
         : buf(_buf),
           width(_w),
           height(_h),
           stride(_stride),
           type(_type) {}
-    concat_mem(concat_mem& other) {
+    tensor_concat_memory(tensor_concat_memory& other) {
         buf = other.buf;
         width = other.width;
         height = other.height;
         stride = other.stride;
         type = other.type;
     }
-    bool operator==(const concat_mem& other) const {
+    bool operator==(const tensor_concat_memory& other) const {
         return width == other.height && height == other.height && stride == other.stride;
     }
 
@@ -443,12 +416,12 @@ public:
     ov::element::Type type;
 };
 
-class simple_ocl_concat {
+class simple_tensor_concat {
 public:
-    simple_ocl_concat() {}
-    ~simple_ocl_concat() {}
+    simple_tensor_concat() {}
+    ~simple_tensor_concat() {}
 
-    bool validate(std::vector<std::shared_ptr<concat_mem>>& src, std::shared_ptr<concat_mem>& dst) {
+    bool validate(std::vector<std::shared_ptr<tensor_concat_memory>>& src, std::shared_ptr<tensor_concat_memory>& dst) {
         size_t total_height = 0, total_width = 0;
         for (auto& s : src) {
             total_height += s->height;
@@ -486,17 +459,16 @@ public:
     }
 
     std::vector<cldnn::event::ptr> concat(cldnn::stream& stream,
-                                          std::vector<std::shared_ptr<concat_mem>>& src,
-                                          std::shared_ptr<concat_mem>& dst) {
+                                          std::vector<std::shared_ptr<tensor_concat_memory>>& src,
+                                          std::shared_ptr<tensor_concat_memory>& dst) {
         const auto start = perf_dump_start();
         auto& ocl_stream = downcast<ocl::ocl_stream>(stream);
         auto queue = ocl_stream.get_cl_queue().get();
 
         if (!validate(src, dst)) {
-            std::cout << "simple_ocl_concat::validate failed due to src/dst mismatch." << std::endl;
             std::lock_guard<std::mutex> lock(debug_mutex);
             print(src, dst);
-            exit(1);
+            OPENVINO_THROW("simple_tensor_concat::validate failed due to src/dst mismatch.");
         }
 
         size_t src_rec[3] = {0, 0, 0};
@@ -521,8 +493,7 @@ public:
                                                    nullptr,
                                                    &event);
                 if (ret != CL_SUCCESS) {
-                    std::cout << "0.clEnqueueCopyBufferRect failed: " << oclErrorCode[ret] << ", idx = " << i
-                              << std::endl;
+                    OPENVINO_THROW("0.clEnqueueCopyBufferRect failed: ", oclErrorCode[ret], ", idx = ", i);
                 }
                 dst_rec[1] += src[i]->height;
                 // ret = clWaitForEvents(1, &event);
@@ -549,8 +520,7 @@ public:
                                                    nullptr,
                                                    &event);
                 if (ret != CL_SUCCESS) {
-                    std::cout << "clEnqueueCopyBufferRect failed: " << oclErrorCode[ret] << ", idx = " << i
-                              << std::endl;
+                    OPENVINO_THROW("0.clEnqueueCopyBufferRect failed: ", oclErrorCode[ret], ", idx = ", i);
                 }
                 dst_rec[0] += src[i]->width;
                 // ret = clWaitForEvents(1, &event);
@@ -559,11 +529,9 @@ public:
                 sync_events.emplace_back(ocl_stream.create_event(cl::Event(event)));
             }
         } else {
-            std::cout << "ocl_concat failed: incorrect concat mode!" << std::endl;
-            exit(1);
+            OPENVINO_THROW("tensor_concat failed: incorrect concat mode!");
         }
 
-        // clEnqueueBarrier(queue);
         if (0) {
             for (auto& event : sync_events)
                 event->wait();
@@ -575,7 +543,7 @@ public:
         return sync_events;
     }
 
-    void print(const std::vector<std::shared_ptr<concat_mem>>& src, const std::shared_ptr<concat_mem>& dst) {
+    void print(const std::vector<std::shared_ptr<tensor_concat_memory>>& src, const std::shared_ptr<tensor_concat_memory>& dst) {
         for (size_t i = 0; i < src.size(); i++) {
             std::cout << " src[" << i << "]: ";
             src[i]->print();
@@ -586,19 +554,19 @@ public:
     }
 
 private:
-    // 0 - vertical concat; 1 - horizontal concat
+    // 0 - vertical concat
+    // 1 - horizontal concat
     int concat_mode;
 };
 
-static ocl_p2p_helper p2p_helper_instances[4];  // max substream number
-static simple_ocl_add adder_instances[4];
-
-inline ocl_p2p_helper& get_ocl_p2p_instance(size_t id) {
-    return p2p_helper_instances[id];
+static gpu_p2p_helper& get_p2p_instance() {
+    static gpu_p2p_helper gpu_p2p_instance;
+    return gpu_p2p_instance;
 }
 
-inline simple_ocl_add& get_adder_instance(size_t id) {
-    return adder_instances[id];
+static simple_tensor_add& get_adder_instance() {
+    static simple_tensor_add adder_instance;
+    return adder_instance;
 }
 
 struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
@@ -630,7 +598,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
     }
 
     void wait_p2p_done(cldnn::stream& stream,
-                       cldnn::ocl::ocl_p2p_helper& p2p_helper,
+                       cldnn::ocl::gpu_p2p_helper& p2p_helper,
                        ov::intel_gpu::SubMemoryManager::ptr& sub_mem_mgr,
                        int id,
                        size_t w_size,
@@ -667,6 +635,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
             auto end = perf_dump_start();
             std::chrono::duration<double, std::milli> duration = end - start;
             if (duration.count() > 10000) {
+                start = perf_dump_start();
                 std::cout << "rank[" << w_rank << "]Error: sync_tensor wait_p2p_done timeout..." << std::endl;
             }
         }
@@ -730,18 +699,15 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
             if (!need_realloc(i)) {
                 continue;
             }
-            if (bufs[i] && 0) {
-                std::cout << "tensor_sync allocate: rank[" << w_rank << "]: layout[" << i
-                          << "]=" << layout.to_short_string() << ", required_size = " << required_size
-                          << ", old_size = " << bufs[i]->size() << std::endl;
-            }
+            size_t origin_size = bufs[i] != nullptr ? bufs[i]->size() : 0;
             bufs[i] = nullptr;
             bufs[i] = engine.allocate_memory(layout, cldnn::allocation_type::cl_mem, false);
-            if (0) {
+            if (debug_enable) {
                 std::lock_guard<std::mutex> lock(debug_mutex);
                 std::cout << "tensor_sync allocate: rank[" << w_rank << "]: layout[" << i
                           << "]=" << layout.to_short_string() << ", required_size = " << required_size
-                          << ", allocated_size = " << bufs[i]->size() << std::endl;
+                          << ", current_size = " << origin_size << ", to_allocate_size = " << bufs[i]->size()
+                          << std::endl;
             }
         }
         if (0) {
@@ -790,6 +756,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
             auto end_1 = perf_dump_start();
             std::chrono::duration<double, std::milli> duration = end_1 - start_1;
             if (duration.count() > 10000) {
+                start_1 = perf_dump_start();
                 std::cout << "rank[" << w_rank << "]Error: sync_tensor wait data ready timeout..." << std::endl;
             }
         }
@@ -797,7 +764,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
         perf_dump_done(start_1,
                        std::string("rank[") + std::to_string(w_rank) + std::string("] sync_tensor wait data ready"),
                        true);
-        auto& p2p_helper = get_ocl_p2p_instance(w_rank);
+        gpu_p2p_helper& gpu_p2p_instance = get_p2p_instance();
         auto& ocl_stream = downcast<ocl::ocl_stream>(stream);
         auto local_context = ocl_stream.get_engine().get_cl_context().get();
         auto p2p_src_layout = instance.get_output_layout(0);
@@ -854,9 +821,16 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                         std::dynamic_pointer_cast<const ocl::gpu_buffer>(dst_mem)->get_buffer().get();
 
                     data_size = dst_mem->size();
-                    auto dst_cl_buf = p2p_helper.map_remote_mem(local_context, dst_cl_buf_remote, data_size);
+                    auto dst_cl_buf = gpu_p2p_instance.map_remote_mem(local_context, dst_cl_buf_remote, data_size);
                     auto p2p_data_size = p2p_src_layout.bytes_count();
-                    p2p_helper.remote_copy(stream, src_cl_buf, dst_cl_buf, p2p_data_size);
+                    if (w_size > 2) {
+                        gpu_lock.acquire();
+                        gpu_p2p_instance.remote_copy(stream, src_cl_buf, dst_cl_buf, p2p_data_size);
+                        gpu_lock.signal();
+                    } else {
+                        gpu_p2p_instance.remote_copy(stream, src_cl_buf, dst_cl_buf, p2p_data_size);
+                    }
+                    // P2P has been done.
                     {
                         std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
                         sub_mem_mgr->_memorys_table[id][idx].events[w_rank] = stream.create_user_event(true);
@@ -866,7 +840,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                         printf("Write output memory (rank=%d):\n", w_rank);
                         dump_cl_buf(ocl_stream.get_cl_queue().get(), dst_cl_buf, dst_mem->count(), 0);
                     }
-                    // p2p_helper.destory_remote_mem(dst_cl_buf);
+                    // gpu_p2p_instance.destory_remote_mem(dst_cl_buf);
                     wait_list[idx] = 0;
                 }
                 wait_size += wait_list[idx];
@@ -877,6 +851,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
             auto end_2 = perf_dump_start();
             std::chrono::duration<double, std::milli> duration = end_2 - start_2;
             if (duration.count() > 10000) {
+                start_2 = perf_dump_start();
                 std::cout << "rank[" << w_rank << "]Error: sync_tensor p2p write timeout..." << std::endl;
             }
         }
@@ -898,7 +873,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
         }
 
         // P2P adopts sync write to avoid the problem of event cannot work across contexts
-        wait_p2p_done(stream, p2p_helper, sub_mem_mgr, id, w_size, w_rank, false);
+        wait_p2p_done(stream, gpu_p2p_instance, sub_mem_mgr, id, w_size, w_rank, false);
 
         std::vector<cldnn::event::ptr> sync_events;
         if (is_all_reduce) {
@@ -906,17 +881,18 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
             auto start_3 = perf_dump_start();
             auto dst_mem = std::dynamic_pointer_cast<const ocl::gpu_buffer>(instance.output_memory_ptr(0));
             auto dst_cl_buf = dst_mem->get_buffer().get();
+            auto& adder_instance = get_adder_instance();
             // auto data_size = dst_mem->size();
             for (size_t idx = 0; idx < w_size; idx++) {
                 if (idx != static_cast<size_t>(w_rank)) {
                     auto src_mem = sub_mem_mgr->_memorys_table[id][w_rank].recv_bufs[idx];
                     auto src_cl_buf = std::dynamic_pointer_cast<const ocl::gpu_buffer>(src_mem)->get_buffer().get();
-                    sync_event = get_adder_instance(w_rank).tensor_add(
+                    sync_event = adder_instance.tensor_add(
                         stream,
                         src_cl_buf,
                         dst_cl_buf,
                         dst_mem->count(),
-                        element_type_to_kernel_data_type(dst_mem->get_layout().data_type));
+                        adder_instance.element_type_to_kernel_data_type(dst_mem->get_layout().data_type));
                     sync_events.emplace_back(sync_event);
                 }
             }
@@ -931,10 +907,9 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                 dump_cl_buf(ocl_stream.get_cl_queue().get(), dst_cl_buf, dst_mem->count(), 0);
             }
         } else {
-            // All_gather path
-            // concat process
-            auto concat = std::make_shared<simple_ocl_concat>();
-            std::vector<std::shared_ptr<concat_mem>> src_mem;
+            // All_gather path: do concat
+            auto concat = std::make_shared<simple_tensor_concat>();
+            std::vector<std::shared_ptr<tensor_concat_memory>> src_mem;
             auto output_layout = instance.get_output_layout(0);
             ov::element::Type element_type = output_layout.data_type;
             auto element_size = element_type.size();
@@ -962,7 +937,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                     std::cout << "]" << std::endl;
                 }
 
-                auto _src = std::make_shared<concat_mem>(cl_buf, width, height, stride, element_type);
+                auto _src = std::make_shared<tensor_concat_memory>(cl_buf, width, height, stride, element_type);
                 src_mem.emplace_back(_src);
             }
 
@@ -972,17 +947,13 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
             auto dst_width = dst_shape[-1] * element_size;
             auto dst_stride = dst_shape[-1] * element_size;  // Need no pad?
             auto dst_height = ov::shape_size(dst_shape) / dst_shape[-1];
-            auto dst_mem = std::make_shared<concat_mem>(dst_cl_buf, dst_width, dst_height, dst_stride, element_type);
+            auto dst_mem = std::make_shared<tensor_concat_memory>(dst_cl_buf, dst_width, dst_height, dst_stride, element_type);
 
             if (0) {
                 std::lock_guard<std::mutex> lock(debug_mutex);
                 concat->print(src_mem, dst_mem);
             }
             sync_events = concat->concat(stream, src_mem, dst_mem);
-            if (0) {
-                std::lock_guard<std::mutex> lock(debug_mutex);
-                std::cout << "tensor_sync concat: rank[" << w_rank << "] done" << std::endl;
-            }
             if (0) {
                 std::lock_guard<std::mutex> lock(debug_mutex);
                 auto element_size = dst_mem->type.size();
@@ -1021,7 +992,6 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
             sub_mem_mgr->_use_count[id]++;
         }
 
-        // return stream.create_user_event(true);
         return sync_events.size() > 0 ? stream.group_events(sync_events) : stream.create_user_event(true);
     }
 
