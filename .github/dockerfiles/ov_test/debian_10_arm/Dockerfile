@@ -15,6 +15,8 @@ ENV DEBIAN_FRONTEND="noninteractive" \
 RUN apt-get update && \
     apt-get install  \
         git \
+        libc6-dev \
+        libc6 \
         # Compilers
         gcc-arm-linux-gnueabihf \
         g++-arm-linux-gnueabihf \
