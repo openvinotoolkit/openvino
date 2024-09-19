@@ -18,7 +18,7 @@ namespace intel_npu {
 
 class ZeroDevice : public IDevice {
 public:
-    ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs);
+    ZeroDevice(std::shared_ptr<ZeroInitStructsHolder> initStructs);
 
     std::shared_ptr<IExecutor> createExecutor(const std::shared_ptr<const NetworkDescription>& networkDescription,
                                               const Config& config) override;
@@ -59,7 +59,7 @@ public:
     ZeroDevice(const ZeroDevice&) = delete;
 
 private:
-    const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
+    std::shared_ptr<ZeroInitStructsHolder> _initStructs;
 
     ze_graph_dditable_ext_curr_t& _graph_ddi_table_ext;
 

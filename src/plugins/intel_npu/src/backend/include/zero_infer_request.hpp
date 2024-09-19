@@ -20,7 +20,7 @@ namespace intel_npu {
 
 class ZeroInferRequest final : public SyncInferRequest {
 public:
-    explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& backendPtr,
+    explicit ZeroInferRequest(std::shared_ptr<ZeroInitStructsHolder> initStructs,
                               const std::shared_ptr<const ICompiledModel>& compiledModel,
                               const std::shared_ptr<const IExecutor>& executor,
                               const Config& config);
@@ -75,7 +75,7 @@ private:
     void check_network_precision(const ov::element::Type_t precision) const override;
     void create_pipeline();
 
-    const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
+    std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<const IExecutor> _executorPtr;
     const ZeroExecutor* _executor;
     const Config _config;

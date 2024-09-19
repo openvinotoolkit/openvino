@@ -14,7 +14,7 @@
 
 using namespace intel_npu;
 
-ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs)
+ZeroDevice::ZeroDevice(std::shared_ptr<ZeroInitStructsHolder> initStructs)
     : _initStructs(initStructs),
       _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
       log("ZeroDevice", Logger::global().level()) {
