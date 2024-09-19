@@ -143,7 +143,7 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         const auto converted_b = std::make_shared<v1::ConvertLike>(casted_b, a);
 
         // TODO: Need to collect performance data in case constant folding is applied. Possible some perf/mem-gap
-        
+
         // Simple case
         if (n_blocks_per_col == 1) {
             // Removing unused items in case block is bigger than column count
