@@ -25,7 +25,7 @@ function(ov_build_png)
     endif()
 
     add_subdirectory(libpng-1.6.37 EXCLUDE_FROM_ALL)
-    add_library(png::png ALIAS png_static)
+    add_library(openvino::png ALIAS png_static)
 endfunction()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/developer_package/download/extract.cmake")

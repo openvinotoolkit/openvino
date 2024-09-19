@@ -27,7 +27,7 @@ function(ov_build_jpeg)
     endif()
 
     add_subdirectory(libjpeg EXCLUDE_FROM_ALL)
-    add_library(jpeg::jpeg ALIAS jpeg-static)
+    add_library(openvino::jpeg ALIAS jpeg-static)
 endfunction()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/developer_package/download/extract.cmake")

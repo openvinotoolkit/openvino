@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
+#if WITH_GIF
 #include "openvino/reference/utils/gif.hpp"
 
 namespace ov {
@@ -106,3 +106,5 @@ int GIF::getData(Tensor& output) {
 }  // namespace img
 }  // namespace reference
 }  // namespace ov
+
+#endif //WITH_GIF

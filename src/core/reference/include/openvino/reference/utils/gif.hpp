@@ -6,6 +6,7 @@
  * \brief JPEG reader
  * \file jpeg.hpp
  */
+#if WITH_GIF
 #pragma once
 
 #include <gif_lib.h>
@@ -66,3 +67,5 @@ int input_callback(GifFileType* gif_file, GifByteType* buf, int size);
 }  // namespace img
 }  // namespace reference
 }  // namespace ov
+
+#endif //WITH_GIF

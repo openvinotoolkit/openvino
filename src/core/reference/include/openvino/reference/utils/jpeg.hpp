@@ -6,6 +6,7 @@
  * \brief JPEG reader
  * \file jpeg.hpp
  */
+#if WITH_JPEG
 #pragma once
 
 #include <memory>
@@ -57,3 +58,5 @@ void CatchError(j_common_ptr _image_info);
 }  // namespace img
 }  // namespace reference
 }  // namespace ov
+#endif //WITH_JPEG
+
