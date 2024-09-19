@@ -27,5 +27,5 @@ RUN chmod +x /install_openvino_dependencies.sh && \
     /install_openvino_dependencies.sh && \
     rm -rf /var/lib/apt/lists/* \
 
-ENV LD_LIBRARY_PATH=/usr/arm-linux-gnueabihf/:/usr/arm-linux-gnueabihf/lib/:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH="/usr/arm-linux-gnueabihf/:/usr/arm-linux-gnueabihf/lib/:$LD_LIBRARY_PATH"
 RUN ln -s /usr/arm-linux-gnueabihf/lib/ld-linux-armhf.so.3 /lib/ld-linux-armhf.so.3
