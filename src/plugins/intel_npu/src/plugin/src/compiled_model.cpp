@@ -42,9 +42,9 @@ namespace intel_npu {
 using intel_npu::envVarStrToBool;
 
 CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
-                             const std::shared_ptr<const ov::IPlugin>& plugin,
-                             const std::shared_ptr<IDevice>& device,
-                             const ov::SoPtr<ICompiler>& compiler,
+                             std::shared_ptr<const ov::IPlugin> plugin,
+                             std::shared_ptr<IDevice> device,
+                             ov::SoPtr<ICompiler> compiler,
                              const bool profiling,
                              const Config& config)
     : ICompiledModel(model, plugin),
@@ -77,10 +77,10 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
 }
 
 CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
-                             const std::shared_ptr<const ov::IPlugin>& plugin,
-                             const std::shared_ptr<const NetworkDescription>& networkDescription,
-                             const std::shared_ptr<IDevice>& device,
-                             const ov::SoPtr<ICompiler>& compiler,
+                             std::shared_ptr<const ov::IPlugin> plugin,
+                             std::shared_ptr<const NetworkDescription> networkDescription,
+                             std::shared_ptr<IDevice> device,
+                             ov::SoPtr<ICompiler> compiler,
                              const Config& config)
     : ICompiledModel(model, plugin),
       _networkPtr(networkDescription),
