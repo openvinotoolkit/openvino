@@ -34,10 +34,10 @@ class BinaryEltwiseTPP : public EltwiseTPP {
 public:
     BinaryEltwiseTPP(libxsmm_meltw_binary_type op_type);
     OpDescTPP get_op_desc() const override { return OpDescTPP(m_op_type, m_flags); }
-    static libxsmm_bitfield get_broadcasting_flags(const ov::PartialShape& pshape_0, const ov::PartialShape& pshape_1);
-    static libxsmm_bitfield get_broadcasting_flags(const snippets::VectorDims& pshape_0, const snippets::VectorDims& pshape_1);
 
 protected:
+    static libxsmm_bitfield get_broadcasting_flags(const ov::PartialShape& pshape_0, const ov::PartialShape& pshape_1);
+    static libxsmm_bitfield get_broadcasting_flags(const snippets::VectorDims& pshape_0, const snippets::VectorDims& pshape_1);
     libxsmm_bitfield m_flags;
     libxsmm_meltw_binary_type m_op_type;
 };

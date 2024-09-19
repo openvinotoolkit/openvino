@@ -14,9 +14,8 @@ EquationTPP::EquationTPP(const OutputVector& arguments, std::vector<OpDescTPP> o
                         m_op_descs(std::move(op_descs)) {
     // Initialize input/output ports as memory access ports
     std::set<size_t> ma_iport_idx;
-    size_t i = 0;
-    while (i < get_input_size())
-        ma_iport_idx.insert(ma_iport_idx.end(), i++);
+    for (size_t i = 0; i < get_input_size(); i++)
+        ma_iport_idx.insert(ma_iport_idx.end(), i);
     ctor_initialize(ma_iport_idx, std::set<size_t>{0});
     constructor_validate_and_infer_types();
 }

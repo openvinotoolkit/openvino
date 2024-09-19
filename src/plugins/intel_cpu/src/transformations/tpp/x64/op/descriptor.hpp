@@ -41,7 +41,7 @@ public:
     friend std::ostream& operator<<(std::ostream& os, const OpDescTPP& od);
 
 private:
-     ARITY m_arity;
+    ARITY m_arity;
     int m_value;
     libxsmm_bitfield m_flags;
 };

@@ -11,8 +11,8 @@ namespace intel_cpu {
 class EquationTppEmitter : public TppEmitter {
 public:
     EquationTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                            dnnl::impl::cpu::x64::cpu_isa_t isa,
-                            const ov::snippets::lowered::ExpressionPtr& expr);
+                       dnnl::impl::cpu::x64::cpu_isa_t isa,
+                       const ov::snippets::lowered::ExpressionPtr& expr);
     size_t get_inputs_num() const override;
     static void execute_kernel(libxsmm_meqn_function equation_kernel, int argc, void **argv);
     const uintptr_t get_execute_function_ptr() const override { return reinterpret_cast<const uintptr_t>(execute_kernel); }

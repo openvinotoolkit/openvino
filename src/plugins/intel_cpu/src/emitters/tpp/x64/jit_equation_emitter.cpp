@@ -17,10 +17,11 @@ using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
 EquationTppEmitter::EquationTppEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) :
                                        TppEmitter(h, isa, expr), m_num_inputs(expr->get_input_count()) {
-    const auto& eq_tpp = std::dynamic_pointer_cast<tpp::op::EquationTPP>(expr->get_node());
+    const auto& eq_tpp = ov::as_type_ptr<tpp::op::EquationTPP>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(eq_tpp, "Invalid TPP node type detected");
     auto get_MN = [this](int arg_idx){
         const auto& subtensor = get_projected_subtensor(io_port_descriptors[arg_idx]);
+        OV_CPU_JIT_EMITTER_ASSERT(subtensor.size() == 2, "TPP supports only 2D subtensors");
         return std::make_pair(static_cast<libxsmm_blasint>(*++subtensor.rbegin()),
                               static_cast<libxsmm_blasint>(*subtensor.rbegin()));
     };

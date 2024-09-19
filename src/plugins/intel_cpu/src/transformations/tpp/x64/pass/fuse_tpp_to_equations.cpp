@@ -8,7 +8,6 @@
 #include "snippets/utils/utils.hpp"
 #include "transformations/tpp/x64/op/equation.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
-#include "snippets/pass/hash.hpp"
 
 namespace ov {
 namespace intel_cpu {
