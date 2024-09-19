@@ -20,6 +20,7 @@ class RemainFCParallelFusion: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RemainFCParallelFusion", "0");
     RemainFCParallelFusion(size_t world_size, size_t world_rank);
+    std::shared_ptr<ov::Node> find_first_fc_after_multiply(std::shared_ptr<ov::Node> root_node);
 };
 
 }   // namespace intel_gpu
