@@ -9,10 +9,10 @@
 #include <fstream>
 #include <openvino/util/file_util.hpp>
 
+#include "common_test_utils/file_utils.hpp"
 #include "openvino/c/openvino.h"
 #include "openvino/openvino.hpp"
 #include "test_model_repo.hpp"
-#include "common_test_utils/file_utils.hpp"
 
 #define OV_EXPECT_OK(...)           EXPECT_EQ(ov_status_e::OK, __VA_ARGS__)
 #define OV_ASSERT_OK(...)           ASSERT_EQ(ov_status_e::OK, __VA_ARGS__)
