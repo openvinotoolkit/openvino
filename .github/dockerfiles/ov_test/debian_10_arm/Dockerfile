@@ -19,7 +19,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install openvino dependencies
-ADD install_openvino_dependencies.sh /install_openvino_dependencies.sh
+ADD scripts/install_dependencies/install_openvino_dependencies.sh /install_openvino_dependencies.sh
 RUN chmod +x /install_openvino_dependencies.sh && \
     /install_openvino_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
