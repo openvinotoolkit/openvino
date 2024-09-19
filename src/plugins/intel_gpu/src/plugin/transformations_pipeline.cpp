@@ -875,10 +875,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return true;
                 }
 
-                // OneDNN accuracy issue
-                if ((root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8)
-                    && dynamic_quantization_group_size != UINT64_MAX) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << " : dynamic quantization is not supported because of library accuracy issue" << std::endl;
+                bool has_wzp = root->get_input_size() > 4;
+                if ((root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8) && has_wzp) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << " : dynamic quantization is turned off because weight may not representable in 8 bit" << std::endl;
                     return true;
                 }
                 return false;
