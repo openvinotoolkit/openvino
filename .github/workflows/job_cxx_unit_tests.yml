@@ -16,6 +16,10 @@ on:
         description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
         type: string
         required: true
+      os:
+        description: 'OS that is used for testing in the form of "ubuntu_20_04"'
+        type: string
+        required: true
 
 permissions: read-all
 
@@ -55,6 +59,10 @@ jobs:
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "SETUPVARS_COMMAND=${{ env.SOURCE_COMMAND }} $GITHUB_WORKSPACE/install/${{ env.SETUPVARS }}" >> "$GITHUB_ENV"
+          if [[ ${{ inputs.os }} == 'debian_10' ]]; then
+            echo "LD_LIBRARY_PATH=/usr/arm-linux-gnueabihf/:/usr/arm-linux-gnueabihf/lib/:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+            ln -s /usr/arm-linux-gnueabihf/lib/ld-linux-armhf.so.3 /lib/ld-linux-armhf.so.3
+          fi
 
       - name: Setup Variables (Windows)
         if: ${{ runner.os == 'Windows' }}
@@ -80,14 +88,6 @@ jobs:
             Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_DIR }}"
           popd
 
-      - name: Check Archive contents
-        run: |
-          ls -la ${{ env.INSTALL_DIR }}
-          echo "123"
-          ls -al ${{ env.INSTALL_TEST_DIR }}
-          echo "456"
-          ls -la ${{ env.INSTALL_TEST_DIR }}/ov_core_unit_tests
-
       #
       # Tests
       #
@@ -96,9 +96,7 @@ jobs:
         if: fromJSON(inputs.affected-components).Core.test
         run: |
           ${{ env.SETUPVARS_COMMAND }}
-          export LD_LIBRARY_PATH=/usr/arm-linux-gnueabihf/:/usr/arm-linux-gnueabihf/lib/:$LD_LIBRARY_PATH
-          ln -s /usr/arm-linux-gnueabihf/lib/ld-linux-armhf.so.3 /lib/ld-linux-armhf.so.3
-          ${INSTALL_TEST_DIR}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVCoreUT.xml
+          ${{ env.INSTALL_TEST_DIR }}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVCoreUT.xml
 
       - name: OpenVINO Inference Functional Tests
         if: fromJSON(inputs.affected-components).inference.test
