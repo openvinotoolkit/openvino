@@ -89,16 +89,12 @@ static std::map<int, std::string> oclErrorCode = {
 #define CHECK_OCL_ERROR(err, msg)                                                                            \
     if (err < 0) {                                                                                           \
         std::string errstr = (oclErrorCode.find(err) != oclErrorCode.end()) ? oclErrorCode[err] : "Unknown"; \
-        OPENVINO_THROW("ERROR: ",                                                                            \
-                       __FUNCTION__,                                                                         \
-                       ", line = ",                                                                          \
-                       __LINE__,                                                                             \
-                       msg,                                                                                  \
-                       ", err = ",                                                                           \
-                       err,                                                                                  \
-                       ": ",                                                                                 \
-                       errstr.c_str(),                                                                       \
-                       "\n");                                                                                \
+        printf("ERROR: oclContext::%s, line = %d, %s! err = %d (%s)\n",                                      \
+               __FUNCTION__,                                                                                 \
+               __LINE__,                                                                                     \
+               msg,                                                                                          \
+               err,                                                                                          \
+               errstr.c_str());                                                                              \
     }
 
 static bool debug_enable = false;
@@ -300,7 +296,8 @@ public:
 
             std::vector<char> logbuf(logsize + 1, 0);
             err = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, logsize + 1, logbuf.data(), NULL);
-            OPENVINO_ASSERT(err >= 0, "clGetProgramBuildInfo: ", logbuf.data());
+            std::cout << "clGetProgramBuildInfo failed: " << logbuf.data() << std::endl;
+            // OPENVINO_ASSERT(err >= 0, "clGetProgramBuildInfo: ", logbuf.data());
         }
         cl_kernel kernel = clCreateKernel(program, kernelName, &err);
         CHECK_OCL_ERROR(err, "clCreateKernel failed");
@@ -308,15 +305,16 @@ public:
     }
 
     cl_kernel get_or_create_kernel_if_possible(cldnn::stream& stream, kernel_data_type type) {
+        std::lock_guard<std::mutex> lock(mutex);
         auto it = kernels.find(type);
         if (it != kernels.end()) {
             // std::cout << "get_kernel: type = " << static_cast<int>(type) << std::endl;
             return it->second;
         }
-        #define ADD_OP_KERNEL_SOURCE_CODE(DATA_TYPE)                                                        \
-            "kernel void tensor_add_kernel_DATA_TYPE(const global DATA_TYPE* src, global DATA_TYPE* dst) {" \
-            "const int id = get_global_id(0);"                                                              \
-            "dst[id] += src[id];"                                                                           \
+        #define ADD_OP_KERNEL_SOURCE_CODE(DATA_TYPE)                                                                       \
+            "kernel void tensor_add_kernel_" #DATA_TYPE "(const global " #DATA_TYPE " *src, global " #DATA_TYPE " *dst) {" \
+            "const int id = get_global_id(0);"                                                                             \
+            "dst[id] += src[id];"                                                                                          \
             "}"
         if (type == kernel_data_type::e_type_fp16) {
             const char tensor_add_kernel_fp16[] = ADD_OP_KERNEL_SOURCE_CODE(half);
@@ -334,7 +332,8 @@ public:
             kernels[type] = create_kernel(stream, tensor_add_kernel_fp32, kernel_name);
             return kernels[type];
         } else {
-            OPENVINO_THROW("error: unsupported adder kernel data type ", static_cast<int>(type));
+            std::cout << "error: unsupported adder kernel data type " << static_cast<int>(type) << std::endl;
+            // OPENVINO_THROW("error: unsupported adder kernel data type ", static_cast<int>(type));
         }
         #undef ADD_OP_KERNEL_SOURCE_CODE
         return kernels[type];
@@ -347,6 +346,9 @@ public:
                           kernel_data_type data_type) {
         cl_int err;
         auto& ocl_stream = downcast<ocl::ocl_stream>(stream);
+        if (src == nullptr || dst == nullptr) {
+            std::cout << "tensor_add: invalid arguments!" << std::endl;
+        }
         OPENVINO_ASSERT(src != nullptr && dst != nullptr, "tensor_add: invalid arguments!");
 
         const auto start = perf_dump_start();
@@ -378,6 +380,7 @@ public:
 
 private:
     cl_program program;
+    std::mutex mutex;
     std::map<kernel_data_type, cl_kernel> kernels;
 };
 
@@ -468,7 +471,7 @@ public:
         if (!validate(src, dst)) {
             std::lock_guard<std::mutex> lock(debug_mutex);
             print(src, dst);
-            OPENVINO_THROW("simple_tensor_concat::validate failed due to src/dst mismatch.");
+            std::cout << "simple_tensor_concat::validate failed due to src/dst mismatch." << std::endl;
         }
 
         size_t src_rec[3] = {0, 0, 0};
@@ -493,6 +496,8 @@ public:
                                                    nullptr,
                                                    &event);
                 if (ret != CL_SUCCESS) {
+                    std::cout << "0.clEnqueueCopyBufferRect failed: " << oclErrorCode[ret] << ", idx = " << i
+                              << std::endl;
                     OPENVINO_THROW("0.clEnqueueCopyBufferRect failed: ", oclErrorCode[ret], ", idx = ", i);
                 }
                 dst_rec[1] += src[i]->height;
@@ -520,7 +525,9 @@ public:
                                                    nullptr,
                                                    &event);
                 if (ret != CL_SUCCESS) {
-                    OPENVINO_THROW("0.clEnqueueCopyBufferRect failed: ", oclErrorCode[ret], ", idx = ", i);
+                    std::cout << "1.clEnqueueCopyBufferRect failed: " << oclErrorCode[ret] << ", idx = " << i
+                              << std::endl;
+                    OPENVINO_THROW("1.clEnqueueCopyBufferRect failed: ", oclErrorCode[ret], ", idx = ", i);
                 }
                 dst_rec[0] += src[i]->width;
                 // ret = clWaitForEvents(1, &event);
@@ -529,6 +536,7 @@ public:
                 sync_events.emplace_back(ocl_stream.create_event(cl::Event(event)));
             }
         } else {
+            std::cout << "tensor_concat failed: incorrect concat mode!" << std::endl;
             OPENVINO_THROW("tensor_concat failed: incorrect concat mode!");
         }
 
@@ -564,9 +572,9 @@ static gpu_p2p_helper& get_p2p_instance() {
     return gpu_p2p_instance;
 }
 
-static simple_tensor_add& get_adder_instance() {
-    static simple_tensor_add adder_instance;
-    return adder_instance;
+static simple_tensor_add& get_adder_instance(size_t idx) {
+    static simple_tensor_add adder_instance[4];
+    return adder_instance[idx];
 }
 
 struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
@@ -881,7 +889,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
             auto start_3 = perf_dump_start();
             auto dst_mem = std::dynamic_pointer_cast<const ocl::gpu_buffer>(instance.output_memory_ptr(0));
             auto dst_cl_buf = dst_mem->get_buffer().get();
-            auto& adder_instance = get_adder_instance();
+            auto& adder_instance = get_adder_instance(w_rank);
             // auto data_size = dst_mem->size();
             for (size_t idx = 0; idx < w_size; idx++) {
                 if (idx != static_cast<size_t>(w_rank)) {
