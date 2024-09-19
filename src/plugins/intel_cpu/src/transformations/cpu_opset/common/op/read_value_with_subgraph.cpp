@@ -6,11 +6,8 @@
 #include "itt.hpp"
 #include "transformations/itt.hpp"
 
-ov::intel_cpu::ReadValueWithSubgraphNode::ReadValueWithSubgraphNode() : ov::op::util::SubGraphOp() {}
-
 ov::intel_cpu::ReadValueWithSubgraphNode::ReadValueWithSubgraphNode(
-    const std::shared_ptr<ov::op::util::Variable>& variable)
-    : ov::intel_cpu::ReadValueWithSubgraphNode() {
+    const std::shared_ptr<ov::op::util::Variable>& variable) {
     m_variable = variable;
 }
 
@@ -53,7 +50,7 @@ std::shared_ptr<ov::Node> ov::intel_cpu::ReadValueWithSubgraphNode::clone_with_n
                     get_friendly_name());
     op->set_arguments(new_args);
     op->set_output_size(m_output_descriptions[0].size());
-    op->set_body(get_function()->clone());
+    op->set_function(get_function()->clone());
     for (const auto& m_input_descr : m_input_descriptions[0]) {
         op->m_input_descriptions[0].push_back(m_input_descr->copy());
     }

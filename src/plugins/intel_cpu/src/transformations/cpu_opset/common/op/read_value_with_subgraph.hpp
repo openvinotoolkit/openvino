@@ -16,14 +16,10 @@ class ReadValueWithSubgraphNode : public ov::op::util::SubGraphOp {
 public:
     OPENVINO_OP("ReadValueWithSubgraph", "cpu_plugin_opset");
 
-    ReadValueWithSubgraphNode();
+    ReadValueWithSubgraphNode() = default;
     ReadValueWithSubgraphNode(const std::shared_ptr<ov::op::util::Variable>& variable);
 
     std::string get_variable_id() const;
-
-    void set_body(const std::shared_ptr<Model>& body) {
-        m_bodies[0] = body;
-    }
 
     void set_input(const Output<Node>& value, const std::shared_ptr<op::v0::Parameter>& body_parameter);
 
