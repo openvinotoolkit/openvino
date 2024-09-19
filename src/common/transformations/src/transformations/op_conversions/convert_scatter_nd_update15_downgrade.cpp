@@ -16,7 +16,7 @@ ov::pass::ConvertScatterNDUpdate15ToScatterNDUpdate3::ConvertScatterNDUpdate15To
     const auto scatter_v15_pattern = pattern::wrap_type<ov::op::v15::ScatterNDUpdate>();
 
     const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        const auto scatter_v15 = std::dynamic_pointer_cast<ov::op::v15::ScatterNDUpdate>(m.get_match_root());
+        const auto scatter_v15 = ov::as_type_ptr<ov::op::v15::ScatterNDUpdate>(m.get_match_root());
         if (!scatter_v15 || transformation_callback(scatter_v15)) {
             return false;
         }

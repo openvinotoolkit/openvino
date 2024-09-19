@@ -15,7 +15,7 @@ ov::pass::ConvertDeformableConv8To1::ConvertDeformableConv8To1() {
     auto deformable_conv_v8 = pattern::wrap_type<ov::op::v8::DeformableConvolution>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto deformable_conv_v8_node = std::dynamic_pointer_cast<ov::op::v8::DeformableConvolution>(m.get_match_root());
+        auto deformable_conv_v8_node = ov::as_type_ptr<ov::op::v8::DeformableConvolution>(m.get_match_root());
         if (!deformable_conv_v8_node)
             return false;
 
