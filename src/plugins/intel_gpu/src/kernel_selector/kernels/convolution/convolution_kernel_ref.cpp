@@ -123,7 +123,8 @@ bool ConvolutionKernel_Ref::Validate(const Params& params) const {
 
     // int8/uint8 inputs (quantization case) require additional checks
     // require some additional checks.
-    if (input_type == output_type && input_type != Datatype::UINT8 && input_type != Datatype::INT8)
+    if (input_type != Datatype::UINT8 && input_type != Datatype::INT8 &&
+        output_type != Datatype::UINT8 && output_type != Datatype::INT8)
         return true;
 
     // (u)int8 input + fp weights
