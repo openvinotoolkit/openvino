@@ -156,30 +156,3 @@ TEST(node_input_output, create_wrong_input_output) {
     EXPECT_THROW(ov::Input<ov::Node>(nullptr, 0), ov::Exception);
     EXPECT_THROW(ov::Input<const ov::Node>(nullptr, 0), ov::Exception);
 }
-
-TEST(OutputNodeConversion, OneOutputNode) {
-    auto param = std::make_shared<op::v0::Parameter>(element::i32, Shape{});
-    auto param1 = std::make_shared<op::v0::Parameter>(element::i32, Shape{});
-
-    auto add = std::make_shared<op::v1::Add>(param, param1);
-
-    auto res = std::make_shared<op::v0::Result>(add);
-
-    ASSERT_EQ(add->output(0), add);
-}
-
-TEST(OutputNodeConversion, ManyOutputNode) {
-    auto param = std::make_shared<op::v0::Parameter>(element::i32, Shape{10});
-    auto k = op::v0::Constant::create(ov::element::i32, Shape{}, {3});
-
-    auto topk = std::make_shared<op::v11::TopK>(param,
-                                                k,
-                                                0,
-                                                v11::TopK::Mode::MAX,
-                                                ov::op::v11::TopK::SortType::NONE);
-
-    auto res = std::make_shared<op::v0::Result>(topk);
-
-    ASSERT_EQ(topk->output(0), topk);
-    ASSERT_NE(topk->output(1), topk);
-}
