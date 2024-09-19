@@ -133,7 +133,6 @@ jobs:
         run: |
           export ASAN_OPTIONS=halt_on_error=0:suppressions=${ASAN_IGNORE}
           export LSAN_OPTIONS=suppressions=${LSAN_IGNORE}:NEOReadDebugKeys=1:DisableDeepBind=1
-          export TSAN_OPTIONS=suppressions=${TSAN_IGNORE}
           export CC=clang
           export CXX=clang++
           cmake \
