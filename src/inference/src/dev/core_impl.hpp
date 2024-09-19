@@ -154,7 +154,8 @@ private:
         ov::Plugin& plugin,
         const ov::AnyMap& config,
         const ov::SoPtr<ov::IRemoteContext>& context,
-        std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda);
+        std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda,
+        bool enable_mmap);
 
     bool device_supports_model_caching(const ov::Plugin& plugin) const;
 

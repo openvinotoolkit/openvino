@@ -28,4 +28,19 @@ private:
     T _shared_object;
 };
 
+
+/// \brief SharedStreamBuffer class to store pointer to pre-acclocated buffer and provide streambuf interface.
+template <typename T>
+class SharedStreamBuffer final : public std::stringbuf {
+public:
+    SharedStreamBuffer(char* data, size_t size, const T& shared_object) : _shared_object(shared_object) {
+        basic_streambuf::pubsetbuf(data, size);
+    }
+
+    SharedStreamBuffer() = delete;
+
+private:
+    T _shared_object;
+};
+
 }  // namespace ov
