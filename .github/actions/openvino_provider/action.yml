@@ -123,7 +123,7 @@ runs:
       run: |
         cd ${{ steps.openvino_commit_download.outputs.artifacts_workspace_path }}
         version=$(yq eval '.components.dldt.custom_params.wheel_product_version' manifest.yml)
-        wheel_path=${{ steps.openvino_commit_output.outputs.ov_package_path }}/tools
+        wheel_path=tools
         default_find_links_cmd="--find-links=./$wheel_path"
         find_links_cmd=$([[ -n "$PIP_FIND_LINKS" ]] && echo "" || echo "$default_find_links_cmd")
         echo "ov_version=$version" >> $GITHUB_OUTPUT
