@@ -372,37 +372,11 @@ pointers or the ``VASurfaceID`` handle respectively, as shown in the examples be
 
          // obtain the RemoteContext from the compiled model object and cast it to D3DContext
          auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::D3DContext>();
-         // obtain the D3D context handle from the RemoteContext,
-         // get device info and create a queue
-         cl::Context cl_context = gpu_context;
-         cl::Device device = cl::Device(cl_context.getInfo<CL_CONTEXT_DEVICES>()[0].get(), true);
-         cl_command_queue_properties props = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
-         cl::CommandQueue queue = cl::CommandQueue(cl_context, device, props);
 
-         // create the D3D buffer within the obtained context
          auto input = model->get_parameters().at(0);
-         auto input_size = ov::shape_size(input->get_shape());
-         cl_int err;
-         cl::Buffer shared_buffer(cl_context, CL_MEM_READ_WRITE, input_size, NULL, &err);
-         // wrap the buffer into RemoteBlob
-         auto shared_blob = gpu_context.create_tensor(input->get_element_type(), input->get_shape(), shared_buffer);
-
-         // ...
-         // execute user kernel
-         cl::Program program;
-         cl::Kernel kernel(program, "user_kernel");
-         kernel.setArg(0, shared_buffer);
-         queue.enqueueNDRangeKernel(kernel,
-                                    cl::NDRange(0),
-                                    cl::NDRange(input_size),
-                                    cl::NDRange(1),
-                                    nullptr,
-                                    nullptr);
-         queue.finish();
-         // ...
-         // pass results to the inference
-         infer_request.set_tensor(input, shared_blob);
-         infer_request.infer();
+         ID3D11Buffer* d3d_handle = get_d3d_buffer();
+         auto tensor = gpu_context.create_tensor(input->get_element_type(), input->get_shape(), d3d_handle);
+         infer_request.set_tensor(input, tensor);
 
    .. tab-item:: ID3D11Texture2D
       :sync: id3d11-texture
@@ -420,26 +394,22 @@ pointers or the ``VASurfaceID`` handle respectively, as shown in the examples be
 
          CComPtr<ID3D11Device> device_ptr = get_d3d_device_ptr()
          // create the shared context object
-         auto shared_va_context = ov::intel_gpu::ocl::D3DContext(core, device_ptr);
+         auto shared_d3d_context = ov::intel_gpu::ocl::D3DContext(core, device_ptr);
          // compile model within a shared context
-         auto compiled_model = core.compile_model(model, shared_va_context);
+         auto compiled_model = core.compile_model(model, shared_d3d_context);
 
-         auto input0 = model->get_parameters().at(0);
-         auto input1 = model->get_parameters().at(1);
-
-         auto shape = input0->get_shape();
-         auto width = shape[1];
-         auto height = shape[2];
+         auto param_input_y = model->get_parameters().at(0);
+         auto param_input_uv = model->get_parameters().at(1);
 
          D3D11_TEXTURE2D_DESC texture_description = get_texture_desc();
          CComPtr<ID3D11Texture2D> dx11_texture = get_texture();
          //     ...
          //wrap decoder output into RemoteBlobs and set it as inference input
-         auto nv12_blob = shared_va_context.create_tensor_nv12(texture_description.Heights, texture_description.Width, dx11_texture);
+         auto nv12_blob = shared_d3d_context.create_tensor_nv12(texture_description.Heights, texture_description.Width, dx11_texture);
 
          auto infer_request = compiled_model.create_infer_request();
-         infer_request.set_tensor(input0->get_friendly_name(), nv12_blob.first);
-         infer_request.set_tensor(input1->get_friendly_name(), nv12_blob.second);
+         infer_request.set_tensor(param_input_y->get_friendly_name(), nv12_blob.first);
+         infer_request.set_tensor(param_input_uv->get_friendly_name(), nv12_blob.second);
          infer_request.start_async();
          infer_request.wait();
 
@@ -463,24 +433,24 @@ pointers or the ``VASurfaceID`` handle respectively, as shown in the examples be
          // compile model within a shared context
          auto compiled_model = core.compile_model(model, shared_va_context);
 
-         auto input0 = model->get_parameters().at(0);
-         auto input1 = model->get_parameters().at(1);
+         auto param_input_y = model->get_parameters().at(0);
+         auto param_input_uv = model->get_parameters().at(1);
 
-         auto shape = input0->get_shape();
+         auto shape = param_input_y->get_shape();
          auto width = shape[1];
          auto height = shape[2];
 
-         D3D11_TEXTURE2D_DESC texture_description = get_texture_desc();
-         CComPtr<ID3D11Texture2D> dx11_texture = get_texture();
+         VASurfaceID va_surface = decode_va_surface();
          //     ...
          //wrap decoder output into RemoteBlobs and set it as inference input
-         auto nv12_blob = shared_va_context.create_tensor_nv12(texture_description.Heights, texture_description.Width, dx11_texture);
+         auto nv12_blob = shared_va_context.create_tensor_nv12(height, width, va_surface);
 
          auto infer_request = compiled_model.create_infer_request();
-         infer_request.set_tensor(input0->get_friendly_name(), nv12_blob.first);
-         infer_request.set_tensor(input1->get_friendly_name(), nv12_blob.second);
+         infer_request.set_tensor(param_input_y->get_friendly_name(), nv12_blob.first);
+         infer_request.set_tensor(param_input_uv->get_friendly_name(), nv12_blob.second);
          infer_request.start_async();
          infer_request.wait();
+
 
 
 
