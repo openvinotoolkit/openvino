@@ -153,7 +153,7 @@ jobs:
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_TESTS=OFF \
+            -DENABLE_TESTS=ON \
             -DENABLE_INTEL_CPU=ON \
             -DENABLE_INTEL_GPU=OFF \
             -DENABLE_INTEL_NPU=OFF \
@@ -275,7 +275,7 @@ jobs:
 
           pushd $INSTALL_TEST_DIR
             tar -xzf openvino_tests.tar.gz -C $INSTALL_TEST_DIR
-            ls -la $INSTALL_TEST_DIR
+            ls -la $INSTALL_TEST_DIR/tests
           popd
 
 #       - name: Fetch setup_python action
