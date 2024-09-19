@@ -190,3 +190,9 @@ OpenVINO Python API
    :template: custom-module-template.rst
 
    openvino.frontend
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+
+   openvino.experimental
