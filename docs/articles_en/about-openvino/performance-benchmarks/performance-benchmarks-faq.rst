@@ -2,8 +2,6 @@ Performance Information F.A.Q.
 ==============================
 
 
-
-
 .. meta::
    :description: Check the F.A.Q. for performance benchmarks in Intel® Distribution of OpenVINO™ toolkit.
 
@@ -64,11 +62,19 @@ Performance Information F.A.Q.
         - Meta AI
         - Auto regressive language
         - 4096
+      * - `Llama-3-8b <https://ai.meta.com/llama/>`__
+        - Meta AI
+        - Auto regressive language
+        - 8192
       * - `Mistral-7b <https://huggingface.co/mistralai/Mistral-7B-v0.1>`__
         - Mistral AI
         - Auto regressive language
         - 4096
-      * - `Stable-Diffusion-V2-1 <https://huggingface.co/stabilityai/stable-diffusion-2-1>`__
+      * - `Phi3-4k-mini <https://huggingface.co/microsoft/Phi-3-mini-4k-instruct>`__
+        - Huggingface
+        - Auto regressive language
+        - 4096
+      * - `Stable-Diffusion-V1-5 <https://https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5>`__
         - Hugginface
         - Latent Diffusion Model
         - 77
@@ -108,13 +114,13 @@ Performance Information F.A.Q.
         - U-Net
         - semantic segmentation
         - 368x480
-      * - `yolo-v3-tiny <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v3-tiny-tf>`__
-        - YOLO v3 Tiny
+      * - `yolo-v5m <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v3-tiny-tf>`__
+        - YOLO V5 Medium
         - object detection
-        - 416x416
+        - 640x640
       * - `yolov8n <https://https://github.com/ultralytics/ultralytics>`__
         - Yolov8nano
-        -  object detection
+        - object detection
         - 608x608
 
 
@@ -122,8 +128,8 @@ Performance Information F.A.Q.
 
    Intel partners with vendors all over the world. For a list of Hardware Manufacturers, see the
    `Intel® AI: In Production Partners & Solutions Catalog <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/partners-solutions-catalog.html>`__.
-   For more details, see the :doc:`Supported Devices <../compatibility-and-support/supported-devices>`.
-   documentation.
+   For more details, see the :doc:`Supported Devices <../compatibility-and-support/supported-devices>` article.
+
 
 .. dropdown:: How can I optimize my models for better performance or accuracy?
 
