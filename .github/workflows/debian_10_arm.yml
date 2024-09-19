@@ -104,9 +104,8 @@ jobs:
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.debian_10_arm }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.debian_10_arm }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      os: 'debian_10'
 
   Overall_Status:
     name: ci/gha_overall_status_debian_10_arm

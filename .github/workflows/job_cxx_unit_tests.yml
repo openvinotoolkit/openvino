@@ -16,10 +16,6 @@ on:
         description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
         type: string
         required: true
-      os:
-        description: 'OS that is used for testing in the form of "ubuntu_20_04"'
-        type: string
-        required: true
 
 permissions: read-all
 
@@ -59,10 +55,6 @@ jobs:
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "SETUPVARS_COMMAND=${{ env.SOURCE_COMMAND }} $GITHUB_WORKSPACE/install/${{ env.SETUPVARS }}" >> "$GITHUB_ENV"
-          if [[ ${{ inputs.os }} == 'debian_10' ]]; then
-            echo "LD_LIBRARY_PATH=/usr/arm-linux-gnueabihf/:/usr/arm-linux-gnueabihf/lib/:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
-            ln -s /usr/arm-linux-gnueabihf/lib/ld-linux-armhf.so.3 /lib/ld-linux-armhf.so.3
-          fi
 
       - name: Setup Variables (Windows)
         if: ${{ runner.os == 'Windows' }}

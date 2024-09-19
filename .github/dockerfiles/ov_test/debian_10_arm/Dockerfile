@@ -15,6 +15,9 @@ ENV DEBIAN_FRONTEND="noninteractive" \
 RUN apt-get update && \
     apt-get install  \
         git \
+        # Compilers
+        gcc-arm-linux-gnueabihf \
+        g++-arm-linux-gnueabihf \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -22,4 +25,7 @@ RUN apt-get update && \
 ADD scripts/install_dependencies/install_openvino_dependencies.sh /install_openvino_dependencies.sh
 RUN chmod +x /install_openvino_dependencies.sh && \
     /install_openvino_dependencies.sh && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* \
+
+ENV LD_LIBRARY_PATH=/usr/arm-linux-gnueabihf/:/usr/arm-linux-gnueabihf/lib/:$LD_LIBRARY_PATH
+RUN ln -s /usr/arm-linux-gnueabihf/lib/ld-linux-armhf.so.3 /lib/ld-linux-armhf.so.3
