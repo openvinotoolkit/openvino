@@ -28,19 +28,14 @@ private:
     T _shared_object;
 };
 
-
 /// \brief SharedStreamBuffer class to store pointer to pre-acclocated buffer and provide streambuf interface.
 class SharedStreamBuffer : public std::streambuf {
 public:
-    SharedStreamBuffer(char* data, size_t size) :
-        m_data(data),
-        m_size(size),
-        m_offset(0) {
-    }
+    SharedStreamBuffer(char* data, size_t size) : m_data(data), m_size(size), m_offset(0) {}
 
 protected:
-    std::streamsize xsgetn(char* s, std::streamsize count) override{
-        auto real_count = std::min<std::streamsize>(m_size - m_offset, + count);
+    std::streamsize xsgetn(char* s, std::streamsize count) override {
+        auto real_count = std::min<std::streamsize>(m_size - m_offset, count);
         std::memcpy(s, m_data + m_offset, real_count);
         m_offset += real_count;
         return real_count;
@@ -63,10 +58,11 @@ protected:
     size_t m_offset;
 };
 
-/// \brief OwningSharedStreamBuffer is a SharedStreamBuffer which owns its shared object. Can return AlignedBuffer to shared memory
+/// \brief OwningSharedStreamBuffer is a SharedStreamBuffer which owns its shared object. Can return AlignedBuffer to
+/// shared memory
 class OwningSharedStreamBuffer : public SharedStreamBuffer {
 public:
-    template<typename T>
+    template <typename T>
     OwningSharedStreamBuffer(char* data, size_t size, const T& shared_object)
         : SharedStreamBuffer(data, size),
           m_alligned_buffer(std::make_shared<SharedBuffer<T>>(data, size, shared_object)) {}
@@ -78,6 +74,5 @@ public:
 protected:
     std::shared_ptr<AlignedBuffer> m_alligned_buffer;
 };
-
 
 }  // namespace ov

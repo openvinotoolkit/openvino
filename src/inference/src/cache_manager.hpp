@@ -14,9 +14,9 @@
 #include <memory>
 #include <string>
 
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
-#include "openvino/runtime/shared_buffer.hpp"
 
 namespace ov {
 
