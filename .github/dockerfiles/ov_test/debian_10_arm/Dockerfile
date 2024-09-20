@@ -14,9 +14,36 @@ ENV DEBIAN_FRONTEND="noninteractive" \
 
 RUN apt-get update && \
     apt-get install  \
+        software-properties-common \
+        curl \
         git \
+        gpg-agent \
+        tzdata \
+        # Pythons \
+        python3 \
+        python3-pip \
+        python3-dev \
+        python3-venv \
+        python3-distutils \
+        libhdf5-dev \
+        # For building Python from source
+        build-essential \
+        libffi-dev \
+        libgdbm-dev \
         libc6-dev \
-        libc6 \
+        libssl-dev \
+        zlib1g-dev \
+        libbz2-dev \
+        libreadline-dev \
+        libsqlite3-dev \
+        libncurses5-dev \
+        libncursesw5-dev \
+        xz-utils \
+        tk-dev \
+        libxml2-dev \
+        libxmlsec1-dev \
+        liblzma-dev \
+        wget \
         # Compilers
         gcc-arm-linux-gnueabihf \
         g++-arm-linux-gnueabihf \
