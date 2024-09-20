@@ -47,7 +47,7 @@ core.add_extension(ConversionExtension("ThresholdedRelu", conversion))
 #! [py_frontend_extension_aten_hardtanh]
 import torch
 from openvino.frontend import ConversionExtension, NodeContext
-from openvino.tools.mo import convert_model
+from openvino import convert_model
 
 
 class HardTanh(torch.nn.Module):
