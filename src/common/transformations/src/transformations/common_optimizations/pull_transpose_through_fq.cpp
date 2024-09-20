@@ -35,7 +35,6 @@ ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
         auto& pattern_map = m.get_pattern_value_map();
         auto transpose = pattern_map[m_transpose].get_node_shared_ptr();
         auto fq = pattern_map[m_fq].get_node_shared_ptr();
-
         auto input_rank = fq->input(0).get_partial_shape().rank().get_length();
 
         ov::NodeVector new_ops;
