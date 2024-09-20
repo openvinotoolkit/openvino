@@ -52,9 +52,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &model) {
                              false);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert); // Need to clean up after the ConvertPrecision.
-
-    if (!std::getenv("DISABLE_RV"))
-        CPU_REGISTER_PASS_COMMON(manager, MoveReadValueInputsToSubgraph);
+    CPU_REGISTER_PASS_COMMON(manager, MoveReadValueInputsToSubgraph);
     manager.run_passes(model);
 }
 
