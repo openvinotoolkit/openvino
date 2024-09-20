@@ -39,8 +39,13 @@ OutputVector translate_index_fill_(const NodeContext& context) {
     auto tensor_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
     auto dim_vec = context.mark_node(std::make_shared<v1::Reshape>(positive_dim, const_1_vec, false));
     auto broadcasted_index = context.mark_node(std::make_shared<v1::Broadcast>(index, tensor_shape, dim_vec));
+    // Assuming v is your value node and broadcasted_index is already created
+    auto index_shape = context.mark_node(std::make_shared<v3::ShapeOf>(broadcasted_index, element::i32));
 
-    auto result = context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(input, broadcasted_index, index, dim));
+    // Create a tensor filled with the value of v
+    auto filled_with_v = context.mark_node(std::make_shared<v1::Broadcast>(value, index_shape));
+
+    auto result = context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(input, filled_with_v, index, dim));
     return {result};
 };
 
