@@ -4,26 +4,33 @@
 
 const { addon: ov } = require('../..');
 const assert = require('assert');
-const { test, describe, it } = require('node:test');
+const { test, describe, it, before } = require('node:test');
 const getRandomBigInt = require('random-bigint');
 
 describe('ov.Tensor tests', () => {
 
-  const shape = [1, 3, 224, 224];
-  const elemNum = 1 * 3 * 224 * 224;
-  const data = Float32Array.from({ length: elemNum }, () => Math.random() );
-  const params = [
-    [ov.element.i8, 'i8', Int8Array.from({ length: elemNum }, () => Math.random() )],
-    [ov.element.u8, 'u8', Uint8Array.from({ length: elemNum }, () => Math.random() )],
-    [ov.element.i16, 'i16', Int16Array.from({ length: elemNum }, () => Math.random() )],
-    [ov.element.u16, 'u16', Uint16Array.from({ length: elemNum }, () => Math.random() )],
-    [ov.element.i32, 'i32', Int32Array.from({ length: elemNum }, () => Math.random() )],
-    [ov.element.u32, 'u32', Uint32Array.from({ length: elemNum }, () => Math.random() )],
-    [ov.element.f32, 'f32', Float32Array.from({ length: elemNum }, () => Math.random() )],
-    [ov.element.f64, 'f64', Float64Array.from({ length: elemNum }, () => Math.random() )],
-    [ov.element.i64, 'i64', BigInt64Array.from({ length: elemNum }, () => getRandomBigInt(10) )],
-    [ov.element.u64, 'u64', BigUint64Array.from({ length: elemNum }, () => getRandomBigInt(10) )],
-  ];
+  let shape = null;
+  let elemNum = null;
+  let data = null;
+  let params =null;
+
+  before(() => {
+    shape = [1, 3, 224, 224];
+    elemNum = 1 * 3 * 224 * 224;
+    data = Float32Array.from({ length: elemNum }, () => Math.random() );
+    params = [
+      [ov.element.i8, 'i8', Int8Array.from({ length: elemNum }, () => Math.random() )],
+      [ov.element.u8, 'u8', Uint8Array.from({ length: elemNum }, () => Math.random() )],
+      [ov.element.i16, 'i16', Int16Array.from({ length: elemNum }, () => Math.random() )],
+      [ov.element.u16, 'u16', Uint16Array.from({ length: elemNum }, () => Math.random() )],
+      [ov.element.i32, 'i32', Int32Array.from({ length: elemNum }, () => Math.random() )],
+      [ov.element.u32, 'u32', Uint32Array.from({ length: elemNum }, () => Math.random() )],
+      [ov.element.f32, 'f32', Float32Array.from({ length: elemNum }, () => Math.random() )],
+      [ov.element.f64, 'f64', Float64Array.from({ length: elemNum }, () => Math.random() )],
+      [ov.element.i64, 'i64', BigInt64Array.from({ length: elemNum }, () => getRandomBigInt(10) )],
+      [ov.element.u64, 'u64', BigUint64Array.from({ length: elemNum }, () => getRandomBigInt(10) )],
+    ];
+  });
 
   test('Test for number of arguments in tensor', () => {
     assert.throws( () => new ov.Tensor(ov.element.f32, shape, data, params),
@@ -38,9 +45,8 @@ describe('ov.Tensor tests', () => {
   });
 
   describe('Tensor data', () => {
-
-    params.forEach(([type, stringType, data]) => {
-      it(`set tensor data with ${stringType} element type`, () => {
+    it('set tensor data with element type', () => {
+      params.forEach(([type, stringType, data]) => {
         const tensor = new ov.Tensor(type, shape, data);
         assert.deepStrictEqual(tensor.data, data);
       });
@@ -192,14 +198,16 @@ describe('ov.Tensor tests', () => {
   });
 
   describe('Tensor element type', () => {
-    params.forEach(([elemType, val]) => {
-      it(`comparison of ov.element.${elemType} to string ${val}`, () => {
+    it('comparisons of ov.element to string', () => {
+      params.forEach(([elemType, val]) => {
+
         assert.strictEqual(elemType, val);
       });
     });
 
-    params.forEach(([elemType, , data]) => {
-      it(`comparison of ov.element ${elemType} got from Tensor object`, () => {
+    it('comparisons of ov.element got from Tensor object', () => {
+      params.forEach(([elemType, , data]) => {
+
         const tensor = new ov.Tensor(elemType, shape, data);
         assert.strictEqual(tensor.getElementType(), elemType);
       });

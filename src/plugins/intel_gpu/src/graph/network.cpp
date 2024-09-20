@@ -373,17 +373,17 @@ static std::string get_file_path_for_binary_dump(cldnn::layout layout, std::stri
 Network will always have net_id = 0 when it will be cldnn internal micronetwork (created i.e by propagate_constants
 opt pass).
 */
-network::network(program::ptr program, const ExecutionConfig& config, stream::ptr stream, bool is_internal, bool is_primary_stream)
+network::network(program::ptr program, stream::ptr stream, bool is_internal, bool is_primary_stream)
     : _program(program)
-    , _config(config)
+    , _config(program->get_config())
     , _engine(program->get_engine())
     , _stream(stream)
     , _memory_pool(new memory_pool(program->get_engine()))
     , _internal(is_internal)
     , _is_primary_stream(is_primary_stream)
-    , _enable_profiling(config.get_property(ov::enable_profiling))
+    , _enable_profiling(program->get_config().get_property(ov::enable_profiling))
     , _reset_arguments(true)
-    , _shape_predictor(new ShapePredictor(&program->get_engine(), config.get_property(ov::intel_gpu::buffers_preallocation_ratio))) {
+    , _shape_predictor(new ShapePredictor(&program->get_engine(), program->get_config().get_property(ov::intel_gpu::buffers_preallocation_ratio))) {
     if (!_internal) {
         net_id = get_unique_net_id();
     }
@@ -413,25 +413,28 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
     add_default_output_chains();
 }
 
+network::network(program::ptr program, bool is_internal, bool is_primary_stream)
+    :  network(program, program->get_engine().create_stream(program->get_config()), is_internal, is_primary_stream) {}
+
 network::network(engine& engine,
                  const topology& topo,
                  const ExecutionConfig& config,
                  bool is_internal,
                  std::shared_ptr<ov::threading::IStreamsExecutor> task_executor)
-    : network(program::build_program(engine, topo, config, task_executor, is_internal), config, engine.create_stream(config), is_internal) {}
+    : network(program::build_program(engine, topo, config, task_executor, is_internal), is_internal, true) {}
 
 network::network(engine& engine,
                  const std::set<std::shared_ptr<program_node>>& nodes,
                  const ExecutionConfig& config,
                  std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                  bool is_internal)
-    : network(program::build_program(engine, nodes, config, task_executor, is_internal), config, engine.create_stream(config), is_internal) {}
+    : network(program::build_program(engine, nodes, config, task_executor, is_internal), is_internal, true) {}
 
 network::network(program::ptr program, uint16_t stream_id)
-    : network(program, program->get_config(), program->get_engine().create_stream(program->get_config()), false, stream_id == 0) {}
+    : network(program, program->get_engine().create_stream(program->get_config()), false, stream_id == 0) {}
 
 network::network(program::ptr program, stream::ptr stream, uint16_t stream_id)
-    : network(program, program->get_config(), stream, false, stream_id == 0) {}
+    : network(program, stream, false, stream_id == 0) {}
 
 network::~network() {
     if (_program != nullptr)
@@ -444,12 +447,12 @@ network::~network() {
 }
 
 network::ptr network::allocate_network(stream::ptr stream, program::ptr program, bool is_internal, bool is_primary_stream) {
-    return std::make_shared<network>(program, program->get_config(), stream, is_internal, is_primary_stream);
+    return std::make_shared<network>(program, stream, is_internal, is_primary_stream);
 }
 
 network::ptr network::allocate_network(engine& engine, program::ptr program, bool is_internal, bool is_primary_stream) {
     auto stream = engine.create_stream(program->get_config());
-    return std::make_shared<network>(program, program->get_config(), stream, is_internal, is_primary_stream);
+    return std::make_shared<network>(program, stream, is_internal, is_primary_stream);
 }
 
 network::ptr network::build_network(engine& engine,

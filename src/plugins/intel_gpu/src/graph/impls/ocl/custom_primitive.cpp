@@ -166,13 +166,14 @@ static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const 
     // #define INPUT0_LOWER_PADDING (uint[]) { 0, 0, 0, 0 }
     // #define INPUT0_UPPER_PADDING (uint[]) { 0, 0, 0, 0 }
     mem_consts.AddConstant(
-        kernel_selector::MakeJitConstant(name + "_LOWER_PADDING", l.data_padding.lower_size().sizes(format::bfyx)));
+        kernel_selector::MakeJitConstant(name + "_LOWER_PADDING", layout::format_sizes(l.data_padding._lower_size, format::bfyx)));
     mem_consts.AddConstant(
-        kernel_selector::MakeJitConstant(name + "_UPPER_PADDING", l.data_padding.upper_size().sizes(format::bfyx)));
+        kernel_selector::MakeJitConstant(name + "_UPPER_PADDING", layout::format_sizes(l.data_padding._upper_size, format::bfyx)));
 
     // Pitches (in elements)
     // #define INPUT0_PITCHES (uint[]) { b, f, h, w, }
-    auto padded_sizes = l.get_buffer_size().sizes(format::bfyx);
+    // auto padded_sizes = l.get_buffer_size().sizes(format::bfyx);
+    auto padded_sizes = l.get_padded_dims();
 
     std::vector<tensor::value_type> pitches(4);
     switch (l.format) {
@@ -209,8 +210,8 @@ static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const 
     // Offset (in elements)
     // #define INPUT0_OFFSET 0
     int32_t offset =
-        (pitches[0] * l.data_padding.lower_size().batch[0]) + (pitches[1] * l.data_padding.lower_size().feature[0]) +
-        (pitches[2] * l.data_padding.lower_size().spatial[1]) + (pitches[3] * l.data_padding.lower_size().spatial[0]);
+        (pitches[0] * l.data_padding._lower_size[0]) + (pitches[1] * l.data_padding._lower_size[1]) +
+        (pitches[2] * l.data_padding._lower_size[3]) + (pitches[3] * l.data_padding._lower_size[2]);
     mem_consts.AddConstant(kernel_selector::MakeJitConstant(name + "_OFFSET", std::to_string(offset)));
 }
 

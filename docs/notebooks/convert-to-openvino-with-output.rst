@@ -45,7 +45,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
 .. parsed-literal::
 
-    Requirement already satisfied: pip in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (24.2)
+    Requirement already satisfied: pip in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (24.2)
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -82,7 +82,7 @@ documentation.
 .. code:: ipython3
 
     # OVC CLI tool parameters description
-
+    
     ! ovc --help
 
 
@@ -91,12 +91,12 @@ documentation.
     usage: ovc INPUT_MODEL... [-h] [--output_model OUTPUT_MODEL]
                [--compress_to_fp16 [True | False]] [--version] [--input INPUT]
                [--output OUTPUT] [--extension EXTENSION] [--verbose]
-
+    
     positional arguments:
       INPUT_MODEL           Input model file(s) from TensorFlow, ONNX,
                             PaddlePaddle. Use openvino.convert_model in Python to
                             convert models from PyTorch.
-
+    
     optional arguments:
       -h, --help            show this help message and exit
       --output_model OUTPUT_MODEL
@@ -153,7 +153,7 @@ This notebook uses two models for conversion examples:
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     # create a directory for models files
     MODEL_DIRECTORY_PATH = Path("model")
     MODEL_DIRECTORY_PATH.mkdir(exist_ok=True)
@@ -166,19 +166,19 @@ NLP model from Hugging Face and export it in ONNX format:
 
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
     from transformers.onnx import export, FeaturesManager
-
+    
     ONNX_NLP_MODEL_PATH = MODEL_DIRECTORY_PATH / "distilbert.onnx"
-
+    
     # download model
     hf_model = AutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
     # initialize tokenizer
     tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
-
+    
     # get model onnx config function for output feature format sequence-classification
     model_kind, model_onnx_config = FeaturesManager.check_supported_model_or_raise(hf_model, feature="sequence-classification")
     # fill onnx config based on pytorch model config
     onnx_config = model_onnx_config(hf_model.config)
-
+    
     # export to onnx format
     export(
         preprocessor=tokenizer,
@@ -191,13 +191,13 @@ NLP model from Hugging Face and export it in ONNX format:
 
 .. parsed-literal::
 
-    2024-08-06 23:49:04.922565: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-08-06 23:49:04.955889: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-08-27 23:49:38.725485: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-27 23:49:38.759500: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-08-06 23:49:05.469936: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+    2024-08-27 23:49:39.287418: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:215: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:215: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       mask, torch.tensor(torch.finfo(scores.dtype).min)
 
 
@@ -216,7 +216,7 @@ CV classification model from torchvision:
 .. code:: ipython3
 
     from torchvision.models import resnet50, ResNet50_Weights
-
+    
     # create model object
     pytorch_model = resnet50(weights=ResNet50_Weights.DEFAULT)
     # switch model from training to inference mode
@@ -412,9 +412,9 @@ Convert PyTorch model to ONNX format:
 
     import torch
     import warnings
-
+    
     ONNX_CV_MODEL_PATH = MODEL_DIRECTORY_PATH / "resnet.onnx"
-
+    
     if ONNX_CV_MODEL_PATH.exists():
         print(f"ONNX model {ONNX_CV_MODEL_PATH} already exists.")
     else:
@@ -439,11 +439,11 @@ To convert a model to OpenVINO IR, use the following API:
 .. code:: ipython3
 
     import openvino as ov
-
+    
     # ov.convert_model returns an openvino.runtime.Model object
     print(ONNX_NLP_MODEL_PATH)
     ov_model = ov.convert_model(ONNX_NLP_MODEL_PATH)
-
+    
     # then model can be serialized to *.xml & *.bin files
     ov.save_model(ov_model, MODEL_DIRECTORY_PATH / "distilbert.xml")
 
@@ -493,7 +493,7 @@ documentation.
 .. code:: ipython3
 
     import openvino as ov
-
+    
     ov_model = ov.convert_model(ONNX_NLP_MODEL_PATH, input=[("input_ids", [1, 128]), ("attention_mask", [1, 128])])
 
 .. code:: ipython3
@@ -526,7 +526,7 @@ conversion API parameter as ``-1`` or ``?`` when using ``ovc``:
 .. code:: ipython3
 
     import openvino as ov
-
+    
     ov_model = ov.convert_model(ONNX_NLP_MODEL_PATH, input=[("input_ids", [1, -1]), ("attention_mask", [1, -1])])
 
 .. code:: ipython3
@@ -561,10 +561,10 @@ sequence length dimension:
 .. code:: ipython3
 
     import openvino as ov
-
-
+    
+    
     sequence_length_dim = ov.Dimension(10, 128)
-
+    
     ov_model = ov.convert_model(
         ONNX_NLP_MODEL_PATH,
         input=[
@@ -607,7 +607,7 @@ disabled by setting ``compress_to_fp16`` flag to ``False``:
 .. code:: ipython3
 
     import openvino as ov
-
+    
     ov_model = ov.convert_model(ONNX_NLP_MODEL_PATH)
     ov.save_model(ov_model, MODEL_DIRECTORY_PATH / "distilbert.xml", compress_to_fp16=False)
 
@@ -646,9 +646,9 @@ frameworks conversion guides.
 
     import openvino as ov
     import torch
-
+    
     example_input = torch.rand(1, 3, 224, 224)
-
+    
     ov_model = ov.convert_model(pytorch_model, example_input=example_input, input=example_input.shape)
 
 
@@ -660,26 +660,22 @@ frameworks conversion guides.
 .. code:: ipython3
 
     import os
-
+    
     import openvino as ov
     import tensorflow_hub as hub
-
+    
     os.environ["TFHUB_CACHE_DIR"] = str(Path("./tfhub_modules").resolve())
-
+    
     model = hub.load("https://www.kaggle.com/models/google/movenet/frameworks/TensorFlow2/variations/singlepose-lightning/versions/4")
     movenet = model.signatures["serving_default"]
-
+    
     ov_model = ov.convert_model(movenet)
 
 
 .. parsed-literal::
 
-    2024-08-06 23:49:24.637237: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-08-06 23:49:24.637272: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
-    2024-08-06 23:49:24.637276: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
-    2024-08-06 23:49:24.637477: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
-    2024-08-06 23:49:24.637493: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
-    2024-08-06 23:49:24.637496: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-08-27 23:49:56.464642: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
+    Skipping registering GPU devices...
 
 
 Migration from Legacy conversion API
@@ -722,9 +718,9 @@ Resnet50 model that was exported to the ONNX format:
 
     # Converter API
     import openvino as ov
-
+    
     ov_model = ov.convert_model(ONNX_CV_MODEL_PATH)
-
+    
     prep = ov.preprocess.PrePostProcessor(ov_model)
     prep.input("input.1").model().set_layout(ov.Layout("nchw"))
     ov_model = prep.build()
@@ -733,14 +729,14 @@ Resnet50 model that was exported to the ONNX format:
 
     # Legacy Model Optimizer API
     from openvino.tools import mo
-
+    
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, layout="nchw")
 
 
 .. parsed-literal::
 
     [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
-    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
     Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
 
 
@@ -769,9 +765,9 @@ and the layout of an original model:
 
     # Converter API
     import openvino as ov
-
+    
     ov_model = ov.convert_model(ONNX_CV_MODEL_PATH)
-
+    
     prep = ov.preprocess.PrePostProcessor(ov_model)
     prep.input("input.1").tensor().set_layout(ov.Layout("nhwc"))
     prep.input("input.1").model().set_layout(ov.Layout("nchw"))
@@ -781,9 +777,9 @@ and the layout of an original model:
 
     # Legacy Model Optimizer API
     from openvino.tools import mo
-
+    
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, layout="nchw->nhwc")
-
+    
     # alternatively use source_layout and target_layout parameters
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, source_layout="nchw", target_layout="nhwc")
 
@@ -791,10 +787,10 @@ and the layout of an original model:
 .. parsed-literal::
 
     [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
-    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
     Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
-    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
     Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
 
 
@@ -814,22 +810,22 @@ more examples.
 
     # Converter API
     import openvino as ov
-
+    
     ov_model = ov.convert_model(ONNX_CV_MODEL_PATH)
-
+    
     prep = ov.preprocess.PrePostProcessor(ov_model)
     prep.input("input.1").tensor().set_layout(ov.Layout("nchw"))
     prep.input("input.1").preprocess().mean([255 * x for x in [0.485, 0.456, 0.406]])
     prep.input("input.1").preprocess().scale([255 * x for x in [0.229, 0.224, 0.225]])
-
+    
     ov_model = prep.build()
 
 .. code:: ipython3
 
     # Legacy Model Optimizer API
     from openvino.tools import mo
-
-
+    
+    
     ov_model = mo.convert_model(
         ONNX_CV_MODEL_PATH,
         mean_values=[255 * x for x in [0.485, 0.456, 0.406]],
@@ -840,7 +836,7 @@ more examples.
 .. parsed-literal::
 
     [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
-    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
     Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
 
 
@@ -859,9 +855,9 @@ the color channels before inference.
 
     # Converter API
     import openvino as ov
-
+    
     ov_model = ov.convert_model(ONNX_CV_MODEL_PATH)
-
+    
     prep = ov.preprocess.PrePostProcessor(ov_model)
     prep.input("input.1").tensor().set_layout(ov.Layout("nchw"))
     prep.input("input.1").preprocess().reverse_channels()
@@ -871,14 +867,14 @@ the color channels before inference.
 
     # Legacy Model Optimizer API
     from openvino.tools import mo
-
+    
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, reverse_input_channels=True)
 
 
 .. parsed-literal::
 
     [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
-    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
     Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
 
 

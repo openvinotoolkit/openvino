@@ -7,9 +7,9 @@ This tutorial demonstrates how to perform optical character recognition
 which shows only text detection.
 
 The
-`horizontal-text-detection-0001 <https://docs.openvino.ai/2024/omz_models_model_horizontal_text_detection_0001.html>`__
+`horizontal-text-detection-0001 <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/horizontal-text-detection-0001/README.md>`__
 and
-`text-recognition-resnet <https://docs.openvino.ai/2024/omz_models_model_text_recognition_resnet_fc.html>`__
+`text-recognition-resnet <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/text-recognition-resnet-fc/README.md>`__
 models are used together for text detection and then text recognition.
 
 In this tutorial, Open Model Zoo tools including Model Downloader, Model
@@ -63,7 +63,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
     import platform
 
     # Install openvino-dev package
-    %pip install -q "openvino-dev>=2024.0.0"  onnx torch pillow opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino-dev>=2024.0.0"  onnx torch torchvision pillow opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
 
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
@@ -74,7 +74,10 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    openvino-tokenizers 2024.4.0.0.dev20240805 requires openvino~=2024.4.0.0.dev, but you have openvino 2024.3.0 which is incompatible.
+    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
+    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
+    openvino-tokenizers 2024.4.0.0.dev20240827 requires openvino~=2024.4.0.0.dev, but you have openvino 2024.3.0 which is incompatible.
+    torchaudio 2.3.1 requires torch==2.3.1, but you have torch 2.2.2+cpu which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -103,7 +106,7 @@ Imports
     )
 
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import load_image
+    from notebook_utils import load_image, device_widget
 
 Settings
 --------
@@ -378,16 +381,12 @@ Converting text-recognition-resnet-fc…
 .. parsed-literal::
 
     ========== Converting text-recognition-resnet-fc to ONNX
-    Conversion to ONNX command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/omz_tools/internal_scripts/pytorch_to_onnx.py --model-path=/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/omz_tools/models/public/text-recognition-resnet-fc --model-path=model/public/text-recognition-resnet-fc --model-name=get_model --import-module=model '--model-param=file_config=r"model/public/text-recognition-resnet-fc/vedastr/configs/resnet_fc.py"' '--model-param=weights=r"model/public/text-recognition-resnet-fc/vedastr/ckpt/resnet_fc.pth"' --input-shape=1,1,32,100 --input-names=input --output-names=output --output-file=model/public/text-recognition-resnet-fc/resnet_fc.onnx
+    Conversion to ONNX command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/omz_tools/internal_scripts/pytorch_to_onnx.py --model-path=/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/omz_tools/models/public/text-recognition-resnet-fc --model-path=model/public/text-recognition-resnet-fc --model-name=get_model --import-module=model '--model-param=file_config=r"model/public/text-recognition-resnet-fc/vedastr/configs/resnet_fc.py"' '--model-param=weights=r"model/public/text-recognition-resnet-fc/vedastr/ckpt/resnet_fc.pth"' --input-shape=1,1,32,100 --input-names=input --output-names=output --output-file=model/public/text-recognition-resnet-fc/resnet_fc.onnx
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/cuda/__init__.py:619: UserWarning: Can't initialize NVML
-      warnings.warn("Can't initialize NVML")
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/cuda/__init__.py:749: UserWarning: CUDA initialization: The NVIDIA driver on your system is too old (found version 11040). Please update your GPU driver by downloading and installing a new version from the URL: http://www.nvidia.com/Download/index.aspx Alternatively, go to: https://pytorch.org to install a PyTorch version that has been compiled with your version of the CUDA driver. (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:108.)
-      return torch._C._cuda_getDeviceCount() if nvml_count < 0 else nvml_count
     ONNX check passed successfully.
 
     ========== Converting text-recognition-resnet-fc to IR (FP16)
-    Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=model/public/text-recognition-resnet-fc/FP16 --model_name=text-recognition-resnet-fc --input=input '--mean_values=input[127.5]' '--scale_values=input[127.5]' --output=output --input_model=model/public/text-recognition-resnet-fc/resnet_fc.onnx '--layout=input(NCHW)' '--input_shape=[1, 1, 32, 100]' --compress_to_fp16=True
+    Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=model/public/text-recognition-resnet-fc/FP16 --model_name=text-recognition-resnet-fc --input=input '--mean_values=input[127.5]' '--scale_values=input[127.5]' --output=output --input_model=model/public/text-recognition-resnet-fc/resnet_fc.onnx '--layout=input(NCHW)' '--input_shape=[1, 1, 32, 100]' --compress_to_fp16=True
 
     [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
     In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API.
@@ -395,8 +394,8 @@ Converting text-recognition-resnet-fc…
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
     Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/optical-character-recognition/model/public/text-recognition-resnet-fc/FP16/text-recognition-resnet-fc.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/optical-character-recognition/model/public/text-recognition-resnet-fc/FP16/text-recognition-resnet-fc.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/optical-character-recognition/model/public/text-recognition-resnet-fc/FP16/text-recognition-resnet-fc.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/optical-character-recognition/model/public/text-recognition-resnet-fc/FP16/text-recognition-resnet-fc.bin
 
 
 
@@ -409,14 +408,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 

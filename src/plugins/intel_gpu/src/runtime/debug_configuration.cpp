@@ -10,9 +10,11 @@
 #include <regex>
 #include <sstream>
 #include <vector>
+#include <fstream>
 
 namespace cldnn {
 const char *debug_configuration::prefix = "GPU_Debug: ";
+std::ostream* debug_configuration::verbose_stream;
 
 // Default policy is that dump_configuration will override other configuration from IE.
 
@@ -128,6 +130,7 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_Help", "Print help messages");
     message_list.emplace_back("OV_GPU_Verbose", "Verbose execution");
     message_list.emplace_back("OV_GPU_VerboseColor", "Print verbose color");
+    message_list.emplace_back("OV_GPU_VerboseFile", "Filename to dump verbose log");
     message_list.emplace_back("OV_GPU_ListLayers", "Print layers names");
     message_list.emplace_back("OV_GPU_PrintMultiKernelPerf", "Print execution time of each kernel in multi-kernel primitimive");
     message_list.emplace_back("OV_GPU_PrintInputDataShapes",  "Print data_shapes of input layers for benchmark_app.");
@@ -214,6 +217,7 @@ debug_configuration::debug_configuration()
         : help(0)
         , verbose(0)
         , verbose_color(0)
+        , verbose_file()
         , list_layers(0)
         , print_multi_kernel_perf(0)
         , print_input_data_shapes(0)
@@ -255,6 +259,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("Help", help);
     get_common_debug_env_var("Verbose", verbose);
     get_gpu_debug_env_var("VerboseColor", verbose_color);
+    get_gpu_debug_env_var("VerboseFile", verbose_file);
     get_gpu_debug_env_var("ListLayers", list_layers);
     get_gpu_debug_env_var("PrintMultiKernelPerf", print_multi_kernel_perf);
     get_gpu_debug_env_var("PrintInputDataShapes", print_input_data_shapes);
@@ -314,6 +319,14 @@ debug_configuration::debug_configuration()
     if (help > 0) {
         print_help_messages();
         exit(0);
+    }
+
+    if (verbose_file.length() > 0) {
+        static std::ofstream fout;
+        fout.open(verbose_file);
+        verbose_stream = &fout;
+    } else {
+        verbose_stream = &std::cout;
     }
 
     if (dump_prof_data_iter_str.length() > 0) {

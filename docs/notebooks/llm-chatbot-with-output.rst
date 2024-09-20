@@ -30,7 +30,7 @@ inference pipeline. The inference pipeline can also be created using
 `OpenVINO Generate
 API <https://github.com/openvinotoolkit/openvino.genai/tree/master/src>`__,
 the example of that, please, see in the notebook `LLM chatbot with
-OpenVINO Generate API <./llm-chatbot-generate-api.ipynb>`__
+OpenVINO Generate API <llm-chatbot-generate-api-with-output.html>`__
 
 The tutorial consists of the following steps:
 
@@ -89,14 +89,13 @@ Install required dependencies
     %pip uninstall -q -y optimum optimum-intel
     %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
-    "git+https://github.com/eaidova/optimum-intel.git@transformers_4.43"\
+    "git+https://github.com/huggingface/optimum-intel.git"\
     "git+https://github.com/openvinotoolkit/nncf.git"\
     "torch>=2.1"\
     "datasets" \
-    "accelerate"\
-    "gradio>=4.19"\
-    "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.40" "bitsandbytes"
-    %pip install -q "transformers>=4.43" --extra-index-url https://download.pytorch.org/whl/cpu
+    "accelerate" \
+    "gradio>=4.19" \
+    "onnx<=1.16.1; sys_platform=='win32'" "einops" "transformers>=4.43" "transformers_stream_generator" "tiktoken" "transformers>=4.40" "bitsandbytes"
 
 .. code:: ipython3
 

@@ -34,6 +34,7 @@ class TestSlice(JaxLayerTest):
         [8, 8, 8, 8], [8, 9, 10, 11], [13, 13, 12, 12], [15, 15, 14, 15]
     ])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     def test_slice(self, ie_device, precision, ir_version, input_shape, start_indices, limit_indices):
         self._test(
@@ -70,6 +71,7 @@ class TestSliceWithStrides(JaxLayerTest):
         [1, 1, 1, 1], [1, 2, 3, 4], [10, 15, 12, 3], [8, 5, 4, 1]
     ])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     def test_slice_with_strides(self, ie_device, precision, ir_version, input_shape, start_indices, limit_indices,
                                 strides):

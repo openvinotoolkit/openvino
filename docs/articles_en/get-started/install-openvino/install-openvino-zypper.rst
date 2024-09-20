@@ -1,5 +1,3 @@
-.. {#openvino_docs_install_guides_installing_openvino_zypper}
-
 Install OpenVINO™ Runtime on Linux From ZYPPER Repository
 =========================================================
 
@@ -42,7 +40,7 @@ Install OpenVINO™ Runtime on Linux From ZYPPER Repository
 
       * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
       * GCC 8.2.0
-      * `Python 3.8 - 3.11, 64-bit <https://www.python.org/downloads/>`_
+      * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/>`_
 
 
 Install OpenVINO Runtime
@@ -143,7 +141,7 @@ To uninstall OpenVINO Runtime via ZYPPER, run the following command based on you
 
       .. code-block:: sh
 
-         sudo zypper remove *openvino-2024.3.0*
+         sudo zypper remove *openvino-2024.4.0*
 
 
 

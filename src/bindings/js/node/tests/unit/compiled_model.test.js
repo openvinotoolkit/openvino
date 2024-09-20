@@ -4,21 +4,28 @@
 
 const { addon: ov } = require('../..');
 const assert = require('assert');
-const { describe, it, before } = require('node:test');
+const { describe, it, before, beforeEach } = require('node:test');
 const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
 
 describe('ov.CompiledModel tests', () => {
 
+
+  let testXml = null;
+  let core = null;
+  let compiledModel = null;
+
   before(async () => {
     await isModelAvailable(testModels.testModelFP32);
+    testXml = getModelPath().xml;
+    core = new ov.Core();
   });
-
-  const testXml = getModelPath().xml;
-  const core = new ov.Core();
-  const properties = {
-    'AUTO_BATCH_TIMEOUT': '1',
-  };
-  const compiledModel = core.compileModelSync(testXml, 'BATCH:CPU', properties);
+  
+  beforeEach(() => {
+    const properties = {
+      'AUTO_BATCH_TIMEOUT': '1',
+    };
+    compiledModel = core.compileModelSync(testXml, 'BATCH:CPU', properties);
+  });
 
   describe('getProperty()', () => {
     it('returns the value of property from compiled model', () => {
@@ -39,7 +46,7 @@ describe('ov.CompiledModel tests', () => {
 
   describe('setProperty()', () => {
     it('sets a properties for compiled model', () => {
-      properties['AUTO_BATCH_TIMEOUT'] = '1000';
+      const properties = {'AUTO_BATCH_TIMEOUT': '1000'};
       assert.doesNotThrow(() => compiledModel.setProperty(properties));
     });
 
@@ -64,7 +71,7 @@ describe('ov.CompiledModel tests', () => {
     });
 
     it('returns the set property of the compiled model', () => {
-      properties['AUTO_BATCH_TIMEOUT'] = '123';
+      const properties = {'AUTO_BATCH_TIMEOUT': '123'};
       compiledModel.setProperty(properties);
       assert.strictEqual(compiledModel.getProperty('AUTO_BATCH_TIMEOUT'), 123);
     });
