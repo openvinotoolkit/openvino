@@ -3716,6 +3716,14 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_chatglm3_dyn_andrew) {
     this->test_compressed_int4_scale_andrew(false, true, 1, 4096, 27392, 32);
 }
 
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_chatglm3_batch_andrew) {
+    this->test_compressed_int4_scale_andrew(false, false, 1024, 4096, 27392, 32);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_chatglm3_batch_dyn_andrew) {
+    this->test_compressed_int4_scale_andrew(false, true, 1024, 4096, 27392, 32);
+}
+
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_llama3_andrew) {
     this->test_compressed_int4_scale_andrew(false, false, 1, 4096, 14336, 32);
 }
