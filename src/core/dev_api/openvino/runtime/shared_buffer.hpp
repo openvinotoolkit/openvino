@@ -53,8 +53,8 @@ protected:
         return m_size - m_offset;
     }
 
-    size_t m_size;
     char* m_data;
+    size_t m_size;
     size_t m_offset;
 };
 
