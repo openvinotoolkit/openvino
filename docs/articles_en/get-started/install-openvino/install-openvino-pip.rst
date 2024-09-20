@@ -16,8 +16,10 @@ Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository
      (all x86_64 / arm64 architectures)
    * macOS offers support only for CPU inference
    
-   **Simplified Build and Integration**  
-   The package includes CMake configurations, precompiled static libraries, and headers, which can be easily accessed through the Python API. You can use the `get_cmake_path()` method to retrieve the paths to the CMake configurations and libraries:
+| **Simplified Build and Integration**  
+|   The package includes CMake configurations, precompiled static libraries, and headers, which
+    can be easily accessed through the Python API. You can use the `get_cmake_path()` method to
+    retrieve the paths to the CMake configurations and libraries:
 
 .. code-block:: python
 
