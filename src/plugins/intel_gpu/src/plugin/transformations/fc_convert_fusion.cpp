@@ -22,8 +22,8 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
     auto weights = any_input();
     auto bias = any_input();
     auto fully_connected = wrap_type<op::FullyConnected>({data, weights, bias}, consumers_count(1));
-    auto fully_connected_compressed1 = wrap_type<op::FullyConnectedCompressed>({data, weights, bias, any_input()}, consumers_count(1));     // symmetric quantized
-    auto fully_connected_compressed2 = wrap_type<op::FullyConnectedCompressed>({data, weights, bias, any_input(), any_input()}, consumers_count(1));    // asymmetric quantized
+    auto fully_connected_compressed1 = wrap_type<op::FullyConnectedCompressed>({data, weights, bias, any_input()}, consumers_count(1));
+    auto fully_connected_compressed2 = wrap_type<op::FullyConnectedCompressed>({data, weights, bias, any_input(), any_input()}, consumers_count(1));
     auto fully_connected_compressed = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fully_connected_compressed1, fully_connected_compressed2});
     auto fc = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fully_connected, fully_connected_compressed});
     auto convert = wrap_type<ov::op::v0::Convert>({fc}, type_matches(element::f32));
@@ -51,13 +51,13 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
                                                                         m_bias,
                                                                         m_fc->input_value(3),
                                                                         output_type);
-            else                                                                    
+            else
                 new_fc = std::make_shared<op::FullyConnectedCompressed>(m_data,
                                                                         m_weights,
                                                                         m_bias,
                                                                         m_fc->input_value(3),
                                                                         m_fc->input_value(4),
-                                                                        output_type);                                                                    
+                                                                        output_type);
         }
         new_fc->set_friendly_name(m_convert->get_friendly_name());
         copy_runtime_info(m.get_matched_nodes(), new_fc);
