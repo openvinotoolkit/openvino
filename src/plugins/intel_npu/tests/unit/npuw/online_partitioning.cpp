@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
-
 #include <gtest/gtest.h>
 #include <iostream>
 
@@ -18,6 +16,7 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
 
+bool isEqualEns(ov::npuw::Ensemble& ens1, ov::npuw::Ensemble& ens2);
 bool isEqualEns(ov::npuw::Ensemble& ens1, ov::npuw::Ensemble& ens2) {
     if (ens1.groups.size() != ens2.groups.size()) {
         return false;
