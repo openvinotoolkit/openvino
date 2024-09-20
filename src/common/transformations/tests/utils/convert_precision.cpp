@@ -22,7 +22,6 @@
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
-#include "openvino/runtime/core.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
@@ -1010,49 +1009,27 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxed) {
 }
 
 TEST(TransformationTests, ConvertPrecision_Variables) {
-    ov::Core core;
-    Shape shape{1};
-    element::Type data_type = element::boolean;
-    using c_type = bool;
+    std::shared_ptr<Model> f(nullptr);
+    {
+        Shape shape{1, 10, 2};
+        auto inp = std::make_shared<opset4::Parameter>(element::f16, shape);
+        auto m_i = std::make_shared<opset4::Constant>(element::f16, shape, 1);
+        auto m_r = std::make_shared<opset4::ReadValue>(m_i, "ID");
+        auto sum = std::make_shared<opset4::Add>(inp, m_r);
+        auto m_w = std::make_shared<opset4::Assign>(sum, "ID");
+        auto mul = std::make_shared<opset4::Multiply>(inp, sum);
 
-    auto inp = std::make_shared<opset4::Parameter>(data_type, shape);
-    auto m_i = std::make_shared<opset4::Constant>(data_type, Shape{1}, 1);
+        mul->add_control_dependency(m_w);
 
-    std::string variable_id = "ID";
-    ov::op::util::VariableInfo var_info{Shape{1}, data_type, variable_id};
-    auto variable = make_shared<ov::op::util::Variable>(var_info);
+        f = std::make_shared<Model>(NodeVector{mul}, ParameterVector{inp});
 
-    auto m_r = std::make_shared<op::v6::ReadValue>(m_i, variable);
-    auto sum = std::make_shared<opset4::LogicalAnd>(inp, m_r);
-    auto assign = std::make_shared<op::v6::Assign>(m_r, variable);
-    auto res = std::make_shared<opset4::Result>(sum);
-
-    auto f = std::make_shared<Model>(ResultVector{res}, SinkVector{assign}, ParameterVector{inp});
-
-    auto compiled = core.compile_model(f, "GPU");
-    auto infer = compiled.create_infer_request();
-
-    ov::Tensor in(data_type, shape);
-    auto in_data = in.data<c_type>();
-    for (size_t i = 0; i < ov::shape_size(shape); ++i) {
-        *in_data++ = 1;
+        pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f16, element::f32}});
+        manager.run_passes(f);
     }
-
-    infer.set_input_tensor(in);
-    infer.infer();
-
-    std::cout << "out after 1nd infer" << std::endl;
-    auto out = infer.get_output_tensor();
-    auto out_values = out.data<c_type>();
-    std::cout << out_values[0] << std::endl;
-
-    ov::Tensor tmp(data_type, shape);
-    auto tmp_data = tmp.data<c_type>();
-    *tmp_data = 0;
-    infer.query_state()[0].set_state(tmp);
-    infer.set_input_tensor(in);
-
-    infer.infer();
+    OV_ASSERT_NO_THROW(check_rt_info(f));
+    ASSERT_FALSE(has_type<element::Type_t::f16>(f));
 }
 
 TEST(TransformationTests, ConvertPrecision_skip_precision_sensitive) {
