@@ -96,8 +96,6 @@ struct INFERENCE_PRECISION_HINT final : OptionBase<INFERENCE_PRECISION_HINT, ov:
     static ov::element::Type parse(std::string_view val) {
         if (val.empty() || (val == "f16")) {
             return ov::element::f16;
-        } else if (val == "bf16") {
-            return ov::element::bf16;
         } else if (val == "i8") {
             return ov::element::i8;
         } else if (val == "f32") {
@@ -107,7 +105,7 @@ struct INFERENCE_PRECISION_HINT final : OptionBase<INFERENCE_PRECISION_HINT, ov:
                            val.data(),
                            " for property key ",
                            ov::hint::inference_precision.name(),
-                           ". Supported values: f32, f16, bf16, i8");
+                           ". Supported values: f32, f16, i8");
         }
     };
 };
