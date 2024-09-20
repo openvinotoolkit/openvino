@@ -4,6 +4,7 @@
 
 #include "brgemm_copy_b.hpp"
 
+#include "snippets/lowered/loop_manager.hpp"
 #include "emitters/plugin/x64/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
@@ -15,9 +16,9 @@ using namespace dnnl::impl::cpu::x64;
 namespace ov {
 namespace intel_cpu {
 
-BrgemmCopyBKernelConfig::BrgemmCopyBKernelConfig(const element::Type& src_dt, const element::Type& wei_dt, dnnl_format_tag_t format,
-                                                 cpu_isa_t isa, bool is_with_comp, bool is_transposed_B, dnnl_dim_t wei_N_blk)
-    : m_static_params(std::make_shared<StaticParams>(src_dt, wei_dt, format, isa, is_with_comp, is_transposed_B, wei_N_blk)) {
+BrgemmCopyBKernelConfig::BrgemmCopyBKernelConfig(const element::Type& src_dt, const element::Type& wei_dt, cpu_isa_t isa,
+                                                 bool is_with_comp, bool is_transposed_B, dnnl_dim_t wei_N_blk)
+    : m_static_params(std::make_shared<StaticParams>(src_dt, wei_dt, isa, is_with_comp, is_transposed_B, wei_N_blk)) {
     m_hash = compute_hash();
 }
 
@@ -37,7 +38,7 @@ bool BrgemmCopyBKernelConfig::operator==(const BrgemmCopyBKernelConfig& rhs) con
 }
 
 void BrgemmCopyBKernelConfig::update(dnnl_dim_t N, dnnl_dim_t N_blk, dnnl_dim_t K, dnnl_dim_t K_blk, dnnl_dim_t copy_B_wei_stride, dnnl_dim_t LDB) {
-    // If M is zero, it means that BrgemmCopyB won't be executed (in Loop with work_amount = 0, for example)
+    // If one of the dims is zero, it means that BrgemmCopyB won't be executed (in Loop with work_amount = 0, for example)
     // To process this case, we have to make this Config as empty (nullify runtime parameters)
     if (utils::one_of(0, N, K)) {
         m_N = 0; m_N_blk = 0;
@@ -61,23 +62,23 @@ size_t BrgemmCopyBKernelConfig::compute_hash() const {
     return seed;
 }
 
-BrgemmCopyBKernelConfig::StaticParams::StaticParams(const element::Type& src_type, const element::Type& wei_type, dnnl_format_tag_t format,
-                                                    cpu_isa_t isa, bool is_with_comp, bool is_transposed_B, dnnl_dim_t wei_n_blk)
-    : src_dt(DTYPE_CAST(src_type)), wei_dt(DTYPE_CAST(wei_type)), format(format), isa(isa),
+BrgemmCopyBKernelConfig::StaticParams::StaticParams(const element::Type& src_type, const element::Type& wei_type, cpu_isa_t isa,
+                                                    bool is_with_comp, bool is_transposed_B, dnnl_dim_t wei_n_blk)
+    : src_dt(DTYPE_CAST(src_type)), wei_dt(DTYPE_CAST(wei_type)), isa(isa),
       is_with_comp(is_with_comp), is_transposed_B(is_transposed_B), wei_N_blk(wei_n_blk),
-      hash(init_hash(src_dt, wei_dt, format, isa, is_with_comp, is_transposed_B, wei_N_blk)) {}
+      hash(init_hash(src_dt, wei_dt, isa, is_with_comp, is_transposed_B, wei_N_blk)) {}
 
 bool BrgemmCopyBKernelConfig::StaticParams::operator==(const StaticParams& rhs) const {
 #define EQ(X) X == rhs.X
-    return EQ(hash) && EQ(src_dt) && EQ(wei_dt)&& EQ(format) && EQ(isa) && EQ(is_with_comp) && EQ(is_transposed_B) && EQ(wei_N_blk);
+    return EQ(hash) && EQ(src_dt) && EQ(wei_dt)&& EQ(isa) && EQ(is_with_comp) && EQ(is_transposed_B) && EQ(wei_N_blk);
 #undef EQ
 }
 
-size_t BrgemmCopyBKernelConfig::StaticParams::init_hash(const dnnl_data_type_t& src_dt, const dnnl_data_type_t& wei_dt, dnnl_format_tag_t format,
-                                                        cpu_isa_t isa, bool is_with_comp, bool is_transposed_B, dnnl_dim_t wei_N_blk) {
+size_t BrgemmCopyBKernelConfig::StaticParams::init_hash(const dnnl_data_type_t& src_dt, const dnnl_data_type_t& wei_dt, cpu_isa_t isa,
+                                                        bool is_with_comp, bool is_transposed_B, dnnl_dim_t wei_N_blk) {
     size_t seed = 0;
 #define HASH(X) seed = hash_combine(seed, X)
-    HASH(src_dt); HASH(wei_dt); HASH(format); HASH(isa);
+    HASH(src_dt); HASH(wei_dt); HASH(isa);
     HASH(is_with_comp); HASH(is_transposed_B); HASH(wei_N_blk);
 #undef HASH
     return seed;
@@ -94,7 +95,7 @@ std::string BrgemmCopyBKernelConfig::to_string() const {
 }
 std::string BrgemmCopyBKernelConfig::StaticParams::to_string() const {
     std::stringstream ss;
-    PRINT(src_dt); PRINT(wei_dt); PRINT(format); PRINT(isa);
+    PRINT(src_dt); PRINT(wei_dt); PRINT(isa);
     PRINT(is_with_comp); PRINT(is_transposed_B); PRINT(wei_N_blk);
     return ss.str();
 }
@@ -160,7 +161,8 @@ std::shared_ptr<BrgemmCopyBKernel::dnnl_brgemm_copy_b_kernel> BrgemmCopyBKernel:
     brgCopyKernelConf.wei_dt = conf.get_wei_dt();
     brgCopyKernelConf.orig_wei_dt = brgCopyKernelConf.wei_dt;
     brgCopyKernelConf.wei_n_blk = static_cast<int>(conf.get_wei_N_blk());
-    brgCopyKernelConf.wei_tag = conf.get_format();
+    // However, the generated primitive can be also applied to tensors with other ranks
+    brgCopyKernelConf.wei_tag = conf.is_transposed_B() ? dnnl_ba : dnnl_ab;
     brgCopyKernelConf.transposed_B = conf.is_transposed_B();
     brgCopyKernelConf.copy_B_wei_stride = conf.get_copy_B_wei_stride();
     brgCopyKernelConf.LDB = conf.get_LDB();
@@ -258,20 +260,48 @@ std::shared_ptr<BrgemmCopyBKernel> BrgemmCopyBKernelExecutor::compile_kernel(con
 void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                               const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                               BrgemmCopyBKernelConfig& config) const {
-    const auto planar_shape = ov::snippets::utils::get_planar_vdims(expr->get_input_port(0));
-    const auto N = *planar_shape.rbegin();
-    const auto K = *++planar_shape.rbegin();
+    const auto& input_desc = expr->get_input_port_descriptor(0);
+    const auto& output_desc = expr->get_output_port_descriptor(0);
 
-    const auto& in_subtensor = ov::snippets::utils::get_projected_subtensor(expr->get_input_port(0));
-    const auto N_blk = *in_subtensor.rbegin();
-    const auto K_blk = *++in_subtensor.rbegin();
-    OV_CPU_JIT_EMITTER_ASSERT(N_blk <= N && K_blk <= K, "BrgemmCopyB has incompatible subtensor dimensions");
+    // Need to update K, N
+    // 1. If the original value in subtensor is `FULL_DIM`, it means that
+    //    BrgemmCopyB block should process full tensor by this dim -> take dimension from shape
+    // 2. Otherwise, BrgemmCopyB block processes part of the tensor by this dim
+    //    (there is blocking by this dimension) -> take from Loop increment
+
+    const auto planar_shape = ov::snippets::utils::get_planar_vdims(expr->get_input_port(0));
+    const auto& in_subtensor = input_desc->get_subtensor();
+
+    size_t loop_idx = 0;
+    const auto& loop_ids = expr->get_loop_ids();
+    const auto& loop_manager = linear_ir->get_loop_manager();
+
+    auto init = [&](size_t& dim, size_t& blk, size_t idx) {
+        dim = *(planar_shape.rbegin() + idx);
+        blk = *(in_subtensor.rbegin() + idx);
+        if (ov::snippets::utils::is_full_dim_value(blk)) {
+            blk = dim;
+        } else {
+            OPENVINO_ASSERT(loop_idx < loop_ids.size(), "Loop is missed");
+            const auto& current_expanded_loop_info = loop_manager->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_ids[loop_idx++]);
+            blk = current_expanded_loop_info->get_increment();
+            input_desc->set_subtensor_dim(idx, blk);
+            output_desc->set_subtensor_dim(idx, blk);
+            OV_CPU_JIT_EMITTER_ASSERT(blk <= dim, "BrgemmCopyB has incompatible subtensor dimensions");
+        }
+    };
+
+    size_t K_dim, K_blk, N_dim, N_blk;
+    //  Dimension K
+    init(K_dim, K_blk, 1);
+    //  Dimension N
+    init(N_dim, N_blk, 0);
 
     const auto& brg_weight_etype = expr->get_node()->get_input_element_type(0);
-    const auto LDB = brgemm_utils::repacking::compute_out_leading_dim(N_blk, brg_weight_etype);
+    const auto LDB = brgemm_utils::repacking::compute_out_leading_dim(N_dim, brg_weight_etype);
     const auto copy_B_wei_stride = ov::snippets::utils::get_dim_stride(expr->get_input_port(0), config.is_transposed_B() ? 0 : 1) * brg_weight_etype.size();
 
-    config.update(N, N_blk, K, K_blk, copy_B_wei_stride, LDB);
+    config.update(N_dim, N_blk, K_dim, K_blk, copy_B_wei_stride, LDB);
 }
 
 void BrgemmCopyBKernelExecutor::execute(const BrgemmCopyBKernelExecutor* executor, BrgemmCopyBKernel::call_args* args) {

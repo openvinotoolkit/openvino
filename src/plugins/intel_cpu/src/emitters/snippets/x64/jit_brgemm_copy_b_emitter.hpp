@@ -28,8 +28,6 @@ private:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
-    void emit_kernel_call(const std::vector<size_t>& mem_ptrs_idxs, const std::vector<size_t>& mem_offsets) const;
-
     std::vector<size_t> m_memory_offsets{};
     std::vector<size_t> m_buffer_ids{};
     std::shared_ptr<BrgemmCopyBKernelExecutor> m_kernel_executor {nullptr};

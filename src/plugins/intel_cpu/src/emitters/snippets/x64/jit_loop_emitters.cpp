@@ -22,8 +22,6 @@ public:
         : m_h(host), m_pool_gpr_idxs(pool_gpr_idxs) {
         // If the pool is empty, let's manualy allocate the gpr and push original vlaue on stack
         if (m_pool_gpr_idxs.empty()) {
-            // abi_param1 - runtime parameter register in the kernel
-            used_gpr_idxs.push_back(static_cast<size_t>(abi_param1.getIdx()));
             m_aux_gpr_idx = ov::intel_cpu::utils::get_aux_gpr(used_gpr_idxs);
             m_is_preserved = true;
             m_h->push(m_aux_gpr_idx);

@@ -18,8 +18,8 @@ namespace intel_cpu {
 struct BrgemmCopyBKernelConfig : public snippets::KernelExecutorBase::GenericConfig {
 public:
     BrgemmCopyBKernelConfig() = default;
-    BrgemmCopyBKernelConfig(const element::Type& src_dt, const element::Type& wei_dt, dnnl_format_tag_t format,
-                            dnnl::impl::cpu::x64::cpu_isa_t isa, bool is_with_comp, bool is_transposed_B, dnnl_dim_t wei_N_blk);
+    BrgemmCopyBKernelConfig(const element::Type& src_dt, const element::Type& wei_dt, dnnl::impl::cpu::x64::cpu_isa_t isa,
+                            bool is_with_comp, bool is_transposed_B, dnnl_dim_t wei_N_blk);
 
     bool operator==(const BrgemmCopyBKernelConfig& rhs) const;
     bool operator!=(const BrgemmCopyBKernelConfig& rhs) const {return !(*this == rhs);}
@@ -31,14 +31,12 @@ public:
     bool is_empty() const;
     bool is_completed() const override;
 
-    void update(dnnl_dim_t N, dnnl_dim_t N_blk, dnnl_dim_t K, dnnl_dim_t K_blk,
-                dnnl_dim_t copy_B_wei_stride, dnnl_dim_t LDB);
+    void update(dnnl_dim_t N, dnnl_dim_t N_blk, dnnl_dim_t K, dnnl_dim_t K_blk, dnnl_dim_t copy_B_wei_stride, dnnl_dim_t LDB);
 
     size_t hash() const override { return m_hash; }
 
     dnnl_data_type_t get_src_dt() const { return m_static_params->src_dt; }
     dnnl_data_type_t get_wei_dt() const { return m_static_params->wei_dt; }
-    dnnl_format_tag_t get_format() const { return m_static_params->format; }
 
     dnnl::impl::cpu::x64::cpu_isa_t get_isa() const { return m_static_params->isa; }
     bool is_with_comp() const { return m_static_params->is_with_comp; }
@@ -60,11 +58,10 @@ public:
 
 private:
     struct StaticParams {
-        StaticParams(const element::Type& src_dt, const element::Type& wei_dt, dnnl_format_tag_t format,
-                     dnnl::impl::cpu::x64::cpu_isa_t isa, bool is_with_comp, bool is_transposed_B, dnnl_dim_t wei_N_blk);
+        StaticParams(const element::Type& src_dt, const element::Type& wei_dt, dnnl::impl::cpu::x64::cpu_isa_t isa,
+                     bool is_with_comp, bool is_transposed_B, dnnl_dim_t wei_N_blk);
 
         const dnnl_data_type_t src_dt {dnnl_data_type_undef}, wei_dt {dnnl_data_type_undef};
-        const dnnl_format_tag_t format {dnnl_format_tag_undef};
         const dnnl::impl::cpu::x64::cpu_isa_t isa {dnnl::impl::cpu::x64::isa_undef};
         const bool is_with_comp {false};
         const bool is_transposed_B {false};
@@ -79,8 +76,8 @@ private:
 #endif
 
     private:
-        static size_t init_hash(const dnnl_data_type_t& src_dt, const dnnl_data_type_t& wei_dt, dnnl_format_tag_t format,
-                                dnnl::impl::cpu::x64::cpu_isa_t primitive_isa, bool is_with_comp, bool is_transposed_B, dnnl_dim_t wei_N_blk);
+        static size_t init_hash(const dnnl_data_type_t& src_dt, const dnnl_data_type_t& wei_dt, dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
+                                bool is_with_comp, bool is_transposed_B, dnnl_dim_t wei_N_blk);
     };
 
     size_t compute_hash() const;

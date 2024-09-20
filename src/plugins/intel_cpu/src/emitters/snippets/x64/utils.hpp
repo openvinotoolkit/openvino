@@ -23,9 +23,33 @@ inline static std::vector<size_t> transform_snippets_regs_to_idxs(const std::vec
     return idxs;
 }
 
-size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port, size_t offset);
+/**
+ * @brief If the passed `port` is connected to a Buffer, return its cluster ID.
+ *        Otherwise returns SIZE_MAX
+ * @param port expression port of memory access op
+ * @return cluster ID of the connected Buffer or SIZE_MAX
+ */
+size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port);
 
+/**
+ * @brief Find the available register from the pool excepting: abi_param1, RSP, RBP and `used_gpr_idxs`
+ * @param used_gpr_idxs current used gpr register indexes
+ * @return register
+ */
 Xbyak::Reg64 get_aux_gpr(const std::vector<size_t>& used_gpr_idxs);
+
+/**
+ * @brief Push data pointer on stack adding offset. If the offset is dynamic, gets it from runtime params `abi_param1`
+ * @param h generator
+ * @param stack_offset stack offset
+ * @param ptr_reg register contains data pointer
+ * @param aux_reg aux register
+ * @param ptr_offset offset which will be added to data pointer
+ * @param runtime_offset offset in runtime params `abi_param1`
+ * @return register
+ */
+void write_data_ptr_on_stack(dnnl::impl::cpu::x64::jit_generator* h, size_t stack_offset, Xbyak::Reg64 ptr_reg, Xbyak::Reg64 aux_reg,
+                             size_t ptr_offset, size_t runtime_offset);
 
 }   // namespace utils
 }   // namespace intel_cpu

@@ -48,31 +48,30 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
     OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_vdims(expr->get_input_port_descriptor(0)->get_shape()),
                               "Jit emitter is called when the shapes are unknown");
 
-    const auto is_transposed = get_is_transposed(expr);
-    // However, the generated primitive can be also applied to tensors with other ranks
-    const auto format = is_transposed ? dnnl_ba : dnnl_ab;
-
     const auto& in_subtensor = get_projected_subtensor(expr->get_input_port(0));
-    const auto N_blk = *in_subtensor.rbegin();
     const auto K_blk = *++in_subtensor.rbegin();
 
     const auto& src_prc = brgemm_repack->get_src_element_type();
     const auto& wei_prc = brgemm_repack->get_input_element_type(0);
     const auto wei_N_blk = brgemm_utils::repacking::compute_inner_n_block(wei_prc);
-    const auto brgemm_type = get_brgemm_type(src_prc, K_blk, N_blk, is_transposed);
+    const auto is_transposed = get_is_transposed(expr);
+    const auto brgemm_type = get_brgemm_type(src_prc, K_blk, is_transposed);
     const auto primitive_isa = brgemm_utils::get_primitive_isa(src_prc, with_amx(brgemm_type));
     m_with_comp = with_compensations(brgemm_type);
 
-    BrgemmCopyBKernelConfig kernel_config(src_prc, wei_prc, format, primitive_isa, m_with_comp, is_transposed, wei_N_blk);
+    BrgemmCopyBKernelConfig kernel_config(src_prc, wei_prc, primitive_isa, m_with_comp, is_transposed, wei_N_blk);
     m_kernel_executor = kernel_table->register_kernel<BrgemmCopyBKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
 
     m_memory_offsets = {brgemm_repack->get_offset_in(), brgemm_repack->get_offset_out()};
-    m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0), m_memory_offsets[0]),
-                    utils::get_buffer_cluster_id(expr->get_output_port(0), m_memory_offsets[1])};
+    m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)), utils::get_buffer_cluster_id(expr->get_output_port(0))};
     if (m_with_comp) {
         m_memory_offsets.push_back(brgemm_repack->get_offset_compensations());
-        m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_output_port(1), m_memory_offsets.back()));
+        m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_output_port(1)));
     }
+
+    for (size_t i = 0; i < m_buffer_ids.size(); ++i)
+        OPENVINO_ASSERT(IMPLICATION(ov::snippets::utils::is_dynamic_value(m_memory_offsets[i]), m_buffer_ids[i] != SIZE_MAX),
+                        "In dynamic case Buffer Cluster ID must be known!");
 }
 
 void jit_brgemm_copy_b_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
@@ -86,10 +85,7 @@ void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const s
     std::vector<size_t> mem_ptrs_idxs{in[0], out[0]};
     if (out.size() > 1)
         mem_ptrs_idxs.emplace_back(out[1]);
-    emit_kernel_call(mem_ptrs_idxs, m_memory_offsets);
-}
 
-void jit_brgemm_copy_b_emitter::emit_kernel_call(const std::vector<size_t>& mem_ptrs_idxs, const std::vector<size_t>& mem_offsets) const {
     JitSafeInternalCall safe_internal_caller(h);
 
     h->mov(h->rbp, reinterpret_cast<uint64_t>(BrgemmCopyBKernelExecutor::execute));
@@ -97,24 +93,13 @@ void jit_brgemm_copy_b_emitter::emit_kernel_call(const std::vector<size_t>& mem_
     // Reserve memory on the stack
     h->sub(h->rsp, reserved_stack_size);
 
-    std::vector<size_t> used_gpr_idxs = mem_ptrs_idxs;
-    // abi_param1 - runtime parameter register in the kernel which is used for AMX Tile config initialization
-    used_gpr_idxs.push_back(static_cast<size_t>(abi_param1.getIdx()));
-    Xbyak::Reg64 aux_reg = ov::intel_cpu::utils::get_aux_gpr(used_gpr_idxs);
+    Xbyak::Reg64 aux_reg = ov::intel_cpu::utils::get_aux_gpr(mem_ptrs_idxs);
 
-    auto write_addr_on_stack = [&](size_t arg_offset, Reg64 addr, size_t addr_offset, size_t buffer_id) {
-        const auto stack_frame = h->qword[h->rsp + arg_offset];
-        h->mov(aux_reg, addr);
-        if (snippets::utils::is_dynamic_value(addr_offset))
-            h->add(aux_reg,  h->ptr[abi_param1 + GET_OFF(buffer_offsets) + buffer_id * sizeof(size_t)]);
-        else if (addr_offset != 0)
-            h->add(aux_reg, addr_offset);
-        h->mov(stack_frame, aux_reg);
-    };
     const std::vector<size_t> args_offsets {GET_OFF_BRGEMM_COPY_B_ARGS(src), GET_OFF_BRGEMM_COPY_B_ARGS(tr_src), GET_OFF_BRGEMM_COPY_B_ARGS(compensation_ptr)};
     const auto& mem_ptrs = ov::intel_cpu::utils::transform_idxs_to_regs(mem_ptrs_idxs);
     for (size_t i = 0; i < mem_ptrs.size(); i++)
-        write_addr_on_stack(args_offsets[i], mem_ptrs[i], mem_offsets[i], m_buffer_ids[i]);
+        utils::write_data_ptr_on_stack(h, args_offsets[i], mem_ptrs[i], aux_reg, m_memory_offsets[i],
+                                       GET_OFF(buffer_offsets) + m_buffer_ids[i] * sizeof(size_t));
 
     // No scratchpad => need to write nullptr manually
     if (!m_with_comp)
