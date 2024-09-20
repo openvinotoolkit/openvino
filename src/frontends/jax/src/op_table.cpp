@@ -36,6 +36,7 @@ OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_copy);
 OP_CONVERTER(translate_dot_general);
 OP_CONVERTER(translate_integer_pow);
+OP_CONVERTER(translate_iota);
 OP_T_CONVERTER(translate_reduce_op);
 OP_CONVERTER(translate_reduce_window_max);
 OP_CONVERTER(translate_reduce_window_sum);
@@ -60,6 +61,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"div", op::translate_1to1_match_2_inputs<v1::Divide>},
             {"dot_general", op::translate_dot_general},
             {"exp", op::translate_1to1_match_1_input<v0::Exp>},
+            {"iota", op::translate_iota},
             {"integer_pow", op::translate_integer_pow},
             {"max", op::translate_1to1_match_2_inputs<v1::Maximum>},
             {"mul", op::translate_1to1_match_2_inputs<v1::Multiply>},
