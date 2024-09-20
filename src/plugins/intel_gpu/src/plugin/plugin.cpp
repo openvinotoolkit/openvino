@@ -328,10 +328,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     config.set_user_property(_orig_config);
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
-    if (config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE)
-        return nullptr;
-
     cldnn::BinaryInputBuffer ib(model, context_impl->get_engine());
+
+    std::string weights_path;
+    ib >> weights_path;
+    config.set_property(ov::intel_gpu::weights_path(weights_path));
+
+    if (config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE && weights_path.empty()) {
+        return nullptr;
+    }
+
     return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config, loaded_from_cache);
 }
 

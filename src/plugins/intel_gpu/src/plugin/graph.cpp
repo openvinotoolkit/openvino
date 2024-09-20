@@ -94,10 +94,6 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
         m_config.set_property(ov::intel_gpu::optimize_data(bool_prop_value));
         ib >> bool_prop_value;
         m_config.set_property(ov::intel_gpu::allow_new_shape_infer(bool_prop_value));
-
-        std::string weights_path;
-        ib >> weights_path;
-        m_config.set_property(ov::intel_gpu::weights_path(weights_path));
     }
 
     auto imported_prog = std::make_shared<cldnn::program>(get_engine(), m_config);
@@ -528,7 +524,6 @@ void Graph::export_model(cldnn::BinaryOutputBuffer &ob) {
         ob << m_config.get_property(ov::intel_gpu::partial_build_program);
         ob << m_config.get_property(ov::intel_gpu::optimize_data);
         ob << m_config.get_property(ov::intel_gpu::allow_new_shape_infer);
-        ob << m_config.get_property(ov::intel_gpu::weights_path);
     }
 
     ob.set_stream(m_network->get_stream_ptr().get());

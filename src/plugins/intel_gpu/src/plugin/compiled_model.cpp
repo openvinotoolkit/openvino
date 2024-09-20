@@ -178,6 +178,8 @@ void CompiledModel::export_model(std::ostream& model) const {
 
     cldnn::BinaryOutputBuffer ob(model);
 
+    ob << m_config.get_property(ov::intel_gpu::weights_path);
+
     // Inputs
     {
         const auto& params = inputs();
