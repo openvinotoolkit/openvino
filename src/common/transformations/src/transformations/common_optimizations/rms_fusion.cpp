@@ -108,7 +108,8 @@ RMSFusion::RMSFusion() {
             return false;
         }
 
-        auto rms = std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value);
+        auto output_type = m.get_match_root()->get_output_element_type(0);
+        auto rms = std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value, output_type);
         rms->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), rms);
         ov::replace_node(m.get_match_root(), rms);

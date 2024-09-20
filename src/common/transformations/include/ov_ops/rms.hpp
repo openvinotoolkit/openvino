@@ -24,7 +24,10 @@ public:
     /// \param gamma Gamma values for weight
     /// \param eps Epsilon for not dividing by zero while normalizing the value
     /// \param output_type Output element type
-    RMS(const Output<Node>& data, const Output<Node>& gamma, double epsilson);
+    RMS(const Output<Node>& data,
+        const Output<Node>& gamma,
+        double epsilson,
+        const ov::element::Type output_type = ov::element::undefined);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
@@ -40,8 +43,14 @@ public:
         m_epsilon = epsilon;
     }
 
+    void set_output_type(const element::Type& output_type) {
+        m_output_type = output_type;
+    }
+    using Node::set_output_type;
+
 private:
     double m_epsilon{0};
+    ov::element::Type m_output_type;
 };
 
 }  // namespace internal

@@ -12,6 +12,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/reference/convert.hpp"
+#include "ov_ops/rms.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/fp16_compression/align_mixed_fp32_fp16_types.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
@@ -45,6 +46,7 @@ bool fuse_type_to_unique_v10(const std::shared_ptr<ov::Node>& node, const precis
 bool fuse_type_to_range_v4(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_eye_v9(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
+bool fuse_type_to_rms(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_nms3(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_nms4(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_nms5(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
@@ -469,7 +471,8 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         {ov::op::v13::Multinomial::get_type_info_static(), fuse_type_to_multinomial_v13},
         {ov::op::v0::PriorBox::get_type_info_static(), fuse_type_to_prior_box<ov::op::v0::PriorBox>},
         {ov::op::v8::PriorBox::get_type_info_static(), fuse_type_to_prior_box<ov::op::v8::PriorBox>},
-        {ov::op::v0::PriorBoxClustered::get_type_info_static(), fuse_type_to_prior_box<ov::op::v0::PriorBoxClustered>}};
+        {ov::op::v0::PriorBoxClustered::get_type_info_static(), fuse_type_to_prior_box<ov::op::v0::PriorBoxClustered>},
+        {ov::op::internal::RMS::get_type_info_static(), fuse_type_to_rms}};
 
     for (const auto& it : m_additional_type_to_fuse_map) {
         type_to_fuse[it.first] = it.second;
@@ -665,6 +668,18 @@ bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precision
     const auto& to = it->second;
     if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
         convert->set_convert_element_type(to);
+        return true;
+    }
+    return false;
+}
+
+bool fuse_type_to_rms(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
+    auto it = precisions.find(node->get_output_element_type(0));
+    if (it == precisions.end())
+        return false;
+    const auto& to = it->second;
+    if (auto rms = ov::as_type_ptr<ov::op::internal::RMS>(node)) {
+        rms->set_output_type(to);
         return true;
     }
     return false;
