@@ -351,7 +351,7 @@ For more details, see the code snippets below:
 The ``ov::intel_gpu::ocl::D3DContext`` and ``ov::intel_gpu::ocl::VAContext`` classes are derived from ``ov::intel_gpu::ocl::ClContext``.
 Therefore, they provide the functionality described above and extend it
 to enable creation of ``ov::RemoteTensor`` objects from ``ID3D11Buffer``, ``ID3D11Texture2D``
-pointers or the ``VASurfaceID`` handle respectively, as shown in the examples below:
+pointers or the ``VASurfaceID`` handle, as shown in the examples below:
 
 
 .. tab-set::
