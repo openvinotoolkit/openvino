@@ -113,7 +113,7 @@ find_package(OpenVINO REQUIRED)
 
 add_executable(${TARGET_NAME} src/main.cpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::util stdc++fs)
 
 # [cmake:integration_example_cpp]
 
