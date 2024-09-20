@@ -201,7 +201,7 @@ protected:
     std::vector<snippets::lowered::PortDescriptorPtr> m_io_descs = {};
     std::vector<size_t> m_io_data_sizes = {};
     // [cluster_id -> buffer expressions ]
-    std::map<size_t, std::set<lowered::ExpressionPtr>> m_dynamic_buffer_clusters = {};
+    std::map<size_t, std::set<lowered::BufferExpressionPtr>> m_dynamic_buffer_clusters = {};
 
     std::vector<ov::snippets::VectorDims> m_latest_shapes = {};
 };

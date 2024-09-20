@@ -34,7 +34,7 @@ class TFLiteLayerTest(CommonLayerTest):
                                                          input_tensors=input_tensors,
                                                          output_tensors=output_tensors).convert()
 
-        tflite_model_path = os.path.join(os.path.dirname(save_path), 'model.tflite')
+        tflite_model_path = os.path.join(save_path, 'model.tflite')
         with tf.io.gfile.GFile(tflite_model_path, 'wb') as f:
             f.write(tflite_model)
         return tflite_model_path
