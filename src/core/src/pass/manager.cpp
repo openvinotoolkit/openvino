@@ -21,8 +21,6 @@
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
 
-using namespace std;
-
 #ifdef ENABLE_PROFILING_ITT
 
 namespace ov {
@@ -196,8 +194,9 @@ public:
 
             bool is_pass_manager = name == m_manager_name;
             if (is_pass_manager) {
-                std::cout << std::setw(25) << left;
+                std::cout << std::setw(25) << std::left;
                 std::cout << "PassManager started: " << m_manager_name << std::endl;
+                std::cout << std::right;
             }
         }
     }
@@ -209,15 +208,15 @@ public:
 
             bool is_pass_manager = name == m_manager_name;
             if (m_profile_pass.is_bool()) {
-                std::cout << std::setw(25) << left;
+                std::cout << std::setw(25) << std::left;
                 if (is_pass_manager) {
                     std::cout << "PassManager finished: ";
                 } else {
                     std::cout << "  ";
                 }
-                std::cout << std::setw(60) << left << name;
-                std::cout << std::setw(5) << right << stopwatch.get_milliseconds() << "ms " << (applied ? "+" : "-")
-                          << std::endl;
+                std::cout << std::setw(60) << std::left << name;
+                std::cout << std::setw(5) << std::right << stopwatch.get_milliseconds() << "ms "
+                          << (applied ? "+" : "-") << std::endl;
             } else if (m_file.is_open()) {
                 if (is_pass_manager) {
                     m_file << "m;" << name << ";" << stopwatch.get_timer_value().count() << ";" << (applied ? "1" : "0")
@@ -233,7 +232,7 @@ public:
         }
     }
 
-    void visualize(const shared_ptr<ov::Model>& model, const std::string& pass_name) const {
+    void visualize(const std::shared_ptr<ov::Model>& model, const std::string& pass_name) const {
         static size_t viz_index = 0;
         if (m_visualize.is_enabled()) {
             const auto& _visualize = [&]() {
@@ -256,7 +255,7 @@ public:
         }
     }
 
-    void serialize(const shared_ptr<ov::Model>& model, const std::string& pass_name) const {
+    void serialize(const std::shared_ptr<ov::Model>& model, const std::string& pass_name) const {
         static size_t serialize_index = 0;
         if (m_serialize.is_enabled()) {
             const auto& _serialize = [&]() {
@@ -330,7 +329,7 @@ void ov::pass::Manager::set_per_pass_validation(bool new_state) {
     m_per_pass_validation = new_state;
 }
 
-bool ov::pass::Manager::run_passes(const shared_ptr<ov::Model>& model) {
+bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::Manager::run_passes");
     Profiler profiler(m_name);
 
@@ -375,11 +374,11 @@ bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass,
 
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ov_pass, ov::pass::perf_counters()[pass->get_type_info()]);
 
-    if (auto matcher_pass = dynamic_pointer_cast<MatcherPass>(pass)) {
+    if (auto matcher_pass = std::dynamic_pointer_cast<MatcherPass>(pass)) {
         // GraphRewrite is a temporary container for MatcherPass to make execution on entire ov::Model
         return GraphRewrite(matcher_pass).run_on_model(model);
-    } else if (auto model_pass = dynamic_pointer_cast<ModelPass>(pass)) {
-        if (dynamic_pointer_cast<ov::pass::Validate>(model_pass) && !needs_validate) {
+    } else if (auto model_pass = std::dynamic_pointer_cast<ModelPass>(pass)) {
+        if (std::dynamic_pointer_cast<ov::pass::Validate>(model_pass) && !needs_validate) {
             return false;
         }
         return model_pass->run_on_model(model);

@@ -1278,8 +1278,8 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             // hence we need to delete it here in case of failure
             xml_file.close();
             bin_file.close();
-            std::remove(m_xmlPath.c_str());
-            std::remove(m_binPath.c_str());
+            std::ignore = std::remove(m_xmlPath.c_str());
+            std::ignore = std::remove(m_binPath.c_str());
             throw;
         }
     }
