@@ -176,7 +176,7 @@ struct QKVProjection::Impl {
         static ReduceAdd2bh jit_2bh(false);
         auto input = m_node->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();
-        uint8_t* pInput = input->getDataAs<uint8_t>();
+        uint8_t* psrc0 = input->getDataAs<uint8_t>();
         int M = shape_size(ishape) / ishape[ishape.size() - 1];
         auto* dst0 = m_node->getDstMemoryAtPort(0)->getDataAs<ov::bfloat16>();
         auto* dst1 = m_node->getDstMemoryAtPort(1)->getDataAs<ov::bfloat16>();
@@ -195,10 +195,10 @@ struct QKVProjection::Impl {
         const auto& dstStrides1 = m_node->getDstMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto& dstStrides2 = m_node->getDstMemoryAtPort(2)->getDescWithType<BlockedMemoryDesc>()->getStrides();
 
-        int strideA = srcStrides[1] * sizeof(ov::bfloat16);
-        auto stride_0 = dstStrides0[1];
-        auto stride_1 = dstStrides1[1];
-        auto stride_2 = dstStrides2[1];
+        int stride_src = srcStrides[1] * sizeof(ov::bfloat16);
+        auto stride_dst_0 = dstStrides0[1];
+        auto stride_dst_1 = dstStrides1[1];
+        auto stride_dst_2 = dstStrides2[1];
 
         auto prof = LinuxPerf::Profile("QKV", 0, M);
 
@@ -211,11 +211,12 @@ struct QKVProjection::Impl {
 
             // dynamic quantize input tensor A[m0:m1, :] into scratch buffer
             // because it's being shared by all kernels
-            uint8_t* pA = pInput;
+            uint8_t* pA = psrc0;
+            auto strideA = stride_src;
             if (m_node->m_config.quantized) {
-                // quantize pInput into m_quantized_act buffer
+                // quantize psrc0 into m_quantized_act buffer
                 // per-token asym
-                m_quant_act.quantize(BM, reinterpret_cast<ov::bfloat16*>(pInput), srcStrides[1]);
+                m_quant_act.quantize(BM, reinterpret_cast<ov::bfloat16*>(psrc0), srcStrides[1]);
                 pA = reinterpret_cast<uint8_t*>(m_quant_act.data);
                 strideA = m_quant_act.K;
             }
@@ -234,15 +235,15 @@ struct QKVProjection::Impl {
 
                     if (work.output_id == 0) {
                         dst = dst0 + work.n0;
-                        stride_dst = stride_0;
+                        stride_dst = stride_dst_0;
                     }
                     if (work.output_id == 1) {
                         dst = dst1 + work.n0;
-                        stride_dst = stride_1;
+                        stride_dst = stride_dst_1;
                     }
                     if (work.output_id == 2) {
                         dst = dst2 + work.n0;
-                        stride_dst = stride_2;
+                        stride_dst = stride_dst_2;
                     }
 
                     auto* src = work.m_C.ptr<float>();
@@ -273,10 +274,10 @@ struct QKVProjection::Impl {
                 }
             });
             m += BM;
-            pInput += BM * strideA;
-            dst0 += BM * stride_0;
-            dst1 += BM * stride_1;
-            dst2 += BM * stride_2;
+            psrc0 += BM * stride_src;
+            dst0 += BM * stride_dst_0;
+            dst1 += BM * stride_dst_1;
+            dst2 += BM * stride_dst_2;
         }
     }
 };
