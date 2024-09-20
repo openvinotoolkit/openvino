@@ -19,7 +19,7 @@ namespace tensorflow_lite {
 /// outputs must be returned first by `get_decoder()` method. Order of DecoderBaseTensor objects for inputs and outputs
 /// defines their order in the original model, i.e. model input index and model output index.
 /// For example, calling `get_decoder()` during iterating GraphIterator returns
-/// DecoderBaseTensor (for input 1), ..., DecoderBaseTensor (for input n-1),
+/// DecoderBaseTensor (for input 0), ..., DecoderBaseTensor (for input n-1),
 /// DecoderBaseTensor (for output 0), ..., DecoderBaseTensor (for output m-1),
 /// DecoderBaseOperation (for op 1), ..., DecoderBaseOperation (for op k),
 /// where n - number of inputs in the model, m - number of outputs in the model k - number of operation nodes.
