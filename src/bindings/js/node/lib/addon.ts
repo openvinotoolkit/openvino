@@ -21,8 +21,10 @@ type elementTypeString =
   | 'f32'
   | 'string';
 
+type Any = string | number | boolean;
+
 type AnyMap = {
-  [propertyName: string]: string | number | boolean;
+  [propertyName: string]: Any;
 };
 
 /**
@@ -105,7 +107,7 @@ interface Core {
    * It gets the properties dedicated to device behaviour.
    * @param propertyName A property name.
    */
-  getProperty(propertyName: string): string | number | boolean;
+  getProperty(propertyName: string): Any;
 
   /**
    * It gets the properties dedicated to device behaviour.
@@ -115,7 +117,7 @@ interface Core {
   getProperty(
     deviceName: string,
     propertyName: string,
-  ): string | number | boolean;
+  ): Any;
   /**
    * It returns information on the version of device plugins.
    * @param deviceName A device name to identify a plugin.
@@ -326,7 +328,7 @@ interface CompiledModel {
    * @param propertyName A string to get the property value.
    * @returns The property value.
    */
-  getProperty(propertyName: string): string | number | boolean;
+  getProperty(propertyName: string): Any;
   /**
    * It creates an inference request object used to infer the compiled model.
    * @return {InferRequest}
