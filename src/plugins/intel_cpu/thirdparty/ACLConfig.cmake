@@ -145,9 +145,11 @@ elseif(NOT TARGET arm_compute::arm_compute)
     )
 
     if(THREADING STREQUAL "OMP")
-        list(APPEND ARM_COMPUTE_OPTIONS openmp=1 cppthreads=0)
+        list(APPEND ARM_COMPUTE_OPTIONS openmp=1
+                                        cppthreads=0)
     else()
-        list(APPEND ARM_COMPUTE_OPTIONS openmp=0 cppthreads=1)
+        list(APPEND ARM_COMPUTE_OPTIONS openmp=0
+                                        cppthreads=1)
     endif()
 
     if(ARM)
@@ -395,5 +397,5 @@ elseif(NOT TARGET arm_compute::arm_compute)
     endforeach()
 
     # required by oneDNN to attempt to parse ACL version
-    set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_SOURCE_DIR}")
+    set(ACL_INCLUDE_DIR "${ARM_COMPUTE_SOURCE_DIR}")
 endif()

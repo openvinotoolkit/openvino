@@ -21,7 +21,7 @@ class TestRsqrt(JaxLayerTest):
             out = lax.rsqrt(inp)
             return out
 
-        return jax_rsqrt, None
+        return jax_rsqrt, None, 'rsqrt'
 
     @pytest.mark.parametrize("input_shape", [
         [10],
@@ -32,6 +32,7 @@ class TestRsqrt(JaxLayerTest):
         [1, 1, 9, 1]
     ])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     def test_rsqrt(self, ie_device, precision, ir_version, input_shape):
         self._test(*self.create_model(input_shape=input_shape),

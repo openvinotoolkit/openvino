@@ -29,6 +29,8 @@ notebooks/explainable-ai-2-deep-dive/explainable-ai-2-deep-dive.ipynb
 notebooks/explainable-ai-3-map-interpretation/explainable-ai-3-map-interpretation.ipynb
 notebooks/fast-segment-anything/fast-segment-anything.ipynb
 notebooks/film-slowmo/film-slowmo.ipynb
+notebooks/florence2/florence2.ipynb
+notebooks/flux.1-image-generation/flux.1-image-generation.ipynb
 notebooks/freevc-voice-conversion/freevc-voice-conversion.ipynb
 notebooks/gpu-device/gpu-device.ipynb
 notebooks/grammar-correction/grammar-correction.ipynb
@@ -72,6 +74,7 @@ notebooks/model-server/model-server.ipynb
 notebooks/music-generation/music-generation.ipynb
 notebooks/named-entity-recognition/named-entity-recognition.ipynb
 notebooks/nano-llava-multimodal-chatbot/nano-llava-multimodal-chatbot.ipynb
+notebooks/nuextract-structure-extraction/nuextract-structure-extraction.ipynb
 notebooks/object-detection-webcam/object-detection.ipynb
 notebooks/oneformer-segmentation/oneformer-segmentation.ipynb
 notebooks/openvino-api/openvino-api.ipynb

@@ -41,6 +41,9 @@
 #   `openvino::runtime::c`
 #   The OpenVINO C Inference Runtime
 #
+#   `openvino::threading`
+#   The OpenVINO Threading backend
+#
 #  Frontend specific targets:
 #
 #   `openvino::frontend::jax`
@@ -107,7 +110,7 @@
 #  OpenVINO build configuration variables:
 #
 #   `OpenVINO_GLIBCXX_USE_CXX11_ABI`
-#   Linux only: defines _GLIBCXX_USE_CXX11_ABI used to compiled OpenVINO
+#   Linux only: defines _GLIBCXX_USE_CXX11_ABI value used to compiled OpenVINO
 #
 
 @PACKAGE_INIT@
@@ -602,7 +605,9 @@ if(NOT ${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS)
     set(${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS Runtime)
 endif()
 
-if(Threading IN_LIST ${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS)
+if(Threading IN_LIST ${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS AND NOT TARGET openvino::threading)
+    add_library(openvino::threading INTERFACE IMPORTED)
+
     _ov_enable_threading_interface()
 
     if(TARGET TBB::tbb)
@@ -614,7 +619,7 @@ if(Threading IN_LIST ${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS)
     endif()
 
     if(_ov_threading_lib)
-        set_property(TARGET openvino::runtime APPEND PROPERTY INTERFACE_LINK_LIBRARIES ${_ov_threading_lib})
+        set_target_properties(openvino::threading PROPERTIES INTERFACE_LINK_LIBRARIES ${_ov_threading_lib})
         unset(_ov_threading_lib)
     endif()
 endif()

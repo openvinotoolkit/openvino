@@ -134,4 +134,8 @@ namespace {
                              CompileModelLoadFromCacheTest,
                              ::testing::Combine(::testing::ValuesIn(TestCpuTargets), ::testing::ValuesIn(CpuConfigs)),
                              CompileModelLoadFromCacheTest::getTestCaseName);
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU,
+                             CompileModelWithCacheEncryptionTest,
+                             ::testing::ValuesIn(TestCpuTargets),
+                             CompileModelWithCacheEncryptionTest::getTestCaseName);
 } // namespace

@@ -9,7 +9,7 @@
             <h3>Configure Graphs</h3>
             <div class="buttons-nav">
                 <div>
-                    <button id="build-graphs-btn" disabled="disabled" class="build-graphs-btn">Build Graphs</button>
+                    <button id="build-graphs-btn" disabled="disabled" class="build-graphs-btn">Show Graphs</button>
                 </div>
                 <div class="clear-all-btn">
                     <span class="clear-all-btn-content">Clear All</span>
@@ -18,26 +18,30 @@
         </div>
         <div class="configure-graphs-content">
             <div class="modal-content-grid-container">
-                <div class="modal-content-grid-item span-element-big">
+                <div class="modal-content-grid-item">
+                    <div title="Select\deselect all network model list" class="show-allcheckbox">
+                        <span class="models-selectall">
+                        </span>
+                    </div>
                     <h5>Models</h5>
                     <div class="modal-line-divider"></div>
-                    <div class="modal-content-grid modal-content-grid--cols-2">
-                        <div class="models-column-one column"></div>
-                        <div class="models-column-two column"></div>
-                    </div>
-                </div>
-                <div class="modal-content-grid-item">
-                    <h5>Platform Type</h5>
-                    <div class="modal-line-divider"></div>
                     <div class="modal-content-grid">
-                        <div class="ietype-column column"></div>
+                        <div class="models-column column"></div>
                     </div>
                 </div>
                 <div class="modal-content-grid-item">
+                    <div title="Select\deselect all platform list" class="show-allcheckbox">
+                        <span class="platforms-selectall">
+                        </span>
+                    </div>
                     <h5>Platforms</h5>
+                    <div id="filters" title="Filter the platform list" class="show-filter">
+                        <span class="filters-label">Show filters</span>
+                        <span class="show-filters-icon"></span>
+                    </div>
                     <div class="modal-line-divider"></div>
                     <div class="modal-content-grid">
-                        <div class="client-platform-column column"></div>
+                        <div class="platforms-column column"></div>
                     </div>
                 </div>
                 <div class="modal-content-grid-item">
@@ -46,13 +50,30 @@
                     <div class="modal-content-grid">
                         <div class="kpi-column column"></div>
                     </div>
-                </div>
-                <div class="modal-content-grid-item">
                     <h5>Precision</h5>
                     <div class="modal-line-divider"></div>
                     <div class="modal-content-grid">
                         <div class="precisions-column column"></div>
-                        <p>(Use for Throughput and Latency parameters only)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="configure-graphs-content">
+            <div class="modal-content-grid-container">
+                <div id="modal-filters" class="modal-filter">
+                    <div class="modal-filters-content">
+                        <div class="modal-header">
+                            <h2>Show\hide platform types</h2>
+                            <span class="close-filters"><span class="arrow-back-icon"></span></span>
+                        </div>
+                        <div class="show-allcheckbox">
+                            <span class="ietype-selectall"></span>
+                        </div>
+                        <h5>Platform Types</h5>
+                        <div class="modal-line-divider"></div>
+                        <div class="modal-content-grid">
+                            <div class="ietype-column column"></div>
+                        </div>
                     </div>
                 </div>
             </div>

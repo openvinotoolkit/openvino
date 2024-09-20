@@ -1,5 +1,3 @@
-.. {#quantization_w_accuracy_control}
-
 Quantizing with Accuracy Control
 ================================
 

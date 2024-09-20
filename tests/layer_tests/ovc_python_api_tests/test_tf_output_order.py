@@ -1,14 +1,12 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import tempfile
-from pathlib import Path
-
 import numpy as np
 import pytest
+import tempfile
 import tensorflow as tf
-
 from common import constants
+from pathlib import Path
 
 
 def create_net_list(input_names, input_shapes):
@@ -69,10 +67,13 @@ class TestTFInputOutputOrder():
         self.tmp_dir = tempfile.TemporaryDirectory(dir=constants.out_path).name
 
     @pytest.mark.parametrize("save_to_file, create_model_method, compare_model_method", [
-        (False, create_net_list, check_outputs_by_order),
-        (False, create_net_dict, check_outputs_by_names),
-        pytest.param(True, create_net_list, check_outputs_by_order, marks=pytest.mark.xfail(reason='124436')),
-        pytest.param(True, create_net_dict, check_outputs_by_names, marks=pytest.mark.xfail(reason='124436')),
+        (False, 'create_net_list', 'check_outputs_by_order'),
+        (False, 'create_net_dict', 'check_outputs_by_names'),
+        # next two cases are failing due to TensorFlow bug https://github.com/tensorflow/tensorflow/issues/75177
+        pytest.param(True, 'create_net_list', 'check_outputs_by_order',
+                     marks=pytest.mark.xfail(reason='https://github.com/tensorflow/tensorflow/issues/75177')),
+        pytest.param(True, 'create_net_dict', 'check_outputs_by_names',
+                     marks=pytest.mark.xfail(reason='https://github.com/tensorflow/tensorflow/issues/75177')),
     ])
     def test_order(self, ie_device, precision, save_to_file, create_model_method, compare_model_method):
         from openvino import convert_model, compile_model
@@ -80,10 +81,10 @@ class TestTFInputOutputOrder():
         input_shapes = [[1, 1], [1, 3], [1, 2], [1, 5], [1, 4]]
         epsilon = 0.001
 
-        fw_model = create_model_method(input_names, input_shapes)
+        fw_model = eval(create_model_method)(input_names, input_shapes)
 
         if save_to_file:
-            tf.keras.models.save_model(fw_model, self.tmp_dir + "./model")
+            fw_model.export(self.tmp_dir + "./model")
             ov_model = convert_model(self.tmp_dir + "./model")
         else:
             ov_model = convert_model(fw_model)
@@ -96,4 +97,4 @@ class TestTFInputOutputOrder():
         fw_output = fw_model(test_inputs)
         ov_output = cmp_model(test_inputs)
 
-        compare_model_method(fw_output, ov_output, epsilon)
+        eval(compare_model_method)(fw_output, ov_output, epsilon)

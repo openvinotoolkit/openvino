@@ -137,7 +137,7 @@ std::shared_ptr<BrgemmCopyB> BrgemmCPU::get_brgemm_copy() const {
     if (const auto brgemm_copy_b = ov::as_type_ptr<BrgemmCopyB>(b_input_node)) {
         return brgemm_copy_b;
     }
-    if (ov::is_type<snippets::op::IntermediateMemoryBuffer>(b_input_node)) {
+    if (ov::is_type<snippets::op::Buffer>(b_input_node)) {
         if (const auto brgemm_copy_b = ov::as_type_ptr<BrgemmCopyB>(b_input_node->get_input_node_shared_ptr(0))) {
             return brgemm_copy_b;
         }

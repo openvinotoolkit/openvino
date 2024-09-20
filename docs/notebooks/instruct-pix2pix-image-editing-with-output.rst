@@ -88,7 +88,7 @@ Create Pytorch Models pipeline
 ``StableDiffusionInstructPix2PixPipeline`` is an end-to-end inference
 pipeline that you can use to edit images from text instructions with
 just a few lines of code provided as part
- `diffusers <https://huggingface.co/docs/diffusers/index>`__ library.
+`diffusers <https://huggingface.co/docs/diffusers/index>`__ library.
 
 First, we load the pre-trained weights of all components of the model.
 
@@ -1335,17 +1335,7 @@ Interactive demo with Gradio
 .. code:: ipython3
 
     import gradio as gr
-    from pathlib import Path
     import numpy as np
-
-    default_url = "https://user-images.githubusercontent.com/29454499/223343459-4ac944f0-502e-4acf-9813-8e9f0abc8a16.jpg"
-    path = Path("data/example.jpg")
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    r = requests.get(default_url)
-
-    with path.open("wb") as f:
-        f.write(r.content)
 
     pipeline = int8_pipe if pipe_precision.value == "INT8" else ov_pipe
 
@@ -1358,23 +1348,15 @@ Interactive demo with Gradio
         return result
 
 
-    demo = gr.Interface(
-        generate,
-        [
-            gr.Image(label="Image", type="pil"),
-            gr.Textbox(label="Text"),
-            gr.Slider(0, 1024, label="Seed", value=42),
-            gr.Slider(
-                1,
-                100,
-                label="Steps",
-                value=10,
-                info="Consider increasing the value to get more precise results. A suggested value is 100, but it will take more time to process.",
-            ),
-        ],
-        gr.Image(label="Result"),
-        examples=[[path, "Make it in galaxy"]],
-    )
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/instruct-pix2pix-image-editing/gradio_helper.py"
+        )
+        open("gradio_helper.py", "w").write(r.text)
+
+    from gradio_helper import make_demo
+
+    demo = make_demo(fn=generate)
 
     try:
         demo.queue().launch(debug=False)
@@ -1383,3 +1365,8 @@ Interactive demo with Gradio
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

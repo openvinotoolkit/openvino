@@ -14,7 +14,6 @@ void register_implementations() {
     REGISTER_ONEDNN_IMPL(convolution);
     REGISTER_ONEDNN_IMPL(deconvolution);
     REGISTER_ONEDNN_IMPL(concatenation);
-    REGISTER_ONEDNN_IMPL(eltwise);
     REGISTER_ONEDNN_IMPL(gemm);
     REGISTER_ONEDNN_IMPL(pooling);
     REGISTER_ONEDNN_IMPL(reduction);
