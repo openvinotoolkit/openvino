@@ -14,10 +14,10 @@
 #include "openvino/op/sqrt.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "ov_ops/rms.hpp"
-#include "transformations/utils/utils.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "ov_ops/rms.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace pass {

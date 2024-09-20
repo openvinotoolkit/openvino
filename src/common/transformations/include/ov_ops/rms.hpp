@@ -24,9 +24,7 @@ public:
     /// \param gamma Gamma values for weight
     /// \param eps Epsilon for not dividing by zero while normalizing the value
     /// \param output_type Output element type
-    RMS(const Output<Node>& data,
-        const Output<Node>& gamma,
-        double epsilson);
+    RMS(const Output<Node>& data, const Output<Node>& gamma, double epsilson);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
