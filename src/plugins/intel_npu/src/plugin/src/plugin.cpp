@@ -19,6 +19,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
 #include "remote_context.hpp"
 
 using namespace intel_npu;
@@ -758,6 +759,19 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             OPENVINO_THROW("Failed to read data from stream!");
         }
         _logger.debug("Successfully read %zu bytes into blob.", graphSize);
+
+        std::string openvinoVersion {ov::get_openvino_version().buildNumber};
+        auto tokenizedVersion {ov::util::split(openvinoVersion, '-', false)};
+        const char* openvinoHash = tokenizedVersion.at(2).c_str();
+        const size_t hashLength = tokenizedVersion.at(2).length();
+
+        char* blobHash = new char[hashLength + 1]();
+        stream.seekg(graphSize - hashLength, stream.beg);
+        stream.read(blobHash, hashLength);
+        
+        if(strncmp(openvinoHash, blobHash, hashLength)) {
+            OPENVINO_THROW("OpenVINO version does not match imported blob version.");
+        }
 
         auto meta = compiler->parse(blob, localConfig);
         meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
