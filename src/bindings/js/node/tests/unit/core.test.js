@@ -20,7 +20,7 @@ describe('ov.Core tests', () => {
   it('Core.setProperty()', () => {
     const tmpDir = '/tmp';
 
-    core.setProperty({ 'CACHE_DIR': tmpDir });
+    core.setProperty({ CACHE_DIR: tmpDir });
 
     const cacheDir = core.getProperty('CACHE_DIR');
 
@@ -30,7 +30,7 @@ describe('ov.Core tests', () => {
   it('Core.setProperty(\'CPU\')', () => {
     const tmpDir = '/tmp';
 
-    core.setProperty('CPU', { 'CACHE_DIR': tmpDir });
+    core.setProperty('CPU', { CACHE_DIR: tmpDir });
 
     const cacheDir = core.getProperty('CPU', 'CACHE_DIR');
 
@@ -38,7 +38,10 @@ describe('ov.Core tests', () => {
   });
 
   it('Core.getProperty(\'CPU\', \'SUPPORTED_PROPERTIES\') is Array', () => {
-    const supportedPropertiesArray = core.getProperty('CPU', 'SUPPORTED_PROPERTIES');
+    const supportedPropertiesArray = core.getProperty(
+      'CPU',
+      'SUPPORTED_PROPERTIES',
+    );
 
     assert.ok(Array.isArray(supportedPropertiesArray));
   });
@@ -46,7 +49,7 @@ describe('ov.Core tests', () => {
   it('Core.setProperty(\'CPU\', { \'NUM_STREAMS\': 5 })', () => {
     const streams = 5;
 
-    core.setProperty('CPU', { 'NUM_STREAMS': streams });
+    core.setProperty('CPU', { NUM_STREAMS: streams });
     const result = core.getProperty('CPU', 'NUM_STREAMS');
 
     assert.equal(result, streams);
@@ -55,7 +58,7 @@ describe('ov.Core tests', () => {
   it('Core.setProperty(\'CPU\', { \'INFERENCE_NUM_THREADS\': 3 })', () => {
     const threads = 3;
 
-    core.setProperty('CPU', { 'INFERENCE_NUM_THREADS': threads });
+    core.setProperty('CPU', { INFERENCE_NUM_THREADS: threads });
     const result = core.getProperty('CPU', 'INFERENCE_NUM_THREADS');
 
     assert.equal(result, threads);
@@ -64,7 +67,7 @@ describe('ov.Core tests', () => {
   it('Core.addExtension() with empty parameters', () => {
     assert.throws(
       () => core.addExtension(),
-      /addExtension method applies one argument of string type/
+      /addExtension method applies one argument of string type/,
     );
   });
 
@@ -73,7 +76,7 @@ describe('ov.Core tests', () => {
 
     assert.throws(
       () => core.addExtension(notExistsExt),
-      /Cannot load library 'not_exists'/
+      /Cannot load library 'not_exists'/,
     );
   });
 

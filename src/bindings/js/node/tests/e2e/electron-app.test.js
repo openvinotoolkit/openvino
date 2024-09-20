@@ -1,29 +1,36 @@
+/* global describe, it, before, after */
 const fs = require('node:fs');
 const assert = require('node:assert');
 const { exec } = require('child_process');
 
-describe('E2E test of installation openvino as electron dependency', function() {
+describe('E2E testing for OpenVINO as an Electron dependency.', function() {
   this.timeout(50000);
 
   before((done) => {
-    exec('cp -r ./tests/e2e/demo-electron-app/ demo-electron-app-project', (error) => {
-      if (error) {
-        console.error(`exec error: ${error}`);
+    exec(
+      'cp -r ./tests/e2e/demo-electron-app/ demo-electron-app-project',
+      (error) => {
+        if (error) {
+          console.error(`exec error: ${error}`);
 
-        return done(error);
-      }
+          return done(error);
+        }
 
-      done();
-    });
+        done();
+      },
+    );
   });
 
   it('should install dependencies', (done) => {
     exec('cd demo-electron-app-project && npm install', (error) => {
       if (error) {
         console.error(`exec error: ${error}`);
+
         return done(error);
       }
-      const packageJson = JSON.parse(fs.readFileSync('demo-electron-app-project/package-lock.json', 'utf8'));
+      const packageJson = JSON.parse(
+        fs.readFileSync('demo-electron-app-project/package-lock.json', 'utf8'),
+      );
       assert.equal(packageJson.name, 'demo-electron-app');
       done();
     });
