@@ -35,32 +35,33 @@ public:
     bool run(lowered::LinearIR& linear_ir) override;
 
 private:
+    using Buffers = std::vector<BufferExpressionPtr>;
     /**
      * @brief Split buffer expressions of Linear IR into
      *        static (with defined allocation size) and dynamic (with unknown size) buffers
      * @param buffer_expressions buffer expressions
      * @return the pair of static and dynamic buffer expressions
      */
-    std::pair<LinearIR::container, LinearIR::container> extract_static_and_dynamic_buffers(const LinearIR::container& buffer_expressions);
+    std::pair<Buffers, Buffers> extract_static_and_dynamic_buffers(const Buffers& buffer_expressions);
     /**
      * @brief Initializes boxes for MemorySolver
      * @param buffer_expressions buffer expressions
      * @param linear_ir linear ir
      * @return vector of boxes for MemorySolver
      */
-    std::vector<ov::MemorySolver::Box> init_boxes(const LinearIR::container& buffer_expressions, const LinearIR& linear_ir);
+    std::vector<ov::MemorySolver::Box> init_boxes(const Buffers& buffer_expressions, const LinearIR& linear_ir);
     /**
      * @brief Calculate memory size and set offset to buffer with defined allocation size
      * @param static_buffer_expressions static buffer expressions
      * @param linear_ir linear ir
      */
-    void solve_static_buffer_memory(const LinearIR::container& static_buffer_expressions, const LinearIR& linear_ir);
+    void solve_static_buffer_memory(const Buffers& static_buffer_expressions, const LinearIR& linear_ir);
     /**
      * @brief Initialize offset for Buffer with undefined allocation size
      *        Note: should be called after `solve_static_buffer_memory`
      * @param dynamic_buffer_expressions dynamic buffer expressions
      */
-    void set_dynamic_buffer_offset(const LinearIR::container& dynamic_buffer_expressions);
+    void set_dynamic_buffer_offset(const Buffers& dynamic_buffer_expressions);
 
     size_t& m_static_buffer_scratchpad_size;
 

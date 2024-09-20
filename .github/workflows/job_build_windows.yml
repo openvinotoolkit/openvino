@@ -19,6 +19,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH: /mount/caches/pip/win
   PYTHON_VERSION: '3.11'
+  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Build:
@@ -56,7 +57,7 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
-          ref: 'master'
+          ref: ${{ env.TARGET_BRANCH }}
 
       - name: Set CCACHE_REMOTE_DIR based on event
         shell: bash
@@ -90,7 +91,7 @@ jobs:
             ${{ env.OPENVINO_REPO }}
             ${{ env.OPENVINO_CONTRIB_REPO }}
           product_type: ${{ env.PRODUCT_TYPE }}
-          target_arch: 'intel64'
+          target_arch: 'x86_64'
           build_type: ${{ inputs.build-type }}
           save_to: ${{ env.MANIFEST_PATH }}
 
@@ -155,10 +156,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-ccache
 
-      - name: Configure Developer Command Prompt for Microsoft Visual C++
+      - name: Configure Developer Command Prompt for Microsoft Visual C++ (2019)
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
-          toolset: 14.40
+          toolset: 14.29
 
       - name: Set SSL_CERT_FILE for model downloading for unit tests
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
