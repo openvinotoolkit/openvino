@@ -30,7 +30,6 @@ SoftmaxKernelBase::DispatchData SoftmaxKernelBase::SetDefault(const softmax_para
     dispatchData.normIndex = 0;
     dispatchData.dataSetsCount = 0;
     dispatchData.dataSetSize = 0;
-    dispatchData.maxSlmSize = 0;
 
     return dispatchData;
 }
