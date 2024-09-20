@@ -7,6 +7,8 @@
 #include <tuple>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/divide.hpp"
@@ -35,8 +37,7 @@ static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> nod
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
     // given single name)
     node->set_friendly_name(name);
-    OPENVINO_ASSERT(node->get_output_size() ==
-                    1);  // Should I use assert here? I heard using ASSERTS is not the best thing
+    OPENVINO_ASSERT(node->get_output_size() == 1);
     node->get_output_tensor(0).set_names({name});
     return node;
 }
@@ -64,11 +65,15 @@ static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
 }
 
 ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_parameters,
-                                                         const ParameterVector& model_remaining_params,
+                                                         ParameterVector& model_remaining_params,
                                                          const std::shared_ptr<ov::op::v0::Constant>& sliding_window,
                                                          ParameterVector& parameters_to_remove,
                                                          int& layer_index,
-                                                         Output<Node> max_context_len) {
+                                                         Output<Node> max_context_len,
+                                                         ParameterVector& block_indices_inputs,
+                                                         ResultVector& score_results,
+                                                         bool use_block_indices_inputs,
+                                                         bool use_score_outputs) {
     MATCHER_SCOPE(StateManagementPattern);
 
     auto k_current = pattern::any_input();
@@ -142,6 +147,14 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
     sdpa_mask = pattern::wrap_type<v1::Reshape>({sdpa_mask, pattern::any_input()});
     sdpa_mask = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), sdpa_mask});
 
+    // For Jais (Jais-13b has a different pattern and handling of alibi slopes)
+    auto mirroring_abs = pattern::wrap_type<v0::Abs>({pattern::any_input()});
+    auto unsqueeze = pattern::wrap_type<v0::Unsqueeze>({mirroring_abs, pattern::any_input()});
+    auto alibi_mask = pattern::wrap_type<v1::Multiply>({alibi, unsqueeze});
+    alibi_mask = pattern::wrap_type<v3::Broadcast>({alibi_mask, pattern::any_input()});
+    alibi_mask = pattern::wrap_type<v0::Unsqueeze>({alibi_mask, pattern::any_input()});
+    alibi_mask = pattern::wrap_type<v1::Add>({pattern::any_input(), alibi_mask});
+
     auto q = pattern::any_input();
     auto scale_input = pattern::any_input();
 
@@ -149,7 +162,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         std::make_shared<pattern::op::Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
     auto v_to_sdpa =
         std::make_shared<pattern::op::Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
-    auto mask_to_sdpa = std::make_shared<pattern::op::Or>(OutputVector{sdpa_mask, pattern::any_input()});
+    auto mask_to_sdpa = std::make_shared<pattern::op::Or>(OutputVector{sdpa_mask, alibi_mask, pattern::any_input()});
 
     auto sdpa_with_4_inputs =
         pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
@@ -163,6 +176,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                           &model_remaining_params,
                                           &sliding_window,
                                           &parameters_to_remove,
+                                          &block_indices_inputs,
+                                          &score_results,
                                           &layer_index](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto real_q = pattern_map.at(q);
@@ -190,7 +205,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                 }
                 rank = rank.get_length();
                 auto axis = unsqueeze->input_value(1).get_node_shared_ptr();
-                auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(axis);
+                auto constant = ov::as_type_ptr<ov::op::v0::Constant>(axis);
                 if (!constant) {
                     return ov::Dimension();
                 }
@@ -236,7 +251,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         if (pattern_map.count(qkv_current_split_node)) {
             // Fast track for merged K/V caches, based on the currently observed models topologies we don't need to
             // change layout and there is no point in the graph where it is in 4D. So `else` branch below is not
-            // applicable for this case.
+            // applicable for this case. + std::to_string(layer_index - 1)
             auto qkv_split = pattern_map.at(qkv_current_split_node).get_node_shared_ptr();
             // TODO: Consider handling Q part as well as KV here, requires more changes in the code and sets
             // VariadicSplit before Concat as essential part of the pattern
@@ -270,8 +285,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             auto real_k = take_4d(k_current, k_current_reshaped, k_current2);
             auto real_v = take_4d(v_current, v_current_reshaped, v_current2);
 
-            std::shared_ptr<Node> k_transpose_order =
-                kv_transpose_order;  // eeeh, is it a right way to assign Constants? Maybe I should clone somehow?
+            std::shared_ptr<Node> k_transpose_order = kv_transpose_order;
             if (pattern_map.find(k_order) !=
                 pattern_map
                     .end()) {  // reapply transpose found in the graph by manipulating of indices of our Transpose
@@ -280,8 +294,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                                                  v0::Constant::create(element::i64, Shape{}, {0}));
             }
             k_target_layout = std::make_shared<v1::Transpose>(real_k, k_transpose_order);
-            std::shared_ptr<Node> v_transpose_order =
-                kv_transpose_order;  // eeeh, is it a right way to assign Constants? Maybe I should clone somehow?
+            std::shared_ptr<Node> v_transpose_order = kv_transpose_order;
             if (pattern_map.find(v_order) !=
                 pattern_map
                     .end()) {  // reapply transpose found in the graph by manipulating of indices of our Transpose
@@ -317,24 +330,58 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         if (pattern_map.find(alibi) != pattern_map.end()) {
             alibi_slopes = std::make_shared<v1::Reshape>(pattern_map.at(alibi),
                                                          v0::Constant::create(element::i64, Shape{1}, {-1}),
-                                                         false);  // here {-1} is interesting in Python TODO: discuss
+                                                         false);
             if (alibi_slopes->get_element_type() == element::f32) {
                 alibi_slopes = std::make_shared<v0::Convert>(alibi_slopes, element::f32);
             }
+
+            // Jais-13b case
+            if (pattern_map.find(mirroring_abs) != pattern_map.end()) {
+                // For now there's no such case with Alibi slopes being not a Constant,
+                // however that may change in the future. That is why the presence of
+                // Abs is the main sign of the Jais-like topology, thus we need to multiply
+                // by -1. If we encounter the Alibi being a constant, we may do the additional
+                // checking of the values to be negative and, if it fails, we won't multiply
+                // the values by -1.
+                if (auto alibi_constant = ov::as_type_ptr<v0::Constant>(pattern_map.at(alibi).get_node_shared_ptr())) {
+                    auto alibi_constant_values = alibi_constant->cast_vector<float>();
+                    bool all_values_nagative =
+                        std::all_of(alibi_constant_values.begin(), alibi_constant_values.end(), [&](float value) {
+                            return value < 0.0;
+                        });
+
+                    if (all_values_nagative) {
+                        alibi_slopes = std::make_shared<v1::Multiply>(
+                            alibi_slopes,
+                            v0::Constant::create(alibi_slopes->get_element_type(), {}, {-1}));
+                    }
+                } else {
+                    alibi_slopes = std::make_shared<v1::Multiply>(
+                        alibi_slopes,
+                        v0::Constant::create(alibi_slopes->get_element_type(), {}, {-1}));
+                }
+            }
+
         } else {
-            alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});  // correctly created?
+            alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
         }
 
-        OutputVector params = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
-        params.insert(params.end(), model_remaining_params.begin(), model_remaining_params.end());
+        OutputVector pa_arguments = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
+        pa_arguments.insert(pa_arguments.end(), model_remaining_params.begin(), model_remaining_params.end());
         std::initializer_list<std::shared_ptr<Node>> additional_params = {scale,
                                                                           sliding_window,
                                                                           alibi_slopes,
                                                                           max_context_len.get_node_shared_ptr()};
-        params.insert(params.end(), additional_params.begin(), additional_params.end());
+        pa_arguments.insert(pa_arguments.end(), additional_params.begin(), additional_params.end());
 
-        // Really not sure if I construct correctly because the Python code uses an additional function
-        auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(params);
+        if (use_block_indices_inputs) {
+            auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                                         "block_indices." + std::to_string(layer_index - 1));
+            pa_arguments.insert(pa_arguments.begin() + 7, block_indices);
+            block_indices_inputs.push_back(block_indices);
+        }
+
+        auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
 
         auto pa_shape = std::make_shared<v0::Concat>(
             OutputVector{
@@ -344,8 +391,13 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                 std::make_shared<v0::Unsqueeze>(hidden_dim, v0::Constant::create(element::i64, Shape{}, {0})),
             },
             0);
-        auto pa_reshape = std::make_shared<v1::Reshape>(paged_attention, pa_shape, true);
+        auto pa_reshape = std::make_shared<v1::Reshape>(paged_attention->output(0), pa_shape, true);
         auto pa_transpose = std::make_shared<v1::Transpose>(pa_reshape, kv_transpose_order);
+        if (use_score_outputs) {
+            auto score_result = std::make_shared<v0::Result>(paged_attention->output(1));
+            score_result->get_output_tensor(0).set_names({"scores." + std::to_string(layer_index - 1)});
+            score_results.push_back(score_result);
+        }
 
         // TODO: Complete this part to work with stateless models as well as will stateful
         //  def add_kv_parameter(past_node):
@@ -356,7 +408,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         //  add_kv_parameter(mapping[v_gather])
 
         if (pattern_map.find(v_past_par) != pattern_map.end()) {
-            auto param = std::dynamic_pointer_cast<v0::Parameter>(pattern_map.at(v_past_par).get_node_shared_ptr());
+            auto param = ov::as_type_ptr<v0::Parameter>(pattern_map.at(v_past_par).get_node_shared_ptr());
             if (param) {
                 return false;
             }
@@ -364,7 +416,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         }
 
         if (pattern_map.find(k_past_par) != pattern_map.end()) {
-            auto param = std::dynamic_pointer_cast<v0::Parameter>(pattern_map.at(k_past_par).get_node_shared_ptr());
+            auto param = ov::as_type_ptr<v0::Parameter>(pattern_map.at(k_past_par).get_node_shared_ptr());
             if (param) {
                 return false;
             }

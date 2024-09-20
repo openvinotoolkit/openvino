@@ -50,10 +50,6 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassCommon,
 // // OV Class GetMetric
 // //
 
-INSTANTIATE_TEST_SUITE_P(nightly_HeteroAutoBatchOVGetMetricPropsTest,
-                         OVGetMetricPropsTest,
-                         ::testing::Values("HETERO", "BATCH"));
-
 INSTANTIATE_TEST_SUITE_P(nightly_gpuOVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values("GPU"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetAvailableDevicesPropsTest,
@@ -82,17 +78,6 @@ INSTANTIATE_TEST_SUITE_P(
                            {ov::hint::execution_mode.name()}))),
     OVCheckSetSupportedRWMetricsPropsTests::getTestCaseName);
 
-auto multiConfigs = []() {
-    return std::vector<ov::AnyMap>{
-        {ov::device::priorities(ov::test::utils::DEVICE_CPU)},
-        {ov::device::priorities(ov::test::utils::DEVICE_GPU)},
-    };
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetDevicePriorityConfigPropsTest,
-                         OVClassSetDevicePriorityConfigPropsTest,
-                         ::testing::Combine(::testing::Values("HETERO"),
-                                            ::testing::ValuesIn(multiConfigs())));
 //
 // GPU specific metrics
 //

@@ -49,9 +49,8 @@ struct pooling : public primitive_base<pooling> {
             const ov::Shape& pads_begin = {0, 0},
             const ov::Shape& pads_end = {0, 0},
             ov::op::PadType auto_pad = ov::op::PadType::EXPLICIT,
-            ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR,
-            const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+            ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR)
+        : primitive_base(id, {input}),
           mode(static_cast<pooling_mode>(mode)),
           size(size),
           stride(stride),
@@ -77,9 +76,8 @@ struct pooling : public primitive_base<pooling> {
             const ov::Shape& pads_begin,
             const ov::Shape& pads_end,
             tensor output_size,
-            const data_types output_data_type,
-            const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_data_type}}),
+            const data_types output_data_type)
+        : primitive_base(id, {input}, 1, {optional_data_type{output_data_type}}),
           mode(static_cast<pooling_mode>(mode)),
           size(size),
           stride(stride),
@@ -115,9 +113,8 @@ struct pooling : public primitive_base<pooling> {
             int64_t axis,
             data_types index_element_type,
             tensor output_size,
-            const data_types output_data_type,
-            const padding& output_padding = padding())
-            : primitive_base(id, {input, indices_output}, {output_padding}, {optional_data_type{output_data_type}}),
+            const data_types output_data_type)
+            : primitive_base(id, {input, indices_output}, 1, {optional_data_type{output_data_type}}),
               indices_output(indices_output.pid),
               mode(pooling_mode::max),
               size(size),

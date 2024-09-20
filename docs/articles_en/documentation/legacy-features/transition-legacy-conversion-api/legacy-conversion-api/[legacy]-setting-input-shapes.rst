@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model}
-
 [LEGACY] Setting Input Shapes
 ====================================
 

@@ -3,6 +3,7 @@
         "checkOutput" : "CheckOutputMode",
         "bmPerf" : "BenchmarkAppPerformanceMode",
         "compareBlobs" : "CompareBlobsMode",
+        "ac" : "AccuracyCheckerMode",
         "nop" : "NopMode"
     },
     "traversalMap" : {
@@ -83,6 +84,7 @@
         "venvDir": "{workPath}/venv/",
         "venvName": "tempVenv"
     },
+    "buildEnvVars": [],
     "preliminaryCheckCfg": {
         "leftCheck": true,
         "rightCheck": false,

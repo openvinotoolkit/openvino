@@ -12,6 +12,10 @@
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 
+#if defined(OPENVINO_ARCH_ARM64)
+#include "arm_neon.h"
+#endif
+
 namespace ov {
 namespace Extensions {
 namespace Cpu {
@@ -20,9 +24,11 @@ namespace XARCH {
 // avx512/avx2 register length in byte
 static constexpr size_t vec_len_avx512 = 64lu;
 static constexpr size_t vec_len_avx2 = 32lu;
+static constexpr size_t vec_len_neon = 16lu;
 // avx512/avx2 register length in float
 static constexpr size_t vec_len_f32_avx512 = vec_len_avx512 / sizeof(float);
 static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
+static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
 
 #ifdef HAVE_AVX512F
     inline __m512 cvt_bf16_to_fp32(const __m256i src) {
@@ -190,6 +196,61 @@ static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
         x = _mm256_min_ps(x, y);              // x: 0123 x x x   4567 x x x
         y = _mm256_permute2f128_ps(x, x, 1);  // y: 4567 x x x  0123 x x x
         x = _mm256_min_ps(x, y);              // x: 01234567 x x x x x x x
+    }
+#endif
+
+#ifdef OPENVINO_ARCH_ARM64
+    inline float32x4_t exp_ps_neon(float32x4_t& src) {
+        const auto c1 = vreinterpretq_f32_u32(vdupq_n_u32(0x3f7ffff6));
+        const auto c2 = vreinterpretq_f32_u32(vdupq_n_u32(0x3efffedb));
+        const auto c3 = vreinterpretq_f32_u32(vdupq_n_u32(0x3e2aaf33));
+        const auto c4 = vreinterpretq_f32_u32(vdupq_n_u32(0x3d2b9f17));
+        const auto c5 = vreinterpretq_f32_u32(vdupq_n_u32(0x3c072010));
+
+        const auto shift   = vreinterpretq_f32_u32(vdupq_n_u32(0x4b00007f)); // 2^23 + 127 = 0x1.0000fep23f
+        const auto one   = vdupq_n_f32(1.0f); // 1
+        const auto two   = vdupq_n_f32(2.0f); // 2
+        const auto inv_ln2 = vreinterpretq_f32_u32(vdupq_n_u32(0x3fb8aa3b));
+        const auto neg_ln2_hi = vreinterpretq_f32_u32(vdupq_n_u32(0xbf317200));
+        const auto neg_ln2_lo = vreinterpretq_f32_u32(vdupq_n_u32(0xb5bfbe8e));
+
+        const auto inf       = vdupq_n_f32(std::numeric_limits<float>::infinity());
+        const auto max_input = vdupq_n_f32(88.37f); // Approximately ln(2^127.5)
+        const auto zero      = vdupq_n_f32(0.f);
+        const auto min_input = vdupq_n_f32(-86.64f); // Approximately ln(2^-125)
+
+        const auto z     = vmlaq_f32(shift, src, inv_ln2);
+        auto n     = z - shift;
+        n = vsubq_f32(n, one);
+        const auto scale = vreinterpretq_f32_u32(vreinterpretq_u32_f32(z) << 23); // 2^n
+
+        const auto r_hi = vfmaq_f32(src, n, neg_ln2_hi);
+        const auto r    = vfmaq_f32(r_hi, n, neg_ln2_lo);
+
+        const auto r2 = r * r;
+
+        const auto p1     = c1 * r;
+        const auto p23    = vfmaq_f32(c2, c3, r);
+        const auto p45    = vfmaq_f32(c4, c5, r);
+        const auto p2345  = vfmaq_f32(p23, p45, r2);
+        const auto p12345 = vfmaq_f32(p1, p2345, r2);
+
+        auto poly = vfmaq_f32(scale, p12345, scale);
+        poly = vmulq_f32(poly, two);
+
+        poly = vbslq_f32(vcltq_f32(src, min_input), zero, poly);
+        poly = vbslq_f32(vcgtq_f32(src, max_input), inf, poly);
+
+        return poly;
+    }
+    inline float32x4_t __vld1q_f32(const ov::bfloat16* a) {
+        uint16x4_t vec_bf16 = vld1_u16(reinterpret_cast<const uint16_t*>(a));
+
+        float32x4_t vec_f32 = vcvtq_f32_u32(vmovl_u16(vec_bf16));
+        return vec_f32;
+    }
+    inline float32x4_t __vld1q_f32(const float* a) {
+        return vld1q_f32(a);
     }
 #endif
 

@@ -29,8 +29,8 @@ compiled_model = core.compile_model("model.tflite", "AUTO")
 def create_model():
     # This example shows how to create ov::Function
     #
-    # To construct a model, please follow 
-    # https://docs.openvino.ai/latest/openvino_docs_OV_UG_Model_Representation.html
+    # To construct a model, please follow
+    # https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application/model-representation.html
     data = ov.opset8.parameter([3, 1, 2], ov.Type.f32)
     res = ov.opset8.result(data)
     return ov.Model([res], [data], "model")

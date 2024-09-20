@@ -181,6 +181,8 @@ void handle_reshape::run(program& p) {
                         }
 
                         reorder_reshape_nodes.push_back(&new_reshape_node);
+                        new_reshape_node.recalc_output_layouts(false);
+                        node->recalc_output_layouts(false);
                     }
                 }
 
@@ -208,7 +210,8 @@ void handle_reshape::run(program& p) {
                                        0,
                                        reshape_input_node.get_dependencies().empty());
                     reshape_reorder_id++;
-                    reshape_input_node.recalc_output_layout();
+                    reshape_input_node.recalc_output_layouts(false);
+                    node->recalc_output_layouts(false);
                 }
             }
 
@@ -233,7 +236,8 @@ void handle_reshape::run(program& p) {
                         << " input_info : " << reshape_input->dependencies().front().to_string() << std::endl;
                     auto& reshape_input_node = p.get_or_create(reshape_input);
                     p.add_intermediate(reshape_input_node, *node, 0, reshape_input_node.get_dependencies().empty());
-                    reshape_input_node.recalc_output_layout();
+                    reshape_input_node.recalc_output_layouts(false);
+                    node->recalc_output_layouts(false);
                 }
 
                 // Check whether output reorder is required for format change
@@ -251,9 +255,9 @@ void handle_reshape::run(program& p) {
                                         *user,
                                         *node,
                                         reshape_output_node.get_dependencies().empty());
-                        reshape_output_node.recalc_output_layout();
+                        reshape_output_node.recalc_output_layouts(false);
                     }
-                    node->recalc_output_layout();
+                    node->recalc_output_layouts(false);
                 }
             }
         }

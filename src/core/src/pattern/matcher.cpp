@@ -44,7 +44,7 @@ MatcherState::~MatcherState() {
                                             m_matcher->m_matched_list.end());
         }
 
-        if (!m_pattern_value_maps.empty()) {
+        if (!m_matcher->m_pattern_value_maps.empty()) {
             m_matcher->m_pattern_value_maps.erase(m_pattern_value_maps.begin() + m_capture_size,
                                                   m_pattern_value_maps.end());
         }
@@ -133,6 +133,11 @@ bool Matcher::match_value(const ov::Output<Node>& pattern_value, const ov::Outpu
 bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVector& args) {
     for (size_t i = 0; i < args.size(); i++) {
         if (!match_value(pattern_args.at(i), args.at(i))) {
+            OPENVINO_DEBUG("[MATCHER] Aborting. Argument ",
+                           i,
+                           " (",
+                           args.at(i).get_node()->get_friendly_name(),
+                           ") mismatch");
             return false;
         }
     }
@@ -140,13 +145,19 @@ bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVe
 }
 
 bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& graph_node) {
-    OPENVINO_DEBUG << "[MATCHER] Match arguments at " << *graph_node << " for pattern " << *pattern_node;
+    OPENVINO_DEBUG("[MATCHER] Match arguments at");
+    OPENVINO_DEBUG("\t", *graph_node);
+    OPENVINO_DEBUG("for pattern");
+    OPENVINO_DEBUG("\t", *pattern_node);
 
     auto args = graph_node->input_values();
     auto pattern_args = pattern_node->input_values();
 
     if (args.size() != pattern_args.size()) {
-        OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
+        OPENVINO_DEBUG("[MATCHER] Aborting. Args count mismatch: candidate: ",
+                       args.size(),
+                       ";  pattern: ",
+                       pattern_args.size());
         return false;
     }
 
@@ -172,7 +183,7 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
         return match_permutation(pattern_args, args);
     }
 
-    OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
+    OPENVINO_DEBUG("[MATCHER] Aborting");
     return false;
 }
 

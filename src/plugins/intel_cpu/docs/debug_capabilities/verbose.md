@@ -29,7 +29,10 @@ To turn on verbose mode the following environment variable should be used:
     OV_CPU_VERBOSE=<level> binary ...
 ```
 
-Currently verbose mode has only one level, any digit can be used for activation.
+Levels enable printing of:
+  - 1 - executable nodes only
+  - 2 - same as `1` plus `Input` and `Output` nodes
+  - 3 - same as `2` plus constant path nodes (executed in scope of `compile_model()`)
 
 To have colored verbose output just duplicate level's digit, for example:
 ```sh

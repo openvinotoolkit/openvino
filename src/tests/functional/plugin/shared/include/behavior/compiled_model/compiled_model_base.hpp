@@ -3,22 +3,22 @@
 //
 
 #include <fstream>
-#include <openvino/pass/serialize.hpp>
 #include <openvino/core/preprocess/pre_post_process.hpp>
 #include <openvino/opsets/opset8.hpp>
+#include <openvino/pass/serialize.hpp>
 
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/runtime/exec_model_info.hpp"
-#include "openvino/runtime/tensor.hpp"
+#include "common_test_utils/subgraph_builders/concat_with_params.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/subgraph_builders/multiple_input_outpput_double_concat.hpp"
 #include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
-#include "common_test_utils/subgraph_builders/concat_with_params.hpp"
 #include "common_test_utils/subgraph_builders/single_split.hpp"
 #include "common_test_utils/subgraph_builders/split_concat.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace test {
@@ -98,7 +98,7 @@ TEST_P(OVCompiledModelBaseTest, canCompileModel) {
 }
 
 TEST_P(OVCompiledModelBaseTest, canCompileModelFromMemory) {
- std::string model = R"V0G0N(
+    std::string model = R"V0G0N(
         <net name="Network" version="10">
             <layers>
                 <layer name="in1" type="Parameter" id="0" version="opset8">
@@ -165,11 +165,11 @@ TEST_P(OVCompiledModelBaseTest, canCompileModelFromMemory) {
             </edges>
         </net>
         )V0G0N";
-    EXPECT_NO_THROW(auto execNet = core ->compile_model(model, ov::Tensor(), target_device, configuration));
+    EXPECT_NO_THROW(auto execNet = core->compile_model(model, ov::Tensor(), target_device, configuration));
 }
 
 TEST_P(OVCompiledModelBaseTest, canCompileModelwithBrace) {
- std::string model = R"V0G0N(
+    std::string model = R"V0G0N(
         <net name="Network" version="10">
             <layers>
                 <layer name="in1" type="Parameter" id="0" version="opset8">
@@ -628,9 +628,9 @@ TEST_P(OVCompiledModelBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrec
     for (const auto& confItem : configuration) {
         config.emplace(confItem.first, confItem.second);
     }
-    bool is_meta_devices =
-        target_device.find("AUTO") != std::string::npos || target_device.find("MULTI") != std::string::npos ||
-        target_device.find("HETERO") != std::string::npos;
+    bool is_meta_devices = target_device.find("AUTO") != std::string::npos ||
+                           target_device.find("MULTI") != std::string::npos ||
+                           target_device.find("HETERO") != std::string::npos;
     if (is_meta_devices) {
         EXPECT_NO_THROW(auto execNet = core->compile_model(function, target_device, config));
     } else {
@@ -638,20 +638,11 @@ TEST_P(OVCompiledModelBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrec
     }
 }
 
-TEST_P(OVAutoExecutableNetworkTest, AutoNotImplementedSetConfigToExecNet) {
-    std::map<std::string, ov::Any> config;
-    for (const auto& confItem : configuration) {
-        config.emplace(confItem.first, confItem.second);
-    }
-    auto execNet = core->compile_model(function, target_device, config);
-    EXPECT_ANY_THROW(execNet.set_property(config));
-}
-
-typedef std::tuple<
-        ov::element::Type,     // Type to convert
-        std::string,           // Device name
-        ov::AnyMap             // Config
-> CompiledModelSetTypeParams;
+typedef std::tuple<ov::element::Type,  // Type to convert
+                   std::string,        // Device name
+                   ov::AnyMap          // Config
+                   >
+    CompiledModelSetTypeParams;
 
 class CompiledModelSetType : public testing::WithParamInterface<CompiledModelSetTypeParams>,
                              public OVCompiledNetworkTestBase {

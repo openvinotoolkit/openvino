@@ -86,11 +86,11 @@ OPENVINO_API EnumNames<ov::op::TopKMode>& EnumNames<ov::op::TopKMode>::get() {
 }
 
 template <>
-OPENVINO_API EnumNames<ov::op::PhilloxAlignment>& EnumNames<ov::op::PhilloxAlignment>::get() {
-    static auto enum_names = EnumNames<ov::op::PhilloxAlignment>("ov::op::PhilloxAlignment",
-                                                                 {{"pytorch", ov::op::PhilloxAlignment::PYTORCH},
-                                                                  {"tensorflow", ov::op::PhilloxAlignment::TENSORFLOW},
-                                                                  {"mock", ov::op::PhilloxAlignment::MOCK}});
+OPENVINO_API EnumNames<ov::op::PhiloxAlignment>& EnumNames<ov::op::PhiloxAlignment>::get() {
+    static auto enum_names = EnumNames<ov::op::PhiloxAlignment>("ov::op::PhiloxAlignment",
+                                                                {{"pytorch", ov::op::PhiloxAlignment::PYTORCH},
+                                                                 {"tensorflow", ov::op::PhiloxAlignment::TENSORFLOW},
+                                                                 {"mock", ov::op::PhiloxAlignment::MOCK}});
     return enum_names;
 }
 
@@ -160,7 +160,7 @@ std::ostream& op::operator<<(std::ostream& s, const ov::op::TopKMode& type) {
     return s << as_string(type);
 }
 
-std::ostream& op::operator<<(std::ostream& s, const ov::op::PhilloxAlignment& type) {
+std::ostream& op::operator<<(std::ostream& s, const ov::op::PhiloxAlignment& type) {
     return s << as_string(type);
 }
 

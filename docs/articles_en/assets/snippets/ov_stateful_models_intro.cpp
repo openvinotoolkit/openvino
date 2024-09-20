@@ -14,14 +14,16 @@
 using namespace ov;
 
 void state_network_example () {
-    //! [ov:state_network]
+    //! [ov:stateful_model]
     // ...
 
     auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 1});
     auto init_const = ov::opset8::Constant::create(ov::element::f32, ov::Shape{1, 1}, {0});
 
-    // The ReadValue/Assign operations must be used in pairs in the network.
-    // For each such a pair, its own variable object must be created.
+    // Typically ReadValue/Assign operations are presented as pairs in models.
+    // ReadValue operation reads information from an internal memory buffer, Assign operation writes data to this buffer.
+    // For each pair, its own Variable object must be created.
+    // Variable defines name, shape and type of the buffer.
     const std::string variable_name("variable0");
     ov::op::util::VariableInfo var_info = {init_const->get_shape(),
                                            init_const->get_element_type(),
@@ -37,7 +39,7 @@ void state_network_example () {
     auto model = std::make_shared<ov::Model>(ov::ResultVector({result}),
                                              ov::SinkVector({save}),
                                              ov::ParameterVector({input}));
-    //! [ov:state_network]
+    //! [ov:stateful_model]
 }
 
 void low_latency_2_example() {

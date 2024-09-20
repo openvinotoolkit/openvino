@@ -126,12 +126,7 @@ TEST_P(ov_core_test, ov_core_compile_model) {
     ov_core_free(core);
 }
 
-#ifdef OPENVINO_ARCH_ARM64
-// Ticket: 126283
-TEST_P(ov_core_test, DISABLED_ov_core_compile_model_with_property) {
-#else
 TEST_P(ov_core_test, ov_core_compile_model_with_property) {
-#endif
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -149,12 +144,7 @@ TEST_P(ov_core_test, ov_core_compile_model_with_property) {
 
     char* property_value = nullptr;
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &property_value));
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    // TODO: fix once ARM plugin supports multi-stream
-    EXPECT_STREQ(property_value, "1");
-#else
     EXPECT_STREQ(property_value, "2");
-#endif
     ov_free(property_value);
 
     ov_compiled_model_free(compiled_model);
@@ -566,6 +556,62 @@ TEST_P(ov_core_test, ov_core_import_model) {
 
     ov_compiled_model_t* compiled_model = nullptr;
     OV_EXPECT_OK(ov_core_compile_model_from_file(core, xml_file_name.c_str(), device_name.c_str(), 0, &compiled_model));
+    EXPECT_NE(nullptr, compiled_model);
+
+    std::string export_path = TestDataHelpers::get_exported_blob_file_name();
+    OV_EXPECT_OK(ov_compiled_model_export_model(compiled_model, export_path.c_str()));
+    ov_compiled_model_free(compiled_model);
+
+    std::vector<uint8_t> buffer(content_from_file(export_path.c_str(), true));
+    ov_compiled_model_t* compiled_model_imported = nullptr;
+    OV_EXPECT_OK(ov_core_import_model(core,
+                                      reinterpret_cast<const char*>(buffer.data()),
+                                      buffer.size(),
+                                      device_name.c_str(),
+                                      &compiled_model_imported));
+    EXPECT_NE(nullptr, compiled_model_imported);
+    ov_compiled_model_free(compiled_model_imported);
+    ov_core_free(core);
+}
+
+static const char codec_key[] = {0x30, 0x60, 0x70, 0x02, 0x04, 0x08, 0x3F, 0x6F, 0x72, 0x74, 0x78, 0x7F};
+
+static void codec_xor(const char* in, const size_t in_size, char* out, size_t* out_size) {
+    if (!out || *out_size < in_size) {
+        *out_size = in_size;
+        return;
+    }
+    size_t key_size = sizeof(codec_key);
+    for (size_t i = 0; i < in_size; i++) {
+        out[i] = in[i] ^ codec_key[i % key_size];
+    }
+    *out_size = in_size;
+}
+
+TEST_P(ov_core_test, ov_core_import_model_with_encryption) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    char* optimization_capabilites = NULL;
+    ov_core_get_property(core, device_name.c_str(), "OPTIMIZATION_CAPABILITIES", &optimization_capabilites);
+    if (std::string(optimization_capabilites).find("EXPORT_IMPORT") == std::string::npos) {
+        GTEST_SKIP() << "Skip this test, cause no EXPORT_IMPORT supported";
+    }
+
+    const char* key = ov_property_key_cache_encryption_callbacks;
+    ov_encryption_callbacks encryption_callbacks{codec_xor, codec_xor};
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model_from_file(core,
+                                                 xml_file_name.c_str(),
+                                                 device_name.c_str(),
+                                                 2,
+                                                 &compiled_model,
+                                                 key,
+                                                 &encryption_callbacks));
     EXPECT_NE(nullptr, compiled_model);
 
     std::string export_path = TestDataHelpers::get_exported_blob_file_name();

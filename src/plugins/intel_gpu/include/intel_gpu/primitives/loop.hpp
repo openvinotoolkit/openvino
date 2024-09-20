@@ -183,7 +183,6 @@ struct loop : public primitive_base<loop> {
     ///                               data primitive will be added in the body network.
     /// @param primitive_map Rules to map input of loop or output of body topology to input of the body topology
     /// @param back_edges Output data primitive id.
-    /// @param output_padding     Optional padding for output from primitive.
     loop(const primitive_id& id,
          const std::vector<input_info>& inputs,
          const program::ptr body_program,
@@ -197,7 +196,7 @@ struct loop : public primitive_base<loop> {
          const primitive_id& body_current_iteration_id = primitive_id(),
          const primitive_id& body_execution_condition_id = primitive_id(),
          const size_t num_outputs = 1)
-            : primitive_base(id, inputs, {padding()}, {optional_data_type()}, num_outputs),
+            : primitive_base(id, inputs, num_outputs, {optional_data_type()}),
               body_program(std::move(body_program)),
               trip_count_id(trip_count_id),
               first_execution_condition_id(first_execution_condition_id),

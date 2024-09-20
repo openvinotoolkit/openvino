@@ -46,4 +46,11 @@ jobs:
         run: cmake -DCMAKE_BUILD_TYPE=Release -DTHREADING=SEQ -B build
 
       - name: Build snippets
-        run:  cmake --build build --target openvino_docs_snippets --parallel
+        if: ${{ runner.os == 'Linux' || runner.os == 'macOS'}}
+        run:  cmake --build build --target openvino_docs_snippets --parallel $(nproc)
+
+      - name: Build snippets Windows
+        if: ${{ runner.os == 'Windows'}}
+        shell: pwsh
+        run:  cmake --build build --target openvino_docs_snippets --parallel $ENV:NUMBER_OF_PROCESSORS
+

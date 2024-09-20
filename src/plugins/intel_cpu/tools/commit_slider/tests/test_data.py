@@ -64,7 +64,9 @@ class TestData():
         BmUnstableDev = 9,
         BmWrongPath = 10,
         BmPathFound = 11,
-        BmFirstFixed = 12
+        BmFirstFixed = 12,
+        BmLatencyMetric = 13,
+        ACModeData = 14
 
     def requireTestData(self, reqLambda):
         # mapping json to test data holder
@@ -115,6 +117,19 @@ class BenchmarkAppDataStable(TestData):
             requireBinarySearchData
         )
 
+class AcModeData(TestData):
+    def getTestCase():
+        return TestData.TestCase.ACModeData
+
+    def getTestName(self):
+        return "ACMode"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
 class BenchmarkFirstFixedAppData(TestData):
     def getTestCase():
         return TestData.TestCase.BmFirstFixed
@@ -127,6 +142,32 @@ class BenchmarkFirstFixedAppData(TestData):
         self.requireTestData(
             requireBinarySearchData
         )
+
+class BenchmarkMetricData(TestData):
+    def getTestCase():
+        return TestData.TestCase.BmLatencyMetric
+
+    def getTestName(self):
+        return "BmLatencyMetric"
+
+    def formatConfig(self, content):
+        # todo - use by-step replacement and super().formatConfig(content)
+        return content.format(
+            appCmd="./{}".format(self.repoName),
+            appPath="tests/{}/build".format(self.repoName),
+            buildPath="tests/{}/build".format(self.repoName),
+            gitPath="tests/{}".format(self.repoName),
+            start=self.start,
+            end=self.end,
+            metric=self.metric
+        )
+
+    def __init__(self, metric: str):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+        self.metric = metric
 
 class BenchmarkAppNoDegradationData(TestData):
     def getTestCase():

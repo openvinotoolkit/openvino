@@ -28,7 +28,7 @@ ov::pass::AdaptivePoolToReduce::AdaptivePoolToReduce() {
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
 
-        const auto& spatial_shape_c = std::dynamic_pointer_cast<v0::Constant>(pattern_map.at(out_spatial_shape));
+        const auto& spatial_shape_c = ov::as_type_ptr<v0::Constant>(pattern_map.at(out_spatial_shape));
         auto spatial_shape = spatial_shape_c->cast_vector<int64_t>();
         // Verify that all dimensions in adaptive pool shape are 1
         for (auto& s : spatial_shape) {
@@ -41,9 +41,9 @@ ov::pass::AdaptivePoolToReduce::AdaptivePoolToReduce() {
         auto axes_const = v0::Constant::create(element::i64, {spatial_shape.size()}, axes);
         const auto adaptive_pool = pattern_map.at(a_pool);
         std::shared_ptr<Node> res_node;
-        if (std::dynamic_pointer_cast<v8::AdaptiveAvgPool>(adaptive_pool)) {
+        if (ov::as_type_ptr<v8::AdaptiveAvgPool>(adaptive_pool)) {
             res_node = std::make_shared<v1::ReduceMean>(adaptive_pool->input_value(0), axes_const, true);
-        } else if (std::dynamic_pointer_cast<v8::AdaptiveMaxPool>(adaptive_pool)) {
+        } else if (ov::as_type_ptr<v8::AdaptiveMaxPool>(adaptive_pool)) {
             if (adaptive_pool->outputs().size() > 1 && adaptive_pool->output(1).get_target_inputs().size() != 0) {
                 // If indexes are used we can't replace it
                 return false;

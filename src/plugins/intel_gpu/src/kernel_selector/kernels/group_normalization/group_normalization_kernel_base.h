@@ -41,6 +41,8 @@ public:
         DispatchData stage_final;
 
         size_t item_groups;
+
+        MultiDispatchData() : item_groups(0) {}
     };
 
 protected:

@@ -1,3 +1,4 @@
+import os
 import argparse
 import shutil
 from pathlib import Path
@@ -7,9 +8,7 @@ from utils import (
     verify_notebook_name,
 )
 from consts import (
-    artifacts_link,
     binder_colab_template,
-    blacklisted_extensions,
     notebooks_path,
     no_binder_template,
     repo_directory,
@@ -26,23 +25,10 @@ from consts import (
     github_image_base64,
 )
 
-from notebook import Notebook
-from section import Section
-from glob import glob
-from lxml import html
-from jinja2 import Template
-from urllib.request import urlretrieve
-import requests
-import os
-import re
-import sys
-
 
 def fetch_binder_list(binder_list_file) -> list:
     """Function that fetches list of notebooks with binder buttons
 
-    :param file_format: Format of file containing list of notebooks with button. Defaults to 'txt'
-    :type file_format: str
     :return: List of notebooks containing binder buttons
     :rtype: list
     """
@@ -51,11 +37,10 @@ def fetch_binder_list(binder_list_file) -> list:
             list_of_buttons = file.read().splitlines()
     return list_of_buttons
 
+
 def fetch_colab_list(colab_list_file) -> list:
     """Function that fetches list of notebooks with colab buttons
 
-    :param file_format: Format of file containing list of notebooks with button. Defaults to 'lst'
-    :type file_format: str
     :return: List of notebooks containing colab buttons
     :rtype: list
     """
@@ -63,6 +48,7 @@ def fetch_colab_list(colab_list_file) -> list:
         with open(colab_list_file) as file:
             list_of_cbuttons = file.read().splitlines()
     return list_of_cbuttons
+
 
 def add_glob_directive(tutorials_file):
     """This function modifies toctrees of the five node articles in tutorials
@@ -77,48 +63,6 @@ def add_glob_directive(tutorials_file):
             mainfile.seek(0)
             mainfile.write(add_glob)
             mainfile.truncate()
-
-class NbTravisDownloader:
-    @staticmethod
-    def download_from_jenkins(path: str = notebooks_path, artifact_link: str = artifacts_link):
-        """Function for downloading files from jenkins artifacts
-
-        :param path: path where notebooks files will be placed, defaults to notebooks_path
-        :type path: str, optional
-        :param artifact_link: link of notebooks artifacts rst files, defaults to artifacts_link
-        :type artifact_link: str, optional
-        """
-        def is_directory(path: str) -> bool:
-            """Helper fuction for checking whether path leads to subdirectory
-
-            :param path: Path to traversed file or directory
-            :type path: str
-            :return: Returns True if path leads to directory, otherwise False
-            :rtype: bool
-            """
-            return path[-1] == '/' and path != '../'
-
-        def traverse(path: Path, link: str, blacklisted_extensions: list = blacklisted_extensions):
-            """Traverse recursively to download all directories with their subfolders, within given link.
-
-            :param path: Path to directory that file will be saved to.
-            :type path: Path
-            :param link: Link to hosted resources
-            :type link: str
-            """
-            path.mkdir(exist_ok=True)
-            page = requests.get(link, verify=False).content
-            tree = html.fromstring(page)
-            # retrieve all links on page returning their content
-            tree = tree.xpath('//a[@*]/@href')
-            files = map(str, tree)
-            for file in files:
-                if is_directory(file):
-                    traverse(path.joinpath(file), link + file)
-                elif len(Path(file).suffix) > 0 and Path(file).suffix not in blacklisted_extensions:
-                    urlretrieve(link + file, path.joinpath(file))
-
-        traverse(Path(path), artifact_link)
 
 
 class NbProcessor:
@@ -192,22 +136,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('sourcedir', type=Path)
     parser.add_argument('outdir', type=Path)
-    parser.add_argument('-d', '--download', action='store_true')
     args = parser.parse_args()
     sourcedir = args.sourcedir
     outdir = args.outdir
 
     main_tutorials_file = Path('../../docs/articles_en/learn-openvino/interactive-tutorials-python.rst').resolve(strict=True)
     add_glob_directive(main_tutorials_file)
-
-    if args.download:
-        outdir.mkdir(parents=True, exist_ok=True)
-        # Step 2. Run default pipeline for downloading
-        NbTravisDownloader.download_from_jenkins(outdir)
-    else:
-        shutil.copytree(sourcedir, outdir)
-    # Step 3. Run processing on downloaded file
+    shutil.copytree(sourcedir, outdir)
+    # Run processing on downloaded files in notebooks directory
     nbp = NbProcessor(outdir)
+    # Add Binder, Google Colab, GitHub badges to notebooks
     nbp.add_binder(buttons_list, cbuttons_list)
 
 

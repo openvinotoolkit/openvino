@@ -86,27 +86,23 @@ std::shared_ptr<Node> KVCache::clone_with_new_inputs(const ov::OutputVector& new
 }
 
 std::vector<ov::PartialShape> shape_infer(const KVCache* op, std::vector<ov::PartialShape> input_shapes) {
-    ov::op::v0::Concat concat;
-    concat.set_axis(op->get_concat_axis());
     std::vector<ov::PartialShape> out_shapes;
+    out_shapes.resize(op->get_output_size());
 
+    const auto& gather_axis = op->get_gather_axis();
+    const auto& concat_axis = ov::util::normalize(op->get_concat_axis(), input_shapes[0].size());
     if (op->get_output_size() == 2) {
-        ov::op::v8::Gather gather;
-        int64_t gather_axis = ov::util::normalize(op->get_gather_axis(), input_shapes[0].size());
-        auto gather_axis_tensor = ov::Tensor(ov::element::i64, ov::Shape{1}, static_cast<void*>(&gather_axis));
-        std::unordered_map<size_t, ov::Tensor> gather_axis_data = {{2, gather_axis_tensor}};
-        std::vector<ov::PartialShape> gather_inputs = {input_shapes[0], input_shapes[2], ov::PartialShape{1}};
-        auto gather_out_shapes = ov::op::shape_infer(&gather, gather_inputs, ov::make_tensor_accessor(gather_axis_data));
-        std::vector<ov::PartialShape> concat_shapes = {gather_out_shapes[0], input_shapes[1]};
-        out_shapes = ov::op::v0::shape_infer(&concat, concat_shapes);
-        int64_t concat_axis = ov::util::normalize(op->get_concat_axis(), input_shapes[0].size());
-        ov::PartialShape beam_table_shape(std::vector<size_t>(out_shapes[0].size(), 1));
-        beam_table_shape[gather_axis] = out_shapes[0][gather_axis];
-        beam_table_shape[concat_axis] = out_shapes[0][concat_axis];
-        out_shapes.push_back(beam_table_shape);
+        out_shapes[0] = input_shapes[0];
+        out_shapes[0][gather_axis] = input_shapes[2][0];
+        out_shapes[0][concat_axis] += input_shapes[1][concat_axis];
+
+        std::vector<ov::Dimension> dims(out_shapes[0].size(), 1);
+        dims[gather_axis] = out_shapes[0][gather_axis];
+        dims[concat_axis] = out_shapes[0][concat_axis];
+        out_shapes[1] = dims;
     } else {
-        std::vector<ov::PartialShape> concat_shapes = {input_shapes[0], input_shapes[1]};
-        out_shapes = ov::op::v0::shape_infer(&concat, concat_shapes);
+        out_shapes[0] = input_shapes[0];
+        out_shapes[0][concat_axis] += input_shapes[1][concat_axis];
     }
 
     return out_shapes;

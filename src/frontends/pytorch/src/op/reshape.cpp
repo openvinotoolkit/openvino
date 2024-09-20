@@ -31,55 +31,8 @@ OutputVector translate_reshape_fx(const NodeContext& context) {
     num_inputs_check(context, 2, num_inputs);
     std::vector<int32_t> shape_vec;
     if (context.get_input_type(1).is<type::List>()) {
-        int num_dyn_dims = 0;
-        for (size_t i = 1; i < num_inputs; i++) {
-            auto shape_input = context.get_input(static_cast<int>(i));
-            if (context.get_input_type(i).as<type::List>().element_type.is<type::PyScalar>()) {
-                auto const_val = context.const_input<int32_t>(i);
-                shape_vec.push_back(const_val);
-            } else {
-                // Set dimension to be dynamic if it's coming from an argument or another node
-                shape_vec.push_back(-1);
-                num_dyn_dims++;
-            }
-        }
-        // We cannot use multiple -1s if there are more than 1 dynamic dimensions
-        if (num_dyn_dims >= 2) {
-            auto inp_shape = context.get_input(0).get_partial_shape();
-            // If there are multiple dynamic dymensions, we cannot support inputs with dynamic rank
-            if (inp_shape.rank().is_static()) {
-                auto zero = context.mark_node(ov::op::v0::Constant::create(element::i32, Shape{1}, {0}));
-                if (inp_shape.size() >= 3 && inp_shape.size() + 1 == shape_vec.size() && shape_vec[0] == 1 &&
-                    inp_shape[0] == shape_vec[1]) {
-                    // [N, ...] -> [1, N, ...] Can be translated to Unsqueeze
-                    auto unsqueeze =
-                        context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(context.get_input(0), zero));
-                    return {unsqueeze};
-                } else if (shape_vec.size() >= 3 && shape_vec.size() + 1 == inp_shape.size() && inp_shape[0] == 1 &&
-                           inp_shape[1] == shape_vec[0]) {
-                    // [1, N, ...] -> [N, ...] Can be translated to Squeeze
-                    auto squeeze = context.mark_node(std::make_shared<ov::op::v0::Squeeze>(context.get_input(0), zero));
-                    return {squeeze};
-                } else if (inp_shape.size() == shape_vec.size()) {
-                    // If the input rank is equal to output rank, we can use 0s in place of dynamic dimensions
-                    for (size_t k = 0; k < shape_vec.size(); k++) {
-                        if (shape_vec[k] == -1)
-                            shape_vec[k] = 0;
-                    }
-                } else {
-                    FRONT_END_GENERAL_CHECK(
-                        false,
-                        "Cannot support reshape with multiple dynamic dimensions for unequal ranks");
-                }
-            } else {
-                FRONT_END_GENERAL_CHECK(
-                    false,
-                    "Cannot support reshape with multiple dynamic dimensions for dynamic input ranks");
-            }
-        }
-
-        auto shape_const = ov::op::v0::Constant::create(element::i32, Shape{num_inputs - 1}, shape_vec);
-        auto reshape = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), shape_const, true);
+        auto concat = concat_list_from_inputs(context, 1, num_inputs);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), concat, true);
         return {context.mark_node(reshape)};
     } else {
         auto shape_input = context.get_input(1);

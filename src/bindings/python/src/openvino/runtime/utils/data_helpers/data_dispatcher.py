@@ -7,7 +7,7 @@ from typing import Any, Dict, Union, Optional
 
 import numpy as np
 
-from openvino._pyopenvino import ConstOutput, Tensor, Type
+from openvino._pyopenvino import ConstOutput, Tensor, Type, RemoteTensor
 from openvino.runtime.utils.data_helpers.wrappers import _InferRequestWrapper, OVDict
 
 ContainerTypes = Union[dict, list, tuple, OVDict]
@@ -58,6 +58,16 @@ def _(
     is_shared: bool = False,
     key: Optional[ValidKeys] = None,
 ) -> Tensor:
+    return value
+
+
+@value_to_tensor.register(RemoteTensor)
+def _(
+    value: RemoteTensor,
+    request: Optional[_InferRequestWrapper] = None,
+    is_shared: bool = False,
+    key: Optional[ValidKeys] = None,
+) -> RemoteTensor:
     return value
 
 
@@ -137,7 +147,11 @@ def _(
 def to_c_style(value: Any, is_shared: bool = False) -> Any:
     if not isinstance(value, np.ndarray):
         if hasattr(value, "__array__"):
-            return to_c_style(np.array(value, copy=False), is_shared) if is_shared else np.array(value, copy=True)
+            if np.lib.NumpyVersion(np.__version__) >= "2.0.0":
+                # https://numpy.org/devdocs/numpy_2_0_migration_guide.html#adapting-to-changes-in-the-copy-keyword
+                return to_c_style(np.asarray(value), is_shared) if is_shared else np.asarray(value, copy=True)  # type: ignore
+            else:
+                return to_c_style(np.array(value, copy=False), is_shared) if is_shared else np.array(value, copy=True)
         return value
     return value if value.flags["C_CONTIGUOUS"] else np.ascontiguousarray(value)
 
@@ -152,7 +166,11 @@ def normalize_arrays(
 ) -> Any:
     # Check the special case of the array-interface
     if hasattr(inputs, "__array__"):
-        return to_c_style(np.array(inputs, copy=False), is_shared) if is_shared else np.array(inputs, copy=True)
+        if np.lib.NumpyVersion(np.__version__) >= "2.0.0":
+            # https://numpy.org/devdocs/numpy_2_0_migration_guide.html#adapting-to-changes-in-the-copy-keyword
+            return to_c_style(np.asarray(inputs), is_shared) if is_shared else np.asarray(inputs, copy=True)  # type: ignore
+        else:
+            return to_c_style(np.array(inputs, copy=False), is_shared) if is_shared else np.array(inputs, copy=True)
     # Error should be raised if type does not match any dispatchers
     raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
 

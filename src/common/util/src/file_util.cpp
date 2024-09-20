@@ -340,7 +340,7 @@ void ov::util::convert_path_win_style(std::string& path) {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
-#    ifdef __APPLE__
+#    ifdef __clang__
 #        pragma clang diagnostic push
 #        pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #    endif
@@ -372,7 +372,7 @@ std::wstring ov::util::string_to_wstring(const std::string& string) {
 #    endif
 }
 
-#    ifdef __APPLE__
+#    ifdef __clang__
 #        pragma clang diagnostic pop
 #    endif
 

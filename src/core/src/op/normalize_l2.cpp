@@ -56,14 +56,14 @@ void ov::op::v0::NormalizeL2::validate_and_infer_types() {
 }
 
 ov::AxisSet ov::op::v0::NormalizeL2::get_reduction_axes() const {
-    AxisSet axes;
     if (auto const_op = ov::util::get_constant_from_source(input_value(1))) {
-        const auto const_data = const_op->cast_vector<int64_t>();
         const auto input_data_rank = get_input_partial_shape(0).rank();
-        const auto normalized_axes = ov::util::normalize_axes(get_friendly_name(), const_data, input_data_rank);
-        axes = AxisSet{normalized_axes};
+        return input_data_rank.is_static()
+                   ? ov::util::try_get_normalized_axis_set(const_op->get_tensor_view(), input_data_rank, *this)
+                   : AxisSet{const_op->cast_vector<size_t>()};
+    } else {
+        return {};
     }
-    return axes;
 }
 
 shared_ptr<ov::Node> ov::op::v0::NormalizeL2::clone_with_new_inputs(const OutputVector& new_args) const {

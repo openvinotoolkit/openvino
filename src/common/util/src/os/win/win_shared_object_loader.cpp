@@ -74,6 +74,9 @@
 namespace ov {
 namespace util {
 std::shared_ptr<void> load_shared_object(const char* path) {
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    return ov::util::load_shared_object(ov::util::string_to_wstring(path).c_str());
+#else
     void* shared_object = nullptr;
     using GetDllDirectoryA_Fnc = DWORD (*)(DWORD, LPSTR);
     GetDllDirectoryA_Fnc IEGetDllDirectoryA = nullptr;
@@ -113,6 +116,7 @@ std::shared_ptr<void> load_shared_object(const char* path) {
     return {shared_object, [](void* shared_object) {
                 FreeLibrary(reinterpret_cast<HMODULE>(shared_object));
             }};
+#endif
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

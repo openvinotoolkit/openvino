@@ -166,7 +166,7 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
 
     const auto newOperation = moveDequantizationAfter(context, pad, dequantization);
 
-    OPENVINO_DEBUG << "LPT: done: " << newOperation;
+    OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 
@@ -223,6 +223,10 @@ bool PadTransformation::canBeTransformed(const TransformationContext& context, s
                 if (padsEnd[i] != 0) {
                     endNonZeroIdx = static_cast<int>(i);
                 }
+            }
+
+            if ((beginNonZeroIdx == -1) && (endNonZeroIdx == -1)) {
+                return true;
             }
 
             if ((beginNonZeroIdx != endNonZeroIdx) && (beginNonZeroIdx != -1) && (endNonZeroIdx != -1)) {

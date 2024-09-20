@@ -38,10 +38,16 @@ int32_t ov::util::getenv_int(const char* env_var, int32_t default_value) {
                << env << "\" due to syntax error \"" << err << '\"' << std::endl;
             throw std::runtime_error(ss.str());
         }
-    } else {
-        OPENVINO_DEBUG << "Environment variable (" << env_var << ") empty or undefined, "
-                       << " defaulted to " << default_value << " here.";
     }
+#ifdef ENABLE_OPENVINO_DEBUG
+    else {
+        OPENVINO_DEBUG("Environment variable (",
+                       env_var,
+                       ") empty or undefined, defaulted to ",
+                       default_value,
+                       " here.");
+    }
+#endif
     return env;
 }
 

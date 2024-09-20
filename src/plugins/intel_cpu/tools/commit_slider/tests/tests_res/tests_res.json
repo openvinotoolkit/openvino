@@ -153,6 +153,25 @@
             }
         }
     },
+    "ACMode": {
+        "repoName": "BmBinarySearchUnstable",
+        "patchedFile": "tests_res/fbv_ac_mode.cpp",
+        "testCfg": {
+            "appCmd" : "{appCmd}",
+            "appPath": "{appPath}",
+            "gitPath" : "{gitPath}",
+            "buildPath" : "{buildPath}",
+            "verboseOutput": false,
+            "runConfig" : {
+                "commitList" : {
+                    "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                },
+                "mode" : "ac",
+                "traversal" : "firstFailedVersion",
+                "threshold": "80%"
+            }
+        }
+    },
     "BmFirstFixed": {
         "repoName": "BmFirstFixed",
         "patchedFile": "tests_res/fbv_bm_first_fixed_main.cpp",
@@ -169,6 +188,26 @@
                 "mode" : "bmPerf",
                 "traversal" : "firstFixedVersion",
                 "perfAppropriateDeviation" : 0.05
+            }
+        }
+    },
+    "BmLatencyMetric": {
+        "repoName": "BmLatencyMetric",
+        "patchedFile": "tests_res/fbv_bm_latency.cpp",
+        "testCfg": {
+            "appCmd" : "{appCmd}",
+            "appPath": "{appPath}",
+            "gitPath" : "{gitPath}",
+            "buildPath" : "{buildPath}",
+            "verboseOutput": false,
+            "runConfig" : {
+                "commitList" : {
+                    "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                },
+                "mode" : "bmPerf",
+                "traversal" : "firstFailedVersion",
+                "perfAppropriateDeviation" : 0.05,
+                "metric": "{metric}"
             }
         }
     },

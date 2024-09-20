@@ -364,7 +364,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         if (_tensor.GetLayout() == DataLayout::bf || _tensor.GetLayout() == DataLayout::bfyx ||
             _tensor.GetLayout() == DataLayout::bfzyx || _tensor.GetLayout() == DataLayout::bfwzyx ||
             _tensor.GetLayout() == DataLayout::bfuwzyx || _tensor.GetLayout() == DataLayout::bfvuwzyx ||
-            _tensor.GetLayout() == DataLayout::b_fs_yx_fsv16) {
+            _tensor.GetLayout() == DataLayout::b_fs_yx_fsv16 || _tensor.GetLayout() == DataLayout::b_fs_yx_fsv32) {
             definitions.push_back({_name + "_X_PITCH", "1"});
             definitions.push_back({_name + "_Y_PITCH", dims_padded.x()});
             definitions.push_back({_name + "_Z_PITCH", toVectorMulString({dims_padded.x(), dims_padded.y()})});
@@ -692,12 +692,12 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
                 this->macroName = MacroName(tensor_name, layout_name, macroNameArgs);
                 this->macroBody = R"V0G0N( \
     CAT(prefix, _OFFSET) + \
-    (x)*CAT(prefix, _X_PITCH) + \
-    (y)*CAT(prefix, _Y_PITCH) + \
-    (z)*CAT(prefix, _Z_PITCH) + \
-    (i)*CAT(prefix, _IFM_PITCH) + \
-    (o)*CAT(prefix, _OFM_PITCH) + \
-    (g)*CAT(prefix, _GROUPS_PITCH)
+    ((x) % CAT(prefix, _SIZE_X)) * CAT(prefix, _X_PITCH) + \
+    ((y) % CAT(prefix, _SIZE_Y)) * CAT(prefix, _Y_PITCH) + \
+    ((z) % CAT(prefix, _SIZE_Z)) * CAT(prefix, _Z_PITCH) + \
+    ((i) % CAT(prefix, _IFM_NUM)) *CAT(prefix, _IFM_PITCH) + \
+    ((o) % CAT(prefix, _OFM_NUM)) * CAT(prefix, _OFM_PITCH) + \
+    ((g) % CAT(prefix, _GROUPS_NUM)) * CAT(prefix, _GROUPS_PITCH)
                 )V0G0N";
             } else if (l == WeightsLayout::os_is_yx_isv16_osv16 || l == WeightsLayout::os_is_zyx_isv16_osv16 ||
                        l == WeightsLayout::g_os_is_yx_isv16_osv16 || l == WeightsLayout::g_os_is_zyx_isv16_osv16) {

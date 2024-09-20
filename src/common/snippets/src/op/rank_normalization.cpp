@@ -3,7 +3,7 @@
 //
 
 #include "snippets/op/rank_normalization.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {

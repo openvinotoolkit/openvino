@@ -82,10 +82,18 @@ std::vector<int8_t> Tensor::get_data() const {
     if (m_tensor_proto->has_raw_data()) {
         return detail::__get_raw_data<int8_t>(m_tensor_proto->raw_data(), m_tensor_proto->data_type());
     }
+#ifdef ONNX_VERSION_116
+    if (m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_INT8 ||
+        m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_INT4) {
+        return detail::__get_data<int8_t>(m_tensor_proto->int32_data());
+    }
+    ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "INT4, INT8, raw data");
+#else
     if (m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_INT8) {
         return detail::__get_data<int8_t>(m_tensor_proto->int32_data());
     }
     ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "INT8, raw data");
+#endif
 }
 
 template <>
@@ -138,10 +146,18 @@ std::vector<uint8_t> Tensor::get_data() const {
     if (m_tensor_proto->has_raw_data()) {
         return detail::__get_raw_data<uint8_t>(m_tensor_proto->raw_data(), m_tensor_proto->data_type());
     }
+#ifdef ONNX_VERSION_116
+    if (m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_UINT8 ||
+        m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_UINT4) {
+        return detail::__get_data<uint8_t>(m_tensor_proto->int32_data());
+    }
+    ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "UINT4, UINT8, raw data");
+#else
     if (m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_UINT8) {
         return detail::__get_data<uint8_t>(m_tensor_proto->int32_data());
     }
     ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "UINT8, raw data");
+#endif
 }
 
 template <>
@@ -183,7 +199,55 @@ std::vector<uint64_t> Tensor::get_data() const {
     if (m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_UINT64) {
         return detail::__get_data<uint64_t>(m_tensor_proto->uint64_data());
     }
-    ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "UINT63, raw data");
+    ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "UINT64, raw data");
+}
+
+template <>
+std::vector<ov::float8_e4m3> Tensor::get_data() const {
+    if (has_external_data()) {
+        return get_external_data<ov::float8_e4m3>();
+    }
+    if (m_tensor_proto->has_raw_data()) {
+        return detail::__get_raw_data<ov::float8_e4m3>(m_tensor_proto->raw_data(), m_tensor_proto->data_type());
+    }
+    if (m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN) {
+        using std::begin;
+        using std::end;
+
+        const auto& int32_data = m_tensor_proto->int32_data();
+        std::vector<ov::float8_e4m3> float8_data;
+        float8_data.reserve(int32_data.size());
+        std::transform(begin(int32_data), end(int32_data), std::back_inserter(float8_data), [](int32_t elem) {
+            return ov::float8_e4m3::from_bits(static_cast<uint8_t>(elem));
+        });
+
+        return detail::__get_data<ov::float8_e4m3>(float8_data);
+    }
+    ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT8E4M3, raw data");
+}
+
+template <>
+std::vector<ov::float8_e5m2> Tensor::get_data() const {
+    if (has_external_data()) {
+        return get_external_data<ov::float8_e5m2>();
+    }
+    if (m_tensor_proto->has_raw_data()) {
+        return detail::__get_raw_data<ov::float8_e5m2>(m_tensor_proto->raw_data(), m_tensor_proto->data_type());
+    }
+    if (m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2) {
+        using std::begin;
+        using std::end;
+
+        const auto& int32_data = m_tensor_proto->int32_data();
+        std::vector<ov::float8_e5m2> float8_data;
+        float8_data.reserve(int32_data.size());
+        std::transform(begin(int32_data), end(int32_data), std::back_inserter(float8_data), [](int32_t elem) {
+            return ov::float8_e5m2::from_bits(static_cast<uint8_t>(elem));
+        });
+
+        return detail::__get_data<ov::float8_e5m2>(float8_data);
+    }
+    ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT8E5M2, raw data");
 }
 
 template <>

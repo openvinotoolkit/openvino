@@ -21,9 +21,10 @@ std::shared_ptr<ov::Model> MatMulFunction::initOriginal() const {
             std::vector<element::Type>{ov::element::f32, element::f32},
             std::vector<element::Type>{element::f32},
             ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(data1, element::f32).get());
+            ov::op::TemporaryReplaceOutputType(data1, element::f32).get(),
+            false, transpose_b);
     } else {
-        matmul = std::make_shared<op::v0::MatMul>(data0, data1);
+        matmul = std::make_shared<op::v0::MatMul>(data0, data1, false, transpose_b);
     }
     return std::make_shared<ov::Model>(NodeVector{matmul}, ParameterVector{data0, data1});
 }
@@ -38,9 +39,10 @@ std::shared_ptr<ov::Model> MatMulFunction::initReference() const {
                 std::vector<element::Type>{ element::f32, element::f32 },
                 std::vector<element::Type>{ element::f32 },
                 ov::op::TemporaryReplaceOutputType(indata0, element::f32).get(),
-                ov::op::TemporaryReplaceOutputType(indata1, element::f32).get());
+                ov::op::TemporaryReplaceOutputType(indata1, element::f32).get(),
+                false, transpose_b);
     } else {
-        matmul = std::make_shared<op::v0::MatMul>(indata0, indata1);
+        matmul = std::make_shared<op::v0::MatMul>(indata0, indata1, false, transpose_b);
     }
     const auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data0, data1},
                                                                 std::make_shared<ov::Model>(NodeVector{matmul},

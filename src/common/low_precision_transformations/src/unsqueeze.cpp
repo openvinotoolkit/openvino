@@ -70,7 +70,7 @@ bool UnsqueezeTransformation::transform(TransformationContext& context, ov::pass
 
     const auto newOperation = moveDequantizationAfter(context, unsqueeze, NetworkHelper::getDequantization(unsqueeze, defaultPrecisions));
 
-    OPENVINO_DEBUG << "LPT: done: " << newOperation;
+    OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 

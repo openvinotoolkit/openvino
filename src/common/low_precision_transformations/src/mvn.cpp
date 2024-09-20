@@ -123,11 +123,7 @@ bool MVNTransformation::transform(TransformationContext &context, ov::pass::patt
         return false;
     }
 
-    std::shared_ptr<Node> mvn = ov::as_type_ptr<op::v0::MVN>(operation);
-    if (!mvn) {
-        mvn = ov::as_type_ptr<opset6::MVN>(operation);
-    }
-
+    const auto mvn = NetworkHelper::separateInStandaloneBranch(operation, defaultPrecisions);
     bool normalizeVariance;
     if (ov::is_type<op::v0::MVN>(mvn)) {
         normalizeVariance = ov::as_type_ptr<op::v0::MVN>(mvn)->get_normalize_variance();
@@ -173,7 +169,7 @@ bool MVNTransformation::transform(TransformationContext &context, ov::pass::patt
 
     updateOutput(context, newMultiply, newMVN);
 
-    OPENVINO_DEBUG << "LPT: done: " << newMVN;
+    OPENVINO_DEBUG("LPT: done: ", newMVN);
     return true;
 }
 

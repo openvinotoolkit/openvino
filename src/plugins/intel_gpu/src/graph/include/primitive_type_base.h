@@ -13,7 +13,7 @@
 #include "program_node.h"
 #include "primitive_inst.h"
 #include "intel_gpu/graph/network.hpp"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 
 #include <memory>
 #include <string>
@@ -47,6 +47,7 @@ struct primitive_type_base : primitive_type {
             auto factory = implementation_map<PType>::get(runtime_params, node.get_preferred_impl_type(), get_shape_type(runtime_params));
             auto impl = factory(node, runtime_params);
             impl->set_dynamic(get_shape_type(runtime_params) == shape_types::dynamic_shape);
+            impl->can_share_kernels = node.get_program().get_config().get_property(ov::intel_gpu::hint::enable_kernels_reuse);
             return impl;
         } catch (std::exception& e) {
             std::stringstream ss;

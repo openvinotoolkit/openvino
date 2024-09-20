@@ -11,7 +11,7 @@ namespace test {
 namespace snippets {
 
 typedef std::tuple<
-        std::vector<ov::PartialShape>, // Input  Shapes
+        std::vector<InputShape>, // Input  Shapes
         size_t ,                       // Transpose position
         std::vector<ov::element::Type>,// Input Element types
         size_t,                        // Expected num nodes

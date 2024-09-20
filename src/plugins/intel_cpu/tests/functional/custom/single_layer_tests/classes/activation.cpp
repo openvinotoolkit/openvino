@@ -76,6 +76,10 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
         startFrom = -1;
         range = 2;
         resolution = 128;
+    } else if (activationType == utils::ActivationTypes::LogicalNot) {
+        startFrom = 0;
+        range = 2;
+        resolution = 1;
     } else {
         startFrom = 0;
         range = 15;
@@ -95,6 +99,12 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
             // cover Sign NAN test case
             if ((activationType == utils::ActivationTypes::Sign) && funcInput.get_element_type() == ov::element::f32) {
                 static_cast<float*>(tensor.data())[0] = std::numeric_limits<float>::quiet_NaN();
+            } else if ((activationType == utils::ActivationTypes::IsFinite) && funcInput.get_element_type() == ov::element::f32 && tensor.get_size() >= 5) {
+                static_cast<float*>(tensor.data())[0] = std::numeric_limits<float>::quiet_NaN(); // nan
+                static_cast<float*>(tensor.data())[1] = std::numeric_limits<float>::signaling_NaN(); // nan
+                static_cast<float*>(tensor.data())[2] = std::sqrt(-1); // -nan
+                static_cast<float*>(tensor.data())[3] = std::numeric_limits<float>::infinity(); // infinite
+                static_cast<float*>(tensor.data())[4] = -std::numeric_limits<float>::infinity(); // -infinite
             }
         } else {
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
@@ -175,6 +185,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::HSwish) ||
         (activation_type == utils::ActivationTypes::IsInf) ||
         (activation_type == utils::ActivationTypes::HardSigmoid) ||
+        (activation_type == utils::ActivationTypes::IsFinite) ||
         (activation_type == utils::ActivationTypes::IsNaN) ||
         (activation_type == utils::ActivationTypes::Mish) ||
         (activation_type == utils::ActivationTypes::GeluErf) ||
@@ -182,6 +193,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::Relu) ||
         (activation_type == utils::ActivationTypes::Sigmoid) ||
         (activation_type == utils::ActivationTypes::Swish) ||
+        (activation_type == utils::ActivationTypes::LogicalNot) ||
         (activation_type == utils::ActivationTypes::Tanh))) {
         return "jit";
     }
@@ -192,10 +204,20 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
     }
 #endif
     if ((activation_type == utils::ActivationTypes::Floor) ||
-       (activation_type == utils::ActivationTypes::IsNaN)) {
+       (activation_type == utils::ActivationTypes::IsNaN) ||
+       (activation_type == utils::ActivationTypes::IsFinite)) {
         return "ref";
     }
     return "acl";
+#elif defined(OV_CPU_WITH_SHL)
+    if ((activation_type == utils::ActivationTypes::Relu) ||
+        (activation_type == utils::ActivationTypes::PReLu) ||
+        (activation_type == utils::ActivationTypes::Exp) ||
+        (activation_type == utils::ActivationTypes::Clamp)) {
+        return "shl";
+    } else {
+        return "ref";
+    }
 #else
     return CPUTestsBase::getPrimitiveType();
 #endif
@@ -229,6 +251,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {GeluTanh,    {{}}},
         {SoftSign,    {{}}},
         {SoftPlus,    {{}}},
+        {IsFinite,    {{}}},
         {IsNaN,    {{}}},
     };
 

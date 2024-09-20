@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 #include "low_precision/lpt_visibility.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 
 namespace ov {
 namespace pass {

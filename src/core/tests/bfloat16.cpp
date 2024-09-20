@@ -149,7 +149,7 @@ TEST(benchmark, bfloat16) {
     for (size_t i = 0; i < buffer_size; ++i) {
         f[i] = distribution(rng);
     }
-    OPENVINO_INFO << "buffer size " << buffer_size << " floats or " << data.size() << " bytes";
+    OPENVINO_INFO("buffer size ", buffer_size, " floats or ", data.size(), " bytes");
 
     {
         ov::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);

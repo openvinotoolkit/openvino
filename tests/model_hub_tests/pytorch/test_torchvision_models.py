@@ -7,14 +7,14 @@ import tempfile
 import pytest
 import torch
 import torchvision.transforms.functional as F
+from torchvision.models import list_models, get_model, get_model_weights
+from models_hub_common.utils import get_models_list, retry
 
-from torch_utils import process_pytest_marks, TestTorchConvertModel
+from torch_utils import TestTorchConvertModel
 
 
 def get_all_models() -> list:
-    m_list = torch.hub.list("pytorch/vision", skip_validation=True)
-    m_list.remove("get_model_weights")
-    m_list.remove("get_weight")
+    m_list = list_models()
     return m_list
 
 
@@ -38,8 +38,7 @@ def get_video():
 
 
 def prepare_frames_for_raft(name, frames1, frames2):
-    w = torch.hub.load("pytorch/vision", "get_model_weights",
-                       name=name, skip_validation=True).DEFAULT
+    w = get_model_weights(name).DEFAULT
     img1_batch = torch.stack(frames1)
     img2_batch = torch.stack(frames2)
     img1_batch = F.resize(img1_batch, size=[520, 960], antialias=False)
@@ -53,9 +52,9 @@ torch.manual_seed(0)
 
 
 class TestTorchHubConvertModel(TestTorchConvertModel):
+    @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, model_name, model_link):
-        m = torch.hub.load("pytorch/vision", model_name,
-                           weights='DEFAULT', skip_validation=True)
+        m = get_model(model_name, weights='DEFAULT')
         m.eval()
         if model_name == "s3d" or any([m in model_name for m in ["swin3d", "r3d_18", "mc3_18", "r2plus1d_18"]]):
             self.example = (torch.randn([1, 3, 224, 224, 224]),)
@@ -91,7 +90,11 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
             fw_outputs = [fw_outputs.numpy(force=True)]
         return fw_outputs
 
-    @pytest.mark.parametrize("model_name", ["efficientnet_b7", "raft_small", "swin_v2_s"])
+    @pytest.mark.parametrize("model_name", ["efficientnet_b7",
+                                            "raft_small",
+                                            "swin_v2_s",
+                                            "quantized_mobilenet_v3_large",
+                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, ie_device):
         self.mode = "trace"
@@ -103,10 +106,15 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
         self.mode = "export"
         self.run(model_name, None, ie_device)
 
-    @pytest.mark.parametrize("name",
-                             process_pytest_marks(os.path.join(os.path.dirname(__file__), "torchvision_models")))
+    @pytest.mark.parametrize("name,link,mark,reason", get_models_list(os.path.join(os.path.dirname(__file__), "torchvision_models")))
     @pytest.mark.parametrize("mode", ["trace", "export"])
     @pytest.mark.nightly
-    def test_convert_model_all_models(self, mode, name, ie_device):
+    def test_convert_model_all_models(self, mode, name, link, mark, reason,  ie_device):
         self.mode = mode
+        assert mark is None or mark in [
+            'skip', 'xfail', 'xfail_trace', 'xfail_export'], f"Incorrect test case for {name}"
+        if mark == 'skip':
+            pytest.skip(reason)
+        elif mark in ['xfail', f'xfail_{mode}']:
+            pytest.xfail(reason)
         self.run(name, None, ie_device)

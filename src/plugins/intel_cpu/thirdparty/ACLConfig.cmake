@@ -119,6 +119,8 @@ elseif(NOT TARGET arm_compute::arm_compute)
 
     set(extra_cxx_flags "${CMAKE_CXX_FLAGS} -Wno-undef")
     if(MSVC64)
+        # Recommended Win ARM arch build in https://arm-software.github.io/ComputeLibrary/latest/how_to_build.xhtml
+        set(OV_CPU_ARM_TARGET_ARCH armv8a)
         # clang-cl does not recognize /MP option
         string(REPLACE "/MP " "" extra_cxx_flags "${extra_cxx_flags}")
     elseif(CMAKE_POSITION_INDEPENDENT_CODE)
@@ -129,8 +131,6 @@ elseif(NOT TARGET arm_compute::arm_compute)
     set(ARM_COMPUTE_OPTIONS
         neon=1
         opencl=0
-        openmp=0
-        cppthreads=1
         examples=0
         Werror=0
         gemm_tuner=0
@@ -143,6 +143,14 @@ elseif(NOT TARGET arm_compute::arm_compute)
         data_layout_support=all
         arch=${OV_CPU_ARM_TARGET_ARCH}
     )
+
+    if(THREADING STREQUAL "OMP")
+        list(APPEND ARM_COMPUTE_OPTIONS openmp=1
+                                        cppthreads=0)
+    else()
+        list(APPEND ARM_COMPUTE_OPTIONS openmp=0
+                                        cppthreads=1)
+    endif()
 
     if(ARM)
         list(APPEND ARM_COMPUTE_OPTIONS estate=32)
@@ -264,6 +272,16 @@ elseif(NOT TARGET arm_compute::arm_compute)
         get_filename_component(toolchain_prefix "${CMAKE_CXX_COMPILER}" DIRECTORY)
         list(APPEND ARM_COMPUTE_OPTIONS toolchain_prefix="${toolchain_prefix}/")
     elseif(APPLE)
+        # we need to bypass this information in case of custom compiler is passed
+        # to cmake call. Such compiler and compiler prefix need to be passed to scons
+        get_filename_component(cxx_compiler "${CMAKE_CXX_COMPILER}" NAME)
+        get_filename_component(c_compiler "${CMAKE_C_COMPILER}" NAME)
+        get_filename_component(compiler_prefix "${CMAKE_CXX_COMPILER}" DIRECTORY)
+
+        set(cmake_build_env
+            CC=${c_compiler}
+            CXX=${cxx_compiler})
+
         if(CMAKE_OSX_DEPLOYMENT_TARGET)
             set(extra_cxx_flags "${extra_cxx_flags} -mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
             set(minos_added ON)
@@ -275,8 +293,9 @@ elseif(NOT TARGET arm_compute::arm_compute)
             endif()
             set(extra_cxx_flags "${extra_cxx_flags} --sysroot ${CMAKE_OSX_SYSROOT}")
         endif()
-
-        set(extra_cxx_flags "${extra_cxx_flags} -Wno-error=return-stack-address")
+        if(OV_COMPILER_IS_CLANG)
+            set(extra_cxx_flags "${extra_cxx_flags} -Wno-error=return-stack-address")
+        endif()
         get_filename_component(compiler_prefix "${CMAKE_CXX_COMPILER}" DIRECTORY)
         list(APPEND ARM_COMPUTE_OPTIONS compiler_prefix="${compiler_prefix}/")
 
@@ -378,5 +397,5 @@ elseif(NOT TARGET arm_compute::arm_compute)
     endforeach()
 
     # required by oneDNN to attempt to parse ACL version
-    set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_SOURCE_DIR}")
+    set(ACL_INCLUDE_DIR "${ARM_COMPUTE_SOURCE_DIR}")
 endif()

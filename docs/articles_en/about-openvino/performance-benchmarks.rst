@@ -11,9 +11,9 @@ Performance Benchmarks
    :hidden:
 
    Efficient LLMs for AI PC <performance-benchmarks/generative-ai-performance>
-   performance-benchmarks/performance-benchmarks-faq
+   Performance Information F.A.Q. <performance-benchmarks/performance-benchmarks-faq>
    OpenVINO Accuracy <performance-benchmarks/model-accuracy-int8-fp32>
-   performance-benchmarks/getting-performance-numbers
+   Getting Performance Numbers <performance-benchmarks/getting-performance-numbers>
 
 
 This page presents benchmark results for
@@ -22,7 +22,7 @@ and :doc:`OpenVINO Model Server <../ovms_what_is_openvino_model_server>`, for a 
 selection of public neural networks and Intel® devices. The results may help you decide which
 hardware to use in your applications or plan AI workload for the hardware you have already
 implemented in your solutions. Click the buttons below to see the chosen benchmark data.
-For more detailed view of performance numbers for generative AI models, check the
+For a more detailed view of performance numbers for generative AI models, check the
 :doc:`Generative AI Benchmark Results <./performance-benchmarks/generative-ai-performance>`
 
 .. grid:: 1 1 2 2
@@ -49,44 +49,23 @@ For more detailed view of performance numbers for generative AI models, check th
          :material-regular:`bar_chart;1.4em` OVMS Benchmark Graphs
 
 
-Please visit the tabs below for more information on key performance indicators and workload parameters.
+Key performance indicators and workload parameters.
 
 .. tab-set::
 
    .. tab-item:: Throughput
       :sync: throughput
 
-      Measures the number of inferences delivered within a latency threshold
-      (for example, number of Frames Per Second - FPS). When deploying a system with
-      deep learning inference, select the throughput that delivers the best trade-off
-      between latency and power for the price and performance that meets your requirements.
-
-   .. tab-item:: Value
-      :sync: value
-
-      While throughput is important, what is more critical in edge AI deployments is
-      the performance efficiency or performance-per-cost. Application performance in
-      throughput per dollar of system cost is the best measure of value. The value KPI is
-      calculated as “Throughput measured as inferences per second / price of inference engine”.
-      This means for a 2 socket system 2x the price of a CPU is used. Prices are as per
-      date of benchmarking and sources can be found as links in the Hardware Platforms (PDF)
-      description below.
-
-   .. tab-item:: Efficiency
-      :sync: efficiency
-
-      System power is a key consideration from the edge to the data center. When selecting
-      deep learning solutions, power efficiency (throughput/watt) is a critical factor to
-      consider. Intel designs provide excellent power efficiency for running deep learning
-      workloads. The efficiency KPI is calculated as “Throughput measured as inferences per
-      second / TDP of inference engine”. This means for a 2 socket system 2x the power
-      dissipation (TDP) of a CPU is used. TDP-values are as per date of benchmarking and sources
-      can be found as links in the Hardware Platforms (PDF) description below.
+      For Vision and NLP Models this measures the number of inferences delivered within a latency threshold
+      (for example, number of Frames Per Second - FPS).
+      For GenAI (or Large Language Models) this measures the token rate after the first token aka. 2nd token
+      throughput rate which is presented as tokens/sec. Please click on the "Workload Parameters" tab to
+      learn more about input/output token lengths, etc.
 
    .. tab-item:: Latency
       :sync: latency
 
-      This measures the synchronous execution of inference requests and is reported in
+      For Vision and NLP models this mhis measures the synchronous execution of inference requests and is reported in
       milliseconds. Each inference request (for example: preprocess, infer, postprocess) is
       allowed to complete before the next is started. This performance metric is relevant in
       usage scenarios where a single image input needs to be acted upon as soon as possible. An
@@ -94,6 +73,8 @@ Please visit the tabs below for more information on key performance indicators a
       single ultra sound scanning image or in real-time or near real-time applications for
       example an industrial robot's response to actions in its environment or obstacle avoidance
       for autonomous vehicles.
+      For Transformer models like Stable-Diffusion this measures the time it takes to convert the prompt
+      or input text into a finished image. It is presented in seconds.
 
    .. tab-item:: Workload Parameters
       :sync: workloadparameters
@@ -127,21 +108,21 @@ For a listing of all platforms and configurations used for testing, refer to the
 
    .. grid-item::
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.2-platform_list.pdf
+      .. button-link:: ../_static/benchmarks_files/OV-2024.4-platform_list.pdf
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Hardware Platforms [PDF]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.2-system-info-detailed.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2024.4-system-info-detailed.xlsx
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Configuration Details [XLSX]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.2-Performance-Data.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2024.4-Performance-Data.xlsx
          :color: primary
          :outline:
          :expand:
@@ -156,9 +137,9 @@ processing) and then reports on the inferences per second (or Frames Per Second)
 OpenVINO™ Model Server (OVMS) employs the Intel® Distribution of OpenVINO™ toolkit runtime
 libraries and exposes a set of models via a convenient inference API over gRPC or HTTP/REST.
 Its benchmark results are measured with the configuration of multiple-clients-single-server,
-using two hardware platforms connected by ethernet. Network bandwidth depends on both, platforms
-and models under investigation. It is set not to be a bottleneck for workload intensity. The
-connection is dedicated only to measuring performance.
+using two hardware platforms connected by ethernet. Network bandwidth depends on both platforms
+and models used. It is set not to be a bottleneck for workload intensity. The connection is
+dedicated only to measuring performance.
 
 .. dropdown:: See more details about OVMS benchmark setup
 
@@ -203,12 +184,11 @@ You can also test performance for your system yourself, following the guide on
 
    <h2>Disclaimers</h2>
 
-
 * Intel® Distribution of OpenVINO™ toolkit performance results are based on release
-  2024.2, as of June 28, 2024.
+  2024.3, as of July 31, 2024.
 
 * OpenVINO Model Server performance results are based on release
-  2024.2, as of June 28, 2024.
+  2024.3, as of Aug. 19, 2024.
 
 The results may not reflect all publicly available updates. Intel technologies' features and
 benefits depend on system configuration and may require enabled hardware, software, or service

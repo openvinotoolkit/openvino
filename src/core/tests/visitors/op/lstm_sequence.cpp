@@ -62,6 +62,7 @@ TEST(attributes, lstm_sequence_op) {
     EXPECT_EQ(g_lstm_sequence->get_direction(), lstm_sequence->get_direction());
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 TEST(attributes, lstm_sequence_v1_op) {
     NodeBuilder::opset().insert<ov::op::v0::LSTMSequence>();
 
@@ -119,3 +120,4 @@ TEST(attributes, lstm_sequence_v1_op) {
     EXPECT_EQ(g_lstm_sequence->get_input_forget(), lstm_sequence->get_input_forget());
     EXPECT_EQ(g_lstm_sequence->get_weights_format(), lstm_sequence->get_weights_format());
 }
+OPENVINO_SUPPRESS_DEPRECATED_END

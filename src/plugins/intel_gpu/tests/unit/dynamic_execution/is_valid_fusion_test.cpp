@@ -70,8 +70,7 @@ TEST(eltwise_activation_fusing_test, basic_dynamic_rank4) {
                                   {2, 2},  /*pad_above*/
                                   {2, 2},  /*pad_below*/
                                   false,
-                                  ov::op::PadType::EXPLICIT,
-                                  padding{{0, 0, 0, 0}, 0}),
+                                  ov::op::PadType::EXPLICIT),
                       eltwise("eltwise", input_info("conv"), input_info("const1"), eltwise_mode::sum),
                       activation("prelu", input_info("eltwise"), "const2", activation_func::relu_negative_slope),
                       reorder("output", input_info("prelu"), format::bfyx, data_types::f32));
@@ -86,7 +85,7 @@ TEST(eltwise_activation_fusing_test, basic_dynamic_rank4) {
     auto output_mem = outputs.begin()->second.get_memory();
     cldnn::mem_lock<float> output_mem_ptr(output_mem, get_test_stream());
 
-    for (size_t i = 0; i < output_mem->get_layout().get_buffer_size().count(); ++i) {
+    for (size_t i = 0; i < output_mem->get_layout().get_linear_size(); ++i) {
         ASSERT_EQ(output_mem_ptr[i], ref[i]);
     }
 }

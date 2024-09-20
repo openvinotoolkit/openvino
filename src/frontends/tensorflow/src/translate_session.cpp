@@ -439,6 +439,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         const auto& input_tensor_place = std::dynamic_pointer_cast<TensorPlace>(input_place);
         auto input_shape = input_tensor_place->get_partial_shape();
         auto input_type = input_tensor_place->get_element_type();
+        auto input_op_name = input_tensor_place->get_operation_name();
 
         // in case of cutting graph, types of custom inputs can be dynamic,
         // according to MO help, fp32 is used by default in such cases
@@ -453,7 +454,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             param->set_friendly_name(input_name);
             set_out_name(input_name, param);
             params.push_back(param);
-            (*ov_tensors_map)[input_name] = {NamedOutput(param)};
+            (*ov_tensors_map)[input_op_name] = {NamedOutput(param)};
         }
     }
 

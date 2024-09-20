@@ -105,6 +105,7 @@ std::vector<int64_t> get_signal_size(const ov::TensorVector& inputs, size_t num_
 }
 
 ov::runtime::interpreter::EvaluatorsMap& ov::runtime::interpreter::get_evaluators_map() {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     static runtime::interpreter::EvaluatorsMap evaluatorsMap{
 #define _OPENVINO_OP_REG(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), evaluate_node<NAMESPACE::NAME>},
 
@@ -112,5 +113,6 @@ ov::runtime::interpreter::EvaluatorsMap& ov::runtime::interpreter::get_evaluator
 
 #undef _OPENVINO_OP_REG
     };
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return evaluatorsMap;
 }

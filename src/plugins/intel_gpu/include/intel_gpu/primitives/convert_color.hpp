@@ -38,9 +38,8 @@ struct convert_color : public primitive_base<convert_color> {
                   const std::vector<input_info>& inputs,
                   const color_format input_color_format,
                   const color_format output_color_format,
-                  const memory_type mem_type,
-                  const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}),
+                  const memory_type mem_type)
+        : primitive_base(id, inputs),
           input_color_format(input_color_format),
           output_color_format(output_color_format),
           mem_type(mem_type) {}

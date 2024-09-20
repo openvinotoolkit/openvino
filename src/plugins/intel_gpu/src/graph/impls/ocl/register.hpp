@@ -20,6 +20,7 @@
 #include "intel_gpu/primitives/deconvolution.hpp"
 #include "intel_gpu/primitives/depth_to_space.hpp"
 #include "intel_gpu/primitives/detection_output.hpp"
+#include "intel_gpu/primitives/dynamic_quantize.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/experimental_detectron_detection_output.hpp"
 #include "intel_gpu/primitives/experimental_detectron_prior_grid_generator.hpp"
@@ -73,6 +74,7 @@
 #include "intel_gpu/primitives/non_zero.hpp"
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/unique.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/primitives/kv_cache.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "intel_gpu/primitives/rope.hpp"
@@ -104,6 +106,7 @@ REGISTER_OCL(deconvolution);
 REGISTER_OCL(depth_to_space);
 REGISTER_OCL(detection_output);
 REGISTER_OCL(dft);
+REGISTER_OCL(dynamic_quantize);
 REGISTER_OCL(experimental_detectron_detection_output);
 REGISTER_OCL(experimental_detectron_generate_proposals_single_image);
 REGISTER_OCL(experimental_detectron_prior_grid_generator);
@@ -120,6 +123,7 @@ REGISTER_OCL(generate_proposals);
 REGISTER_OCL(grid_sample);
 REGISTER_OCL(group_normalization);
 REGISTER_OCL(kv_cache);
+REGISTER_OCL(paged_attention);
 REGISTER_OCL(lrn);
 REGISTER_OCL(lstm_elt);
 REGISTER_OCL(multiclass_nms);

@@ -181,6 +181,7 @@ attach_reorder_impl::attach_reorder_impl() {
         format::bfyx,
         format::bfzyx,
         format::bfwzyx,
+        format::b_fs_yx_fsv16
     };
     implementation_map<reorder>::add(impl_types::ocl, shape_types::dynamic_shape, reorder_impl::create, types, formats);
 

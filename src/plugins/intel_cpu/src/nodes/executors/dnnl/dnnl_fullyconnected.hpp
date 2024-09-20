@@ -99,7 +99,7 @@ private:
             resetSrcMemoryDataHandle = true;
             // create 2D memory without underlying buffer and reset to the actual memory in scope of 'execute' call
             m_primArgs[DNNL_ARG_SRC] =
-                dnnl::memory(primMemDesc->getDnnlDesc(), m_context->getEngine(), memory->getData());
+                dnnl::memory(primMemDesc->getDnnlDesc(), m_context->getEngine(), DNNL_MEMORY_NONE);
         }
     }
 
@@ -111,7 +111,7 @@ private:
             resetDstMemoryDataHandle = true;
             // create 2D memory without underlying buffer and reset to the actual memory in scope of 'execute' call
             m_primArgs[DNNL_ARG_DST] =
-                dnnl::memory(primMemDesc->getDnnlDesc(), m_context->getEngine(), memory->getData());
+                dnnl::memory(primMemDesc->getDnnlDesc(), m_context->getEngine(), DNNL_MEMORY_NONE);
         }
     }
 
@@ -123,8 +123,7 @@ private:
         if (currentPrimitive && currentPrimitive->weightsDesc()->isCompatible(*newPrimMemDesc))
             return;
 
-        if (m_attrs.weightsNonTransposed)
-            originalMemDesc = utils::makeTransposedWeightDescriptor(originalMemDesc, newPrimMemDesc);
+        originalMemDesc = Primitive::makeTransposedWeightDescriptor(originalMemDesc, newPrimMemDesc, m_attrs.weightsNonTransposed);
 
         const auto weiMemory = utils::prepareWeightsMemory(originalMemDesc, newPrimMemDesc, memory, m_context, true);
         m_primArgs[DNNL_ARG_WEIGHTS] = weiMemory->getPrimitive();

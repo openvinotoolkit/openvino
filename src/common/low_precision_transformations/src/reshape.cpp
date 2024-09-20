@@ -160,7 +160,7 @@ bool ReshapeTransformation::transform(TransformationContext& context, ov::pass::
     reshapeDequantizationConstant(reshape, defaultPrecisions);
     const auto newOperation = moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, defaultPrecisions, 0));
 
-    OPENVINO_DEBUG << "LPT: done: " << newOperation;
+    OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 

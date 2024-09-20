@@ -10,6 +10,7 @@ Interface Model
        getName(): string;
        getOutputShape(index): number[];
        getOutputSize(): number;
+       getOutputElementType(index): string;
        input(): Output;
        input(name): Output;
        input(index): Output;
@@ -32,7 +33,7 @@ Properties
 
 .. rubric:: inputs
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -44,7 +45,7 @@ Properties
 .. rubric:: outputs
 
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -57,10 +58,25 @@ Properties
 Methods
 #####################
 
+.. rubric:: clone
+
+*
+
+   .. code-block:: ts
+
+      clone(): Model;
+
+   It returns a cloned model.
+
+   * **Returns:** :doc:`Model <Model>`
+
+   * **Defined in:**
+     `addon.ts:220 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L220>`__
+
 
 .. rubric:: getFriendlyName
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -79,7 +95,7 @@ Methods
 
 .. rubric:: getName
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -97,7 +113,7 @@ Methods
 
 .. rubric:: getOutputShape
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -113,7 +129,7 @@ Methods
 
 .. rubric:: getOutputSize
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -126,10 +142,35 @@ Methods
    * **Defined in:**
      `addon.ts:198 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L198>`__
 
+.. rubric:: getOutputElementType
+
+*
+
+   .. code-block:: ts
+
+      getOutputElementType(index): string;
+
+   It gets the element type of a specific output of the model.
+
+   * **Parameters:**
+
+     -
+
+       .. code-block:: ts
+
+          index: number
+
+       The index of the output.
+
+   * **Returns:** string
+
+   * **Defined in:**
+     `addon.ts:245 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L245>`__
+
 
 .. rubric:: input
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -190,7 +231,7 @@ Methods
 
 .. rubric:: isDynamic
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -206,7 +247,7 @@ Methods
 
 .. rubric:: output
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -229,7 +270,7 @@ Methods
 .. rubric:: setFriendlyName
    :name: setFriendlyName
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 

@@ -11,7 +11,7 @@ namespace intel_cpu {
 namespace kernel {
 
 JitKernelBase::JitKernelBase(const char* name, x64::cpu_isa_t isa)
-        : x64::jit_generator(name, nullptr, x64::MAX_CODE_SIZE, true, isa), m_isa(isa) {
+        : x64::jit_generator(name, isa), m_isa(isa) {
     vlen = x64::isa_max_vlen(isa);
 }
 

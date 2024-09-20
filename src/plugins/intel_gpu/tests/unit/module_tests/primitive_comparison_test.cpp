@@ -36,15 +36,9 @@ TEST(primitive_comparison, common_params) {
 
     auto range_prim_data_type = range("range", def_inputs, layout{def_shape, data_types::f16, def_format, def_padding});
 
-    auto range_prim_padding_values = range("range", def_inputs, layout{def_shape, def_data_type, def_format, padding({1, 1, 1, 2})});
-
-    auto range_prim_padding_fill_value = range("range", def_inputs, layout{def_shape, def_data_type, def_format, padding({1, 1, 1, 1}, 1.f)});
-
     ASSERT_NE(range_prim, fc_prim);
     ASSERT_NE(range_prim, range_prim_inputs);
     ASSERT_NE(range_prim, range_prim_data_type);
-    ASSERT_NE(range_prim, range_prim_padding_values);
-    ASSERT_NE(range_prim, range_prim_padding_fill_value);
 }
 
 TEST(primitive_comparison, convolution) {
@@ -85,10 +79,10 @@ TEST(primitive_comparison, gemm) {
 }
 
 TEST(primitive_comparison, fully_connected) {
-    auto fc_prim = fully_connected("fc", input_info("input"), "weights", "bias", {}, 2);
-    auto fc_prim_eq = fully_connected("fc_eq", input_info("input_eq"), "weights_eq", "bias_eq", {}, 2);
-    auto fc_prim_bias = fully_connected("fc", input_info("input"), "weights", "", {}, 2);
-    auto fc_prim_input_size = fully_connected("fc", input_info("input"), "weights", "bias", {}, 4);
+    auto fc_prim = fully_connected("fc", input_info("input"), "weights", "bias", 2);
+    auto fc_prim_eq = fully_connected("fc_eq", input_info("input_eq"), "weights_eq", "bias_eq", 2);
+    auto fc_prim_bias = fully_connected("fc", input_info("input"), "weights", "", 2);
+    auto fc_prim_input_size = fully_connected("fc", input_info("input"), "weights", "bias", 4);
 
     ASSERT_EQ(fc_prim, fc_prim_eq);
     ASSERT_NE(fc_prim, fc_prim_bias);

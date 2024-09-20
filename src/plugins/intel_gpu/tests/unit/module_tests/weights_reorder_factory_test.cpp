@@ -12,7 +12,7 @@
 
 #include "reorder_inst.h"
 #include "fully_connected_inst.h"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 #include "graph/impls/ocl/register.hpp"
 
 #include <memory>

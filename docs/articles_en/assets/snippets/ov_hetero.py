@@ -53,3 +53,15 @@ def main():
     core.set_property("CPU", {hints.inference_precision: ov.Type.f32})
     compiled_model = core.compile_model(model=model, device_name="HETERO")
     #! [configure_fallback_devices]
+
+    #! [set_pipeline_parallelism]
+    import openvino.properties.hint as hints
+
+    compiled_model = core.compile_model(
+        model,
+        device_name="HETERO:GPU.1,GPU.2",
+        config={
+            hints.model_distribution_policy:
+            "PIPELINE_PARALLEL"
+        })
+    #! [set_pipeline_parallelism]

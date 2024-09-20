@@ -488,7 +488,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
     if (!m_transformation_extensions.empty()) {
         auto function = decode(model);
 
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("Frontend:TF:convert_partially");
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }
@@ -557,7 +557,7 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("Frontend:TF:normalize");
 
     // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
     // so that not extra memory is used for intermediate decompressed constants.
@@ -576,6 +576,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<pass::TensorListReplacer>();
     manager.register_pass<pass::TensorListInLoopOptimization>();
     manager.register_pass<pass::TensorListSetItemReplacer>();
+    manager.register_pass<pass::TensorListPushBackReplacer>();
     manager.register_pass<pass::TensorListGetItemReplacer>();
 
     manager.register_pass<ov::pass::UnrollIf>();

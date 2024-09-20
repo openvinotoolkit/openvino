@@ -82,17 +82,18 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckSetIncorrectRWMetricsPropsTests,
                                 {}, sw_plugin_in_target_device(ov::test::utils::target_device)))),
         OVCheckSetIncorrectRWMetricsPropsTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
-        ::testing::Combine(
-                ::testing::Values(ov::test::utils::target_device),
-                ::testing::Values(ov::AnyMap({}))),
-        OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    ov_plugin,
+    OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
+    ::testing::Combine(::testing::Values(ov::test::utils::target_device), ::testing::Values(ov::AnyMap({}))),
+    MARK_MANDATORY_PROPERTY_FOR_HW_DEVICE(OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName));
 
-INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
-        ::testing::Combine(
-                ::testing::Values(ov::test::utils::target_device),
-                ::testing::Values(ov::AnyMap({}))),
-        OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName);
+/* Add prefix mandatory_ to suffix (getTestCaseName) of HW plugin test cases */
+INSTANTIATE_TEST_SUITE_P(
+    ov_plugin,
+    OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
+    ::testing::Combine(::testing::Values(ov::test::utils::target_device), ::testing::Values(ov::AnyMap({}))),
+    MARK_MANDATORY_PROPERTY_FOR_HW_DEVICE(OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckMetricsPropsTests_ModelDependceProps,
         ::testing::Combine(

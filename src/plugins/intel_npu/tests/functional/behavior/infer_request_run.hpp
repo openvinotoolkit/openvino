@@ -4,28 +4,26 @@
 
 #pragma once
 
-#include <array>
-#include <thread>
-
-#include "npu_private_properties.hpp"
-
-#include "base/ov_behavior_test_utils.hpp"
-#include "common/utils.hpp"
-#include "common/npu_test_env_cfg.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
-#include "overload/overload_test_utils_npu.hpp"
-
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <exception>
 
-#include <openvino/core/any.hpp>
-#include <openvino/core/node_vector.hpp>
-#include <openvino/op/op.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/runtime/compiled_model.hpp>
-#include <openvino/runtime/core.hpp>
+#include <array>
+#include <exception>
+#include <thread>
+
+#include "base/ov_behavior_test_utils.hpp"
+#include "common/npu_test_env_cfg.hpp"
+#include "common/utils.hpp"
+#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "npu_private_properties.hpp"
+#include "openvino/core/any.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/op.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/runtime/compiled_model.hpp"
+#include "openvino/runtime/core.hpp"
+#include "overload/overload_test_utils_npu.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -37,14 +35,13 @@ using ::testing::HasSubstr;
 namespace ov {
 namespace test {
 namespace behavior {
-class InferRequestRunTests :
-        public ov::test::behavior::OVPluginTestBase,
-        public testing::WithParamInterface<CompilationParams> {
+class InferRequestRunTests : public ov::test::behavior::OVPluginTestBase,
+                             public testing::WithParamInterface<CompilationParams> {
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> ov_model;
-    ov::CompiledModel compiledModel;
+    ov::CompiledModel compiled_model;
     ov::Output<const ov::Node> input;
     ov::Output<const ov::Node> output;
     std::string m_cache_dir;
@@ -106,7 +103,8 @@ public:
         APIBaseTest::TearDown();
     }
 
-    std::shared_ptr<ov::Model> createBatchingModel(element::Type type, const PartialShape& shape,
+    std::shared_ptr<ov::Model> createBatchingModel(element::Type type,
+                                                   const PartialShape& shape,
                                                    const ov::Layout& layout) {
         ResultVector res;
         ParameterVector params;
@@ -145,16 +143,16 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsSyncInfers) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Load CNNNetwork to target plugins
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(ov_model, target_device, configuration));
-    OV_ASSERT_NO_THROW(input = compiledModel.input());
-    OV_ASSERT_NO_THROW(output = compiledModel.output());
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    OV_ASSERT_NO_THROW(input = compiled_model.input());
+    OV_ASSERT_NO_THROW(output = compiled_model.output());
 
     // Create InferRequests
     const int inferReqNumber = 256;
     std::array<ov::InferRequest, inferReqNumber> inferReqs;
     std::array<std::thread, inferReqNumber> inferReqsThreads;
     for (int i = 0; i < inferReqNumber; ++i) {
-        OV_ASSERT_NO_THROW(inferReqs[i] = compiledModel.create_infer_request());
+        OV_ASSERT_NO_THROW(inferReqs[i] = compiled_model.create_infer_request());
         OV_ASSERT_NO_THROW(inferReqs[i].get_tensor(input));
     }
 
@@ -175,15 +173,15 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Load CNNNetwork to target plugins
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(ov_model, target_device, configuration));
-    OV_ASSERT_NO_THROW(input = compiledModel.input());
-    OV_ASSERT_NO_THROW(output = compiledModel.output());
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    OV_ASSERT_NO_THROW(input = compiled_model.input());
+    OV_ASSERT_NO_THROW(output = compiled_model.output());
 
     // Create InferRequests
     const int inferReqNumber = 256;
     std::array<ov::InferRequest, inferReqNumber> inferReqs;
     for (int i = 0; i < inferReqNumber; ++i) {
-        OV_ASSERT_NO_THROW(inferReqs[i] = compiledModel.create_infer_request());
+        OV_ASSERT_NO_THROW(inferReqs[i] = compiled_model.create_infer_request());
         OV_ASSERT_NO_THROW(inferReqs[i].get_tensor(input));
     }
 
@@ -201,16 +199,16 @@ TEST_P(InferRequestRunTests, MultipleExecutorTestsSyncInfers) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Load CNNNetwork to target plugins
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(ov_model, target_device, configuration));
-    OV_ASSERT_NO_THROW(input = compiledModel.input());
-    OV_ASSERT_NO_THROW(output = compiledModel.output());
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    OV_ASSERT_NO_THROW(input = compiled_model.input());
+    OV_ASSERT_NO_THROW(output = compiled_model.output());
 
     // Create InferRequests
     const int inferReqNumber = 256;
     ov::InferRequest inferReq;
     ov::Tensor input_tensor;
     for (int i = 0; i < inferReqNumber; ++i) {
-        OV_ASSERT_NO_THROW(inferReq = compiledModel.create_infer_request());
+        OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
         OV_ASSERT_NO_THROW(input_tensor = inferReq.get_tensor(input));
         OV_ASSERT_NO_THROW(inferReq.set_input_tensor(input_tensor));
         OV_ASSERT_NO_THROW(inferReq.infer());
@@ -228,8 +226,8 @@ TEST_P(InferRequestRunTests, CheckOutputDataFromTwoRuns) {
     float* data;
 
     {
-        OV_ASSERT_NO_THROW(compiledModel = core->compile_model(ov_model, target_device, configuration));
-        OV_ASSERT_NO_THROW(inference_request = compiledModel.create_infer_request());
+        OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+        OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
         auto tensor = inference_request.get_input_tensor();
         const size_t byte_size = tensor.get_byte_size();
         data = new float[byte_size / sizeof(float)];
@@ -242,12 +240,12 @@ TEST_P(InferRequestRunTests, CheckOutputDataFromTwoRuns) {
 
     for (int i = 0; i < 10; i++) {
         delete[] data;
-        compiledModel = {};
+        compiled_model = {};
         inference_request = {};
 
         {
-            OV_ASSERT_NO_THROW(compiledModel = core->compile_model(ov_model, target_device, configuration));
-            OV_ASSERT_NO_THROW(inference_request = compiledModel.create_infer_request());
+            OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+            OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
             auto tensor = inference_request.get_input_tensor();
             const size_t byte_size = tensor.get_byte_size();
             data = new float[byte_size / sizeof(float)];
@@ -263,6 +261,89 @@ TEST_P(InferRequestRunTests, CheckOutputDataFromTwoRuns) {
     }
 }
 
+TEST_P(InferRequestRunTests, CheckOutputDataFromMultipleRunsUsingSameL0Tensor) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    ov::InferRequest inference_request;
+    ov::Tensor first_output;
+    ov::Tensor second_output;
+    ov::Tensor global_input;
+
+    {
+        OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+        OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+        global_input = inference_request.get_input_tensor();
+        const size_t byte_size = global_input.get_byte_size();
+        memset(global_input.data(), 1, byte_size);
+        OV_ASSERT_NO_THROW(inference_request.infer());
+    }
+    first_output = inference_request.get_output_tensor(0);
+
+    for (int i = 0; i < 10; i++) {
+        compiled_model = {};
+        inference_request = {};
+
+        {
+            OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+            OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+            OV_ASSERT_NO_THROW(inference_request.set_input_tensor(global_input));
+            OV_ASSERT_NO_THROW(inference_request.infer());
+        }
+        second_output = inference_request.get_output_tensor(0);
+
+        EXPECT_NE(first_output.data(), second_output.data());
+        EXPECT_EQ(memcmp(first_output.data(), second_output.data(), second_output.get_byte_size()), 0);
+    }
+}
+
+TEST_P(InferRequestRunTests, RecreateL0TensorIfNeeded) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    ov::InferRequest inference_request;
+    ov::Tensor first_output;
+    ov::Tensor second_output;
+    ov::Tensor global_input;
+    float* data;
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+    global_input = inference_request.get_input_tensor();
+    memset(global_input.data(), 1, global_input.get_byte_size());
+    OV_ASSERT_NO_THROW(inference_request.infer());
+    first_output = inference_request.get_output_tensor(0);
+
+    compiled_model = {};
+    inference_request = {};
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(global_input));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+    second_output = inference_request.get_output_tensor(0);
+
+    EXPECT_NE(first_output.data(), second_output.data());
+    EXPECT_EQ(memcmp(first_output.data(), second_output.data(), second_output.get_byte_size()), 0);
+
+    for (int i = 0; i < 10; i++) {
+        {
+            const size_t byte_size = global_input.get_byte_size();
+            data = new float[byte_size / sizeof(float)];
+            memset(data, 1, byte_size);
+            ov::Tensor input_data_tensor{ov::element::f32, global_input.get_shape(), data};
+            OV_ASSERT_NO_THROW(inference_request.set_input_tensor(input_data_tensor));
+            OV_ASSERT_NO_THROW(inference_request.infer());
+        }
+        second_output = inference_request.get_output_tensor(0);
+
+        EXPECT_NE(first_output.data(), second_output.data());
+        EXPECT_EQ(memcmp(first_output.data(), second_output.data(), second_output.get_byte_size()), 0);
+
+        delete[] data;
+    }
+}
+
 using BatchingRunTests = InferRequestRunTests;
 
 TEST_P(BatchingRunTests, CheckBatchingSupportInfer) {
@@ -273,8 +354,8 @@ TEST_P(BatchingRunTests, CheckBatchingSupportInfer) {
     auto batch_shape = Shape{4, 2, 32, 32};
     std::shared_ptr<ov::Model> ov_model_batch = createBatchingModel(element::f32, batch_shape, "N...");
 
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(ov_model_batch, target_device, configuration));
-    OV_ASSERT_NO_THROW(inference_request = compiledModel.create_infer_request());
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model_batch, target_device, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
     OV_ASSERT_NO_THROW(inference_request.infer());
 }
 
@@ -286,8 +367,8 @@ TEST_P(BatchingRunTests, CheckBatchingSupportAsync) {
     auto batch_shape = Shape{4, 2, 32, 32};
     std::shared_ptr<ov::Model> ov_model_batch = createBatchingModel(element::f32, batch_shape, "N...");
 
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(ov_model_batch, target_device, configuration));
-    OV_ASSERT_NO_THROW(inference_request = compiledModel.create_infer_request());
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model_batch, target_device, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
     OV_ASSERT_NO_THROW(inference_request.start_async());
     inference_request.wait();
 }
@@ -301,8 +382,8 @@ TEST_P(BatchingRunTests, UseCompilerBatchingErrorPluginBatching) {
 
     auto batch_mode = configuration[ov::intel_npu::batch_mode.name()].as<std::string>();
     try {
-        compiledModel = core->compile_model(ov_model_batch, target_device, configuration);
-        inference_request = compiledModel.create_infer_request();
+        compiled_model = core->compile_model(ov_model_batch, target_device, configuration);
+        inference_request = compiled_model.create_infer_request();
         inference_request.start_async();
         inference_request.wait();
     } catch (std::exception& ex) {
@@ -318,9 +399,9 @@ TEST_P(BatchingRunTests, SetInputTensorInfer) {
     auto model = createBatchingModel(element::f32, batch_shape, "N...");
     float* buffer = new float[shape_size];
 
-    compiledModel = core->compile_model(model, target_device, configuration);
+    compiled_model = core->compile_model(model, target_device, configuration);
     ov::InferRequest inference_request;
-    inference_request = compiledModel.create_infer_request();
+    inference_request = compiled_model.create_infer_request();
 
     ov::Tensor tensor{element::f32, batch_shape, buffer};
 
@@ -344,9 +425,9 @@ TEST_P(BatchingRunTests, SetInputTensorAsync) {
     auto model = createBatchingModel(element::f32, batch_shape, "N...");
     float* buffer = new float[shape_size];
 
-    compiledModel = core->compile_model(model, target_device, configuration);
+    compiled_model = core->compile_model(model, target_device, configuration);
     ov::InferRequest inference_request;
-    inference_request = compiledModel.create_infer_request();
+    inference_request = compiled_model.create_infer_request();
 
     ov::Tensor tensor{element::f32, batch_shape, buffer};
 
@@ -374,9 +455,9 @@ TEST_P(BatchingRunTests, SetInputTensorInfer_Caching) {
     m_cache_dir = generateCacheDirName(GetTestName());
     core->set_property({ov::cache_dir(m_cache_dir)});
     auto compiled_model_no_cache = core->compile_model(model, target_device, configuration);
-    compiledModel = core->compile_model(model, target_device, configuration);
+    compiled_model = core->compile_model(model, target_device, configuration);
     ov::InferRequest inference_request;
-    inference_request = compiledModel.create_infer_request();
+    inference_request = compiled_model.create_infer_request();
 
     ov::Tensor tensor{element::f32, batch_shape, buffer};
 
@@ -392,6 +473,55 @@ TEST_P(BatchingRunTests, SetInputTensorInfer_Caching) {
     for (size_t i = 0; i < shape_size; ++i) {
         EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
     }
+
+    delete[] buffer;
+}
+
+TEST_P(BatchingRunTests, CheckTwoRunsInfer) {
+    auto batch_shape = Shape{4, 2, 2, 2};
+    auto shape_size = ov::shape_size(batch_shape);
+    auto model = createBatchingModel(element::f32, batch_shape, "N...");
+    float* buffer = new float[shape_size];
+
+    auto context = core->get_default_context(target_device);
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::InferRequest inference_request;
+    inference_request = compiled_model.create_infer_request();
+
+    ov::Tensor tensor{element::f32, batch_shape, buffer};
+
+    inference_request.set_input_tensor(tensor);
+    auto actual_tensor = inference_request.get_output_tensor(0);
+    auto* actual = actual_tensor.data<float>();
+    auto* input_data = tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 5.f;
+    }
+    inference_request.infer();  // Adds '1' to each element
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
+    }
+
+    auto l0_host_input_tensor = context.create_host_tensor(ov::element::f32, batch_shape);
+    auto l0_host_output_tensor = context.create_host_tensor(ov::element::f32, actual_tensor.get_shape());
+
+    auto* input_data_host_tensor = l0_host_input_tensor.data();
+    input_data = reinterpret_cast<float*>(input_data_host_tensor);
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 5.f;
+    }
+    inference_request.set_input_tensor(l0_host_input_tensor);
+    inference_request.set_output_tensor(l0_host_output_tensor);
+    inference_request.infer();
+
+    auto* actual_host_tensor = l0_host_output_tensor.data();
+    actual = reinterpret_cast<float*>(actual_host_tensor);
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
+    }
+
+    delete[] buffer;
 }
 
 }  // namespace behavior

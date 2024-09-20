@@ -17,7 +17,7 @@ using namespace ov;
 bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(ConvertCompressedOnlyToLegacy);
     if (ov::op::util::has_decompression_converts(f)) {
-        Manager manager(get_pass_config());
+        Manager manager(get_pass_config(), "ConvertCompressedOnlyToLegacy");
 
         const precisions_map convert_precision_map{{ov::element::f32, ov::element::f16}};
         manager.register_pass<ConvertPrecision>(convert_precision_map);

@@ -77,7 +77,7 @@ bool ClampTransformation::transform(TransformationContext& context, ov::pass::pa
         dequantization.subtract->get_output_element_type(0);
     ov::pass::low_precision::NetworkHelper::setOutDataPrecision(replacement, outputClampType);
 
-    OPENVINO_DEBUG << "LPT: done: " << replacement;
+    OPENVINO_DEBUG("LPT: done: ", replacement);
     return true;
 }
 

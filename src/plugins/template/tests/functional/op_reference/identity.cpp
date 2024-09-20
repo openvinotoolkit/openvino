@@ -103,7 +103,10 @@ std::vector<IdentityParams> generateIdentityParams() {
     std::vector<std::vector<IdentityParams>> combo_params{generateIdentityParams<ov::element::f64>(),
                                                           generateIdentityParams<ov::element::f32>(),
                                                           generateIdentityParams<ov::element::f16>(),
-                                                          generateIdentityParams<ov::element::bf16>()};
+                                                          generateIdentityParams<ov::element::bf16>(),
+                                                          generateIdentityParams<ov::element::i64>(),
+                                                          generateIdentityParams<ov::element::i32>(),
+                                                          generateIdentityParams<ov::element::u16>()};
     std::vector<IdentityParams> test_params;
     for (auto& params : combo_params)
         std::move(params.begin(), params.end(), std::back_inserter(test_params));

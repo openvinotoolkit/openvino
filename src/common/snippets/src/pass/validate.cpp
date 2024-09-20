@@ -15,7 +15,7 @@
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/validate.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -59,7 +59,7 @@ bool Validate::is_supported_softmax(const std::shared_ptr<const ov::Node>& op) {
     const auto softmax_rank = op->get_input_partial_shape(0).rank();
     int64_t axis = 0;
     if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(op)) {
-        axis = ov::util::normalize_axis(softmax_v8->get_friendly_name(), softmax_v8->get_axis(), softmax_rank);
+        axis = ov::util::try_normalize_axis(softmax_v8->get_axis(), softmax_rank, *softmax_v8);
     } else if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(op)) {
         axis = softmax_v1->get_axis();
     } else {

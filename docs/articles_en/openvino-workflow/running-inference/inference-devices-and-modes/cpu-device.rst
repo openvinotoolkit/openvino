@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_supported_plugins_CPU}
-
 CPU Device
 ==========
 
@@ -55,24 +53,27 @@ the ``ov::Core::compile_model()`` method:
          :fragment: [compile_model_default]
 
 
-Supported Inference Data Types
-###########################################################
+Supported Model Precision
+#########################
 
 CPU plugin supports the following data types as inference precision of internal primitives:
 
 - Floating-point data types:
 
-  - ``f32`` (Intel® x86-64, Arm®)
-  - ``bf16`` (Intel® x86-64)
-  - ``f16`` (Intel® x86-64, Arm®)
+  - ``FP32`` (Intel® x86-64, Arm®)
+  - ``BF16`` (Intel® x86-64)
+  - ``FP16`` (Intel® x86-64, Arm®)
+  - ``:ref:`MXFP4 <mxfp4_support>``` (Intel® x86-64)
+
 - Integer data types:
 
-  - ``i32`` (Intel® x86-64, Arm®)
+  - ``INT32`` (Intel® x86-64, Arm®)
+
 - Quantized data types:
 
-  - ``u8`` (Intel® x86-64)
-  - ``i8`` (Intel® x86-64)
-  - ``u1`` (Intel® x86-64)
+  - ``uINT8`` (Intel® x86-64)
+  - ``INT8`` (Intel® x86-64)
+  - ``uINT1`` (Intel® x86-64)
 
 :doc:`Hello Query Device C++ Sample <../../../learn-openvino/openvino-samples/hello-query-device>` can be used to print out supported data types for all detected devices.
 
@@ -209,11 +210,11 @@ For more details and code examples, see the :doc:`Precision Control <../optimize
 Supported Features
 ###########################################################
 
-Multi-device Execution
+Automatic Device Selection
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 If a system includes OpenVINO-supported devices other than the CPU (e.g. an integrated GPU), then any supported model can be executed on all the devices simultaneously.
-This can be achieved by specifying ``MULTI:CPU,GPU.0`` as a target device in case of simultaneous usage of CPU and GPU.
+This can be achieved by specifying ``AUTO:CPU,GPU.0`` as a target device, and adding the ``CUMULATIVE_THROUGHPUT`` parameter.
 
 .. tab-set::
 
@@ -222,17 +223,17 @@ This can be achieved by specifying ``MULTI:CPU,GPU.0`` as a target device in cas
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_cpu.py
          :language: py
-         :fragment: [compile_model_multi]
+         :fragment: [compile_model_auto]
 
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_cpu.cpp
          :language: cpp
-         :fragment: [compile_model_multi]
+         :fragment: [compile_model_auto]
 
 
-For more details, see the :doc:`Multi-device execution <multi-device>` article.
+For more details, see the :doc:`Automatic Device Selection <auto-device-selection>`.
 
 .. _multi_stream_execution:
 

@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include "intel_gpu/runtime/layout.hpp"
 #include "primitive.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 
@@ -24,7 +25,7 @@ struct input_layout : public primitive_base<input_layout> {
     /// @param id This primitive id.
     /// @param layout Defines layout for the data will be passed to network.
     input_layout(const primitive_id& id, const layout& layout)
-        : primitive_base(id, {}, {layout.data_padding}), layout(layout) {}
+        : primitive_base(id, {}, 1, {optional_data_type()}, {layout.data_padding}), layout(layout) {}
 
     /// @brief Defines layout for the data will be passed to network.
     mutable cldnn::layout layout;
