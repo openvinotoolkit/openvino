@@ -1869,6 +1869,12 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 void program::load(cldnn::BinaryInputBuffer& ib) {
     init_program();
 
+    std::shared_ptr<ov::MappedMemory> mapped_memory = nullptr;
+    std::string weights_path = _config.get_property(ov::intel_gpu::weights_path);
+    if (!weights_path.empty()) {
+        mapped_memory = ov::load_mmap_object(weights_path);
+    }
+
     size_t num_nodes;
     ib >> num_nodes;
     bool is_valid_data_node;
@@ -1879,6 +1885,9 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
         std::shared_ptr<cldnn::primitive> prim;
         ib >> prim;
+        if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
+            data_prim->load_weights(ib, mapped_memory);
+        }
         get_or_create(prim);
     }
 
