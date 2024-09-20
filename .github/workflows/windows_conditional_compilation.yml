@@ -20,6 +20,7 @@ permissions: read-all
 
 env:
   PYTHON_VERSION: '3.11'
+  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Smart_CI:
@@ -264,6 +265,7 @@ jobs:
 
   CC_Build:
     name: Conditional Compilation
+    timeout-minutes: 20
     needs: [Build, Smart_CI]
     defaults:
       run:

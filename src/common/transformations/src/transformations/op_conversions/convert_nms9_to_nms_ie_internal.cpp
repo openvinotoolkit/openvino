@@ -22,7 +22,7 @@ ov::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
     auto nms = ov::pass::pattern::wrap_type<ov::op::v9::NonMaxSuppression>();
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        auto nms_9 = std::dynamic_pointer_cast<ov::op::v9::NonMaxSuppression>(m.get_match_root());
+        auto nms_9 = ov::as_type_ptr<ov::op::v9::NonMaxSuppression>(m.get_match_root());
         if (!nms_9 || transformation_callback(nms_9)) {
             return false;
         }

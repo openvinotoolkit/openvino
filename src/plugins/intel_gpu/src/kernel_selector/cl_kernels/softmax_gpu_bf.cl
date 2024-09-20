@@ -9,8 +9,6 @@
 
 #if IS_DYNAMIC
 
-#define CALC_POWER(n) ({uint pos = 0; uint i = n; do { i >>= 1; ++pos; } while (i); --pos;})
-
 #define BLOCK_READ(ptr, offset) DT_INPUT_BLOCK_READ(ptr, offset)
 #define BLOCK_WRITE(ptr, offset, val) DT_OUTPUT_BLOCK_WRITE(ptr, offset, val)
 #define BLOCK_TYPE INPUT0_TYPE
@@ -58,16 +56,9 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     // | aligned_offset | 16 bytes aligned data offset | actual leftovers
     // ************************************************************************
     // leftover = aligned_offset + actual_leftovers
-#if !IS_DYNAMIC
-    const uint origin_items_num = ITEMS_NUM;               // how many elements are processed per one WI
-    const uint origin_leftovers = LEFTOVERS;
-#else
-    // since workers_per_data_set is calculated by power of 2
-    // items_num can be calculated by dividing data_set_size by power of 2
-    const uint power = CALC_POWER(workers_per_data_set);
-    const uint origin_items_num = data_set_size>>power;
-    const uint origin_leftovers = data_set_size-(origin_items_num<<power);
-#endif
+    const uint origin_items_num = data_set_size / workers_per_data_set;
+    const uint origin_leftovers = data_set_size % workers_per_data_set;
+
     const uint data_set_offset = data_set_idx * data_set_size;
     const uint data_set_offset_byte_counts = data_set_offset * sizeof(INPUT0_TYPE);
     const uint aligned_offset = ((workers_per_data_set > SUB_GROUP_SIZE) && (data_set_offset_byte_counts & 0xF))
@@ -518,9 +509,6 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     }
 #endif
 }
-#ifdef CALC_POWER
-#undef CALC_POWER
-#endif
 #undef BLOCK_READ
 #undef BLOCK_WRITE
 #undef BLOCK_TYPE
