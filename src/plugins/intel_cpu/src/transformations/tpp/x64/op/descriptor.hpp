@@ -15,7 +15,7 @@ class OpDescTPP {
 public:
     // Note: zero arity represent equation arguments
     enum class ARITY {UNDEFINED, UNARY, BINARY, ZERO};
-    OpDescTPP() : m_arity(ARITY::UNDEFINED), m_value{-1}, m_flags{0} {}
+    OpDescTPP() = default;
     // Note: for zero arity op_type is interpreted as the argument index (op inputs and args have different order)
     OpDescTPP(ARITY arity, int arg_idx) : m_arity(arity), m_value{arg_idx}, m_flags{0} {
         OPENVINO_ASSERT(m_arity == ARITY::ZERO, "Only zero-arity op descs could be created directly");
@@ -41,9 +41,9 @@ public:
     friend std::ostream& operator<<(std::ostream& os, const OpDescTPP& od);
 
 private:
-    ARITY m_arity;
-    int m_value;
-    libxsmm_bitfield m_flags;
+    const ARITY m_arity {ARITY::UNDEFINED};
+    const int m_value {-1};
+    const libxsmm_bitfield m_flags {0};
 };
 
 } // namespace op

@@ -1,12 +1,12 @@
 // Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "snippets/itt.hpp"
-#include "transformations/tpp/x64/op/eltwise.hpp"
 #include "fuse_tpp_to_equations.hpp"
-#include "snippets/utils/utils.hpp"
+
+#include "transformations/tpp/x64/op/eltwise.hpp"
 #include "transformations/tpp/x64/op/equation.hpp"
+#include "snippets/utils/utils.hpp"
+#include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 
 namespace ov {
