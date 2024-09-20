@@ -299,7 +299,7 @@ jobs:
           python3 ${OPENVINO_REPO}/docs/articles_en/assets/snippets/main.py
 
       - name: Python API Tests -- numpy>=2.0.0
-        if: ${{ fromJSON(inputs.affected-components).Python_API.test && inputs.python-version != '3.12' }} # Ticket: 152242
+        if: ${{ fromJSON(inputs.affected-components).Python_API.test }}
         run: |
           python3 -m pip uninstall -y numpy
           python3 -m pip install "numpy>=2.0.0,<2.1.0"

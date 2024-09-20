@@ -28,7 +28,7 @@ source_group("src" FILES ${PYBIND_FE_SRC})
 if(CMAKE_CROSSCOMPILING)
     set(pybind11_min_version 2.12.0)
 else()
-    set(pybind11_min_version 2.10.0)
+    set(pybind11_min_version 2.12.0)
 endif()
 # search for FindPython3.cmake instead of legacy modules
 set(PYBIND11_FINDPYTHON ON)
