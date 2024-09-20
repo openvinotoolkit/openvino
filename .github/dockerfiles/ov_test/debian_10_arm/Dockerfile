@@ -16,6 +16,12 @@ RUN apt-get update && \
     apt-get install  \
         git \
         libc6-dev \
+        # Python for running C++ Functional tests via parallelization script  \
+        python3 \
+        python3-pip \
+        python3-dev \
+        python3-venv \
+        python3-distutils \
         # Compilers
         gcc-arm-linux-gnueabihf \
         g++-arm-linux-gnueabihf \
