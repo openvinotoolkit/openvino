@@ -21,6 +21,10 @@ type elementTypeString =
   | 'f32'
   | 'string';
 
+type AnyMap = {
+  [propertyName: string]: string | number | boolean;
+};
+
 /**
  * Core represents an OpenVINO runtime Core entity.
  *
@@ -48,7 +52,7 @@ interface Core {
   compileModel(
     model: Model,
     deviceName: string,
-    config?: { [propertyName: string]: string },
+    config?: AnyMap,
   ): Promise<CompiledModel>;
   /**
    * Asynchronously reads a model and creates a compiled model
@@ -67,7 +71,7 @@ interface Core {
   compileModel(
     modelPath: string,
     deviceName: string,
-    config?: { [propertyName: string]: string },
+    config?: AnyMap,
   ): Promise<CompiledModel>;
   /**
    * A synchronous version of {@link Core.compileModel}.
@@ -76,7 +80,7 @@ interface Core {
   compileModelSync(
     model: Model,
     deviceName: string,
-    config?: { [propertyName: string]: string },
+    config?: AnyMap,
   ): CompiledModel;
   /**
    * A synchronous version of {@link Core.compileModel}.
@@ -85,7 +89,7 @@ interface Core {
   compileModelSync(
     modelPath: string,
     deviceName: string,
-    config?: { [propertyName: string]: string },
+    config?: AnyMap,
   ): CompiledModel;
   /**
    * It returns a list of available inference devices.
@@ -135,7 +139,7 @@ interface Core {
   importModel(
     modelStream: Buffer,
     device: string,
-    config?: { [key: string]: string | number | boolean },
+    config?: AnyMap,
   ): Promise<CompiledModel>;
   /**
    * A synchronous version of {@link Core.importModel}.
@@ -144,7 +148,7 @@ interface Core {
   importModelSync(
     modelStream: Buffer,
     device: string,
-    config?: { [key: string]: string | number | boolean },
+    config?: AnyMap,
   ): CompiledModel;
   /**
    * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
@@ -197,16 +201,13 @@ interface Core {
    * It sets the properties.
    * @param properties An object with the property name - property value pairs.
    */
-  setProperty(properties: { [key: string]: string | number | boolean }): void;
+  setProperty(properties: AnyMap): void;
   /**
    * It sets the properties for a device.
    * @param deviceName The name of a device.
    * @param properties An object with the property name - property value pairs.
    */
-  setProperty(
-    deviceName: string,
-    properties: { [key: string]: string | number | boolean },
-  ): void;
+  setProperty(deviceName: string, properties: AnyMap): void;
   /**
    * It queries the device if it supports specified model with the specified
    * properties.
@@ -218,8 +219,8 @@ interface Core {
   queryModel(
     model: Model,
     deviceName: string,
-    properties?: {[key: string]: string | number | boolean},
-  ): {[key: string]: string | number | boolean};
+    properties?: AnyMap,
+  ): { [key: string]: string };
 }
 interface CoreConstructor {
   new (): Core;
@@ -380,9 +381,7 @@ interface CompiledModel {
    * @param property An object with the key-value pairs.
    * (property name, property value)
    */
-  setProperty(properties: {
-    [propertyName: string]: string | number | boolean;
-  }): void;
+  setProperty(properties: AnyMap): void;
 }
 
 /**
