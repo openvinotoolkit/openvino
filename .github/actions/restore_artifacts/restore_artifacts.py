@@ -48,7 +48,7 @@ def main():
 
     storage_dir = args.storage_dir or PlatformMapping[PlatformKey[args.platform.upper()]].value
 
-    if args.commit_sha == 'latest_available':
+    if args.commit_sha == 'latest_available_commit':
         latest_artifacts_link = artifact_utils.get_latest_artifacts_link(storage_dir, args.storage_root,
                                                                          args.branch_name, args.event_name)
         latest_artifacts_path = PureWindowsPath(latest_artifacts_link.read_text())

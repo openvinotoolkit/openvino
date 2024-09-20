@@ -2,12 +2,9 @@ name: 'OpenVINO provider'
 description: 'Provides OpenVINO build artifacts from a requested source'
 inputs:
   revision:
-    description: 'Version of OpenVINO to provide - latest_available | HEAD | specific commit hash'
+    description: 'Version of OpenVINO to provide - latest_available_commit | HEAD | specific commit hash | 
+                  latest_nightly | specific package version (e.g. 2024.4.0rc2)'
     required: true
-  artifacts_source:
-    description: "From where to take artifacts: postcommit | s3"
-    default: "postcommit"
-    required: false
   branch_name:
     description: 'Branch of OpenVINO to take the revision from if no specific hash was provided. 
                   Taken from github context by default'
@@ -16,11 +13,12 @@ inputs:
     description: "Name under which to upload provided OpenVINO build artifacts, set automatically by default"
     required: false
   platform:
-    description: "Platform for which to get artifacts: centos7_x86_64 | debian10_armhf | rhel8_x86_64 | ubuntu20_arm64 | 
-      ubuntu20_x86_64 | ubuntu22_x86_64 | ubuntu24_x86_64 | macos_12_6_arm64 | macos_12_6_x86_64 | windows_x86_64"
+    description: "Platform for which to get artifacts: centos7 | debian10 | rhel8 | ubuntu20 | 
+      ubuntu20 | ubuntu22 | ubuntu24 | macos | macos_12_6 | windows"
     required: false
-  package_url:
-    description: 'Direct URL to OpenVINO archive to use, if neither post-commit nor nightly archives are required'
+  arch:
+    description: "Architecture for which to get artifacts: x86_64 | armhf | arm64"
+    default: "x86_64"
     required: false
   install_dir:
     description: 'Local path to install OpenVINO package to. If not specified, package is installed to GitHub workspace 
@@ -56,12 +54,15 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Verify parameters
-      if: ${{ !inputs.platform && !inputs.package_url }}
+    - name: Identify artifacts source
+      id: get_source
       shell: bash
       run: |
-        echo 'Please specify either platform or package_url param'
-        exit 1
+        artifacts_source="postcommit"
+        if [[ "${{ inputs.revision }}" == "latest_nightly" || "${{ inputs.revision }}" =~ ^[0-9]{4}\.[0-9]+\.[0-9]* ]]; then
+          artifacts_source="s3"
+        fi
+        echo "artifacts_source=$artifacts_source" >> $GITHUB_OUTPUT
 
     - name: Get action revision
       id: get_action_revision
@@ -101,10 +102,10 @@ runs:
     # --- Post-commit case ---
     - name: Download post-commit OpenVINO archives
       id: openvino_commit_download
-      if: inputs.artifacts_source == 'postcommit'
+      if: steps.get_source.outputs.artifacts_source == 'postcommit'
       uses: ./.github/actions/restore_artifacts
       with:
-        platform: ${{ inputs.platform }}
+        platform: ${{ inputs.platform }}_${{ inputs.arch }}
         storage_root: ${{ inputs.commit_share_path }}
         event_name: "commit"
         trigger_repo_sha: ${{ env.OV_REVISION }}
@@ -150,24 +151,26 @@ runs:
         path: ${{ steps.openvino_commit_output.outputs.ov_package_path }}
         if-no-files-found: 'error'
 
-    # --- S3 case (nightly or direct URL) ---
-    - name: Verify parameters
-      if: inputs.artifacts_source == 's3' && inputs.revision != 'latest_available'
+    # --- S3 case ---
+    - name: Get a specific S3 package URL
+      id: get_s3_package
+      if: steps.get_source.outputs.artifacts_source == 's3' && inputs.revision != 'latest_nightly'
       shell: bash
-      run: |
-        echo "S3 build source provides only 'latest_available' artifacts, specific revision not yet supported"
-        exit 1
+      run: >-
+        python3 $GITHUB_ACTION_PATH/get_s3_package.py --product openvino --platform ${{ inputs.platform }} --arch ${{ inputs.arch }} 
+        --version ${{ inputs.revision }}
 
-    - name: Download OpenVINO archives
+    - name: Download nightly OpenVINO archives
       id: openvino_s3_download
-      if: inputs.artifacts_source == 's3' || inputs.package_url
+      if: steps.get_source.outputs.artifacts_source == 's3'
       shell: bash
       run: |
-        if [ ${{ inputs.package_url }} ]; then
-          ov_package_url=${{ inputs.package_url }}
+        if [ ${{ steps.get_s3_package.outcome }} != 'skipped' ]; then
+          ov_package_url=${{ steps.get_s3_package.outputs.package_url }}
         else
-          ov_package_url=$(curl -s ${{ inputs.nightly_package_source }} | jq -r '.${{ inputs.platform }}')
+          ov_package_url=$(curl -s ${{ inputs.nightly_package_source }} | jq -r '.${{ inputs.platform }}_${{ inputs.arch }}')
         fi
+        ov_package_url=$(curl -s ${{ inputs.nightly_package_source }} | jq -r '.${{ inputs.platform }}_${{ inputs.arch }}')
         cd ${{ inputs.install_dir || env.GITHUB_WORKSPACE }}
         package_basename=$(basename $ov_package_url)
         wget $ov_package_url --progress=bar:force:noscroll -O $package_basename
