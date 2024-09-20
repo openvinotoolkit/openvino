@@ -2298,10 +2298,11 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
 
             if (dep.first->is_type<data>()) {
                 auto& data_node = dep.first->as<data>();
-                if (dep_idx < prim_of_fused_node->dependencies().size())
+                // need to rename primitive ids of dependent data of the current fused nodes with those in the original primitive
+                if (dep_idx >= prim_of_fused_node->input_size() && dep_idx < prim_of_fused_node->dependencies().size())
                     dep_id = prim_of_fused_node->dependencies()[dep_idx].pid;
                 // mem field of original primitive can be nullified during transfer_memory_to_device pass, thus use mem from program_node
-                cldnn::data data_prim(dep_id, data_node.get_attached_memory_ptr());
+                data data_prim(dep_id, data_node.get_attached_memory_ptr());
                 t.add(data_prim);
             } else {
                 input_layout in_prim(dep_id, dep.first->get_output_layout());
