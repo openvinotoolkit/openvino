@@ -55,6 +55,7 @@ struct data : public primitive_base<data> {
         ob << make_data(&data_size, sizeof(size_t));
 
         bool is_cache_without_weights = bin_offset != SIZE_MAX && data_size == original_size && !weights_path.empty();
+
         if (is_cache_without_weights) {
             ob << true;
             ob << bin_offset;
@@ -75,7 +76,9 @@ struct data : public primitive_base<data> {
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<data>::load(ib);
+    }
 
+    void load_weights(BinaryInputBuffer& ib, std::shared_ptr<ov::MappedMemory> mapped_weights) {
         layout output_layout = layout();
         ib >> output_layout;
 
@@ -89,6 +92,9 @@ struct data : public primitive_base<data> {
 
         bool is_cache_without_weights;
         ib >> is_cache_without_weights;
+        if (is_cache_without_weights && mapped_weights == nullptr) {
+            OPENVINO_THROW("mmap object is null");
+        }
 
         std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>> shared_buf;
         if (is_cache_without_weights) {
@@ -96,12 +102,12 @@ struct data : public primitive_base<data> {
             ib >> weights_path;
             original_size = data_size;
 
-            auto mapped_memory = ov::load_mmap_object(weights_path);
             shared_buf = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
-                mapped_memory->data() + bin_offset,
+                mapped_weights->data() + bin_offset,
                 data_size,
-                mapped_memory);
+                mapped_weights);
         }
+
         if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
             if (is_cache_without_weights) {
                 std::memcpy(reinterpret_cast<uint8_t*>(mem->buffer_ptr()), shared_buf->get_ptr<uint8_t>(), data_size);
@@ -167,6 +173,35 @@ struct data : public primitive_base<data> {
                 if (ev1 != nullptr) {
                     ev1->wait();
                 }
+            }
+        }
+    }
+
+    bool operator==(const data& rhs) const {
+        auto _allocation_type = mem->get_allocation_type();
+
+        if (original_size != rhs.original_size
+            || weights_path != rhs.weights_path
+            || _allocation_type != rhs.mem->get_allocation_type()) {
+            return false;
+        }
+
+        if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
+            if (!std::equal(reinterpret_cast<uint8_t*>(mem->buffer_ptr()),
+                            reinterpret_cast<uint8_t*>(mem->buffer_ptr()) + original_size,
+                            reinterpret_cast<uint8_t*>(rhs.mem->buffer_ptr()))) {
+                return false;
+            }
+        } else {
+            std::vector<uint8_t> _buf, _rhs_buf;
+            _buf.resize(original_size);
+            _rhs_buf.resize(original_size);
+            auto& strm = mem->get_engine()->get_service_stream();
+            auto& rhs_strm = rhs.mem->get_engine()->get_service_stream();
+            mem->copy_to(strm, _buf.data());
+            rhs.mem->copy_to(rhs_strm, _rhs_buf.data());
+            if (!std::equal(_buf.begin(), _buf.end(), _rhs_buf.begin())) {
+                return false;
             }
         }
     }
