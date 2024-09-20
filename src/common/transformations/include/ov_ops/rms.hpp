@@ -26,7 +26,8 @@ public:
     /// \param output_type Output element type
     RMS(const Output<Node>& data,
         const Output<Node>& gamma,
-        double epsilson);
+        double epsilson,
+        const ov::element::Type output_type = ov::element::undefined);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
@@ -44,6 +45,7 @@ public:
 
 private:
     double m_epsilon{0};
+    ov::element::Type m_output_type;
 };
 
 }  // namespace internal
