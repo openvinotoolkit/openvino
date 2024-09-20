@@ -24,7 +24,8 @@ Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository
    from openvino import get_cmake_path
    cmake_path = get_cmake_path()
    
-   For detailed instructions on how to use these configurations in your build setup, check out the :ref:`Create a library with extensions <create_a_library_with_extensions>` section.
+For detailed instructions on how to use these configurations in your build setup, check out the
+:ref:`Create a library with extensions <create_a_library_with_extensions>` section.
 
 .. tab-set::
 
