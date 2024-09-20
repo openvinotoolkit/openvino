@@ -1,9 +1,6 @@
 // Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Copyright (C) 2024 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-//
 
 #include "fully_connected_sycl.hpp"
 #include "fully_connected_inst.h"
@@ -349,22 +346,10 @@ struct fully_connected_sycl : typed_primitive_sycl_impl<fully_connected> {
     event::ptr execute_impl(const std::vector<event::ptr>& /* events */, typed_primitive_inst<fully_connected>& instance) override {
         auto& network = instance.get_network();
         const auto& desc = instance.get_typed_desc<fully_connected>();
-        const bool print = false;
-
-        auto start = std::chrono::high_resolution_clock::now();
-        // auto& stream = dynamic_cast<ocl::ocl_stream&>(network.get_stream());
-        // auto& engine = dynamic_cast<ocl::ocl_engine&>(network.get_engine());
-        // ::sycl::context sycl_context = ::sycl::make_context<::sycl::backend::opencl>(engine.get_cl_context().get());
-        // ::sycl::queue sycl_queue = ::sycl::make_queue<::sycl::backend::opencl>(stream.get_cl_queue().get(), sycl_context);
-
         auto& stream = downcast<ocl::sycl_stream>(network.get_stream());
         auto& engine = downcast<ocl::sycl_engine>(network.get_engine());
         ::sycl::context sycl_context = engine.get_sycl_context();
         ::sycl::queue& sycl_queue = stream.get_sycl_queue();
-        auto end = std::chrono::high_resolution_clock::now();
-
-        if (print)
-            std::cerr << "init time: " << std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << " us" << std::endl;
 
         const auto& params = instance.get_impl_params();
         auto out_shape = params->output_layouts[0].get_shape();
@@ -383,67 +368,29 @@ struct fully_connected_sycl : typed_primitive_sycl_impl<fully_connected> {
 
         OPENVINO_ASSERT(!instance.bias_term() && !instance.get_node().has_fused_primitives());
 
-        ov::element::Type_t in_t = params->input_layouts[0].data_type;
-        ov::element::Type_t wei_t = params->weights_layout.value().data_type;
         ov::element::Type_t out_t = params->output_layouts[0].data_type;
-        ov::element::Type_t ds_t = params->input_layouts[2].data_type;
-        ov::element::Type_t dzp_t = inputs.size() == 3 ? params->input_layouts[3].data_type : ov::element::Type_t::undefined;
 
         OPENVINO_ASSERT(out_shape.size() == 3);
         size_t M = out_shape[1];
         size_t N = out_shape[2];
         size_t K = params->weights_layout.value().get_partial_shape()[1].get_length();
-        size_t groups_num = params->input_layouts[2].get_shape()[1];
-        size_t group_size = K / groups_num;
 
         void* in = static_cast<void*>(inputs[0]->buffer_ptr());
         void* wei = static_cast<void*>(weights->buffer_ptr());
         void* out = static_cast<void*>(output->buffer_ptr());
         void* ds = static_cast<void*>(inputs[1]->buffer_ptr());
-        void* dzp = inputs.size() == 3 ? static_cast<void*>(inputs[2]->buffer_ptr()) : nullptr;
-
-
-        if (print) {
-            std::cerr << "in: " << params->input_layouts[0].to_short_string() << std::endl;
-            std::cerr << "wei: " << params->weights_layout.value().to_short_string() << std::endl;
-            std::cerr << "out: " << params->output_layouts[0].to_short_string() << std::endl;
-            std::cerr << "scale: " << params->input_layouts[2].to_short_string() << std::endl;
-            std::cerr << "zp: " << (params->input_layouts.size() == 4 ? params->input_layouts[3].to_short_string()  : "none") << std::endl;
-
-            std::cerr << "M = " << M << std::endl;
-            std::cerr << "N = " << N << std::endl;
-            std::cerr << "K = " << K << std::endl;
-            std::cerr << "groups_num = " << groups_num << std::endl;
-            std::cerr << "group_size = " << group_size << std::endl;
-            std::cerr << "in_t = " << in_t << std::endl;
-            std::cerr << "wei_t = " << wei_t << std::endl;
-            std::cerr << "out_t = " << out_t << std::endl;
-            std::cerr << "ds_t = " << ds_t << std::endl;
-            std::cerr << "dzp_t = " << dzp_t << std::endl;
-
-            std::cerr << "in = " << in << std::endl;
-            std::cerr << "wei = " << wei << std::endl;
-            std::cerr << "out = " << out << std::endl;
-            std::cerr << "ds = " << ds << std::endl;
-            std::cerr << "dzp = " << dzp << std::endl;
-        }
 
         OPENVINO_ASSERT(inputs.size() >= 2);
 
         auto dzp_scalar = desc->decompression_zero_point_scalar;
 
-        bool barrier = stream.get_queue_type() == QueueTypes::out_of_order;
+        if (out_t == ov::element::f16) {
+            return to_ocl_event(stream, run_fc_q4_0_fp16out(sycl_queue, in, wei, ds, out, M, N, K));
+        } else if (out_t == ov::element::f32) {
+            return to_ocl_event(stream, run_fc_q4_0_fp32out(sycl_queue, in, wei, ds, out, M, N, K));
+        }
 
-        if (out_t == ov::element::f16){
-          // const ::sycl::half* in = static_cast<const ::sycl::half*>(inputs[0]->buffer_ptr());
-          // const uint8_t* wei = static_cast<const uint8_t*>(weights->buffer_ptr());
-          // ::sycl::half* out = static_cast<::sycl::half*>(output->buffer_ptr());
-          // const ::sycl::half* ds = static_cast<const ::sycl::half*>(inputs[1]->buffer_ptr());
-          return to_ocl_event(stream, run_fc_q4_0_fp16out(sycl_queue, in, wei, ds, out, M, N, K));
-        }
-        else if (out_t == ov::element::f32){
-          return to_ocl_event(stream, run_fc_q4_0_fp32out(sycl_queue, in, wei, ds, out, M, N, K));
-        }
+        OPENVINO_THROW("Unspported output type: ", out_t);
     }
 
     static std::shared_ptr<WeightsReorderParams> get_weights_reorder(const kernel_impl_params& impl_params) {

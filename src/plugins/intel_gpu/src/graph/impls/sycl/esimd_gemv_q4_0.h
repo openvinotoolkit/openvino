@@ -1,3 +1,7 @@
+// Copyright (C) 2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include <ext/intel/esimd.hpp>
 using fp16 = ::sycl::half;
 
@@ -230,7 +234,6 @@ ESIMD_INLINE void matrixMulCommonDim11008Int4NoReshapeNx16V2_ipex(
   __ESIMD_NS::slm_init(16 * 128 * sizeof(float));
   int hh = ndi.get_local_id(0); // [0, 64)
   int h = ndi.get_group(0); // [0, 256)
-  int rowSize = ndi.get_group_range(0) * pixelPerGroup;
   int offsetABase = (h * pixelPerGroup * 11008 + hh * 8 * 8) >> 1;
   int offsetQuanBase = /*rowSize * 5504 +*/ h * quantPerGroup * sizeof(fp16) +
       hh * 2 * sizeof(fp16);
@@ -643,7 +646,6 @@ ESIMD_INLINE void matrixMulCommonDim11008Int4NoReshapeNx16V2_ipex_FP32out(
   __ESIMD_NS::slm_init(16 * 128 * sizeof(float));
   int hh = ndi.get_local_id(0); // [0, 64)
   int h = ndi.get_group(0); // [0, 256)
-  int rowSize = ndi.get_group_range(0) * pixelPerGroup;
   int offsetABase = (h * pixelPerGroup * 11008 + hh * 8 * 8) >> 1;
   int offsetQuanBase = /*rowSize * 5504 +*/ h * quantPerGroup * sizeof(fp16) +
       hh * 2 * sizeof(fp16);
