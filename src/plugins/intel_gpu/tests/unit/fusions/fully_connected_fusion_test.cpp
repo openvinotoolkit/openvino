@@ -899,3 +899,45 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_add_ocl_dynamic, ::testing
     fully_connected_test_params{ DYN_CASE_FC_FP16_3D_1, 2, 3 },
     fully_connected_test_params{ DYN_CASE_FC_FP16_3D_2, 2, 3 },
 }));
+
+class fc_imad_int8_eltwise_add_ocl_dynamic : public FullyConnectedFusingTest {
+public:
+    void run_test() {
+        auto p = GetParam();
+        auto test_input_layout = get_input_layout(p);
+
+        auto dyn_input_pshape = ov::PartialShape::dynamic(test_input_layout.get_partial_shape().size());
+        dyn_input_pshape[p.in_shape.size() - 1] = p.in_shape[p.in_shape.size() - 1];
+        auto dynamic_input_layout = layout{dyn_input_pshape, test_input_layout.data_type, test_input_layout.format};
+
+        auto eltwise_data_shape = p.out_shape.size() == 3 ? ov::PartialShape{1, 1, p.out_shape[2]} : ov::PartialShape{1, p.out_shape[1]};
+        auto eltwise_data_layout = layout{eltwise_data_shape, p.default_type, p.default_format};
+
+        create_topologies(
+            input_layout("input", dynamic_input_layout),
+            data("weights", get_mem(get_weights_layout(p))),
+            data("bias", get_mem(get_bias_layout(p))),
+            data("eltwise_data", get_mem(eltwise_data_layout, 1, 9)),
+            fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p)),
+            eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sum),
+            reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
+        );
+
+        ov::intel_gpu::ImplementationDesc fc_impl = { p.input_format, "fully_connected_gpu_imad", impl_types::ocl };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "fc_prim", fc_impl } }));
+
+        tolerance = default_tolerance(p.data_type);
+        execute(p, true);
+    }
+};
+
+TEST_P(fc_imad_int8_eltwise_add_ocl_dynamic, basic) {
+    if (engine.get_device_info().supports_immad)
+        return;
+    run_test();
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_imad_int8_eltwise_add_ocl_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_U8S8_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_U8S8_4, 2, 3 },
+}));
