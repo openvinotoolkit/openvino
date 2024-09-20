@@ -26,8 +26,6 @@
 extern std::map<ov_element_type_e, size_t> element_type_size_map;
 #define GET_ELEMENT_TYPE_SIZE(a) element_type_size_map[a]
 
-inline std::string get_extension_file_path();
-
 class ov_capi_test_base : public ::testing::TestWithParam<std::string> {
 public:
     void SetUp() override {
@@ -43,12 +41,11 @@ public:
 
 public:
     std::string xml_file_name, bin_file_name, extension_file_path;
+    inline std::string get_extension_file_path() {
+        return ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
+                                                        std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
+    }
 };
-
-inline std::string get_extension_file_path() {
-    return ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
-                                                    std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
-}
 
 inline size_t find_device(ov_available_devices_t avai_devices, const char* device_name) {
     for (size_t i = 0; i < avai_devices.size; ++i) {
