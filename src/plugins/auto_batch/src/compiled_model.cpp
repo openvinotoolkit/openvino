@@ -87,6 +87,7 @@ CompiledModel::GetWorkerInferRequest() const {
                     status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(m_time_out));
                     if ((status != std::cv_status::timeout) && (workerRequestPtr->_is_wakeup == false))
                         continue;
+                    workerRequestPtr->_is_wakeup = false;
                 }
                 if (m_terminate) {
                     break;
