@@ -41,7 +41,7 @@ extract(${CMAKE_CURRENT_SOURCE_DIR}/libjpeg.tgz ${CMAKE_CURRENT_SOURCE_DIR} TRUE
 
 if(result_var STREQUAL  "1")
     ov_build_jpeg()
-    ov_install_static_lib(jpeg ${OV_CPACK_COMP_CORE})
+    # ov_install_static_lib(jpeg ${OV_CPACK_COMP_CORE})
     
     foreach(comp IN ITEMS ${jpeg_hdrs})
         file(COPY ${comp} DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/libjpeg")

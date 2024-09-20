@@ -6,6 +6,8 @@ cmake_policy(VERSION 3.1)
 
 project(gif C)
 
+set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 -fPIC -Wall -Wno-format-truncation")
+
 if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4996 /wd4244 /W3")
     set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /wd4995 /wd4244 /wd4996")
@@ -51,13 +53,10 @@ if(result_var STREQUAL  "1")
     set_property(TARGET ${TARGET_NAME} PROPERTY COMPILE_FLAGS "-fPIC")
     set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME gif)
 
-    install(TARGETS ${TARGET_NAME} EXPORT ${CMAKE_PROJECT_NAME}Targets
-        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-
     add_library(openvino::gif ALIAS ${TARGET_NAME})
+    ov_developer_package_export_targets(TARGET openvino::gif)
 
-    ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
+    # ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
     foreach(comp IN ITEMS ${gif_hdrs})
         message(STATUS "COPY file ${comp} to ${CMAKE_CURRENT_BINARY_DIR}/include")
@@ -65,7 +64,6 @@ if(result_var STREQUAL  "1")
     endforeach()
 
     set_target_properties(${TARGET_NAME} PROPERTIES FOLDER thirdparty)
-
     set(GIF_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include" PARENT_SCOPE)
     set(GIF_FOUND TRUE PARENT_SCOPE)
 else()

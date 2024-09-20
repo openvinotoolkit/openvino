@@ -64,3 +64,6 @@ add_library(openvino::zlib ALIAS ${TARGET_NAME})
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/zlib")
 
 set_target_properties(${TARGET_NAME} PROPERTIES FOLDER thirdparty)
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "")
+ov_developer_package_export_targets(TARGET openvino::zlib)

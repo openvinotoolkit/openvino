@@ -6,6 +6,7 @@ function(ov_build_png)
     set(BUILD_SHARED_LIBS OFF)
     set(PNG_SHARED OFF)
     set(PNG_TESTS OFF)
+    set(PNG_BUILD_ZLIB ON)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # '<': signed/unsigned mismatch
         ov_add_compiler_flags(/wd4018)
@@ -38,7 +39,7 @@ extract(${CMAKE_CURRENT_SOURCE_DIR}/libpng-1.6.37.tar.gz ${CMAKE_CURRENT_SOURCE_
 
 if(result_var STREQUAL  "1")
     ov_build_png()
-    ov_install_static_lib(png ${OV_CPACK_COMP_CORE})
+    # ov_install_static_lib(png ${OV_CPACK_COMP_CORE})
 
     foreach(comp IN ITEMS ${png_hdrs})
         file(COPY ${comp} DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/libpng-1.6.37")

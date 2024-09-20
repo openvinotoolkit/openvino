@@ -48,29 +48,27 @@ target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads openvino::core::de
 
 if(JPEG_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE openvino::jpeg)
-    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-        ${JPEG_INCLUDE_DIR})
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${JPEG_INCLUDE_DIR})
     add_compile_definitions(WITH_JPEG)
-    message(STATUS "BUild JPEG from thirdparty, JPEG_INCLUDE_DIR=${JPEG_INCLUDE_DIR}") 
+    message(STATUS "BUild JPEG from thirdparty/jpeg, JPEG_INCLUDE_DIR=${JPEG_INCLUDE_DIR}")
 endif()
 
 
 # #find png vars
 if(PNG_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE openvino::png)
-    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-        ${PNG_INCLUDE_DIR})
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino::zlib)
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${PNG_INCLUDE_DIR})
     add_compile_definitions(WITH_PNG)
-    message(STATUS "BUild PNG from thirdparty, PNG_INCLUDE_DIR=${PNG_INCLUDE_DIR}") 
+    message(STATUS "BUild PNG from thirdparty/png, PNG_INCLUDE_DIR=${PNG_INCLUDE_DIR}")
 endif()
 
 #find gif vars
 if(GIF_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE openvino::gif)
-    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-        ${GIF_INCLUDE_DIR})
-add_compile_definitions(WITH_GIF)
-    message(STATUS "BUild GIF from thirdparty, GIF_INCLUDE_DIR=${GIF_INCLUDE_DIR}") 
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${GIF_INCLUDE_DIR})
+    add_compile_definitions(WITH_GIF)
+    message(STATUS "BUild GIF from thirdparty/gif, GIF_INCLUDE_DIR=${GIF_INCLUDE_DIR}")
 endif()
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
