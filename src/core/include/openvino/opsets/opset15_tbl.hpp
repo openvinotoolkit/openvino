@@ -25,4 +25,3 @@ _OPENVINO_OP_REG(BitwiseLeftShift, ov::op::v15)
 _OPENVINO_OP_REG(BitwiseRightShift, ov::op::v15)
 _OPENVINO_OP_REG(SliceScatter, ov::op::v15)
 _OPENVINO_OP_REG(Identity, ov::op::v15)
-

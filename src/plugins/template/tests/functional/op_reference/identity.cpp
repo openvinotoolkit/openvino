@@ -100,13 +100,22 @@ std::vector<IdentityParams> generateIdentityParams() {
 }
 
 std::vector<IdentityParams> generateIdentityParams() {
-    std::vector<std::vector<IdentityParams>> combo_params{generateIdentityParams<ov::element::f64>(),
-                                                          generateIdentityParams<ov::element::f32>(),
-                                                          generateIdentityParams<ov::element::f16>(),
+    std::vector<std::vector<IdentityParams>> combo_params{generateIdentityParams<ov::element::boolean>(),
                                                           generateIdentityParams<ov::element::bf16>(),
-                                                          generateIdentityParams<ov::element::i64>(),
+                                                          generateIdentityParams<ov::element::f16>(),
+                                                          generateIdentityParams<ov::element::f64>(),
+                                                          generateIdentityParams<ov::element::f32>(),
+                                                          generateIdentityParams<ov::element::i4>(),
+                                                          generateIdentityParams<ov::element::i8>(),
+                                                          generateIdentityParams<ov::element::i16>(),
                                                           generateIdentityParams<ov::element::i32>(),
-                                                          generateIdentityParams<ov::element::u16>()};
+                                                          generateIdentityParams<ov::element::i64>(),
+                                                          generateIdentityParams<ov::element::u1>(),
+                                                          generateIdentityParams<ov::element::u4>(),
+                                                          generateIdentityParams<ov::element::u8>(),
+                                                          generateIdentityParams<ov::element::u16>(),
+                                                          generateIdentityParams<ov::element::u32>(),
+                                                          generateIdentityParams<ov::element::u64>()};
     std::vector<IdentityParams> test_params;
     for (auto& params : combo_params)
         std::move(params.begin(), params.end(), std::back_inserter(test_params));
