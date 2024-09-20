@@ -17,6 +17,7 @@
 #include "openvino/pass/manager.hpp"
 #include "plugin/transformations/pa_tensor_parallel.hpp"
 #include "plugin/transformations/fc_all_reduce.hpp"
+#include "plugin/transformations/mlp_tensor_parallel.hpp"
 #include "plugin/transformations/remaining_fc_parallel.hpp"
 #include <sys/types.h>
 #include "openvino/pass/visualize_tree.hpp"
@@ -138,18 +139,13 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                         manager.register_pass<ov::intel_gpu::PATensorParallelFusion>(config.get_context_for_tp().size(),
                                                                                      i);
                     }
+                    manager.register_pass<ov::intel_gpu::MLPTensorParallelFusion>(config.get_context_for_tp().size(), i);
                     manager.register_pass<ov::intel_gpu::RemainFCParallelFusion>(config.get_context_for_tp().size(), i);
                     manager.run_passes(model_clone);
                 }
-                // ov::serialize(model_clone, "integrated_vllm_pa_p2p_concat_bs_" + std::to_string(i) + ".xml");
-                m_sub_compiled_models.push_back(
-                    std::make_shared<CompiledModel>(model_clone,
-                                                    plugin,
-                                                    m_config.get_context_for_tp()[i].as<RemoteContextImpl::Ptr>(),
-                                                    configs_for_tp[i],
-                                                    m_sub_memory_manager));
-                GPU_DEBUG_TRACE_DETAIL << "sub models for TP created, rank " << configs_for_tp[i].streamsRankTable[i][0]
-                                       << std::endl;
+                m_sub_compiled_models.push_back(std::make_shared<CompiledModel>(
+                    model_clone, plugin, m_config.get_context_for_tp()[i].as<RemoteContextImpl::Ptr>(), configs_for_tp[i], m_sub_memory_manager));
+                GPU_DEBUG_TRACE_DETAIL << "sub models for TP created, rank " << configs_for_tp[i].streamsRankTable[i][0] << std::endl;
             };
             sub_tasks.push_back(std::bind(compile_tp_model, i));
         }

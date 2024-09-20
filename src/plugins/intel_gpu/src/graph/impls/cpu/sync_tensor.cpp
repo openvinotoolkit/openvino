@@ -44,12 +44,14 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
     event::ptr execute_impl(const std::vector<event::ptr>& events, sync_tensor_inst& instance) override {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "sync_tensor::execute_impl");
         auto& stream = instance.get_network().get_stream();
+        auto start = std::chrono::high_resolution_clock::now();
         const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
         if (!pass_through_events) {
             for (auto e : events) {
                 e->wait();
             }
         }
+        instance.sync_wait_times = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
         auto sub_mem_mgr = instance.get_network().get_sub_mem_mgr();
         auto w_rank = instance.get_network().get_program()->get_config().subStreamExecConfig.get_rank()[0];
         auto w_size = instance.get_network().get_program()->get_config().get_context_for_tp().size();

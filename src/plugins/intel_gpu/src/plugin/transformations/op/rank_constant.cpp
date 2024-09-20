@@ -15,7 +15,8 @@ RankConstant::RankConstant(const std::shared_ptr<ov::Node>& constant_data,
                            const size_t world_size,
                            const size_t world_rank,
                            const TP_MODE tp_mode,
-                           const std::vector<int64_t> qkv_parts)
+                           const std::vector<int64_t> qkv_parts,
+                           const int group_size)
     : ov::op::v0::Constant(*std::dynamic_pointer_cast<ov::op::v0::Constant>(constant_data)),
       m_world_size(world_size),
       m_world_rank(world_rank),
@@ -45,14 +46,31 @@ RankConstant::RankConstant(const std::shared_ptr<ov::Node>& constant_data,
         break;
     }
     }
-    auto split_parts = [](int len, int n) {
+    auto split_parts = [&](int len, int n) {
         int average = len / n;
-        std::vector<int> parts(n, average);
-        parts.back() = len - average * (n - 1);
-        return parts;
+        if (average < group_size) {
+            // zp/scale
+            auto split_avg = std::ceil(static_cast<float> (len) / n);
+            std::vector<size_t> parts(n, split_avg);
+            parts.back() = len - split_avg * (n - 1);
+            return parts;
+        } else if (average % group_size == 0) {
+            std::vector<size_t> parts(n, average);
+            parts.back() = len - average * (n - 1);
+            return parts;
+        } else {
+            auto fraction = static_cast<float>(average) / group_size;
+            auto padding_len = (std::ceil(fraction) - fraction) * group_size;
+            std::vector<size_t> parts(n, average);
+            for (auto iter = parts.begin(); iter != parts.end() - 1; ++iter) {
+                *iter += padding_len;
+            }
+            parts.back() = len - (average + padding_len) * (n - 1);
+            return parts;
+        }
     };
-    auto split_dims = split_parts(m_shape[split_dim], m_world_size);
-    m_shape[split_dim] = split_dims.at(m_world_rank);
+    m_split_info = split_parts(m_shape[split_dim], m_world_size);
+    m_shape[split_dim] = m_split_info.at(m_world_rank);
     validate_and_infer_types();
 }
 

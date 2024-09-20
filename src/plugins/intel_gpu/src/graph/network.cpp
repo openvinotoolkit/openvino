@@ -449,49 +449,23 @@ network::network(program::ptr program, stream::ptr stream, uint16_t stream_id, o
 
 network::~network() {
     GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
-        if (tp_host_times["sync_tensor_all_reduce"].size() >= 2) {
-            double first = static_cast<double>(tp_host_times["sync_tensor_all_reduce"][0]);
-            double avg = static_cast<double>(
-                std::accumulate(
-                    tp_host_times["sync_tensor_all_reduce"].begin() + 1, tp_host_times["sync_tensor_all_reduce"].end(), (size_t)0, std::plus<size_t>()));
-            avg /= (tp_host_times["sync_tensor_all_reduce"].size() - 1);
-            std::string resolution = " us";
-            if (avg > 1000.0) {
-                resolution = " ms";
-                avg /= 1000.0;
-                first /= 1000.0;
+        for (auto& iter : tp_host_times) {
+            if (tp_host_times[iter.first].size() >= 2) {
+                double first = static_cast<double>(tp_host_times[iter.first][0]);
+                double avg = static_cast<double>(
+                    std::accumulate(
+                        tp_host_times[iter.first].begin() + 1, tp_host_times[iter.first].end(),
+                        (size_t)0, std::plus<size_t>()));
+                avg /= (tp_host_times[iter.first].size() - 1);
+                std::string resolution = " us";
+                if (avg > 1000.0) {
+                    resolution = " ms";
+                    avg /= 1000.0;
+                    first /= 1000.0;
+                }
+                GPU_DEBUG_COUT << "Network[" << net_id << "] First infer total " << iter.first << "  time: " << first << resolution << std::endl;
+                GPU_DEBUG_COUT << "Network[" << net_id << "] total " << iter.first << " avg host time: " << avg << resolution << std::endl;
             }
-            GPU_DEBUG_COUT << "Network[" << net_id << "] First infer total sync tensor all reduce host time: " << first << resolution << std::endl;
-            GPU_DEBUG_COUT << "Network[" << net_id << "] total sync tensor all reduce avg host time: " << avg << resolution << std::endl;
-        }
-        if (tp_host_times["sync_tensor_all_gather"].size() >= 2) {
-            double first = static_cast<double>(tp_host_times["sync_tensor_all_gather"][0]);
-            double avg = static_cast<double>(
-                std::accumulate(
-                    tp_host_times["sync_tensor_all_gather"].begin() + 1, tp_host_times["sync_tensor_all_gather"].end(), (size_t)0, std::plus<size_t>()));
-            avg /= (tp_host_times["sync_tensor_all_gather"].size() - 1);
-            std::string resolution = " us";
-            if (avg > 1000.0) {
-                resolution = " ms";
-                avg /= 1000.0;
-                first /= 1000.0;
-            }
-            GPU_DEBUG_COUT << "Network[" << net_id << "] First infer total sync tensor all gather host time: " << first << resolution << std::endl;
-            GPU_DEBUG_COUT << "Network[" << net_id << "] total sync tensor all gather avg host time: " << avg << resolution << std::endl;
-        }
-        if (tp_host_times["concat"].size() >= 2) {
-            double first = static_cast<double>(tp_host_times["concat"][0]);
-            double avg = static_cast<double>(
-                std::accumulate(tp_host_times["concat"].begin() + 1, tp_host_times["concat"].end(), (size_t)0, std::plus<size_t>()));
-            avg /= (tp_host_times["concat"].size() - 1);
-            std::string resolution = " us";
-            if (avg > 1000.0) {
-                resolution = " ms";
-                avg /= 1000.0;
-                first /= 1000.0;
-            }
-            GPU_DEBUG_COUT << "Network[" << net_id << "] First infer total concat host time: " << first << resolution << std::endl;
-            GPU_DEBUG_COUT << "Network[" << net_id << "] total concat avg host time: " << avg << resolution << std::endl;
         }
     }
     #ifdef GPU_DEBUG_CONFIG
@@ -1091,14 +1065,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     const size_t flush_frequency = needs_flushing ? 16 : 0;
     size_t executed_prims = 0;
     std::map<std::string, std::vector<int64_t>> tp_host_times_each_iter;
-    tp_host_times_each_iter["sync_tensor_all_reduce"];
-    tp_host_times_each_iter["sync_tensor_all_gather"];
-    tp_host_times_each_iter["concat"];
     for (auto& inst : _exec_order) {
         auto start = std::chrono::high_resolution_clock::now();
-        if (inst->get_node().is_type<sync_tensor>() || inst->get_node().is_type<concatenation>()) {
-            start = std::chrono::high_resolution_clock::now();
-        }
         // Load binary dump for input layers
         GPU_DEBUG_IF(!debug_config->load_layers_raw_dump.empty()) {
             const std::string layer_name = inst->id();
@@ -1264,36 +1232,30 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                 }
             }
         }
-        if (inst->get_node().is_type<sync_tensor>() || inst->get_node().is_type<concatenation>()) {
-            auto end = std::chrono::high_resolution_clock::now();
+        if (net_id == 1) {
             GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
+                auto end = std::chrono::high_resolution_clock::now();
                 if (inst->get_node().is_type<sync_tensor>()) {
-                    if (inst->get_impl_params()->need_add)
+                    if (inst->get_impl_params()->need_add) {
                         tp_host_times_each_iter["sync_tensor_all_reduce"].push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
-                    else
+                        tp_host_times_each_iter["sync_tensor_all_reduce_wait"].push_back(inst->sync_wait_times);
+                    } else {
                         tp_host_times_each_iter["sync_tensor_all_gather"].push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+                        tp_host_times_each_iter["sync_tensor_all_gather_wait"].push_back(inst->sync_wait_times);
+                    }
                 } else {
-                    tp_host_times_each_iter["concat"].push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+                    tp_host_times_each_iter[inst->get_node().get_primitive()->get_type_info()].push_back(
+                        std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
                 }
             }
         }
     }
     // statistic for each iter
     GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
-        if (tp_host_times_each_iter["sync_tensor_all_reduce"].size() >= 1) {
-            const auto begin = std::begin(tp_host_times_each_iter["sync_tensor_all_reduce"]);
-            const auto end = std::end(tp_host_times_each_iter["sync_tensor_all_reduce"]);
-            tp_host_times["sync_tensor_all_reduce"].push_back(std::accumulate(begin, end, (size_t)0, std::plus<size_t>()));
-        }
-        if (tp_host_times_each_iter["sync_tensor_all_gather"].size() >= 1) {
-            const auto begin = std::begin(tp_host_times_each_iter["sync_tensor_all_gather"]);
-            const auto end = std::end(tp_host_times_each_iter["sync_tensor_all_gather"]);
-            tp_host_times["sync_tensor_all_gather"].push_back(std::accumulate(begin, end, (size_t)0, std::plus<size_t>()));
-        }
-        if (tp_host_times_each_iter["concat"].size() >= 1) {
-            const auto begin = std::begin(tp_host_times_each_iter["concat"]);
-            const auto end = std::end(tp_host_times_each_iter["concat"]);
-            tp_host_times["concat"].push_back(std::accumulate(begin, end, (size_t)0, std::plus<size_t>()));
+        for (auto& iter : tp_host_times_each_iter) {
+            const auto begin = std::begin(tp_host_times_each_iter[iter.first]);
+            const auto end = std::end(tp_host_times_each_iter[iter.first]);
+            tp_host_times[iter.first].push_back(std::accumulate(begin, end, (size_t)0, std::plus<size_t>()));
         }
     }
     #ifdef GPU_DEBUG_CONFIG
