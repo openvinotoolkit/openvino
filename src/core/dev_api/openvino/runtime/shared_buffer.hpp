@@ -8,7 +8,7 @@
 
 namespace ov {
 
-/// \brief SharedBuffer class to store pointer to pre-acclocated buffer.
+/// \brief SharedBuffer class to store pointer to pre-acclocated buffer. Own the shared object.
 template <typename T>
 class SharedBuffer : public ov::AlignedBuffer {
 public:
@@ -30,17 +30,54 @@ private:
 
 
 /// \brief SharedStreamBuffer class to store pointer to pre-acclocated buffer and provide streambuf interface.
-template <typename T>
-class SharedStreamBuffer final : public std::stringbuf {
+class SharedStreamBuffer : public std::streambuf {
 public:
-    SharedStreamBuffer(char* data, size_t size, const T& shared_object) : _shared_object(shared_object) {
-        basic_streambuf::pubsetbuf(data, size);
+    SharedStreamBuffer(char* data, size_t size) :
+        m_data(data),
+        m_size(size),
+        m_offset(0) {
     }
 
-    SharedStreamBuffer() = delete;
+protected:
+    std::streamsize xsgetn(char* s, std::streamsize count) override{
+        auto real_count = std::min<std::streamsize>(m_size - m_offset, + count);
+        std::memcpy(s, m_data + m_offset, real_count);
+        m_offset += real_count;
+        return real_count;
+    }
 
-private:
-    T _shared_object;
+    int_type underflow() override {
+        return (m_size == m_offset) ? traits_type::eof() : traits_type::to_int_type(*(m_data + m_offset));
+    }
+
+    int_type uflow() override {
+        return (m_size == m_offset) ? traits_type::eof() : traits_type::to_int_type(*(m_data + m_offset++));
+    }
+
+    std::streamsize showmanyc() override {
+        return m_size - m_offset;
+    }
+
+    size_t m_size;
+    char* m_data;
+    size_t m_offset;
 };
+
+/// \brief OwningSharedStreamBuffer is a SharedStreamBuffer which owns its shared object. Can return AlignedBuffer to shared memory
+class OwningSharedStreamBuffer : public SharedStreamBuffer {
+public:
+    template<typename T>
+    OwningSharedStreamBuffer(char* data, size_t size, const T& shared_object)
+        : SharedStreamBuffer(data, size),
+          m_alligned_buffer(std::make_shared<SharedBuffer<T>>(data, size, shared_object)) {}
+
+    std::shared_ptr<AlignedBuffer> get_aligned_buffer() {
+        return m_alligned_buffer;
+    }
+
+protected:
+    std::shared_ptr<AlignedBuffer> m_alligned_buffer;
+};
+
 
 }  // namespace ov

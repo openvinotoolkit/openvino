@@ -138,7 +138,7 @@ private:
         if (ov::util::file_exists(blobFileName)) {
             if (enable_mmap) {
                 auto mmap = ov::load_mmap_object(blobFileName);
-                SharedStreamBuffer<std::shared_ptr<MappedMemory>> buf(mmap->data(), mmap->size(), mmap);
+                OwningSharedStreamBuffer buf(mmap->data(), mmap->size(), mmap);
                 std::istream stream(&buf);
                 reader(stream);
             } else {
