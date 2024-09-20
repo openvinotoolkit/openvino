@@ -30,21 +30,39 @@ class DecoderBase : public ov::frontend::DecoderBase {};
 class DecoderBaseOperation : public ov::frontend::tensorflow_lite::DecoderBase {
 public:
     /// \brief Get input tensor name by index
+    /// Operation nodes are connected between each other by tensors.
+    /// Each tensor must have unique name in a graph.
+    /// The tensor name uniqueness is provided by developer during GraphIterator construction.
+    /// This method returns tensor name that comes to this operation node by input index idx
+    /// If idx is out-of-range, it throws std::exception inherited exception
     virtual std::string get_input_tensor_name(size_t idx) const = 0;
 
     /// \brief Get input tensor type by index
+    /// If idx is out-of-range, it throws std::exception inherited exception
     virtual ov::element::Type get_input_tensor_type(size_t idx) const = 0;
 
     /// \brief Get output tensor name by index
+    /// Operation nodes are connected between each other by tensors.
+    /// Each tensor must have unique name in a graph.
+    /// The tensor name uniqueness is provided by developer during GraphIterator construction.
+    /// This method returns tensor name that outputs by output index idx from this operation
+    /// If idx is out-of-range, it throws std::exception inherited exception
     virtual std::string get_output_tensor_name(size_t idx) const = 0;
 
     /// \brief Get output tensor type by index
+    /// If idx is out-of-range, it throws std::exception inherited exception
     virtual ov::element::Type get_output_tensor_type(size_t idx) const = 0;
 
     /// \brief Get input tensor info
+    /// returns TensorInfo by input idx index that corresponds to a tensor
+    /// (it can correspond to Constant, Parameter or  intermediate tensor connecting a producer and this current node)
+    /// If idx is out-of-range, it throws std::exception inherited exception
     virtual TensorMetaInfo get_input_tensor_info(size_t idx) const = 0;
 
     /// \brief Get output tensor info
+    /// returns TensorInfo by output idx index that corresponds to a tensor
+    /// (it can correspond to intermediate tensor connecting this current node and a consumer)
+    /// If idx is out-of-range, it throws std::exception inherited exception
     virtual TensorMetaInfo get_output_tensor_info(size_t idx) const = 0;
 
     /// \brief Get a number of outputs
@@ -59,9 +77,15 @@ public:
     virtual TensorMetaInfo get_tensor_info() const = 0;
 
     /// \brief Get input index for tensor
+    /// returns index of this input in the list of inputs in the model
+    /// it must be from 0 to n-1, where n - number of inputs in the model
+    /// if it is not input, returns  -1
     virtual int64_t get_input_idx() const = 0;
 
     /// \brief Get output index for tensor
+    /// returns index of this output in the list of outputs in the model
+    /// it must be from 0 to m-1, where m - number of outputs in the model
+    /// if it is not input, returns  -1
     virtual int64_t get_output_idx() const = 0;
 };
 
