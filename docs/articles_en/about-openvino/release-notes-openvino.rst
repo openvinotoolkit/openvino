@@ -15,7 +15,7 @@ OpenVINO Release Notes
 
 
 
-2024.4 - 18 September 2024
+2024.4 - 19 September 2024
 #############################
 
 :doc:`System Requirements <./release-notes-openvino/system-requirements>` | :doc:`Release policy <./release-notes-openvino/release-policy>` | :doc:`Installation Guides <./../get-started/install-openvino>`
@@ -203,8 +203,7 @@ OpenVINO Model Server
   * Ability to compress the KV Cache to a lower precision, reducing memory consumption without
     a significant loss of accuracy.
   * ``stop`` sampling parameters, to define a sequence that stops text generation.
-  * ``logprobs`` sampling parameter, returning the probabilities to returned tokens, which can
-    be used to calculate the model perplexity metric, among other things.
+  * ``logprobs`` sampling parameter, returning the probabilities to returned tokens.
   * Generic metrics related to execution of the MediaPipe graph that can be used for autoscaling
     based on the current load and the level of concurrency.
   * `Demo of text generation horizontal scalability <https://github.com/openvinotoolkit/model_server/tree/main/demos/continuous_batching/scaling>`__
@@ -212,6 +211,7 @@ OpenVINO Model Server
   * Automatic cancelling of text generation for disconnected clients.
   * Non-UTF-8 responses from the model can be now automatically changed to Unicode replacement
     characters, due to their configurable handling.
+  * Intel GPU with paged attention is now supported.
   * Support for Llama3.1 models.
 
 * The following has been improved:
@@ -300,6 +300,24 @@ Known Issues
 | Description:
 |   OpenVINO.GenAI archive doesn't have debug libraries for OpenVINO Tokenizers and
     OpenVINO.GenAI.
+
+| **Component: ONNX for ARM**
+| ID: n/a
+| Description:
+|   For ARM binaries, the `1.16 ONNX library <https://vcpkg.link/ports/onnx/versions>`__
+    is not yet available, while the current latest has shown two significant vulnerabilities:
+    `CVE-2024-27318 <https://nvd.nist.gov/vuln/detail/CVE-2024-27318>`__ and
+    `CVE-2024-27319 <https://nvd.nist.gov/vuln/detail/CVE-2024-27319>`__.
+    The vulnerabilities are less severe in the context of OpenVINO and will be fixed as soon as
+    the most recent version of the library is available for ARM, expected at the 2024.5 release.
+
+
+
+
+
+
+
+
 
 
 
