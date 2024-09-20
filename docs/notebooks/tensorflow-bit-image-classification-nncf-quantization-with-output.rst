@@ -46,17 +46,17 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 .. code:: ipython3
 
     import platform
-
+    
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow-macos>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version <= '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version <= '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
     %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform != 'darwin' and python_version <= '3.8'"
-
+    
     %pip install -q "openvino>=2024.0.0" "nncf>=2.7.0" "tensorflow-hub>=0.15.0" tf_keras
     %pip install -q "scikit-learn>=1.3.2"
-
+    
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4" "tensorflow_datasets>=4.9.0"
     else:
@@ -81,26 +81,26 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
     import os
     import numpy as np
     from pathlib import Path
-
+    
     from openvino.runtime import Core
     import openvino as ov
     import nncf
     import logging
-
+    
     from nncf.common.logging.logger import set_log_level
-
+    
     set_log_level(logging.ERROR)
-
+    
     from sklearn.metrics import accuracy_score
-
+    
     os.environ["TF_USE_LEGACY_KERAS"] = "1"
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
     os.environ["TFHUB_CACHE_DIR"] = str(Path("./tfhub_modules").resolve())
-
+    
     import tensorflow as tf
     import tensorflow_datasets as tfds
     import tensorflow_hub as hub
-
+    
     tfds.core.utils.gcs_utils._is_gcs_disabled = True
     os.environ["NO_GCE_CHECK"] = "true"
 
@@ -114,8 +114,8 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
     core = Core()
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-
-
+    
+    
     # For top 5 labels.
     MAX_PREDS = 1
     TRAINING_BATCH_SIZE = 128
@@ -124,7 +124,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
     NUM_CLASSES = 10  # For Imagenette dataset
     FINE_TUNING_STEPS = 1
     LR = 1e-5
-
+    
     MEAN_RGB = (0.485 * 255, 0.456 * 255, 0.406 * 255)  # From Imagenet dataset
     STDDEV_RGB = (0.229 * 255, 0.224 * 255, 0.225 * 255)  # From Imagenet dataset
 
@@ -144,13 +144,6 @@ Prepare Dataset
     )
     train_ds, validation_ds = datasets["train"], datasets["validation"]
 
-
-.. parsed-literal::
-
-    2024-08-06 23:31:00.434079: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-08-06 23:31:00.434310: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
-
-
 .. code:: ipython3
 
     def preprocessing(image, label):
@@ -158,8 +151,8 @@ Prepare Dataset
         image = tf.cast(image, tf.float32) / 255.0
         label = tf.one_hot(label, NUM_CLASSES)
         return image, label
-
-
+    
+    
     train_dataset = train_ds.map(preprocessing, num_parallel_calls=tf.data.experimental.AUTOTUNE).batch(TRAINING_BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
     validation_dataset = (
         validation_ds.map(preprocessing, num_parallel_calls=tf.data.experimental.AUTOTUNE).batch(TRAINING_BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
@@ -180,7 +173,7 @@ Prepare Dataset
         n03445777="golf ball",
         n03888257="parachute",
     )
-
+    
     # Imagenette samples name index
     class_idx_dict = [
         "n01440764",
@@ -194,8 +187,8 @@ Prepare Dataset
         "n03445777",
         "n03888257",
     ]
-
-
+    
+    
     def label_func(key):
         return lbl_dict[key]
 
@@ -207,17 +200,17 @@ Plotting data samples
 .. code:: ipython3
 
     import matplotlib.pyplot as plt
-
+    
     # Get the class labels from the dataset info
     class_labels = datasets_info.features["label"].names
-
+    
     # Display labels along with the examples
     num_examples_to_display = 4
     fig, axes = plt.subplots(nrows=1, ncols=num_examples_to_display, figsize=(10, 5))
-
+    
     for i, (image, label_index) in enumerate(train_ds.take(num_examples_to_display)):
         label_name = class_labels[label_index.numpy()]
-
+    
         axes[i].imshow(image.numpy())
         axes[i].set_title(f"{label_func(label_name)}")
         axes[i].axis("off")
@@ -233,14 +226,14 @@ Plotting data samples
 
     # Get the class labels from the dataset info
     class_labels = datasets_info.features["label"].names
-
+    
     # Display labels along with the examples
     num_examples_to_display = 4
     fig, axes = plt.subplots(nrows=1, ncols=num_examples_to_display, figsize=(10, 5))
-
+    
     for i, (image, label_index) in enumerate(validation_ds.take(num_examples_to_display)):
         label_name = class_labels[label_index.numpy()]
-
+    
         axes[i].imshow(image.numpy())
         axes[i].set_title(f"{label_func(label_name)}")
         axes[i].axis("off")
@@ -262,19 +255,19 @@ Model Fine-tuning
     # Load the Big Transfer model
     bit_model_url = "https://www.kaggle.com/models/google/bit/frameworks/TensorFlow2/variations/m-r50x1/versions/1"
     bit_m = hub.KerasLayer(bit_model_url, trainable=True)
-
+    
     tf_model_dir = Path("bit_tf_model")
-
+    
     # Customize the model for the new task
     model = tf.keras.Sequential([bit_m, tf.keras.layers.Dense(NUM_CLASSES, activation="softmax")])
-
+    
     # Compile the model
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=LR),
         loss="categorical_crossentropy",
         metrics=["accuracy"],
     )
-
+    
     # Fine-tune the model
     model.fit(
         train_dataset.take(3000),
@@ -286,7 +279,7 @@ Model Fine-tuning
 
 .. parsed-literal::
 
-    101/101 [==============================] - 960s 9s/step - loss: 0.4738 - accuracy: 0.8870 - val_loss: 0.0864 - val_accuracy: 0.9720
+    101/101 [==============================] - 958s 9s/step - loss: 0.3845 - accuracy: 0.8996 - val_loss: 0.0824 - val_accuracy: 0.9780
 
 
 .. parsed-literal::
@@ -323,15 +316,15 @@ Compute accuracy of the TF model
 .. code:: ipython3
 
     tf_model = tf.keras.models.load_model(tf_model_dir)
-
+    
     tf_predictions = []
     gt_label = []
-
+    
     for _, label in validation_dataset:
         for cls_label in label:
             l_list = cls_label.numpy().tolist()
             gt_label.append(l_list.index(1))
-
+    
     for img_batch, label_batch in validation_dataset:
         tf_result_batch = tf_model.predict(img_batch, verbose=0)
         for i in range(len(img_batch)):
@@ -339,11 +332,11 @@ Compute accuracy of the TF model
             tf_result = tf.reshape(tf_result, [-1])
             top5_label_idx = np.argsort(tf_result)[-MAX_PREDS::][::-1]
             tf_predictions.append(top5_label_idx)
-
+    
     # Convert the lists to NumPy arrays for accuracy calculation
     tf_predictions = np.array(tf_predictions)
     gt_label = np.array(gt_label)
-
+    
     tf_acc_score = accuracy_score(tf_predictions, gt_label)
 
 Compute accuracy of the OpenVINO model
@@ -356,16 +349,16 @@ Select device for inference:
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     core = ov.Core()
-
+    
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -381,11 +374,11 @@ Select device for inference:
 
     ov_fp32_model = core.read_model(ir_path)
     ov_fp32_model.reshape([1, IMG_SIZE[0], IMG_SIZE[1], 3])
-
+    
     # Target device set to CPU (Other options Ex: AUTO/GPU/dGPU/)
     compiled_model = ov.compile_model(ov_fp32_model, device.value)
     output = compiled_model.outputs[0]
-
+    
     ov_predictions = []
     for img_batch, _ in validation_dataset:
         for image in img_batch:
@@ -394,7 +387,7 @@ Select device for inference:
             ov_result = tf.reshape(pred, [-1])
             top_label_idx = np.argsort(ov_result)[-MAX_PREDS::][::-1]
             ov_predictions.append(top_label_idx)
-
+    
     fp32_acc_score = accuracy_score(ov_predictions, gt_label)
 
 Quantize OpenVINO model using NNCF
@@ -415,17 +408,17 @@ Model Quantization using NNCF
         image = image - MEAN_RGB
         image = image / STDDEV_RGB
         return image
-
-
+    
+    
     int8_ir_path = Path("bit_ov_int8_model/bit_m_r50x1_1_ov_int8.xml")
     val_ds = validation_ds.map(nncf_preprocessing, num_parallel_calls=tf.data.experimental.AUTOTUNE).batch(1).prefetch(tf.data.experimental.AUTOTUNE)
-
+    
     calibration_dataset = nncf.Dataset(val_ds)
-
+    
     ov_fp32_model = core.read_model(ir_path)
-
+    
     ov_int8_model = nncf.quantize(ov_fp32_model, calibration_dataset, fast_bias_correction=False)
-
+    
     ov.save_model(ov_int8_model, int8_ir_path)
 
 
@@ -443,25 +436,9 @@ Model Quantization using NNCF
 
 
 
-
-
-
-
-
-
-
-
 .. parsed-literal::
 
     Output()
-
-
-
-
-
-
-
-
 
 
 
@@ -480,15 +457,15 @@ Compute accuracy of the quantized model
 
     nncf_quantized_model = core.read_model(int8_ir_path)
     nncf_quantized_model.reshape([1, IMG_SIZE[0], IMG_SIZE[1], 3])
-
+    
     # Target device set to CPU by default
     compiled_model = ov.compile_model(nncf_quantized_model, device.value)
     output = compiled_model.outputs[0]
-
+    
     ov_predictions = []
     inp_tensor = nncf_quantized_model.inputs[0]
     out_tensor = nncf_quantized_model.outputs[0]
-
+    
     for img_batch, _ in validation_dataset:
         for image in img_batch:
             image = tf.expand_dims(image, axis=0)
@@ -496,7 +473,7 @@ Compute accuracy of the quantized model
             ov_result = tf.reshape(pred, [-1])
             top_label_idx = np.argsort(ov_result)[-MAX_PREDS::][::-1]
             ov_predictions.append(top_label_idx)
-
+    
     int8_acc_score = accuracy_score(ov_predictions, gt_label)
 
 Compare FP32 and INT8 accuracy
@@ -515,10 +492,10 @@ Compare FP32 and INT8 accuracy
 
 .. parsed-literal::
 
-    Accuracy of the tensorflow model (fp32):  97.20%
-    Accuracy of the OpenVINO optimized model (fp32):  97.20%
+    Accuracy of the tensorflow model (fp32):  97.80%
+    Accuracy of the OpenVINO optimized model (fp32):  97.80%
     Accuracy of the OpenVINO quantized model (int8):  97.20%
-    Accuracy drop between OV FP32 and INT8 model: 0.0%
+    Accuracy drop between OV FP32 and INT8 model: 0.6% 
 
 
 Compare inference results on one picture
@@ -531,24 +508,24 @@ Compare inference results on one picture
     # Accessing validation sample
     sample_idx = 50
     vds = datasets["validation"]
-
+    
     if len(vds) > sample_idx:
         sample = vds.take(sample_idx + 1).skip(sample_idx).as_numpy_iterator().next()
     else:
         print("Dataset does not have enough samples...!!!")
-
+    
     # Image data
     sample_data = sample[0]
-
+    
     # Label info
     sample_label = sample[1]
-
+    
     # Image data pre-processing
     image = tf.image.resize(sample_data, IMG_SIZE)
     image = tf.expand_dims(image, axis=0)
     image = tf.cast(image, tf.float32) / 255.0
-
-
+    
+    
     # OpenVINO inference
     def ov_inference(model: ov.Model, image) -> str:
         compiled_model = ov.compile_model(model, device.value)
@@ -557,25 +534,25 @@ Compare inference results on one picture
         ov_result = tf.reshape(pred, [-1])
         pred_label = np.argsort(ov_result)[-MAX_PREDS::][::-1]
         return pred_label
-
-
+    
+    
     # OpenVINO FP32 model
     ov_fp32_model = core.read_model(ir_path)
     ov_fp32_model.reshape([1, IMG_SIZE[0], IMG_SIZE[1], 3])
-
+    
     # OpenVINO INT8 model
     ov_int8_model = core.read_model(int8_ir_path)
     ov_int8_model.reshape([1, IMG_SIZE[0], IMG_SIZE[1], 3])
-
+    
     # OpenVINO FP32 model inference
     ov_fp32_pred_label = ov_inference(ov_fp32_model, image)
-
+    
     print(f"Predicted label for the sample picture by float (fp32) model: {label_func(class_idx_dict[int(ov_fp32_pred_label)])}\n")
-
+    
     # OpenVINO FP32 model inference
     ov_int8_pred_label = ov_inference(ov_int8_model, image)
     print(f"Predicted label for the sample picture by qunatized (int8) model: {label_func(class_idx_dict[int(ov_int8_pred_label)])}\n")
-
+    
     # Plotting the image sample with ground truth
     plt.figure()
     plt.imshow(sample_data)
@@ -587,9 +564,9 @@ Compare inference results on one picture
 .. parsed-literal::
 
     Predicted label for the sample picture by float (fp32) model: gas pump
-
+    
     Predicted label for the sample picture by qunatized (int8) model: gas pump
-
+    
 
 
 

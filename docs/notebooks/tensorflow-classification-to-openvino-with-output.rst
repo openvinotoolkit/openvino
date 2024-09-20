@@ -2,7 +2,7 @@ Convert a TensorFlow Model to OpenVINO™
 =======================================
 
 This short tutorial shows how to convert a TensorFlow
-`MobileNetV3 <https://docs.openvino.ai/2024/omz_models_model_mobilenet_v3_small_1_0_224_tf.html>`__
+`MobileNetV3 <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/mobilenet-v3-small-1.0-224-tf/README.md>`__
 image classification model to OpenVINO `Intermediate
 Representation <https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets.html>`__
 (OpenVINO IR) format, using `Model Conversion
@@ -107,7 +107,7 @@ Imports
 
     open("notebook_utils.py", "w").write(r.text)
 
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 Settings
 --------
@@ -142,16 +142,6 @@ and save it to the disk.
 .. parsed-literal::
 
     WARNING:tensorflow:`input_shape` is undefined or non-square, or `rows` is not 224. Weights for input shape (224, 224) will be loaded as the default.
-
-
-.. parsed-literal::
-
-    2024-08-07 04:14:19.938117: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-08-07 04:14:19.938305: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
-
-
-.. parsed-literal::
-
     WARNING:tensorflow:Compiled the loaded model, but the compiled metrics have yet to be built. `model.compile_metrics` will be empty until you train or evaluate the model.
 
 
@@ -230,25 +220,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
-
-    device
-
-
-
-
-.. parsed-literal::
-
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
-
-
+    device = device_widget()
 
 .. code:: ipython3
 
@@ -371,5 +343,5 @@ performance.
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU: 0.0011 seconds per image, FPS: 951.39
+    IR model in OpenVINO Runtime/CPU: 0.0011 seconds per image, FPS: 919.27
 

@@ -159,6 +159,44 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_bool_init_raw) {
     test_case.run();
 }
 
+#ifdef ONNX_VERSION_116
+OPENVINO_TEST(${BACKEND_NAME}, onnx_int4_const) {
+    auto model = convert_model("int4_const.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_expected_output(std::vector<int64_t>{4});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_int4_input) {
+    const auto model = convert_model("int4_input.onnx");
+    auto test_case = test::TestCase(model);
+    test_case.add_input<uint8_t>({0xEF, 0x01, 0x70});
+    test_case.add_expected_output<int64_t>({5});
+    test_case.add_expected_output<uint8_t>({0xEF, 0x01, 0x70});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_uint4_const) {
+    auto model = convert_model("uint4_const.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_expected_output(std::vector<int64_t>{4});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_uint4_input) {
+    const auto model = convert_model("uint4_input.onnx");
+    auto test_case = test::TestCase(model);
+    test_case.add_input<uint8_t>({0x01, 0xF0});
+    test_case.add_expected_output<int64_t>({3});
+    test_case.add_expected_output<uint8_t>({0x01, 0xF0});
+
+    test_case.run();
+}
+#endif
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_add_abc_initializers) {
     auto model = convert_model("add_abc_initializers.onnx");
 
@@ -912,12 +950,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_nonmaxsuppression_v9_single_box) {
     test_case.run();
 }
 
-#if (defined _WIN32 || defined _WIN64)
-// Ticket: 127743
-OPENVINO_TEST(${BACKEND_NAME}, DISABLED_onnx_model_nonmaxsuppression_default_score_threshold) {
-#else
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_nonmaxsuppression_default_score_threshold) {
-#endif
+    // TEMPLATE plugin has a run-to-run issue with this test, CVS-127743, CVS-122120
+    if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
+        GTEST_SKIP();
+    }
+
     auto model = convert_model("nms_default_score_threshold.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
 

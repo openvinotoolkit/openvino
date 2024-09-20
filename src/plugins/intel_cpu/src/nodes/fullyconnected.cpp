@@ -107,7 +107,7 @@ void FullyConnected::needPrepareParamsForTensorParallel() {
         if (dim < 0) {
             dim += dims.size();
         }
-        assert(dims[dim] >= tp_cfg.w_size);
+        assert(static_cast<int>(dims[dim]) >= tp_cfg.w_size);
         auto splited_dim_vec = split_parts(dims[dim], tp_cfg.w_size);
 
         VectorDims new_dims = dims;

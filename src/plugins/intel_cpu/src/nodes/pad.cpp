@@ -183,7 +183,20 @@ void Pad::createPrimitive() {
         dstMemory.push_back(getDstMemoryAtPort(0));
     }
     if (inputShapesDefined() && isExecutable() && !shapeHasDataDependency) {
+        // WA to prevent reading uninitialized data in case of the pad value is a parameter
+        MemoryCPtr padValue = srcMemory.size() > PAD_VALUE_ID ? srcMemory[PAD_VALUE_ID] : nullptr;
+        if (padValue && !getParentEdgeAt(PAD_VALUE_ID)->getParent()->isConstant()) {
+            //set artificial zero memory just to avoid reading garbage from the uninitilized input
+            auto tmpPadValue = std::make_shared<Memory>(getEngine(), padValue->getDescPtr());
+            tmpPadValue->nullify();
+            srcMemory[PAD_VALUE_ID] = tmpPadValue;
+        }
         prepareParams();
+        if (padValue) {
+            // restore original memory object
+            srcMemory[PAD_VALUE_ID] = padValue;
+        }
+
         updateLastInputDims();
     }
 }
@@ -217,10 +230,10 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     params.attrs = attrs;
     auto& srcMemPtr = srcMemory[DATA_ID];
     auto& dstMemPtr = dstMemory[DATA_ID];
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, "has not allocated source memory.");
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, "has not allocated destination memory.");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, "has undefined source memory.");
+    if (!srcMemPtr || !srcMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, "has undefined destination memory.");
     const auto srcBlockMemDesc = srcMemPtr->getDescWithType<BlockedMemoryDesc>();
     const auto dstBlockMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
     const auto& srcDims = srcBlockMemDesc->getBlockDims();

@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_comparison_Equal_1}
-
 Equal
 =====
 
 
 .. meta::
-  :description: Learn about Equal-1 - an element-wise, comparison operation, which 
+  :description: Learn about Equal-1 - an element-wise, comparison operation, which
                 can be performed on two given tensors in OpenVINO.
 
 **Versioned name**: *Equal-1*
@@ -20,7 +18,7 @@ Before performing arithmetic operation, input tensors *a* and *b* are broadcaste
 After broadcasting *Equal* does the following with the input tensors *a* and *b*:
 
 .. math::
-   
+
    o_{i} = a_{i} == b_{i}
 
 **Attributes**:
@@ -29,7 +27,7 @@ After broadcasting *Equal* does the following with the input tensors *a* and *b*
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
-    
+
     * *none* - no auto-broadcasting is allowed, all input shapes should match,
     * *numpy* - numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`,
     * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`.
@@ -57,7 +55,7 @@ After broadcasting *Equal* does the following with the input tensors *a* and *b*
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="Equal">
        <data auto_broadcast="none"/>
        <input>
@@ -82,7 +80,7 @@ After broadcasting *Equal* does the following with the input tensors *a* and *b*
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="Equal">
        <data auto_broadcast="numpy"/>
        <input>

@@ -103,7 +103,7 @@ TEST(remove_redundant_reorders, optimize_fsv16_to_bfyx) {
     ASSERT_NE(prog, nullptr);
     auto& fc_node = prog->get_node("fc");
     auto fc_in_layout = fc_node.get_input_layouts();
-    ASSERT_EQ(fc_in_layout.front().data_padding.upper_size().feature[0], 0);
+    ASSERT_EQ(fc_in_layout.front().data_padding._upper_size[1], 0);
 }
 
 TEST(remove_redundant_reorders, skip_reorder_fusing_when_sibling_not_support_padding) {
@@ -136,10 +136,8 @@ TEST(remove_redundant_reorders, skip_reorder_fusing_when_sibling_not_support_pad
     auto prog = program::build_program(engine, topology, config, false, true);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
-    layout_optimizer lo(true);
-
     bool optimize_data = config.get_property(ov::intel_gpu::optimize_data);
-    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo, optimize_data);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, optimize_data);
 
     ASSERT_NE(prog, nullptr);
 
@@ -166,11 +164,9 @@ TEST(remove_redundant_reorders, not_to_fuse_reshape_with_fused_prims) {
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
-
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
     bool optimize_data = config.get_property(ov::intel_gpu::optimize_data);
-    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo, optimize_data);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, optimize_data);
 
     ASSERT_NE(prog, nullptr);
     ASSERT_TRUE(has_node_with_type<reshape>(*prog));
@@ -208,11 +204,10 @@ TEST(remove_redundant_reorders, not_to_fuse_permute) {
     auto prog = program::build_program(engine, topology, config, false, true);
     ASSERT_NE(prog, nullptr);
 
-    layout_optimizer lo(true);
     bool opt_data = config.get_property(ov::intel_gpu::optimize_data);
 
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
-    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo, opt_data);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, opt_data);
 
     auto& node = prog->get_node("permute");
     auto in_layout = node.get_input_layouts()[0];
@@ -270,10 +265,9 @@ TEST(remove_redundant_reorders, remove_fused) {
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
     bool optimize_data = config.get_property(ov::intel_gpu::optimize_data);
-    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo, optimize_data);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, optimize_data);
 
     ASSERT_NE(prog, nullptr);
     network network(engine, topology, config);
@@ -299,9 +293,8 @@ TEST(remove_redundant_reorders, fuse_reorder_to_prev_mvn_dyn) {
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
     bool optimize_data = config.get_property(ov::intel_gpu::optimize_data);
-    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo, optimize_data);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, optimize_data);
 
     ASSERT_NE(prog, nullptr);
     ASSERT_FALSE(has_node_with_type<reorder>(*prog));
@@ -343,9 +336,8 @@ TEST(remove_redundant_reorders, fuse_reorder_to_prev_concat_dyn) {
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
     bool optimize_data = config.get_property(ov::intel_gpu::optimize_data);
-    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo, optimize_data);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, optimize_data);
 
     ASSERT_NE(prog, nullptr);
     ASSERT_FALSE(has_node_with_type<reorder>(*prog));

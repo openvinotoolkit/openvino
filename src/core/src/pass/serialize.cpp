@@ -1236,6 +1236,8 @@ namespace ov {
 bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(Serialize);
 
+    model->validate_nodes_and_infer_types();
+
     // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
     //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
     // ['precise_0'] = '' into => rt_info['precise_0'] = DisableFP16Compression{}
@@ -1276,8 +1278,8 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             // hence we need to delete it here in case of failure
             xml_file.close();
             bin_file.close();
-            std::remove(m_xmlPath.c_str());
-            std::remove(m_binPath.c_str());
+            std::ignore = std::remove(m_xmlPath.c_str());
+            std::ignore = std::remove(m_binPath.c_str());
             throw;
         }
     }

@@ -118,7 +118,7 @@ The notebook uses utility functions. The cell below will download the
 
 .. parsed-literal::
 
-    23941
+    24165
 
 
 
@@ -138,7 +138,7 @@ Imports
     import numpy as np
 
     # Notebook utils module
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
     # OpenVINO modules
     import openvino as ov
@@ -246,15 +246,8 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
     core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -403,7 +396,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f8239e26e20>
+    <matplotlib.image.AxesImage at 0x7fca720c5250>
 
 
 

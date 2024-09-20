@@ -98,9 +98,9 @@ models will be stored.
     import warnings  # To disable warnings on export model
     import zipfile
     from pathlib import Path
-
+    
     import torch
-
+    
     import torch.nn as nn
     import torch.nn.parallel
     import torch.optim
@@ -109,39 +109,39 @@ models will be stored.
     import torchvision.datasets as datasets
     import torchvision.models as models
     import torchvision.transforms as transforms
-
+    
     import openvino as ov
     from torch.jit import TracerWarning
-
+    
     # Fetch `notebook_utils` module
     import requests
-
+    
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
-
+    from notebook_utils import download_file, device_widget
+    
     torch.manual_seed(0)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {device} device")
-
+    
     MODEL_DIR = Path("model")
     OUTPUT_DIR = Path("output")
     DATA_DIR = Path("data")
     BASE_MODEL_NAME = "resnet18"
     image_size = 64
-
+    
     OUTPUT_DIR.mkdir(exist_ok=True)
     MODEL_DIR.mkdir(exist_ok=True)
     DATA_DIR.mkdir(exist_ok=True)
-
+    
     # Paths where PyTorch and OpenVINO IR models will be stored.
     fp32_pth_path = Path(MODEL_DIR / (BASE_MODEL_NAME + "_fp32")).with_suffix(".pth")
     fp32_ir_path = fp32_pth_path.with_suffix(".xml")
     int8_ir_path = Path(MODEL_DIR / (BASE_MODEL_NAME + "_int8")).with_suffix(".xml")
-
+    
     # It is possible to train FP32 model from scratch, but it might be slow. Therefore, the pre-trained weights are downloaded by default.
     pretrained_on_tiny_imagenet = True
     fp32_pth_url = "https://storage.openvinotoolkit.org/repositories/nncf/openvino_notebook_ckpts/302_resnet18_fp32_v1.pth"
@@ -163,7 +163,7 @@ models will be stored.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/pytorch-quantization-aware-training/model/resnet18_fp32.pth')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/pytorch-quantization-aware-training/model/resnet18_fp32.pth')
 
 
 
@@ -185,8 +185,8 @@ Download Tiny ImageNet dataset
         zip_ref = zipfile.ZipFile(archive_path, "r")
         zip_ref.extractall(path=data_dir)
         zip_ref.close()
-
-
+    
+    
     def prepare_tiny_imagenet_200(dataset_dir: Path):
         # Format validation set the same way as train set is formatted.
         val_data_dir = dataset_dir / "val"
@@ -203,8 +203,8 @@ Download Tiny ImageNet dataset
             from_image_filepath.rename(to_image_filepath)
         val_annotations_file.unlink()
         val_images_dir.rmdir()
-
-
+    
+    
     DATASET_DIR = DATA_DIR / "tiny-imagenet-200"
     if not DATASET_DIR.exists():
         download_tiny_imagenet_200(DATA_DIR)
@@ -255,34 +255,34 @@ Train Function
             [batch_time, losses, top1, top5],
             prefix="Epoch:[{}]".format(epoch),
         )
-
+    
         # Switch to train mode.
         model.train()
-
+    
         end = time.time()
         for i, (images, target) in enumerate(train_loader):
             images = images.to(device)
             target = target.to(device)
-
+    
             # Compute output.
             output = model(images)
             loss = criterion(output, target)
-
+    
             # Measure accuracy and record loss.
             acc1, acc5 = accuracy(output, target, topk=(1, 5))
             losses.update(loss.item(), images.size(0))
             top1.update(acc1[0], images.size(0))
             top5.update(acc5[0], images.size(0))
-
+    
             # Compute gradient and do opt step.
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-
+    
             # Measure elapsed time.
             batch_time.update(time.time() - end)
             end = time.time()
-
+    
             print_frequency = 50
             if i % print_frequency == 0:
                 progress.display(i)
@@ -300,34 +300,34 @@ Validate Function
         top1 = AverageMeter("Acc@1", ":2.2f")
         top5 = AverageMeter("Acc@5", ":2.2f")
         progress = ProgressMeter(len(val_loader), [batch_time, losses, top1, top5], prefix="Test: ")
-
+    
         # Switch to evaluate mode.
         model.eval()
-
+    
         with torch.no_grad():
             end = time.time()
             for i, (images, target) in enumerate(val_loader):
                 images = images.to(device)
                 target = target.to(device)
-
+    
                 # Compute output.
                 output = model(images)
                 loss = criterion(output, target)
-
+    
                 # Measure accuracy and record loss.
                 acc1, acc5 = accuracy(output, target, topk=(1, 5))
                 losses.update(loss.item(), images.size(0))
                 top1.update(acc1[0], images.size(0))
                 top5.update(acc5[0], images.size(0))
-
+    
                 # Measure elapsed time.
                 batch_time.update(time.time() - end)
                 end = time.time()
-
+    
                 print_frequency = 10
                 if i % print_frequency == 0:
                     progress.display(i)
-
+    
             print(" * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}".format(top1=top1, top5=top5))
         return top1.avg
 
@@ -340,56 +340,56 @@ Helpers
 
     class AverageMeter(object):
         """Computes and stores the average and current value"""
-
+    
         def __init__(self, name, fmt=":f"):
             self.name = name
             self.fmt = fmt
             self.reset()
-
+    
         def reset(self):
             self.val = 0
             self.avg = 0
             self.sum = 0
             self.count = 0
-
+    
         def update(self, val, n=1):
             self.val = val
             self.sum += val * n
             self.count += n
             self.avg = self.sum / self.count
-
+    
         def __str__(self):
             fmtstr = "{name} {val" + self.fmt + "} ({avg" + self.fmt + "})"
             return fmtstr.format(**self.__dict__)
-
-
+    
+    
     class ProgressMeter(object):
         def __init__(self, num_batches, meters, prefix=""):
             self.batch_fmtstr = self._get_batch_fmtstr(num_batches)
             self.meters = meters
             self.prefix = prefix
-
+    
         def display(self, batch):
             entries = [self.prefix + self.batch_fmtstr.format(batch)]
             entries += [str(meter) for meter in self.meters]
             print("\t".join(entries))
-
+    
         def _get_batch_fmtstr(self, num_batches):
             num_digits = len(str(num_batches // 1))
             fmt = "{:" + str(num_digits) + "d}"
             return "[" + fmt + "/" + fmt.format(num_batches) + "]"
-
-
+    
+    
     def accuracy(output, target, topk=(1,)):
         """Computes the accuracy over the k top predictions for the specified values of k"""
         with torch.no_grad():
             maxk = max(topk)
             batch_size = target.size(0)
-
+    
             _, pred = output.topk(maxk, 1, True, True)
             pred = pred.t()
             correct = pred.eq(target.view(1, -1).expand_as(pred))
-
+    
             res = []
             for k in topk:
                 correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
@@ -417,17 +417,17 @@ section at the top of this notebook.
     init_lr = 1e-4
     batch_size = 128
     epochs = 4
-
+    
     model = models.resnet18(pretrained=not pretrained_on_tiny_imagenet)
     # Update the last FC layer for Tiny ImageNet number of classes.
     model.fc = nn.Linear(in_features=512, out_features=num_classes, bias=True)
     model.to(device)
-
+    
     # Data loading code.
     train_dir = DATASET_DIR / "train"
     val_dir = DATASET_DIR / "val"
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-
+    
     train_dataset = datasets.ImageFolder(
         train_dir,
         transforms.Compose(
@@ -449,7 +449,7 @@ section at the top of this notebook.
             ]
         ),
     )
-
+    
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -458,9 +458,9 @@ section at the top of this notebook.
         pin_memory=True,
         sampler=None,
     )
-
+    
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=True)
-
+    
     # Define loss function (criterion) and optimizer.
     criterion = nn.CrossEntropyLoss().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=init_lr)
@@ -468,9 +468,9 @@ section at the top of this notebook.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
       warnings.warn(msg)
 
 
@@ -491,18 +491,18 @@ section at the top of this notebook.
         for epoch in range(0, epochs):
             # Run a single training epoch.
             train(train_loader, model, criterion, optimizer, epoch)
-
+    
             # Evaluate on validation set.
             acc1 = validate(val_loader, model, criterion)
-
+    
             is_best = acc1 > best_acc1
             best_acc1 = max(acc1, best_acc1)
-
+    
             if is_best:
                 checkpoint = {"state_dict": model.state_dict(), "acc1": acc1}
                 torch.save(checkpoint, fp32_pth_path)
         acc1_fp32 = best_acc1
-
+    
     print(f"Accuracy of FP32 model: {acc1_fp32:.3f}")
 
 
@@ -517,7 +517,7 @@ benchmark it in comparison with the ``INT8`` model.
 .. code:: ipython3
 
     dummy_input = torch.randn(1, 3, image_size, image_size).to(device)
-
+    
     ov_model = ov.convert_model(model, example_input=dummy_input, input=[1, 3, image_size, image_size])
     ov.save_model(ov_model, fp32_ir_path, compress_to_fp16=False)
     print(f"FP32 model was exported to {fp32_ir_path}.")
@@ -546,16 +546,16 @@ modifications.
 .. code:: ipython3
 
     import nncf
-
-
+    
+    
     def transform_fn(data_item):
         return data_item[0]
-
-
+    
+    
     # Creating separate dataloader with batch size = 1
     # as dataloaders with batches > 1 is not supported yet.
     quantization_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=0, pin_memory=True)
-
+    
     quantization_dataset = nncf.Dataset(quantization_loader, transform_fn)
 
 
@@ -580,29 +580,21 @@ about supported parameters can be found on this
 
 .. parsed-literal::
 
-    2024-08-07 02:34:37.389901: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-08-07 02:34:37.428351: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-08-28 03:50:21.673685: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-28 03:50:21.892553: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-08-07 02:34:38.259525: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-08-28 03:50:22.781572: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
 
-    WARNING:nncf:NNCF provides best results with torch==2.3.*, while current torch version is 2.2.2+cpu. If you encounter issues, consider switching to torch==2.3.*
+    WARNING:nncf:NNCF provides best results with torch==2.4.*, while current torch version is 2.2.2+cpu. If you encounter issues, consider switching to torch==2.4.*
 
 
 
 .. parsed-literal::
 
     Output()
-
-
-
-
-
-
-
-
 
 
 
@@ -631,14 +623,6 @@ about supported parameters can be found on this
 
 
 
-
-
-
-
-
-
-
-
 Evaluate the new model on the validation set after initialization of
 quantization. The accuracy should be close to the accuracy of the
 floating-point ``FP32`` model for a simple case like the one being
@@ -652,14 +636,14 @@ demonstrated here.
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.206 (0.206)	Loss 1.005 (1.005)	Acc@1 78.91 (78.91)	Acc@5 88.28 (88.28)
-    Test: [10/79]	Time 0.153 (0.160)	Loss 1.992 (1.625)	Acc@1 44.53 (60.37)	Acc@5 79.69 (83.66)
-    Test: [20/79]	Time 0.154 (0.157)	Loss 1.814 (1.705)	Acc@1 60.94 (58.04)	Acc@5 80.47 (82.66)
-    Test: [30/79]	Time 0.154 (0.156)	Loss 2.287 (1.795)	Acc@1 50.78 (56.48)	Acc@5 68.75 (80.97)
-    Test: [40/79]	Time 0.183 (0.156)	Loss 1.615 (1.832)	Acc@1 60.94 (55.43)	Acc@5 82.81 (80.43)
-    Test: [50/79]	Time 0.153 (0.156)	Loss 1.952 (1.833)	Acc@1 57.03 (55.51)	Acc@5 75.00 (80.16)
-    Test: [60/79]	Time 0.156 (0.155)	Loss 1.794 (1.856)	Acc@1 57.03 (55.16)	Acc@5 84.38 (79.84)
-    Test: [70/79]	Time 0.155 (0.156)	Loss 2.371 (1.889)	Acc@1 46.88 (54.68)	Acc@5 74.22 (79.14)
+    Test: [ 0/79]	Time 0.210 (0.210)	Loss 1.005 (1.005)	Acc@1 78.91 (78.91)	Acc@5 88.28 (88.28)
+    Test: [10/79]	Time 0.152 (0.158)	Loss 1.992 (1.625)	Acc@1 44.53 (60.37)	Acc@5 79.69 (83.66)
+    Test: [20/79]	Time 0.153 (0.155)	Loss 1.814 (1.705)	Acc@1 60.94 (58.04)	Acc@5 80.47 (82.66)
+    Test: [30/79]	Time 0.151 (0.154)	Loss 2.287 (1.795)	Acc@1 50.78 (56.48)	Acc@5 68.75 (80.97)
+    Test: [40/79]	Time 0.152 (0.154)	Loss 1.615 (1.832)	Acc@1 60.94 (55.43)	Acc@5 82.81 (80.43)
+    Test: [50/79]	Time 0.153 (0.154)	Loss 1.952 (1.833)	Acc@1 57.03 (55.51)	Acc@5 75.00 (80.16)
+    Test: [60/79]	Time 0.168 (0.154)	Loss 1.794 (1.856)	Acc@1 57.03 (55.16)	Acc@5 84.38 (79.84)
+    Test: [70/79]	Time 0.152 (0.154)	Loss 2.371 (1.889)	Acc@1 46.88 (54.68)	Acc@5 74.22 (79.14)
      * Acc@1 55.040 Acc@5 79.730
     Accuracy of initialized INT8 model: 55.040
 
@@ -679,43 +663,43 @@ training pipeline are required. Here is a simple example.
 
     compression_lr = init_lr / 10
     optimizer = torch.optim.Adam(quantized_model.parameters(), lr=compression_lr)
-
+    
     # Train for one epoch with NNCF.
     train(train_loader, quantized_model, criterion, optimizer, epoch=0)
-
+    
     # Evaluate on validation set after Quantization-Aware Training (QAT case).
     acc1_int8 = validate(val_loader, quantized_model, criterion)
-
+    
     print(f"Accuracy of tuned INT8 model: {acc1_int8:.3f}")
     print(f"Accuracy drop of tuned INT8 model over pre-trained FP32 model: {acc1_fp32 - acc1_int8:.3f}")
 
 
 .. parsed-literal::
 
-    Epoch:[0][  0/782]	Time 0.451 (0.451)	Loss 1.029 (1.029)	Acc@1 75.00 (75.00)	Acc@5 90.62 (90.62)
-    Epoch:[0][ 50/782]	Time 0.383 (0.386)	Loss 0.670 (0.823)	Acc@1 85.94 (79.99)	Acc@5 94.53 (93.84)
-    Epoch:[0][100/782]	Time 0.376 (0.385)	Loss 0.660 (0.799)	Acc@1 85.94 (80.38)	Acc@5 98.44 (94.42)
-    Epoch:[0][150/782]	Time 0.382 (0.385)	Loss 0.639 (0.797)	Acc@1 85.94 (80.56)	Acc@5 95.31 (94.26)
-    Epoch:[0][200/782]	Time 0.376 (0.385)	Loss 0.736 (0.790)	Acc@1 80.47 (80.74)	Acc@5 95.31 (94.31)
-    Epoch:[0][250/782]	Time 0.382 (0.384)	Loss 0.812 (0.785)	Acc@1 81.25 (80.85)	Acc@5 93.75 (94.36)
-    Epoch:[0][300/782]	Time 0.387 (0.384)	Loss 0.871 (0.781)	Acc@1 75.00 (80.93)	Acc@5 91.41 (94.38)
-    Epoch:[0][350/782]	Time 0.406 (0.384)	Loss 0.749 (0.774)	Acc@1 82.03 (81.11)	Acc@5 93.75 (94.44)
-    Epoch:[0][400/782]	Time 0.388 (0.384)	Loss 0.766 (0.772)	Acc@1 80.47 (81.18)	Acc@5 96.88 (94.43)
-    Epoch:[0][450/782]	Time 0.385 (0.384)	Loss 0.867 (0.768)	Acc@1 78.91 (81.33)	Acc@5 92.97 (94.48)
-    Epoch:[0][500/782]	Time 0.387 (0.384)	Loss 0.523 (0.765)	Acc@1 89.06 (81.37)	Acc@5 97.66 (94.53)
-    Epoch:[0][550/782]	Time 0.390 (0.384)	Loss 0.827 (0.762)	Acc@1 79.69 (81.42)	Acc@5 92.97 (94.54)
-    Epoch:[0][600/782]	Time 0.374 (0.384)	Loss 0.640 (0.761)	Acc@1 85.94 (81.47)	Acc@5 95.31 (94.54)
-    Epoch:[0][650/782]	Time 0.380 (0.384)	Loss 0.590 (0.757)	Acc@1 82.81 (81.60)	Acc@5 98.44 (94.59)
-    Epoch:[0][700/782]	Time 0.390 (0.384)	Loss 0.576 (0.755)	Acc@1 85.94 (81.66)	Acc@5 96.88 (94.60)
-    Epoch:[0][750/782]	Time 0.389 (0.384)	Loss 0.788 (0.752)	Acc@1 79.69 (81.71)	Acc@5 95.31 (94.63)
-    Test: [ 0/79]	Time 0.153 (0.153)	Loss 1.063 (1.063)	Acc@1 73.44 (73.44)	Acc@5 87.50 (87.50)
-    Test: [10/79]	Time 0.149 (0.160)	Loss 1.793 (1.515)	Acc@1 50.78 (63.14)	Acc@5 82.03 (84.59)
-    Test: [20/79]	Time 0.152 (0.156)	Loss 1.580 (1.590)	Acc@1 64.06 (60.79)	Acc@5 82.03 (84.19)
-    Test: [30/79]	Time 0.152 (0.155)	Loss 2.101 (1.690)	Acc@1 55.47 (59.12)	Acc@5 71.88 (82.66)
-    Test: [40/79]	Time 0.153 (0.154)	Loss 1.591 (1.744)	Acc@1 64.84 (57.79)	Acc@5 83.59 (81.65)
-    Test: [50/79]	Time 0.152 (0.154)	Loss 1.891 (1.750)	Acc@1 55.47 (57.71)	Acc@5 77.34 (81.30)
-    Test: [60/79]	Time 0.152 (0.154)	Loss 1.560 (1.782)	Acc@1 65.62 (57.11)	Acc@5 84.38 (80.75)
-    Test: [70/79]	Time 0.153 (0.154)	Loss 2.476 (1.811)	Acc@1 44.53 (56.59)	Acc@5 75.00 (80.27)
+    Epoch:[0][  0/782]	Time 0.438 (0.438)	Loss 1.029 (1.029)	Acc@1 75.00 (75.00)	Acc@5 90.62 (90.62)
+    Epoch:[0][ 50/782]	Time 0.394 (0.391)	Loss 0.670 (0.823)	Acc@1 85.94 (79.99)	Acc@5 94.53 (93.84)
+    Epoch:[0][100/782]	Time 0.398 (0.389)	Loss 0.660 (0.799)	Acc@1 85.94 (80.38)	Acc@5 98.44 (94.42)
+    Epoch:[0][150/782]	Time 0.380 (0.388)	Loss 0.639 (0.797)	Acc@1 85.94 (80.56)	Acc@5 95.31 (94.26)
+    Epoch:[0][200/782]	Time 0.388 (0.388)	Loss 0.736 (0.790)	Acc@1 80.47 (80.74)	Acc@5 95.31 (94.31)
+    Epoch:[0][250/782]	Time 0.394 (0.387)	Loss 0.812 (0.785)	Acc@1 81.25 (80.85)	Acc@5 93.75 (94.36)
+    Epoch:[0][300/782]	Time 0.386 (0.387)	Loss 0.871 (0.781)	Acc@1 75.00 (80.93)	Acc@5 91.41 (94.38)
+    Epoch:[0][350/782]	Time 0.382 (0.387)	Loss 0.749 (0.774)	Acc@1 82.03 (81.11)	Acc@5 93.75 (94.44)
+    Epoch:[0][400/782]	Time 0.394 (0.387)	Loss 0.766 (0.772)	Acc@1 80.47 (81.18)	Acc@5 96.88 (94.43)
+    Epoch:[0][450/782]	Time 0.390 (0.387)	Loss 0.867 (0.768)	Acc@1 78.91 (81.33)	Acc@5 92.97 (94.48)
+    Epoch:[0][500/782]	Time 0.392 (0.387)	Loss 0.523 (0.765)	Acc@1 89.06 (81.37)	Acc@5 97.66 (94.53)
+    Epoch:[0][550/782]	Time 0.386 (0.387)	Loss 0.827 (0.762)	Acc@1 79.69 (81.42)	Acc@5 92.97 (94.54)
+    Epoch:[0][600/782]	Time 0.385 (0.387)	Loss 0.640 (0.761)	Acc@1 85.94 (81.47)	Acc@5 95.31 (94.54)
+    Epoch:[0][650/782]	Time 0.395 (0.387)	Loss 0.590 (0.757)	Acc@1 82.81 (81.60)	Acc@5 98.44 (94.59)
+    Epoch:[0][700/782]	Time 0.389 (0.387)	Loss 0.576 (0.755)	Acc@1 85.94 (81.66)	Acc@5 96.88 (94.60)
+    Epoch:[0][750/782]	Time 0.390 (0.387)	Loss 0.788 (0.752)	Acc@1 79.69 (81.71)	Acc@5 95.31 (94.63)
+    Test: [ 0/79]	Time 0.155 (0.155)	Loss 1.063 (1.063)	Acc@1 73.44 (73.44)	Acc@5 87.50 (87.50)
+    Test: [10/79]	Time 0.153 (0.154)	Loss 1.793 (1.515)	Acc@1 50.78 (63.14)	Acc@5 82.03 (84.59)
+    Test: [20/79]	Time 0.153 (0.153)	Loss 1.580 (1.590)	Acc@1 64.06 (60.79)	Acc@5 82.03 (84.19)
+    Test: [30/79]	Time 0.152 (0.153)	Loss 2.101 (1.690)	Acc@1 55.47 (59.12)	Acc@5 71.88 (82.66)
+    Test: [40/79]	Time 0.152 (0.153)	Loss 1.591 (1.744)	Acc@1 64.84 (57.79)	Acc@5 83.59 (81.65)
+    Test: [50/79]	Time 0.155 (0.154)	Loss 1.891 (1.750)	Acc@1 55.47 (57.71)	Acc@5 77.34 (81.30)
+    Test: [60/79]	Time 0.156 (0.154)	Loss 1.560 (1.782)	Acc@1 65.62 (57.11)	Acc@5 84.38 (80.75)
+    Test: [70/79]	Time 0.150 (0.154)	Loss 2.476 (1.811)	Acc@1 44.53 (56.59)	Acc@5 75.00 (80.27)
      * Acc@1 57.080 Acc@5 80.940
     Accuracy of tuned INT8 model: 57.080
     Accuracy drop of tuned INT8 model over pre-trained FP32 model: -1.560
@@ -767,17 +751,8 @@ throughput (frames per second) values.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    # Initialize OpenVINO runtime
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices,
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
-
+    device = device_widget()
+    
     device
 
 
@@ -785,7 +760,7 @@ throughput (frames per second) values.
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU',), value='CPU')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
@@ -794,12 +769,12 @@ throughput (frames per second) values.
     def parse_benchmark_output(benchmark_output):
         parsed_output = [line for line in benchmark_output if "FPS" in line]
         print(*parsed_output, sep="\n")
-
-
+    
+    
     print("Benchmark FP32 model (IR)")
     benchmark_output = ! benchmark_app -m $fp32_ir_path -d $device.value -api async -t 15
     parse_benchmark_output(benchmark_output)
-
+    
     print("Benchmark INT8 model (IR)")
     benchmark_output = ! benchmark_app -m $int8_ir_path -d $device.value -api async -t 15
     parse_benchmark_output(benchmark_output)
@@ -808,15 +783,16 @@ throughput (frames per second) values.
 .. parsed-literal::
 
     Benchmark FP32 model (IR)
-    [ INFO ] Throughput:   2955.92 FPS
+    [ INFO ] Throughput:   2812.15 FPS
     Benchmark INT8 model (IR)
-    [ INFO ] Throughput:   11877.97 FPS
+    [ INFO ] Throughput:   11359.92 FPS
 
 
 Show Device Information for reference.
 
 .. code:: ipython3
 
+    core = ov.Core()
     core.get_property(device.value, "FULL_DEVICE_NAME")
 
 
@@ -824,6 +800,6 @@ Show Device Information for reference.
 
 .. parsed-literal::
 
-    'Intel(R) Core(TM) i9-10920X CPU @ 3.50GHz'
+    'AUTO'
 
 

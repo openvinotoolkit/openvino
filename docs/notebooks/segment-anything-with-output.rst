@@ -188,7 +188,7 @@ model type below to a SAM model checkpoint, then load the model using
     )
 
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
     checkpoint = "sam_vit_b_01ec64.pth"
     model_url = "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth"
@@ -244,14 +244,7 @@ embeddings, tensor with shape ``1x256x64x64``
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -854,9 +847,6 @@ point.
 
 .. code:: ipython3
 
-    import gradio as gr
-
-
     class Segmenter:
         def __init__(self, ov_encoder, ov_predictor):
             self.encoder = ov_encoder
@@ -898,40 +888,23 @@ point.
 
     segmenter = Segmenter(ov_encoder, ov_predictor)
 
+.. code:: ipython3
 
-    with gr.Blocks() as demo:
-        with gr.Row():
-            input_img = gr.Image(label="Input", type="numpy", height=480, width=480)
-            output_img = gr.Image(label="Selected Segment", type="numpy", height=480, width=480)
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/segment-anything/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
 
-        def on_image_change(img):
-            segmenter.set_image(img)
-            return img
+    from gradio_helper import make_demo
 
-        def get_select_coords(img, evt: gr.SelectData):
-            pixels_in_queue = set()
-            h, w = img.shape[:2]
-            pixels_in_queue.add((evt.index[0], evt.index[1]))
-            out = img.copy()
-            while len(pixels_in_queue) > 0:
-                pixels = list(pixels_in_queue)
-                pixels_in_queue = set()
-                color = np.random.randint(0, 255, size=(1, 1, 3))
-                mask = segmenter.get_mask(pixels, img)
-                mask_image = out.copy()
-                mask_image[mask.squeeze(-1)] = color
-                out = cv2.addWeighted(out.astype(np.float32), 0.7, mask_image.astype(np.float32), 0.3, 0.0)
-            out = out.astype(np.uint8)
-            return out
+    demo = make_demo(segmenter)
 
-        input_img.select(get_select_coords, [input_img], output_img)
-        input_img.upload(on_image_change, [input_img], [input_img])
-
-    if __name__ == "__main__":
-        try:
-            demo.launch()
-        except Exception:
-            demo.launch(share=True)
+    try:
+        demo.launch()
+    except Exception:
+        demo.launch(share=True)
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name="your server name", server_port="server port in int")`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
 
 Run OpenVINO model in automatic mask generation mode
 ----------------------------------------------------
@@ -1310,7 +1283,7 @@ is a dictionary containing various data about the mask. These keys are:
 
 
 
-.. image:: segment-anything-with-output_files/segment-anything-with-output_68_1.png
+.. image:: segment-anything-with-output_files/segment-anything-with-output_69_1.png
 
 
 
@@ -1528,7 +1501,7 @@ We can reuse the previous code to validate the output of ``INT8`` model.
 
 
 
-.. image:: segment-anything-with-output_files/segment-anything-with-output_80_0.png
+.. image:: segment-anything-with-output_files/segment-anything-with-output_81_0.png
 
 
 Run ``INT8`` model in automatic mask generation mode
@@ -1550,7 +1523,7 @@ Run ``INT8`` model in automatic mask generation mode
 
 
 
-.. image:: segment-anything-with-output_files/segment-anything-with-output_82_1.png
+.. image:: segment-anything-with-output_files/segment-anything-with-output_83_1.png
 
 
 

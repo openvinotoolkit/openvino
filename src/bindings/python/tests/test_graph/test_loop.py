@@ -97,8 +97,6 @@ def test_loop_inputs_are_nodes():
     loop.set_invariant_input(y_i, param_y.output(0))
     loop.set_merged_input(m_body, param_m.output(0), zo.output(0))
     loop.set_special_body_ports([-1, 0])
-    with pytest.warns(DeprecationWarning, match="validate is deprecated and will be removed in version 2024.4."):
-        loop.validate()
 
     loop.constructor_validate_and_infer_types()
 

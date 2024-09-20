@@ -40,11 +40,11 @@ The tutorial consists from following steps:
    -  `Convert and Optimize Model <#convert-and-optimize-model>`__
 
       -  `Instantiate PyTorch model
-          <#instantiate-pytorch-model>`__
+         <#instantiate-pytorch-model>`__
       -  `Compress Model weights to 4 and 8 bits using NNCF
-          <#compress-model-weights-to-4-and-8-bits-using-nncf>`__
+         <#compress-model-weights-to-4-and-8-bits-using-nncf>`__
       -  `Convert model to OpenVINO IR format
-          <#convert-model-to-openvino-ir-format>`__
+         <#convert-model-to-openvino-ir-format>`__
 
 -  `Prepare OpenVINO based inference
    pipeline <#prepare-openvino-based-inference-pipeline>`__
@@ -1057,7 +1057,6 @@ Interactive demo
 
 .. code:: ipython3
 
-    import gradio as gr
     from videollava.conversation import conv_templates, SeparatorStyle
 
 
@@ -1106,70 +1105,18 @@ Interactive demo
 
         return outputs
 
+.. code:: ipython3
 
-    demo = gr.Interface(
-        generate,
-        [
-            gr.Image(label="Input Image", type="filepath"),
-            gr.Video(label="Input Video"),
-            gr.Textbox(label="Question"),
-        ],
-        gr.Textbox(lines=10),
-        examples=[
-            [
-                f"{examples_dir}/extreme_ironing.jpg",
-                None,
-                "What is unusual about this image?",
-            ],
-            [
-                f"{examples_dir}/waterview.jpg",
-                None,
-                "What are the things I should be cautious about when I visit here?",
-            ],
-            [
-                f"{examples_dir}/desert.jpg",
-                None,
-                "If there are factual errors in the questions, point it out; if not, proceed answering the question. What’s happening in the desert?",
-            ],
-            [
-                None,
-                f"{examples_dir}/sample_demo_1.mp4",
-                "Why is this video funny?",
-            ],
-            [
-                None,
-                f"{examples_dir}/sample_demo_3.mp4",
-                "Can you identify any safety hazards in this video?",
-            ],
-            [
-                None,
-                f"{examples_dir}/sample_demo_9.mp4",
-                "Describe the video.",
-            ],
-            [
-                None,
-                f"{examples_dir}/sample_demo_22.mp4",
-                "Describe the activity in the video.",
-            ],
-            [
-                f"{examples_dir}/sample_img_22.png",
-                f"{examples_dir}/sample_demo_22.mp4",
-                "Are the instruments in the pictures used in the video?",
-            ],
-            [
-                f"{examples_dir}/sample_img_13.png",
-                f"{examples_dir}/sample_demo_13.mp4",
-                "Does the flag in the image appear in the video?",
-            ],
-            [
-                f"{examples_dir}/sample_img_8.png",
-                f"{examples_dir}/sample_demo_8.mp4",
-                "Are the image and the video depicting the same place?",
-            ],
-        ],
-        title="Video-LLaVA🚀",
-        allow_flagging="never",
-    )
+    import requests
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llava-multimodal-chatbot/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+
+    from gradio_helper import make_demo_videollava
+
+    demo = make_demo_videollava(fn=generate)
+
     try:
         demo.queue().launch(debug=False)
     except Exception:
@@ -1177,3 +1124,8 @@ Interactive demo
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

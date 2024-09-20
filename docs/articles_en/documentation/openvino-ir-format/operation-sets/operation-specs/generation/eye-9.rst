@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_generation_Eye_9}
-
 Eye
 ===
 
