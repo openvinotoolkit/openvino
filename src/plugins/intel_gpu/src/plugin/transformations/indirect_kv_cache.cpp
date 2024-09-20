@@ -74,7 +74,7 @@ IndirectGemmOpt::IndirectGemmOpt() {
         ov::replace_node(gather_node, gather_input_node);
 
         auto indirect_kv_cache = std::make_shared<op::KVCache>(gather_input_node,
-                                                               kv_cache_node->get_input_node_shared_ptr(1),
+                                                               kv_cache_node->input(1).get_source_output(),
                                                                beam_idx_node,
                                                                kv_cache_node->get_variable(),
                                                                kv_cache_node->get_concat_axis(),
