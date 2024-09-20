@@ -77,46 +77,6 @@ size_t get_elems_in_vec(const ov::element::Type& precision) {
 }
 
 namespace repacking {
-size_t get_repacking_buffer_size(const ov::snippets::lowered::ExpressionPtr& copy_b_expr) {
-    OPENVINO_ASSERT(ov::is_type<ov::intel_cpu::BrgemmCopyB>(copy_b_expr->get_node()));
-    const auto& in_desc = copy_b_expr->get_input_port_descriptor(0);
-    const auto& in_layout = in_desc->get_layout();
-    const auto& in_subtensor = ov::snippets::utils::get_projected_subtensor(copy_b_expr->get_input_port(0));
-
-    const size_t n_blk = *in_subtensor.rbegin();
-    const size_t k_blk = *++in_subtensor.rbegin();
-    OPENVINO_ASSERT(!is_dynamic_value(n_blk) && !is_dynamic_value(k_blk), "get_repacking_buffer_size must be called with static subtensor values");
-
-    const auto& precision = copy_b_expr->get_node()->get_input_element_type(0);
-    // Repacking buffer shape is set in accordance to OneDNN requirements
-    const size_t N_dim = std::max(n_blk, compute_inner_n_block(precision));
-    if (!in_layout.empty() && in_layout.back() != in_layout.size() - 1) {
-        // In case of transpose, K dimension must be rounded-up to number of elems in vector register
-        // For the details, please see 'transpose16x8' and 'fixup16x16' implementations and usage in onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
-        const auto elems_in_vec = brgemm_utils::get_elems_in_vec(precision);
-        return N_dim * rnd_up(k_blk, elems_in_vec);
-    } else {
-        // Low precision repacking writes the result by m_brgemmVNNIFactor * m_inner_n_block blocks
-        // despite the actual size of the input data. Because of that we have to round-up the allocation shape to always have enough memory allocated.
-        // For the details, please see 'copy_4x64' and 'copy_2x32' implementations and usage in onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
-        const auto brgemmVNNIFactor = brgemm_utils::compute_vnni_factor(precision);
-        OPENVINO_ASSERT(brgemmVNNIFactor > 0, "brgemmVNNIFactor value must be positive.");
-        return N_dim * rnd_up(k_blk, brgemmVNNIFactor);
-    }
-}
-
-size_t get_compensations_buffer_size(const ov::snippets::lowered::ExpressionPtr& copy_b_expr) {
-    OPENVINO_ASSERT(ov::is_type<ov::intel_cpu::BrgemmCopyB>(copy_b_expr->get_node()));
-    const auto& in_subtensor = ov::snippets::utils::get_projected_subtensor(copy_b_expr->get_input_port(0));
-    const size_t n_blk = *in_subtensor.rbegin();
-    OPENVINO_ASSERT(!is_dynamic_value(n_blk), "get_compensations_buffer_size must be called with static subtensor values");
-    const auto& precision = copy_b_expr->get_node()->get_input_element_type(0);
-    // Compensations are computed during repacking, so we need to round-up allocation shape according to m_inner_n_block
-    // because of OneDNN implementation nuances (as in get_repacking_buffer_size).
-    // However, the compensations are computed by N dimension, so K dimension doesn't affect the compensations buffer
-    return std::max(n_blk, compute_inner_n_block(precision));
-}
-
 size_t compute_out_leading_dim(const size_t n_block, const ov::element::Type& precision) {
     return std::max(n_block, compute_inner_n_block(precision));
 }

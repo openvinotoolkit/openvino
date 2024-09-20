@@ -30,6 +30,23 @@ class Convnet(torch.nn.Module):
 
 
 def _infer_pipelines(test_input, preprocess_pipeline, input_channels=3):
+    retries = 0
+    max_retries = 3
+    while retries < max_retries:
+        try:
+            return _infer_pipelines_impl(test_input, preprocess_pipeline, input_channels)
+        except RuntimeError as e:
+            if "builtin cannot be used as a value" in e:
+                # This is a potentially sporadic issue
+                print(f"An error occurred: {e}. Retrying...")
+                retries += 1
+            else:
+                raise
+    else:
+        print("Max retries reached. Function execution failed.")
+
+
+def _infer_pipelines_impl(test_input, preprocess_pipeline, input_channels=3):
     torch_model = Convnet(input_channels)
     ov_model = convert_model(torch_model)
     core = Core()
