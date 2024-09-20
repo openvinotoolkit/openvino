@@ -13,9 +13,9 @@
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rms.hpp"
 #include "transformations/utils/utils.hpp"
 
