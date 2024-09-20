@@ -85,6 +85,16 @@ void TransformationTestsF::TearDown() {
         ASSERT_TRUE(res.valid) << res.message;
         comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
     }
+    {
+        ov::pass::Manager _manager;
+        _manager.register_pass<ov::pass::Serialize>("model.xml", "model.bin");
+        _manager.run_passes(model);
+    }
+    {
+        ov::pass::Manager _manager;
+        _manager.register_pass<ov::pass::Serialize>("model_ref.xml", "model_ref.bin");
+        _manager.run_passes(model_ref);
+    }
     auto res = comparator.compare(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }

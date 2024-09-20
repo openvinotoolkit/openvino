@@ -180,7 +180,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest6) {
         auto mul2 = std::make_shared<ov::opset10::Multiply>(gamma, mul1);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{mul2}, ov::ParameterVector{input});
-        manager.register_pass<RMSFusion>();
+        manager.register_pass<RMSFusion>(false);
     }
     {
         auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 6});
