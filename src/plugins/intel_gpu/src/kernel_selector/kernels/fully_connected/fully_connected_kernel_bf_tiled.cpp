@@ -130,8 +130,17 @@ static bool is_weight_with_small_ofm(const fully_connected_params& params, size_
     return (output_f / 2 /*most frequently used tile_ofm*/ <= min_num_threads);
 }
 
+static bool is_weight_with_large_ofm(const fully_connected_params& params, size_t output_f) {
+    size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
+    return (output_f / 4 /* tile_ofm=4 */ > min_num_threads);
+}
+
 static bool is_weight_with_large_ifm(const fully_connected_params& fc_params) {
     return (fc_params.weights.IFM().v >= fc_params.weights.OFM().v * 3 && fc_params.weights.OFM().v <= 4096);
+}
+
+static bool is_suitable_outer_ofm(size_t output_f) {
+    return (output_f / 8 /* tile_ofm=4 and outer_ofm=2 */ > 3072);
 }
 
 FullyConnected_bf_tiled::FullyConnected_bf_tiled() : FullyConnectedKernelBase("fully_connected_gpu_bf_tiled") {
@@ -372,7 +381,10 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
                 if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
                     return selector.Default(tune_params(1, 1, 4, 4, 1, 1, 1, EXE_MODE_DEFAULT));
                 } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
-                    return selector.Default(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT));
+                    if (is_suitable_outer_ofm(output_f))
+                        return selector.Default(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT));
+                    else
+                        return selector.Default(tune_params(1, 4, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
                 } else {
                     return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
                 }
@@ -757,7 +769,7 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
     if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
-        && output_f >= 10240 && !is_weight_with_large_ifm(fc_params)
+        && is_weight_with_large_ofm(fc_params, output_f) && !is_weight_with_large_ifm(fc_params)
         && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)
         && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)) {
         // Large N + Small K case to use [osv64_isv2] + TILE_OFM 4 for batch 1
