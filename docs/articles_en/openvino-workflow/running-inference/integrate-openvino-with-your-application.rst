@@ -416,7 +416,7 @@ For details on additional CMake build options, refer to the `CMake page <https:/
           :language: cpp
           :fragment: [cmake:integration_example_c]
           
-    .. tab-item:: C++ (PyPi)
+    .. tab-item:: C++ (PyPI)
       :sync: cpp 
       
       .. doxygensnippet:: docs/snippets/CMakeLists.txt
