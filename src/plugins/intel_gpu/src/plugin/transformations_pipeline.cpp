@@ -292,7 +292,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::MVNFusion>();
 
         // fuse RMS patterns, so that they will not be marked as precision sensitive in ConvertPrecision
-        manager.register_pass<ov::pass::RMSFusion>(false);
+        manager.register_pass<ov::pass::RMSFusion>();
         pass_config->set_callback<ov::pass::RMSFusion>([=](const_node_ptr& root) -> bool {
             if (!root->get_input_node_ptr(0)->get_input_partial_shape(0).is_static()) {
                 return false;
