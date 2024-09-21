@@ -936,12 +936,12 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                     std::cout << "tensor_sync concat: rank[" << w_rank << "]: layout[" << idx << "] (" << height << ","
                               << width / element_size << ") = " << layout.to_short_string()
                               << ", offset = " << layout.get_linear_offset()
-                              << ", linear size = " << layout.get_linear_size()
-                              << ", buf_size = " << layout.get_buffer_size() << ", pitch[] = ";
+                              << ", linear size = " << layout.get_linear_size();
+                              /*<< ", buf_size = " << layout.get_buffer_size() << ", pitch[] = ";
                     auto pitches = layout.get_pitches().sizes();
                     for (auto& p : pitches) {
                         std::cout << p << ", ";
-                    }
+                    }*/
                     std::cout << "]" << std::endl;
                 }
 
