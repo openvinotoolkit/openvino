@@ -528,7 +528,7 @@ bool program_node::is_fused_dep(size_t dep_idx) const {
 std::set<size_t> program_node::get_lockable_input_ids() const {
     const auto impl = get_selected_impl();
     const bool has_cpu_impl = get_preferred_impl_type() == impl_types::cpu || (impl && impl->is_cpu());
-    if (has_cpu_impl) {
+    if (has_cpu_impl && !is_type<shape_of>()) {
         std::set<size_t> dependencies_indexes;
         for (size_t i = 0; i < get_dependencies().size(); i++)
             dependencies_indexes.insert(i);
