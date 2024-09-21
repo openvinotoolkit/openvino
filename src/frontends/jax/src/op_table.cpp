@@ -48,6 +48,8 @@ OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_transpose);
+OP_CONVERTER(translate_gather);
+
 
 }  // namespace op
 
@@ -82,7 +84,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"squeeze", op::translate_squeeze},
             {"stop_gradient", op::skip_node},
             {"sub", op::translate_1to1_match_2_inputs<v1::Subtract>},
-            {"tanh", op::translate_1to1_match_1_input<v0::Tanh>}};
+            {"tanh", op::translate_1to1_match_1_input<v0::Tanh>}},
+            {"gather", op::translate_gather};
+
 };
 
 }  // namespace jax
