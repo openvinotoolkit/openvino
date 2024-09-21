@@ -3,6 +3,7 @@
 //
 
 #include "concatenation_inst.h"
+#include "impls/onednn/utils.hpp"
 #include "impls/registry/implementation_manager.hpp"
 
 #include <memory>
@@ -26,6 +27,8 @@ struct ConcatenationImplementationManager : public ImplementationManager {
             format::any,
             format::bfyx,
             format::byxf,
+            format::bfzyx,
+            format::bzyxf,
             format::b_fs_yx_fsv16,
             format::b_fs_yx_fsv32,
             format::bs_fs_yx_bsv16_fsv16,
@@ -50,17 +53,24 @@ struct ConcatenationImplementationManager : public ImplementationManager {
         if (out_layout.data_padding)
             return false;
 
+        bool any_dep_is_onednn = false;
         for (const auto& dep : node.get_dependencies()) {
             const auto& in_layout = dep.first->get_output_layout(false, dep.second);
             if (!one_of(in_layout.data_type, supported_types))
                 return false;
 
-            if (in_layout.data_padding)
+            if (!is_supported_pad(in_layout))
                 return false;
 
             if (!one_of(in_layout.format.value, supported_in_fmts))
                 return false;
+
+            if (dep.first->get_preferred_impl_type() == impl_types::onednn)
+                any_dep_is_onednn = true;
         }
+
+        if (!any_dep_is_onednn && format::is_simple_data_format(out_layout.format))
+            return false;
 
         return true;
     }
