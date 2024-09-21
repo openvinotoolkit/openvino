@@ -317,6 +317,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);
+    manager.register_pass<ov::pass::ConvertConvertLike>();
     manager.run_passes(model);
 
     // Usually if nn.Module.forward is given as a source model for conversion, there is the first Parameter
