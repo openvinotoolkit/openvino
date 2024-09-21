@@ -30,7 +30,7 @@ OutputVector translate_index_fill_(const NodeContext& context) {
     auto index = context.get_input(2);
     auto value = context.get_input(3);
 
-    auto const_1_vec = v0::Constant::create(element::i32, Shape{1}, {value});
+    auto const_1_vec = v0::Constant::create(element::i32, Shape{1}, {0});
 
     Output<Node> tensor_rank = std::get<1>(get_shape_rank(context, input, true));
     auto tensor_rank_correct_type = context.mark_node(std::make_shared<v1::ConvertLike>(tensor_rank, dim));
