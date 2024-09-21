@@ -158,6 +158,8 @@ public:
     }
     memory& output_memory(size_t index = 0) const { return *_outputs[index]; }
     memory::ptr output_memory_ptr(size_t index = 0) const { return _outputs[index]; }
+    std::vector<memory::ptr>& get_output_memorys() { return _outputs; }
+
     size_t inputs_memory_count() const { return _inputs_memory_count; }
     size_t outputs_memory_count() const { return _outputs_memory_count; }
     bool outputs_allocated() const {
@@ -306,6 +308,7 @@ public:
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
     virtual void update_shape_info_tensor(const kernel_impl_params& params);
+    int64_t sync_wait_times;
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
@@ -378,7 +381,6 @@ protected:
     bool _can_share_buffer = true;
     bool _is_constant = false;
     bool _needs_completion_event = false;
-
     std::vector<size_t> _max_output_layout_count;
     std::vector<size_t> max_intermediates_memory_sizes;
 

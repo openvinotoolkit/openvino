@@ -31,11 +31,11 @@ public:
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
         auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
         // runtime decision if needs to apply TP based on different FC inputs/weights
-        if (is_dynamic()) {
+        //if (is_dynamic()) {
             params->w_rank = w_rank;
             params->w_size = w_size;
             params->need_add = get_primitive()->m_tp_mode == ov::intel_gpu::op::TP_MODE::ALL_REDUCE;
-        }
+        //}
         return params;
     }
     int w_rank = -1;

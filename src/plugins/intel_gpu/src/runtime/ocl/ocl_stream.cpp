@@ -370,6 +370,10 @@ event::ptr ocl_stream::create_base_event() {
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
 }
 
+event::ptr ocl_stream::create_event(cl::Event event) {
+    return std::make_shared<ocl_event>(event, ++_queue_counter);
+}
+
 void ocl_stream::flush() const {
     try {
         get_cl_queue().flush();

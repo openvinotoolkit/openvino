@@ -118,10 +118,20 @@ static void CreateRankConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::in
         auto bufSize = constLayout.bytes_count();
         int rank = op->get_rank();
         int w_size = op->get_size();
+        auto split_info = op->get_split_info();
         switch (op->get_tp_mode()) {
             case ov::intel_gpu::op::TP_MODE::ALL_GATHERH: {
-                int offset = rank * bufSize;
-                std::memcpy(&buf[0], &data[0] + offset, bufSize);
+                cldnn::layout ref_const_layout = constLayout;
+                if (split_info[0] != const_shape[0]) {
+                    ov::Shape ref_const_shape = const_shape;
+                    ref_const_shape[0] = split_info[0];
+                    cldnn::tensor ref_const_tensor = getConstTensor(ref_const_shape);
+                    auto ref_const_format = cldnn::format::get_default_format(ref_const_shape.size());
+                    ref_const_layout = p.use_new_shape_infer() ? cldnn::layout(ref_const_shape, out_dtype, ref_const_format) :
+                                                            cldnn::layout(out_dtype, ref_const_format, ref_const_tensor);
+                }
+                auto adjust_offset = rank * ref_const_layout.bytes_count();
+                std::memcpy(&buf[0], &data[0] + adjust_offset, bufSize);
                 break;
             }
             case ov::intel_gpu::op::TP_MODE::ALL_GATHERV:
@@ -129,8 +139,32 @@ static void CreateRankConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::in
             case ov::intel_gpu::op::TP_MODE::ALL_REDUCE: {
                 int step_r = bufSize / const_shape[0];
                 int step_h = step_r * w_size;
-                for (size_t i = 0; i < const_shape[0]; i++) {
-                    std::memcpy(&buf[0] + i * step_r, (&data[0] + (rank * step_r)) + i * step_h, step_r);
+                if (const_shape[-1] == split_info[0] && split_info[0] == split_info[split_info.size() - 1]) {
+                    for (size_t i = 0; i < const_shape[0]; i++) {
+                        std::memcpy(&buf[0] + i * step_r, (&data[0] + (rank * step_r)) + i * step_h, step_r);
+                    }
+                } else {
+                    cldnn::layout ref_const_layout = constLayout;
+                    ov::Shape ref_const_shape = const_shape;
+                    ref_const_shape[-1] = split_info[0];
+                    cldnn::tensor ref_const_tensor = getConstTensor(ref_const_shape);
+                    auto ref_const_format = cldnn::format::get_default_format(ref_const_shape.size());
+                    ref_const_layout = p.use_new_shape_infer() ? cldnn::layout(ref_const_shape, out_dtype, ref_const_format) :
+                                                            cldnn::layout(out_dtype, ref_const_format, ref_const_tensor);
+                    auto adjust_offset = ref_const_layout.bytes_count() / const_shape[0];
+
+                    // calculate the correct stide
+                    cldnn::layout org_const_layout = constLayout;
+                    ov::Shape org_const_shape = const_shape;
+                    org_const_shape[-1] = std::accumulate(split_info.begin(), split_info.end(), (size_t)0, std::plus<size_t>());
+                    cldnn::tensor org_const_tensor = getConstTensor(org_const_shape);
+                    auto org_const_format = cldnn::format::get_default_format(org_const_shape.size());
+                    org_const_layout = p.use_new_shape_infer() ? cldnn::layout(org_const_shape, out_dtype, org_const_format) :
+                                                            cldnn::layout(out_dtype, org_const_format, org_const_tensor);
+                    auto adjust_stride = org_const_layout.bytes_count() / const_shape[0];
+                    for (size_t i = 0; i < const_shape[0]; i++) {
+                        std::memcpy(&buf[0] + i * step_r, (&data[0] + (rank * adjust_offset)) + i * adjust_stride, step_r);
+                    }
                 }
                 break;
             }
