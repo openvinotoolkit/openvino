@@ -27,8 +27,6 @@ ov_build_target_faster(${TARGET_NAME}
 
 ov_set_threading_interface_for(${TARGET_NAME})
 
-target_compile_definitions(${TARGET_NAME} PRIVATE XBYAK_NO_OP_NAMES XBYAK64)
-
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
@@ -37,9 +35,6 @@ target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${REF_IMPL_INCLUDE_DIR}>
     $<BUILD_INTERFACE:${OV_CORE_DEV_API_PATH}>
     $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
-
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<BUILD_INTERFACE:$<$<TARGET_EXISTS:xbyak::xbyak>:$<TARGET_PROPERTY:xbyak::xbyak,INTERFACE_INCLUDE_DIRECTORIES>>>)
 
 find_package(Threads REQUIRED)
 target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads openvino::core::dev)
