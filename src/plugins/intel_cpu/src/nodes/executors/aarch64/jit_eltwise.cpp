@@ -33,6 +33,7 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwiseIsFinite,
                                      Algorithm::EltwiseIsInf,
                                      Algorithm::EltwiseIsNaN,
+                                     Algorithm::EltwiseLessEqual,
                                      Algorithm::EltwiseLogicalNot,
                                      Algorithm::EltwiseMaximum,
                                      Algorithm::EltwiseMinimum,
