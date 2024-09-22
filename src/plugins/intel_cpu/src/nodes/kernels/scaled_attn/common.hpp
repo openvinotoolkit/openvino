@@ -255,7 +255,7 @@ static constexpr size_t vec_len_f16_neon = vec_len_neon / sizeof(ov::float16);
     }
 #endif
 
-#if defined(OPENVINO_ARCH_ARM64) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#if defined(HAVE_ARM_FP16) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
     inline float16x8_t exp_ps_neon_f16(float16x8_t x) {
         const float32x4_t x_high = vcvt_f32_f16(vget_high_f16(x));
         const float32x4_t x_low  = vcvt_f32_f16(vget_low_f16(x));

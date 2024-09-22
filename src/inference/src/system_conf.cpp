@@ -38,8 +38,9 @@
 
 namespace ov {
 
-#if defined(OPENVINO_ARCH_ARM64) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#if defined(OPENVINO_ARCH_ARM64)
 bool with_cpu_arm_fp16() {
+    // TODO: do we need to copy-paste ACL logic to check f16 support (CpuInfo::build functionality)?
     return true;
 }
 #else
@@ -111,7 +112,7 @@ bool with_cpu_x86_avx512_core_amx() {
 }
 
 
-#else // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
+#else  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 bool with_cpu_x86_sse42() {
     return false;
