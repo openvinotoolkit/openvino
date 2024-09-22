@@ -687,12 +687,12 @@ TEST_P(fc_compressed_int8_bias_prod_unfused_dynamic_onednn, basic) {
     fc_prim.decompression_zero_point_scalar = 8.0f;
 
     // onednn FC supports scalar ZP for int4 compressed weight.
-    auto dcomp_zp_layout = layout{ {1, 1, 1, 1}, data_types::u8, format::bfyx };
+    auto dcomp_zp_layout = layout{ {1, 1}, data_types::u8, format::bfyx };
 
     create_topologies(
         input_layout("input", dynamic_input_layout),
         data("weights", get_mem(get_weights_layout(p))),
-        data("scale", get_mem(get_scale_layout(p))),
+        data("scale", get_mem(get_scale_layout(p, 128))),
         data("bias", get_mem(get_bias_layout(p))),
         data("dcomp_zp", get_mem(dcomp_zp_layout, 8.0f)),
         data("mul_data", get_mem(data_layout, -10, 10)),
