@@ -16,7 +16,7 @@ void CatchError(j_common_ptr _image_info) {
     longjmp(*jpeg_jmpbuf, 1);
 }
 
-bool JPEG::isSupported(const uint8_t* content, size_t length) {
+bool JPEG::isSupported(const uint8_t* content, size_t length, ImageConfig* config) {
     _data = content;
     _length = length;
     _offset = 0;
@@ -50,10 +50,11 @@ bool JPEG::isSupported(const uint8_t* content, size_t length) {
     default:
         return false;
     }
-    _image_info.do_fancy_upsampling = true;
+    _image_info.do_fancy_upsampling = boolean(config->jpeg_fancy_upscaling);
     _image_info.scale_num = 1;
-    _image_info.scale_denom = 1.0;
-    _image_info.dct_method = JDCT_DEFAULT;
+    _image_info.scale_denom = config->jpeg_scale_denom;;
+    _image_info.dct_method = J_DCT_METHOD(config->jpeg_dct_method);
+    
 
     jpeg_calc_output_dimensions(&_image_info);
 
@@ -75,10 +76,13 @@ int JPEG::getData(Tensor& output) {
     jpeg_start_decompress(&_image_info);
     output.set_shape(_shape);
     uint8_t* dstdata = (uint8_t*)output.data();
+
     JSAMPLE* output_line = static_cast<JSAMPLE*>(dstdata);
     JSAMPLE* tempdata = nullptr;
 
     const int stride = _width * _channel * sizeof(JSAMPLE);
+    memset(static_cast<void*>(dstdata), 0, stride * _height);
+
     const bool use_cmyk = (_image_info.out_color_space == JCS_CMYK);
 
     if (use_cmyk) {
@@ -115,6 +119,7 @@ int JPEG::getData(Tensor& output) {
             num_lines_read = jpeg_read_scanlines(&_image_info, &output_line, 1);
         }
         if (num_lines_read == 0) {
+            std::cout << "Decode JPEG Error @ image line " << std::to_string(_image_info.output_scanline) << std::endl;
             break;
         }
         output_line += stride;

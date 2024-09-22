@@ -53,7 +53,7 @@ public:
 
     virtual ~BitMap() {}
     
-    bool isSupported(const uint8_t* content, size_t img_length) override;
+    bool isSupported(const uint8_t* content, size_t img_length, ImageConfig* config) override;
 
     void cleanUp() override {
         _data=nullptr;

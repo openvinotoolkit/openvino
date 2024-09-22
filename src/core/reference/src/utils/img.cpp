@@ -30,25 +30,24 @@ int images::readData(void* buf, size_t size) {
     return 0;
 }
 
-std::shared_ptr<images> ParserImages(const uint8_t* content, size_t img_length) {
+std::shared_ptr<images> ParserImages(const uint8_t* content, size_t img_length, ImageConfig* config) {
 #if WITH_JPEG
     auto jpeg = std::shared_ptr<images>(new JPEG());
-    if (jpeg->isSupported(content, img_length))
+    if (jpeg->isSupported(content, img_length, config))
         return jpeg;
 #endif  // WITH_JPEG
     auto bmp = std::shared_ptr<images>(new BitMap());
-    if (bmp->isSupported(content, img_length))
+    if (bmp->isSupported(content, img_length, config))
         return bmp;
 #if WITH_PNG
     auto png = std::shared_ptr<images>(new PNG());
-    if (png->isSupported(content, img_length))
+    if (png->isSupported(content, img_length, config))
         return png;
 #endif  // WITH_PNG
 #if WITH_GIF
     auto gif = std::shared_ptr<images>(new GIF());
-    if (gif->isSupported(content, img_length)) {
+    if (gif->isSupported(content, img_length, config))
         return gif;
-    }
 #endif  // WITH_GIF
         OPENVINO_THROW("ParserImages failed to parser input data to ( BMP",
 #if WITH_JPEG

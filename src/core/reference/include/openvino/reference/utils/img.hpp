@@ -22,6 +22,13 @@ namespace img {
  * \class FormatReader
  * \brief This is an abstract class for reading input data
  */
+
+struct ImageConfig {
+    uint8_t jpeg_dct_method = 1u; //JDCT_IFAST
+    uint8_t jpeg_fancy_upscaling = 1u; 
+    uint8_t jpeg_scale_denom = 0u;
+};
+
 class images {
 protected:
     /// \brief height
@@ -67,7 +74,7 @@ public:
         return _shape;
     }
 
-    virtual bool isSupported(const uint8_t* content, size_t img_length) = 0;
+    virtual bool isSupported(const uint8_t* content, size_t img_length, ImageConfig* config) = 0;
 
     virtual void cleanUp() = 0;
 
@@ -87,7 +94,7 @@ public:
     virtual int readData(void* buf, size_t size);
 };
 
-std::shared_ptr<images> ParserImages(const uint8_t* content, size_t img_length);
+std::shared_ptr<images> ParserImages(const uint8_t* content, size_t img_length, ImageConfig* config);
 }  // namespace img
 }  // namespace reference
 }  // namespace ov

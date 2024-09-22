@@ -23,7 +23,7 @@ void input_callback(png_structp png_ptr, png_bytep buf, png_size_t size) {
     img->readData(buf, size);
 }
 
-bool PNG::isSupported(const uint8_t* content, size_t length) {
+bool PNG::isSupported(const uint8_t* content, size_t length, ImageConfig* config) {
     _data = content;
     _length = length;
     _offset = 0;

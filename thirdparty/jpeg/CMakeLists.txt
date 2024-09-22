@@ -4,10 +4,11 @@
 
 function(ov_build_jpeg)
     set(BUILD_SHARED_LIBS OFF)
-    set(WITH_JPEG8 TRUE)
+    # set(WITH_JPEG8 TRUE)
     set(ENABLE_STATIC TRUE)
     set(ENABLE_SHARED FALSE)
     set(WITH_JAVA FALSE)
+    set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # '<': signed/unsigned mismatch
         ov_add_compiler_flags(/wd4018)
@@ -24,6 +25,7 @@ function(ov_build_jpeg)
         # otherwise, snappy's CMakeLists.txt will do it for us
         ov_add_compiler_flags(-Wextra)
         ov_add_compiler_flags(-Wno-sign-compare)
+        ov_add_compiler_flags(-O3)
     endif()
 
     add_subdirectory(libjpeg EXCLUDE_FROM_ALL)

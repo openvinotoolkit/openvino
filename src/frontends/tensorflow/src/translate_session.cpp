@@ -451,7 +451,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         } else {
             //Add by sgui for string input from TF models
             if (input_type == element::string) {
-                input_type = element::i8;
+                input_type = element::u8;
                 if (input_shape == ov::PartialShape::dynamic())
                     input_shape = ov::PartialShape({1, -1});
             }

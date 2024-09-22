@@ -68,7 +68,7 @@ OutputVector translate_tensor_array_v3_op(const NodeContext& node) {
     int64_t element_rank = element_shape.rank().is_static() ? element_shape.rank().get_length() : -1;
 
     if ( dtype == element::string )
-        dtype = element::i8;
+        dtype = element::u8;
 
     if (element_rank != -1 && !dynamic_size) {
         auto node_name = node.get_name();
@@ -158,7 +158,7 @@ OutputVector translate_tensor_array_read_v3_op(const NodeContext& node) {
     auto dtype = node.get_attribute<element::Type>("dtype");
 
     if ( dtype == element::string )
-        dtype = element::i8;
+        dtype = element::u8;
 
     // adjust the index to a scalar for using Gather operation
     auto new_shape = make_shared<v0::Constant>(element::i32, Shape{0}, vector<int32_t>{});

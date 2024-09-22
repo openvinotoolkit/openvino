@@ -13,7 +13,7 @@ int input_callback(GifFileType* gif_file, GifByteType* buf, int size) {
     return gif->readData(buf, size);
 }
 
-bool GIF::isSupported(const uint8_t* content, size_t length) {
+bool GIF::isSupported(const uint8_t* content, size_t length, ImageConfig* config) {
     _data = content;
     _length = length;
     _offset = 0;
@@ -54,7 +54,8 @@ int GIF::getData(Tensor& output) {
         size_t imgRight = img_desc->Left + img_desc->Width;
         size_t imgBottom = img_desc->Top + img_desc->Height;
 
-        if (img_desc->Left != 0 || img_desc->Top != 0 || img_desc->Width != _width || img_desc->Height != _height) {
+        if (img_desc->Left != 0 || img_desc->Top != 0 
+            || img_desc->Width != _width || img_desc->Height != _height) {
             if (k == 0) {
                 return -2;
             }

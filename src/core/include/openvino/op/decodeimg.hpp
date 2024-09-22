@@ -21,7 +21,10 @@ public:
     /// \brief Constructs a cosine operation.
     ///
     /// \param arg Node that produces the input tensor.
-    DecodeImg(const Output<Node>& arg);
+    DecodeImg(const Output<Node>& arg,
+        uint8_t jpeg_dct_method,
+        uint8_t jpeg_fancy_upscaling,
+        uint8_t jpeg_scale_denom);
 
     void validate_and_infer_types() override;
 
@@ -35,6 +38,11 @@ public:
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
 
     bool has_evaluate() const override;
+
+private:
+    uint8_t m_jpeg_dct_method = 1u; //JDCT_IFAST
+    uint8_t m_jpeg_fancy_upscaling = 1u; 
+    uint8_t m_jpeg_scale_denom = 1u;
 };
 }  // namespace v0
 }  // namespace op

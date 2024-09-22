@@ -31,28 +31,13 @@ private:
   png_structp _png_ptr;
   png_infop _info_ptr;
 
-// typedef struct PngInfoHeaderType  {
-//   const uint8* data;
-//   int data_left;
-//   png_structp png_ptr;
-//   png_infop info_ptr;
-//   png_uint_32 width, height;
-//   int num_passes;
-//   int color_type;
-//   int bit_depth;
-//   int channels;
-//   bool need_to_synthesize_16;
-//   bool error_condition;
-//   DecodeContext() : png_ptr(NULL), info_ptr(NULL) {}
-// };
-
 public:
     // static std::shared_ptr<PNG> getPNG();
     PNG() : images() {};
 
     virtual ~PNG() {}
 
-    bool isSupported(const uint8_t* content, size_t img_length) override;
+    bool isSupported(const uint8_t* content, size_t img_length, ImageConfig* config) override;
 
     void cleanUp() override {
         _data=nullptr;

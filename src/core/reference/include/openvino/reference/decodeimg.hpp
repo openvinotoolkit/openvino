@@ -9,10 +9,11 @@
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/reference/utils/img.hpp"
 
 namespace ov {
 namespace reference {
 
-int decodeimg(const Tensor& input, Tensor& out);
+int decodeimg(const Tensor& input, Tensor& out, img::ImageConfig* config);
 }  // namespace reference
 }  // namespace ov

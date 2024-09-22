@@ -12,11 +12,11 @@ namespace ov {
 namespace reference {
 
 // Implementation of decodeimg.
-int decodeimg(const Tensor& input, Tensor& out) {
+int decodeimg(const Tensor& input, Tensor& out, img::ImageConfig* config) {
     int img_length = input.get_byte_size();
     uint8_t* img_content = static_cast<uint8_t*>(input.data());
     int ret = -1;
-    auto reader = ov::reference::img::ParserImages(img_content, img_length);
+    auto reader = ov::reference::img::ParserImages(img_content, img_length, config);
     if (reader != nullptr) {
         ret = reader->getData(out);
         reader->cleanUp();
