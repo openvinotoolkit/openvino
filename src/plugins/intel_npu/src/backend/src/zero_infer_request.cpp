@@ -41,6 +41,12 @@ void check_level_zero_attributes_match(const IODescriptor& ioDescriptor,
         zeDescriptorName = zeDescriptorName.substr(ASSIGN_PREFIX.length());
     } else if (isShapeTensorName(zeDescriptorName)) {
         zeDescriptorName = zeDescriptorName.substr(SHAPE_TENSOR_PREFIX.length());
+    } else if (isInitInputWeightsName(zeDescriptorName)) {
+        zeDescriptorName = zeDescriptorName.substr(INIT_INPUT_WEIGHTS_PREFIX.length());
+    } else if (isInitOutputWeightsName(zeDescriptorName)) {
+        zeDescriptorName = zeDescriptorName.substr(INIT_OUTPUT_WEIGHTS_PREFIX.length());
+    } else if (isMainInputWeightsName(zeDescriptorName)) {
+        zeDescriptorName = zeDescriptorName.substr(MAIN_INPUT_WEIGHTS_PREFIX.length());
     }
 
     OPENVINO_ASSERT(ioDescriptor.nameFromCompiler == zeDescriptorName,

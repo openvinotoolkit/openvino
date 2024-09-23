@@ -49,7 +49,8 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
     ov::NodeVector results;
 
     for (const IODescriptor& inputDescriptor : inputDescriptors) {
-        if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor) {
+        if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor ||
+            inputDescriptor.isInitInputWeights || inputDescriptor.isMainInputWeights) {
             continue;
         }
 
@@ -68,7 +69,8 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
     // constant can't have dynamic shape). The dummy tensor was also brought in order to register the correct,
     // potentially dynamic, output shape.
     for (const IODescriptor& outputDescriptor : outputDescriptors) {
-        if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor) {
+        if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor ||
+            outputDescriptor.isInitOutputWeights) {
             continue;
         }
 
