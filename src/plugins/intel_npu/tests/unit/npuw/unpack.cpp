@@ -20,9 +20,9 @@ const auto TestCases = ::testing::Combine(
         ::testing::ValuesIn({true, false})
 );
 
-INSTANTIATE_TEST_CASE_P(UnpackTests, UnpackTests,
-                        TestCases,
-                        UnpackTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(UnpackTests, UnpackTests,
+                         TestCases,
+                         UnpackTests::getTestCaseName);
 
 const auto TestCasesScale = ::testing::Combine(
         ::testing::ValuesIn({ov::element::Type_t::i4}), // TODO: add i8 as input for test
@@ -59,9 +59,9 @@ const auto TestCasesScaleAndZeroPoints = ::testing::Combine(
         ::testing::ValuesIn({true, false})
 );
 
-INSTANTIATE_TEST_CASE_P(UnpackTestsWithScaleAndZeroPoint, UnpackTestsWithScaleAndZeroPoint,
-                        TestCasesScaleAndZeroPoints,
-                        UnpackTestsWithScaleAndZeroPoint::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(UnpackTestsWithScaleAndZeroPoint, UnpackTestsWithScaleAndZeroPoint,
+                         TestCasesScaleAndZeroPoints,
+                         UnpackTestsWithScaleAndZeroPoint::getTestCaseName);
 
 const auto TestCasesScaleAndZeroPoints2 = ::testing::Combine(
         ::testing::ValuesIn({ov::element::Type_t::u4}),
@@ -76,9 +76,9 @@ const auto TestCasesScaleAndZeroPoints2 = ::testing::Combine(
         ::testing::ValuesIn({true, false})
 );
 
-INSTANTIATE_TEST_CASE_P(UnpackTestsWithScaleAndZeroPointTest2, UnpackTestsWithScaleAndZeroPointTest2,
-                        TestCasesScaleAndZeroPoints2,
-                        UnpackTestsWithScaleAndZeroPointTest2::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(UnpackTestsWithScaleAndZeroPointTest2, UnpackTestsWithScaleAndZeroPointTest2,
+                         TestCasesScaleAndZeroPoints2,
+                         UnpackTestsWithScaleAndZeroPointTest2::getTestCaseName);
 
 const auto TestCasesScaleAndZeroPoints3 = ::testing::Combine(
         ::testing::ValuesIn({ov::element::Type_t::u4}),
@@ -93,8 +93,8 @@ const auto TestCasesScaleAndZeroPoints3 = ::testing::Combine(
         ::testing::ValuesIn({true, false})
 );
 
-INSTANTIATE_TEST_CASE_P(UnpackTestsWithScaleAndZeroPointTest3, UnpackTestsWithScaleAndZeroPointTest3,
-                        TestCasesScaleAndZeroPoints3,
-                        UnpackTestsWithScaleAndZeroPointTest3::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(UnpackTestsWithScaleAndZeroPointTest3, UnpackTestsWithScaleAndZeroPointTest3,
+                         TestCasesScaleAndZeroPoints3,
+                         UnpackTestsWithScaleAndZeroPointTest3::getTestCaseName);
 
 } // anonymous namespace
