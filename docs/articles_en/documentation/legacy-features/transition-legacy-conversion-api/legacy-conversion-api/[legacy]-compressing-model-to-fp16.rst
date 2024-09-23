@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_FP16_Compression}
-
 [LEGACY] Compressing a Model to FP16
 =============================================
 

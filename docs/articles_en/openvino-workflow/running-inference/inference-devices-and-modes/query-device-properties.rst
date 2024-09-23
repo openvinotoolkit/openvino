@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_query_api}
-
 Query Device Properties - Configuration
 =======================================
 

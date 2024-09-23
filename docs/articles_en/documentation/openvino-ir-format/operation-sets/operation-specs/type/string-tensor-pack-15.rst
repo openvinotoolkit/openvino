@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_type_StringTensorPack_15}
-
 StringTensorPack
 ===================
 
@@ -22,20 +20,20 @@ Consider inputs:
 * *ends* = [5, 13]
 * *symbols* = "IntelOpenVINO"
 
-*StringTensorPack* uses indices from ``begins`` and ``ends`` to transform concatenated string ``symbols`` into ``output``, 
-a string tensor. The ``output.shape`` is equal to ``begins.shape`` and ``ends.shape``, 
+*StringTensorPack* uses indices from ``begins`` and ``ends`` to transform concatenated string ``symbols`` into ``output``,
+a string tensor. The ``output.shape`` is equal to ``begins.shape`` and ``ends.shape``,
 and in this case ``output`` holds values ``["Intel", "OpenVINO"]``.
 
-When defining *begins* and *ends*, the notation ``[a, b)`` is used. This means that the range starts with ``a`` and includes all values up to, 
+When defining *begins* and *ends*, the notation ``[a, b)`` is used. This means that the range starts with ``a`` and includes all values up to,
 but not including, ``b``. That is why in the example given the length of "IntelOpenVINO" is 12, but *ends* vector contains 13. The shapes of ``begins`` and ``ends`` are required to be equal.
 
 **Inputs**
 
-* **1**: ``begins`` - ND tensor of non-negative integer numbers of type *T_IDX*, containing indices of each string's beginnings. **Required.** 
+* **1**: ``begins`` - ND tensor of non-negative integer numbers of type *T_IDX*, containing indices of each string's beginnings. **Required.**
 
-* **2**: ``ends`` - ND tensor of non-negative integer numbers of type *T_IDX*, containing indices of each string's endings. **Required.** 
+* **2**: ``ends`` - ND tensor of non-negative integer numbers of type *T_IDX*, containing indices of each string's endings. **Required.**
 
-* **3**: ``symbols`` - 1D tensor of concatenated strings data encoded in utf-8 bytes, of type *u8*. **Required.** 
+* **3**: ``symbols`` - 1D tensor of concatenated strings data encoded in utf-8 bytes, of type *u8*. **Required.**
 
 **Outputs**
 

@@ -37,6 +37,7 @@ class TestDevicePut(JaxLayerTest):
     @pytest.mark.parametrize("input_shape", [[2], [3, 4]])
     @pytest.mark.parametrize("input_type", [np.float32, np.int32])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     def test_device_put(self, ie_device, precision, ir_version, input_shape, input_type):
         self._test(*self.create_model(input_shape, input_type),

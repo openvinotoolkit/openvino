@@ -1388,22 +1388,25 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
 bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
     auto input_layout = node.get_dependencies().front().first->get_output_layout();
     auto in_padding = input_layout.data_padding;
-    auto out_padding = node.get_output_layout().data_padding;
+    auto output_layout = node.get_output_layout();
+    auto out_padding = output_layout.data_padding;
     // Check if padding exists
     if (node.get_preferred_impl_type() == impl_types::onednn && (in_padding || out_padding)) {
         // Check spatial padding
         bool no_spatial_padding = true;
-        for (size_t i = 0; i < in_padding.lower_size().spatial.size(); ++i) {
-            no_spatial_padding &= (in_padding.lower_size().spatial[i] == 0);
+        auto input_spatial_rank = input_layout.get_spatial_rank();
+        auto output_spatial_rank = output_layout.get_spatial_rank();
+        for (size_t i = 0; i < input_spatial_rank; ++i) {
+            no_spatial_padding &= (in_padding._lower_size[2 + i] == 0);
         }
-        for (size_t i = 0; i < in_padding.upper_size().spatial.size(); ++i) {
-            no_spatial_padding &= (in_padding.upper_size().spatial[i] == 0);
+        for (size_t i = 0; i < input_spatial_rank; ++i) {
+            no_spatial_padding &= (in_padding._upper_size[2 + i] == 0);
         }
-        for (size_t i = 0; i < out_padding.lower_size().spatial.size(); ++i) {
-            no_spatial_padding &= (out_padding.lower_size().spatial[i] == 0);
+        for (size_t i = 0; i < output_spatial_rank; ++i) {
+            no_spatial_padding &= (out_padding._lower_size[2 + i] == 0);
         }
-        for (size_t i = 0; i < out_padding.upper_size().spatial.size(); ++i) {
-            no_spatial_padding &= (out_padding.upper_size().spatial[i] == 0);
+        for (size_t i = 0; i < output_spatial_rank; ++i) {
+            no_spatial_padding &= (out_padding._upper_size[2 + i] == 0);
         }
 
         // Onednn supports outer padding of batch axis (first element offset) if its format is 'bxxx'
@@ -1411,18 +1414,10 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
         auto out_fmt = node.get_output_layout().format;
         if (format::is_multi_blocked(input_layout.format) || format::is_multi_blocked(out_fmt) ||
             input_layout.format.dims_order()[0] != 0 || out_fmt.dims_order()[0] != 0) {
-            for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
-                no_batch_padding &= (in_padding.lower_size().batch[i] == 0);
-            }
-            for (size_t i = 0; i < in_padding.upper_size().batch.size(); ++i) {
-                no_batch_padding &= (in_padding.upper_size().batch[i] == 0);
-            }
-            for (size_t i = 0; i < out_padding.lower_size().batch.size(); ++i) {
-                no_batch_padding &= (out_padding.lower_size().batch[i] == 0);
-            }
-            for (size_t i = 0; i < out_padding.upper_size().batch.size(); ++i) {
-                no_batch_padding &= (out_padding.upper_size().batch[i] == 0);
-            }
+            no_batch_padding &= (in_padding._lower_size[0] == 0);
+            no_batch_padding &= (in_padding._upper_size[0] == 0);
+            no_batch_padding &= (out_padding._lower_size[0] == 0);
+            no_batch_padding &= (out_padding._upper_size[0] == 0);
         }
         return (no_spatial_padding && no_batch_padding);
     }
@@ -1434,18 +1429,6 @@ bool layout_optimizer::is_primitive_implemented_for_onednn(program_node& node) {
         node.is_type<convolution>() || node.is_type<deconvolution>() ||
         node.is_type<reduce>() || node.is_type<reorder>() || node.is_type<concatenation>()) {
         return true;
-    }
-
-    return false;
-}
-
-bool layout_optimizer::onednn_check_preferred_impl_type_of_users(program_node& node) {
-    if (node.get_users().size() == 0)
-        return false;
-
-    for (auto& user : node.get_users()) {
-        if (user->get_preferred_impl_type() == impl_types::onednn)
-            return true;
     }
 
     return false;
