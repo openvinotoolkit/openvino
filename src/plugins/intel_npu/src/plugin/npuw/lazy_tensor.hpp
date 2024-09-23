@@ -21,7 +21,10 @@ namespace weights {
 
 enum class TransformType : int { TENSOR, PERMUTE, CONVERT, CONCAT };
 
-using ConcatMeta = std::tuple<std::vector<ov::Tensor>, std::size_t, std::string>;
+// Forward declaration
+class LazyTensor;
+
+using ConcatMeta = std::tuple<std::vector<LazyTensor>, std::size_t, std::string>;
 
 using Transform = std::variant<ov::Tensor, std::vector<std::size_t>, std::monostate, ConcatMeta>;
 
@@ -42,7 +45,8 @@ public:
     void* get_orig_data() const;
     ov::Tensor get_orig_tensor() const;
     bool has_concat() const;
-    std::string get_concat_tag() const;
+    std::vector<ov::Tensor> get_to_concat() const;
+    std::vector<LazyTensor> get_lt_to_concat() const;
 
 private:
     std::vector<std::pair<TransformType, Transform>> m_transforms;

@@ -1591,6 +1591,7 @@ void Partitioner::optimize(const std::string& func_name) {
         std::atomic<std::size_t> concat_id = 0;
         ov::ParameterVector new_params;
         std::vector<ov::npuw::patterns::opt::Context::PPtr> to_remove;
+        std::set<std::size_t> to_remove_idx;
         for (auto&& p : ctx.params_to_concat) {
             new_params.push_back(p.first);
             const auto& params_to_concat = p.second.first;
@@ -1601,14 +1602,15 @@ void Partitioner::optimize(const std::string& func_name) {
                 auto p_to_concat_idx = f._model->get_parameter_index(p_to_concat);
                 to_remove.push_back(p_to_concat);
                 to_concat_idx.push_back(p_to_concat_idx - f._param_offset);
+                to_remove_idx.insert(p_to_concat_idx);
             }
             ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
                 std::size_t _concat_id = concat_id;
-                std::vector<ov::Tensor> to_concat;
+                std::vector<LazyTensor> to_concat;
                 // Fill tensor vector
                 for (auto&& cidx : to_concat_idx) {
-                    to_concat.push_back(funcall._transformations[cidx].get_orig_tensor());
+                    to_concat.push_back(funcall._transformations[cidx]);
                 }
                 // Set to lazy tensor history
                 for (auto&& cidx : to_concat_idx) {
@@ -1618,11 +1620,27 @@ void Partitioner::optimize(const std::string& func_name) {
                         TransformType::CONCAT,
                         std::make_tuple(to_concat, axis, func_name + std::to_string(_concat_id)));
                 }
+                // Pick the first (could be any) LazyTensor and set as new future-concatenated tensor
+                if (!to_concat.empty()) {
+                    funcall._transformations.push_back(to_concat.front());
+                }
+
                 ++concat_id;
             });
         }
         f._model->add_parameters(new_params);
 
+        // Remove LazyTensors which will be concatenated
+        for (auto&& fref : func_group.refs) {
+            auto& funcall = fref.get();
+            std::vector<LazyTensor> new_transforms;
+            for (std::size_t tidx = 0; tidx < funcall._transformations.size(); tidx++) {
+                if (to_remove_idx.count(f._param_offset + tidx) == 0) {
+                    new_transforms.push_back(funcall._transformations[tidx]);
+                }
+            }
+            funcall._transformations = std::move(new_transforms);
+        }
         // Remove parameters that were concatenated
         for (auto&& now_remove : to_remove) {
             f._model->remove_parameter(now_remove);
