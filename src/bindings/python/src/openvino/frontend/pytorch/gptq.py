@@ -172,7 +172,7 @@ def unpatch_model(model):
                 del m._openvino_u4_compression_submodule_qweights
                 del m._openvino_u4_compression_submodule_qzeros
             except Exception as error:
-                log.warning("[ WARNING ] Exception raised during GPTQ model unpatching. "
+                log.warning("Exception raised during GPTQ model unpatching. "
                             "Depending on the exact issue it may lead to broken "
                             "original model.\n%s", error)
 
