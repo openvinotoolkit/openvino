@@ -357,6 +357,12 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         endif()
     else()
         add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
+
+        foreach(proto_target protoc libprotobuf)
+            target_compile_options(${proto_target} PUBLIC -fno-sanitize=thread)
+            target_link_options(${proto_target} PUBLIC -fno-sanitize=thread)
+        endforeach()
+
     endif()
 
     # forward additional variables used in the other places
@@ -497,7 +503,11 @@ if(ENABLE_OV_ONNX_FRONTEND)
         # conan and vcpkg create imported targets 'onnx' and 'onnx_proto'
     else()
         add_subdirectory(thirdparty/onnx)
-    endif()
+        foreach(onnx_target onnx onnx_proto)
+            target_compile_options(${onnx_target} PUBLIC -fno-sanitize=thread)
+            target_link_options(${onnx_target} PUBLIC -fno-sanitize=thread)
+        endforeach()
+    endif() 
 endif()
 
 #
