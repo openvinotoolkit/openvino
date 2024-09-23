@@ -17,7 +17,7 @@ ov::pass::ConvertSoftMax8ToSoftMax1::ConvertSoftMax8ToSoftMax1() {
     auto softmax_v8_pattern = pattern::wrap_type<ov::op::v8::Softmax>({input});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto softmax_v8_node = std::dynamic_pointer_cast<ov::op::v8::Softmax>(m.get_match_root());
+        auto softmax_v8_node = ov::as_type_ptr<ov::op::v8::Softmax>(m.get_match_root());
         if (!softmax_v8_node)
             return false;
 
