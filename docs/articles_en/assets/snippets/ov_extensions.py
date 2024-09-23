@@ -69,5 +69,5 @@ def convert_hardtanh(node: NodeContext):
 
 model = HardTanh(min_val=0.1, max_val=2.0)
 hardtanh_ext = ConversionExtension("aten::hardtanh", convert_hardtanh)
-ov_model = convert_model(input_model=model, extensions=[hardtanh_ext])
+ov_model = convert_model(input_model=model, extension=[hardtanh_ext])
 #! [py_frontend_extension_aten_hardtanh]
