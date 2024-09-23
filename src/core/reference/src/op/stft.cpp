@@ -4,20 +4,15 @@
 
 #include "openvino/reference/stft.hpp"
 
-#include <complex>
 #include <vector>
 
 #include "openvino/core/shape.hpp"
-#include "openvino/reference/fft.hpp"
 #include "openvino/reference/multiply.hpp"
 #include "openvino/reference/rdft.hpp"
 #include "openvino/reference/transpose.hpp"
-#include "openvino/reference/utils/fft_common.hpp"
 
 namespace ov {
 namespace reference {
-using complex_type = std::complex<float>;
-
 void stft(const float* signal,
           const float* window,
           float* rdft_result,
