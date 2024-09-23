@@ -108,7 +108,7 @@ jobs:
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
-            -DTBBROOT=${{env.TBB_PATH}}/tbb
+            -DTBBROOT=$TBB_PATH/tbb
 
   Samples:
     needs: [ Docker, Build, Smart_CI ]
