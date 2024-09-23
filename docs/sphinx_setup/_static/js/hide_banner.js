@@ -1,6 +1,8 @@
 var cookieVersion = 0;
+
+var dataUrl = document.getElementById("hidebanner").getAttribute( "data-url" );
 window.onload = (e) => {
-  fetch('../_static/html/banner_data.json').then((data) => {
+  fetch(dataUrl).then((data) => {
     data.json().then((item) => {
       if(item != null && item.p != "" && item.version != "" && item.style != "" ) {
         cookieVersion = item.version;
