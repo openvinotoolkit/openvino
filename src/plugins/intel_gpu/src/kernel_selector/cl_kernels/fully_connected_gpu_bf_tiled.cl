@@ -199,10 +199,10 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     uint feature_mini_block = gid % DISPATCH_FSV;
     uint batch_mini_block = gid / DISPATCH_FSV % DISPATCH_BSV;
     uint feature_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV) % (CEIL_DIV(TILE_OUT_F_NUM, OUTER_OFM * TILE_OFM * SIMD) / DISPATCH_FSV);
-    uint batch_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV * CEIL_DIV(TILE_OUT_F_NUM, OUTER_OFM* TILE_OFM * SIMD) / DISPATCH_FSV);
+    uint batch_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV * CEIL_DIV(TILE_OUT_F_NUM, OUTER_OFM * TILE_OFM * SIMD) / DISPATCH_FSV);
 
 #if USE_SLM
-    uint out_f = gid * (TILE_OFM * SIMD);
+    uint out_f = gid * (OUTER_OFM * TILE_OFM * SIMD);
     uint out_b = LWS_BATCHES * TILE_B * (uint)get_group_id(2) + local_id * TILE_B;
 #else
     uint out_f = (feature_mega_block * DISPATCH_FSV + feature_mini_block) * (OUTER_OFM * TILE_OFM * SIMD);
@@ -686,7 +686,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     }
 
 #if BIAS_TERM
-    #if TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0
+    #if TILE_OUT_F_NUM % (OUTER_OFM * TILE_OFM * SIMD) == 0
         BIAS_VEC_TYPE bias = BIAS_BLOCK_READ(biases, out_f);
     #else
         BIAS_VEC_TYPE bias = 0;
@@ -744,7 +744,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #if IS_DYNAMIC
                     bi + out_b < BATCH_SIZE &&
 #endif
-                    (TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 ||
+                    (TILE_OUT_F_NUM % (OUTER_OFM * TILE_OFM * SIMD) == 0 ||
                     out_f + fi * SIMD + sglid < TILE_OUT_F_NUM);
                 if (should_write) {
                     output[output_offset] = ((OUTPUT_TYPE*)(&result[bi]))[fi];
