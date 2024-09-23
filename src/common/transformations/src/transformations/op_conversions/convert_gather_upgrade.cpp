@@ -18,7 +18,7 @@ pass::ConvertGather1ToGather7::ConvertGather1ToGather7() {
     auto gather_v1_pattern = pattern::wrap_type<ov::op::v1::Gather>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto gather_v1_node = std::dynamic_pointer_cast<ov::op::v1::Gather>(m.get_match_root());
+        auto gather_v1_node = ov::as_type_ptr<ov::op::v1::Gather>(m.get_match_root());
         if (!gather_v1_node)
             return false;
 
@@ -43,7 +43,7 @@ pass::ConvertGather7ToGather8::ConvertGather7ToGather8() {
     auto gather_v7_pattern = pattern::wrap_type<ov::op::v7::Gather>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto gather_v7_node = std::dynamic_pointer_cast<ov::op::v7::Gather>(m.get_match_root());
+        auto gather_v7_node = ov::as_type_ptr<ov::op::v7::Gather>(m.get_match_root());
         if (!gather_v7_node)
             return false;
 

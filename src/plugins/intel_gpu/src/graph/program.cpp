@@ -153,7 +153,7 @@ program::program(engine& engine_ref,
       _compilation_context(compilation_context) {
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
-    GPU_DEBUG_INFO << "Program config\n" << config.to_string();
+    GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
     init_program();
     prepare_nodes(topology);
     program_node::reset_unique_id();
@@ -202,8 +202,7 @@ program::program(engine& engine_ref,
     build_program(is_internal);
 }
 
-program::program(engine& engine,
-        const ExecutionConfig& config)
+program::program(engine& engine, const ExecutionConfig& config)
     : _engine(engine),
       _stream(_engine.create_stream({})),
       _config(config),
@@ -211,6 +210,7 @@ program::program(engine& engine,
     init_primitives();
     _config.apply_user_properties(_engine.get_device_info());
     new_shape_infer = _config.get_property(ov::intel_gpu::allow_new_shape_infer);
+    _layout_optimizer = cldnn::make_unique<layout_optimizer>();
 }
 
 program::~program() {
