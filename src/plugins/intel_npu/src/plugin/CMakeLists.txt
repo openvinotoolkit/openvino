@@ -62,8 +62,8 @@ target_include_directories(${TARGET_NAME}
 )
 target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE
-        ${NPU_PLUGIN_SOURCE_DIR}/thirdparty/level-zero/include
-        ${NPU_PLUGIN_SOURCE_DIR}/thirdparty/level-zero-ext
+        $<TARGET_PROPERTY:LevelZero::LevelZero,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:LevelZero::NPUExt,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 if(ENABLE_AVX2)
