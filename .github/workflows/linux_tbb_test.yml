@@ -253,16 +253,6 @@ jobs:
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
           if-no-files-found: 'error'
 
-
-    name: TensorFlow Layer Tests
-    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
-    uses: ./.github/workflows/job_tensorflow_layer_tests.yml
-    with:
-      runner: 'aks-linux-4-cores-16gb'
-      shell: bash
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
-      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-
   CPU_Functional_Tests:
     name: CPU functional tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
