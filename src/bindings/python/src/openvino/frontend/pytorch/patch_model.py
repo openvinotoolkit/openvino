@@ -4,8 +4,11 @@
 # flake8: noqa
 # mypy: ignore-errors
 
+import logging
 import torch
 from openvino.frontend.pytorch import ModuleExtension
+
+log = logging.getLogger(__name__)
 
 
 class no_jit_trace:
@@ -65,8 +68,10 @@ def patch_model(model, module_extensions, orig_forward_name):
     for name, m in model.named_modules():
         if hasattr(m, orig_forward_name):
             # already patched, skipping with a warning because it is unexpected
-            print(f'[ WARNING ] Unexpectedly found already patched module {name} while applying ModuleExtension during PyTorch model conversion. '
-                  'Result of the conversion maybe broken. Depending on the exact issue it may lead to broken original model.')
+            log.warning("Unexpectedly found already patched module %s while applying "
+                        "ModuleExtension during PyTorch model conversion. "
+                        "Result of the conversion maybe broken. Depending on the exact issue "
+                        "it may lead to broken original model.", name)
             continue
         module_patcher(m, name)
 
@@ -78,9 +83,9 @@ def unpatch_model(model, orig_forward_name):
                 m.forward = getattr(m, orig_forward_name)
                 delattr(m, orig_forward_name)
             except Exception as error:
-                print('[ WARNING ] Exception raised during model unpatching. Depending on the exact issue it may lead to broken original model.')
-                print('Original exception details:')
-                print(error)
+                log.warning("Exception raised during model unpatching. "
+                            "Depending on the exact issue it may lead to broken original model.\n"
+                            "Original exception details:\n%s", error)
 
 
 def __make_16bit_traceable(model: torch.nn.Module):

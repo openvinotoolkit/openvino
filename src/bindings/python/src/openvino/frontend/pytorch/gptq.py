@@ -4,8 +4,12 @@
 # flake8: noqa
 # mypy: ignore-errors
 
-import torch
 from functools import partial
+import logging
+import torch
+
+log = logging.getLogger(__name__)
+
 
 # Wraps a single tensor to a module to prevent it from jit.freezing
 # It depends on a tensor dtype whether it will be preserved from freezing. Refer to the decoder code to learn which types will be preserved.
@@ -168,13 +172,18 @@ def unpatch_model(model):
                 del m._openvino_u4_compression_submodule_qweights
                 del m._openvino_u4_compression_submodule_qzeros
             except Exception as error:
-                print('[ WARNING ] Exception raised during GPTQ model unpatching. Depending on the exact issue it may lead to broken original model')
-                print(error)
+                log.warning("Exception raised during GPTQ model unpatching. "
+                            "Depending on the exact issue it may lead to broken "
+                            "original model.\n%s", error)
 
 
 def detect_gptq_model_raw(model):
-    return model and getattr(model, 'config', None) and getattr(model.config, 'quantization_config', None) and model.config.quantization_config.quant_method == 'gptq'
+    return (model and getattr(model, 'config', None) and
+            getattr(model.config, 'quantization_config', None) and
+            model.config.quantization_config.quant_method == 'gptq')
 
 
 def detect_gptq_model(model):
-    return detect_gptq_model_raw(model) or getattr(model, 'model', None) and detect_gptq_model_raw(model.model)
+    return (detect_gptq_model_raw(model) or
+            getattr(model, 'model', None) and
+            detect_gptq_model_raw(model.model))
