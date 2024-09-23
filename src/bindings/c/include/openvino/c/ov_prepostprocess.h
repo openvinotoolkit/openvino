@@ -526,7 +526,9 @@ ov_preprocess_prepostprocessor_build(const ov_preprocess_prepostprocessor_t* pre
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_prepostprocessor_pad(const ov_preprocess_prepostprocessor_t* preprocess_input_process_steps,
-                                   const int* pads_begin,
-                                   const int* pads_end,
+                                   int32_t* pads_begin,
+                                   int32_t pads_begin_size,
+                                   int32_t* pads_end,
+                                   int32_t pads_end_size,
                                    float value,
                                    ov::op::PadMode mode);
