@@ -79,19 +79,19 @@ std::vector<TRShape> shape_infer(const STFT* op,
     const auto& batch_dim = signal_shape[0];
     const TDim frame_size_dim = TDim{frame_size_val};
     const TDim signal_frame_size_diff = signal_shape[1] - frame_size_dim;
-    const TDim fft_samples_dim = (frame_size_val / 2) + 1;
+    TDim fft_samples_dim = (frame_size_val / 2) + 1;
 
     // Divsion opeartor for static Dimension of PartialShape can return non static dimension and ceil instead of floor
     // for lower bound, so floor_div util is used instead
-    const TDim frames_dim = ov::util::dim::floor_div(signal_frame_size_diff, frame_step_val) + 1;
+    TDim frames_dim = ov::util::dim::floor_div(signal_frame_size_diff, frame_step_val) + 1;
 
-    TRShape output_shape;
+    std::vector<TRShape> output_shapes;
     if (op->get_transpose_frames()) {
-        output_shape = TRShape{std::move(batch_dim), std::move(fft_samples_dim), std::move(frames_dim), 2};
+        output_shapes.emplace_back(TRShape{batch_dim, std::move(fft_samples_dim), std::move(frames_dim), 2});
     } else {
-        output_shape = TRShape{std::move(batch_dim), std::move(frames_dim), std::move(fft_samples_dim), 2};
+        output_shapes.emplace_back(TRShape{batch_dim, std::move(frames_dim), std::move(fft_samples_dim), 2});
     }
-    return {std::move(output_shape)};
+    return output_shapes;
 }
 }  // namespace v15
 }  // namespace op
