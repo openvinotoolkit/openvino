@@ -54,9 +54,9 @@ EquationTppEmitter::EquationTppEmitter(jit_generator* h, cpu_isa_t isa, const Ex
                 OV_CPU_JIT_EMITTER_THROW("Unhandled tpp::op::OpDescTPP::ARITY");
         }
     }
-
-    libxsmm_meqn_tree_print(m_equation_id);
-    libxsmm_meqn_rpn_print(m_equation_id);
+    // Note: for debug purposes it might be useful to serialize the equations graph here
+    // libxsmm_meqn_tree_print(m_equation_id);
+    // libxsmm_meqn_rpn_print(m_equation_id);
     std::tie(M, N) = get_MN(static_cast<int>(io_port_descriptors.size()) - 1);
     m_out_shape = libxsmm_create_meqn_arg_shape(N, M,
                                                 static_cast<libxsmm_blasint>(io_strides.back()),

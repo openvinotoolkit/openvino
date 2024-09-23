@@ -63,21 +63,6 @@ void BinaryEltwiseTppEmitter::execute_kernel(libxsmm_meltwfunction_binary eltwis
     eltwise_kernel(&param);
 }
 
-libxsmm_blasint BinaryEltwiseTppEmitter::get_broadcasted_dim(libxsmm_blasint dim0, libxsmm_blasint dim1, std::pair<bool, bool>& bcast_flags) {
-    if (dim0 == dim1) {
-        bcast_flags = {false, false};
-        return dim0;
-    } else if (dim1 == 1) {
-        bcast_flags = {false, true};
-        return dim0;
-    } else if (dim0 == 1) {
-        bcast_flags = {true, false};
-        return dim1;
-    }
-    OV_CPU_JIT_EMITTER_THROW("Invalid dimensions passed to get_broadcast_flags");
-    return -1;
-}
-
 UnaryEltwiseTppEmitter::UnaryEltwiseTppEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) :
                                                TppEmitter(h, isa, expr) {
     const auto& subtensor_in0 = get_projected_subtensor(io_port_descriptors[0]);

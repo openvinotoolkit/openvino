@@ -54,7 +54,6 @@ bool FuseTPPToEquations::fuse_from_root(const NodePtr& root, const std::shared_p
         return true;
     };
 
-    std::vector<op::OpDescTPP> op_types;
     auto visit_node = [&](const Output<ov::Node>& out) {
         const auto& node = out.get_node_shared_ptr();
         const auto& pd = PortDescriptorUtils::get_port_descriptor_ptr(out);
