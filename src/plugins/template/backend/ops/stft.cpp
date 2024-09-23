@@ -53,6 +53,6 @@ bool evaluate_node<ov::op::v15::STFT>(std::shared_ptr<ov::Node> node,
     case ov::element::f32:
         return evaluate<ov::element::f32>(ov::as_type_ptr<ov::op::v15::STFT>(node), outputs, inputs);
     default:
-        OPENVINO_THROW("Unhandled data type ", node->get_input_element_type(0).get_type_name(), " in evaluate_node()");
+        OPENVINO_THROW("Unhandled data type ", node->get_input_element_type(0), " in evaluate_node()");
     }
 }

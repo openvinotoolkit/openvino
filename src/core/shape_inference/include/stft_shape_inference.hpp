@@ -54,8 +54,7 @@ std::vector<TRShape> shape_infer(const STFT* op,
 
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
-                           0 < frame_size_val && (signal_shape.rank().is_dynamic() ||
-                                                  frame_size_val < signal_shape[1].get_interval().get_max_val()),
+                           0 < frame_size_val && frame_size_val < signal_shape[1].get_interval().get_max_val(),
                            "Provided frame size is ",
                            frame_size_val,
                            " but must be in range [1, ",
