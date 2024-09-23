@@ -303,9 +303,9 @@ jobs:
             source ${INSTALL_DIR}/setupvars.sh
           fi
           # Needed as ze_loader.so is under INSTALL_TEST_DIR
-          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}/tests
 
-          ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_filter=*smoke_AdaPoolAvg4DLayoutTest* --gtest_print_time=1
+          ${INSTALL_TEST_DIR}/tests/ov_cpu_func_tests --gtest_filter=*smoke_AdaPoolAvg4DLayoutTest* --gtest_print_time=1
         timeout-minutes: 25
 
 #       - name: Upload Test Results
