@@ -40,7 +40,7 @@ public:
     bool has_evaluate() const override;
 
 private:
-    uint8_t m_jpeg_dct_method = 1u; //JDCT_IFAST
+    uint8_t m_jpeg_dct_method = 0u; //JDCT_IFAST
     uint8_t m_jpeg_fancy_upscaling = 1u; 
     uint8_t m_jpeg_scale_denom = 1u;
 };
