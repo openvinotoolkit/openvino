@@ -57,8 +57,8 @@ jobs:
       LSAN_IGNORE: /__w/openvino/openvino/openvino/tests/sanitizers/lsan/suppressions.txt
       ASAN_IGNORE: /__w/openvino/openvino/openvino/tests/sanitizers/asan/suppressions.supp
       TSAN_IGNORE: /__w/openvino/openvino/openvino/tests/sanitizers/tsan/suppressions.txt
-      CXX: g++
-      CC: gcc
+      CXX: clang++
+      CC: clang
 
     steps:
       - name: Set apt retries
@@ -231,8 +231,8 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       TBB_ENABLE_SANITIZERS: 1
-      CC: gcc
-      CXX: g++
+      CC: clang
+      CXX: clang++
     steps:
       - name: Set apt retries
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
