@@ -178,6 +178,56 @@ private:
 };
 
 /**
+ * @struct BlobView
+ * @brief Non-owning view into a memory occupied by a blob. Used by AllocatedCompiledNetwork
+ * to store compiled model allocated via BlobAllocator implementation.
+ */
+struct BlobView final {
+    // TODO: ticket 140887; ptr left mutable to be compatible with initial version of VCL
+    // interface; make BlobView immutable and reuse it in CompiledNetwork
+    uint8_t* ptr = nullptr;
+    uint64_t size = 0;
+
+    BlobView(uint8_t*, uint64_t);
+};
+
+/**
+ * @struct AllocatedCompiledNetwork
+ * @brief The object returned by the compiler
+ * to provide such information about a network as description of inputs and outputs,
+ * name and compiled network in a format executable by device
+ * @note The difference between AllocatedCompiledNetwork and NetworkDescription is
+ * compiled network is represented via pair of pointer to start of the data and size. Blob
+ * in this case is allocated by compiler via provided BlobAllocator implementation.
+ */
+struct AllocatedCompiledNetwork {
+    AllocatedCompiledNetwork(BlobView, NetworkMetadata&&);
+
+    AllocatedCompiledNetwork(const AllocatedCompiledNetwork&) = delete;
+    AllocatedCompiledNetwork& operator=(const AllocatedCompiledNetwork&) = delete;
+
+    AllocatedCompiledNetwork(AllocatedCompiledNetwork&&) = default;
+    AllocatedCompiledNetwork& operator=(AllocatedCompiledNetwork&&) = default;
+
+    ~AllocatedCompiledNetwork() = default;
+
+    BlobView compiledNetwork;
+    NetworkMetadata metadata;
+};
+
+/**
+ * @interface BlobAllocator
+ * @brief An interface to be implemented by a user of compiler to provide
+ * methods for allocation and deallocation of compiled network storage.
+ */
+class BlobAllocator {
+public:
+    virtual uint8_t* allocate(uint64_t) = 0;
+    virtual void deallocate(uint8_t*) = 0;
+    virtual ~BlobAllocator() = default;
+};
+
+/**
  * @interface ICompiler
  * @brief An interface to be implemented by a concrete compiler to provide
  * methods for preparing a network for execution on a NPU device
@@ -194,11 +244,27 @@ public:
      * @brief Transforms a network from the OpenVINO model representation to a format executable
      * by a NPU device
      * @param model a shared pointer to the OpenVINO model to be compiled
-     * @param config a reference to NPUConfig containing plugin config options
+     * @param config a reference to Config containing plugin config options
      *        including config options related to compilation
-     * @return a shared pointer on an object implementing NetworkDescription interface
+     * @return NetworkDescription with compiled network as byte-vector and NetworkMetadata object
      */
     virtual NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
+
+    /**
+     * @brief Transforms a network from the OpenVINO model representation to a format executable
+     * by a NPU device. Uses given BlobAllocator implementation to allocate compiled model storage.
+     *
+     * @param model a shared pointer to the OpenVINO model to be compiled
+     * @param config a reference to Config containing plugin config options
+     *        including config options related to compilation
+     * @param allocator a reference to BlobAllocator interface to be used for compiled model storage allocation
+     * @return AllocatedCompiledNetwork with compiled model as non-owning view (pointer and a size) and NetworkMetadata
+     * object
+     * @note It is responsibility of the caller to deallocate memory allocated during compilation
+     */
+    virtual AllocatedCompiledNetwork compile(const std::shared_ptr<const ov::Model>& model,
+                                             const Config& config,
+                                             BlobAllocator& allocator) const = 0;
 
     /**
      * @brief Returns information about supported layers of the network passed

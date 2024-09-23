@@ -69,6 +69,12 @@ public:
     NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,
                                const Config& config) const override final;
 
+    AllocatedCompiledNetwork compile(const std::shared_ptr<const ov::Model>& model,
+                                     const Config& config,
+                                     BlobAllocator& allocator) const override final {
+        OPENVINO_THROW("Compilation with allocator is not implemented");
+    }
+
     ze_result_t seriazlideIRModelAndCreateGraph(const std::shared_ptr<const ov::Model>& model,
                                                 const Config& config,
                                                 ze_device_graph_properties_t deviceGraphProperties,

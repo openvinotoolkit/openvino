@@ -26,6 +26,10 @@ public:
     NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,
                                const Config& config) const override final;
 
+    AllocatedCompiledNetwork compile(const std::shared_ptr<const ov::Model>& model,
+                                     const Config& config,
+                                     BlobAllocator& allocator) const override final;
+
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override final;
 
     NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const override final;

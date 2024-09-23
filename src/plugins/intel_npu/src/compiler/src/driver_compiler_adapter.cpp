@@ -93,6 +93,12 @@ NetworkDescription LevelZeroCompilerAdapter::compile(const std::shared_ptr<const
     return apiAdapter->compile(model, config);
 }
 
+AllocatedCompiledNetwork LevelZeroCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
+                                                           const Config& config,
+                                                           BlobAllocator& allocator) const {
+    OPENVINO_THROW("Compilation with allocator is not implemented");
+}
+
 ov::SupportedOpsMap LevelZeroCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
                                                     const Config& config) const {
     _logger.debug("query start");

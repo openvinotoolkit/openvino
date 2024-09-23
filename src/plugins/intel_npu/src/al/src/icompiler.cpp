@@ -64,4 +64,10 @@ void NetworkMetadata::bindRelatedDescriptors() {
     }
 }
 
+BlobView::BlobView(uint8_t* _ptr, uint64_t _size) : ptr(_ptr), size(_size) {}
+
+AllocatedCompiledNetwork::AllocatedCompiledNetwork(BlobView blob, NetworkMetadata&& meta)
+    : compiledNetwork(std::move(blob)),
+      metadata(std::move(meta)) {}
+
 }  // namespace intel_npu
