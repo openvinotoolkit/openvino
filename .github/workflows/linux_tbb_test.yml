@@ -21,8 +21,9 @@ permissions: read-all
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
-  TBB_PACKAGE_PATH: 'https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/oneapi-tbb-2021.2.5-lin-trim.tgz'
-  TBBROOT: /mount/tbb
+  TBB_URL: 'https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/oneapi-tbb-2021.2.5-lin-trim.tgz'
+  TBB_PATH: /mount/tbb
+  TBB_NAME: 'oneapi-tbb-2021.2.5-lin-trim.tgz'
 
 jobs:
   Smart_CI:
@@ -68,17 +69,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
-      - name: Download TBB package
-        shell: bash
-        run: wget -P ${{env.TBBROOT}} ${{env.TBB_PACKAGE_PATH}}
-        
-      - name: Extract TBB package
-        shell: bash
-        run: |
-          pushd ${{env.TBBROOT}}
-            tar -xzf oneapi-tbb-2021.2.5-lin-trim.tgz -C ${{env.TBBROOT}}
-          popd
-
       - uses: ./.github/actions/handle_docker
         id: handle_docker
         with:
@@ -104,6 +94,8 @@ jobs:
       build-contrib: true
       build-debian-packages: true
       build-rpm-packages: false
+      tbb-package: '{"url": "${env.TBB_URL}", "local": "${env.TBB_PATH}", "name": "${env.TBB_NAME}""}'
+
       cmake-options: |- 
             -G "Ninja Multi-Config" \
             -DENABLE_CPPLINT=OFF \
@@ -114,7 +106,7 @@ jobs:
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
-            -DTBBROOT=${TBBROOT}/tbb
+            -DTBBROOT=${env.TBB_PATH}/tbb
 
   Samples:
     needs: [ Docker, Build, Smart_CI ]
