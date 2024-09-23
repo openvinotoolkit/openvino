@@ -4,6 +4,8 @@
 
 #include "partitioning.hpp"
 
+#include <atomic>
+
 #include "../logging.hpp"
 #include "../util.hpp"
 #include "intel_npu/al/config/npuw.hpp"
@@ -1584,10 +1586,11 @@ void Partitioner::optimize(const std::string& func_name) {
         ctx.pmm_dims = cfg.get<::intel_npu::NPUW_PMM>();
         mergeParallelMatMuls(f._model, ctx);
 
-        // Concatenate closures for "concatenated" parameters
+        // Mark LazyTensors to be concatenated later
+        // Note: closures are properly processed later as well
+        std::atomic<std::size_t> concat_id = 0;
         ov::ParameterVector new_params;
         std::vector<ov::npuw::patterns::opt::Context::PPtr> to_remove;
-        std::set<std::size_t> to_remove_idx;
         for (auto&& p : ctx.params_to_concat) {
             new_params.push_back(p.first);
             const auto& params_to_concat = p.second.first;
@@ -1598,33 +1601,29 @@ void Partitioner::optimize(const std::string& func_name) {
                 auto p_to_concat_idx = f._model->get_parameter_index(p_to_concat);
                 to_remove.push_back(p_to_concat);
                 to_concat_idx.push_back(p_to_concat_idx - f._param_offset);
-                to_remove_idx.insert(p_to_concat_idx);
             }
             ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
+                std::size_t _concat_id = concat_id;
                 std::vector<ov::Tensor> to_concat;
+                // Fill tensor vector
                 for (auto&& cidx : to_concat_idx) {
-                    to_concat.push_back(funcall._closure[cidx]);
+                    to_concat.push_back(funcall._transformations[cidx].get_orig_tensor());
                 }
-                // FIXME: work with bank here instead
-                funcall._closure.push_back(ov::npuw::util::concat(to_concat, axis));
+                // Set to lazy tensor history
+                for (auto&& cidx : to_concat_idx) {
+                    // FIXME: Assuming here concat goes first and other transformations later.
+                    //        This allows to store ov::Tensor and ignore their potential history of transformations
+                    funcall._transformations[cidx].update(
+                        TransformType::CONCAT,
+                        std::make_tuple(to_concat, axis, func_name + std::to_string(_concat_id)));
+                }
+                ++concat_id;
             });
         }
         f._model->add_parameters(new_params);
 
-        // Remove parameters and closures that were concatenated
-        std::vector<ov::Tensor> new_closure;
-        for (auto&& fref : func_group.refs) {
-            auto& funcall = fref.get();
-            std::vector<ov::Tensor> new_closure;
-            for (std::size_t cidx = 0; cidx < funcall._closure.size(); cidx++) {
-                if (to_remove_idx.count(f._param_offset + cidx) == 0) {
-                    new_closure.push_back(funcall._closure[cidx]);
-                }
-            }
-            // FIXME: work with bank here instead
-            funcall._closure = std::move(new_closure);
-        }
+        // Remove parameters that were concatenated
         for (auto&& now_remove : to_remove) {
             f._model->remove_parameter(now_remove);
         }

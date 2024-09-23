@@ -400,11 +400,11 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 }
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
-    for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+    ov::parallel_for(m_compiled_submodels.size(), [&](std::size_t idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
 
         if (!comp_model_desc.replaced_by) {
-            continue;
+            return;
         }
 
         const auto real_idx = comp_model_desc.replaced_by.value();
@@ -418,17 +418,42 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             m_compiled_submodels[idx].is_remote.resize(m_compiled_submodels[idx].closure.size(), false);
         }
 
-        ov::parallel_for(comp_model_desc.transformations.size(), [&](std::size_t tidx) {
+        std::unordered_map<std::string, ov::Tensor> concat_applied;
+        std::vector<ov::Tensor> concated;
+        for (std::size_t tidx = 0; tidx < comp_model_desc.transformations.size(); ++tidx) {
             const auto& lt = m_compiled_submodels[idx].transformations[tidx];
 
-            if (!m_weights_bank->has(lt, *func_desc.device_it)) {
-                m_weights_bank->store(lt, lt.eval(), *func_desc.device_it);
-            }
+            // Due to concat some tensor should be skipped in closure
+            m_compiled_submodels[idx].closure.resize(0);
+            m_compiled_submodels[idx].is_remote.resize(0);
 
-            m_compiled_submodels[idx].closure[tidx] = m_weights_bank->get(lt, *func_desc.device_it);
-            m_compiled_submodels[idx].is_remote[tidx] = true;
-        });
-    }
+            // FIXME: probably should be more careful with the devices here
+            if (lt.has_concat()) {
+                const auto& ctag = lt.get_concat_tag();
+                if (concat_applied.find(ctag) == concat_applied.end()) {
+                    // Apply concat
+                    m_weights_bank->store(lt, lt.eval(), *func_desc.device_it);
+                    concated.push_back(m_weights_bank->get(lt, *func_desc.device_it));
+                    concat_applied[ctag] = concated.back();
+                } else {
+                    // Just create a connection in bank, Tensor is already allocated there
+                    m_weights_bank->store(lt, concat_applied[ctag], *func_desc.device_it);
+                }
+            } else {
+                if (!m_weights_bank->has(lt, *func_desc.device_it)) {
+                    m_weights_bank->store(lt, lt.eval(), *func_desc.device_it);
+                }
+
+                m_compiled_submodels[idx].closure.push_back(m_weights_bank->get(lt, *func_desc.device_it));
+                m_compiled_submodels[idx].is_remote.push_back(true);
+            }
+        }
+
+        for (const auto& tensor : concated) {
+            m_compiled_submodels[idx].closure.push_back(tensor);
+            m_compiled_submodels[idx].is_remote.push_back(true);
+        }
+    });
 }
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
