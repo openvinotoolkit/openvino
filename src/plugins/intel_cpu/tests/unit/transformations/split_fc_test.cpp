@@ -25,9 +25,9 @@ using namespace ov::intel_cpu;
 
 #if(defined OPENVINO_ARCH_ARM && defined LINUX)
 // Ticket: 153166
-TEST_F(SnippetsMarkSkippedTests, DISABLED_SplitFCTest) {
+TEST_F(TransformationTestsF, DISABLED_SplitFCTest) {
 #else
-TEST_F(SnippetsMarkSkippedTests, SplitFCTest) {
+TEST_F(TransformationTestsF, SplitFCTest) {
 #endif
     disable_rt_info_check();
     {
@@ -64,9 +64,9 @@ TEST_F(SnippetsMarkSkippedTests, SplitFCTest) {
 
 #if(defined OPENVINO_ARCH_ARM && defined LINUX)
 // Ticket: 153166
-TEST_F(SnippetsMarkSkippedTests, DISABLED_SplitFCTest_int8_weight) {
+TEST_F(TransformationTestsF, DISABLED_SplitFCTest_int8_weight) {
 #else
-TEST_F(SnippetsMarkSkippedTests, SplitFCTest_int8_weight) {
+TEST_F(TransformationTestsF, SplitFCTest_int8_weight) {
 #endif
     disable_rt_info_check();
     {
@@ -131,9 +131,9 @@ TEST_F(SnippetsMarkSkippedTests, SplitFCTest_int8_weight) {
 
 #if(defined OPENVINO_ARCH_ARM && defined LINUX)
 // Ticket: 153166
-TEST_F(SnippetsMarkSkippedTests, DISABLED_SplitFCTest_int4_weight) {
+TEST_F(TransformationTestsF, DISABLED_SplitFCTest_int4_weight) {
 #else
-TEST_F(SnippetsMarkSkippedTests, SplitFCTest_int4_weight) {
+TEST_F(TransformationTestsF, SplitFCTest_int4_weight) {
 #endif
     disable_rt_info_check();
     {
@@ -203,9 +203,9 @@ TEST_F(SnippetsMarkSkippedTests, SplitFCTest_int4_weight) {
 
 #if(defined OPENVINO_ARCH_ARM && defined LINUX)
 // Ticket: 153166
-TEST_F(SnippetsMarkSkippedTests, DISABLED_SplitFCTest_int4_weight_reshape) {
+TEST_F(TransformationTestsF, DISABLED_SplitFCTest_int4_weight_reshape) {
 #else
-TEST_F(SnippetsMarkSkippedTests, SplitFCTest_int4_weight_reshape) {
+TEST_F(TransformationTestsF, SplitFCTest_int4_weight_reshape) {
 #endif
     disable_rt_info_check();
     {
