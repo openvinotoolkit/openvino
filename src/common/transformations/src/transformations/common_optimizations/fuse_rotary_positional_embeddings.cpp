@@ -739,7 +739,7 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
         if (it == pattern_map.end()) {
             return false;
         }
-        auto cur_inv_freq = std::dynamic_pointer_cast<opset1::Constant>(it->second.get_node_shared_ptr());
+        auto cur_inv_freq = ov::as_type_ptr<opset1::Constant>(it->second.get_node_shared_ptr());
         if (!cur_inv_freq) {
             return false;
         }
@@ -762,7 +762,7 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
             return false;
         if (cur_inv_freq->get_shape() != m_inv_freq->get_shape())
             return false;
-        auto global_inv_freq = std::dynamic_pointer_cast<opset1::Constant>(m_inv_freq);
+        auto global_inv_freq = ov::as_type_ptr<opset1::Constant>(m_inv_freq);
 
         auto cmp_error =
             memcmp(cur_inv_freq->get_data_ptr(), global_inv_freq->get_data_ptr(), global_inv_freq->get_byte_size());
