@@ -94,7 +94,7 @@ jobs:
       build-contrib: true
       build-debian-packages: true
       build-rpm-packages: false
-      tbb-package: '{"url": "${env.TBB_URL}", "local": "${env.TBB_PATH}", "name": "${env.TBB_NAME}""}'
+      tbb-path: '{"url": "${env.TBB_URL}", "local": "${env.TBB_PATH}", "name": "${env.TBB_NAME}"}'
 
       cmake-options: |- 
             -G "Ninja Multi-Config" \
