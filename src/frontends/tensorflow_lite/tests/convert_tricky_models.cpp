@@ -21,7 +21,7 @@ static std::string s_manifest = "";
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
 
-#if(defined OPENVINO_ARCH_ARM && ! defined (_WIN32))
+#if(defined OPENVINO_ARCH_ARM && defined(__linux__))
 // Ticket: 153164
 OPENVINO_TEST(TensorFlowLiteTrickyModels, DISABLED_tflite_dequantize) {
 #else

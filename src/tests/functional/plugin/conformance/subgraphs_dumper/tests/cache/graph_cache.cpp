@@ -62,7 +62,7 @@ TEST_F(GraphCacheFuncTest, get_graph_cache_twice) {
     ASSERT_EQ(graph_cache_0, graph_cache_1);
 }
 
-#if(defined OPENVINO_ARCH_ARM && ! defined (_WIN32))
+#if(defined OPENVINO_ARCH_ARM && defined(__linux__))
 // Ticket: 153168
 TEST_F(GraphCacheFuncTest, DISABLED_update_cache) {
 #else

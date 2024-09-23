@@ -42,7 +42,7 @@ TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvMulRelu) {
     run();
 }
 
-#if(defined OPENVINO_ARCH_ARM && ! defined (_WIN32))
+#if(defined OPENVINO_ARCH_ARM && defined(__linux__))
 // Ticket: 153166
 TEST_F(SnippetsMarkSkippedTests, DISABLED_smoke_Snippets_SkipConvFused_ConvSumRelu) {
 #else
@@ -70,7 +70,7 @@ TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvBiasRelu) {
     run();
 }
 
-#if(defined OPENVINO_ARCH_ARM && ! defined (_WIN32))
+#if(defined OPENVINO_ARCH_ARM && defined(__linux__))
 // Ticket: 153166
 TEST_F(SnippetsMarkSkippedTests, DISABLED_smoke_Snippets_SkipConvFused_ConvBiasTwoRelu) {
 #else
