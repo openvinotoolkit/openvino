@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/visibility.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_case.hpp"
@@ -20,7 +21,12 @@ static std::string s_manifest = "";
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
 
+#if(defined OPENVINO_ARCH_ARM && defined LINUX)
+// Ticket: 153164
+OPENVINO_TEST(TensorFlowLiteTrickyModels, DISABLED_tflite_dequantize) {
+#else
 OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_dequantize) {
+#endif
     auto model = convert_model("dequantize.tflite");
 
     auto test_case = ov::test::TestCase(model, ov::test::utils::DEVICE_CPU);

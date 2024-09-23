@@ -106,6 +106,7 @@ jobs:
       runner: 'aks-linux-16-cores-arm'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.debian_10_arm }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      os: 'debian_10'
 
   CPU_Functional_Tests:
     name: CPU functional tests
