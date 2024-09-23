@@ -158,7 +158,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
                 for (size_t j = 0; j < bias_nodes.size(); ++j) {
                     dims.insert(bias_nodes[j]->get_output_partial_shape(0)[i].get_length());
                 }
-                if (dims.size() > 1) {
+                if (*dims.begin() > 1) {
                     bias_concat_axis = i;
                     non_zero_diffs++;
                 }
