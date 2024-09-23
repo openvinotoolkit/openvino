@@ -51,17 +51,18 @@ size_t get_ir_version(std::istream& model) {
     pugi::xml_document doc;
 
     // For dominant number of IRs `load_buffer' in this case returns parsing-error as 512 is not enough for the whole
-    // root tag. Basing on Pugi manual "If parsing failed because the source data was not a  valid XML, the resulting
+    // root node. Basing on Pugi manual "If parsing failed because the source data was not a  valid XML, the resulting
     // tree is not destroyed - despite the fact that load function returns error, you can use the part of the tree that
-    // was successfully parsed." root tag is processed as typically it's enough to read model version. However if IR is
-    // small enough to fit 512 bytes ok-status is returned. Thus ignoring returned value.
+    // was successfully parsed." root node is processed because it should be enough to read model version. However if IR
+    // is small enough to fit 512 bytes ok-status is returned. Thus ignoring returned value.
     std::ignore =
         doc.load_buffer(header.data(), header.size(), pugi::parse_default | pugi::parse_fragment, pugi::encoding_utf8);
 
     auto ir_version = get_ir_version(doc);
 
-    // In case attribute name is very long and placed before version attribute the latter is not accesible within first
-    // 512 bytes, so read the whole stream and try to obtain version value.
+    // In case attribute name is very long and placed before version attribute of root node or there is long comment
+    // node before root node then version attribute of root node is not accesible within first 512 bytes, so read the
+    // whole stream and try to obtain version value.
     if (ir_version == 0) {
         if (doc.load(model))
             ir_version = get_ir_version(doc);
