@@ -12,6 +12,10 @@ on:
         type: string
         required: false
         default: null
+      python-version:
+        description: 'Python version to setup. E.g., "3.11"'
+        type: string
+        required: true
 
 permissions: read-all
 
@@ -70,10 +74,10 @@ jobs:
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
-      - name: Setup Python 3.11
+      - name: Setup Python ${{ inputs.python-version }}
         uses: ./openvino/.github/actions/setup_python
         with:
-          version: '3.11'
+          version: ${{ inputs.python-version }}
           should-setup-pip-paths: 'false'
           self-hosted-runner: ${{ runner.os == 'Linux' }}
 

@@ -284,3 +284,4 @@ jobs:
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
       runner: 'macos-13-xlarge'
+      python-version: '3.11'
