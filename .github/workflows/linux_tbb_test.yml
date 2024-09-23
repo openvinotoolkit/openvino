@@ -70,13 +70,13 @@ jobs:
 
       - name: Download TBB package
         shell: bash
-        run: wget -P ${env.TBBROOT} ${env.TBB_PACKAGE_PATH}
+        run: wget -P ${{env.TBBROOT}} ${{env.TBB_PACKAGE_PATH}}
         
       - name: Extract TBB package
         shell: bash
         run: |
-          pushd ${env.TBBROOT}
-            tar -xzf oneapi-tbb-2021.2.5-lin-trim.tgz -C ${env.TBBROOT}
+          pushd ${{env.TBBROOT}}
+            tar -xzf oneapi-tbb-2021.2.5-lin-trim.tgz -C ${{env.TBBROOT}}
           popd
 
       - uses: ./.github/actions/handle_docker
