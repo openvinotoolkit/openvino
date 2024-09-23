@@ -296,17 +296,17 @@ jobs:
       # - name: Install python dependencies for run_parallel.py
       #   run: python3 -m pip install -r ${INSTALL_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
 
-#       - name: Intel CPU plugin func tests
-#         run: |
-#           # Needed as the Linux CC does not require setupvars to work
-#           if [[ -f "${INSTALL_DIR}/setupvars.sh" ]]; then
-#             source ${INSTALL_DIR}/setupvars.sh
-#           fi
-#           # Needed as ze_loader.so is under INSTALL_TEST_DIR
-#           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
+      - name: Intel CPU plugin func tests
+        run: |
+          # Needed as the Linux CC does not require setupvars to work
+          if [[ -f "${INSTALL_DIR}/setupvars.sh" ]]; then
+            source ${INSTALL_DIR}/setupvars.sh
+          fi
+          # Needed as ze_loader.so is under INSTALL_TEST_DIR
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
 
-#           ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_filter=*smoke_AdaPoolAvg4DLayoutTest* --gtest_print_time=1
-#         timeout-minutes: 25
+          ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_filter=*smoke_AdaPoolAvg4DLayoutTest* --gtest_print_time=1
+        timeout-minutes: 25
 
 #       - name: Upload Test Results
 #         uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
