@@ -125,13 +125,15 @@ function handleSidebar() {
 
 function initSidebar() {
     const sidebar = document.querySelector("#bd-sidebar");
-    var size;
-    if(localStorage['resizeSidebarX'] == null){
-        size = "350px";
-    }else{
-        size = localStorage['resizeSidebarX'];
+    if (sidebar) {
+        var size;
+        if (localStorage['resizeSidebarX'] == null) {
+            size = "350px";
+        } else {
+            size = localStorage['resizeSidebarX'];
+        }
+        sidebar.style.flexBasis = size;
     }
-    sidebar.style.flexBasis = size;
 }
 
 // Determine where we'd go if clicking on a version selector option
