@@ -199,7 +199,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
 
         // the current iteration Parameter in Loop body can be disconnected
         // we are replacing it with a Constant (value = current iteration idx)
-        const auto& loop = std::dynamic_pointer_cast<ov::op::v5::Loop>(sub_graph_op);
+        const auto& loop = ov::as_type_ptr<ov::op::v5::Loop>(sub_graph_op);
         if (loop) {
             // 1. Check CurrentIteration Parameter is not connected to outer network
             bool need_to_remove_iteration_param = false;
