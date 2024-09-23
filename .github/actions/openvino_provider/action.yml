@@ -182,6 +182,7 @@ runs:
           mv $package_folder/* . && rm -rf $package_folder
         fi
         ov_artifact_name=$([ ${{ inputs.ov_artifact_name }} ] && echo ${{ inputs.ov_artifact_name }} || echo $package_folder)
+        echo "ov_package_url=$ov_package_url" >> $GITHUB_OUTPUT
         echo "ov_artifact_name=$ov_artifact_name" >> $GITHUB_OUTPUT
         echo "ov_package_path=$package_folder" >> $GITHUB_OUTPUT
 
@@ -198,7 +199,7 @@ runs:
       if: steps.openvino_s3_download.outcome == 'success'
       shell: bash
       run: |
-        rc_version=$(echo ${{ inputs.package_url }} |
+        rc_version=$(echo ${{ steps.openvino_s3_download.outputs.ov_package_url }} |
           grep -oP '(?<=pre-release\/)\d{4}\.\d+\.\d+rc\d+' || true)
 
         release_version=$(echo ${{ steps.openvino_s3_download.outputs.ov_package_path }} |
