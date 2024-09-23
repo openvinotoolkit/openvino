@@ -65,6 +65,16 @@ if(X86_64 OR X86 OR UNIVERSAL2)
 endif()
 
 #
+# LevelZero
+#
+
+if(ENABLE_INTEL_NPU)
+    add_subdirectory(thirdparty/level_zero EXCLUDE_FROM_ALL)
+
+    add_library(LevelZero::LevelZero ALIAS ze_loader)
+endif()
+
+#
 # OpenCL
 #
 
