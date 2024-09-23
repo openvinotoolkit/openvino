@@ -99,8 +99,9 @@ NetworkDescription LevelZeroCompilerAdapter::compile(const std::shared_ptr<const
     return apiAdapter->compile(model, config);
 }
 
-std::vector<NetworkDescription> LevelZeroCompilerAdapter::compileWS(const std::shared_ptr<const ov::Model>& model,
-                                                                    const Config& config) const {
+std::vector<std::shared_ptr<NetworkDescription>> LevelZeroCompilerAdapter::compileWS(
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config) const {
     _logger.debug("compile start");
     return apiAdapter->compileWS(model, config);
 }

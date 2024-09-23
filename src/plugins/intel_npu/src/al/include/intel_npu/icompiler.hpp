@@ -222,8 +222,8 @@ public:
      * @param config
      * @return NetworkDescription
      */
-    virtual std::vector<NetworkDescription> compileWS(const std::shared_ptr<const ov::Model>& model,
-                                                      const Config& config) const = 0;
+    virtual std::vector<std::shared_ptr<NetworkDescription>> compileWS(const std::shared_ptr<const ov::Model>& model,
+                                                                       const Config& config) const = 0;
 
     /**
      * @brief Returns information about supported layers of the network passed

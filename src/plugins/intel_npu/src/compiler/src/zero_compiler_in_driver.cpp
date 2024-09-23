@@ -173,6 +173,50 @@ std::string rankToLegacyLayoutString(const size_t rank) {
     }
 }
 
+/**
+ * @brief Just for the PoC purpose
+ *
+ * @param stream
+ * @return size_t
+ */
+size_t getFileSize(std::istream& stream) {
+    if (!stream) {
+        OPENVINO_THROW("Stream is in bad status! Please check the passed stream status!");
+    }
+
+    const size_t streamStart = stream.tellg();
+    stream.seekg(0, std::ios_base::end);
+    const size_t streamEnd = stream.tellg();
+    stream.seekg(streamStart, std::ios_base::beg);
+
+    if (streamEnd < streamStart) {
+        OPENVINO_THROW("Invalid stream size: streamEnd (",
+                       streamEnd,
+                       ") is not larger than streamStart (",
+                       streamStart,
+                       ")!");
+    }
+
+    return streamEnd - streamStart;
+}
+
+std::vector<uint8_t> readCompiledModel(std::string_view path) {
+    std::ifstream inputStream(path.data());
+    if (!inputStream) {
+        OPENVINO_THROW("Could not open the file");
+    }
+
+    auto graphSize = getFileSize(inputStream);
+
+    std::vector<uint8_t> blob(graphSize);
+    inputStream.read(reinterpret_cast<char*>(blob.data()), graphSize);
+    if (!inputStream) {
+        OPENVINO_THROW("Failed to read data from stream!");
+    }
+
+    return blob;
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -978,10 +1022,16 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
 }
 
 template <typename TableExtension>
-std::vector<NetworkDescription> LevelZeroCompilerInDriver<TableExtension>::compileWS(
+std::vector<std::shared_ptr<NetworkDescription>> LevelZeroCompilerInDriver<TableExtension>::compileWS(
     const std::shared_ptr<const ov::Model>& /*model*/,
-    const Config& /*config*/) const {
-    return {};
+    const Config& config) const {
+    std::vector<uint8_t> compiledModel1 = readCompiledModel("");
+    std::vector<uint8_t> compiledModel2 = readCompiledModel("");
+    NetworkMetadata metadata1 = parse(compiledModel1, config);
+    NetworkMetadata metadata2 = parse(compiledModel2, config);
+
+    return {std::make_shared<NetworkDescription>(std::move(compiledModel1), std::move(metadata1)),
+            std::make_shared<NetworkDescription>(std::move(compiledModel2), std::move(metadata2))};
 }
 
 template <typename TableExtension>
