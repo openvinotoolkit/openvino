@@ -61,7 +61,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
 
     try {
         _logger.debug("performing compile and expecting a network description");
-        _networkPtr = std::make_shared<const NetworkDescription>(_compiler->compile(model, config));
+        _networkPtr = _compiler->compileWS(model, config)[1];
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {

@@ -213,6 +213,7 @@ std::vector<uint8_t> readCompiledModel(std::string_view path) {
     if (!inputStream) {
         OPENVINO_THROW("Failed to read data from stream!");
     }
+    inputStream.close();
 
     return blob;
 }
@@ -1025,8 +1026,10 @@ template <typename TableExtension>
 std::vector<std::shared_ptr<NetworkDescription>> LevelZeroCompilerInDriver<TableExtension>::compileWS(
     const std::shared_ptr<const ov::Model>& /*model*/,
     const Config& config) const {
-    std::vector<uint8_t> compiledModel1 = readCompiledModel("");
-    std::vector<uint8_t> compiledModel2 = readCompiledModel("");
+    std::vector<uint8_t> compiledModel1 =
+        readCompiledModel("/home/razvanapetroaie/models/weights_separation/resnet-50-blobs/init_elf.blob");
+    std::vector<uint8_t> compiledModel2 =
+        readCompiledModel("/home/razvanapetroaie/models/weights_separation/resnet-50-blobs/main_elf.blob");
     NetworkMetadata metadata1 = parse(compiledModel1, config);
     NetworkMetadata metadata2 = parse(compiledModel2, config);
 
