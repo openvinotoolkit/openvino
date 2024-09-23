@@ -14,6 +14,7 @@
 #include "openvino/c/ov_layout.h"
 #include "openvino/c/ov_model.h"
 #include "openvino/c/ov_tensor.h"
+#include "openvino/core/preprocess/padding_mode.hpp"
 
 /**
  * @struct ov_preprocess_prepostprocessor_t
@@ -512,3 +513,20 @@ ov_preprocess_input_model_info_set_layout(ov_preprocess_input_model_info_t* prep
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_prepostprocessor_build(const ov_preprocess_prepostprocessor_t* preprocess, ov_model_t** model);
+
+/**
+ * @brief Add scale preprocess operation. Divide each element of input by specified value.
+ * @ingroup ov_prepostprocess_c_api
+ * @param preprocess_input_process_steps A pointer to ov_preprocess_preprocess_steps_t.
+ * @param pads_begin Scaling value
+ * @param pads_end
+ * @param value Scaling value
+ * @param mode
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_prepostprocessor_pad(const ov_preprocess_prepostprocessor_t* preprocess_input_process_steps,
+                                   const int* pads_begin,
+                                   const int* pads_end,
+                                   float value,
+                                   ov::op::PadMode mode);

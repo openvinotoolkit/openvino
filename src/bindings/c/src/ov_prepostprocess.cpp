@@ -524,3 +524,19 @@ ov_status_e ov_preprocess_prepostprocessor_build(const ov_preprocess_prepostproc
 
     return ov_status_e::OK;
 }
+
+ov_status_e ov_preprocess_prepostprocessor_pad(ov_preprocess_prepostprocessor_t* preprocess_input_process_steps,
+                                               const int* pads_begin,
+                                               const int* pads_end,
+                                               float value,
+                                               ov::op::PadMode mode) {
+    if (!preprocess_input_process_steps) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        preprocess_input_process_steps->object->pad(pads_begin, pads_end, value, mode);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
