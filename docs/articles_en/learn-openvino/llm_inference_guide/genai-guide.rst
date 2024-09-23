@@ -8,7 +8,7 @@ Run LLM Inference on OpenVINO with the GenAI Flavor
    :maxdepth: 1
    :hidden:
 
-   genai-guide-npu
+   NPU inference of LLMs <genai-guide-npu>
 
 
 This guide will show you how to integrate the OpenVINO GenAI flavor into your application, covering
