@@ -24,6 +24,7 @@ public:
         std::shared_ptr<cldnn::stream> stream_ptr;
         std::vector<cldnn::memory::ptr> recv_bufs;
         std::vector<cldnn::event::ptr> events;
+        cldnn::memory::ptr output;
         cldnn::layout layout;
     };
 
