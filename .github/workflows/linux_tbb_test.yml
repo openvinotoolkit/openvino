@@ -1,4 +1,4 @@
-name: Linux (Ubuntu 22.04, Python 3.11, test with oneTBB 2021.2.5)
+name: Linux (Ubuntu 22.04, Python 3.11, oneTBB 2021.2.5)
 on:
   schedule:
     # at 00:00 on Wednesday and Saturday
@@ -69,9 +69,11 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Download TBB package
+        shell: bash
         run: wget -P ${env.TBBROOT} ${env.TBB_PACKAGE_PATH}
         
       - name: Extract TBB package
+        shell: bash
         run: |
           pushd ${env.TBBROOT}
             tar -xzf oneapi-tbb-2021.2.5-lin-trim.tgz -C ${env.TBBROOT}
