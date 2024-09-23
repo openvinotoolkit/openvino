@@ -120,7 +120,7 @@ public:
     }
 };
 
-#if defined OPENVINO_ARCH_ARM64 && defined OPENVINO_ARCH_ARM
+#if defined OPENVINO_ARCH_ARM64 || defined OPENVINO_ARCH_ARM
 // Ticket: 153155
 TEST_P(FakeQuantizeTransformation, DISABLED_CompareFunctions) {
 #else
