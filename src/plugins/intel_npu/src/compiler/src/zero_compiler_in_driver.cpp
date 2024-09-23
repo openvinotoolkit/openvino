@@ -1070,6 +1070,9 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
     bool isStateInput = false;
     bool isStateOutput = false;
     bool isShapeTensor = false;
+    bool isInitInputWeights = false;
+    bool isInitOutputWeights = false;
+    bool isMainInputWeights = false;
     if (isStateInputName(nameFromCompiler)) {
         nameFromCompiler = nameFromCompiler.substr(READVALUE_PREFIX.length());
         isStateInput = true;
@@ -1079,6 +1082,15 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
     } else if (isShapeTensorName(nameFromCompiler)) {
         nameFromCompiler = nameFromCompiler.substr(SHAPE_TENSOR_PREFIX.length());
         isShapeTensor = true;
+    } else if (isInitInputWeightsName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(INIT_INPUT_WEIGHTS_PREFIX.length());
+        isInitInputWeights = true;
+    } else if (isInitOutputWeightsName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(INIT_OUTPUT_WEIGHTS_PREFIX.length());
+        isInitOutputWeights = true;
+    } else if (isMainInputWeightsName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(MAIN_INPUT_WEIGHTS_PREFIX.length());
+        isMainInputWeights = true;
     }
 
     return {std::move(nameFromCompiler),
@@ -1087,6 +1099,9 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
             isStateInput,
             isStateOutput,
             isShapeTensor,
+            isInitInputWeights,
+            isInitOutputWeights,
+            isMainInputWeights,
             std::nullopt,
             arg.debug_friendly_name,
             std::move(outputTensorNames),
