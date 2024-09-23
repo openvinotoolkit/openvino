@@ -59,7 +59,7 @@ runs:
       shell: bash
       run: |
         artifacts_source="postcommit"
-        if [[ "${{ inputs.revision }}" == "latest_nightly" || "${{ inputs.revision }}" =~ ^[0-9]{4}\.[0-9]+\.[0-9]* ]]; then
+        if [[ "${{ inputs.revision }}" == "latest_nightly" || "${{ inputs.revision }}" =~ ^[0-9]{4}\.[0-9]+\.*[0-9]* ]]; then
           artifacts_source="s3"
         fi
         echo "artifacts_source=$artifacts_source" >> $GITHUB_OUTPUT
