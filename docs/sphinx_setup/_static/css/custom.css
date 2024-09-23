@@ -369,13 +369,19 @@ div.admonition.warning {
     background-color: #fbf5f0 !important;
 }
 
+ul.bd-sidenav a {
+    white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 .admonition.note,
 div.admonition.note {
     background-color: #f1fafe;
 }
 
 details.sd-dropdown summary.sd-card-header+div.sd-summary-content {
-    background-color: #F8F8F8;
+    background-color: rgb(242, 248, 251);
 }
 
 details.sd-dropdown summary.sd-card-header {
@@ -416,6 +422,10 @@ details.sd-dropdown summary.sd-card-header:hover {
 
 .sort-btn.sort-active {
     background-image: url('media/union-up.svg');
+}
+
+div.highlight {
+    margin-bottom: 1.15rem;
 }
 
 .highlight .err {
@@ -747,6 +757,30 @@ details.sd-dropdown summary.sd-card-header:hover {
     background-color: rgba(0, 0, 0, 0.4);
 }
 
+/* The Modal (filters modal) */
+.modal-filter {
+    display: none;
+    position: fixed;
+    z-index: 2;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgb(0, 0, 0);
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+/* Modal Content/Box */
+.modal-filters-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 36px;
+    border: 1px solid #888;
+    width: 50%;
+    border-radius: var(--bs-modal-border-radius)
+}
+
 .modal-content {
     overflow: auto;
     background-color: #fefefe;
@@ -756,6 +790,7 @@ details.sd-dropdown summary.sd-card-header:hover {
     width: 95%;
     max-width: 1140px;
     max-height: 85%;
+    border-radius: var(--bs-modal-border-radius)
 }
 
 .modal-content h2 {
@@ -770,6 +805,7 @@ details.sd-dropdown summary.sd-card-header:hover {
     width: 100%;
     border-bottom: 1px solid lightgray;
     padding-bottom: 1px;
+    margin-bottom: 5px;
 }
 
 .modal-header {
@@ -800,6 +836,7 @@ details.sd-dropdown summary.sd-card-header:hover {
     display: grid;
     padding-top: .5rem;
     grid-template-columns: 1fr;
+    overflow: auto;
 }
 
 .modal-content-grid-container .column {
@@ -817,6 +854,20 @@ details.sd-dropdown summary.sd-card-header:hover {
     vertical-align: top;
     margin-top: 4px;
     margin-left: -14px;
+}
+
+.modal-content-grid-item h5 {
+    display: inline-block;
+    font-weight: 530;
+    margin: 0;
+    margin-left: 22px;
+}
+
+.modal-filters-content h5 {
+    display: inline-block;
+    font-weight: 530;
+    margin: 0;
+    margin-left: 22px;
 }
 
 h1 {
@@ -968,6 +1019,17 @@ h5 {
     }
 }
 
+.show-allcheckbox {
+    cursor: pointer;
+    float: left;
+}
+
+.close:hover,
+.close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
 
 /* Modal buttons */
 .modal-close {
@@ -993,9 +1055,11 @@ h5 {
 }
 
 .build-graphs-btn {
+    border: 1.5px solid black;
     border-color: #0054AE;
     background-color: #0054AE;
     color: #fff;
+    padding: 4px 10px;
 }
 
 .build-graphs-btn:disabled {
@@ -1005,10 +1069,14 @@ h5 {
 
 .clear-all-btn {
     cursor: pointer;
+    padding: 0;
+    /* Disabled Clear All button. It is temporary solution */
+    display: none;
 }
 
 .clear-all-btn-content {
     border: 1.5px solid black;
+    display: none;
     padding: 6px 10px;
 }
 
@@ -1028,10 +1096,34 @@ h5 {
     content: url('media/edit-settings.svg');
 }
 
+.arrow-back-icon {
+    content: url('media/arrow-back.svg');
+}
+
+.filters-label {
+    position: absolute;
+    font-weight: 400;
+    font-size: small;
+    /* top: -2px; */
+    right: 0px;
+    width: 90px;
+}
+
+.show-filter {
+    cursor: pointer;
+    position: relative;
+    float: right;
+}
+
+.show-filters-icon {
+    content: url('media/show-filters.svg');
+}
+
 .close-btn {
-    padding: 4px 16px;
-    border-color: #0054AE;
-    background-color: #0054AE;
+    padding: 12px 24px;
+    cursor: pointer;
+    /* border-color: #0054AE;
+    background-color: #0054AE; */
     color: #fefefe;
     float: right;
     align-self: flex-start;
@@ -1459,28 +1551,38 @@ div[class*="highlight-"] {
     margin: 0 0;
 }
 
+.chart-placeholder::-webkit-scrollbar,
+.modal-content-grid::-webkit-scrollbar,
 .bd-sidebar::-webkit-scrollbar,
 .scrollbox::-webkit-scrollbar {
     height: 8px;
     width: 5px;
 }
 
+.chart-placeholder::-webkit-scrollbar-track,
+.modal-content-grid::-webkit-scrollbar-track,
 .bd-sidebar::-webkit-scrollbar-track,
 .scrollbox::-webkit-scrollbar-track {
     border-radius: 4px;
     background-color: white;
 }
 
+.chart-placeholder::-webkit-scrollbar-track:hover,
+.modal-content-grid::-webkit-scrollbar-track:hover,
 .bd-sidebar::-webkit-scrollbar-track:hover,
 .scrollbox::-webkit-scrollbar-track:hover {
     background-color: white;
 }
 
+.chart-placeholder::-webkit-scrollbar-track:active,
+.modal-content-grid::-webkit-scrollbar-track:active,
 .bd-sidebar::-webkit-scrollbar-track:active,
 .scrollbox::-webkit-scrollbar-track:active {
     background-color: white;
 }
 
+.chart-placeholder::-webkit-scrollbar-thumb,
+.modal-content-grid::-webkit-scrollbar-thumb,
 .bd-sidebar::-webkit-scrollbar-thumb,
 .scrollbox::-webkit-scrollbar-thumb {
     border-radius: 4px;
@@ -1488,12 +1590,16 @@ div[class*="highlight-"] {
     width: 8px !important;
 }
 
+.chart-placeholder::-webkit-scrollbar-thumb:hover
+.modal-content-grid::-webkit-scrollbar-thumb:hover
 .bd-sidebar::-webkit-scrollbar-thumb:hover,
 .scrollbox::-webkit-scrollbar-thumb:hover {
     background-color: #7a7676;
     width: 8px !important;
 }
 
+.chart-placeholder::-webkit-scrollbar-thumb:active,
+.modal-content-grid::-webkit-scrollbar-thumb:active,
 .bd-sidebar::-webkit-scrollbar-thumb:active,
 .scrollbox::-webkit-scrollbar-thumb:active {
     background-color: #7a7676;
