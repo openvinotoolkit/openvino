@@ -21,7 +21,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
-  TBB_PACKAGE_PATH: https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/oneapi-tbb-2021.2.5-lin-trim.tgz
+  TBB_PACKAGE_PATH: 'https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/oneapi-tbb-2021.2.5-lin-trim.tgz'
   TBBROOT: /mount/tbb
 
 jobs:
