@@ -130,10 +130,19 @@ if(ENABLE_INTEL_GPU)
 endif()
 
 #
+# image decoders
+#
+
+add_subdirectory(thirdparty/jpeg EXCLUDE_FROM_ALL)
+add_subdirectory(thirdparty/png EXCLUDE_FROM_ALL)
+add_subdirectory(thirdparty/gif EXCLUDE_FROM_ALL)
+
+
+#
 # zlib
 #
 
-if(ENABLE_SAMPLES OR ENABLE_TESTS)
+if(ENABLE_SAMPLES OR ENABLE_TESTS OR PNG_FOUND)
     add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
 endif()
 
@@ -513,10 +522,6 @@ if(ENABLE_SAMPLES)
         endif()
     endif()
 endif()
-
-add_subdirectory(thirdparty/jpeg EXCLUDE_FROM_ALL)
-add_subdirectory(thirdparty/png EXCLUDE_FROM_ALL)
-add_subdirectory(thirdparty/gif EXCLUDE_FROM_ALL)
 
 #
 # Install
