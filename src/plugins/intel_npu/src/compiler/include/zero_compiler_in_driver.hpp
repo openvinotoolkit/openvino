@@ -69,6 +69,9 @@ public:
     NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,
                                const Config& config) const override final;
 
+    std::vector<NetworkDescription> compileWS(const std::shared_ptr<const ov::Model>& model,
+                                              const Config& config) const override final;
+
     ze_result_t seriazlideIRModelAndCreateGraph(const std::shared_ptr<const ov::Model>& model,
                                                 const Config& config,
                                                 ze_device_graph_properties_t deviceGraphProperties,

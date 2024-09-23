@@ -978,6 +978,13 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
 }
 
 template <typename TableExtension>
+std::vector<NetworkDescription> LevelZeroCompilerInDriver<TableExtension>::compileWS(
+    const std::shared_ptr<const ov::Model>& /*model*/,
+    const Config& /*config*/) const {
+    return {};
+}
+
+template <typename TableExtension>
 NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vector<uint8_t>& network,
                                                                  const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "LevelZeroCompilerInDriver::parse", "desc");

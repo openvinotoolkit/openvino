@@ -216,6 +216,16 @@ public:
     virtual NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
 
     /**
+     * @brief TODO
+     *
+     * @param model
+     * @param config
+     * @return NetworkDescription
+     */
+    virtual std::vector<NetworkDescription> compileWS(const std::shared_ptr<const ov::Model>& model,
+                                                      const Config& config) const = 0;
+
+    /**
      * @brief Returns information about supported layers of the network passed
      * @param model The model to be queried
      * @param config A reference to NPUConfig containing plugin config options

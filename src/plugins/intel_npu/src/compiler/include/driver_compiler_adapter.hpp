@@ -26,6 +26,9 @@ public:
     NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,
                                const Config& config) const override final;
 
+    std::vector<NetworkDescription> compileWS(const std::shared_ptr<const ov::Model>& model,
+                                              const Config& config) const override final;
+
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override final;
 
     NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const override final;
