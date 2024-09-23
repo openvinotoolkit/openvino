@@ -410,22 +410,15 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
         const auto real_idx = comp_model_desc.replaced_by.value();
         auto& func_desc = m_compiled_submodels[real_idx];
 
-        // FIXME: why 0th function has those empty?
-        if (real_idx == idx) {
-            m_compiled_submodels[idx].closure.resize(m_compiled_submodels[idx].transformations.size());
-            m_compiled_submodels[idx].update_required.resize(m_compiled_submodels[idx].closure.size(),
-                                                             m_cfg.get<::intel_npu::NPUW_FOLD>() ? true : false);
-            m_compiled_submodels[idx].is_remote.resize(m_compiled_submodels[idx].closure.size(), false);
-        }
-
         std::unordered_map<std::string, ov::Tensor> concat_applied;
         std::vector<ov::Tensor> concated;
+
+        // Due to concat some tensor should be skipped in closure
+        m_compiled_submodels[idx].closure.resize(0);
+        m_compiled_submodels[idx].is_remote.resize(0);
+
         for (std::size_t tidx = 0; tidx < comp_model_desc.transformations.size(); ++tidx) {
             const auto& lt = m_compiled_submodels[idx].transformations[tidx];
-
-            // Due to concat some tensor should be skipped in closure
-            m_compiled_submodels[idx].closure.resize(0);
-            m_compiled_submodels[idx].is_remote.resize(0);
 
             // FIXME: probably should be more careful with the devices here
             if (lt.has_concat()) {
@@ -453,6 +446,10 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             m_compiled_submodels[idx].closure.push_back(tensor);
             m_compiled_submodels[idx].is_remote.push_back(true);
         }
+
+        // After concat size might have changed
+        m_compiled_submodels[idx].update_required.resize(m_compiled_submodels[idx].closure.size(),
+                                                         m_cfg.get<::intel_npu::NPUW_FOLD>() ? true : false);
     });
 }
 
