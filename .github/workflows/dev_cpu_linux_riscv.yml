@@ -239,6 +239,9 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       # PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
+      XUANTIE_TAR_NAME: 'Xuantie-900-gcc-linux-5.15.0-glibc-x86_64-V2.8.1'
+      XUANTIE_DIR: /__w/openvino/xuantie
+
     steps:
       - name: Download OpenVINO package
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
@@ -305,7 +308,7 @@ jobs:
           # Needed as ze_loader.so is under INSTALL_TEST_DIR
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}/tests
 
-          ${INSTALL_TEST_DIR}/tests/ov_cpu_func_tests --gtest_filter=*smoke_AdaPoolAvg4DLayoutTest* --gtest_print_time=1
+          ${XUANTIE_DIR}/${XUANTIE_TAR_NAME}/bin/qemu-riscv64 ${INSTALL_TEST_DIR}/tests/ov_cpu_func_tests --gtest_filter=*smoke_AdaPoolAvg4DLayoutTest* --gtest_print_time=1
         timeout-minutes: 25
 
 #       - name: Upload Test Results
