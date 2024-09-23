@@ -525,14 +525,13 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     }
     if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
         jit.AddConstant(MakeJitConstant("W_IDX", "fi * TILE_K + kii"));
-        jit.AddConstant(MakeJitConstant("W_DYN_QUAN_IDX", "fi * TILE_K + kii"));
     } else if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
         jit.AddConstant(MakeJitConstant("W_IDX", "fi * TILE_K + kii"));
-        jit.AddConstant(MakeJitConstant("W_DYN_QUAN_IDX", "fi * TILE_K + kii"));
     } else {
         jit.AddConstant(MakeJitConstant("W_IDX", "kii * TILE_OFM + fi"));
-        jit.AddConstant(MakeJitConstant("W_DYN_QUAN_IDX", "fi * TILE_K + kii"));
     }
+
+    jit.AddConstant(MakeJitConstant("W_DYN_QUAN_IDX", "fi * TILE_K + kii"));
 
     if (dispatchData.use_slm) {
         OPENVINO_ASSERT(dispatchData.tile_n == 2, "[GPU] Unsupported TILE_OFM size for SLM kernel configuration");

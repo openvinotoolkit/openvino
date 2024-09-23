@@ -922,7 +922,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 #endif
             #else
                 DQ_SLM_FILTER_UNPACKED_VEC dzp = (DQ_SLM_FILTER_UNPACKED_VEC)(ACCUMULATOR_VAL_ZERO);
-                dq_wei_unpacked -= dzp;
             #endif
 
             #if FILTER_LOAD_BLOCK_SIZE == 2
