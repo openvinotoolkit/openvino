@@ -4,6 +4,8 @@ import argparse
 import logging
 import sys
 
+from pathlib import Path
+
 sys.path.append(str(Path(__file__).parents[1]))
 from common import action_utils
 
