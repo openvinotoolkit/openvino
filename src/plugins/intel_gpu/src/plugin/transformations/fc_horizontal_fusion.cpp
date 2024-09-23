@@ -132,73 +132,69 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
         fused_scale->set_friendly_name(scale_nodes[0]->get_friendly_name() + "_fused_scale");
         ov::copy_runtime_info(scale_nodes, fused_scale);
         // check if all of the fc has a bias user, set it as bias input
+        // Currently horizontal fusing is applied only when fusing is applied for N dim
+        // Also, fuse biases for the last dimension too, if
+        // - Biases are constant
+        // - Rank of the bias shapes are same
+        // - all other dims except last dim is 1 (e.g., [1, 1, N])
         size_t n_bias_users = 0;
+        int32_t bias_rank = -1;
         for (auto fc : fc_nodes) {
-            if (fc->get_users().size() == 1
-                && fc->get_users()[0]->get_type_info() == ov::opset1::Add::get_type_info_static()
-                && ov::is_type<ov::op::v0::Constant>(fc->get_users()[0]->inputs()[1].get_source_output().get_node())) {
-                    n_bias_users++;
+            if (fc->get_users().size() == 1 &&
+                fc->get_users()[0]->get_type_info() == ov::opset1::Add::get_type_info_static() &&
+                ov::is_type<ov::op::v0::Constant>(fc->get_users()[0]->inputs()[1].get_source_output().get_node())) {
+                auto bias_input1_shape = fc->get_users()[0]->get_input_partial_shape(1).get_shape();
+                if (bias_rank == -1)
+                    bias_rank = static_cast<int32_t>(bias_input1_shape.size());
+                if (bias_rank != static_cast<int32_t>(bias_input1_shape.size()))
+                    break;
+                size_t ndim_size = bias_input1_shape.back();
+                // allow only [1, 1, N] shape bias
+                if (std::accumulate(bias_input1_shape.begin(), bias_input1_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>()) != ndim_size)
+                    break;
+                n_bias_users++;
             }
         }
 
-        size_t bias_concat_axis = 0;
         if (bias_nodes.empty() && n_bias_users == fc_nodes.size()) {
-            // Set Add user as bias input to FC
             for (size_t i = 0; i < fc_nodes.size(); ++i) {
                 auto orig_fc = fc_nodes[i];
                 auto bias_node = orig_fc->get_users()[0];
                 auto bias_const_ptr = orig_fc->get_users()[0]->get_input_node_shared_ptr(1);
                 bias_nodes.push_back(bias_const_ptr);
             }
-            // Check shape and find axis
-            const auto bias_rank = bias_nodes[0]->get_output_partial_shape(0).size();
-            size_t non_zero_diffs = 0;
-            for (size_t i = 0; i < bias_rank; ++i) {
-                std::unordered_set<size_t> dims;
-                for (size_t j = 0; j < bias_nodes.size(); ++j) {
-                    dims.insert(bias_nodes[j]->get_output_partial_shape(0)[i].get_length());
-                }
-                if (dims.size() > 1) {
-                    bias_concat_axis = i;
-                    non_zero_diffs++;
-                }
-            }
-            if (non_zero_diffs <= 1) {
-                for (size_t i = 0; i < fc_nodes.size(); ++i) {
-                    auto orig_fc = fc_nodes[i];
-                    auto bias_node = orig_fc->get_users()[0];
-                    GPU_DEBUG_TRACE_DETAIL << "Set Add op user " << bias_node->get_friendly_name() << " as the FC "
-                                           << orig_fc->get_friendly_name() << "'s bias input" << std::endl;
-                    auto bias_const = orig_fc->get_users()[0]->input_value(1);
-                    auto orig_users_of_bias_user = bias_node->get_users();
-                    ov::OutputVector fc_inputs = orig_fc->input_values();
-                    fc_inputs[2] = bias_const;
-                    auto new_fc = orig_fc->clone_with_new_inputs(fc_inputs);
-                    new_fc->set_friendly_name(orig_fc->get_friendly_name() + "_with_bias");
-                    ov::copy_runtime_info(orig_fc, new_fc);
-                    for (auto u : orig_users_of_bias_user) {
-                        for (size_t idx = 0; idx < u->inputs().size(); ++idx) {
-                            if (u->get_input_node_shared_ptr(idx) == bias_node) {
-                                u->input(idx).replace_source_output(new_fc->output(0));
-                            }
+            for (size_t i = 0; i < fc_nodes.size(); ++i) {
+                auto orig_fc = fc_nodes[i];
+                auto bias_node = orig_fc->get_users()[0];
+                GPU_DEBUG_TRACE_DETAIL << "Set Add op user " << bias_node->get_friendly_name() << " as the FC "
+                                       << orig_fc->get_friendly_name() << "'s bias input" << std::endl;
+                auto bias_const = orig_fc->get_users()[0]->input_value(1);
+                auto orig_users_of_bias_user = bias_node->get_users();
+                ov::OutputVector fc_inputs = orig_fc->input_values();
+                fc_inputs[2] = bias_const;
+                auto new_fc = orig_fc->clone_with_new_inputs(fc_inputs);
+                new_fc->set_friendly_name(orig_fc->get_friendly_name() + "_with_bias");
+                ov::copy_runtime_info(orig_fc, new_fc);
+                for (auto u : orig_users_of_bias_user) {
+                    for (size_t idx = 0; idx < u->inputs().size(); ++idx) {
+                        if (u->get_input_node_shared_ptr(idx) == bias_node) {
+                            u->input(idx).replace_source_output(new_fc->output(0));
                         }
                     }
-                    fc_nodes[i] = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(new_fc);
-                    bias_node->clear_control_dependencies();
-                    orig_fc->clear_control_dependencies();
                 }
-            } else {
-                // biases cannot be fusable. Not to set users as bias input
-                bias_nodes.clear();
+                fc_nodes[i] = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(new_fc);
+                bias_node->clear_control_dependencies();
+                orig_fc->clear_control_dependencies();
             }
         }
+
         std::shared_ptr<ov::Node> fused_bias;
         if (bias_nodes.size() == fc_nodes.size()) {
             ov::OutputVector bias_nodes_as_output_vector;
             for (size_t i = 0; i < bias_nodes.size(); ++i) {
                 bias_nodes_as_output_vector.push_back(bias_nodes[i]);
             }
-            fused_bias = std::make_shared<ov::op::v0::Concat>(bias_nodes_as_output_vector, bias_concat_axis);
+            fused_bias = std::make_shared<ov::op::v0::Concat>(bias_nodes_as_output_vector, bias_rank - 1);
             fused_bias->set_friendly_name(bias_nodes[0]->get_friendly_name() + "_fused_bias");
             ov::copy_runtime_info(bias_nodes, fused_bias);
         } else {
