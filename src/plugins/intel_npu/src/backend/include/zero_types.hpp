@@ -16,7 +16,7 @@
 /**
  * @brief Last version of Table of Graph Extension functions used within plugin
  */
-using ze_graph_dditable_ext_last_t = ze_graph_dditable_ext_1_6_t;
+using ze_graph_dditable_ext_last_t = ze_graph_dditable_ext_1_7_t;
 /**
  * @brief Last version of the Command Queue functions used within plugin
  */
@@ -73,6 +73,8 @@ public:
           pfnGetArgumentProperties3(_impl->pfnGetArgumentProperties3) {
         // version 1.3
         // wrappers replace pointers
+
+        // version 1.7
     }
     ~ze_graph_dditable_ext_decorator() = default;
 
@@ -155,6 +157,9 @@ public:
         throwWhenUnsupported("pfnDeviceGetGraphProperties2", ZE_GRAPH_EXT_VERSION_1_6);
         return _impl->pfnDeviceGetGraphProperties2(hDevice, pDeviceGraphProperties);
     }
+
+    // version 1.7
+    ze_pfnGraphGetNativeBinary_ext_2_t pfnGetNativeBinary2;
 };
 
 /**
