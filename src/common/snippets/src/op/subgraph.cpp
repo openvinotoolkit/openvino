@@ -439,6 +439,8 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
     std::string bino = "original.bin";
     mgr.register_pass<ov::pass::Serialize>(xmlo, bino);
     mgr.run_passes(body_ptr());
+
+    std::cout << "original e" << std::endl;
 }
 
 void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, size_t min_kernel_work_amount,
@@ -449,10 +451,10 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations")
 
     OV_ITT_TASK_CHAIN(CONTROL_FLOW, ov::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations", "::convert_body_to_linear_ir")
-
+    std::cout << "convert_body_to_linear_ir s" << std::endl;
     convert_body_to_linear_ir(min_parallel_work_amount, min_kernel_work_amount, shape_infer_factory);
     OPENVINO_ASSERT(m_linear_ir, "LinearIR has not been inited for control flow transformations!");
-
+    std::cout << "convert_body_to_linear_ir e" << std::endl;
     OV_ITT_TASK_NEXT(CONTROL_FLOW, "::control_flow_transformations")
 
     // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
@@ -484,7 +486,6 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     pipeline.register_positioned_passes(lowered_backend_passes);
     pipeline.run(*m_linear_ir);
-    // std::cout << "control_flow_transformations finish..." << std::endl;
 
     lowered::pass::PassPipeline validation_pipeline;
     validation_pipeline.register_pass<lowered::pass::ValidateBuffers>();

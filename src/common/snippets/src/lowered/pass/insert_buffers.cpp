@@ -246,48 +246,6 @@ bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begi
         insertion(linear_ir, begin, end, loop_manager, loop_entries, loop_exits);
     }
 
-    for (auto expr_it = begin; expr_it != end; ++expr_it) {
-        const auto& expr = *expr_it;
-        if (const auto& buffer_expr = ov::as_type_ptr<BufferExpression>(expr)) {
-            if (const auto& inplace_from = buffer_expr->get_inplace_node()) {
-                if (ov::as_type_ptr<op::Buffer>(inplace_from)) {
-                    const auto& inplace_from_expr = std::find_if(begin, end, [inplace_from](const ExpressionPtr& expr) {
-                        return expr->get_node() == inplace_from;
-                    });
-                    buffer_expr->set_cluster_id(ov::as_type_ptr<BufferExpression>(*inplace_from_expr)->get_cluster_id());
-                }
-            }
-        }
-    }
-
-    for (auto expr_it = begin; expr_it != end; expr_it++) {
-        const auto expr = *expr_it;
-        const auto& inplace_buffer = ov::as_type_ptr<BufferExpression>(expr);
-        if (inplace_buffer) {
-            // const auto& inplace_from = inplace_buffer->get_inplace_from();  // max
-            // auto child = inplace_from->get_output_target_inputs(0).begin()->get_node(); // sub
-            // if (ov::is_type<ov::op::v0::Result>(child) || ov::is_type<op::Buffer>(child)) {
-            //     continue; // alraedy have memory that share, no need to allocate
-            // } else {
-            //     // inplace from inplace_from node output, if inplace_from is not stored, need insert buffer after inplace_from is used.
-            //     auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(inplace_from->output(0));
-            //     const auto pos = std::find_if(begin, end, [&child](const ExpressionPtr& expr) {
-            //          return expr->get_node().get() == child;
-            //     });
-            //     const auto inplace_from_expr = std::find_if(begin, end, [&inplace_from](const ExpressionPtr& expr) {
-            //          return expr->get_node() == inplace_from;
-            //     });
-            //     OPENVINO_ASSERT(pos != end, "can not find inplace_from node for InplaceMemoryBuffer.");
-            //     auto buffer_loop_ids = std::vector<size_t>{};
-            //     auto input =(*inplace_from_expr)->get_output_port_connectors();
-            //     std::set<ExpressionPort> potential_consumers = input[0]->get_consumers();
-            //     // insert buffer, with input of inplace_from output connectors.
-            //     linear_ir.insert_node(
-            //         buffer, input, buffer_loop_ids, false, pos, potential_consumers);
-            // }
-        }
-    }
-
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto expr = *expr_it;
         const auto node = (*expr_it)->get_node();
@@ -306,6 +264,108 @@ bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begi
         }
 
         insertion(linear_ir, expr_it, end, loop_manager, loop_entries, loop_exits);
+    }
+    // insert buffer if one operation output is shared from another buffer
+    for (auto expr_it = begin; expr_it != end; expr_it++) {
+        const auto expr = *expr_it;
+        const auto& buffer_expr = ov::as_type_ptr<BufferExpression>(expr);
+        if (!buffer_expr)
+            continue;
+        std::cout << "buffer_expr:" << buffer_expr->get_node()->get_friendly_name() << std::endl;
+        if (const auto& inplace_from = buffer_expr->get_inplace_node()) {
+            std::cout << "inplace buffer_expr" << std::endl;
+            auto inplace_from_expr = std::find_if(begin, end, [&inplace_from](const ExpressionPtr& expr) {
+                return expr->get_node() == inplace_from;
+            });
+            // find based on rt info as maybe inplace_from node is changed by transformation
+            for (auto pos_it = begin; pos_it != end; pos_it++) {
+                const auto& rt_info_consumer = (*pos_it)->get_node()->get_rt_info();
+                const auto& it = rt_info_consumer.find("inplace_source_index");
+                if (it != rt_info_consumer.end()) {
+                    std::cout << "test:" << (it->second).as<size_t>() << std::endl;
+                }
+            }
+            if (inplace_from_expr == end) {
+                std::cout << "inplace buffer_expr inplace from not find by pointer" << std::endl;
+                const auto& rt_info_consumer = expr->get_node()->get_rt_info();
+                const auto& it = rt_info_consumer.find("inplace_consumer_index");
+                size_t inplace_consumer_index = it->second.as<size_t>();
+                std::cout << "inplace_consumer_index:" << inplace_consumer_index << std::endl;
+                inplace_from_expr = std::find_if(begin, end, [&](const ExpressionPtr& expr_pool) {
+                    const auto& rt_info = expr_pool->get_node()->get_rt_info();
+                    const auto& it = rt_info.find("inplace_source_index");
+                    std::cout << "find.........." << std::endl;
+                    if (it != rt_info.end()) {
+                        std::cout << "find inplace_from" << std::endl;
+                        std::cout << "it->second:" << (it->second).as<size_t>() << std::endl;
+                    }
+                    return (it != rt_info.end()) && ((it->second).as<size_t>() == inplace_consumer_index);
+                });
+            }
+            if (inplace_from_expr == end) {
+                std::cout << "inplace buffer_expr inplace from not find by get_rt_info" << std::endl;
+                continue;
+            }
+            std::cout << "buffer_expr_inplace_from:" << (*inplace_from_expr)->get_node()->get_friendly_name() << std::endl;
+
+            const auto& inplace_from_node  = (*inplace_from_expr)->get_node();
+            // if already inplace to a result or buffer, no need insert
+            if (ov::as_type_ptr<op::Buffer>(inplace_from_node) || ov::as_type_ptr<ov::op::v0::Result>(inplace_from_node))
+                continue;
+            // if child of inplace_from node is result or buffer, set inplace to the child
+            bool reset_to_child = false;
+            auto output_consumers = (*inplace_from_expr)->get_output_port_connector(0)->get_consumers();
+            for (auto it = output_consumers.begin(); it != output_consumers.end(); ++it) {
+                auto child = it->get_expr()->get_node();
+                if (ov::as_type_ptr<op::Buffer>(child) || ov::as_type_ptr<ov::op::v0::Result>(child)) {
+                    buffer_expr->set_inplace_from(child);
+                    reset_to_child = false;
+                    break;
+                }
+            }
+            if (reset_to_child)
+                continue;
+            // insert IntermediateMemoryBuffer after buffer_expr's last child
+            auto buffer = std::make_shared<op::Buffer>(inplace_from->output(0));
+            auto get_pos = [&](ExpressionPtr inplace_to) {
+                const auto& inplace_buffer_consumers = inplace_to->get_output_port_connector(0)->get_consumers();
+                for (auto pos_it = end; pos_it != expr_it; pos_it--) {
+                    for (const auto& consumer : inplace_buffer_consumers) {
+                        if ((*pos_it) == consumer.get_expr()) {
+                            return pos_it;
+                        }
+                    }
+                }
+            };
+            auto pos = get_pos(expr);
+
+            auto buffer_loop_ids = std::vector<size_t>{};
+            auto input =(*inplace_from_expr)->get_output_port_connectors();
+            std::set<ExpressionPort> potential_consumers;
+            linear_ir.insert_node(buffer, input, buffer_loop_ids, false, pos, potential_consumers);
+
+            // const auto& inplace_from = inplace_buffer->get_inplace_from();  // max
+            // auto child = inplace_from->get_output_target_inputs(0).begin()->get_node(); // sub
+            // if (ov::is_type<ov::op::v0::Result>(child) || ov::is_type<op::Buffer>(child)) {
+            //     continue; // already have memory that share, no need to allocate
+            // } else {
+            //     // inplace from inplace_from node output, if inplace_from is not stored, need insert buffer after inplace_from is used.
+            //     auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(inplace_from->output(0));
+            //     const auto pos = std::find_if(begin, end, [&child](const ExpressionPtr& expr) {
+            //          return expr->get_node().get() == child;
+            //     });
+            //     const auto inplace_from_expr = std::find_if(begin, end, [&inplace_from](const ExpressionPtr& expr) {
+            //          return expr->get_node() == inplace_from;
+            //     });
+            //     OPENVINO_ASSERT(pos != end, "can not find inplace_from node for InplaceMemoryBuffer.");
+            //     auto buffer_loop_ids = std::vector<size_t>{};
+            //     auto input =(*inplace_from_expr)->get_output_port_connectors();
+            //     std::set<ExpressionPort> potential_consumers = input[0]->get_consumers();
+            //     // insert buffer, with input of inplace_from output connectors.
+            //     linear_ir.insert_node(
+            //         buffer, input, buffer_loop_ids, false, pos, potential_consumers);
+            // }
+        }
     }
 
     return true;
