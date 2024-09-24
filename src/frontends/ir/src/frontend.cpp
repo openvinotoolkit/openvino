@@ -27,7 +27,9 @@ namespace {
 size_t get_ir_version(const pugi::xml_document& doc) {
     pugi::xml_node root = doc.document_element();
     std::string root_name = root.name();
-    std::transform(root_name.begin(), root_name.end(), root_name.begin(), ::tolower);
+    std::transform(root_name.begin(), root_name.end(), root_name.begin(), [](unsigned char c) {
+        return std::tolower(c);
+    });
 
     if (root_name == "net")
         return static_cast<size_t>(ov::util::pugixml::get_uint64_attr(root, "version", 0));
