@@ -163,7 +163,7 @@ jobs:
         run: |
           mkdir -p ${{ fromJson(inputs.tbb-path).local }}
           wget -P ${{ fromJson(inputs.tbb-path).local }} ${{ fromJSON(inputs.tbb-path).url }}
-          tar -xzf ${{ fromJson(inputs.tbb-path).name }} -C ${{ fromJson(inputs.tbb-path).local }}
+          tar -xzf ${{ fromJson(inputs.tbb-path).local }}/${{ fromJson(inputs.tbb-path).name }} -C ${{ fromJson(inputs.tbb-path).local }}
 
       #
       # Build
