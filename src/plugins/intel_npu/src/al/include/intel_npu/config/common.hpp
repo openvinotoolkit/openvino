@@ -265,6 +265,16 @@ struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
     static std::string toString(const ov::intel_npu::BatchMode& val);
 };
 
+struct SEPARATE_WEIGHTS final : OptionBase<SEPARATE_WEIGHTS, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::separate_weights.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+};
+
 }  // namespace intel_npu
 
 namespace ov {

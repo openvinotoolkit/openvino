@@ -345,6 +345,11 @@ static constexpr ov::Property<ElfCompilerBackend> use_elf_compiler_backend{"NPU_
 static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
 
 /**
+ * @brief TODO
+ */
+static constexpr ov::Property<bool> separate_weights{"NPU_SEPARATE_WEIGHTS"};
+
+/**
  * @brief [Only for NPU Plugin]
  * Type: integer, default is 1
  * This option allows to omit creating an executor and therefore to omit running an inference when its value is 0

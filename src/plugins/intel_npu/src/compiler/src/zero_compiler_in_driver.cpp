@@ -641,6 +641,12 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
                    << VALUE_DELIMITER;
     content = std::regex_replace(content, std::regex(umdcachestring.str()), "");
 
+    // SEPARATE_WEIGHTS does not involve the compiler (yet)
+    std::ostringstream separateWeightsStream;
+    separateWeightsStream << ov::intel_npu::separate_weights.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+                          << VALUE_DELIMITER;
+    content = std::regex_replace(content, std::regex(separateWeightsStream.str()), "");
+
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
     // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix
     if (compilerVersion.major < 5) {
