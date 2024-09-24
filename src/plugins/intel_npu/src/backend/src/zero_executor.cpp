@@ -80,6 +80,8 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
         zeroUtils::throwOnFail("pfnGetArgumentProperties3",
                                _graph_ddi_table_ext.pfnGetArgumentProperties3(_graph, index, &arg3));
 
+        std::cout << arg3.name << std::endl;
+
         if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
             _input_descriptors.push_back(ArgumentDescriptor{arg3, index});
         } else {

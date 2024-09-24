@@ -14,9 +14,9 @@ namespace intel_npu {
 #define READVALUE_PREFIX           std::string("vpux_ie_read_value_")
 #define ASSIGN_PREFIX              std::string("vpux_ie_assign_")
 #define SHAPE_TENSOR_PREFIX        std::string("vpux_ie_shape_")
-#define INIT_INPUT_WEIGHTS_PREFIX  std::string("in_ngraphSharedConstant")
-#define INIT_OUTPUT_WEIGHTS_PREFIX std::string("out_ngraphSharedConstant")
-#define MAIN_INPUT_WEIGHTS_PREFIX  std::string("outInit_ngraphSharedConstant")
+#define INIT_INPUT_WEIGHTS_PREFIX  std::string("in_ngraphSharedConstant_")
+#define INIT_OUTPUT_WEIGHTS_PREFIX std::string("out_ngraphSharedConstant_")
+#define MAIN_INPUT_WEIGHTS_PREFIX  std::string("outInit_ngraphSharedConstant_")
 
 inline bool nameHasPrefix(std::string_view name, std::string_view prefix) {
     return !name.compare(0, prefix.length(), prefix);

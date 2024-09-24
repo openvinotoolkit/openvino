@@ -66,7 +66,7 @@ Pipeline::Pipeline(const Config& config,
             }
 
             _executor->setArgumentValue(desc.idx,
-                                        static_cast<unsigned char*>(inputTensorsData.at(ioIndex).at(0)->mem) +
+                                        static_cast<const unsigned char*>(inputTensorsData.at(ioIndex).at(0)->mem) +
                                             (i * inputTensorsData.at(ioIndex).at(0)->size) / numberOfCommandLists);
 
             ++ioIndex;
@@ -75,7 +75,7 @@ Pipeline::Pipeline(const Config& config,
         ioIndex = 0;
         for (const auto& desc : _executor->get_output_descriptors()) {
             _executor->setArgumentValue(desc.idx,
-                                        static_cast<unsigned char*>(outputTensorsData.at(ioIndex)->mem) +
+                                        static_cast<const unsigned char*>(outputTensorsData.at(ioIndex)->mem) +
                                             (i * outputTensorsData.at(ioIndex)->size) / numberOfCommandLists);
             ++ioIndex;
         }
@@ -161,7 +161,7 @@ void Pipeline::updateCommandList(const TensorData& tensorsData, uint32_t index) 
     for (size_t i = 0; i < numberOfCommandLists; i++) {
         _command_lists.at(i)->updateMutableCommandList(
             index,
-            static_cast<unsigned char*>(tensorsData.mem) + (i * tensorsData.size) / numberOfCommandLists);
+            static_cast<const unsigned char*>(tensorsData.mem) + (i * tensorsData.size) / numberOfCommandLists);
         _command_lists.at(i)->close();
     }
 };

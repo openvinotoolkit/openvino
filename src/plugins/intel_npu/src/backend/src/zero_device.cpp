@@ -5,7 +5,9 @@
 #include "zero_device.hpp"
 
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "openvino/op/constant.hpp"
 #include "zero_executor.hpp"
 #include "zero_host_tensor.hpp"
 #include "zero_infer_request.hpp"
@@ -13,13 +15,6 @@
 #include "zero_utils.hpp"
 
 using namespace intel_npu;
-
-namespace {
-struct ArgumentDescriptor {
-    ze_graph_argument_properties_3_t info;
-    uint32_t idx;
-};
-}  // namespace
 
 ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs)
     : _initStructs(initStructs),
@@ -102,6 +97,38 @@ std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
 std::vector<std::shared_ptr<ov::ITensor>> ZeroDevice::runInit(const std::shared_ptr<IExecutor>& initExecutor,
                                                               const std::shared_ptr<const ov::Model> model,
                                                               const Config& config) {
+    const auto zeroInitExecutor = static_cast<const ZeroExecutor*>(initExecutor.get());
+    std::unordered_map<size_t, TensorData> constantIdToTensorData;
+
+    // Match the inputs of the "init" model with the Constant nodes of the original model
+    for (auto&& node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v0::Constant>(node)) {
+            continue;
+        }
+
+        const auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
+        const size_t id = constantNode->get_instance_id();
+        const void* address = constantNode->get_data_ptr();
+        const size_t size = constantNode->get_byte_size();
+
+        constantIdToTensorData.emplace(id, TensorData{address, size});
+    }
+
+    // const Pipeline pipeline = std::make_unique<Pipeline>(
+    //     config,
+    //     zeroInitExecutor,
+    //     zeroProfiling::ProfilingPool(zeroInitExecutor->graph(),
+    //                                  zeroProfiling::POOL_SIZE,
+    //                                  zeroInitExecutor->getInitStructs()->getProfilingDdiTable()),
+    //     zeroProfiling::ProfilingQuery(0,
+    //                                   zeroInitExecutor->getInitStructs()->getDevice(),
+    //                                   zeroInitExecutor->getInitStructs()->getProfilingDdiTable()),
+    //     std::make_shared<zeroProfiling::NpuInferProfiling>(zeroInitExecutor->getInitStructs()->getContext(),
+    //                                                        zeroInitExecutor->getInitStructs()->getDevice(),
+    //                                                        config.get<LOG_LEVEL>()),
+    //     /*const std::vector<std::optional<TensorData>>&* _inputTensorsData*/ {},
+    //     /*const std::vector<std::optional<TensorData>>&* _outputTensorsData*/ {},
+    //     /*numberOfCommandLists*/ 1);
     return {};
 }
 
