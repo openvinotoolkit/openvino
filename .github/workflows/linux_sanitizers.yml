@@ -239,7 +239,7 @@ jobs:
     timeout-minutes: 100
     runs-on: 'aks-linux-16-cores-32gb'
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.sanitizers }}
     defaults:
       run:
         shell: bash
