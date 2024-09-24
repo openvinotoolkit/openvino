@@ -289,12 +289,8 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #endif
 
 #if OUTER_OFM > 1
+    uint input_offset_init = input_offset;
     unroll_for (uint oi = 0; oi < OUTER_OFM; ++oi) {
-#if OUTPUT_3D
-    input_offset = out_b0 * INPUT0_BATCH_PITCH + out_b1 * INPUT0_FEATURE_PITCH + INPUT0_OFFSET;
-#else
-    input_offset = out_b * TILE_IN_B_PITCH + INPUT0_OFFSET;
-#endif
 #endif
 
 #if REALIGN_FP16_OFFSET
@@ -525,16 +521,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     }
                 }
             }
-            #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
-            weights_offset += TILE_K_OFM_PACKED * 2 * SIMD;
-            #elif FILTER_LAYOUT_OS_IYX_OSV16 && TILE_OFM == 2 && USE_SLM == 1
-            weights_offset += TILE_K_OFM_PACKED / 2 * SIMD;
-            #elif TILE_OFM == 2 && FILTER_LAYOUT_OS_IS_YX_OSV64_ISV2
-            weights_offset += TILE_K_OFM_PACKED * 2 * SIMD;
-            #else
-            weights_offset += TILE_K_OFM_PACKED * SIMD;
-            #endif
-
+            weights_offset += TILE_K_OFM_PACKED * TILE_OFM_PER_OSV_SIZE * SIMD;
 
 #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM * SIMD > DECOMPRESSION_SCALE_GROUP_SIZE)
             unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
@@ -648,13 +635,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     }
                 }
             #endif
-            #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
-            weights_offset += TILE_K_OFM_PACKED * SIMD * 2;
-            #elif TILE_OFM == 2 && FILTER_LAYOUT_OS_IS_YX_OSV64_ISV2
-            weights_offset += TILE_K_OFM_PACKED * SIMD * 2;
-            #else
-            weights_offset += TILE_K_OFM_PACKED * SIMD;
-            #endif
+            weights_offset += TILE_K_OFM_PACKED * TILE_OFM_PER_OSV_SIZE * SIMD;
 
             unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
                 unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
@@ -756,6 +737,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     }
 #if OUTER_OFM > 1
     out_f += TILE_OFM * SIMD;
+    input_offset = input_offset_init;
     }
 #endif
     // =====================================================================================================================================

@@ -551,6 +551,16 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("W_IDX", "kii * TILE_OFM + fi"));
     }
 
+    if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16 && dispatchData.tile_n == 2) {
+        jit.AddConstant(MakeJitConstant("TILE_OFM_PER_OSV_SIZE", 0.5f));
+    } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2 && dispatchData.tile_n == 1) {
+        jit.AddConstant(MakeJitConstant("TILE_OFM_PER_OSV_SIZE", 2));
+    } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2 && dispatchData.tile_n == 2) {
+        jit.AddConstant(MakeJitConstant("TILE_OFM_PER_OSV_SIZE", 2));
+    } else {
+        jit.AddConstant(MakeJitConstant("TILE_OFM_PER_OSV_SIZE", 1));
+    }
+
     jit.AddConstant(MakeJitConstant("W_DYN_QUAN_IDX", "fi * TILE_K + kii"));
 
     if (dispatchData.use_slm) {
