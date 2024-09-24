@@ -74,5 +74,9 @@
     {
         "error_text": "json.decoder.JSONDecodeError: Unterminated string starting at",
         "ticket": 151796
+    },
+    {
+        "error_text": "lost communication with the server",
+        "ticket": 152565
     }
 ]

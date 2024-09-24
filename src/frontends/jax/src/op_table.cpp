@@ -5,6 +5,7 @@
 #include "op_table.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/erf.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/greater.hpp"
@@ -13,6 +14,7 @@
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/not_equal.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/sqrt.hpp"
@@ -64,6 +66,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"device_put", op::skip_node},
             {"div", op::translate_1to1_match_2_inputs<v1::Divide>},
             {"dot_general", op::translate_dot_general},
+            {"eq", op::translate_binary_op<v1::Equal>},
             {"erf", op::translate_1to1_match_1_input<v0::Erf>},
             {"exp", op::translate_1to1_match_1_input<v0::Exp>},
             {"ge", op::translate_binary_op<v1::GreaterEqual>},
@@ -74,6 +77,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"max", op::translate_1to1_match_2_inputs<v1::Maximum>},
             {"mul", op::translate_1to1_match_2_inputs<v1::Multiply>},
             {"neg", op::translate_negative},
+            {"ne", op::translate_binary_op<v1::NotEqual>},
             {"reduce_max", op::translate_reduce_op<v1::ReduceMax>},
             {"reduce_sum", op::translate_reduce_op<v1::ReduceSum>},
             {"reduce_window_max", op::translate_reduce_window_max},
