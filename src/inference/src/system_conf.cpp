@@ -111,8 +111,7 @@ bool with_cpu_x86_avx512_core_amx_fp16() {
 }
 
 bool with_cpu_x86_avx512_core_amx() {
-    return with_cpu_x86_avx512_core_amx_int8() ||
-           with_cpu_x86_avx512_core_amx_bf16() ||
+    return with_cpu_x86_avx512_core_amx_int8() || with_cpu_x86_avx512_core_amx_bf16() ||
            with_cpu_x86_avx512_core_amx_fp16();
 }
 
