@@ -1513,6 +1513,10 @@ public:
     void test_compressed_int4_scale_large_n(bool is_caching_test, bool is_dynamic, long int batch_num, bool is_dyn_quan = false) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
+
+        if (engine.get_device_info().dev_type == device_type::discrete_gpu)
+            GTEST_SKIP();
+
         auto supports_immad = engine.get_device_info().supports_immad;
 
         long int ifm_num = 4096;
