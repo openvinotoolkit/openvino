@@ -77,17 +77,21 @@ Context::PPtr Context::unpack(Context::PPtr w, Context::PPtr z, Context::PPtr s,
 }
 
 Context::PPtr Context::unpack(Context::PPtr w, Context::PPtr s, ov::element::Type type) {
-    // FIXME: Assume GQ only
     const auto w_shape = w->get_shape();
     const auto s_shape = s->get_shape();
-    NPUW_ASSERT(w_shape.size() == 3);
-    NPUW_ASSERT(s_shape.size() == 3);
-    NPUW_ASSERT(s_shape[2] == 1);
 
-    // Assume already reshaped tensor (as it does with unpack)
-    ov::Shape new_shape = {w_shape[0], w_shape[1]*w_shape[2]};
+    Context::PPtr new_param;
+    if (w_shape.size() == 3 && s_shape.size() == 3) {
+        // Assume already reshaped tensor (as it does with unpack)
+        ov::Shape new_shape = {w_shape[0], w_shape[1]*w_shape[2]};
+        new_param = std::make_shared<ov::op::v0::Parameter>(type, new_shape);
+    } else if (w_shape.size() == 2 && s_shape.size() == 2) {
+        new_param = std::make_shared<ov::op::v0::Parameter>(type, w_shape);
+    } else {
+        NPUW_ASSERT(false && "Yet unsupported combination");
+    }
 
-    auto new_param = std::make_shared<ov::op::v0::Parameter>(type, new_shape);
+    NPUW_ASSERT(new_param);
     params_to_unpack[new_param] = {w, {}, s};
     return new_param;
 }
@@ -604,6 +608,45 @@ DQLiftGatherAsymCW::DQLiftGatherAsymCW() {
         return true;  // root was changed
     };
     register_matcher(std::make_shared<opp::Matcher>(gather, "DQGatherAsymCW"), std::move(callback));
+}
+
+// Identify a Gather+DQ Sym CW MatMul pattern, lift Gather up
+// Note: this pattern is applied on the full model before any partitioning
+DQLiftGatherSymCW::DQLiftGatherSymCW() {
+    auto qweight = opp::wrap_type<ov::op::v0::Constant>();
+    auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
+    auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
+    auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
+
+    auto pids = opp::wrap_type<ov::op::v0::Parameter>();
+    auto cvtids = opp::wrap_type<ov::op::v0::Convert>({pids});
+    auto gather = opp::wrap_type<ov::op::v8::Gather>({qcvtm, cvtids, opp::any_input()});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_out_w = node_to_output.at(qweight);
+        auto matched_out_s = node_to_output.at(qcoeff);
+        auto matched_out_ids = node_to_output.at(cvtids);
+        auto matched_out_gather = node_to_output.at(gather);
+
+        // Create new gathers on W and S, connect respectively
+        auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(matched_out_w, ov::element::f16);
+        auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
+        auto new_g_w = std::make_shared<ov::op::v8::Gather>(new_cvt_w, matched_out_ids, gather_c);
+        auto new_g_s = std::make_shared<ov::op::v8::Gather>(matched_out_s, matched_out_ids, gather_c);
+        auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_g_w, new_g_s);
+        auto new_out = std::make_shared<ov::op::v0::Convert>(new_mul, ov::element::f32);
+
+        // Reconnect old gather readers to the new Multiply
+        for (auto&& r : matched_out_gather.get_target_inputs()) {
+            r.replace_source_output(new_out);
+        }
+        return true;  // root was changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(gather, "DQGatherSymCW"), std::move(callback));
 }
 
 // Identify a Gather+DQ Sym GQ MatMul pattern, lift Gather up

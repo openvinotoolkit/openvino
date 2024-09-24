@@ -139,6 +139,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // FIXME: This pass should only run when pipeline is REP w/ FOLDing is enabled.
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW>();
+    rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymCW>();
     rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymGQ>();
     rewr.run_on_model(model);
 

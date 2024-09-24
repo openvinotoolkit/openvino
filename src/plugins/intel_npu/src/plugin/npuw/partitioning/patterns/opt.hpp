@@ -89,6 +89,11 @@ public:
     DQLiftGatherAsymCW();
 };
 
+class DQLiftGatherSymCW : public ov::pass::MatcherPass {
+public:
+    DQLiftGatherSymCW();
+};
+
 class DQLiftGatherSymGQ : public ov::pass::MatcherPass {
 public:
     DQLiftGatherSymGQ();
