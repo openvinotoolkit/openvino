@@ -25,13 +25,10 @@ public:
 
     /**
      * @brief TODO
-     *
-     * @param initNetworkDescription
-     * @param mainNetworkDescription
      */
-    void runInit(const std::shared_ptr<NetworkDescription>& initNetworkDescription,
-                 const std::shared_ptr<NetworkDescription>& mainNetworkDescription,
-                 const Config& config) override;
+    std::vector<std::shared_ptr<ov::ITensor>> runInit(const std::shared_ptr<IExecutor>& initExecutor,
+                                                      const std::shared_ptr<const ov::Model> model,
+                                                      const Config& config) override;
 
     std::string getName() const override;
     std::string getFullDeviceName() const override;

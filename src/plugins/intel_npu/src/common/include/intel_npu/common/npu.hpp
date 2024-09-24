@@ -71,13 +71,10 @@ public:
 
     /**
      * @brief TODO
-     *
-     * @param initNetworkDescription
-     * @param mainNetworkDescription
      */
-    virtual void runInit(const std::shared_ptr<NetworkDescription>& initNetworkDescription,
-                         const std::shared_ptr<NetworkDescription>& mainNetworkDescription,
-                         const Config& config) = 0;
+    virtual std::vector<std::shared_ptr<ov::ITensor>> runInit(const std::shared_ptr<IExecutor>& initExecutor,
+                                                              const std::shared_ptr<const ov::Model> model,
+                                                              const Config& config) = 0;
 
     virtual std::string getName() const = 0;
     virtual std::string getFullDeviceName() const = 0;

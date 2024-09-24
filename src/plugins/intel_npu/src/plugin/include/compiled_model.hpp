@@ -90,13 +90,8 @@ private:
 
     /**
      * @brief TODO
-     *
-     * @param initNetworkDescription
-     * @param mainNetworkDescription
      */
-    void run_init(const std::shared_ptr<NetworkDescription>& initNetworkDescription,
-                  const std::shared_ptr<NetworkDescription>& mainNetworkDescription,
-                  const Config& config);
+    void run_init(const std::shared_ptr<IExecutor>& initExecutor);
 
     std::shared_ptr<const NetworkDescription> _networkPtr;
     const std::shared_ptr<const ov::Model> _model;
@@ -105,6 +100,12 @@ private:
     const std::shared_ptr<IDevice> _device;
     mutable std::shared_ptr<IExecutor> _executorPtr;
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor;
+
+    /**
+     * @brief TODO
+     *
+     */
+    mutable std::vector<std::shared_ptr<ov::ITensor>> _weightsInputs;
 
     // properties map: {name -> [supported, mutable, eval function]}
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;

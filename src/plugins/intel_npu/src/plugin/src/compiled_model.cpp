@@ -72,7 +72,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
             const std::shared_ptr<NetworkDescription> mainNetworkDescription = initMainNetworkDescriptions[1];
 
             const std::shared_ptr<IExecutor> initExecutor = create_executor(initNetworkDescription);
-            _networkPtr = mainNetworkDescription;
+            run_init(initExecutor);
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -439,11 +439,9 @@ std::shared_ptr<IExecutor> CompiledModel::create_executor(
     return nullptr;
 }
 
-void CompiledModel::run_init(const std::shared_ptr<NetworkDescription>& initNetworkDescription,
-                             const std::shared_ptr<NetworkDescription>& mainNetworkDescription,
-                             const Config& config) {
-    if (_device != nullptr) {
-        _device->runInit(initNetworkDescription, mainNetworkDescription, config);
+void CompiledModel::run_init(const std::shared_ptr<IExecutor>& initExecutor) {
+    if (_device != nullptr && initExecutor != nullptr) {
+        _weightsInputs = _device->runInit(initExecutor, _model, _config);
     } else {
         _logger.info("The \"Init\" schedule did not run while building the \"CompiledModel\" object");
     }
