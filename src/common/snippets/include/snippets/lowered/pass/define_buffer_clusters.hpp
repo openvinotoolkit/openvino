@@ -43,27 +43,27 @@ public:
     bool run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
 private:
-    using BufferCluster = std::set<ExpressionPtr>;
+    using BufferCluster = std::set<BufferExpressionPtr>;
     using BufferClusters = std::vector<BufferCluster>;
-    using BufferPorts = std::unordered_map<ExpressionPtr, std::set<size_t>>;
+    using BufferPorts = std::unordered_map<BufferExpressionPtr, std::set<size_t>>;
     /**
      * @brief Finds Buffer cluster in set of clusters which contains the target expression with Buffer
      * @param target target expression with Buffer op
      * @return vector iterator which refers to the found cluster
      */
-    BufferClusters::iterator find_cluster_by_expr(const ExpressionPtr& target);
+    BufferClusters::iterator find_cluster_by_expr(const BufferExpressionPtr& target);
     /**
      * @brief Returns True if Buffer is direct source for the target expr (there aren't other loop between the Buffer and target expr)
      * @param buffer_expr expression with assumed Buffer op
      * @param target_expr expression with target op - LoopEnd or MemoryAccess op
      * @return boolean value
      */
-    bool is_direct_buffer(const ExpressionPtr& buffer_expr, const ExpressionPtr& target_expr) const;
+    bool is_direct_buffer(const BufferExpressionPtr& buffer_expr, const ExpressionPtr& target_expr) const;
     /**
      * @brief Creates new buffer cluster if buffer_exprs is missed in clusters. If buffer_exprs is already in clusters, do nothing
      * @param buffer_expr expression with Buffer op
      */
-    void create_new_cluster(const ExpressionPtr& buffer_expr);
+    void create_new_cluster(const BufferExpressionPtr& buffer_expr);
     /**
      * @brief Returns common ID of cluster if all buffer inside have the same Buffer ID. Otherwise returns the default value SIZE_MAX
      *        that means that Buffers in cluster have different IDs.
@@ -106,7 +106,7 @@ private:
      * @param buffer_expr expression with Buffer op
      * @return finalization offset - int64_t value
      */
-    int64_t get_buffer_finalization_offset(const ExpressionPtr& buffer_expr) const;
+    int64_t get_buffer_finalization_offset(const BufferExpressionPtr& buffer_expr) const;
     /**
      * @brief Check if two Buffer expressions are connected to the same Loop. Set common LoopEnd as `loop` parameter and
      *        indexes of Loop ports `up_idx` and `down_idx` if Buffers are really neighbours
@@ -117,7 +117,8 @@ private:
      * @param down_idx the reference to port index of lower Buffer op to the Loop
      * @return Return True if the Buffers are connected to the same Loop
      */
-    static bool are_buffer_neighbours(const ExpressionPtr& up, const ExpressionPtr& down, ExpressionPtr& loop, size_t& up_idx, size_t& down_idx);
+    static bool are_buffer_neighbours(const BufferExpressionPtr& up, const BufferExpressionPtr& down, ExpressionPtr& loop,
+                                      size_t& up_idx, size_t& down_idx);
     /**
      * @brief Unite clusters
      * @param inner_cluster_it iterator to inner cluster - buffer cluster is in the loop
@@ -127,7 +128,7 @@ private:
      * @return Return True if clusters have been united
      */
     bool unite_nested_clusters(const BufferClusters::iterator& inner_cluster_it, BufferCluster& outer_cluster,
-                               const ExpressionPtr& outer_buffer, bool is_outer_up);
+                               const BufferExpressionPtr& outer_buffer, bool is_outer_up);
 
     BufferClusters m_clusters;
 };
