@@ -217,6 +217,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     const ov::element::TypeVector supported_woq_types = {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
     bool enableInt8;
     bool unroll_loop = config.get_property(ov::intel_gpu::enable_loop_unrolling);
+    bool disable_rmsfusion_advance = true;
+    if (const auto env_var = std::getenv("ENABLE_RMSFUSION_ADVANCE")) {
+        disable_rmsfusion_advance = !atoi(env_var);
+        std::cout << "=============== disable_rmsfusion_advance=" << disable_rmsfusion_advance << std::endl;
+    }
     {
         ov::pass::Manager manager("Plugin:GPU");
         auto pass_config = manager.get_pass_config();
@@ -292,17 +297,19 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::MVNFusion>();
 
         // fuse RMS patterns, so that they will not be marked as precision sensitive in ConvertPrecision
-        manager.register_pass<ov::pass::RMSFusion>(false);
-        pass_config->set_callback<ov::pass::RMSFusion>([=](const_node_ptr& root) -> bool {
-            // constant_gamma -> convert (optional) -> multiply (root)
-            if (!root->get_input_partial_shape(0).is_static()) {
-                return false;
-            }
-            const auto& gamma_shape = root->get_input_partial_shape(0).to_shape();
-            const int32_t vec_size = 8;
-            auto ret = static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
-            return ret;
-        });
+        if (!disable_rmsfusion_advance) {
+            manager.register_pass<ov::pass::RMSFusion>(false);
+            pass_config->set_callback<ov::pass::RMSFusion>([=](const_node_ptr& root) -> bool {
+                // constant_gamma -> convert (optional) -> multiply (root)
+                if (!root->get_input_partial_shape(0).is_static()) {
+                    return false;
+                }
+                const auto& gamma_shape = root->get_input_partial_shape(0).to_shape();
+                const int32_t vec_size = 8;
+                auto ret = static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
+                return ret;
+            });
+        }
 
         // decompose MVNs that sre not supported in GPU, so that they will be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::MVN6Decomposition>();
@@ -845,6 +852,17 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
         auto pass_config = manager.get_pass_config();
+        if (disable_rmsfusion_advance) {
+            manager.register_pass<ov::pass::RMSFusion>();
+            pass_config->set_callback<ov::pass::RMSFusion>([=](const_node_ptr& root) -> bool {
+                if (!root->get_input_node_ptr(0)->get_input_partial_shape(0).is_static()) {
+                    return false;
+                }
+                const auto& gamma_shape = root->get_input_node_ptr(0)->get_input_partial_shape(0).to_shape();
+                const int32_t vec_size = 8;
+                return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
+            });
+        }
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
         manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);
