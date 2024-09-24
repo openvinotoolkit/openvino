@@ -64,7 +64,7 @@ elseif(${STD_FS_NO_LIB_NEEDED})
   set(STD_FS_LIB "")
 else()
   message(WARNING "Unknown C++17 compiler - not passing -lstdc++fs")
-  set(STD_FS_LIB "")
+  set(STD_FS_LIB stdc++fs)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} PUBLIC openvino::pugixml  ${STD_FS_LIB} )
