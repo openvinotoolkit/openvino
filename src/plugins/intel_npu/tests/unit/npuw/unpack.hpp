@@ -356,9 +356,9 @@ public:
             nElements *= dim;
         }
         if (toType == ov::element::i8) {
-            details::unpack(input.data(), ref_output.data(), nElements);
+            details::unpack(input.data(), ref_output.data(), static_cast<int>(nElements));
         } else if (toType == ov::element::f16) {
-            details::unpack_i4f16(input.data(), ref_output.data(), nElements);
+            details::unpack_i4f16(input.data(), ref_output.data(), static_cast<int>(nElements));
         }
     }
 };
@@ -407,7 +407,7 @@ protected:
 
         const size_t nOutputElementsPerScale = ref_output.size() / (toType.bitwidth() / 8) / scale->get_size();
 
-        details::unpack_i4f16(input.data(), ref_output.data(), nElements);
+        details::unpack_i4f16(input.data(), ref_output.data(), static_cast<int>(nElements));
 
         // lets apply per channel scale
         uint16_t * pRef = reinterpret_cast<uint16_t*>(ref_output.data());
@@ -461,7 +461,7 @@ protected:
         const size_t nOutputElementsPerScale = ref_output.size() / (toType.bitwidth() / 8) / scale->get_size();
 
         std::vector<float> floatRef(nElements);
-        details::unpack_u4f32(input.data(), floatRef.data(), nElements);
+        details::unpack_u4f32(input.data(), floatRef.data(), static_cast<int>(nElements));
 
 
         // lets apply per channel scale
@@ -521,7 +521,7 @@ protected:
         const size_t W = from_shape[from_shape.size() - 1];
 
         std::vector<float> floatRef(nElements);
-        details::unpack_u4f32(input.data(), floatRef.data(), nElements);
+        details::unpack_u4f32(input.data(), floatRef.data(), static_cast<int>(nElements));
 
         uint16_t * pRef = reinterpret_cast<uint16_t*>(ref_output.data());
         float * pFloatRef = reinterpret_cast<float*>(floatRef.data());
@@ -531,8 +531,8 @@ protected:
         for (size_t c = 0; c < C; ++c) {
             for (size_t h = 0; h < H; ++h) {
                 for (size_t w = 0; w < W; ++w) {
-                    int input_index =  w + W * h + W * H * c;
-                    int scale_index = w + W * c;
+                    size_t input_index =  w + W * h + W * H * c;
+                    size_t scale_index = w + W * c;
                     float ref_scaled = pFloatRef[input_index] - zeropValue;
                     if (scaleType == ov::element::f32) {
                         ref_scaled *= pScale_f32[scale_index];
@@ -573,7 +573,7 @@ protected:
         const size_t nOutputElementsPerScale = ref_output.size() / (toType.bitwidth() / 8) / scale->get_size();
 
         std::vector<float> floatRef(nElements);
-        details::unpack_u4f32(input.data(), floatRef.data(), nElements);
+        details::unpack_u4f32(input.data(), floatRef.data(), static_cast<int>(nElements));
 
 
         // lets apply per channel scale
