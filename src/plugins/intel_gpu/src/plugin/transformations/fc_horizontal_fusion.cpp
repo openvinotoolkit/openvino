@@ -84,6 +84,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
         ov::NodeVector scale_nodes;
         ov::NodeVector bias_nodes;
         ov::NodeVector zp_nodes;
+        int32_t bias_rank = -1;
         for (auto user : input_node->get_users()) {
             auto fc_user = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(user);
             if (fc_user) {
@@ -91,8 +92,13 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
                 fc_nodes.push_back(fc_user);
                 fc_nodes_vec.push_back(fc_user);
                 weight_nodes.push_back(fc_user->get_input_node_shared_ptr(1));
-                if (!std::dynamic_pointer_cast<op::Placeholder>(fc_user->get_input_node_shared_ptr(2)))
+                if (!std::dynamic_pointer_cast<op::Placeholder>(fc_user->get_input_node_shared_ptr(2))) {
+                    if (bias_rank == -1)
+                        bias_rank = static_cast<int32_t>(fc_user->get_input_partial_shape(2).size());
+                    if (bias_rank != static_cast<int32_t>(fc_user->get_input_partial_shape(2).size()))
+                        return false;
                     bias_nodes.push_back(fc_user->get_input_node_shared_ptr(2));
+                }
                 scale_nodes.push_back(fc_user->get_input_node_shared_ptr(3));
                 if (fc_user->inputs().size() > 4)
                     zp_nodes.push_back(fc_user->get_input_node_shared_ptr(4));
@@ -131,60 +137,64 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
         auto fused_scale = std::make_shared<ov::op::v0::Concat>(scales_as_output_vector, 0);
         fused_scale->set_friendly_name(scale_nodes[0]->get_friendly_name() + "_fused_scale");
         ov::copy_runtime_info(scale_nodes, fused_scale);
-        // check if all of the fc has a bias user, set it as bias input
+        // check if the FCs do not have bias inputs, but all of the fc has a bias add user, set them as bias inputs
         // Currently horizontal fusing is applied only when fusing is applied for N dim
         // Also, fuse biases for the last dimension too, if
         // - Biases are constant
         // - Rank of the bias shapes are same
         // - all other dims except last dim is 1 (e.g., [1, 1, N])
         size_t n_bias_users = 0;
-        int32_t bias_rank = -1;
-        for (auto fc : fc_nodes) {
-            if (fc->get_users().size() == 1 &&
-                fc->get_users()[0]->get_type_info() == ov::opset1::Add::get_type_info_static() &&
-                ov::is_type<ov::op::v0::Constant>(fc->get_users()[0]->inputs()[1].get_source_output().get_node())) {
-                auto bias_input1_shape = fc->get_users()[0]->get_input_partial_shape(1).get_shape();
-                if (bias_rank == -1)
-                    bias_rank = static_cast<int32_t>(bias_input1_shape.size());
-                if (bias_rank != static_cast<int32_t>(bias_input1_shape.size()))
-                    break;
-                size_t ndim_size = bias_input1_shape.back();
-                // allow only [1, 1, N] shape bias
-                if (std::accumulate(bias_input1_shape.begin(), bias_input1_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>()) != ndim_size)
-                    break;
-                n_bias_users++;
+        if (bias_nodes.empty()) {
+            for (auto fc : fc_nodes) {
+                if (fc->get_users().size() == 1 &&
+                    fc->get_users()[0]->get_type_info() == ov::opset1::Add::get_type_info_static() &&
+                    ov::is_type<ov::op::v0::Constant>(fc->get_users()[0]->inputs()[1].get_source_output().get_node())) {
+                    auto bias_input1_shape = fc->get_users()[0]->get_input_partial_shape(1).get_shape();
+                    if (bias_rank == -1)
+                        bias_rank = static_cast<int32_t>(bias_input1_shape.size());
+                    if (bias_rank != static_cast<int32_t>(bias_input1_shape.size()))
+                        break;
+                    size_t ndim_size = bias_input1_shape.back();
+                    // allow only [1, 1, N] shape bias
+                    if (std::accumulate(bias_input1_shape.begin(),
+                                        bias_input1_shape.end(),
+                                        static_cast<size_t>(1),
+                                        std::multiplies<size_t>()) != ndim_size)
+                        break;
+                    n_bias_users++;
+                }
             }
-        }
 
-        if (bias_nodes.empty() && n_bias_users == fc_nodes.size()) {
-            for (size_t i = 0; i < fc_nodes.size(); ++i) {
-                auto orig_fc = fc_nodes[i];
-                auto bias_node = orig_fc->get_users()[0];
-                auto bias_const_ptr = orig_fc->get_users()[0]->get_input_node_shared_ptr(1);
-                bias_nodes.push_back(bias_const_ptr);
-            }
-            for (size_t i = 0; i < fc_nodes.size(); ++i) {
-                auto orig_fc = fc_nodes[i];
-                auto bias_node = orig_fc->get_users()[0];
-                GPU_DEBUG_TRACE_DETAIL << "Set Add op user " << bias_node->get_friendly_name() << " as the FC "
-                                       << orig_fc->get_friendly_name() << "'s bias input" << std::endl;
-                auto bias_const = orig_fc->get_users()[0]->input_value(1);
-                auto orig_users_of_bias_user = bias_node->get_users();
-                ov::OutputVector fc_inputs = orig_fc->input_values();
-                fc_inputs[2] = bias_const;
-                auto new_fc = orig_fc->clone_with_new_inputs(fc_inputs);
-                new_fc->set_friendly_name(orig_fc->get_friendly_name() + "_with_bias");
-                ov::copy_runtime_info(orig_fc, new_fc);
-                for (auto u : orig_users_of_bias_user) {
-                    for (size_t idx = 0; idx < u->inputs().size(); ++idx) {
-                        if (u->get_input_node_shared_ptr(idx) == bias_node) {
-                            u->input(idx).replace_source_output(new_fc->output(0));
+            if (n_bias_users == fc_nodes.size()) {
+                for (size_t i = 0; i < fc_nodes.size(); ++i) {
+                    auto orig_fc = fc_nodes[i];
+                    auto bias_node = orig_fc->get_users()[0];
+                    auto bias_const_ptr = orig_fc->get_users()[0]->get_input_node_shared_ptr(1);
+                    bias_nodes.push_back(bias_const_ptr);
+                }
+                for (size_t i = 0; i < fc_nodes.size(); ++i) {
+                    auto orig_fc = fc_nodes[i];
+                    auto bias_node = orig_fc->get_users()[0];
+                    GPU_DEBUG_TRACE_DETAIL << "Set Add op user " << bias_node->get_friendly_name() << " as the FC "
+                                           << orig_fc->get_friendly_name() << "'s bias input" << std::endl;
+                    auto bias_const = orig_fc->get_users()[0]->input_value(1);
+                    auto orig_users_of_bias_user = bias_node->get_users();
+                    ov::OutputVector fc_inputs = orig_fc->input_values();
+                    fc_inputs[2] = bias_const;
+                    auto new_fc = orig_fc->clone_with_new_inputs(fc_inputs);
+                    new_fc->set_friendly_name(orig_fc->get_friendly_name() + "_with_bias");
+                    ov::copy_runtime_info(orig_fc, new_fc);
+                    for (auto u : orig_users_of_bias_user) {
+                        for (size_t idx = 0; idx < u->inputs().size(); ++idx) {
+                            if (u->get_input_node_shared_ptr(idx) == bias_node) {
+                                u->input(idx).replace_source_output(new_fc->output(0));
+                            }
                         }
                     }
+                    fc_nodes[i] = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(new_fc);
+                    bias_node->clear_control_dependencies();
+                    orig_fc->clear_control_dependencies();
                 }
-                fc_nodes[i] = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(new_fc);
-                bias_node->clear_control_dependencies();
-                orig_fc->clear_control_dependencies();
             }
         }
 
