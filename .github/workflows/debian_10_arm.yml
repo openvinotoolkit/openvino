@@ -115,7 +115,7 @@ jobs:
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.debian_10_arm }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.debian_11_arm }}
       python-version: '3.7'
       os: 'debian_10'
 
