@@ -216,7 +216,9 @@ public:
     virtual void release([[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription){};
 
     virtual CompiledNetwork getCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) {
-        return CompiledNetwork{networkDescription->compiledNetwork.data(), networkDescription->compiledNetwork.size(), networkDescription->compiledNetwork};
+        return CompiledNetwork{networkDescription->compiledNetwork.data(),
+                               networkDescription->compiledNetwork.size(),
+                               networkDescription->compiledNetwork};
     }
 
 protected:
