@@ -184,7 +184,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                     install(DIRECTORY "${TBBROOT}/${dir}/"
                             DESTINATION "${IE_TBBROOT_INSTALL}/${dir}"
                             COMPONENT ${tbb_component}
-                            PATTERN ".*${CMAKE_SHARED_LIBRARY_SUFFIX}.*"
+                            FILES_MATCHING
+                            PATTERN "*${CMAKE_SHARED_LIBRARY_SUFFIX}*"
                             ${exclude_pattern})
                 else()
                     install(DIRECTORY "${TBBROOT}/${dir}/"
