@@ -5,6 +5,8 @@
 #include "openvino/frontend/jax/node_context.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
 #include "utils.hpp"
 
 using namespace std;
@@ -27,7 +29,8 @@ OutputVector translate_binary_op(const NodeContext& context) {
 
 template OutputVector translate_binary_op<v1::GreaterEqual>(const NodeContext& context);
 template OutputVector translate_binary_op<v1::Greater>(const NodeContext& context);
-
+template OutputVector translate_binary_op<v1::Less>(const NodeContext& context);
+template OutputVector translate_binary_op<v1::LessEqual>(const NodeContext& context);
 }  // namespace op
 }  // namespace jax
 }  // namespace frontend

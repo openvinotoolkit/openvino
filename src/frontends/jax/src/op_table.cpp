@@ -3,13 +3,14 @@
 //
 
 #include "op_table.hpp"
-
 #include "openvino/op/add.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/erf.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_max.hpp"
@@ -40,6 +41,7 @@ OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_copy);
 OP_CONVERTER(translate_dot_general);
 OP_CONVERTER(translate_integer_pow);
+OP_CONVERTER(translate_negative);
 OP_T_CONVERTER(translate_reduce_op);
 OP_CONVERTER(translate_reduce_window_max);
 OP_CONVERTER(translate_reduce_window_sum);
@@ -48,7 +50,6 @@ OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_transpose);
-
 }  // namespace op
 
 // Supported ops for Jaxpr
@@ -68,8 +69,11 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"ge", op::translate_binary_op<v1::GreaterEqual>},
             {"gt", op::translate_binary_op<v1::Greater>},
             {"integer_pow", op::translate_integer_pow},
+            {"lt", op::translate_binary_op<v1::Less>},
+            {"le", op::translate_binary_op<v1::LessEqual>},
             {"max", op::translate_1to1_match_2_inputs<v1::Maximum>},
             {"mul", op::translate_1to1_match_2_inputs<v1::Multiply>},
+            {"neg", op::translate_negative},
             {"reduce_max", op::translate_reduce_op<v1::ReduceMax>},
             {"reduce_sum", op::translate_reduce_op<v1::ReduceSum>},
             {"reduce_window_max", op::translate_reduce_window_max},
