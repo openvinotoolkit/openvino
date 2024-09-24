@@ -140,7 +140,7 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
-    const auto&& blob = _compiler->getCompiledNetwork(_networkPtr);
+    const auto blob = _compiler->getCompiledNetwork(*_networkPtr);
     stream.write(reinterpret_cast<const char*>(blob.data), blob.size);
 
     if (!stream) {

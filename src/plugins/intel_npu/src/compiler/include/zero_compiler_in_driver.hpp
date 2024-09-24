@@ -105,7 +105,7 @@ public:
 
     void release(std::shared_ptr<const NetworkDescription> networkDescription) override;
 
-    CompiledNetwork getCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) override;
+    CompiledNetwork getCompiledNetwork(const NetworkDescription& networkDescription) override;
 
 private:
     NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;
@@ -132,15 +132,15 @@ private:
     void getNativeBinary(TableExtension* graphDdiTableExt,
                          ze_graph_handle_t graphHandle,
                          std::vector<uint8_t>& blob,
-                         uint8_t** blobPtr,
-                         size_t* blobSize) const;
+                         uint8_t*& blobPtr,
+                         size_t& blobSize) const;
 
     template <typename T = TableExtension, typename std::enable_if_t<!UseCopyForNativeBinary(T), bool> = true>
     void getNativeBinary(TableExtension* graphDdiTableExt,
                          ze_graph_handle_t graphHandle,
                          std::vector<uint8_t>& /* unusedBlob */,
-                         uint8_t** blobPtr,
-                         size_t* blobSize) const;
+                         uint8_t*& blobPtr,
+                         size_t& blobSize) const;
 
     template <typename T = TableExtension, typename std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool> = true>
     ze_result_t seriazlideIRModelAndQueryNetworkCreateV2(const std::shared_ptr<const ov::Model>& model,

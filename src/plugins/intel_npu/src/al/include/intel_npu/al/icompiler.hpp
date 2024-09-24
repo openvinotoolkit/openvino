@@ -168,13 +168,13 @@ struct NetworkDescription final {
 struct CompiledNetwork {
     const uint8_t* data;
     size_t size;
-    CompiledNetwork(const uint8_t* data, size_t size, const std::vector<uint8_t>&& storage)
+    CompiledNetwork(const uint8_t* data, size_t size, std::vector<uint8_t> storage)
         : data(data),
           size(size),
           ownedStorage(std::move(storage)) {}
 
 private:
-    const std::vector<uint8_t> ownedStorage;
+    std::vector<uint8_t> ownedStorage;
 };
 
 /**
@@ -229,10 +229,10 @@ public:
     // Driver compiler can use this to release graphHandle, if we do not have executor
     virtual void release([[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription){};
 
-    virtual CompiledNetwork getCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) {
-        return CompiledNetwork(networkDescription->compiledNetwork.data(),
-                               networkDescription->compiledNetwork.size(),
-                               std::move(networkDescription->compiledNetwork));
+    virtual CompiledNetwork getCompiledNetwork(const NetworkDescription& networkDescription) {
+        return CompiledNetwork(networkDescription.compiledNetwork.data(),
+                               networkDescription.compiledNetwork.size(),
+                               networkDescription.compiledNetwork);
     }
 
 protected:
