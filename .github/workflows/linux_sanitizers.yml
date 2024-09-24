@@ -107,7 +107,8 @@ jobs:
       CCACHE_REMOTE_DIR: /mount/caches/ccache/sanitizers/${{ matrix.SANITIZER }}/${{ github.base_ref || github.ref_name }}
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 2G
+      CCACHE_MAXSIZE: 3G
+      CCACHE_COMPILERCHECK: content
       CXX: clang++
       CC: clang
 
@@ -154,6 +155,9 @@ jobs:
       #
       - name: Clean ccache stats
         run: ccache --zero-stats
+        
+      - name: Show ccache stats
+        run: ccache --show-stats
 
       - name: CMake configure - OpenVINO
         run: |
