@@ -93,6 +93,7 @@ void paged_attention_inst::on_execute() {
     const auto blocks_indexes_end_idx = 1;
     const auto blocked_gws_subseq_mapping_idx = 2;
 
+    const auto past_lens_mem = past_lens_memory_ptr();
     auto subsequence_begins_mem = subsequence_begins_memory_ptr();
     auto blocks_indexes_start_mem = _intermediates_memory[blocks_indexes_start_idx];
     auto blocks_indexes_end_mem = _intermediates_memory[blocks_indexes_end_idx];
@@ -101,6 +102,7 @@ void paged_attention_inst::on_execute() {
     OPENVINO_ASSERT(subsequence_begins_mem->get_layout().data_type == data_types::i32);
 
     auto& stream = get_network().get_stream();
+    mem_lock<int32_t, mem_lock_type::read> past_lens_mem_lock(past_lens_mem, stream);
     mem_lock<int32_t, mem_lock_type::read> subsequence_begins_mem_lock(subsequence_begins_mem, stream);
     mem_lock<int32_t, mem_lock_type::write> blocks_indexes_start_lock(blocks_indexes_start_mem, stream);
     mem_lock<int32_t, mem_lock_type::write> blocks_indexes_end_lock(blocks_indexes_end_mem, stream);
@@ -120,11 +122,28 @@ void paged_attention_inst::on_execute() {
     size_t index = 0;
     const auto target_seq_len_block_size = 16; // TODO: Get block size from the impl
     for (size_t i = 0; i < subsequence_begins_mem_lock.size() - 1; i++) {
+        const auto past_len = past_lens_mem_lock[i];
         const auto seq_start = subsequence_begins_mem_lock[i];
         const auto seq_end = subsequence_begins_mem_lock[i + 1];
         const auto seq_length = seq_end - seq_start;
 
-        for (int32_t j = 0; j < seq_length; j += target_seq_len_block_size) {
+        int32_t j = 0;
+        if (past_len != 0) {
+            auto block_start_pos = seq_start;
+            auto empty_slots = target_seq_len_block_size - (past_len % target_seq_len_block_size);
+            auto block_end_pos = seq_start + std::min(empty_slots, seq_length);
+
+            blocks_indexes_start_lock[index] = block_start_pos;
+            blocks_indexes_end_lock[index] = block_end_pos;
+            blocked_gws_subseq_mapping_mem_lock[index] = static_cast<int32_t>(i);
+
+            index++;
+
+            auto added_slots = block_end_pos - block_start_pos;
+            j += added_slots;
+        }
+
+        for (; j < seq_length; j += target_seq_len_block_size) {
             auto block_start_pos = subsequence_begins_mem_lock[i] + j;
             auto block_end_pos = std::min(block_start_pos + target_seq_len_block_size, seq_end);
 
@@ -141,10 +160,6 @@ void paged_attention_inst::on_execute() {
             }
         }
     }
-}
-
-void paged_attention_inst::update_shape_info_tensor(const kernel_impl_params& params) {
-    parent::update_shape_info_tensor(params);
 }
 
 paged_attention_inst::typed_primitive_inst(network& network, const paged_attention_node& node)

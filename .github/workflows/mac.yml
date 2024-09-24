@@ -267,6 +267,7 @@ jobs:
     with:
       runner: 'macos-13'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
 
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests

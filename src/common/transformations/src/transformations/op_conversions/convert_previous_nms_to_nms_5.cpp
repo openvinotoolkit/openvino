@@ -105,15 +105,15 @@ NMSAttributes get_nms_attrs(const std::shared_ptr<ov::Node>& root) {
     attrs.sort_result_descending = false;
     attrs.is_supported_nms = false;
 
-    auto nms_4 = std::dynamic_pointer_cast<ov::op::v4::NonMaxSuppression>(root);
+    auto nms_4 = ov::as_type_ptr<ov::op::v4::NonMaxSuppression>(root);
     if (nms_4) {
         return get_nms4_attrs(nms_4);
     }
-    auto nms_3 = std::dynamic_pointer_cast<ov::op::v3::NonMaxSuppression>(root);
+    auto nms_3 = ov::as_type_ptr<ov::op::v3::NonMaxSuppression>(root);
     if (nms_3) {
         return get_nms3_attrs(nms_3);
     }
-    auto nms_1 = std::dynamic_pointer_cast<ov::op::v1::NonMaxSuppression>(root);
+    auto nms_1 = ov::as_type_ptr<ov::op::v1::NonMaxSuppression>(root);
     if (nms_1) {
         return get_nms1_attrs(nms_1);
     }

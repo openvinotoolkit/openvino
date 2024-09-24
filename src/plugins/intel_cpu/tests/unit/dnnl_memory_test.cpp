@@ -55,7 +55,7 @@ TEST(MemoryTest, ConcurrentResizeGetPrimitive) {
         dnnl::memory dnnl_mem;
         auto desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32, Shape{10, 2});
         Memory cpu_mem1(eng, desc);
-        Memory cpu_mem2(eng, desc, cpu_mem1.getMemoryMngr());
+        Memory cpu_mem2(eng, desc, cpu_mem1.getMemoryBlock());
         auto desc2 = std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32, Shape{10, 20});
 
         std::atomic<bool> lock{true};
@@ -84,7 +84,7 @@ TEST(StaticMemoryTest, UnsupportedDnnlPrecision) {
     CpuBlockedMemoryDesc memDescSupportedPrc(ov::element::f32, {5, 4, 7, 10});
     MemoryPtr testMemory;
     OV_ASSERT_NO_THROW(testMemory = std::make_shared<StaticMemory>(eng, memDescSupportedPrc));
-    ASSERT_TRUE(testMemory->isAllocated());
+    ASSERT_TRUE(testMemory->isDefined());
     dnnl::memory dnnl_memory;
     void* raw_data_ptr = nullptr;
     OV_ASSERT_NO_THROW(raw_data_ptr = testMemory->getData());
@@ -94,7 +94,7 @@ TEST(StaticMemoryTest, UnsupportedDnnlPrecision) {
 
     CpuBlockedMemoryDesc memDescUnSupportedPrc(ov::element::i64, {5, 4, 7, 10});
     OV_ASSERT_NO_THROW(testMemory = std::make_shared<StaticMemory>(eng, memDescUnSupportedPrc));
-    ASSERT_TRUE(testMemory->isAllocated());
+    ASSERT_TRUE(testMemory->isDefined());
     raw_data_ptr = nullptr;
     OV_ASSERT_NO_THROW(raw_data_ptr = testMemory->getData());
     ASSERT_FALSE(nullptr == raw_data_ptr);

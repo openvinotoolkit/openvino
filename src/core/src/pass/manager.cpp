@@ -21,8 +21,6 @@
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
 
-using namespace std;
-
 #ifdef ENABLE_PROFILING_ITT
 
 namespace ov {
@@ -58,7 +56,7 @@ public:
         std::set<std::string> off = {"0", "false", "off"};
         std::set<std::string> on = {"1", "true", "on"};
 
-        const auto& val_lower = ov::util::to_lower(var);
+        const auto& val_lower = ov::util::to_lower(val);
         if (off.count(val_lower)) {
             m_is_bool = true;
         } else if (on.count(val_lower)) {
@@ -133,6 +131,46 @@ private:
 
 class Profiler {
 public:
+    /**
+     * @brief Profiler class helps to analyze Transformations execution times, visualize/serialize ov model after all
+     * or for dedicated Transformations.
+     *
+     *  There are 3 environment variables which can be set for Transformations debugging:
+     *
+     *  1. OV_ENABLE_PROFILE_PASS - Enables profiling of transformation passes to log their execution times.
+     *
+     *      Usage: Set this environment variable to "true" to enable visualizations.
+     *      Alternatively, specify a file path where the execution times will be saved.
+     *
+     *      Example:
+     *      export OV_ENABLE_PROFILE_PASS=true
+     *      export OV_ENABLE_PROFILE_PASS="/path/to/save/profiling/results"
+     *
+     *  2. OV_ENABLE_VISUALIZE_TRACING - Enables visualization of the model to .svg file after each transformation pass.
+     *
+     *      Usage: Set this environment variable to "true", "on" or "1" to enable visualization for all Transformations.
+     *
+     *      Filtering: You can specify filters to control which passes are visualized.
+     *      If the variable is set to a specific filter string (e.g., "PassName", "PassName1,PassName2"),
+     *      only transformations matching that filter will be visualized. Delimiter is ",".
+     *
+     *      Example:
+     *      export OV_ENABLE_VISUALIZE_TRACING=true
+     *      export OV_ENABLE_VISUALIZE_TRACING="Pass1,Pass2,Pass3"
+     *
+     *  3. OV_ENABLE_SERIALIZE_TRACING - Enables serialization of the model to .xml/.bin after each transformation pass.
+     *
+     *      Usage: Set this environment variable to "true", "on" or "1" to enable serialization for all Transformations.
+     *
+     *      Filtering: You can specify filters to control which passes are serialized.
+     *      If the variable is set to a specific filter string (e.g., "PassName", "PassName1,PassName2"),
+     *      only transformations matching that filter will be serialized. Delimiter is ",".
+     *
+     *      Example:
+     *      export OV_ENABLE_SERIALIZE_TRACING=true
+     *      export OV_ENABLE_SERIALIZE_TRACING="Pass1,Pass2,Pass3"
+     *
+     */
     explicit Profiler(std::string manager_name)
         : m_visualize("OV_ENABLE_VISUALIZE_TRACING"),
           m_serialize("OV_ENABLE_SERIALIZE_TRACING"),
@@ -156,8 +194,9 @@ public:
 
             bool is_pass_manager = name == m_manager_name;
             if (is_pass_manager) {
-                std::cout << std::setw(25) << left;
+                std::cout << std::setw(25) << std::left;
                 std::cout << "PassManager started: " << m_manager_name << std::endl;
+                std::cout << std::right;
             }
         }
     }
@@ -169,15 +208,15 @@ public:
 
             bool is_pass_manager = name == m_manager_name;
             if (m_profile_pass.is_bool()) {
-                std::cout << std::setw(25) << left;
+                std::cout << std::setw(25) << std::left;
                 if (is_pass_manager) {
                     std::cout << "PassManager finished: ";
                 } else {
                     std::cout << "  ";
                 }
-                std::cout << std::setw(60) << left << name;
-                std::cout << std::setw(5) << right << stopwatch.get_milliseconds() << "ms " << (applied ? "+" : "-")
-                          << std::endl;
+                std::cout << std::setw(60) << std::left << name;
+                std::cout << std::setw(5) << std::right << stopwatch.get_milliseconds() << "ms "
+                          << (applied ? "+" : "-") << std::endl;
             } else if (m_file.is_open()) {
                 if (is_pass_manager) {
                     m_file << "m;" << name << ";" << stopwatch.get_timer_value().count() << ";" << (applied ? "1" : "0")
@@ -193,26 +232,48 @@ public:
         }
     }
 
-    void visualize(const shared_ptr<ov::Model>& model, const std::string& pass_name) const {
+    void visualize(const std::shared_ptr<ov::Model>& model, const std::string& pass_name) const {
         static size_t viz_index = 0;
         if (m_visualize.is_enabled()) {
-            const auto& filter = m_visualize.get_str();
-            if (m_visualize.is_bool() || (pass_name.find(filter) != std::string::npos)) {
+            const auto& _visualize = [&]() {
                 const auto& file_name = gen_file_name(model->get_name(), pass_name, viz_index++);
                 ov::pass::VisualizeTree vt(file_name + ".svg");
                 vt.run_on_model(model);
+            };
+
+            if (m_visualize.is_bool()) {
+                _visualize();
+            } else {
+                const auto& filter_tokens = split_by_delimiter(m_visualize.get_str(), ',');
+                for (const auto& token : filter_tokens) {
+                    if (pass_name.find(token) != std::string::npos) {
+                        _visualize();
+                        return;
+                    }
+                }
             }
         }
     }
 
-    void serialize(const shared_ptr<ov::Model>& model, const std::string& pass_name) const {
+    void serialize(const std::shared_ptr<ov::Model>& model, const std::string& pass_name) const {
         static size_t serialize_index = 0;
         if (m_serialize.is_enabled()) {
-            const auto& filter = m_serialize.get_str();
-            if (m_serialize.is_bool() || (pass_name.find(filter) != std::string::npos)) {
+            const auto& _serialize = [&]() {
                 const auto& file_name = gen_file_name(model->get_name(), pass_name, serialize_index++);
                 ov::pass::Serialize serialize(file_name + ".xml", file_name + ".bin");
                 serialize.run_on_model(model);
+            };
+
+            if (m_serialize.is_bool()) {
+                _serialize();
+            } else {
+                const auto& filter_tokens = split_by_delimiter(m_serialize.get_str(), ',');
+                for (const auto& token : filter_tokens) {
+                    if (pass_name.find(token) != std::string::npos) {
+                        _serialize();
+                        return;
+                    }
+                }
             }
         }
     }
@@ -227,6 +288,19 @@ private:
 
         name << model_name << std::string("_") << index_str << std::string("_") << pass_name;
         return name.str();
+    }
+
+    static std::vector<std::string> split_by_delimiter(std::string str, char delimiter) {
+        std::vector<std::string> res;
+        size_t pos = 0;
+        while ((pos = str.find(delimiter)) != std::string::npos) {
+            res.push_back(str.substr(0, pos));
+            str.erase(0, pos + 1);
+        }
+        if (pos != str.size() - 1) {
+            res.push_back(str);
+        }
+        return res;
     }
 
     std::unordered_map<std::string, stopwatch> stopwatches;
@@ -255,7 +329,7 @@ void ov::pass::Manager::set_per_pass_validation(bool new_state) {
     m_per_pass_validation = new_state;
 }
 
-bool ov::pass::Manager::run_passes(const shared_ptr<ov::Model>& model) {
+bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::Manager::run_passes");
     Profiler profiler(m_name);
 
@@ -300,11 +374,11 @@ bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass,
 
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ov_pass, ov::pass::perf_counters()[pass->get_type_info()]);
 
-    if (auto matcher_pass = dynamic_pointer_cast<MatcherPass>(pass)) {
+    if (auto matcher_pass = std::dynamic_pointer_cast<MatcherPass>(pass)) {
         // GraphRewrite is a temporary container for MatcherPass to make execution on entire ov::Model
         return GraphRewrite(matcher_pass).run_on_model(model);
-    } else if (auto model_pass = dynamic_pointer_cast<ModelPass>(pass)) {
-        if (dynamic_pointer_cast<ov::pass::Validate>(model_pass) && !needs_validate) {
+    } else if (auto model_pass = std::dynamic_pointer_cast<ModelPass>(pass)) {
+        if (std::dynamic_pointer_cast<ov::pass::Validate>(model_pass) && !needs_validate) {
             return false;
         }
         return model_pass->run_on_model(model);

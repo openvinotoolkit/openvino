@@ -54,12 +54,9 @@ static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
 }
 
 static void redefineToMemories(const std::vector<MemoryPtr>& to_mems, MemoryDescPtr new_desc) {
-    const auto &currDesc = to_mems.front()->getDesc();
-    if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != new_desc->getShape().getStaticDims()) {
-        // TODO : check the entire dstMemPtrs usage considering the proper memory sharing
-        for (size_t j = 0; j < to_mems.size(); j++) {
-            to_mems[j]->redefineDesc(new_desc);
-        }
+    // TODO : check the entire dstMemPtrs usage considering the proper memory sharing
+    for (size_t j = 0; j < to_mems.size(); j++) {
+        to_mems[j]->redefineDesc(new_desc);
     }
 }
 
@@ -517,7 +514,11 @@ void TensorIterator::createPrimitive() {
     if (runAsDynamic())
         prepareDynamicBuffers();
 
-    Node::createPrimitive();
+    if (inputShapesDefined() && (getAlgorithm() == Algorithm::TensorIteratorLoop || needPrepareParams())) {
+        constexpr bool compileStage = true;
+        prepareParamsImpl(compileStage);
+        updateLastInputDims();
+    }
 }
 
 bool TensorIterator::needPrepareParams() const {
@@ -541,10 +542,15 @@ bool TensorIterator::needPrepareParams() const {
     // Thus, sliced input shapes and body input shapes are equal but iteration counts are different. So we should update trip count
     return Node::needPrepareParams();
 }
-
 void TensorIterator::prepareParams() {
-    prepareTripCount();
-    prepareInitialCond();
+    // due to specific createPrimitive implementation this method is called only during inference
+    constexpr bool compileStage = false;
+    prepareParamsImpl(compileStage);
+}
+
+void TensorIterator::prepareParamsImpl(const bool compileStage) {
+    prepareTripCount(compileStage);
+    prepareInitialCond(compileStage);
 
     first_mappers.clear();
     before_mappers.clear();
@@ -714,22 +720,30 @@ void TensorIterator::prepareContinueCond() {
     }
 }
 
-void TensorIterator::prepareInitialCond() {
+void TensorIterator::prepareInitialCond(const bool compileStage) {
     if (loopExecutionConditionIdx != -1 || !initial_cond_check) {
-        auto mem = getSrcMemoryAtPort(loopExecutionConditionIdx);
+        auto edge = getParentEdgeAt(loopExecutionConditionIdx);
+        auto mem = edge->getMemoryPtr();
         initial_cond_check.reset(new asBoolCheck(mem));
-        lastUsedCond = initial_cond_check->getStatus();
+        if (IMPLICATION(compileStage, edge->getParent()->isConstant()))
+            lastUsedCond = initial_cond_check->getStatus();
     }
 }
 
-void TensorIterator::prepareTripCount() {
+void TensorIterator::prepareTripCount(const bool compileStage) {
+    bool read_data = false;
     if (loopTripCountIdx == -1) {
         trip_count_check.reset(new staticValueCheck(getNumIteration(inputPortMap, outputPortMap)));
+        read_data = true;
     } else {
-        auto mem = getSrcMemoryAtPort(loopTripCountIdx);
+        auto edge = getParentEdgeAt(loopTripCountIdx);
+        auto mem = edge->getMemoryPtr();
         trip_count_check.reset(new asIntCheck(mem));
+        read_data = IMPLICATION(compileStage, edge->getParent()->isConstant());
     }
-    lastUsedTripCount = trip_count_check->getStatus();
+    if (read_data) {
+        lastUsedTripCount = trip_count_check->getStatus();
+    }
 }
 
 /* *==============* *==============* *==============* *==============* *==============* */

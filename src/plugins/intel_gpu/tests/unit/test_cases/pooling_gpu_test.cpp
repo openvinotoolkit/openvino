@@ -1944,7 +1944,7 @@ public:
             pad.insert(pad.begin(), offset_z());
         }
 
-        topo.add(pooling("pool", input_info("input"), pool_mode(), kernel, stride, pad));
+        topo.add(pooling("pool", input_info("input"), pool_mode(), kernel, stride, pad, pad));
         return topo;
     }
 

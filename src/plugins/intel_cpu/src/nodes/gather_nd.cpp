@@ -84,12 +84,12 @@ void GatherND::prepareParams() {
     auto srcMemPtr = getSrcMemoryAtPort(GATHERND_DATA);
     auto idxMemPtr = getSrcMemoryAtPort(GATHERND_INDEXES);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        THROW_ERROR(" has not allocated input memory of 'data'.");
-    if (!idxMemPtr || !idxMemPtr->isAllocated())
-        THROW_ERROR(" has not allocated input memory of 'indices'.");
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        THROW_ERROR(" has not allocated output memory.");
+    if (!srcMemPtr || !srcMemPtr->isDefined())
+        THROW_ERROR(" has undefined input memory of 'data'.");
+    if (!idxMemPtr || !idxMemPtr->isDefined())
+        THROW_ERROR(" has undefined input memory of 'indices'.");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        THROW_ERROR(" has undefined output memory.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR(" has unidentified preferable primitive descriptor.");
 

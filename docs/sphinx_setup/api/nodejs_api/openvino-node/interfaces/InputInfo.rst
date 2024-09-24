@@ -10,7 +10,7 @@ Interface InputInfo
    }
 
 * **Defined in:**
-  `addon.ts:542 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L542>`__
+  `addon.ts:593 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L593>`__
 
 Methods
 #####################
@@ -26,7 +26,7 @@ Methods
    * **Returns:** :doc:`InputModelInfo <InputModelInfo>`
 
    * **Defined in:**
-     `addon.ts:545 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L545>`__
+     `addon.ts:596 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L596>`__
 
 
 .. rubric:: preprocess
@@ -40,7 +40,7 @@ Methods
    * **Returns:** :doc:`PreProcessSteps <PreProcessSteps>`
 
    * **Defined in:**
-     `addon.ts:544 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L544>`__
+     `addon.ts:595 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L595>`__
 
 
 .. rubric:: tensor
@@ -54,5 +54,5 @@ Methods
    * **Returns:** :doc:`InputTensorInfo <InputTensorInfo>`
 
    * **Defined in:**
-     `addon.ts:543 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L543>`__
+     `addon.ts:594 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L594>`__
 
