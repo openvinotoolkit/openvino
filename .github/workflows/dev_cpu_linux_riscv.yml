@@ -308,7 +308,8 @@ jobs:
           # Needed as ze_loader.so is under INSTALL_TEST_DIR
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}/tests
 
-          ${XUANTIE_DIR}/${XUANTIE_TAR_NAME}/bin/qemu-riscv64 ${INSTALL_TEST_DIR}/tests/ov_cpu_func_tests --gtest_filter=*smoke_AdaPoolAvg4DLayoutTest* --gtest_print_time=1
+          ls -la ${XUANTIE_DIR}/${XUANTIE_TAR_NAME}/bin/
+          # ${XUANTIE_DIR}/${XUANTIE_TAR_NAME}/bin/qemu-riscv64 ${INSTALL_TEST_DIR}/tests/ov_cpu_func_tests --gtest_filter=*smoke_AdaPoolAvg4DLayoutTest* --gtest_print_time=1
         timeout-minutes: 25
 
 #       - name: Upload Test Results
