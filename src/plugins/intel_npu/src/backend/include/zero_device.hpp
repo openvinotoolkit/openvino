@@ -23,6 +23,15 @@ public:
     std::shared_ptr<IExecutor> createExecutor(const std::shared_ptr<const NetworkDescription>& networkDescription,
                                               const Config& config) override;
 
+    /**
+     * @brief TODO
+     *
+     * @param initNetworkDescription
+     * @param mainNetworkDescription
+     */
+    void runInit(const std::shared_ptr<NetworkDescription>& initNetworkDescription,
+                 const std::shared_ptr<NetworkDescription>& mainNetworkDescription) override;
+
     std::string getName() const override;
     std::string getFullDeviceName() const override;
     Uuid getUuid() const override;

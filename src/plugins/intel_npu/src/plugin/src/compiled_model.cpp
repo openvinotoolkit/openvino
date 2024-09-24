@@ -70,6 +70,9 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
 
             const std::shared_ptr<NetworkDescription> initNetworkDescription = initMainNetworkDescriptions[0];
             const std::shared_ptr<NetworkDescription> mainNetworkDescription = initMainNetworkDescriptions[1];
+
+            run_init(initNetworkDescription, mainNetworkDescription);
+            _networkPtr = mainNetworkDescription;
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -432,6 +435,15 @@ void CompiledModel::create_executor() {
         }
     } else {
         _logger.info("Executor will not be created inside the \"CompiledModel\" constructor");
+    }
+}
+
+void CompiledModel::run_init(const std::shared_ptr<NetworkDescription>& initNetworkDescription,
+                             const std::shared_ptr<NetworkDescription>& mainNetworkDescription) {
+    if (_device != nullptr) {
+        _device->runInit(initNetworkDescription, mainNetworkDescription);
+    } else {
+        _logger.info("The \"Init\" schedule did not run while building the \"CompiledModel\" object");
     }
 }
 

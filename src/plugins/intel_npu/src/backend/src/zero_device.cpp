@@ -92,6 +92,9 @@ std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
     return std::make_shared<ZeroExecutor>(_initStructs, networkDescription, config, _group_ordinal);
 }
 
+void runInit(const std::shared_ptr<NetworkDescription>& initNetworkDescription,
+             const std::shared_ptr<NetworkDescription>& mainNetworkDescription) {}
+
 std::string ZeroDevice::getName() const {
 //    KMD is setting usDeviceID from VpuFamilyID.h
 #define NPU_3720_P_DEVICE_ID 0x7D1D

@@ -69,6 +69,15 @@ public:
         const std::shared_ptr<const NetworkDescription>& networkDescription,
         const Config& config) = 0;
 
+    /**
+     * @brief TODO
+     *
+     * @param initNetworkDescription
+     * @param mainNetworkDescription
+     */
+    virtual void runInit(const std::shared_ptr<NetworkDescription>& initNetworkDescription,
+                         const std::shared_ptr<NetworkDescription>& mainNetworkDescription) = 0;
+
     virtual std::string getName() const = 0;
     virtual std::string getFullDeviceName() const = 0;
     virtual Uuid getUuid() const;

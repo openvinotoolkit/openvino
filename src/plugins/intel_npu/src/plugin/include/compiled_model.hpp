@@ -88,6 +88,15 @@ private:
 
     void create_executor();
 
+    /**
+     * @brief TODO
+     *
+     * @param initNetworkDescription
+     * @param mainNetworkDescription
+     */
+    void run_init(const std::shared_ptr<NetworkDescription>& initNetworkDescription,
+                  const std::shared_ptr<NetworkDescription>& mainNetworkDescription);
+
     std::shared_ptr<const NetworkDescription> _networkPtr;
     const std::shared_ptr<const ov::Model> _model;
     Config _config;
