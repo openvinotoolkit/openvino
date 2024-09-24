@@ -30,7 +30,8 @@ public:
      * @param mainNetworkDescription
      */
     void runInit(const std::shared_ptr<NetworkDescription>& initNetworkDescription,
-                 const std::shared_ptr<NetworkDescription>& mainNetworkDescription) override;
+                 const std::shared_ptr<NetworkDescription>& mainNetworkDescription,
+                 const Config& config) override;
 
     std::string getName() const override;
     std::string getFullDeviceName() const override;

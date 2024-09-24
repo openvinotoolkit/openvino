@@ -71,7 +71,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
             const std::shared_ptr<NetworkDescription> initNetworkDescription = initMainNetworkDescriptions[0];
             const std::shared_ptr<NetworkDescription> mainNetworkDescription = initMainNetworkDescriptions[1];
 
-            run_init(initNetworkDescription, mainNetworkDescription);
+            const std::shared_ptr<IExecutor> initExecutor = create_executor(initNetworkDescription);
             _networkPtr = mainNetworkDescription;
         }
     } catch (const std::exception& ex) {
@@ -86,7 +86,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     configure_stream_executors();
 
     OV_ITT_TASK_NEXT(COMPILED_MODEL, "create_executor");
-    create_executor();
+    _executorPtr = create_executor(_networkPtr);
 
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
@@ -113,7 +113,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     configure_stream_executors();
 
     OV_ITT_TASK_NEXT(COMPILED_MODEL, "create_executor");
-    create_executor();
+    _executorPtr = create_executor(_networkPtr);
 
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
@@ -424,24 +424,26 @@ void CompiledModel::initialize_properties() {
     }
 }
 
-void CompiledModel::create_executor() {
-    if (_config.get<CREATE_EXECUTOR>()) {
+std::shared_ptr<IExecutor> CompiledModel::create_executor(
+    const std::shared_ptr<const NetworkDescription>& networkDescription) {
+    if (_config.get<CREATE_EXECUTOR>() && _device != nullptr) {
         _logger.info("Creating the executor inside the \"CompiledModel\" constructor");
 
         // If no device has been defined, the executor shall keep the default value of "nullptr". In this scenario,
         // only export operations will be allowed
-        if (_device != nullptr) {
-            _executorPtr = _device->createExecutor(_networkPtr, _config);
-        }
-    } else {
-        _logger.info("Executor will not be created inside the \"CompiledModel\" constructor");
+        return _device->createExecutor(networkDescription, _config);
     }
+
+    _logger.info("Executor will not be created inside the \"CompiledModel\" constructor");
+
+    return nullptr;
 }
 
 void CompiledModel::run_init(const std::shared_ptr<NetworkDescription>& initNetworkDescription,
-                             const std::shared_ptr<NetworkDescription>& mainNetworkDescription) {
+                             const std::shared_ptr<NetworkDescription>& mainNetworkDescription,
+                             const Config& config) {
     if (_device != nullptr) {
-        _device->runInit(initNetworkDescription, mainNetworkDescription);
+        _device->runInit(initNetworkDescription, mainNetworkDescription, config);
     } else {
         _logger.info("The \"Init\" schedule did not run while building the \"CompiledModel\" object");
     }

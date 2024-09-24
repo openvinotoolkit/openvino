@@ -86,7 +86,7 @@ private:
 
     void configure_stream_executors();
 
-    void create_executor();
+    std::shared_ptr<IExecutor> create_executor(const std::shared_ptr<const NetworkDescription>& networkDescription);
 
     /**
      * @brief TODO
@@ -95,7 +95,8 @@ private:
      * @param mainNetworkDescription
      */
     void run_init(const std::shared_ptr<NetworkDescription>& initNetworkDescription,
-                  const std::shared_ptr<NetworkDescription>& mainNetworkDescription);
+                  const std::shared_ptr<NetworkDescription>& mainNetworkDescription,
+                  const Config& config);
 
     std::shared_ptr<const NetworkDescription> _networkPtr;
     const std::shared_ptr<const ov::Model> _model;
