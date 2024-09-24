@@ -1130,7 +1130,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | SparseReduceSumSparse                                   | NO                            |                               |
 | SparseReorder                                           | NO                            |                               |
 | SparseReshape                                           | YES                           |                               |
-| SparseSegmentMean                                       | NO                            |                               |
+| SparseSegmentMean                                       | YES                           |                               |
 | SparseSegmentMeanGrad                                   | NO                            |                               |
 | SparseSegmentMeanGradV2                                 | NO                            |                               |
 | SparseSegmentMeanWithNumSegments                        | NO                            |                               |
@@ -1318,7 +1318,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | TensorScatterMax                                        | NO                            |                               |
 | TensorScatterMin                                        | NO                            |                               |
 | TensorScatterSub                                        | NO                            |                               |
-| TensorScatterUpdate                                     | NO                            |                               |
+| TensorScatterUpdate                                     | YES                           |                               |
 | TensorSliceDataset                                      | NO                            |                               |
 | TensorStridedSliceUpdate                                | NO                            |                               |
 | TensorSummary                                           | NO                            |                               |

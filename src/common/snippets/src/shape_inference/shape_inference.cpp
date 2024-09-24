@@ -39,7 +39,6 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_PREDEFINED(op::ConvertSaturation, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Load, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Store, PassThroughShapeInfer),
-        SHAPE_INFER_PREDEFINED(op::IntermediateMemoryBuffer, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Fill, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::op::v0::Parameter, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::op::v1::LogicalNot, PassThroughShapeInfer),
@@ -70,7 +69,7 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_OP_SPECIFIC(op::RankNormalization),
         SHAPE_INFER_OP_SPECIFIC(op::BroadcastLoad),
         SHAPE_INFER_OP_SPECIFIC(op::BroadcastMove),
-        SHAPE_INFER_OP_SPECIFIC(op::NewMemoryBuffer),
+        SHAPE_INFER_OP_SPECIFIC(op::Buffer),
 };
 #undef SHAPE_INFER_OP_SPECIFIC_EXTERNAL
 #undef SHAPE_INFER_OP_SPECIFIC

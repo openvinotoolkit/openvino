@@ -38,7 +38,7 @@ The three main ones, providing most coverage for different operating systems, ar
 
 Additionally, several supporting workflows build and test OpenVINO for other operating systems and processor architectures:
 * [Android ARM64](../../../../.github/workflows/android_arm64.yml)
-* [Fedora](../../../../.github/workflows/fedora.yml)
+* [Fedora](../../../../.github/workflows/fedora_29.yml)
 * [Linux Conditional Compilation](../../../../.github/workflows/linux_conditional_compilation.yml)
 * [Linux RISC-V](../../../../.github/workflows/linux_riscv.yml)
 * [Windows Conditional Compilation](../../../../.github/workflows/windows_conditional_compilation.yml)

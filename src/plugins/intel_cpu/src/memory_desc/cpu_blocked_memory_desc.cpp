@@ -121,9 +121,26 @@ size_t CpuBlockedMemoryDesc::getCurrentMemSizeImp() const {
             e_size += (getBlockDims()[j] - 1) * getStrides()[j];
     }
 
-    e_size *= getPrecision() == ov::element::u1 ? 1 : getPrecision().size();
+    const auto prc = getPrecision();
 
-    return e_size;
+    if (prc == ov::element::u1) {
+        return e_size;
+    }
+
+    auto byte_size = e_size * prc.bitwidth();
+
+    if (one_of(prc, ov::element::u3, ov::element::u6)) {
+        constexpr size_t storage_unit_size = 24;
+        byte_size += storage_unit_size - 1;
+        byte_size /= storage_unit_size;
+        byte_size *= 3;
+    } else {
+        constexpr size_t storage_unit_size = 8;
+        byte_size += storage_unit_size - 1;
+        byte_size /= storage_unit_size;
+    }
+
+    return byte_size;
 }
 
 size_t CpuBlockedMemoryDesc::getMaxMemSize() const {

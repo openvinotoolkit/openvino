@@ -36,6 +36,7 @@ public:
     };
     TestTransformationParams params;
     ov::Shape inputShape;
+    bool constantPath;
     Actual actual;
     Expected expected;
 };
@@ -48,7 +49,8 @@ public:
         actualFunction = ov::builder::subgraph::NormalizeDequantizationFunction::getOriginal(
             testValues.actual.precisionBeforeDequantization,
             testValues.inputShape,
-            testValues.actual.dequantization);
+            testValues.actual.dequantization,
+            testValues.constantPath);
 
         const auto targetNode = actualFunction->get_output_op(0)->get_input_node_shared_ptr(0);
         const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(targetNode);
@@ -57,7 +59,8 @@ public:
         referenceFunction = ov::builder::subgraph::NormalizeDequantizationFunction::getOriginal(
             testValues.expected.precisionBeforeDequantization,
             testValues.inputShape,
-            testValues.expected.dequantization);
+            testValues.expected.dequantization,
+            testValues.constantPath);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<NormalizeDequantizationTestValues> obj) {
@@ -80,10 +83,14 @@ TEST_P(NormalizeDequantizationTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
+using Subtract = ov::builder::subgraph::DequantizationOperations::Subtract;
+using Multiply = ov::builder::subgraph::DequantizationOperations::Multiply;
+
 const std::vector<NormalizeDequantizationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         { 1, 3, 16, 16 },
+        false,
         {
             ov::element::f32,
             {
@@ -104,6 +111,7 @@ const std::vector<NormalizeDequantizationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         { 1, 3, 16, 16 },
+        false,
         {
             ov::element::i32,
             {
@@ -124,6 +132,7 @@ const std::vector<NormalizeDequantizationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         { 1, 3, 16, 16 },
+        false,
         {
             ov::element::u32,
             {
@@ -144,6 +153,7 @@ const std::vector<NormalizeDequantizationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(true),
         { 1, 3, 16, 16 },
+        false,
         {
             ov::element::u32,
             {
@@ -159,6 +169,69 @@ const std::vector<NormalizeDequantizationTestValues> testValues = {
                 { {7.f}, ov::element::f32, { 1, 3, 16, 16 }, true, 1 },
                 {{10.0f}, ov::element::f32, {1, 3, 16, 16}, true, 1 }
             }
+        },
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 1, 3, 16, 16 },
+        true,
+        {
+            ov::element::f32,
+            {
+                {},
+                { {7.f}, ov::element::f32, { 1, 3, 16, 16 }, true, 1 },
+                { {10.f}, ov::element::f32, { 1, 3, 16, 16 }, true, 1 }
+            },
+        },
+        {
+            ov::element::f32,
+            {
+                {},
+                { {7.f}, ov::element::f32, { 1, 3, 16, 16 }, true, 1 },
+                { {10.0f}, ov::element::f32, { 1, 3, 16, 16 }, true, 1 }
+            }
+        },
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 1, 3, 16, 16 },
+        true,
+        {
+            ov::element::i8,
+            {
+                {ov::element::f32},
+                Subtract({7.f}, ov::element::f32, { 1, 3, 16, 16 }).setConstantPrecision(ov::element::f16).setAddConvert(true),
+                Multiply({10.f}, ov::element::f32, { 1, 3, 16, 16 })
+            },
+        },
+        {
+            ov::element::i8,
+            {
+                {ov::element::f32},
+                Subtract({7.f}, ov::element::f32, { 1, 3, 16, 16 }).setConstantPrecision(ov::element::f16).setAddConvert(true),
+                Multiply({10.f}, ov::element::f32, { 1, 3, 16, 16 })
+            },
+        },
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 1, 3, 16, 16 },
+        true,
+        {
+            ov::element::f32,
+            {
+                {},
+                Subtract({7.f}, ov::element::f32, { 1, 3, 16, 16 }).setConstantPrecision(ov::element::f16).setAddConvert(true),
+                Multiply({10.f}, ov::element::f32, { 1, 3, 16, 16 })
+            },
+        },
+        {
+            ov::element::f32,
+            {
+                {},
+                Subtract({7.f}, ov::element::f32, { 1, 3, 16, 16 }).setConstantPrecision(ov::element::f16).setAddConvert(true),
+                Multiply({10.f}, ov::element::f32, { 1, 3, 16, 16 })
+            },
         },
     },
 };

@@ -10,6 +10,7 @@
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/op/util/op_types.hpp"
 
 #include <algorithm>
@@ -199,7 +200,7 @@ void convert_and_copy(const cldnn::memory::ptr src, cldnn::memory::ptr dst, cldn
     dst->copy_from(stream, tmp_tensor.data(), blocking);
 }
 
-void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldnn::stream& stream) {
+void convert_and_copy(const ov::ITensor* src, ov::ITensor* dst, const cldnn::stream& stream) {
     auto src_et = src->get_element_type();
     auto dst_et = dst->get_element_type();
 
@@ -210,11 +211,16 @@ void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldn
 
     std::unique_ptr<cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read>> src_lock = nullptr;
     std::unique_ptr<cldnn::mem_lock<uint8_t>> dst_lock = nullptr;
+    ov::Tensor tmp_tensor;
 
     if (auto remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(src)) {
         auto mem = remote->get_original_memory();
         src_lock.reset(new cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read>(mem, stream));
         src_ptr = src_lock->data();
+    } else if (dynamic_cast<const ov::IRemoteTensor*>(src)) {
+        tmp_tensor = ov::Tensor(src_et, src->get_shape());
+        src->copy_to(get_tensor_impl(tmp_tensor)._ptr);
+        src_ptr = tmp_tensor.data();
     } else {
         src_ptr = src->data();
     }
@@ -223,6 +229,10 @@ void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldn
         auto mem = remote->get_original_memory();
         dst_lock.reset(new cldnn::mem_lock<uint8_t>(mem, stream));
         dst_ptr = dst_lock->data();
+    } else if (auto remote = dynamic_cast<ov::IRemoteTensor*>(dst)) {
+        tmp_tensor = ov::Tensor(dst_et, src->get_shape());
+        ::convert_and_copy(src_ptr, src_et, tmp_tensor.data(), dst_et, size, cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
+        remote->copy_from(get_tensor_impl(tmp_tensor)._ptr);
     } else {
         dst_ptr = dst->data();
     }

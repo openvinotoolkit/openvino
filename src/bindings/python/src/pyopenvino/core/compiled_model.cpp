@@ -47,10 +47,12 @@ void regclass_CompiledModel(py::module m) {
         "export_model",
         [](ov::CompiledModel& self) {
             std::stringstream _stream;
-            self.export_model(_stream);
+            {
+                py::gil_scoped_release release;
+                self.export_model(_stream);
+            }
             return py::bytes(_stream.str());
         },
-        py::call_guard<py::gil_scoped_release>(),
         R"(
             Exports the compiled model to bytes/output stream.
 
@@ -173,6 +175,16 @@ void regclass_CompiledModel(py::module m) {
 
                 :return: Model, containing Executable Graph information.
                 :rtype: openvino.runtime.Model
+            )");
+
+    cls.def("release_memory",
+            &ov::CompiledModel::release_memory,
+            py::call_guard<py::gil_scoped_release>(),
+            R"(
+                Release intermediate memory.
+
+                This method forces the Compiled model to release memory allocated for intermediate structures,
+                e.g. caches, tensors, temporal buffers etc., when possible
             )");
 
     cls.def_property_readonly("inputs",

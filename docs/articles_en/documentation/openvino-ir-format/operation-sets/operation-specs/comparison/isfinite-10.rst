@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_comparison_IsFinite_10}
-
 IsFinite
 ========
 

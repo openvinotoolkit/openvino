@@ -53,13 +53,7 @@ class TestBinaryOps(CommonTFLayerTest):
             'Pow': tf.raw_ops.Pow,
             'Maximum': tf.raw_ops.Maximum,
             'Minimum': tf.raw_ops.Minimum,
-            'Equal': tf.raw_ops.Equal,
-            'NotEqual': tf.raw_ops.NotEqual,
             'Mod': tf.raw_ops.Mod,
-            'Greater': tf.raw_ops.Greater,
-            'GreaterEqual': tf.raw_ops.GreaterEqual,
-            'Less': tf.raw_ops.Less,
-            'LessEqual': tf.raw_ops.LessEqual,
             'LogicalAnd': tf.raw_ops.LogicalAnd,
             'LogicalOr': tf.raw_ops.LogicalOr,
             'FloorMod': tf.raw_ops.FloorMod,
@@ -95,8 +89,8 @@ class TestBinaryOps(CommonTFLayerTest):
     @pytest.mark.parametrize('y_shape', [[4], [2, 3, 4]])
     @pytest.mark.parametrize("op_type",
                              ['Add', 'AddV2', 'Sub', 'Mul', 'Div', 'RealDiv', 'SquaredDifference', 'Pow',
-                              'Maximum', 'Minimum', 'Equal', 'NotEqual', 'Mod', 'Greater', 'GreaterEqual', 'Less',
-                              'LessEqual', 'LogicalAnd', 'LogicalOr', 'FloorMod', 'FloorDiv', 'Xdivy'])
+                              'Maximum', 'Minimum', 'Mod', 'LogicalAnd', 'LogicalOr', 'FloorMod',
+                              'FloorDiv', 'Xdivy'])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
@@ -109,8 +103,5 @@ class TestBinaryOps(CommonTFLayerTest):
             pytest.skip("For Mod and Pow GPU has inference mismatch")
         if op_type in ['Mod', 'FloorDiv', 'FloorMod']:
             pytest.skip("Inference mismatch for Mod and FloorDiv")
-        if ie_device == 'GPU' and precision == 'FP16' and op_type in ['Equal', 'NotEqual', 'Greater', 'GreaterEqual',
-                                                                      'Less', 'LessEqual']:
-            pytest.skip("Accuracy mismatch on GPU")
         self._test(*self.create_add_placeholder_const_net(x_shape=x_shape, y_shape=y_shape, op_type=op_type), ie_device,
                    precision, ir_version, temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)

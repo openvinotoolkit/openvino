@@ -169,9 +169,18 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
         // Create new fc with merged weights, bias, scale, zp
         std::shared_ptr<ov::Node> new_fc;
         if (fused_zps)
-            new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node, fused_weight, fused_bias, fused_scale, fused_zps);
+            new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node,
+                                                                    fused_weight,
+                                                                    fused_bias,
+                                                                    fused_scale,
+                                                                    fused_zps,
+                                                                    fc_nodes[0]->get_output_type());
         else
-            new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node, fused_weight, fused_bias, fused_scale);
+            new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node,
+                                                                    fused_weight,
+                                                                    fused_bias,
+                                                                    fused_scale,
+                                                                    fc_nodes[0]->get_output_type());
 
         auto new_fc_name = fc_nodes[0]->get_friendly_name() + "_fused";
         new_fc->set_friendly_name(new_fc_name);

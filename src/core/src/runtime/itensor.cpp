@@ -56,8 +56,6 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
     OPENVINO_ASSERT(dst, "Destination tensor was not initialized.");
     OPENVINO_ASSERT(!dynamic_cast<const ov::IRemoteTensor*>(this),
                     "Default copy to doesn't support copy from remote tensor.");
-    OPENVINO_ASSERT(!std::dynamic_pointer_cast<ov::IRemoteTensor>(dst),
-                    "Default copy to doesn't support copy to remote tensor.");
     OPENVINO_ASSERT(dst->get_element_type() == get_element_type(),
                     "Tensor element types are not equal. (src: ",
                     get_element_type(),
@@ -68,6 +66,12 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
     const auto& shape = get_shape();
     if (shape != dst->get_shape()) {
         dst->set_shape(shape);
+    }
+
+    if (std::dynamic_pointer_cast<ov::IRemoteTensor>(dst)) {
+        auto remote_tensor_dst = std::dynamic_pointer_cast<ov::IRemoteTensor>(dst);
+        remote_tensor_dst->copy_from(shared_from_this());
+        return;
     }
 
     auto* src_data = static_cast<const uint8_t*>(data());

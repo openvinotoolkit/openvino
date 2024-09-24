@@ -171,8 +171,14 @@ kernel_selector::data_type to_data_type(data_types dt) {
             return kernel_selector::data_type::INT8;
         case cldnn::data_types::u8:
             return kernel_selector::data_type::UINT8;
+        case cldnn::data_types::i16:
+            return kernel_selector::data_type::INT16;
+        case cldnn::data_types::u16:
+            return kernel_selector::data_type::UINT16;
         case cldnn::data_types::i32:
             return kernel_selector::data_type::INT32;
+        case cldnn::data_types::u32:
+            return kernel_selector::data_type::UINT32;
         case cldnn::data_types::i64:
             return kernel_selector::data_type::INT64;
         case cldnn::data_types::f16:
@@ -196,8 +202,14 @@ data_types from_data_type(kernel_selector::data_type dt) {
             return cldnn::data_types::i8;
         case kernel_selector::data_type::UINT8:
             return cldnn::data_types::u8;
+        case kernel_selector::data_type::INT16:
+            return cldnn::data_types::i16;
+        case kernel_selector::data_type::UINT16:
+            return cldnn::data_types::u16;
         case kernel_selector::data_type::INT32:
             return cldnn::data_types::i32;
+        case kernel_selector::data_type::UINT32:
+            return cldnn::data_types::u32;
         case kernel_selector::data_type::INT64:
             return cldnn::data_types::i64;
         case kernel_selector::data_type::F16:
@@ -830,9 +842,9 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor v
             vals_ordered.push_back(vals_original[axis_order[i]]);
     }
     const auto& add_offsets = view_offset.sizes(l.format);
-    const auto& lower_pad = pad.lower_size().sizes(l.format);
-    const auto& upper_pad = pad.upper_size().sizes(l.format);
-    const auto& dynamic_pad_dims = pad.get_dynamic_pad_dims().sizes(l.format);
+    const auto& lower_pad = layout::format_sizes(pad._lower_size, l.format);
+    const auto& upper_pad = layout::format_sizes(pad._upper_size, l.format);
+    const auto& dynamic_pad_dims = layout::format_sizes(pad._dynamic_dims_mask, l.format);
     const auto ks_layout = to_data_layout(l.format);
     kernel_selector::n_dims vec(kernel_selector::DataTensor::ChannelsCount(ks_layout));
 
@@ -1210,8 +1222,7 @@ void set_default_params(const kernel_impl_params& param_info, kernel_selector::b
 
                 for (auto& dep : desc.dep_data) {
                     if (dep.dep_type == kernel_selector::DepType::UNDEFINED) {
-                        dep.dep_type    = kernel_selector::DepType::ORIGINAL;
-                        break;
+                        dep.dep_type = kernel_selector::DepType::ORIGINAL;
                     }
                 }
             }

@@ -10,6 +10,7 @@
 #include "cpu_shape.h"
 #include "cpu_types.h"
 #include "edge.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "selective_build.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "onednn/dnnl.h"
@@ -395,6 +396,13 @@ public:
     MemoryDescPtr getBaseMemDescAtOutputPort(size_t portNum) const;
 
     /**
+     * @brief Returns parent output memory descriptor from given \p edge
+     * must be used after selectOptimalPrimitiveDescriptor stage
+     * @param edge
+     * @return pointer to parent output memory descriptor with type MemoryDesc
+     */
+    static MemoryDescPtr getParentOutputMemDesc(const EdgePtr& edge);
+    /**
      * @brief Returns input selected primitive descriptor on the specified port
      * must be used after selectOptimalPrimitiveDescriptor stage
      * @param portNum port number
@@ -737,7 +745,7 @@ protected:
                               impl_desc_type implType);
 
     void prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs);
-    void prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx);
+    virtual void prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx);
     void prepareMemory(dnnl::primitive_desc_iterator& itpd);
 
     MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryDescPtr srcWeightDesc = nullptr);
@@ -759,8 +767,10 @@ protected:
     virtual bool needShapeInfer() const;
     std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
     virtual IShapeInfer::Result shapeInfer() const;
+
+    void execute(dnnl::stream stream, int numaId);
     virtual void execute(dnnl::stream strm) = 0;
-    // TODO [DS] : make pure after all nodes will be support dynamic shapes
+    // TODO [DS] : make pure after all nodes support dynamic shapes
     virtual void executeDynamicImpl(dnnl::stream strm) {
         OPENVINO_THROW_NOT_IMPLEMENTED("[DS] executeDynamicImpl not implemented for node with type: ", getTypeStr());
     }

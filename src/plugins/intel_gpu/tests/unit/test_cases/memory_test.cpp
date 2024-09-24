@@ -555,9 +555,9 @@ public:
         auto input_data2 = engine.allocate_memory(input_actual_layout2);
         auto fc_weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx});
 
-        set_values(input_data1, { -0.5f, 2.0f, 0.5f });
-        set_values(input_data2, { 0.5f, -2.0f, -0.5f,
-                                -0.5f, 2.0f, 0.5f });
+        set_values(input_data1, { -0.5f, 2.0f, 0.5f, 
+                                   0.5f, -2.0f, -0.5f});
+        set_values(input_data2, { 0.5f, -2.0f, -0.5f });
         set_values(fc_weights_data, { 1.5f, 1.0f, 0.5f,
                                 -1.0f, 0.0f, 0.5f,
                                 0.5f, -0.5f, -2.0f,

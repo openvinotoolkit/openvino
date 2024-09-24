@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_Layout_Overview}
-
 Layout API Overview
 ===================
 

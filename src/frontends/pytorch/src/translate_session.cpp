@@ -73,7 +73,7 @@ std::shared_ptr<ov::Model> TranslateSession::translate_graph(const ov::frontend:
     for (const auto& item : rt_info) {
         model->set_rt_info(item.second, item.first);
     }
-    model->set_rt_info("decoder_type_name", pytorch_model->decoder_type_name());
+    model->set_rt_info(ov::Any(pytorch_model->decoder_type_name()), "decoder_type_name");
 
     return model;
 }

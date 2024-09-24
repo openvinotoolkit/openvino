@@ -22,7 +22,7 @@ In previous notebooks, we already discussed how to run `Text-to-Image
 generation and Image-to-Image generation using Stable Diffusion
 v1 <stable-diffusion-text-to-image-with-output.html>`__
 and `controlling its generation process using
-ControlNet <./controlnet-stable-diffusion/controlnet-stable-diffusion.ipynb>`__.
+ControlNet <controlnet-stable-diffusion-with-output.html>`__.
 Now is turn of Stable Diffusion v2.
 
 Stable Diffusion v2: What’s new?
@@ -1313,39 +1313,15 @@ launch the interactive demo.
 
 .. code:: ipython3
 
-    import gradio as gr
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-v2/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
 
+    from gradio_helper import make_demo
 
     pipeline = int8_ov_pipe if use_quantized_model.value else ov_pipe
 
-
-    def generate(prompt, negative_prompt, seed, num_steps, _=gr.Progress(track_tqdm=True)):
-        result = pipeline(
-            prompt,
-            negative_prompt=negative_prompt,
-            num_inference_steps=num_steps,
-            seed=seed,
-        )
-        return result["sample"][0]
-
-
-    gr.close_all()
-    demo = gr.Interface(
-        generate,
-        [
-            gr.Textbox(
-                "valley in the Alps at sunset, epic vista, beautiful landscape, 4k, 8k",
-                label="Prompt",
-            ),
-            gr.Textbox(
-                "frames, borderline, text, charachter, duplicate, error, out of frame, watermark, low quality, ugly, deformed, blur",
-                label="Negative prompt",
-            ),
-            gr.Slider(value=42, label="Seed", maximum=10000000),
-            gr.Slider(value=25, label="Steps", minimum=1, maximum=50),
-        ],
-        "image",
-    )
+    demo = make_demo(pipeline)
 
     try:
         demo.queue().launch()

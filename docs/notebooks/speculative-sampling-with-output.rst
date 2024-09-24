@@ -51,8 +51,7 @@ available at openvino.ai
 
 -  `Main generation function <#main-generation-function>`__
 
-   -  `Download and Convert Model <#download-and-convert-model>`__ ###
-      Installation Instructions
+   -  `Download and Convert Model <#download-and-convert-model>`__
 
 This is a self-contained example that relies solely on its own code.
 

@@ -1028,7 +1028,7 @@ Discontinued in 2024
   * Deployment Manager. See :doc:`installation <../get-started/install-openvino>` and
     :doc:`deployment <../get-started/install-openvino>` guides for current distribution
     options.
-  * `Accuracy Checker <https://docs.openvino.ai/2023.3/omz_tools_accuracy_checker.html>`__.
+  * `Accuracy Checker <https://github.com/openvinotoolkit/open_model_zoo/blob/master/tools/accuracy_checker/README.md>`__.
   * `Post-Training Optimization Tool <https://docs.openvino.ai/2023.3/pot_introduction.html>`__
     (POT). Neural Network Compression Framework (NNCF) should be used instead.
   * A `Git patch <https://github.com/openvinotoolkit/nncf/tree/develop/third_party_integration/huggingface_transformers>`__
@@ -1065,15 +1065,15 @@ Deprecated and to be removed in the future
 
        * See alternative: `Optical Character Recognition (OCR) with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/optical-character-recognition>`__,
        * See alternative: `PaddleOCR with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/paddle-ocr-webcam>`__,
-       * See alternative: `Handwritten Text Recognition Demo <https://docs.openvino.ai/2024/omz_demos_handwritten_text_recognition_demo_python.html>`__
+       * See alternative: `Handwritten Text Recognition Demo <https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/handwritten_text_recognition_demo/python/README.md>`__
 
      * `Image In-painting with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/image-inpainting>`__
 
-       * See alternative: `Image Inpainting Python Demo <https://docs.openvino.ai/2024/omz_demos_image_inpainting_demo_python.html>`__
+       * See alternative: `Image Inpainting Python Demo <https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/image_inpainting_demo/python/README.md>`__
 
      * `Interactive Machine Translation with OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/machine-translation>`__
 
-       * See alternative: `Machine Translation Python* Demo <https://docs.openvino.ai/2024/omz_demos_machine_translation_demo_python.html>`__
+       * See alternative: `Machine Translation Python* Demo <https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/machine_translation_demo/python/README.md>`__
 
      * `Open Model Zoo Tools Tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/model-tools>`__
 

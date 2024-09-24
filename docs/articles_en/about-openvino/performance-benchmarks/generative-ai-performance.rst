@@ -21,7 +21,7 @@ running on an Intel® Core™ Ultra 7-165H based system, on built-in GPUs.
 
       .. csv-table::
          :class: modeldata stripe
-         :name: supportedModelsTable
+         :name: supportedModelsTableOv
          :header-rows: 1
          :file:  ../../_static/download/llm_models.csv
 
@@ -29,7 +29,7 @@ running on an Intel® Core™ Ultra 7-165H based system, on built-in GPUs.
 
       .. csv-table::
          :class: modeldata stripe
-         :name: supportedModelsTable
+         :name: supportedModelsTableOvms
          :header-rows: 1
          :file:  ../../_static/download/llm_models_ovms.csv
 
