@@ -323,6 +323,7 @@ jobs:
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}/tests
 
           # ls -LA ${XUANTIE_DIR}/${XUANTIE_TAR_NAME}/
+          chmod -R 777 ${XUANTIE_DIR}/${XUANTIE_TAR_NAME}
           ${XUANTIE_DIR}/${XUANTIE_TAR_NAME}/bin/qemu-riscv64 ${INSTALL_TEST_DIR}/tests/ov_cpu_func_tests --gtest_filter=*smoke_AdaPoolAvg4DLayoutTest* --gtest_print_time=1
         timeout-minutes: 25
 
