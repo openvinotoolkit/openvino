@@ -11,18 +11,6 @@
 
 namespace LayerTestsDefinitions {
 
-inline std::ostream& operator<<(std::ostream& os, const std::vector<int64_t>& values) {
-    os << "{ ";
-    for (size_t i = 0; i < values.size(); ++i) {
-        os << values[i];
-        if (i != (values.size() - 1ul)) {
-            os << ", ";
-        }
-    }
-    os << " }";
-    return os;
-}
-
 std::string SliceTransformation::getTestCaseName(const testing::TestParamInfo<SliceTransformationParams>& obj) {
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
@@ -34,10 +22,10 @@ std::string SliceTransformation::getTestCaseName(const testing::TestParamInfo<Sl
     std::ostringstream result;
     result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
         param.fakeQuantize << "_" <<
-        param.start << "_" <<
-        param.stop << "_" <<
-        param.step << "_" <<
-        param.axes;
+        ov::test::utils::vec2str(param.start) << "_" <<
+        ov::test::utils::vec2str(param.stop) << "_" <<
+        ov::test::utils::vec2str(param.step) << "_" <<
+        ov::test::utils::vec2str(param.axes);
     return result.str();
 }
 

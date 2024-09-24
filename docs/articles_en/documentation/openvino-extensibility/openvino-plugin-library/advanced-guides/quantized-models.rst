@@ -1,12 +1,5 @@
-.. {#openvino_docs_ov_plugin_dg_quantized_models}
-
 Quantized models compute and restrictions
 =========================================
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
 
 .. meta::
    :description: Learn about the support for quantized models with different

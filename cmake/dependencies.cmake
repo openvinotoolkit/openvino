@@ -9,55 +9,55 @@ ov_set_temp_directory(TEMP "${CMAKE_SOURCE_DIR}")
 
 ## Intel OMP package
 if(THREADING STREQUAL "OMP")
-    reset_deps_cache(OMP)
-    if(WIN32 AND X86_64)
-        RESOLVE_DEPENDENCY(OMP
-                ARCHIVE_WIN "iomp.zip"
-                TARGET_PATH "${TEMP}/omp"
-                ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
-                SHA256 "62c68646747fb10f19b53217cb04a1e10ff93606f992e6b35eb8c31187c68fbf"
-                USE_NEW_LOCATION TRUE)
-    elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC)
-        RESOLVE_DEPENDENCY(OMP
-                ARCHIVE_LIN "iomp.tgz"
-                TARGET_PATH "${TEMP}/omp"
-                ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
-                SHA256 "7832b16d82513ee880d97c27c7626f9525ebd678decf6a8fe6c38550f73227d9"
-                USE_NEW_LOCATION TRUE)
-    elseif(APPLE AND X86_64)
-        RESOLVE_DEPENDENCY(OMP
-                ARCHIVE_MAC "iomp_20190130_mac.tgz"
-                TARGET_PATH "${TEMP}/omp"
-                ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
-                SHA256 "591ea4a7e08bbe0062648916f42bded71d24c27f00af30a8f31a29b5878ea0cc"
-                USE_NEW_LOCATION TRUE)
-    else()
-        message(WARNING "Pre-built Intel OMP is not available on current platform. System OMP will be used.")
-        find_package(OpenMP)
-        if(OpenMP_CXX_FOUND)
-           foreach(OpenMP_LIB ${OpenMP_CXX_LIBRARIES})
-               string(FIND ${OpenMP_LIB} "omp" OpenMP_LIB_OMP_INDEX)
-               if(NOT OpenMP_LIB_OMP_INDEX EQUAL -1)
-                   cmake_path(GET OpenMP_LIB PARENT_PATH OpenMP_LIB_DIR)
-                   set(OMP_LIB ${OpenMP_LIB} CACHE FILEPATH "Path to OMP library")
-                   set(OMP ${OpenMP_LIB_DIR} CACHE FILEPATH "Path to OMP root folder")
-                   return()
-               endif()
-           endforeach()
-        endif()
-        message(FATAL_ERROR "System OpenMP has not been found")
-    endif()
-    update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
-    debug_message(STATUS "intel_omp=" ${OMP})
+    # check whether the compiler supports OpenMP at all
+    find_package(OpenMP)
 
-    ov_cpack_add_component(omp HIDDEN)
-    file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
-    install(FILES ${source_list}
-            DESTINATION ${OV_CPACK_RUNTIMEDIR}
-            COMPONENT omp)
+    if(NOT OpenMP_CXX_FOUND)
+        message(WARNING "Compiler does not support OpenMP standard. Falling back to SEQ threading")
+        set(THREADING "SEQ")
+        set(ENABLE_INTEL_OPENMP OFF)
+    endif()
+
+    if(ENABLE_INTEL_OPENMP)
+        reset_deps_cache(OMP)
+        if(WIN32 AND X86_64)
+            RESOLVE_DEPENDENCY(INTEL_OMP
+                    ARCHIVE_WIN "iomp.zip"
+                    TARGET_PATH "${TEMP}/omp"
+                    ENVIRONMENT "INTEL_OMP"
+                    VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
+                    SHA256 "62c68646747fb10f19b53217cb04a1e10ff93606f992e6b35eb8c31187c68fbf"
+                    USE_NEW_LOCATION TRUE)
+        elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC)
+            RESOLVE_DEPENDENCY(INTEL_OMP
+                    ARCHIVE_LIN "iomp.tgz"
+                    TARGET_PATH "${TEMP}/omp"
+                    ENVIRONMENT "INTEL_OMP"
+                    VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
+                    SHA256 "7832b16d82513ee880d97c27c7626f9525ebd678decf6a8fe6c38550f73227d9"
+                    USE_NEW_LOCATION TRUE)
+        elseif(APPLE AND X86_64)
+            RESOLVE_DEPENDENCY(INTEL_OMP
+                    ARCHIVE_MAC "iomp_20190130_mac.tgz"
+                    TARGET_PATH "${TEMP}/omp"
+                    ENVIRONMENT "INTEL_OMP"
+                    VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
+                    SHA256 "591ea4a7e08bbe0062648916f42bded71d24c27f00af30a8f31a29b5878ea0cc"
+                    USE_NEW_LOCATION TRUE)
+        endif()
+
+        if(INTEL_OMP)
+            update_deps_cache(INTEL_OMP "${INTEL_OMP}" "Path to OMP root folder")
+            debug_message(STATUS "intel_omp=" ${INTEL_OMP})
+
+            ov_cpack_add_component(omp HIDDEN)
+            file(GLOB_RECURSE source_list "${INTEL_OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
+            install(FILES ${source_list}
+                    DESTINATION ${OV_CPACK_RUNTIMEDIR}
+                    COMPONENT intel_omp
+                    ${OV_CPACK_COMP_OPENMP_EXCLUDE_ALL})
+        endif()
+    endif()
 endif()
 
 ## TBB package

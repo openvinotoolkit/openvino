@@ -131,8 +131,6 @@ elseif(NOT TARGET arm_compute::arm_compute)
     set(ARM_COMPUTE_OPTIONS
         neon=1
         opencl=0
-        openmp=0
-        cppthreads=1
         examples=0
         Werror=0
         gemm_tuner=0
@@ -145,6 +143,14 @@ elseif(NOT TARGET arm_compute::arm_compute)
         data_layout_support=all
         arch=${OV_CPU_ARM_TARGET_ARCH}
     )
+
+    if(THREADING STREQUAL "OMP")
+        list(APPEND ARM_COMPUTE_OPTIONS openmp=1
+                                        cppthreads=0)
+    else()
+        list(APPEND ARM_COMPUTE_OPTIONS openmp=0
+                                        cppthreads=1)
+    endif()
 
     if(ARM)
         list(APPEND ARM_COMPUTE_OPTIONS estate=32)
@@ -391,5 +397,5 @@ elseif(NOT TARGET arm_compute::arm_compute)
     endforeach()
 
     # required by oneDNN to attempt to parse ACL version
-    set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_SOURCE_DIR}")
+    set(ACL_INCLUDE_DIR "${ARM_COMPUTE_SOURCE_DIR}")
 endif()

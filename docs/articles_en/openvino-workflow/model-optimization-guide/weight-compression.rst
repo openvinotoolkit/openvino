@@ -1,11 +1,12 @@
-.. {#weight_compression}
-
 Weight Compression
 ==================
 
-Weight compression is a technique for enhancing the efficiency of models,
-especially those with large memory requirements. This method reduces the model's
-memory footprint, a crucial factor for Large Language Models (LLMs).
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   weight-compression/microscaling-quantization
+
 
 Weight compression is a technique for enhancing the efficiency of models,
 especially those with large memory requirements. This method reduces the model's
@@ -186,9 +187,18 @@ trade-offs after optimization:
       ratio=0.9,
     )
 
+* ``scale_estimation`` - boolean parameter that enables more accurate estimation of 
+  quantization scales. Especially helpful when the weights of all layers are quantized to
+  4 bits. Requires dataset.
+
+* ``awq`` - boolean parameter that enables the AWQ method for more accurate INT4 weight
+  quantization. Especially helpful when the weights of all the layers are quantized to
+  4 bits. The method can sometimes result in reduced accuracy when used with
+  Dynamic Quantization of activations. Requires dataset.
+
 * ``dataset`` - calibration dataset for data-aware weight compression. It is required
-  for some compression options, for example, some types ``sensitivity_metric`` can use
-  data for precision selection.
+  for some compression options, for example, ``scale_estimation`` or ``awq``. Some types
+  of ``sensitivity_metric`` can use data for precision selection.
 
 * ``sensitivity_metric`` - controls the metric to estimate the sensitivity of compressing
   layers in the bit-width selection algorithm. Some of the metrics require dataset to be
@@ -216,13 +226,14 @@ trade-offs after optimization:
 * ``all_layers`` - boolean parameter that enables INT4 weight quantization of all
   Fully-Connected and Embedding layers, including the first and last layers in the model.
 
-* ``awq`` - boolean parameter that enables the AWQ method for more accurate INT4 weight
-  quantization. Especially helpful when the weights of all the layers are quantized to
-  4 bits. The method can sometimes result in reduced accuracy when used with
-  Dynamic Quantization of activations. Requires dataset.
-
 For data-aware weight compression refer to the following
 `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama>`__.
+
+.. note::
+
+  Some methods can be stacked on top of one another to achieve a better
+  accuracy-performance trade-off after weight quantization. For example, the Scale Estimation
+  method can be applied along with AWQ and mixed-precision quantization (the ``ratio`` parameter).
 
 The example below shows data-free 4-bit weight quantization
 applied on top of OpenVINO IR. Before trying the example, make sure Optimum Intel
@@ -230,7 +241,7 @@ is installed in your environment by running the following command:
 
 .. code-block:: python
 
-  pip install optimum[openvino,nncf]
+  pip install optimum[openvino]
 
 The first example loads a pre-trained Hugging Face model using the Optimum Intel API,
 compresses it to INT4 using NNCF, and then executes inference with a text phrase.
@@ -254,12 +265,13 @@ from Optimum Intel instead of NNCF to compress the model to INT8_ASYM.
 
       # Load model from Hugging Face
       model_id = "HuggingFaceH4/zephyr-7b-beta"
-      model = OVModelForCausalLM.from_pretrained(model_id, export=True)
+      model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=False, compile=False)
 
       # Compress to INT4 Symmetric
-      model.model = compress_weights(model.model,  mode=CompressWeightsMode.INT4_SYM)
+      model.model = compress_weights(model.model, mode=CompressWeightsMode.INT4_SYM)
 
       # Inference
+      model.compile()
       tokenizer = AutoTokenizer.from_pretrained(model_id)
       pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
       phrase = "The weather is"
@@ -283,6 +295,7 @@ from Optimum Intel instead of NNCF to compress the model to INT8_ASYM.
       phrase = "The weather is"
       results = pipe(phrase)
       print(results)
+
 
 Exporting and Loading Compressed Models
 ########################################
@@ -480,3 +493,4 @@ Additional Resources
 - `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
 - :doc:`Post-training Quantization <quantizing-models-post-training>`
 - :doc:`Training-time Optimization <compressing-models-during-training>`
+- `OCP Microscaling Formats (MX) Specification <https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf>`__

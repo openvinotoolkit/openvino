@@ -41,10 +41,6 @@ void compile_graph::run(program& p) {
     auto& proc_order = p.get_processing_order();
     std::vector<ov::threading::Task> tasks;
     std::exception_ptr exception;
-    bool disable_permute_fuse_onednn_gemm = false;
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_onednn_permute_fusion == 1)
-        disable_permute_fuse_onednn_gemm = true;
 
     for (size_t idx = 0; idx < proc_order.size(); idx++) {
         auto& node = *(std::next(proc_order.begin(), idx));
@@ -57,7 +53,7 @@ void compile_graph::run(program& p) {
                 // Do not change impl (i.e. do not use ocl shape-agnostic kernels)
                 // since oneDNN primitives/kernels caching mechanism will be used instead.
                 change_initial_impl = false;
-            } else if (node->is_type<gemm>() && !disable_permute_fuse_onednn_gemm) {
+            } else if (node->is_type<gemm>()) {
                 // permute is fused to onednn gemm. The updated memory formats are not supported by ocl this keep onednn impl
                 for (const auto& dep : node->get_dependencies()) {
                     if (dep.first->is_type<permute>() && dep.first->can_be_optimized() && !dep.first->is_runtime_skippable() &&
@@ -75,6 +71,13 @@ void compile_graph::run(program& p) {
                 // Convolution_fsv16_1x1 is only available shape agnostic kernel for onednn convolution which uses the block format.(fsv16)
                 // Onednn convolution doesn't support input padding but most of cldnn optimized convolution require input padding except fsv16_1x1.
                 if (w_layout.spatial(0) != 1 || w_layout.spatial(1) != 1) {
+                    change_initial_impl = false;
+                }
+
+                // OneDNN convolution requires activations zero points (a_zp) of int32 type, and the data is converted while executing choose_impl.
+                // If this task is done in the async compilation queue, it could result in wrong calculation of cldnn shape-agnostic kernels.
+                // [TODO] Is it possible to update memory of primitive_inst for a_zp in the choose_impl of onednn conv?
+                if (node->as<convolution>().activations_zero_points_term()) {
                     change_initial_impl = false;
                 }
             }

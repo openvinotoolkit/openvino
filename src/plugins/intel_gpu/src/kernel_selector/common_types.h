@@ -15,6 +15,8 @@ enum class KernelType {
     UNKNOWN,
     ARG_MAX_MIN,
     BEAM_TABLE_UPDATE,
+    PA_KV_CACHE_UPDATE,
+    PA_SDPA,
     CONVOLUTION,
     DECONVOLUTION,
     DFT,
@@ -305,6 +307,11 @@ enum class EltwiseMode {
     IS_FINITE,
     IS_INF,
     IS_NAN,
+    RIGHT_SHIFT,
+    LEFT_SHIFT,
+    BITWISE_AND,
+    BITWISE_OR,
+    BITWISE_XOR
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

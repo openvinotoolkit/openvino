@@ -25,6 +25,23 @@ KERNEL(deconvolution_gpu_bfyx_opt)(
     const uint batch_offset = b_f / OUTPUT_FEATURE_NUM;
     const uint ofm_offset   = b_f % OUTPUT_FEATURE_NUM;
 
+#if Y_AXIS_1D_FILTER == 1
+    const uint global_y_group    = get_group_id(0);
+    const uint global_x_group    = get_group_id(1);
+
+    const uint local_y        = get_local_id(0);
+    const uint local_x        = get_local_id(1);
+
+    const uint stride_y_id = global_y_group % STRIDE_SIZE_Y;
+    const uint stride_x_id = global_x_group % STRIDE_SIZE_X;
+
+    const uint id_y = (global_y_group / STRIDE_SIZE_Y) * STRIDE_SIZE_Y * WORK_GROUP_GROUP_SIZE + local_y * STRIDE_SIZE_Y + stride_y_id;
+
+    if (id_y >= OUTPUT_SIZE_Y)
+        return;
+
+    const uint id_x = (global_x_group / STRIDE_SIZE_X) * STRIDE_SIZE_X + local_x * STRIDE_SIZE_X + stride_x_id;
+#else // Y_AXIS_1D_FILTER == 1
     const uint global_x_group    = get_group_id(0);
     const uint global_y_group    = get_group_id(1);
 
@@ -40,6 +57,8 @@ KERNEL(deconvolution_gpu_bfyx_opt)(
         return;
 
     const uint id_y = (global_y_group / STRIDE_SIZE_Y) * STRIDE_SIZE_Y + local_y * STRIDE_SIZE_Y + stride_y_id;
+#endif // Y_AXIS_1D_FILTER == 1
+
     const int in_x = (int)id_x + PADDING_SIZE_X - (FILTER_SIZE_X - 1);
     const int in_y = (int)id_y + PADDING_SIZE_Y - (FILTER_SIZE_Y - 1);
 
@@ -60,6 +79,21 @@ KERNEL(deconvolution_gpu_bfyx_opt)(
 
     const uint input_offset = INPUT0_OFFSET + batch_offset*INPUT0_BATCH_PITCH + in_split_offset;
 
+#if Y_AXIS_1D_FILTER == 1
+    for (uint i = start_x; i < FILTER_SIZE_X; i+=STRIDE_SIZE_X)
+    {
+        const int input_offset_x = in_x + i;
+        const bool zero_x = (input_offset_x >= INPUT0_SIZE_X * STRIDE_SIZE_X) || (input_offset_x < 0);
+
+        if(!zero_x)
+        {
+            for (uint j = start_y; j < FILTER_SIZE_Y; j+=STRIDE_SIZE_Y)
+            {
+                const int input_offset_y = in_y + j;
+                const bool zero_y = (input_offset_y >= INPUT0_SIZE_Y * STRIDE_SIZE_Y) || (input_offset_y < 0);
+
+                if(!zero_y)
+#else // Y_AXIS_1D_FILTER == 1
     for (uint i = start_y; i < FILTER_SIZE_Y; i+=STRIDE_SIZE_Y)
     {
         const int input_offset_y = in_y + i;
@@ -73,6 +107,7 @@ KERNEL(deconvolution_gpu_bfyx_opt)(
                 const bool zero_x = (input_offset_x >= INPUT0_SIZE_X * STRIDE_SIZE_X) || (input_offset_x < 0);
 
                 if(!zero_x)
+#endif // Y_AXIS_1D_FILTER == 1
                 {
                     uint fixed_input_offset_x = (uint)input_offset_x / STRIDE_SIZE_X;
                     uint fixed_input_offset_y = (uint)input_offset_y / STRIDE_SIZE_Y;

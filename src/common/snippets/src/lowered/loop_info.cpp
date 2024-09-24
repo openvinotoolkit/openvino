@@ -31,7 +31,7 @@ bool LoopInfo::is_dynamic() const {
 size_t LoopInfo::get_dim_idx() const {
     OPENVINO_ASSERT(!m_input_ports.empty(), "Loop info must have at least one input port");
     auto equal_dim_idxes = [&](const LoopPort& p) {
-        return p.dim_idx == m_input_ports[0].dim_idx;
+        return !p.is_incremented || p.dim_idx == m_input_ports[0].dim_idx;
     };
     if (std::all_of(m_input_ports.begin(), m_input_ports.end(), equal_dim_idxes) &&
         std::all_of(m_output_ports.begin(), m_output_ports.end(), equal_dim_idxes)) {

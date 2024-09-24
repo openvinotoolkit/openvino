@@ -34,6 +34,7 @@ struct PagedAttentionExecutor {
     static const size_t ID_ALIBI_SLOPES = 11;               // [H|0], float
     static const size_t ID_MAX_CONTEXT_LEN = 12;            // []
     virtual void execute(const std::vector<ov::intel_cpu::MemoryPtr>& inputs, const std::vector<ov::intel_cpu::MemoryPtr> outputs) = 0;
+    virtual ~PagedAttentionExecutor() = default;
 };
 
 #ifdef OPENVINO_ARCH_X86_64

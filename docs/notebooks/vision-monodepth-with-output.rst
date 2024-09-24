@@ -3,7 +3,7 @@ Monodepth Estimation with OpenVINO
 
 This tutorial demonstrates Monocular Depth Estimation with MidasNet in
 OpenVINO. Model information can be found
-`here <https://docs.openvino.ai/2024/omz_models_model_midasnet.html>`__.
+`here <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/midasnet/README.md>`__.
 
 .. figure:: https://user-images.githubusercontent.com/36741649/127173017-a0bbcf75-db24-4d2c-81b9-616e04ab7cd9.gif
    :alt: monodepth
@@ -108,7 +108,7 @@ Install requirements
 
 .. parsed-literal::
 
-    23941
+    24165
 
 
 
@@ -137,7 +137,7 @@ Imports
     )
     import openvino as ov
 
-    from notebook_utils import download_file, load_image
+    from notebook_utils import download_file, load_image, device_widget
 
 Download the model
 ~~~~~~~~~~~~~~~~~~
@@ -218,15 +218,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -313,7 +305,7 @@ original image shape.
 
 .. parsed-literal::
 
-    /tmp/ipykernel_3794362/2076527990.py:15: MatplotlibDeprecationWarning: The get_cmap function was deprecated in Matplotlib 3.7 and will be removed two minor releases later. Use ``matplotlib.colormaps[name]`` or ``matplotlib.colormaps.get_cmap(obj)`` instead.
+    /tmp/ipykernel_149792/2076527990.py:15: MatplotlibDeprecationWarning: The get_cmap function was deprecated in Matplotlib 3.7 and will be removed two minor releases later. Use ``matplotlib.colormaps[name]`` or ``matplotlib.colormaps.get_cmap(obj)`` instead.
       cmap = matplotlib.cm.get_cmap(colormap)
 
 
@@ -512,7 +504,7 @@ Do Inference on a Video and Create Monodepth Video
 
 .. parsed-literal::
 
-    Processed 60 frames in 24.62 seconds. Total FPS (including video processing): 2.44.Inference FPS: 45.79
+    Processed 60 frames in 26.07 seconds. Total FPS (including video processing): 2.30.Inference FPS: 45.85
     Monodepth Video saved to 'output/Coco%20Walking%20in%20Berkeley_monodepth.mp4'.
 
 
@@ -539,7 +531,7 @@ Display Monodepth Video
 .. parsed-literal::
 
     Showing monodepth video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/vision-monodepth/output/Coco%20Walking%20in%20Berkeley_monodepth.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/vision-monodepth/output/Coco%20Walking%20in%20Berkeley_monodepth.mp4
     If you cannot see the video in your browser, please click on the following link to download the video
 
 

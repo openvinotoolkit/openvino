@@ -3,7 +3,6 @@
 //
 
 #include "pass_manager.h"
-#include "data_inst.h"
 #include "fully_connected_inst.h"
 #include "lstm_seq_inst.h"
 #include "gemm_inst.h"
@@ -32,16 +31,9 @@ void select_preferred_formats::run(program& p) {
         return;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    auto& lo = p.get_layout_optimizer();
 
-    // Fallback to ocl when asymmetric weights convolution is existed.
-    if (_lo.get_optimization_attributes().use_onednn_impls) {
-        for (auto n : p.get_processing_order()) {
-            if (n->is_type<convolution>() && n->as<convolution>().weights_zero_points_term())
-                return;
-        }
-    }
-
-    auto forcing_map = _lo.get_implementation_forcing();
+    auto forcing_map = lo.get_implementation_forcing();
 
     engine.create_onednn_engine(p.get_config());
     for (auto n : p.get_processing_order()) {
@@ -59,12 +51,18 @@ void select_preferred_formats::run(program& p) {
         // Onednn primitive descriptor creation may fail, for example, due to asymmetric weight.
         try {
             if (n->is_type<convolution>()) {
-                if (n->as<convolution>().weights_zero_points_term())
-                    continue;
+                if (n->as<convolution>().weights_zero_points_term()) {
+                    if (n->as<convolution>().weights_zero_points().get_output_layout().count() != 1 ||
+                        n->as<convolution>().get_groups() > 1) {
+                        // onednn convolution doesn't support per_oc and grouped as weights zero points.
+                        continue;
+                    }
+                }
+
                 auto prim_desc = onednn::get_convolution_primitive_descriptor(*n->get_kernel_impl_params(),
                                                                               dnnl::primitive_attr(),
                                                                               dnnl::memory::format_tag::any);
-                _lo.select_preferred_formats_for_onednn(*n, *prim_desc);
+                lo.select_preferred_formats_for_onednn(*n, *prim_desc);
             } else if (n->is_type<deconvolution>()) {
                 auto prim_desc = onednn::get_deconvolution_primitive_descriptor(*n->get_kernel_impl_params(),
                                                                                 dnnl::primitive_attr(),
@@ -77,7 +75,5 @@ void select_preferred_formats::run(program& p) {
             GPU_DEBUG_INFO << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
         }
     }
-#else
-    (void)_lo;
 #endif  // ENABLE_ONEDNN_FOR_GPU
 }

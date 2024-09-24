@@ -126,15 +126,8 @@ else()
             --plat-name=${PLATFORM_TAG})
 endif()
 
-# dev target includes c headers and we need to include c bindings
-if(TARGET openvino_c)
-    list(APPEND ov_setup_py_deps openvino_c)
-endif()
-
 add_custom_command(OUTPUT ${openvino_wheel_path}
-    COMMAND ${setup_py_env}
-        ${wheel_build_command}
-    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/build_${pyversion}"
+    COMMAND ${setup_py_env} ${wheel_build_command}
     DEPENDS ${ov_setup_py_deps}
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"
@@ -156,6 +149,16 @@ add_custom_command(OUTPUT "${fdupes_report}"
     VERBATIM)
 
 add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path} ${fdupes_report})
+
+add_custom_command(
+    TARGET ie_wheel
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/build_${pyversion}"
+    COMMAND ${CMAKE_COMMAND} -E true # w/a this ensures the command always succeeds
+    DEPENDS ${openvino_wheel_path}
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    COMMENT "Cleaning up Python wheel build for wheel ${openvino_wheel_name}"
+    VERBATIM)
 
 # install
 

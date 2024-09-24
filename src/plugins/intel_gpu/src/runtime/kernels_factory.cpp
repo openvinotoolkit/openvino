@@ -10,7 +10,9 @@ namespace kernels_factory {
 
 std::shared_ptr<kernel> create(engine& engine, cl_context context, cl_kernel kernel, std::string  entry_point) {
     switch (engine.type()) {
-        case engine_types::ocl: return ocl::create_ocl_kernel(engine, context, kernel, entry_point);
+        case engine_types::sycl:
+        case engine_types::ocl:
+            return ocl::create_ocl_kernel(engine, context, kernel, entry_point);
         default: throw std::runtime_error("Unsupported engine type in kernels_factory::create");
     }
 }

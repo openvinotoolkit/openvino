@@ -428,17 +428,31 @@ inline padding calc_sliding_window_needed_input_padding(const layout& actual_inp
     }
 
     const auto& actual_data_size = actual_input_layout.get_tensor();
-    const auto& actual_lpad = actual_input_layout.data_padding.lower_size();
-    const auto& actual_upad = actual_input_layout.data_padding.upper_size();
+    const auto& actual_lpad = actual_input_layout.data_padding._lower_size;
+    const auto& actual_upad = actual_input_layout.data_padding._upper_size;
 
-    auto needed_upad = tensor::max(needed_size.sub(actual_data_size), actual_upad);
+    auto needed_upad = needed_size.sub(actual_data_size);
 
-    return padding(actual_lpad.sizes(),
-                   {actual_upad.batch[0],
-                    actual_upad.feature[0],
-                    needed_upad.spatial[0],
-                    needed_upad.spatial[1],
-                    needed_upad.spatial[2]});
+    auto spatial_rank = actual_input_layout.get_spatial_rank();
+    OPENVINO_ASSERT(spatial_rank > 0 && spatial_rank <= 3);
+    if (spatial_rank >= 3)
+        return padding({actual_lpad[0], actual_lpad[1], actual_lpad[2], actual_lpad[3], actual_lpad[4]},
+                       {actual_upad[0],
+                        actual_upad[1],
+                        std::max(needed_upad.spatial[2], actual_upad[2]),
+                        std::max(needed_upad.spatial[1], actual_upad[3]),
+                        std::max(needed_upad.spatial[0], actual_upad[4])});
+    else if (spatial_rank >= 2)
+        return padding({actual_lpad[0], actual_lpad[1], actual_lpad[2], actual_lpad[3]},
+                       {actual_upad[0],
+                        actual_upad[1],
+                        std::max(needed_upad.spatial[1], actual_upad[2]),
+                        std::max(needed_upad.spatial[0], actual_upad[3])});
+    else
+        return padding({actual_lpad[0], actual_lpad[1], actual_lpad[2]},
+                       {actual_upad[0],
+                        actual_upad[1],
+                        std::max(needed_upad.spatial[0], actual_upad[2])});
 }
 
 }  // namespace intel_gpu

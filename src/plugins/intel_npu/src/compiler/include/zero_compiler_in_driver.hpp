@@ -11,6 +11,7 @@
 #include "intel_npu/al/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "zero_executor.hpp"
 
 namespace intel_npu {
 namespace driverCompilerAdapter {
@@ -48,7 +49,10 @@ using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
 template <typename TableExtension>
 class LevelZeroCompilerInDriver final : public ICompiler {
 public:
-    LevelZeroCompilerInDriver(const char* extName, ze_driver_handle_t driverHandle);
+    LevelZeroCompilerInDriver(ze_driver_handle_t driverHandle,
+                              ze_device_handle_t deviceHandle,
+                              ze_context_handle_t zeContext,
+                              ze_graph_dditable_ext_curr_t& graph_ddi_table_ext);
     LevelZeroCompilerInDriver(const LevelZeroCompilerInDriver&) = delete;
     LevelZeroCompilerInDriver& operator=(const LevelZeroCompilerInDriver&) = delete;
     ~LevelZeroCompilerInDriver() override;
@@ -94,6 +98,10 @@ public:
      */
     static std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
 
+    void release(std::shared_ptr<const NetworkDescription> networkDescription) override;
+
+    std::vector<uint8_t> getCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) override;
+
 private:
     NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;
 
@@ -102,14 +110,14 @@ private:
     std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t& compilerVersion) const;
 
     template <typename T = TableExtension, typename std::enable_if_t<NotSupportArgumentMetadata(T), bool> = true>
-    void getMetadata(TableExtension* graphDdiTableExt,
+    void getMetadata(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                      ze_graph_handle_t graphHandle,
                      uint32_t index,
                      std::vector<IODescriptor>& inputs,
                      std::vector<IODescriptor>& outputs) const;
 
     template <typename T = TableExtension, typename std::enable_if_t<!NotSupportArgumentMetadata(T), bool> = true>
-    void getMetadata(TableExtension* graphDdiTableExt,
+    void getMetadata(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                      ze_graph_handle_t graphHandle,
                      uint32_t index,
                      std::vector<IODescriptor>& inputs,
@@ -172,36 +180,9 @@ private:
     ze_device_handle_t _deviceHandle = nullptr;
     ze_context_handle_t _context = nullptr;
 
-    TableExtension* _graphDdiTableExt = nullptr;
+    ze_graph_dditable_ext_curr_t& _graphDdiTableExt;
     Logger _logger;
 };
-
-template <typename TableExtension>
-LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(const char* extName,
-                                                                     ze_driver_handle_t driverHandle)
-    : _driverHandle(driverHandle),
-      _logger("LevelZeroCompilerInDriver", Logger::global().level()) {
-    // Load our graph extension
-    auto result =
-        zeDriverGetExtensionFunctionAddress(_driverHandle, extName, reinterpret_cast<void**>(&_graphDdiTableExt));
-
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("Failed to initialize zeDriver. Error code: ", std::hex, result);
-    }
-
-    uint32_t deviceCount = 1;
-    // Get our target device
-    result = zeDeviceGet(_driverHandle, &deviceCount, &_deviceHandle);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("Failed to get device. Error code: ", std::hex, result);
-    }
-
-    ze_context_desc_t contextDesc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0};
-    result = zeContextCreate(_driverHandle, &contextDesc, &_context);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("Failed to initialize context for device. Error code: ", std::hex, result);
-    }
-}
 
 }  // namespace driverCompilerAdapter
 }  // namespace intel_npu

@@ -63,7 +63,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
     open("notebook_utils.py", "w").write(r.text)
 
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 
 .. parsed-literal::
@@ -113,14 +113,7 @@ inference using this widget
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices,
-        value=core.available_devices[0],
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -129,7 +122,7 @@ inference using this widget
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU',), value='CPU')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
@@ -204,7 +197,7 @@ notebooks.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -253,7 +246,7 @@ points to the filename of an ONNX model.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.onnx')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.onnx')
 
 
 
@@ -313,7 +306,7 @@ without any conversion step. Pass the filename with extension to
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/openvino-api/model/inference.pdiparams')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/openvino-api/model/inference.pdiparams')
 
 
 
@@ -357,7 +350,7 @@ TensorFlow models saved in frozen graph format can also be passed to
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.pb')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.pb')
 
 
 
@@ -494,7 +487,7 @@ Information about the inputs and outputs of the model are in
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -700,7 +693,7 @@ produced data as values.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -889,7 +882,7 @@ input shape.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.bin')
 
 
 
@@ -1041,7 +1034,7 @@ the cache.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -1071,7 +1064,7 @@ the cache.
 
 .. parsed-literal::
 
-    Loading the network to the CPU device took 0.15 seconds.
+    Loading the network to the AUTO device took 0.16 seconds.
 
 
 After running the previous cell, we know the model exists in the cache
@@ -1089,5 +1082,5 @@ measure the time it takes now.
 
 .. parsed-literal::
 
-    Loading the network to the CPU device took 0.09 seconds.
+    Loading the network to the AUTO device took 0.08 seconds.
 

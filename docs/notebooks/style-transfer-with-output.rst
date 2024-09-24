@@ -95,7 +95,7 @@ Install requirements
 
 .. parsed-literal::
 
-    23941
+    24165
 
 
 
@@ -192,7 +192,7 @@ OpenVINO Intermediate Representation (IR) with ``FP16`` precision.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/style-transfer-webcam/model/mosaic-9.onnx')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/style-transfer-webcam/model/mosaic-9.onnx')
 
 
 
@@ -263,14 +263,7 @@ results.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = utils.device_widget()
 
 
     # Compile the model for CPU (or change to GPU, etc. for other devices)

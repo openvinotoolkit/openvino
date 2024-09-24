@@ -11,9 +11,12 @@ This is the **first notebook** in series of exploring `OpenVINO™
 Explainable AI
 (XAI) <https://github.com/openvinotoolkit/openvino_xai/>`__:
 
-1. `OpenVINO™ Explainable AI Toolkit (1/3): Basic <explainable-ai-1-basic-with-output.html>`__
-2. `OpenVINO™ Explainable AI Toolkit (2/3): Deep Dive <explainable-ai-2-deep-dive-with-output.html>`
-3. `OpenVINO™ Explainable AI Toolkit (3/3): Saliency map interpretation <explainable-ai-3-map-interpretation-with-output.html>`__
+1. `OpenVINO™ Explainable AI Toolkit (1/3):
+   Basic <explainable-ai-1-basic-with-output.html>`__
+2. `OpenVINO™ Explainable AI Toolkit (2/3): Deep
+   Dive <explainable-ai-2-deep-dive-with-output.html>`__
+3. `OpenVINO™ Explainable AI Toolkit (3/3): Saliency map
+   interpretation <explainable-ai-3-map-interpretation-with-output.html>`__
 
 It covers the basic introduction to
 `XAI <https://github.com/openvinotoolkit/openvino_xai/>`__ toolkit and
@@ -34,7 +37,7 @@ notebook:
 .. image:: https://github.com/openvinotoolkit/openvino_xai/assets/17028475/ccb67c0b-c58e-4beb-889f-af0aff21cb66
 
 A pre-trained `MobileNetV3
-model <https://docs.openvino.ai/2024/omz_models_model_mobilenet_v3_small_1_0_224_tf.html>`__
+model <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/mobilenet-v3-small-1.0-224-tf/README.md>`__
 from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used in
 this tutorial.
@@ -98,7 +101,7 @@ Imports
 
     open("notebook_utils.py", "w").write(r.text)
 
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 Download the Model and data samples
 -----------------------------------
@@ -138,16 +141,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
-
+    device = device_widget()
     device
 
 

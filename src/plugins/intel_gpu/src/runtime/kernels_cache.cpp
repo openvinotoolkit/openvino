@@ -620,7 +620,7 @@ void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernel
 }
 
 void kernels_cache::save(BinaryOutputBuffer& ob) const {
-    OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] Not supported engine type");
+    OPENVINO_ASSERT(_engine.type() == engine_types::ocl || _engine.type() == engine_types::sycl, "[GPU] Not supported engine type");
 
     ob << _cached_binaries.size();
     for (auto& cached_binary : _cached_binaries) {
@@ -630,7 +630,7 @@ void kernels_cache::save(BinaryOutputBuffer& ob) const {
 }
 
 void kernels_cache::load(BinaryInputBuffer& ib) {
-    OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] Not supported engine type");
+    OPENVINO_ASSERT(_engine.type() == engine_types::ocl || _engine.type() == engine_types::sycl, "[GPU] Not supported engine type");
 
     std::unordered_map<uint32_t, std::vector<unsigned char>> precompiled_kernels;
 

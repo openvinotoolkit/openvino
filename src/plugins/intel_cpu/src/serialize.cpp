@@ -25,8 +25,8 @@ static void setInfo(pugi::xml_node& root, std::shared_ptr<ov::Model>& model) {
     }
 }
 
-ModelSerializer::ModelSerializer(std::ostream& ostream)
-    : _ostream(ostream) {}
+ModelSerializer::ModelSerializer(std::ostream& ostream, cache_encrypt encrypt_fn)
+    : _ostream(ostream), _cache_encrypt(std::move(encrypt_fn)) {}
 
 void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
     auto serializeInfo = [&](std::ostream& stream) {
@@ -42,13 +42,14 @@ void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
         xml_doc.save(stream);
     };
 
-    ov::pass::StreamSerialize serializer(_ostream, serializeInfo, ov::util::codec_xor);
+    ov::pass::StreamSerialize serializer(_ostream, serializeInfo, _cache_encrypt);
     serializer.run_on_model(std::const_pointer_cast<ov::Model>(model->clone()));
 }
 
-ModelDeserializer::ModelDeserializer(std::istream & istream, model_builder fn)
+ModelDeserializer::ModelDeserializer(std::istream & istream, model_builder fn, cache_decrypt decrypt_fn)
     : _istream(istream)
-    , _model_builder(fn) {
+    , _model_builder(std::move(fn))
+    , _cache_decrypt(std::move(decrypt_fn)) {
 }
 
 void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
@@ -100,7 +101,9 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     _istream.seekg(hdr.model_offset);
     xmlString.resize(hdr.model_size);
     _istream.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
-    xmlString = ov::util::codec_xor(xmlString);
+    if (_cache_decrypt) {
+        xmlString = _cache_decrypt(xmlString);
+    }
 
     model = _model_builder(xmlString, std::move(dataBlob));
 
