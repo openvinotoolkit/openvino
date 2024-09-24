@@ -20,7 +20,55 @@ env:
   TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+    steps:
+      - name: checkout action
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'  
+  
+  Docker:
+    needs: Smart_CI
+    runs-on: aks-linux-4-cores-16gb-docker-build
+    container:
+      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      volumes:
+        - /mount:/mount
+    outputs:
+      images: "${{ steps.handle_docker.outputs.images }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - uses: ./.github/actions/handle_docker
+        id: handle_docker
+        with:
+          images: |
+            ov_build/ubuntu_22_04_x64
+          registry: 'openvinogithubactions.azurecr.io'
+          dockerfiles_root_dir: '.github/dockerfiles'
+          changed_components: ${{ needs.smart_ci.outputs.changed_components }}
+  
   Build:
+    needs: [Smart_CI, Docker]
     timeout-minutes: 500
     defaults:
       run:
@@ -28,7 +76,7 @@ jobs:
     runs-on: aks-linux-16-cores-32gb
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
       volumes:
         - /mount:/mount
     strategy:
@@ -58,14 +106,6 @@ jobs:
       CC: clang
 
     steps:
-      - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-
-      - name: Install git
-        run: |
-          apt-get update
-          apt-get install --assume-yes --no-install-recommends git ca-certificates
-
       - name: Clone OpenVINO
         uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
         with:
@@ -86,15 +126,6 @@ jobs:
 
       - name: System info
         uses: ./openvino/.github/actions/system_info
-
-      #
-      # Dependencies
-      #
-
-      - name: Install build dependencies
-        run: |
-          bash ${OPENVINO_REPO}/install_build_dependencies.sh
-          apt --assume-yes install clang lld
 
       #
       # Build
@@ -177,11 +208,11 @@ jobs:
   CXX_Unit_Tests:
     name: C++ unit tests
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
-    needs: Build
+    needs: [Docker, Build]
     timeout-minutes: 100
     runs-on: 'aks-linux-16-cores-32gb'
     container:
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     defaults:
       run:
         shell: bash
@@ -194,14 +225,10 @@ jobs:
           - SANITIZER: 'UndefinedBehavior'
           - SANITIZER: 'Thread'
     env:
-      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       TBB_ENABLE_SANITIZERS: 1
     steps:
-      - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
@@ -232,11 +259,6 @@ jobs:
           pushd $INSTALL_TEST_DIR
             tar -I pigz -xf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
-
-      - name: Install dependencies (Linux)
-        run: |
-          $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
-          apt update && apt --assume-yes install clang lld
 
       - name: Fetch Sanitizer Suppression Lists
         uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
