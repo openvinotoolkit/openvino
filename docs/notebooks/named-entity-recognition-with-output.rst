@@ -86,17 +86,17 @@ pre-converted model for next usage, and speedup deployment process.
     from pathlib import Path
     from transformers import AutoTokenizer
     from optimum.intel import OVModelForTokenClassification
-
+    
     original_ner_model_dir = Path("original_ner_model")
-
+    
     model_id = "elastic/distilbert-base-cased-finetuned-conll03-english"
     if not original_ner_model_dir.exists():
         model = OVModelForTokenClassification.from_pretrained(model_id, export=True)
-
+    
         model.save_pretrained(original_ner_model_dir)
     else:
         model = OVModelForTokenClassification.from_pretrained(model_id, export=True)
-
+    
     tokenizer = AutoTokenizer.from_pretrained(model_id)
 
 Quantize the model, using Hugging Face Optimum API
@@ -128,18 +128,18 @@ corresponding ``OVModelForXxx`` class. So we use
 
     from functools import partial
     from optimum.intel import OVQuantizer, OVConfig, OVQuantizationConfig
-
+    
     from optimum.intel import OVModelForTokenClassification
-
-
+    
+    
     def preprocess_fn(data, tokenizer):
         examples = []
         for data_chunk in data["tokens"]:
             examples.append(" ".join(data_chunk))
-
+    
         return tokenizer(examples, padding=True, truncation=True, max_length=128)
-
-
+    
+    
     quantizer = OVQuantizer.from_pretrained(model)
     calibration_dataset = quantizer.get_calibration_dataset(
         "conll2003",
@@ -149,10 +149,10 @@ corresponding ``OVModelForXxx`` class. So we use
         preprocess_batch=True,
         trust_remote_code=True,
     )
-
+    
     # The directory where the quantized model will be saved
     quantized_ner_model_dir = "quantized_ner_model"
-
+    
     # Apply static quantization and save the resulting model in the OpenVINO IR format
     ov_config = OVConfig(quantization_config=OVQuantizationConfig(num_samples=len(calibration_dataset)))
     quantizer.quantize(
@@ -263,7 +263,7 @@ corresponding ``OVModelForXxx`` class. So we use
 
     import ipywidgets as widgets
     import openvino as ov
-
+    
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -271,7 +271,7 @@ corresponding ``OVModelForXxx`` class. So we use
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -317,39 +317,39 @@ inference.
 .. code:: ipython3
 
     from transformers import pipeline
-
+    
     ner_pipeline_optimized = pipeline("token-classification", model=optimized_model, tokenizer=tokenizer)
-
+    
     ner_pipeline_original = pipeline("token-classification", model=model, tokenizer=tokenizer)
 
 .. code:: ipython3
 
     import time
     import numpy as np
-
-
+    
+    
     def calc_perf(ner_pipeline):
         inference_times = []
-
+    
         for data in calibration_dataset:
             text = " ".join(data["tokens"])
             start = time.perf_counter()
             ner_pipeline(text)
             end = time.perf_counter()
             inference_times.append(end - start)
-
+    
         return np.median(inference_times)
-
-
+    
+    
     print(f"Median inference time of quantized model: {calc_perf(ner_pipeline_optimized)} ")
-
+    
     print(f"Median inference time of original model: {calc_perf(ner_pipeline_original)} ")
 
 
 .. parsed-literal::
 
-    Median inference time of quantized model: 0.0063508255407214165
-    Median inference time of original model: 0.007429798366501927
+    Median inference time of quantized model: 0.0063508255407214165 
+    Median inference time of original model: 0.007429798366501927 
 
 
 Compare size of the models
@@ -360,7 +360,7 @@ Compare size of the models
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     fp_model_file = Path(original_ner_model_dir) / "openvino_model.bin"
     print(f"Size of original model in Bytes is {fp_model_file.stat().st_size}")
     print(f'Size of quantized model in Bytes is {Path(quantized_ner_model_dir, "openvino_model.bin").stat().st_size}')
@@ -384,17 +384,17 @@ text.
 .. code:: ipython3
 
     import gradio as gr
-
+    
     examples = [
         "My name is Wolfgang and I live in Berlin.",
     ]
-
-
+    
+    
     def run_ner(text):
         output = ner_pipeline_optimized(text)
         return {"text": text, "entities": output}
-
-
+    
+    
     demo = gr.Interface(
         run_ner,
         gr.Textbox(placeholder="Enter sentence here...", label="Input Text"),
@@ -402,7 +402,7 @@ text.
         examples=examples,
         allow_flagging="never",
     )
-
+    
     if __name__ == "__main__":
         try:
             demo.launch(debug=False)

@@ -84,25 +84,22 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     auto accumulator_reg = 0lu;
     for (const auto& expr : exprs) {
         auto op = expr->get_node();
-        if (const auto& buffer = ov::as_type_ptr<op::Buffer>(op)) {
-            const auto reg_group = buffer->get_reg_group();
+        if (const auto& buffer_expr = ov::as_type_ptr<BufferExpression>(expr)) {
+            const auto reg_group = buffer_expr->get_reg_group();
             // All buffers have one common data pointer
-            if (ov::is_type<op::IntermediateMemoryBuffer>(buffer)) {
-                const auto assigned_reg = num_results + num_parameters + reg_group;
-                for (const auto& input : expr->get_input_port_connectors()) {
-                    manually_assigned_gprs[input] = static_cast<Reg>(assigned_reg);
-                    // shape infer ops in the middle of subgraph. IntermediateMemoryBuffer is inserted before reshape as new loop should start.
-                    // child shape info ops share the same memory as IntermediateMemoryBuffer.
-                    const auto& shape_infer_consumers = utils::get_first_child_shape_infer_expr_seq(expr);
-                    for (const auto& child_shape_infer_expr : shape_infer_consumers) {
-                        manually_assigned_gprs[child_shape_infer_expr->get_input_port_connector(0)] =
-                            manually_assigned_gprs[child_shape_infer_expr->get_output_port_connector(0)] =
-                                static_cast<Reg>(assigned_reg);
-                    }
+            const auto assigned_reg = num_results + num_parameters + reg_group;
+            for (const auto& input : expr->get_input_port_connectors()) {
+                manually_assigned_gprs[input] = static_cast<Reg>(assigned_reg);
+                // shape infer ops in the middle of subgraph. Buffer is inserted before reshape as new loop should start.
+                // child shape info ops share the same memory as Buffer.
+                const auto& shape_infer_consumers = utils::get_first_child_shape_infer_expr_seq(expr);
+                for (const auto& child_shape_infer_expr : shape_infer_consumers) {
+                    manually_assigned_gprs[child_shape_infer_expr->get_input_port_connector(0)] =
+                        manually_assigned_gprs[child_shape_infer_expr->get_output_port_connector(0)] =
+                            static_cast<Reg>(assigned_reg);
                 }
             }
-            manually_assigned_gprs[expr->get_output_port_connector(0)] =
-                    static_cast<Reg>(num_results + num_parameters + reg_group);
+            manually_assigned_gprs[expr->get_output_port_connector(0)] = static_cast<Reg>(assigned_reg);
         } else if (ov::is_type<op::HorizonMax>(op) || ov::is_type<op::HorizonSum>(op)) {
             // Only in ReduceDecomposition Reduce ops use HorizonMax/HorizonSum and VectorBuffer.
             // We should manually set the one vector register for VectorBuffer and Max/Sum output to simulate a accumulator

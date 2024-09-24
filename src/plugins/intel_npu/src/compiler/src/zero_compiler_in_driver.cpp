@@ -180,13 +180,18 @@ namespace intel_npu {
 namespace driverCompilerAdapter {
 
 template <typename TableExtension>
+LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(ze_driver_handle_t driverHandle,
+                                                                     ze_device_handle_t deviceHandle,
+                                                                     ze_context_handle_t zeContext,
+                                                                     ze_graph_dditable_ext_curr_t& graph_ddi_table_ext)
+    : _driverHandle(driverHandle),
+      _deviceHandle(deviceHandle),
+      _context(zeContext),
+      _graphDdiTableExt(graph_ddi_table_ext),
+      _logger("LevelZeroCompilerInDriver", Logger::global().level()) {}
+
+template <typename TableExtension>
 LevelZeroCompilerInDriver<TableExtension>::~LevelZeroCompilerInDriver() {
-    if (_context) {
-        auto result = zeContextDestroy(_context);
-        if (ZE_RESULT_SUCCESS != result) {
-            _logger.error("zeContextDestroy failed %#X", uint64_t(result));
-        }
-    }
     _logger.debug("LevelZeroCompilerInDriver obj destroyed");
 }
 
@@ -337,6 +342,67 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
     // One line without spaces to avoid parsing as config option inside CID
     return inputsPrecisionSS.str() + VALUES_SEPARATOR.data() + inputsLayoutSS.str() + VALUES_SEPARATOR.data() +
            outputsPrecisionSS.str() + VALUES_SEPARATOR.data() + outputsLayoutSS.str();
+}
+
+template <typename TableExtension>
+void LevelZeroCompilerInDriver<TableExtension>::release(std::shared_ptr<const NetworkDescription> networkDescription) {
+    _logger.debug("performing release networkDescription");
+    if (networkDescription->metadata.graphHandle != nullptr) {
+        _logger.debug("release - graphHandle is not nullptr");
+        ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription->metadata.graphHandle);
+        _logger.debug("release - pfnDestroy graphHandle");
+        auto result = _graphDdiTableExt.pfnDestroy(graphHandle);
+
+        if (ZE_RESULT_SUCCESS != result) {
+            _logger.error("failed to release graph handle. L0 pfnDestroy result: %s, code %#X",
+                          ze_result_to_string(result).c_str(),
+                          uint64_t(result));
+        }
+    }
+    _logger.debug("release completed");
+}
+
+template <typename TableExtension>
+std::vector<uint8_t> LevelZeroCompilerInDriver<TableExtension>::getCompiledNetwork(
+    std::shared_ptr<const NetworkDescription> networkDescription) {
+    if (networkDescription->metadata.graphHandle != nullptr && networkDescription->compiledNetwork.size() == 0) {
+        _logger.info("LevelZeroCompilerInDriver getCompiledNetwork get blob from graphHandle");
+        ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription->metadata.graphHandle);
+
+        // Get blob size first
+        size_t blobSize = -1;
+
+        auto result = _graphDdiTableExt.pfnGetNativeBinary(graphHandle, &blobSize, nullptr);
+
+        OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
+                        "Failed to compile network. L0 pfnGetNativeBinary get blob size",
+                        " result: ",
+                        ze_result_to_string(result),
+                        ", code 0x",
+                        std::hex,
+                        uint64_t(result),
+                        ". ",
+                        getLatestBuildError());
+
+        std::vector<uint8_t> blob(blobSize);
+        // Get blob data
+        result = _graphDdiTableExt.pfnGetNativeBinary(graphHandle, &blobSize, blob.data());
+
+        OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
+                        "Failed to compile network. L0 pfnGetNativeBinary get blob data",
+                        " result: ",
+                        ze_result_to_string(result),
+                        ", code 0x",
+                        std::hex,
+                        uint64_t(result),
+                        ". ",
+                        getLatestBuildError());
+        _logger.info("LevelZeroCompilerInDriver getCompiledNetwork returning blob");
+        return blob;
+    } else {
+        _logger.info("return the blob from network description");
+        return networkDescription->compiledNetwork;
+    }
 }
 
 template <typename TableExtension>
@@ -559,7 +625,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQuery
                             buildFlags.c_str()};
 
     // Create querynetwork handle
-    ze_result_t result = _graphDdiTableExt->pfnQueryNetworkCreate(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
+    ze_result_t result = _graphDdiTableExt.pfnQueryNetworkCreate(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
 
     return result;
 }
@@ -573,7 +639,7 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
     _logger.info("queryImpl - Calling queryNetwork of 1.3 version.");
 
     ze_device_graph_properties_t deviceGraphProperties{};
-    auto result = _graphDdiTableExt->pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
+    auto result = _graphDdiTableExt.pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
     if (ZE_RESULT_SUCCESS != result) {
         OPENVINO_THROW("L0 pfnDeviceGetGraphProperties",
                        " result: ",
@@ -620,7 +686,17 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQuery
                               ZE_GRAPH_FLAG_NONE};
 
     // Create querynetwork handle
-    ze_result_t result = _graphDdiTableExt->pfnQueryNetworkCreate2(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
+    _logger.debug("seriazlideIRModelAndQueryNetworkCreateV2 - performing pfnQueryNetworkCreate2");
+    ze_result_t result = _graphDdiTableExt.pfnQueryNetworkCreate2(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
+
+    if (ZE_RESULT_SUCCESS != result) {
+        OPENVINO_THROW("L0 seriazlideIRModelAndQueryNetworkCreateV2",
+                       " result: ",
+                       ze_result_to_string(result),
+                       ", code 0x",
+                       std::hex,
+                       uint64_t(result));
+    }
 
     return result;
 }
@@ -634,7 +710,7 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
     _logger.debug("queryImpl - Calling queryNetwork of 1.5 version.");
 
     ze_device_graph_properties_t deviceGraphProperties{};
-    auto result = _graphDdiTableExt->pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
+    auto result = _graphDdiTableExt.pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
     if (ZE_RESULT_SUCCESS != result) {
         OPENVINO_THROW("L0 pfnDeviceGetGraphProperties",
                        " result: ",
@@ -671,9 +747,9 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQu
 
     // Get the size of query result
     size_t size = 0;
-    result = _graphDdiTableExt->pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork, &size, nullptr);
+    result = _graphDdiTableExt.pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork, &size, nullptr);
     if (ZE_RESULT_SUCCESS != result) {
-        _graphDdiTableExt->pfnQueryNetworkDestroy(hGraphQueryNetwork);
+        _graphDdiTableExt.pfnQueryNetworkDestroy(hGraphQueryNetwork);
         OPENVINO_THROW("L0 pfnQueryNetworkGetSupportedLayers get size of query result",
                        " result: ",
                        ze_result_to_string(result),
@@ -684,9 +760,9 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQu
 
     // Get the result data of query
     std::vector<char> supportedLayers(size);
-    result = _graphDdiTableExt->pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork, &size, supportedLayers.data());
+    result = _graphDdiTableExt.pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork, &size, supportedLayers.data());
     if (ZE_RESULT_SUCCESS != result) {
-        _graphDdiTableExt->pfnQueryNetworkDestroy(hGraphQueryNetwork);
+        _graphDdiTableExt.pfnQueryNetworkDestroy(hGraphQueryNetwork);
         OPENVINO_THROW("L0 pfnQueryNetworkGetSupportedLayers get result data of query",
                        " result: ",
                        ze_result_to_string(result),
@@ -695,7 +771,7 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQu
                        uint64_t(result));
     }
 
-    result = _graphDdiTableExt->pfnQueryNetworkDestroy(hGraphQueryNetwork);
+    result = _graphDdiTableExt.pfnQueryNetworkDestroy(hGraphQueryNetwork);
     if (ZE_RESULT_SUCCESS != result) {
         OPENVINO_THROW("L0 pfnQueryNetworkDestroy",
                        " result: ",
@@ -746,7 +822,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
                             buildFlags.c_str()};
 
     // Create querynetwork handle
-    return _graphDdiTableExt->pfnCreate(_context, _deviceHandle, &desc, graph);
+    return _graphDdiTableExt.pfnCreate(_context, _deviceHandle, &desc, graph);
 }
 
 // For ext version >= 1.5, calling pfnCreate2 api in _graphDdiTableExt
@@ -765,8 +841,19 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
                               buildFlags.c_str(),
                               flags};
 
+    _logger.debug("createGraph - performing pfnCreate2");
     // Create querynetwork handle
-    return _graphDdiTableExt->pfnCreate2(_context, _deviceHandle, &desc, graph);
+    auto result = _graphDdiTableExt.pfnCreate2(_context, _deviceHandle, &desc, graph);
+    if (ZE_RESULT_SUCCESS != result) {
+        OPENVINO_THROW("L0 pfnCreate2",
+                       " result: ",
+                       ze_result_to_string(result),
+                       ", code 0x",
+                       std::hex,
+                       uint64_t(result));
+    }
+
+    return result;
 }
 template <typename TableExtension>
 ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreateGraph(
@@ -797,6 +884,15 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreat
 
     _logger.info("compileIR Using extension version: %s", typeid(TableExtension).name());
     ze_result_t result = createGraph(format, serializedIR, buildFlags, flags, &graphHandle);
+
+    if (ZE_RESULT_SUCCESS != result) {
+        OPENVINO_THROW("Failed to create graph. L0 createGraph",
+                       " result: ",
+                       ze_result_to_string(result),
+                       ", code 0x",
+                       std::hex,
+                       uint64_t(result));
+    }
     return result;
 }
 
@@ -806,7 +902,7 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
     _logger.debug("compile start");
 
     ze_device_graph_properties_t deviceGraphProperties{};
-    auto result = _graphDdiTableExt->pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
+    auto result = _graphDdiTableExt.pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
     if (ZE_RESULT_SUCCESS != result) {
         OPENVINO_THROW("Failed to compile network. L0 pfnDeviceGetGraphProperties",
                        " result: ",
@@ -831,51 +927,13 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
                     ". ",
                     getLatestBuildError());
 
-    // Get blob size first
-    size_t blobSize = -1;
-
-    result = _graphDdiTableExt->pfnGetNativeBinary(graphHandle, &blobSize, nullptr);
-
-    OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
-                    "Failed to compile network. L0 pfnGetNativeBinary get blob size",
-                    " result: ",
-                    ze_result_to_string(result),
-                    ", code 0x",
-                    std::hex,
-                    uint64_t(result),
-                    ". ",
-                    getLatestBuildError());
-
-    std::vector<uint8_t> blob(blobSize);
-    // Get blob data
-    result = _graphDdiTableExt->pfnGetNativeBinary(graphHandle, &blobSize, blob.data());
-
-    OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
-                    "Failed to compile network. L0 pfnGetNativeBinary get blob data",
-                    " result: ",
-                    ze_result_to_string(result),
-                    ", code 0x",
-                    std::hex,
-                    uint64_t(result),
-                    ". ",
-                    getLatestBuildError());
-
     auto networkMeta = getNetworkMeta(graphHandle);
     networkMeta.name = model->get_friendly_name();
 
-    result = _graphDdiTableExt->pfnDestroy(graphHandle);
-
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("Failed to compile network. L0 pfnDestroy",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
-
     _logger.debug("compile end");
-    return NetworkDescription(std::move(blob), std::move(networkMeta));
+
+    auto networkDescription = NetworkDescription(std::move(networkMeta));
+    return networkDescription;
 }
 
 template <typename TableExtension>
@@ -894,7 +952,7 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vect
                              network.data(),
                              nullptr};
 
-        auto result = _graphDdiTableExt->pfnCreate(_context, _deviceHandle, &desc, &graphHandle);
+        auto result = _graphDdiTableExt.pfnCreate(_context, _deviceHandle, &desc, &graphHandle);
         OV_ITT_TASK_NEXT(PARSE_BLOB, "_graphDdiTableExt");
 
         if (ZE_RESULT_SUCCESS != result) {
@@ -913,17 +971,6 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vect
     const auto networkMeta = getNetworkMeta(graphHandle);
     OV_ITT_TASK_NEXT(PARSE_BLOB, "NetworkDescription");
 
-    auto result = _graphDdiTableExt->pfnDestroy(graphHandle);
-
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnDestroy",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
-
     _logger.debug("parse end");
     return networkMeta;
 }
@@ -934,7 +981,7 @@ uint32_t LevelZeroCompilerInDriver<TableExtension>::getSupportedOpsetVersion() c
 
     ze_device_graph_properties_t graphProperties;
 
-    auto result = _graphDdiTableExt->pfnDeviceGetGraphProperties(_deviceHandle, &graphProperties);
+    auto result = _graphDdiTableExt.pfnDeviceGetGraphProperties(_deviceHandle, &graphProperties);
 
     if (ZE_RESULT_SUCCESS != result) {
         OPENVINO_THROW("L0 pfnDeviceGetGraphProperties",
@@ -1007,13 +1054,13 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
 
 template <typename TableExtension>
 template <typename T, std::enable_if_t<NotSupportArgumentMetadata(T), bool>>
-void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* graphDdiTableExt,
+void LevelZeroCompilerInDriver<TableExtension>::getMetadata(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                                                             ze_graph_handle_t graphHandle,
                                                             uint32_t index,
                                                             std::vector<IODescriptor>& inputs,
                                                             std::vector<IODescriptor>& outputs) const {
     ze_graph_argument_properties_3_t arg;
-    auto result = graphDdiTableExt->pfnGetArgumentProperties3(graphHandle, index, &arg);
+    auto result = graphDdiTableExt.pfnGetArgumentProperties3(graphHandle, index, &arg);
     if (ZE_RESULT_SUCCESS != result) {
         OPENVINO_THROW("L0 pfnGetArgumentProperties3",
                        " result: ",
@@ -1038,13 +1085,13 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* grap
 
 template <typename TableExtension>
 template <typename T, std::enable_if_t<!NotSupportArgumentMetadata(T), bool>>
-void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* graphDdiTableExt,
+void LevelZeroCompilerInDriver<TableExtension>::getMetadata(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                                                             ze_graph_handle_t graphHandle,
                                                             uint32_t index,
                                                             std::vector<IODescriptor>& inputs,
                                                             std::vector<IODescriptor>& outputs) const {
     ze_graph_argument_properties_3_t arg;
-    auto result = graphDdiTableExt->pfnGetArgumentProperties3(graphHandle, index, &arg);
+    auto result = graphDdiTableExt.pfnGetArgumentProperties3(graphHandle, index, &arg);
     if (ZE_RESULT_SUCCESS != result) {
         OPENVINO_THROW("L0 pfnGetArgumentProperties3",
                        " result: ",
@@ -1058,7 +1105,7 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* grap
 
     if (!isStateInputName(arg.name) && !isStateOutputName(arg.name) && !isShapeTensorName(arg.name)) {
         ze_graph_argument_metadata_t metadata;
-        result = graphDdiTableExt->pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
+        result = graphDdiTableExt.pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
         if (ZE_RESULT_SUCCESS != result) {
             OPENVINO_THROW("L0 pfnGraphGetArgumentMetadata",
                            " result: ",
@@ -1088,7 +1135,7 @@ template <typename TableExtension>
 NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::getNetworkMeta(ze_graph_handle_t graphHandle) const {
     ze_graph_properties_t graphProperties{};
 
-    auto result = _graphDdiTableExt->pfnGetProperties(graphHandle, &graphProperties);
+    auto result = _graphDdiTableExt.pfnGetProperties(graphHandle, &graphProperties);
 
     if (ZE_RESULT_SUCCESS != result) {
         OPENVINO_THROW("L0 pfnGetProperties",
@@ -1107,6 +1154,8 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::getNetworkMeta(ze_gra
     // TODO: support this information in CiD [track: E#33479]
     meta.numStreams = 1;
     meta.bindRelatedDescriptors();
+    // Store the graph handle as a void pointer, return the same graphHandle to backend for ZeroExecutor
+    meta.graphHandle = static_cast<void*>(graphHandle);
 
     return meta;
 }
@@ -1119,7 +1168,7 @@ std::string LevelZeroCompilerInDriver<TableExtension>::getLatestBuildError() con
     // Get log size
     uint32_t size = 0;
     // Null graph handle to get erro log
-    auto result = _graphDdiTableExt->pfnBuildLogGetString(nullptr, &size, nullptr);
+    auto result = _graphDdiTableExt.pfnBuildLogGetString(nullptr, &size, nullptr);
     if (ZE_RESULT_SUCCESS != result) {
         // The failure will not break normal execution, only warning here
         _logger.warning("getLatestBuildError Failed to get size of latest error log!");
@@ -1136,7 +1185,7 @@ std::string LevelZeroCompilerInDriver<TableExtension>::getLatestBuildError() con
     // Get log content
     std::string logContent{};
     logContent.resize(size);
-    result = _graphDdiTableExt->pfnBuildLogGetString(nullptr, &size, const_cast<char*>(logContent.data()));
+    result = _graphDdiTableExt.pfnBuildLogGetString(nullptr, &size, const_cast<char*>(logContent.data()));
     if (ZE_RESULT_SUCCESS != result) {
         // The failure will not break normal execution, only warning here
         _logger.warning("getLatestBuildError size of latest error log > 0, failed to get "

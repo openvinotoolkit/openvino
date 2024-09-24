@@ -57,6 +57,12 @@ KernelsData KVCacheUpdateKernelRef::GetKernelsData(const Params& p) const {
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
+
+    ScalarDescriptor is_prefill_stage;
+    is_prefill_stage.t = ScalarDescriptor::Types::UINT32;
+    is_prefill_stage.v.u32 = static_cast<uint32_t>(0);
+    kernel.params.scalars.push_back(is_prefill_stage);
 
     return {kd};
 }
@@ -90,7 +96,7 @@ bool KVCacheUpdateKernelRef::Validate(const Params& params) const {
         return false;
 
     const auto& kernel_params = dynamic_cast<const kv_cache_update_params&>(params);
-    if (kernel_params.inputs.size() != 5)
+    if (kernel_params.inputs.size() != 6)
         return false;
 
     if (kernel_params.outputs.size() != 2)
@@ -124,16 +130,15 @@ CommonDispatchData KVCacheUpdateKernelRef::SetDefault(const kv_cache_update_para
     const auto& key_cache = params.outputs[0];
     const auto& value_cache = params.outputs[1];
     if (!value_cache.is_dynamic() && !key_cache.is_dynamic()) {
-        bool is_prefill = params.inputs[0].Batch().v != params.inputs[2].Batch().v;
+        bool is_prefill = params.is_prefill;
         auto heads_number = static_cast<size_t>(params.conf.kv_heads_num);
 
         if (is_prefill) {
-            const auto& block_indices_input = params.inputs[3];
-            const auto blocks_number = block_indices_input.Batch().v;
+            const auto blocks_number = params.conf.paged_attention_aligned_seq_len / paged_attention_block_size;
 
             dispatch_data.gws = { blocks_number,
                                   heads_number,
-                                  subgroup_size};
+                                  subgroup_size };
             dispatch_data.lws = { 1, 1, subgroup_size };
         } else {
             const auto& key_input = params.inputs[0];
@@ -159,6 +164,19 @@ void KVCacheUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.kernels[0].params.workGroups.global = dispatch_data.gws;
         kd.kernels[0].params.workGroups.local = dispatch_data.lws;
         kd.kernels[0].skip_execution = false;
+
+        const auto indexes_dt = Datatype::INT32;
+        const auto target_seq_len_block_size = 16;
+        const auto target_seq_len = prim_params.conf.paged_attention_aligned_seq_len;
+        const auto indexes_buf_size = CeilDiv(target_seq_len, target_seq_len_block_size) * BytesPerElement(indexes_dt);
+
+        kd.internalBufferSizes.clear();
+        kd.internalBufferSizes.push_back(indexes_buf_size);
+        kd.internalBufferSizes.push_back(indexes_buf_size);
+        kd.internalBufferSizes.push_back(indexes_buf_size);
+        kd.internalBufferDataType = indexes_dt;
+
+        kd.kernels[0].params.scalars[0].v.s32 = static_cast<int32_t>(prim_params.is_prefill);
     };
 }
 

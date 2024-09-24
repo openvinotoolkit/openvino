@@ -105,17 +105,6 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
 protected:
     virtual kernel_arguments_data get_arguments(const typed_primitive_inst<PType>& instance, size_t stage) const = 0;
 
-    event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
-        if (events.size() == 1 && !is_output)
-            return events[0];
-
-        if (group && !is_output)
-            return stream.group_events(events);
-
-        return events.empty() ? stream.create_user_event(true)
-                              : stream.enqueue_marker(events, is_output);
-    }
-
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
         _kernels.clear();
         if (!_kernels_data.empty() && !_kernels_data[0].kernels.empty()) {

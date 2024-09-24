@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_Integrate_OV_with_your_application}
-
 Integrate OpenVINO™ with Your Application
 ===========================================
 

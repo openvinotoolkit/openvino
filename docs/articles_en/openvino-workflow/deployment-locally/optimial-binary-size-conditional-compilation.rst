@@ -1,5 +1,3 @@
-.. {#opevino_conditional_compilation_deploying_guide}
-
 OpenVINO Conditional Compilation for Optimal Binary Size
 ========================================================
 

@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Cosh_1}
-
 Cosh
 ====
 
 
 .. meta::
-  :description: Learn about Cosh-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Cosh-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Cosh-1*
@@ -17,7 +15,7 @@ Cosh
 **Detailed description**: *Cosh* performs element-wise hyperbolic cosine (cosh) operation on a given input tensor, based on the following mathematical formula:
 
 .. math::
-   
+
    a_{i} = cosh(a_{i})
 
 **Attributes**: *Cosh* operation has no attributes.
@@ -38,7 +36,7 @@ Cosh
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="Cosh">
        <input>
            <port id="0">
