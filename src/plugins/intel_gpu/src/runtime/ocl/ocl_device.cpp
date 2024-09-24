@@ -285,7 +285,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
         auto features = device.getInfo<CL_DEVICE_FEATURE_CAPABILITIES_INTEL>();
 
         info.supports_imad = info.supports_imad || (features & CL_DEVICE_FEATURE_FLAG_DP4A_INTEL);
-        info.supports_immad = info.supports_immad || (features & CL_DEVICE_FEATURE_FLAG_DPAS_INTEL);
+        info.supports_immad = true;//info.supports_immad || (features & CL_DEVICE_FEATURE_FLAG_DPAS_INTEL);
         if (info.dev_type == device_type::discrete_gpu ||
             info.gfx_ver.major > 12 || (info.gfx_ver.major == 12 && info.gfx_ver.minor >= 70)) {
             info.has_separate_cache = true;

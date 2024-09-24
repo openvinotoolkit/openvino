@@ -212,11 +212,6 @@ struct lstm_seq : public primitive_base<lstm_seq> {
         primitive_base<lstm_seq>::load(ib);
         params.load(ib);
     }
-
-protected:
-    std::vector<input_info> get_dependencies() const override {
-        return {};
-    }
 };
 
 } //namespace cldnn

@@ -36,6 +36,7 @@
 #include "broadcast_inst.h"
 #include "loop_inst.h"
 #include "dft_inst.h"
+#include "lstm_seq_inst.h"
 #include "to_string_utils.h"
 #include <vector>
 #include <memory>
@@ -966,6 +967,12 @@ static bool is_node_for_onednn(gemm_node const& node) {
     return true;
 }
 
+static bool is_node_for_onednn(lstm_seq_node const& node) {
+    std::vector<cldnn::activation_func> expected{cldnn::activation_func::logistic, cldnn::activation_func::hyperbolic_tan, \
+    cldnn::activation_func::hyperbolic_tan};
+    return node.activations() == expected;
+}
+
 // This function is needed to avoid performance regressions for the convolutions with byxf layout
 // Previously some topologies had scale operations which prevented byxf usage
 // Now instead of scale we have eltwise + fused_ops which might enable byxf convolution in unexpected cases
@@ -1330,6 +1337,8 @@ bool layout_optimizer::is_node_suitable_for_onednn(program_node& node) {
         return is_node_for_onednn(node.as<fully_connected>());
     } else if (node.is_type<gemm>()) {
         return is_node_for_onednn(node.as<gemm>());
+    } else if (node.is_type<lstm_seq>()) {
+        return is_node_for_onednn(node.as<lstm_seq>());
     }
 
     return false;
@@ -1339,6 +1348,9 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
     auto in_dt = node.get_input_layout(0).data_type;
     auto out_dt = node.get_output_layout(false).data_type;
 
+    if (node.is_type<lstm_seq>()) {
+        return true;
+    }
     // Generally, fp32 input does NOT use oneDNN
     if (in_dt == data_types::f32 &&
         (!node.is_type<fully_connected>() && !node.is_type<convolution>() && !node.is_type<reorder>()))
@@ -1432,7 +1444,7 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
 bool layout_optimizer::is_primitive_implemented_for_onednn(program_node& node) {
     if (node.is_type<fully_connected>() || node.is_type<gemm>() || node.is_type<pooling>() ||
         node.is_type<convolution>() || node.is_type<deconvolution>() ||
-        node.is_type<reduce>() || node.is_type<reorder>() || node.is_type<concatenation>()) {
+        node.is_type<reduce>() || node.is_type<reorder>() || node.is_type<concatenation>() || node.is_type<lstm_seq>()) {
         return true;
     }
 
@@ -1757,8 +1769,13 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         preferred_impl = impl_candidate;
     } else if (node.is_type<prior_box>()) {
         preferred_impl = impl_types::ocl;
+    } else if (node.is_type<lstm_seq>()) {
+        if (!_optimization_attributes.use_onednn_impls)
+            return impl_types::ocl;
+        if (!is_node_for_onednn(node.as<lstm_seq>()))
+            return impl_types::ocl;
+        preferred_impl = impl_types::onednn;
     }
-
     return preferred_impl;
 }
 
@@ -1907,6 +1924,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             node.as<dft>().get_primitive()->direction == dft_direction::forward) {
             node.set_preferred_input_fmt(0, format::get_default_format(node.get_input_layouts()[0].get_rank()));
         }
+    } else if (node.is_type<lstm_seq>()) {
+        expected = format::get_default_format(node.get_output_layout().get_rank());
     }
 
     if (allow_new_shape_infer && node.get_preferred_input_fmt() != format::any) {
@@ -2043,69 +2062,9 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             GPU_DEBUG_LOG << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(target_format) << " --> " << fmt_to_str(target_format)
                           << " For index : " << idx << std::endl;
         }
-        bool disable_permute_fuse_onednn_gemm = false;
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->disable_onednn_permute_fusion == 1)
-            disable_permute_fuse_onednn_gemm = true;
-        // Optimized out permute from permute-gemm pattern. i.e. permute -> gemm
-        if (node.is_type<gemm>() && !disable_permute_fuse_onednn_gemm && node.get_program().get_config().get_property(ov::intel_gpu::optimize_data)) {
-            // Only the formats below support permute opt out in gemm and permute pattern. For other formats, need to check the gemm performance.
-            for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
-                if (node.get_dependency(idx).is_type<permute>()) {
-                    auto& pnode = node.get_dependency(idx);
-                    if (pnode.has_fused_primitives()) {
-                        continue;
-                    }
-                    auto input_lay = pnode.get_dependency(0).get_output_layout();
-                    auto output_lay = pnode.get_output_layout();
-                    bool can_fuse_permute = input_lay.compatible(output_lay) ||
-                                            ((input_lay.is_dynamic() || output_lay.is_dynamic()) &&
-                                             format::is_default_format(input_lay.format) &&
-                                             format::is_default_format(output_lay.format) && pnode.get_users().size() == 1);
-                    const auto& permute_order = pnode.get_kernel_impl_params()->typed_desc<permute>()->permute_order;
-                    std::vector<size_t> order(std::begin(permute_order), std::end(permute_order));
-                    format fmt = format::bfyx;
-                    if (can_fuse_permute && gemm_inst::is_fusable_permute_input_order_onednn(order, fmt)) {
-                        pnode.init_preferred_fmt(1, 1);
-                        pnode.set_preferred_output_fmt(0, format(static_cast<format::type>(fmt)));
-                        pnode.can_be_optimized(true);
-                        node.set_preferred_input_fmt(idx, format(static_cast<format::type>(fmt)));
-                        GPU_DEBUG_TRACE_DETAIL << pnode.id() << " is fused to onednn gemm user : " << node.id() << std::endl;
-                        GPU_DEBUG_TRACE_DETAIL << "    permute order : ";
-                        GPU_DEBUG_CODE(for (const auto& o : permute_order) GPU_DEBUG_TRACE_DETAIL << o << " "; GPU_DEBUG_TRACE_DETAIL << std::endl;)
-                    }
-               }
-            }
-            // gemm -> permute
-            if (node.get_users().size() == 1 && node.get_users().front()->is_type<permute>() && !node.has_fused_primitives()) {
-                auto& pnode = node.get_users().front()->as<permute>();
-                if (!pnode.has_fused_primitives()) {
-                    auto input_lay = pnode.get_dependency(0).get_output_layout();
-                    auto output_lay = pnode.get_output_layout();
-                    bool can_fuse_permute = input_lay.compatible(output_lay) ||
-                                            ((input_lay.is_dynamic() || output_lay.is_dynamic()) &&
-                                             format::is_default_format(input_lay.format) &&
-                                             format::is_default_format(output_lay.format) && pnode.get_users().size() == 1);
-                    format fmt = format::bfyx;
-                    auto impl_param = pnode.get_kernel_impl_params();
-                    auto desc = impl_param->typed_desc<permute>();
-                    auto permute_order = desc->permute_order;
-                    std::vector<size_t> order(std::begin(permute_order), std::end(permute_order));
-                    if (can_fuse_permute && gemm_inst::is_fusable_permute_output_order_onednn(order, fmt)) {
-                        node.set_preferred_output_fmt(0, format(static_cast<format::type>(fmt)));
-                        pnode.init_preferred_fmt(1, 1);
-                        pnode.set_preferred_input_fmt(0, format(static_cast<format::type>(fmt)));
-                        // tmp :: to fix
-                        format out_fmt = format::bfyx;
-                        pnode.set_preferred_output_fmt(0, format(static_cast<format::type>(out_fmt)));
-                        pnode.can_be_optimized(true);
-                        GPU_DEBUG_TRACE_DETAIL << pnode.id() << " is fused to onednn gemm pred : " << node.id() << std::endl;
-                        GPU_DEBUG_TRACE_DETAIL << "    permute order : ";
-                        GPU_DEBUG_CODE(for (const auto& o : permute_order) GPU_DEBUG_TRACE_DETAIL << o << " "; GPU_DEBUG_TRACE_DETAIL << std::endl;)
-                    }
-                }
-            }
-        }
+    } else if (node.is_type<lstm_seq>()) {
+        node.set_preferred_input_fmt(0, format::bfxy);
+        node.set_preferred_input_fmt(1, format::ybfx);
     }
 }
 #endif  // ENABLE_ONEDNN_FOR_GPU

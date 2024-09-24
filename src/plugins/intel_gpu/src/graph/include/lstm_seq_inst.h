@@ -25,6 +25,9 @@ public:
         return clip_val;
     }
     int32_t direction() const { return get_primitive()->params.direction; }
+    std::vector<activation_func> activations() const {
+        return get_primitive()->params.activations;
+    }
 };
 
 using lstm_seq_node = typed_program_node<lstm_seq>;

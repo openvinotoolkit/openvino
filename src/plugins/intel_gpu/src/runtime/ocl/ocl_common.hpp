@@ -48,6 +48,7 @@ inline bool is_device_available(const device_info& info) {
 
 inline void rethrow_or_exit(std::string message, cl_int error, const device_info& info) {
     if (error != CL_OUT_OF_RESOURCES) {
+        std::cout << "problem nr" << error << std::endl;
         OPENVINO_THROW(message);
     }
     // For CL_OUT_OF_RESOURCES exception there are 2 possible cases:

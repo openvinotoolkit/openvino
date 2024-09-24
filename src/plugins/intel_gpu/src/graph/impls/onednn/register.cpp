@@ -19,7 +19,7 @@ void register_implementations() {
     REGISTER_ONEDNN_IMPL(pooling);
     REGISTER_ONEDNN_IMPL(reduction);
     REGISTER_ONEDNN_IMPL(reorder);
-    REGISTER_ONEDNN_IMPL(fully_connected);}
-
+    REGISTER_ONEDNN_IMPL(fully_connected);
+    REGISTER_ONEDNN_IMPL(lstm_seq);}
 }  // namespace onednn
 }  // namespace cldnn
