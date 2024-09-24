@@ -133,10 +133,17 @@ endif()
 # image decoders
 #
 
-add_subdirectory(thirdparty/jpeg EXCLUDE_FROM_ALL)
-add_subdirectory(thirdparty/png EXCLUDE_FROM_ALL)
-add_subdirectory(thirdparty/gif EXCLUDE_FROM_ALL)
+if(ENABLE_JPEG)
+    add_subdirectory(thirdparty/jpeg EXCLUDE_FROM_ALL)
+endif()
 
+if(ENABLE_PNG)
+    add_subdirectory(thirdparty/png EXCLUDE_FROM_ALL)
+endif()
+
+if(ENABLE_GIF)
+    add_subdirectory(thirdparty/gif EXCLUDE_FROM_ALL)
+endif()
 
 #
 # zlib

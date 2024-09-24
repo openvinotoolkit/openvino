@@ -32,14 +32,19 @@ function(ov_build_jpeg)
     add_library(openvino::jpeg ALIAS jpeg-static)
 endfunction()
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/developer_package/download/extract.cmake")
 
 set(jpeg_hdrs
     libjpeg/jpeglib.h
     libjpeg/jpegcomp.h
     libjpeg/jmorecfg.h)
 
-extract(${CMAKE_CURRENT_SOURCE_DIR}/libjpeg.tgz ${CMAKE_CURRENT_SOURCE_DIR} TRUE "*" result_var)
+if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/libjpeg)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/developer_package/download/extract.cmake")
+    extract(${CMAKE_CURRENT_SOURCE_DIR}/libjpeg.tgz ${CMAKE_CURRENT_SOURCE_DIR} TRUE "*" result_var)
+else()
+    message(STATUS "${CMAKE_CURRENT_SOURCE_DIR}/libjpeg exists, using it to build libjpeg")
+    set(result_var 1)
+endif()
 
 if(result_var STREQUAL  "1")
     ov_build_jpeg()

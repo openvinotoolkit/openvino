@@ -45,8 +45,13 @@ set(gif_hdrs
     giflib-5.1.9/gif_lib.h 
     giflib-5.1.9/gif_lib_private.h)
 
-
-extract(${CMAKE_CURRENT_SOURCE_DIR}/giflib-5.1.9.tar.gz ${CMAKE_CURRENT_SOURCE_DIR} TRUE "*" result_var)
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/giflib-5.1.9")
+    include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/developer_package/download/extract.cmake")
+    extract(${CMAKE_CURRENT_SOURCE_DIR}/giflib-5.1.9.tar.gz ${CMAKE_CURRENT_SOURCE_DIR} TRUE "*" result_var)
+else()
+    message(STATUS "${CMAKE_CURRENT_SOURCE_DIR}/giflib-5.1.9 exists, using it to build libgif")
+    set(result_var 1)
+endif()
 
 if(result_var STREQUAL  "1")
     add_library(${TARGET_NAME} STATIC ${gif_srcs} ${gif_hdrs})
@@ -56,10 +61,7 @@ if(result_var STREQUAL  "1")
     add_library(openvino::gif ALIAS ${TARGET_NAME})
     ov_developer_package_export_targets(TARGET openvino::gif)
 
-    # ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
-
     foreach(comp IN ITEMS ${gif_hdrs})
-        message(STATUS "COPY file ${comp} to ${CMAKE_CURRENT_BINARY_DIR}/include")
         file(COPY ${comp} DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/include")
     endforeach()
 

@@ -33,9 +33,13 @@ set(png_hdrs
     libpng-1.6.37/pngconf.h
     libpng-1.6.37/png.h)
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/developer_package/download/extract.cmake")
-
-extract(${CMAKE_CURRENT_SOURCE_DIR}/libpng-1.6.37.tar.gz ${CMAKE_CURRENT_SOURCE_DIR} TRUE "*" result_var)
+if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/libpng-1.6.37)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/developer_package/download/extract.cmake")
+    extract(${CMAKE_CURRENT_SOURCE_DIR}/libpng-1.6.37.tar.gz ${CMAKE_CURRENT_SOURCE_DIR} TRUE "*" result_var)
+else()
+    message(STATUS "${CMAKE_CURRENT_SOURCE_DIR}/libpng-1.6.37 exists, using it to build libpng")
+    set(result_var 1)
+endif()
 
 if(result_var STREQUAL  "1")
     ov_build_png()
