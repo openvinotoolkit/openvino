@@ -4,19 +4,12 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "transformations_visibility.hpp"
+#include <openvino/pass/graph_rewrite.hpp>
 
 namespace ov {
-namespace pass {
-
-class TRANSFORMATIONS_API MatmulGatherDecomposition;
-
-}  // namespace pass
-}  // namespace ov
+namespace intel_cpu {
 
 /**
- * @ingroup ov_transformation_common_api
  * @brief MatmulGatherDecomposition transformation matches following graph:
  *
  *         +----------+
@@ -63,7 +56,8 @@ class TRANSFORMATIONS_API MatmulGatherDecomposition;
  *   |Transpose|  |Transpose|  |Transpose|
  *   +---------+  +---------+  +---------+
  */
-class ov::pass::MatmulGatherDecomposition : public ov::pass::MatcherPass {
+
+class MatmulGatherDecomposition : public pass::MatcherPass {
 public:
     OPENVINO_RTTI("MatmulGatherDecomposition", "0");
     MatmulGatherDecomposition();
@@ -76,3 +70,6 @@ public:
 private:
     const size_t decompose_num = 3;
 };
+
+}  // namespace intel_cpu
+}  // namespace ov

@@ -33,7 +33,6 @@
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
-#include "transformations/common_optimizations/matmul_split_decomposition.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.hpp"
@@ -134,6 +133,7 @@
 #include "transformations/cpu_opset/common/pass/decompose_rms_norm.hpp"
 #include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
+#include "transformations/cpu_opset/common/pass/matmul_split_decomposition.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
@@ -357,7 +357,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     manager.set_per_pass_validation(false);
 
     // Decomposition
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::MatmulGatherDecomposition)
+    CPU_REGISTER_PASS_COMMON(manager, ov::intel_cpu::MatmulGatherDecomposition)
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
 
     if (useLpt)

@@ -2,29 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/matmul_split_decomposition.hpp"
+#include "matmul_split_decomposition.hpp"
+
+#include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/transpose.hpp"
-#include "openvino/op/fake_quantize.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ov;
+using namespace ov::pass;
 using namespace ov::pass::pattern;
 
-bool pass::MatmulGatherDecomposition::split_weights(const Output<Node>& weights,
-                                                    OutputVector& new_weights,
-                                                    Output<Node>* bias,
-                                                    OutputVector& new_bias,
-                                                    const bool transpose_b) {
+bool intel_cpu::MatmulGatherDecomposition::split_weights(const Output<Node>& weights,
+                                                         OutputVector& new_weights,
+                                                         Output<Node>* bias,
+                                                         OutputVector& new_bias,
+                                                         const bool transpose_b) {
     // weights is static
     if (weights.get_partial_shape().size() != 2u) {
         return false;
@@ -55,7 +58,7 @@ bool pass::MatmulGatherDecomposition::split_weights(const Output<Node>& weights,
     return true;
 }
 
-pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
+intel_cpu::MatmulGatherDecomposition::MatmulGatherDecomposition() {
     MATCHER_SCOPE(MatmulGatherDecomposition);
     auto input_pattern = any_input();
     auto matmul_pattern = wrap_type<op::v0::MatMul>({input_pattern, any_input(pattern::has_static_shape())},
