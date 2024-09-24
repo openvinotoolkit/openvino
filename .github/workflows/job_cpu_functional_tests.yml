@@ -22,7 +22,7 @@ permissions: read-all
 jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
-    timeout-minutes: 30
+    timeout-minutes: 100
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
@@ -101,8 +101,18 @@ jobs:
           # Needed as ze_loader.so is under INSTALL_TEST_DIR
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
 
-          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
-        timeout-minutes: 25
+          
+          ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpenVINOFunc.xml
+          # python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
+        timeout-minutes: 100
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-cpp
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'warn'
 
       - name: Save tests execution time
         uses: actions/cache/save@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
