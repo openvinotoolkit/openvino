@@ -157,8 +157,7 @@ public:
     }
 
     // version 1.7
-    ze_result_t ZE_APICALL pfnGetNativeBinary2(ze_graph_handle_t hGraph,
-                                                        size_t* pSize, uint8_t** pGraphNativeBinary) {
+    ze_result_t ZE_APICALL pfnGetNativeBinary2(ze_graph_handle_t hGraph, size_t* pSize, uint8_t** pGraphNativeBinary) {
         throwWhenUnsupported("pfnGetNativeBinary2", ZE_GRAPH_EXT_VERSION_1_7);
         return _impl->pfnGetNativeBinary2(hGraph, pSize, pGraphNativeBinary);
     }
