@@ -21,9 +21,6 @@ permissions: read-all
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
-  TBB_URL: 'https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/oneapi-tbb-2021.2.5-lin-trim.tgz'
-  TBB_PATH: /mount/tbb
-  TBB_NAME: 'oneapi-tbb-2021.2.5-lin-trim.tgz'
 
 jobs:
   Smart_CI:
@@ -54,9 +51,6 @@ jobs:
       - name: Show affected components
         run: |
           echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
-          echo "${{env.TBB_NAME}}"
-          echo "${{env.TBB_URL}}"
-          echo "${{env.TBB_PATH}}"
         shell: bash
 
   Docker:
@@ -97,7 +91,7 @@ jobs:
       build-contrib: true
       build-debian-packages: true
       build-rpm-packages: false
-      tbb-path: '{"url": "$TBB_URL", "local": "$TBB_PATH", "name": "$TBB_NAME"}'
+      tbb-path: '{"url": "https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/oneapi-tbb-2021.2.5-lin-trim.tgz", "local": "/mount/tbb", "name": "oneapi-tbb-2021.2.5-lin-trim.tgz"}'
       cmake-options: |- 
             -G "Ninja Multi-Config" \
             -DENABLE_CPPLINT=OFF \
@@ -108,7 +102,7 @@ jobs:
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
-            -DTBBROOT=$TBB_PATH/tbb
+            -DTBBROOT=/mount/tbb/tbb
 
   Samples:
     needs: [ Docker, Build, Smart_CI ]
