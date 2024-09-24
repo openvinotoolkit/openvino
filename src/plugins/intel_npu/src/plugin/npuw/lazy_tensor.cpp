@@ -22,7 +22,7 @@ std::size_t LazyTensor::Hash::operator()(const LazyTensor& lt) const {
             }
         } else if (tr.first == TransformType::CONCAT) {
             // concat tag can be different, no need to hash it
-            const auto& axis = std::get<1>(std::get<ConcatMeta>(tr.second));
+            const auto& axis = std::get<ConcatMeta>(tr.second).second;
             seed ^= std::hash<std::size_t>()(axis) + 0x9e3779b9;
         }
     }
@@ -57,8 +57,8 @@ bool LazyTensor::operator==(const LazyTensor& other) const {
             }
         } else if (m_transforms[i].first == TransformType::CONCAT) {
             // concat tag can be different, no need to compare it
-            if (std::get<1>(std::get<ConcatMeta>(m_transforms[i].second)) !=
-                std::get<1>(std::get<ConcatMeta>(other.m_transforms[i].second))) {
+            if (std::get<ConcatMeta>(m_transforms[i].second).second !=
+                std::get<ConcatMeta>(other.m_transforms[i].second).second) {
                 return false;
             }
         }
@@ -102,7 +102,7 @@ ov::Tensor LazyTensor::eval() const {
             tnew = ov::npuw::util::to_f16(transformed);
             tnew.copy_to(transformed);
         case TransformType::CONCAT:
-            tnew = ov::npuw::util::concat(get_to_concat(), std::get<1>(std::get<ConcatMeta>(tr.second)));
+            tnew = ov::npuw::util::concat(get_to_concat(), std::get<ConcatMeta>(tr.second).second);
             tnew.copy_to(transformed);
         default:
             NPUW_ASSERT(false);
@@ -136,7 +136,7 @@ std::vector<ov::Tensor> LazyTensor::get_to_concat() const {
     std::vector<ov::Tensor> to_concat;
     for (auto& tr : m_transforms) {
         if (tr.first == TransformType::CONCAT) {
-            for (const auto& lt : std::get<0>(std::get<ConcatMeta>(tr.second))) {
+            for (const auto& lt : std::get<ConcatMeta>(tr.second).first) {
                 to_concat.push_back(lt.get_orig_tensor());
             }
         }
@@ -146,13 +146,11 @@ std::vector<ov::Tensor> LazyTensor::get_to_concat() const {
 
 std::vector<LazyTensor> LazyTensor::get_lt_to_concat() const {
     NPUW_ASSERT(has_concat());
-    std::vector<LazyTensor> to_concat;
     for (auto& tr : m_transforms) {
         if (tr.first == TransformType::CONCAT) {
-            for (const auto& lt : std::get<0>(std::get<ConcatMeta>(tr.second))) {
-                to_concat.push_back(lt);
-            }
+            return std::get<ConcatMeta>(tr.second).first;
         }
     }
-    return to_concat;
+    NPUW_ASSERT(false);
+    return {};
 }

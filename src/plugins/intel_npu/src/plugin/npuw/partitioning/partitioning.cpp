@@ -4,8 +4,6 @@
 
 #include "partitioning.hpp"
 
-#include <atomic>
-
 #include "../logging.hpp"
 #include "../util.hpp"
 #include "intel_npu/al/config/npuw.hpp"
@@ -1588,7 +1586,6 @@ void Partitioner::optimize(const std::string& func_name) {
 
         // Mark LazyTensors to be concatenated later
         // Note: closures are properly processed later as well
-        std::atomic<std::size_t> concat_id = 0;
         ov::ParameterVector new_params;
         std::vector<ov::npuw::patterns::opt::Context::PPtr> to_remove;
         std::set<std::size_t> to_remove_idx;
@@ -1606,7 +1603,6 @@ void Partitioner::optimize(const std::string& func_name) {
             }
             ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
-                std::size_t _concat_id = concat_id;
                 std::vector<LazyTensor> to_concat;
                 // Fill tensor vector
                 for (auto&& cidx : to_concat_idx) {
@@ -1616,16 +1612,12 @@ void Partitioner::optimize(const std::string& func_name) {
                 for (auto&& cidx : to_concat_idx) {
                     // FIXME: Assuming here concat goes first and other transformations later.
                     //        This allows to store ov::Tensor and ignore their potential history of transformations
-                    funcall._transformations[cidx].update(
-                        TransformType::CONCAT,
-                        std::make_tuple(to_concat, axis, func_name + std::to_string(_concat_id)));
+                    funcall._transformations[cidx].update(TransformType::CONCAT, std::make_pair(to_concat, axis));
                 }
                 // Pick the first (could be any) LazyTensor and set as new future-concatenated tensor
                 if (!to_concat.empty()) {
                     funcall._transformations.push_back(to_concat.front());
                 }
-
-                ++concat_id;
             });
         }
         f._model->add_parameters(new_params);
