@@ -547,6 +547,10 @@ void ZeroInferRequest::infer_async() {
     size_t inputIndex = 0;
     for (const auto& userTensor : _userInputTensors) {
         const IODescriptor inputDescriptor = _metadata.inputs.at(inputIndex);
+
+        OPENVINO_ASSERT(!inputDescriptor.isInitInputWeights && !inputDescriptor.isInitOutputWeights,
+                        "This path should not be used for running inferences for the \"init\" model");
+
         if (inputDescriptor.isShapeTensor) {
             OPENVINO_ASSERT(inputDescriptor.relatedDescriptorIndex.has_value(),
                             "The link between the dynamic tensor and its shape tensor is missing, entry name: ",
@@ -605,6 +609,11 @@ void ZeroInferRequest::infer_async() {
             }
 
             ++inputIndex;
+            continue;
+        }
+
+        if (inputDescriptor.isMainInputWeights) {
+            // These values were set while constructing the "CompiledModel" object
             continue;
         }
 

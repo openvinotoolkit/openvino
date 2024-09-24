@@ -62,9 +62,15 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     try {
         _logger.debug("performing compile and expecting a network description");
 
-        _networkPtr = !config.get<SEPARATE_WEIGHTS>()
-                          ? std::make_shared<const NetworkDescription>(_compiler->compile(model, config))
-                          : _compiler->compileWS(model, config)[1];
+        if (!config.get<SEPARATE_WEIGHTS>()) {
+            _networkPtr = std::make_shared<const NetworkDescription>(_compiler->compile(model, config));
+        } else {
+            const std::vector<std::shared_ptr<NetworkDescription>> initMainNetworkDescriptions =
+                _compiler->compileWS(model, config);
+
+            const std::shared_ptr<NetworkDescription> initNetworkDescription = initMainNetworkDescriptions[0];
+            const std::shared_ptr<NetworkDescription> mainNetworkDescription = initMainNetworkDescriptions[1];
+        }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
