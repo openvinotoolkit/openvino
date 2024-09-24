@@ -48,6 +48,10 @@ std::shared_ptr<Node> BufferExpression::get_inplace_node() const {
     return ov::as_type_ptr<op::Buffer>(get_node())->get_inplace_from();
 }
 
+void BufferExpression::set_inplace_from(std::shared_ptr<Node> inplace_from) {
+    ov::as_type_ptr<op::Buffer>(get_node())->set_inplace_from(inplace_from);
+}
+
 namespace {
 std::vector<size_t> get_parent_inner_loops(const std::vector<size_t>& parent_loops, const std::vector<size_t>& current_loops) {
     const auto common_rank = std::min(parent_loops.size(), current_loops.size());
