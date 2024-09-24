@@ -227,6 +227,7 @@ public:
                                                                     const Config& config) const = 0;
 
     // Driver compiler can use this to release graphHandle, if we do not have executor
+    // Refactoring this part CVS-153081
     virtual void release([[maybe_unused]] const NetworkDescription& networkDescription){};
 
     virtual CompiledNetwork getCompiledNetwork(const NetworkDescription& networkDescription) {

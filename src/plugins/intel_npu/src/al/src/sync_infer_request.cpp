@@ -19,12 +19,13 @@ constexpr size_t BATCH_AXIS = 0;
 
 namespace intel_npu {
 
-SyncInferRequest::SyncInferRequest(std::shared_ptr<const ICompiledModel> compiledModel)
-    : _compiledModel(compiledModel),
-      _metadata(compiledModel->get_network_metadata()),
-      _userInputTensors(_metadata.inputs.size(), nullptr),
-      _userOutputTensors(_metadata.outputs.size(), nullptr) {
+SyncInferRequest::SyncInferRequest(std::shared_ptr<const ICompiledModel> compiledModel) {
+    _metadata = compiledModel->get_network_metadata();
+    _compiledModel = std::move(compiledModel);
     OPENVINO_ASSERT(_compiledModel);
+
+    _userInputTensors.resize(_metadata.inputs.size());
+    _userOutputTensors.resize(_metadata.outputs.size());
 
     if (get_outputs().empty()) {
         OPENVINO_THROW("Inference request creation: no output found for network " + _metadata.name);

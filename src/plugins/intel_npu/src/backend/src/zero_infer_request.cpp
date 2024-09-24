@@ -143,20 +143,21 @@ ZeroInferRequest::ZeroInferRequest(std::shared_ptr<ZeroInitStructsHolder> initSt
                                    std::shared_ptr<const ICompiledModel> compiledModel,
                                    const Config& config)
     : SyncInferRequest(compiledModel),
-      _initStructs(initStructs),
-      _compiledModel(compiledModel),
-      _executor(static_cast<const ZeroExecutor&>(_compiledModel->get_executor())),
+      _initStructs(std::move(initStructs)),
+      _compiledModel(std::move(compiledModel)),
+      _executor(static_cast<ZeroExecutor*>(&_compiledModel->get_executor())),
       _config(config),
       _logger("ZeroInferRequest", config.get<LOG_LEVEL>()),
       _levelZeroInputTensors(_metadata.inputs.size(), nullptr),
       _levelZeroOutputTensors(_metadata.outputs.size(), nullptr),
       _inputTensorsData(_metadata.inputs.size(), std::nullopt),
       _outputTensorsData(_metadata.outputs.size(), std::nullopt),
-      _profilingPool(_executor.graph(), zeroProfiling::POOL_SIZE, _initStructs->getProfilingDdiTable()),
+      _profilingPool(_executor->graph(), zeroProfiling::POOL_SIZE, _initStructs->getProfilingDdiTable()),
       _profilingQuery(0, _initStructs->getDevice(), _initStructs->getProfilingDdiTable()) {
     _logger.debug("ZeroInferRequest::ZeroInferRequest - SyncInferRequest");
-    const std::vector<ZeroExecutor::ArgumentDescriptor>& executorInputDescriptors = _executor.get_input_descriptors();
-    const std::vector<ZeroExecutor::ArgumentDescriptor>& executorOutputDescriptors = _executor.get_output_descriptors();
+    const std::vector<ZeroExecutor::ArgumentDescriptor>& executorInputDescriptors = _executor->get_input_descriptors();
+    const std::vector<ZeroExecutor::ArgumentDescriptor>& executorOutputDescriptors =
+        _executor->get_output_descriptors();
 
     auto proftype = config.get<PROFILING_TYPE>();
     if (proftype == ov::intel_npu::ProfilingType::INFER) {
@@ -254,7 +255,7 @@ void ZeroInferRequest::create_pipeline() {
     // Construct pipeline
 
     _pipeline = std::make_unique<Pipeline>(_config,
-                                           _executor,
+                                           *_executor,
                                            *_initStructs,
                                            _profilingPool,
                                            _profilingQuery,
@@ -327,8 +328,8 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor> tensor
 
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "updateCommandList");
             _pipeline->updateCommandList(*tensorsData.at(index),
-                                         isInput ? _executor.get_input_descriptors().at(index).idx
-                                                 : _executor.get_output_descriptors().at(index).idx);
+                                         isInput ? _executor->get_input_descriptors().at(index).idx
+                                                 : _executor->get_output_descriptors().at(index).idx);
         }
     }
 }
@@ -360,8 +361,8 @@ void ZeroInferRequest::set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTe
 
         OV_ITT_TASK_NEXT(ZERO_SET_REMOTE_TENSOR, "updateCommandList");
         _pipeline->updateCommandList(*tensorsData.at(index),
-                                     isInput ? _executor.get_input_descriptors().at(index).idx
-                                             : _executor.get_output_descriptors().at(index).idx);
+                                     isInput ? _executor->get_input_descriptors().at(index).idx
+                                             : _executor->get_output_descriptors().at(index).idx);
     }
 }
 
@@ -436,14 +437,14 @@ void ZeroInferRequest::infer_async() {
     _logger.debug("InferRequest::infer_async started");
     OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
 
-    _executor.mutexLock();
+    _executor->mutexLock();
     if (!_pipelineIsCreated) {
         OV_ITT_TASK_NEXT(ZERO_INFER, "create_pipeline");
         create_pipeline();
 
         _pipelineIsCreated = true;
     }
-    _executor.mutexUnlock();
+    _executor->mutexUnlock();
 
     size_t inputIndex = 0;
     for (const std::shared_ptr<ov::ITensor>& userTensor : _userInputTensors) {

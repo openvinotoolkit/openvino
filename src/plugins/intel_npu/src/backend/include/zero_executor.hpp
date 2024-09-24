@@ -36,7 +36,7 @@ public:
     };
 
     void setArgumentValue(uint32_t argi_, const void* argv_) const;
-    void setWorkloadType(const ov::WorkloadType workloadType) const override;
+    void setWorkloadType(ov::WorkloadType workloadType) const override;
     void mutexLock() const;
     void mutexUnlock() const;
     inline ze_graph_handle_t graph() const {

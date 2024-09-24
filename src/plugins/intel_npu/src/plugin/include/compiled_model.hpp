@@ -28,7 +28,7 @@ public:
      * "compiler" parameter inside the newly created "CompiledModel".
      * @param config Custom configuration object
      */
-    CompiledModel(const std::shared_ptr<const ov::Model>& model,
+    CompiledModel(std::shared_ptr<const ov::Model> model,
                   std::shared_ptr<const ov::IPlugin> plugin,
                   std::shared_ptr<IDevice> device,
                   ov::SoPtr<ICompiler> compiler,
@@ -45,7 +45,7 @@ public:
      * @param compiler If set, the module will be stored inside the newly created "CompiledModel"
      * @param config Custom configuration object
      */
-    CompiledModel(const std::shared_ptr<const ov::Model>& model,
+    CompiledModel(std::shared_ptr<const ov::Model> model,
                   std::shared_ptr<const ov::IPlugin> plugin,
                   std::shared_ptr<const NetworkDescription> networkDescription,
                   std::shared_ptr<IDevice> device,
@@ -81,7 +81,7 @@ public:
 
     const ICompiler& get_compiler() const override;
 
-    const IExecutor& get_executor() const override;
+    IExecutor& get_executor() const override;
 
 private:
     void initialize_properties();
@@ -91,10 +91,10 @@ private:
     void create_executor();
 
     std::shared_ptr<const NetworkDescription> _networkPtr;
-    const std::shared_ptr<const ov::Model> _model;
+    std::shared_ptr<const ov::Model> _model;
     Config _config;
     Logger _logger;
-    const std::shared_ptr<IDevice> _device;
+    std::shared_ptr<IDevice> _device;
     mutable std::shared_ptr<IExecutor> _executorPtr;
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor;
 

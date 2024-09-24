@@ -12,7 +12,7 @@ class IExecutor {
 public:
     virtual ~IExecutor() = default;
 
-    virtual void setWorkloadType(const ov::WorkloadType workloadType) const = 0;
+    virtual void setWorkloadType(ov::WorkloadType workloadType) const = 0;
 };
 
 }  // namespace intel_npu

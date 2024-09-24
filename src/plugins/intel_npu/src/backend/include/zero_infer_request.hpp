@@ -76,7 +76,7 @@ private:
 
     std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     std::shared_ptr<const ICompiledModel> _compiledModel;
-    const ZeroExecutor& _executor;
+    ZeroExecutor* _executor;
     const Config _config;
     Logger _logger;
 

@@ -16,14 +16,14 @@
 namespace intel_npu {
 
 Pipeline::Pipeline(const Config& config,
-                   const ZeroExecutor& executor,
-                   const ZeroInitStructsHolder& initStructs,
+                   ZeroExecutor& executor,
+                   ZeroInitStructsHolder& initStructs,
                    zeroProfiling::ProfilingPool& profiling_pool,
                    zeroProfiling::ProfilingQuery& profiling_query,
                    std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
                    const std::vector<std::optional<TensorData>>& inputTensorsData,
                    const std::vector<std::optional<TensorData>>& outputTensorsData,
-                   const size_t numberOfCommandLists)
+                   size_t numberOfCommandLists)
     : _config(config),
       _command_queue(*executor.getCommandQueue()),
       _event_pool{initStructs.getDevice(),

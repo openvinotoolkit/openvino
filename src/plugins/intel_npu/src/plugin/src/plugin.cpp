@@ -762,7 +762,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         auto meta = compiler->parse(blob, localConfig);
         meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
 
-        const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(meta.inputs, meta.outputs);
+        auto modelDummy = create_dummy_model(meta.inputs, meta.outputs);
 
         auto networkDescription = std::make_shared<const NetworkDescription>(std::move(blob), std::move(meta));
 

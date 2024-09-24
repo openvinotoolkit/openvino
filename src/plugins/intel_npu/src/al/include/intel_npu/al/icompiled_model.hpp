@@ -25,7 +25,7 @@ public:
     // Compiler is used for post-processing profiling data when using PERF_COUNT property
     virtual const ICompiler& get_compiler() const = 0;
 
-    virtual const IExecutor& get_executor() const = 0;
+    virtual IExecutor& get_executor() const = 0;
 
     const NetworkMetadata& get_network_metadata() const {
         return get_network_description().metadata;

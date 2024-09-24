@@ -15,7 +15,7 @@
 using namespace intel_npu;
 
 ZeroDevice::ZeroDevice(std::shared_ptr<ZeroInitStructsHolder> initStructs)
-    : _initStructs(initStructs),
+    : _initStructs(std::move(initStructs)),
       _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
       log("ZeroDevice", Logger::global().level()) {
     log.debug("ZeroDevice::ZeroDevice init");
@@ -168,7 +168,7 @@ ov::device::Type ZeroDevice::getDeviceType() const {
 
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(std::shared_ptr<const ICompiledModel> compiledModel,
                                                                  const Config& config) {
-    return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, config);
+    return std::make_shared<ZeroInferRequest>(_initStructs, std::move(compiledModel), config);
 }
 
 ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,
@@ -179,12 +179,12 @@ ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::
                                                             ov::intel_npu::MemType mem_type,
                                                             void* mem) {
     return {std::make_shared<
-        ZeroRemoteTensor>(context, _initStructs, element_type, shape, config, tensor_type, mem_type, mem)};
+        ZeroRemoteTensor>(std::move(context), _initStructs, element_type, shape, config, tensor_type, mem_type, mem)};
 };
 
 ov::SoPtr<ov::ITensor> ZeroDevice::createHostTensor(std::shared_ptr<ov::IRemoteContext> context,
                                                     const ov::element::Type& element_type,
                                                     const ov::Shape& shape,
                                                     const Config& config) {
-    return {std::make_shared<ZeroHostTensor>(context, _initStructs, element_type, shape, config)};
+    return {std::make_shared<ZeroHostTensor>(std::move(context), _initStructs, element_type, shape, config)};
 };

@@ -27,7 +27,7 @@ ZeroExecutor::ZeroExecutor(std::shared_ptr<const ZeroInitStructsHolder> initStru
                            const uint32_t& group_ordinal)
     : _config(config),
       _logger("Graph", _config.get<LOG_LEVEL>()),
-      _initStructs(initStructs),
+      _initStructs(std::move(initStructs)),
       _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
       _group_ordinal(group_ordinal),
       _command_queues{std::make_shared<CommandQueue>(_initStructs->getDevice(),
@@ -112,7 +112,7 @@ ZeroExecutor::ZeroExecutor(std::shared_ptr<const ZeroInitStructsHolder> initStru
     }
 }
 
-void ZeroExecutor::setWorkloadType(const ov::WorkloadType workloadType) const {
+void ZeroExecutor::setWorkloadType(ov::WorkloadType workloadType) const {
     ze_command_queue_workload_type_t zeWorkloadType;
     switch (workloadType) {
     case ov::WorkloadType::DEFAULT:

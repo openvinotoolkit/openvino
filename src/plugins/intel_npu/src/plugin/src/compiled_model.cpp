@@ -41,24 +41,24 @@ namespace intel_npu {
 
 using intel_npu::envVarStrToBool;
 
-CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
+CompiledModel::CompiledModel(std::shared_ptr<const ov::Model> model,
                              std::shared_ptr<const ov::IPlugin> plugin,
                              std::shared_ptr<IDevice> device,
                              ov::SoPtr<ICompiler> compiler,
                              const bool profiling,
                              const Config& config)
-    : ICompiledModel(model, plugin),
-      _model(model),
+    : ICompiledModel(model, std::move(plugin)),
+      _model(std::move(model)),
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
-      _device(device),
-      _compiler(compiler) {
+      _device(std::move(device)),
+      _compiler(std::move(compiler)) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
     OPENVINO_ASSERT(compiler != nullptr, "NPU CompiledModel: the pointer towards the compiler object is null");
 
     try {
         _logger.debug("performing compile and expecting a network description");
-        _networkPtr = std::make_shared<const NetworkDescription>(_compiler->compile(model, config));
+        _networkPtr = std::make_shared<const NetworkDescription>(_compiler->compile(_model, _config));
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -76,19 +76,19 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
 
-CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
+CompiledModel::CompiledModel(std::shared_ptr<const ov::Model> model,
                              std::shared_ptr<const ov::IPlugin> plugin,
                              std::shared_ptr<const NetworkDescription> networkDescription,
                              std::shared_ptr<IDevice> device,
                              ov::SoPtr<ICompiler> compiler,
                              const Config& config)
-    : ICompiledModel(model, plugin),
-      _networkPtr(networkDescription),
-      _model(model),
+    : ICompiledModel(model, std::move(plugin)),
+      _networkPtr(std::move(networkDescription)),
+      _model(std::move(model)),
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
-      _device(device),
-      _compiler(compiler) {
+      _device(std::move(device)),
+      _compiler(std::move(compiler)) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
     OPENVINO_ASSERT(_networkPtr != nullptr,
                     "NPU CompiledModel: the pointer towards the NetworkDescription object is null");
@@ -202,7 +202,7 @@ const ICompiler& CompiledModel::get_compiler() const {
     return *_compiler._ptr;
 }
 
-const IExecutor& CompiledModel::get_executor() const {
+IExecutor& CompiledModel::get_executor() const {
     return *_executorPtr;
 }
 
