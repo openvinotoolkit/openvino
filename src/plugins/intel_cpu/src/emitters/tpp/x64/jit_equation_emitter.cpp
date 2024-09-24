@@ -73,7 +73,7 @@ const uintptr_t EquationTppEmitter::get_compiled_kernel_ptr() const {
 
 std::set<std::vector<element::Type>> EquationTppEmitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     // Note: TPPs have build-in convert semantics, so the equations should support any input precision (specified when created)
-    OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<tpp::op::EquationTPP>(node), "Invalid node type");
+    OV_CPU_JIT_EMITTER_ASSERT(node && ov::is_type<tpp::op::EquationTPP>(node), "Invalid node ptr or type");
     std::vector<element::Type> input_precs;
     for (const auto& in : node->inputs())
         input_precs.push_back(in.get_element_type());
