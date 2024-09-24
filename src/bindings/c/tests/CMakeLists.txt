@@ -7,6 +7,7 @@ set(TARGET_NAME "ov_capi_test")
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ov_*.cpp test_model_repo.cpp)
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+list(APPEND DEFINES TEST_CUSTOM_OP_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../../../plugins/intel_gpu/tests/functional/custom_op/custom_op.xml")
 
 if(NOT TARGET OpenCL::OpenCL)
     list(FILTER SOURCES EXCLUDE REGEX ov_remote_context_test.cpp)
