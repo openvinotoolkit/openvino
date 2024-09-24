@@ -153,14 +153,28 @@ struct NetworkDescription final {
 
 /**
  * @struct CompiledNetwork
- * @brief Custom container for compiled model, used for model export
- * Underlying container will be empty for optimized memory consumption
+ * @brief Custom container for compiled network, used for export
+ * @var CompiledNetwork::data
+ * Pointer to the address of compiled network
+ * @var CompiledNetwork:size
+ * Size of the compiled network
+ * @var CompiledNetwork::ownedStorage
+ * Plugin owned compiled network storage that is required in case of a driver that
+ * doesn't support graph extension 1.7, as in this case plugin must create a copy of the compiled network.
+ * @note It's unsafe to store either data or size outside of the compiled network object as its destructor
+ * would release the owning container
  */
 
 struct CompiledNetwork {
     const uint8_t* data;
     size_t size;
-    std::vector<uint8_t> container;
+    CompiledNetwork(const uint8_t* data, size_t size, const std::vector<uint8_t>&& storage)
+        : data(data),
+          size(size),
+          ownedStorage(std::move(storage)) {}
+
+private:
+    const std::vector<uint8_t> ownedStorage;
 };
 
 /**
@@ -216,9 +230,9 @@ public:
     virtual void release([[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription){};
 
     virtual CompiledNetwork getCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) {
-        return CompiledNetwork{networkDescription->compiledNetwork.data(),
+        return CompiledNetwork(networkDescription->compiledNetwork.data(),
                                networkDescription->compiledNetwork.size(),
-                               networkDescription->compiledNetwork};
+                               std::move(networkDescription->compiledNetwork));
     }
 
 protected:

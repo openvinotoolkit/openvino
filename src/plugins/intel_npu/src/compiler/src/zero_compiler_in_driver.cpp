@@ -434,12 +434,12 @@ CompiledNetwork LevelZeroCompilerInDriver<TableExtension>::getCompiledNetwork(
         getNativeBinary(_graphDdiTableExt, graphHandle, blob, &blobPtr, &blobSize);
 
         _logger.info("LevelZeroCompilerInDriver getCompiledNetwork returning blob");
-        return CompiledNetwork{blobPtr, blobSize, std::move(blob)};
+        return CompiledNetwork(blobPtr, blobSize, std::move(blob));
     }
     _logger.info("return the blob from network description");
-    return CompiledNetwork{networkDescription->compiledNetwork.data(),
+    return CompiledNetwork(networkDescription->compiledNetwork.data(),
                            networkDescription->compiledNetwork.size(),
-                           networkDescription->compiledNetwork};
+                           std::move(networkDescription->compiledNetwork));
 }
 
 template <typename TableExtension>
