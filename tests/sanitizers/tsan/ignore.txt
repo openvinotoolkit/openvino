@@ -1,2 +1,0 @@
-src:*/thirdparty/*
-src:thirdparty/*
