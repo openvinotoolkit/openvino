@@ -16,6 +16,8 @@ add_executable(${TARGET_NAME} ${SOURCES} ${HEADERS})
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_c openvino::util
     common_test_utils gtest_main)
 
+target_compile_definitions(${TARGET_NAME} PRIVATE ${DEFINES})
+
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${OPENVINO_API_SOURCE_DIR}/include>)
 
