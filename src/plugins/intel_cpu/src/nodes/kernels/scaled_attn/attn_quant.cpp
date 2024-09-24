@@ -180,8 +180,6 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
     // For compatibility, all input_kvs are permuted to BHLS
     size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3];
     // Internal LBHS layout has strides[L] > strides[B]
-    // TODO: T2 == u8, assertion failed.
-    // assert(k_src.m_strides[2] > k_src.m_strides[0]);
     parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
         auto p_k = k_scale_zp.ptr<float>(m, b, h);
         auto p_v = v_scale_zp.ptr<float>(m, b, h);
