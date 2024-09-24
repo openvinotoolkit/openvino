@@ -886,37 +886,43 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 SLM_FILTER_PACKED_VEC wei_packed0 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, weights_idx);
                 SLM_FILTER_PACKED_VEC wei_packed1 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, (weights_idx + ((IFM_SIZE / 2) * 16)));
                 DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked;
-                dq_wei_unpacked.s0123 = UNPACK_TRANSPOSED_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed0));
-                dq_wei_unpacked.s4567 = UNPACK_TRANSPOSED_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed1));
+                // loaded weights 'wei_packed' of os_iyx_osv16 format have continuous values along TILE_K. So no need to transpose while unpacking
+                dq_wei_unpacked.s0123 = UNPACK_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed0));
+                dq_wei_unpacked.s4567 = UNPACK_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed1));
             #else
                 SLM_FILTER_PACKED_VEC wei_packed = BLOCK_READN(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE, weights, weights_idx);
                 DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked = UNPACK_TRANSPOSED_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD *)&wei_packed));
             #endif
 
             // Calculate zero-point and scale only for DECOMPRESSION_SCALE_POST_OP enabled
+            // Calculate weight : w = (w - dzp) * ds
             #if DECOMPRESSION_ZP_TERM
                 #if DECOMPRESSION_ZP_SCALAR
                     DQ_SLM_FILTER_UNPACKED_VEC dzp = (DQ_SLM_FILTER_UNPACKED_VEC)(DECOMPRESSION_ZP_VALUE);
+                    dq_wei_unpacked -= dzp;
                 #elif DECOMPRESSION_ZP_GROUPS_NUM > 1
-                    DQ_SLM_FILTER_UNPACKED_VEC dzp;
+                    DQ_TYPE* w = (DQ_TYPE*)(&dq_wei_unpacked);
+                    const uint ni_offset = ni * TILE_IFM * SIMD + local_id * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE;
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                        const uint offset_ofm = out_f + fi*SIMD + sglid;
                         unroll_for(uint kii = 0; kii < FILTER_LOAD_BLOCK_SIZE; ++kii) {
-                            const uint offset_ofm = out_f + fi*SIMD + sglid;
-                            const uint offset_ifm = ni * TILE_IFM * SIMD + local_id * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE + load_iter * FILTER_LOAD_BLOCK_SIZE + kii;
+                            const uint offset_ifm = ni_offset + load_iter * FILTER_LOAD_BLOCK_SIZE + kii;
                             const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
                                                     (offset_ifm / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
-                            dzp[W_IDX] = decompression_zp[zp_offset];
+                            w[W_DYN_QUAN_IDX] = w[W_DYN_QUAN_IDX] - TO_DQ_TYPE(decompression_zp[zp_offset]);
                         }
                     }
                 #else
-                    DQ_SLM_FILTER_UNPACKED_VEC dzp = (DQ_SLM_FILTER_UNPACKED_VEC)(d_zps[0]);
+                    DQ_TYPE* w = (DQ_TYPE*)(&dq_wei_unpacked);
+                    unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                        unroll_for(uint kii = 0; kii < FILTER_LOAD_BLOCK_SIZE; ++kii) {
+                            w[W_DYN_QUAN_IDX] = w[W_DYN_QUAN_IDX] - d_zps[fi % DECOMPRESSION_ZP_LENGTH];
+                        }
+                    }
                 #endif
             #else
                 DQ_SLM_FILTER_UNPACKED_VEC dzp = (DQ_SLM_FILTER_UNPACKED_VEC)(ACCUMULATOR_VAL_ZERO);
             #endif
-
-            // Calculate weight : w = (w - dzp) * ds
-            dq_wei_unpacked -= dzp;
 
             #if FILTER_LOAD_BLOCK_SIZE == 2
                 DQ_SLM_FILTER_VEC wei_1 = {dq_wei_unpacked.s01, dq_wei_unpacked.s23};
@@ -1117,7 +1123,7 @@ KERNEL(fc)(
 #endif
 ) {
 #if USE_SLM
-    #if DYNAMIC_QUANTIZE
+    #if DYNAMIC_QUANTIZE && (TILE_OFM == 2)
         __local int dq_wei_local_mem[SIMD * TILE_OFM * SIMD];
     #else
         __local ACCUMULATOR_TYPE wei_local_mem[TILE_IFM * SIMD * TILE_OFM * SIMD];
@@ -1259,7 +1265,7 @@ KERNEL(fc)(
         #endif
         );
     } else {
-        #if USE_SLM && DYNAMIC_QUANTIZE
+        #if USE_SLM && DYNAMIC_QUANTIZE && (TILE_OFM == 2)
             FUNC_CALL(fc_bf_tiled_kernel_dyn_quan)(
                 OPTIONAL_SHAPE_INFO_TENSOR
                 input,
@@ -1306,7 +1312,7 @@ KERNEL(fc)(
         #endif
     }
 #else
-    #if USE_SLM && DYNAMIC_QUANTIZE
+    #if USE_SLM && DYNAMIC_QUANTIZE && (TILE_OFM == 2)
         FUNC_CALL(fc_bf_tiled_kernel_dyn_quan)(
             OPTIONAL_SHAPE_INFO_TENSOR
             input,
