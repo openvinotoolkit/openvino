@@ -37,7 +37,7 @@ LazyTensor::LazyTensor(const TransformType& type, const Transform& transform) {
     m_orig_data = tensor.data();
     m_orig_shape = tensor.get_shape();
     m_orig_type = tensor.get_element_type();
-};
+}
 
 bool LazyTensor::operator==(const LazyTensor& other) const {
     if (m_orig_data != other.m_orig_data || m_orig_shape != other.m_orig_shape || m_orig_type != other.m_orig_type ||
