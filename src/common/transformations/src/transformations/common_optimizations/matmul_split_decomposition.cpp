@@ -6,7 +6,14 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
@@ -51,25 +58,26 @@ bool pass::MatmulGatherDecomposition::split_weights(const Output<Node>& weights,
 pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
     MATCHER_SCOPE(MatmulGatherDecomposition);
     auto input_pattern = any_input();
-    auto matmul_pattern = wrap_type<opset1::MatMul>({input_pattern, any_input(pattern::has_static_shape())},
+    auto matmul_pattern = wrap_type<op::v0::MatMul>({input_pattern, any_input(pattern::has_static_shape())},
                                                     ov::pass::pattern::consumers_count(1));
 
-    auto bias_pattern = wrap_type<opset1::Constant>();
-    auto add_pattern = wrap_type<opset1::Add>({matmul_pattern, bias_pattern}, ov::pass::pattern::consumers_count(1));
+    auto bias_pattern = wrap_type<op::v0::Constant>();
+    auto add_pattern = wrap_type<op::v1::Add>({matmul_pattern, bias_pattern}, ov::pass::pattern::consumers_count(1));
 
     auto reshape_productor_pattern = std::make_shared<pattern::op::Or>(OutputVector{matmul_pattern, add_pattern});
 
     // Heuristics: Rank == 5, Baichun also match this pattern, but it only has rank 4, and have performance regression,
     // so filter it out.
     auto reshape_pattern =
-        wrap_type<opset1::Reshape>({reshape_productor_pattern, any_input()}, ov::pass::pattern::rank_equals(5));
+        wrap_type<op::v1::Reshape>({reshape_productor_pattern, any_input()}, ov::pass::pattern::rank_equals(5));
 
     // Heuristics: there should be only decompose_num(3) gathers to split
     auto transpose_pattern =
-        wrap_type<opset1::Transpose>({reshape_pattern, ov::pass::pattern::wrap_type<ov::opset1::Constant>()},
+        wrap_type<op::v1::Transpose>({reshape_pattern, ov::pass::pattern::wrap_type<op::v0::Constant>()},
                                      ov::pass::pattern::consumers_count(decompose_num));
+
     auto reshape2_pattern =
-        wrap_type<opset1::Reshape>({reshape_pattern, any_input()}, ov::pass::pattern::consumers_count(decompose_num));
+        wrap_type<op::v1::Reshape>({reshape_pattern, any_input()}, ov::pass::pattern::consumers_count(decompose_num));
 
     auto reshape_or_transpose_pattern =
         std::make_shared<pattern::op::Or>(OutputVector{reshape2_pattern, transpose_pattern});
@@ -83,17 +91,17 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
         const std::shared_ptr<ov::Node> add =
             pattern_map.count(add_pattern) ? pattern_map.at(add_pattern).get_node_shared_ptr() : nullptr;
 
-        if (as_type_ptr<opset1::MatMul>(matmul)->get_transpose_a()) {
+        if (as_type_ptr<op::v0::MatMul>(matmul)->get_transpose_a()) {
             return false;
         }
-        const bool& transpose_b = as_type_ptr<opset1::MatMul>(matmul)->get_transpose_b();
+        const bool& transpose_b = as_type_ptr<op::v0::MatMul>(matmul)->get_transpose_b();
         const auto& reshape = pattern_map.at(reshape_pattern);
         const auto reshape_input1 = reshape.get_node_shared_ptr()->input_value(1);
 
         // Check transpose order[2,0,3,1,4]
         if (pattern_map.count(transpose_pattern)) {
             const auto transpose = pattern_map.at(transpose_pattern).get_node_shared_ptr();
-            const auto transpose_order = as_type_ptr<opset1::Constant>(transpose->get_input_node_shared_ptr(1));
+            const auto transpose_order = as_type_ptr<op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
             if (transpose_order) {
                 const std::vector<int32_t> expected_val = {2, 0, 3, 1, 4};
                 if (expected_val != transpose_order->cast_vector<int32_t>()) {
@@ -110,7 +118,7 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
         for (const auto& child : root_node->get_output_target_inputs(0)) {
             std::shared_ptr<ov::Node> fq = nullptr;
             auto gather = child.get_node()->shared_from_this();
-            if (ov::is_type<opset1::FakeQuantize>(gather)) {
+            if (ov::is_type<op::v0::FakeQuantize>(gather)) {
                 fq = gather;
                 if (fq->get_output_size() != 1u) {
                     return false;
@@ -118,7 +126,7 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
                 gather = gather->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
             }
             if (ov::is_type<ov::op::util::GatherBase>(gather)) {
-                const auto axis_node = as_type_ptr<opset1::Constant>(gather->get_input_node_shared_ptr(2));
+                const auto axis_node = as_type_ptr<op::v0::Constant>(gather->get_input_node_shared_ptr(2));
                 if (axis_node) {
                     const auto& axis_val = axis_node->cast_vector<int32_t>();
                     if (axis_val.size() != 1u || axis_val[0] != 0) {
@@ -128,7 +136,7 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
                     return false;
                 }
 
-                const auto indices_node = as_type_ptr<opset1::Constant>(gather->get_input_node_shared_ptr(1));
+                const auto indices_node = as_type_ptr<op::v0::Constant>(gather->get_input_node_shared_ptr(1));
                 if (indices_node) {
                     const auto& indices_val = indices_node->cast_vector<int32_t>();
                     if (indices_val.size() != 1u) {
@@ -184,15 +192,15 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
                 from_nodes.emplace_back(add);
                 from_nodes.emplace_back(pattern_map.at(bias_pattern).get_node_shared_ptr());
             }
-            if (as_type<opset1::Transpose>(root_node.get()))
+            if (as_type<op::v1::Transpose>(root_node.get()))
                 from_nodes.emplace_back(root_node);
 
-            copy_runtime_info(from_nodes, get_new_nodes());
             // Original transpose order[2,0,3,1,4], new order should be[0,2,1,3] after first axis is removed.
             const auto transpose_order =
                 register_new_node(op::v0::Constant::create(element::i32, Shape{4}, {0, 2, 1, 3}));
             const auto new_transpose = register_new_node<op::v1::Transpose>(new_reshape, transpose_order);
             new_transpose->set_friendly_name(gathers[i]->get_friendly_name());
+            copy_runtime_info(from_nodes, get_new_nodes());
 
             if (fake_quantizes[i]) {
                 fake_quantizes[i]->set_argument(0, new_transpose);

@@ -72,5 +72,7 @@ public:
                        Output<Node>* bias,
                        OutputVector& new_bias,
                        const bool transpose_b);
+
+private:
     const size_t decompose_num = 3;
 };
