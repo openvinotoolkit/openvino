@@ -111,13 +111,22 @@ public:
     HostGather(Context::Ref ctx);
 };
 
+class HostGatherDQ : public ov::pass::MatcherPass {
+public:
+    HostGatherDQ(Context::Ref ctx);
+};
+
 // Tail vocab unpacks
+
 class DQUnpackDictMatMulCWu : public ov::pass::MatcherPass {
 public:
     DQUnpackDictMatMulCWu(Context::Ref ctx);
 };
 
-
+class DQUnpackDictMatMulGQi : public ov::pass::MatcherPass {
+public:
+    DQUnpackDictMatMulGQi(Context::Ref ctx);
+};
 
 }  // namespace opt
 }  // namespace patterns
