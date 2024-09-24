@@ -105,8 +105,11 @@ std::string BrgemmCopyBKernelConfig::StaticParams::to_string() const {
 BrgemmCopyBKernel::BrgemmCopyBKernel() : jit_generator(jit_name()), ker_(nullptr) {}
 
 BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
-    : jit_generator(jit_name()), ker_(nullptr), conf(conf), kernel(create_brgemm_copy_b_kernel()) {
-    OV_CPU_JIT_EMITTER_ASSERT(kernel, "Kernel is missed!");
+    : jit_generator(jit_name()), is_with_comp(conf.is_with_comp()), is_transpose(conf.is_transposed_B()),
+      wei_data_size(dnnl_data_type_size(conf.get_wei_dt())), vnni_factor(data_type_vnni_granularity(conf.get_wei_dt())),
+      K(conf.get_K()), N_blk(conf.get_N_blk()), wei_N_blk(conf.get_wei_N_blk()), wei_N_tail(conf.get_wei_N_tail()), ker_(nullptr) {
+    init_brgemm_copy_b_kernel(dnnl_brgemm_copy_b_kernel, conf);
+    OV_CPU_JIT_EMITTER_ASSERT(dnnl_brgemm_copy_b_kernel, "Kernel is missed!");
 }
 
 status_t BrgemmCopyBKernel::create_kernel() {
@@ -121,46 +124,14 @@ void BrgemmCopyBKernel::operator()(const call_args* args) const {
     ker_(args);
 }
 
-void BrgemmCopyBKernel::generate() {
-    preamble();
-
-    mov(src_reg, ptr[abi_param1 + GET_OFF_BRGEMM_COPY_B_ARGS(src)]);
-    mov(tr_src_reg, ptr[abi_param1 + GET_OFF_BRGEMM_COPY_B_ARGS(tr_src)]);
-    if (conf.is_with_comp())
-        mov(comp_reg, ptr[abi_param1 + GET_OFF_BRGEMM_COPY_B_ARGS(compensation_ptr)]);
-
-    const size_t data_size = dnnl_data_type_size(conf.get_wei_dt());
-    const size_t brgemmVNNIFactor = data_type_vnni_granularity(conf.get_wei_dt());
-    size_t start_in = 0;
-    size_t start_out = 0;
-    size_t start_comp = 0;
-
-    auto add_ptr_increments = [&](size_t current_N) {
-        start_in += conf.is_transposed_B() ? conf.get_K() * current_N * data_size : current_N * data_size;
-        start_out += current_N * brgemmVNNIFactor * data_size;
-        start_comp += conf.is_with_comp() ? current_N * sizeof(int32_t) : 0;
-    };
-
-    // OneDNN requires tail handling before main iterations
-    if (conf.get_wei_N_tail() != 0) {
-        emit_brgemm_copy_b_kernel_call(conf.get_wei_N_tail(), conf.get_K(), start_in, start_out, start_comp);
-        add_ptr_increments(conf.get_wei_N_tail());
-    }
-
-    for (auto nb = conf.get_wei_N_tail(); nb < conf.get_N_blk(); nb += conf.get_wei_N_blk()) {
-        emit_brgemm_copy_b_kernel_call(conf.get_wei_N_blk(), conf.get_K(), start_in, start_out, start_comp);
-        add_ptr_increments(conf.get_wei_N_blk());
-    }
-
-    postamble();
-}
-
-std::shared_ptr<BrgemmCopyBKernel::dnnl_brgemm_copy_b_kernel> BrgemmCopyBKernel::create_brgemm_copy_b_kernel() const {
+void BrgemmCopyBKernel::init_brgemm_copy_b_kernel(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& kernel,
+                                                  const BrgemmCopyBKernelConfig& conf) const {
     matmul::brgemm_matmul_conf_t brgCopyKernelConf;
     brgCopyKernelConf.src_dt = conf.get_src_dt();
     brgCopyKernelConf.wei_dt = conf.get_wei_dt();
     brgCopyKernelConf.orig_wei_dt = brgCopyKernelConf.wei_dt;
     brgCopyKernelConf.wei_n_blk = static_cast<int>(conf.get_wei_N_blk());
+    // Note: 2D format tags are used just to force the needed OneDNN primitive creation.
     // However, the generated primitive can be also applied to tensors with other ranks
     brgCopyKernelConf.wei_tag = conf.is_transposed_B() ? dnnl_ba : dnnl_ab;
     brgCopyKernelConf.transposed_B = conf.is_transposed_B();
@@ -184,10 +155,40 @@ std::shared_ptr<BrgemmCopyBKernel::dnnl_brgemm_copy_b_kernel> BrgemmCopyBKernel:
     brgCopyKernelConf.has_zero_point_b = false;
     brgCopyKernelConf.src_zp_type = dnnl::impl::cpu::x64::none;
 
-    std::unique_ptr<matmul::jit_brgemm_matmul_copy_b_t> kernel = nullptr;
     OV_CPU_JIT_EMITTER_ASSERT(matmul::create_brgemm_matmul_copy_b(kernel, &brgCopyKernelConf) == dnnl_success,
                               "cannot create kernel due to invalid params");
-    return kernel;
+}
+
+void BrgemmCopyBKernel::generate() {
+    preamble();
+
+    mov(src_reg, ptr[abi_param1 + GET_OFF_BRGEMM_COPY_B_ARGS(src)]);
+    mov(tr_src_reg, ptr[abi_param1 + GET_OFF_BRGEMM_COPY_B_ARGS(tr_src)]);
+    if (is_with_comp)
+        mov(comp_reg, ptr[abi_param1 + GET_OFF_BRGEMM_COPY_B_ARGS(compensation_ptr)]);
+
+    size_t start_in = 0;
+    size_t start_out = 0;
+    size_t start_comp = 0;
+
+    auto add_ptr_increments = [&](size_t current_N) {
+        start_in += is_transpose ? K * current_N * wei_data_size : current_N * wei_data_size;
+        start_out += current_N * vnni_factor * wei_data_size;
+        start_comp += is_with_comp ? current_N * sizeof(int32_t) : 0;
+    };
+
+    // OneDNN requires tail handling before main iterations
+    if (wei_N_tail != 0) {
+        emit_brgemm_copy_b_kernel_call(wei_N_tail, K, start_in, start_out, start_comp);
+        add_ptr_increments(wei_N_tail);
+    }
+
+    for (auto nb = wei_N_tail; nb < N_blk; nb += wei_N_blk) {
+        emit_brgemm_copy_b_kernel_call(wei_N_blk, K, start_in, start_out, start_comp);
+        add_ptr_increments(wei_N_blk);
+    }
+
+    postamble();
 }
 
 void BrgemmCopyBKernel::emit_brgemm_copy_b_kernel_call(size_t N, size_t K, size_t offset_in, size_t offset_out, size_t offset_comp) {
@@ -200,11 +201,11 @@ void BrgemmCopyBKernel::emit_brgemm_copy_b_kernel_call(size_t N, size_t K, size_
     // save function address in gpr to pass in call instruction
     const auto& kernel_overload = static_cast<void (*)(matmul::jit_brgemm_matmul_copy_b_t*, const void*, const void*, const void*, size_t, size_t)>(execute);
     mov(rbp, reinterpret_cast<uintptr_t>(kernel_overload));
-    mov(abi_param1, reinterpret_cast<uintptr_t>(kernel.get()));
+    mov(abi_param1, reinterpret_cast<uintptr_t>(dnnl_brgemm_copy_b_kernel.get()));
 
     add_offset(src_reg, offset_in); // abi_param2
     add_offset(tr_src_reg, offset_out); // abi_param3
-    if (conf.is_with_comp())  // abi_param4
+    if (is_with_comp)  // abi_param4
         add_offset(comp_reg, offset_comp);
     else
         mov(comp_reg, reinterpret_cast<uintptr_t>(nullptr));
@@ -249,7 +250,7 @@ std::shared_ptr<BrgemmCopyBKernel> BrgemmCopyBKernelExecutor::compile_kernel(con
     std::shared_ptr<BrgemmCopyBKernel> compiled_kernel = std::make_shared<BrgemmCopyBKernel>();
     // BrgemmCopyB is not executable - nothing to compile
     if (!config.is_empty()) {
-        compiled_kernel = std::unique_ptr<BrgemmCopyBKernel>(new BrgemmCopyBKernel(config));
+        compiled_kernel = std::make_shared<BrgemmCopyBKernel>(config);
         OV_CPU_JIT_EMITTER_ASSERT(compiled_kernel, "compiled kernel is nullptr");
         compiled_kernel->create_kernel();
     }

@@ -105,25 +105,35 @@ struct BrgemmCopyBKernel : public dnnl::impl::cpu::x64::jit_generator {
     void operator()(const call_args* args) const;
 
 private:
-    using dnnl_brgemm_copy_b_kernel = dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t;
-
     void generate() override;
 
     void emit_brgemm_copy_b_kernel_call(size_t N, size_t K, size_t offset_in, size_t offset_out, size_t offset_comp);
 
-    static void execute(dnnl_brgemm_copy_b_kernel* kernel, const void* src, const void* dst, const void* comp, size_t N, size_t K);
+    static void execute(dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t* kernel, const void* src, const void* dst, const void* comp,
+                        size_t N, size_t K);
 
-    std::shared_ptr<dnnl_brgemm_copy_b_kernel> create_brgemm_copy_b_kernel() const;
+    void init_brgemm_copy_b_kernel(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& kernel,
+                                   const BrgemmCopyBKernelConfig& conf) const;
 
     static constexpr auto abi_param_regs = dnnl::impl::cpu::x64::abi_param_regs;
     const Xbyak::Reg64 src_reg = abi_param2;
     const Xbyak::Reg64 tr_src_reg = abi_param3;
     const Xbyak::Reg64 comp_reg = abi_param4;
 
+    const bool is_with_comp = false;
+    const bool is_transpose = false;
+    const size_t wei_data_size = 1u;
+    const size_t vnni_factor = 1u;
+    const size_t K = 0;
+    const size_t N_blk = 0;
+    const size_t wei_N_blk = 0;
+    const size_t wei_N_tail = 0;
+
+    // JIT kernel code of the current BrgemmCopyBKernel
     void (*ker_)(const call_args*);
 
-    const BrgemmCopyBKernelConfig conf {};
-    const std::shared_ptr<dnnl_brgemm_copy_b_kernel> kernel = nullptr;
+    // JIT kernel dnnl Brgemm copy b which is called in the current snippets BrgemmCopyBKernel
+    std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t> dnnl_brgemm_copy_b_kernel = nullptr;
 };
 
 class BrgemmCopyBKernelExecutor : public CPUKernelExecutor<BrgemmCopyBKernelConfig, BrgemmCopyBKernel> {
