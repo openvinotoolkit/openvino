@@ -506,7 +506,7 @@ if(ENABLE_OV_ONNX_FRONTEND)
         # conan and vcpkg create imported targets 'onnx' and 'onnx_proto'
     else()
         add_subdirectory(thirdparty/onnx)
-    endif() 
+    endif()
 endif()
 
 #
