@@ -26,7 +26,7 @@ bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ov::Model>& f) {
                 run_on_model(multisubgraph_op->get_function(static_cast<int>(i)));
             }
         }
-        auto if_node = std::dynamic_pointer_cast<ov::op::v8::If>(op);
+        auto if_node = ov::as_type_ptr<ov::op::v8::If>(op);
         if (!if_node || transformation_callback(if_node)) {
             continue;
         }
