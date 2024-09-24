@@ -102,8 +102,12 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       LSAN_IGNORE: /__w/openvino/openvino/openvino/tests/sanitizers/lsan/suppressions.txt
       ASAN_IGNORE: /__w/openvino/openvino/openvino/tests/sanitizers/asan/suppressions.supp
-      CXX: clang++
-      CC: clang
+      CCACHE_REMOTE_DIR: /mount/caches/ccache/sanitizers/${{ matrix.SANITIZER }}/${{ github.base_ref || github.ref_name }}
+      CCACHE_DIR: /__w/openvino/openvino/ccache
+      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
+      CCACHE_MAXSIZE: 2G
+      CXX: "ccache clang++"
+      CC: "ccache clang"
 
     steps:
       - name: Clone OpenVINO
@@ -127,9 +131,27 @@ jobs:
       - name: System info
         uses: ./openvino/.github/actions/system_info
 
+      - name: Setup ccache
+        id: ccache_restore
+        uses: ./openvino/.github/actions/cache
+        with:
+          # save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          # cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          save-always: true
+          cleanup-always: true
+          cache-size: 10
+          max-cache-size: 50
+          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-ccache
+          
       #
       # Build
       #
+      - name: Clean ccache stats
+        run: ccache --zero-stats
 
       - name: CMake configure - OpenVINO
         run: |
@@ -161,6 +183,9 @@ jobs:
         env:
           ASAN_OPTIONS: halt_on_error=0:suppressions=${{ env.ASAN_IGNORE }}
           LSAN_OPTIONS: suppressions=${{ env.LSAN_IGNORE }}:NEOReadDebugKeys=1:DisableDeepBind=1
+          
+      - name: Show ccache stats
+        run: ccache --show-stats
 
       - name: Cmake install - OpenVINO
         run: |
