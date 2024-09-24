@@ -73,9 +73,6 @@ public:
 
         // version 1.5
         // wrappers replace pointers
-
-        // version 1.7
-        pfnGetNativeBinary2 = _impl->pfnGetNativeBinary2;
     }
     ~ze_graph_dditable_ext_decorator() = default;
 
@@ -137,7 +134,11 @@ public:
     }
 
     // version 1.7
-    ze_pfnGraphGetNativeBinary_ext_2_t pfnGetNativeBinary2;
+    ze_result_t ZE_APICALL pfnGetNativeBinary2(ze_graph_handle_t hGraph,
+                                                        size_t* pSize, uint8_t** pGraphNativeBinary) {
+        throwWhenUnsupported("pfnGetNativeBinary2", ZE_GRAPH_EXT_VERSION_1_7);
+        return _impl->pfnGetNativeBinary2(hGraph, pSize, pGraphNativeBinary);
+    }
 };
 
 using ze_graph_dditable_ext_curr_t = ze_graph_dditable_ext_decorator;
