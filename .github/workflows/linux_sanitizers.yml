@@ -102,12 +102,14 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       LSAN_IGNORE: /__w/openvino/openvino/openvino/tests/sanitizers/lsan/suppressions.txt
       ASAN_IGNORE: /__w/openvino/openvino/openvino/tests/sanitizers/asan/suppressions.supp
+      MAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
       CCACHE_REMOTE_DIR: /mount/caches/ccache/sanitizers/${{ matrix.SANITIZER }}/${{ github.base_ref || github.ref_name }}
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 2G
-      CXX: "ccache clang++"
-      CC: "ccache clang"
+      CXX: clang++
+      CC: clang
 
     steps:
       - name: Clone OpenVINO
