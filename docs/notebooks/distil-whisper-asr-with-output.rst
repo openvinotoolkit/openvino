@@ -36,6 +36,7 @@ convert the model to OpenVINO™ IR format. To further improve OpenVINO
 Distil-Whisper model performance ``INT8`` post-training quantization
 from `NNCF <https://github.com/openvinotoolkit/nncf/>`__ is applied.
 
+
 **Table of contents:**
 
 
@@ -84,10 +85,17 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "transformers>=4.35" "torch>=2.1,<2.4.0" "torchvision<0.19.0" onnx "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "transformers>=4.35" "torch>=2.1,<2.4.0" "torchvision<0.19.0" "onnx<1.16.2" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
     %pip install -q "openvino>=2023.2.0" datasets  "gradio>=4.0" "librosa" "soundfile"
     %pip install -q "nncf>=2.6.0" "jiwer"
+    
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
 
 Load PyTorch model
 ------------------
@@ -311,17 +319,9 @@ Select Inference device
 
 .. code:: ipython3
 
-    import openvino as ov
-    import ipywidgets as widgets
+    from notebook_utils import device_widget
     
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -638,11 +638,9 @@ quantization.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    from notebook_utils import quantization_widget
+    
+    to_quantize = quantization_widget()
     
     to_quantize
 
@@ -726,6 +724,7 @@ negligible.
     import gc
     import shutil
     import nncf
+    import openvino as ov
     
     CALIBRATION_DATASET_SIZE = 50
     quantized_model_path = Path(f"{model_path}_quantized")
