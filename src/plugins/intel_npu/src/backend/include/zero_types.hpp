@@ -75,6 +75,7 @@ public:
         // wrappers replace pointers
 
         // version 1.7
+        pfnGetNativeBinary2 = _impl->pfnGetNativeBinary2;
     }
     ~ze_graph_dditable_ext_decorator() = default;
 
