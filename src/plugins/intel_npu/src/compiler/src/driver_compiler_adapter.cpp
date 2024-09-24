@@ -115,7 +115,7 @@ void LevelZeroCompilerAdapter::release(std::shared_ptr<const NetworkDescription>
     apiAdapter->release(std::move(networkDescription));
 }
 
-std::pair<const uint8_t*, size_t> LevelZeroCompilerAdapter::getCompiledNetwork(
+CompiledNetwork LevelZeroCompilerAdapter::getCompiledNetwork(
     std::shared_ptr<const NetworkDescription> networkDescription) {
     _logger.info("getCompiledNetwork - using adapter to perform getCompiledNetwork(networkDescription)");
     return apiAdapter->getCompiledNetwork(std::move(networkDescription));

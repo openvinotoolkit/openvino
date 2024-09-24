@@ -366,10 +366,11 @@ template <typename TableExtension>
 template <typename T, std::enable_if_t<UseCopyForNativeBinary(T), bool>>
 void LevelZeroCompilerInDriver<TableExtension>::getNativeBinary(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                                                                 ze_graph_handle_t graphHandle,
-                                                                std::shared_ptr<const NetworkDescription> networkDescription,
+                                                                std::vector<uint8_t>& blob,
                                                                 uint8_t** blobPtr, size_t* blobSize) const {
         // Get blob size first
         auto result = _graphDdiTableExt.pfnGetNativeBinary(graphHandle, blobSize, nullptr);
+        blob.resize(*blobSize);
 
         OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
                         "Failed to compile network. L0 pfnGetNativeBinary get blob size",
@@ -382,7 +383,7 @@ void LevelZeroCompilerInDriver<TableExtension>::getNativeBinary(ze_graph_dditabl
                         getLatestBuildError());
 
         // Get blob data
-        result = _graphDdiTableExt.pfnGetNativeBinary(graphHandle, blobSize, std::const_pointer_cast<NetworkDescription>(networkDescription)->compiledNetwork.data());
+        result = _graphDdiTableExt.pfnGetNativeBinary(graphHandle, blobSize, blob.data());
 
         OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
                         "Failed to compile network. L0 pfnGetNativeBinary get blob data",
@@ -394,14 +395,14 @@ void LevelZeroCompilerInDriver<TableExtension>::getNativeBinary(ze_graph_dditabl
                         ". ",
                         getLatestBuildError());
 
-        *blobPtr = std::const_pointer_cast<NetworkDescription>(networkDescription)->compiledNetwork.data();
+        *blobPtr = blob.data();
 }
 
 template <typename TableExtension>
 template <typename T, std::enable_if_t<!UseCopyForNativeBinary(T), bool>>
 void LevelZeroCompilerInDriver<TableExtension>::getNativeBinary(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                                                                 ze_graph_handle_t graphHandle,
-                                                                std::shared_ptr<const NetworkDescription>,
+                                                                std::vector<uint8_t>& /* unusedBlob */,
                                                                 uint8_t** blobPtr, size_t* blobSize) const {
         // Get blob ptr and size
         auto result = _graphDdiTableExt.pfnGetNativeBinary2(graphHandle, blobSize, blobPtr);
@@ -418,7 +419,7 @@ void LevelZeroCompilerInDriver<TableExtension>::getNativeBinary(ze_graph_dditabl
 }
 
 template <typename TableExtension>
-std::pair<const uint8_t*, size_t> LevelZeroCompilerInDriver<TableExtension>::getCompiledNetwork(
+CompiledNetwork LevelZeroCompilerInDriver<TableExtension>::getCompiledNetwork(
     std::shared_ptr<const NetworkDescription> networkDescription) {
     if (networkDescription->metadata.graphHandle != nullptr && networkDescription->compiledNetwork.size() == 0) {
         _logger.info("LevelZeroCompilerInDriver getCompiledNetwork get blob from graphHandle");
@@ -426,14 +427,15 @@ std::pair<const uint8_t*, size_t> LevelZeroCompilerInDriver<TableExtension>::get
 
         uint8_t* blobPtr;
         size_t blobSize = -1;
+        std::vector<uint8_t> blob;
 
-        getNativeBinary(_graphDdiTableExt, graphHandle, networkDescription, &blobPtr, &blobSize);
+        getNativeBinary(_graphDdiTableExt, graphHandle, blob, &blobPtr, &blobSize);
 
         _logger.info("LevelZeroCompilerInDriver getCompiledNetwork returning blob");
-        return {blobPtr, blobSize};
+        return CompiledNetwork{blobPtr, blobSize, std::move(blob)};
     } else {
         _logger.info("return the blob from network description");
-        return {networkDescription->compiledNetwork.data(), networkDescription->compiledNetwork.size()};
+        return CompiledNetwork{networkDescription->compiledNetwork.data(), networkDescription->compiledNetwork.size(), networkDescription->compiledNetwork};
     }
 }
 

@@ -152,6 +152,18 @@ struct NetworkDescription final {
 };
 
 /**
+ * @struct CompiledNetwork
+ * @brief Custom container for compiled model, used for model export
+ * Underlying container will be empty for optimized memory consumption
+ */
+
+struct CompiledNetwork {
+    const uint8_t* data;
+    size_t size;
+    std::vector<uint8_t> container;
+};
+
+/**
  * @interface ICompiler
  * @brief An interface to be implemented by a concrete compiler to provide
  * methods for preparing a network for execution on a NPU device
@@ -203,8 +215,8 @@ public:
     // Driver compiler can use this to release graphHandle, if we do not have executor
     virtual void release([[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription){};
 
-    virtual std::pair<const uint8_t*, size_t> getCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) {
-        return {networkDescription->compiledNetwork.data(), networkDescription->compiledNetwork.size()};
+    virtual CompiledNetwork getCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) {
+        return CompiledNetwork{networkDescription->compiledNetwork.data(), networkDescription->compiledNetwork.size(), networkDescription->compiledNetwork};
     }
 
 protected:

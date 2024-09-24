@@ -27,9 +27,9 @@ constexpr std::string_view NO_EXECUTOR_FOR_INFERENCE =
     "Can't create infer request!\n"
     "Please make sure that the device is available. Only exports can be made.";
 
-std::uint32_t hash(std::pair<const uint8_t*, size_t> blob) {
+std::uint32_t hash(const intel_npu::CompiledNetwork& blob) {
     std::uint32_t result = 1171117u;
-    for (const uint8_t* it = blob.first; it != blob.first + blob.second; ++it) {
+    for (const uint8_t* it = blob.data; it != blob.data + blob.size; ++it) {
         result = ((result << 7) + result) + static_cast<uint32_t>(*it);
     }
     return result;
@@ -141,11 +141,11 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
     const auto&& blob = _compiler->getCompiledNetwork(_networkPtr);
-    stream.write(reinterpret_cast<const char*>(blob.first), blob.second);
+    stream.write(reinterpret_cast<const char*>(blob.data), blob.size);
 
     if (_logger.level() == ov::log::Level::INFO) {
         std::stringstream str;
-        str << "Blob size: " << blob.second << ", hash: " << std::hex << hash(blob);
+        str << "Blob size: " << blob.size << ", hash: " << std::hex << hash(blob);
         _logger.info(str.str().c_str());
 
         if (!stream) {
