@@ -140,11 +140,8 @@ std::vector<Isolate> getIsolates(const std::string isolates_unparsed) {
     if (!isolates.empty()) {
         LOG_INFO("Online partitioning will isolate subgraphs containing specified patterns.");
     } else {
-        LOG_WARN("Incorect pattern in NPUW_ONLINE_ISOLATE!"
-                 << " Please, follow the example: "
-                 << "Op:Select/NPU,P:DQMatMulGQu4/compute,P:DQMatMulCWu4/compute,P:DQMatMulGQi4/compute,P:DQMatMulCWi4/"
-                    "compute,P:RMSNorm/compute. "
-                 << "No isolate rules will be taken into account during partitioning!");
+        LOG_WARN("Incorect pattern in NPUW_ONLINE_ISOLATE! No isolate rules will be taken into account during "
+                 "partitioning!");
     }
 
     return isolates;
