@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "dev/threading/parallel_custom_arena.hpp"
+#include "dev/threading/thread_affinity.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "os/cpu_map_info.hpp"
@@ -114,10 +115,11 @@ CPU::CPU() {
     };
 
     auto check_valid_cpu = [&]() {
-        cpu_set_t mask;
-        CPU_ZERO(&mask);
+        ov::threading::CpuSet mask;
+        int ncpus = 0;
+        std::tie(mask, ncpus) = ov::threading::get_process_mask();
 
-        if ((_processors == 0) || (sched_getaffinity(0, sizeof(cpu_set_t), &mask) == -1)) {
+        if ((_processors == 0) || mask == nullptr) {
             return -1;
         }
 
@@ -128,7 +130,7 @@ CPU::CPU() {
 
         numa_node_list.assign(_sockets, std::vector<int>());
         for (int i = 0; i < _processors; i++) {
-            if (CPU_ISSET(i, &mask)) {
+            if (CPU_ISSET(i, mask)) {
                 valid_cpu_mapping_table.emplace_back(_cpu_mapping_table[i]);
                 if (_cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == MAIN_CORE_PROC) {
                     phy_core_list.emplace_back(_cpu_mapping_table[i][CPU_MAP_CORE_ID]);
