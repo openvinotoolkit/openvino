@@ -32,9 +32,7 @@
 #    endif
 #endif
 
-#if defined(_MSC_VER) && defined(CPP_VER_17)
-#    define HAS_FILESYSTEM 1
-#elif defined(_MSC_VER) && defined(CPP_VER_11)
+#if defined(_MSC_VER) && defined(CPP_VER_11)
 #    define HAS_EXP_FILESYSTEM 1
 #    define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
 #    define _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM
