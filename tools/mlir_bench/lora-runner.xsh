@@ -2,7 +2,7 @@
 
 # xonsh can be installed with `pip install xonsh`
 # xonsh can then be run by invoking `python -m xonsh`
-# this script in particular can be invoked with `python -m xonsh lora-benchmark.xsh`
+# this script in particular can be invoked with `python -m xonsh lora-runner.xsh`
 
 import openvino as ov
 from openvino.runtime.op import Constant
@@ -13,8 +13,10 @@ import re
 from os import environ
 
 
+LORA_DIMS = [8, 16, 32, 64, 128]
 CONFIGS = [
-  [8], [16], [32], [64], [128], [256], [512], [1024]
+  [8], [16], [32], [64], [128], [256], [512], [1024],
+  [2048], [4096], [8192]
 ]
 ITERATIONS = 100
 
@@ -84,7 +86,7 @@ func.func @entry(%arg0: !loraAlphaType, %arg1: !inputType) -> !inputType {{\n\
     return mlir_model
 
 
-def main():
+def full_run(lora_dim):
     no_mlir_averages = []
     mlir_averages = []
     no_ov_averages = []
@@ -92,7 +94,7 @@ def main():
     for config in CONFIGS:
         model_desc = '.'.join(str(x) for x in config)
         model_xml = f"lora.{model_desc}.xml"
-        model = build_ov_lora_model(*config)
+        model = build_ov_lora_model(*config, lora_dim=lora_dim)
         ov.save_model(model, model_xml)
 
         BENCH_FLAGS=f"-m {model_xml} -d CPU -ip f32 -infer_precision f32 -hint none -nstreams 1 -nthreads 1".split()
@@ -110,18 +112,24 @@ def main():
         no_ov_averages.append(run_no_ov_mlir("OV_MLIR=1 OV_MLIR_TPP=1 OV_MLIR_DEBUG=1"))
 
         def run_manual_mlir(env_str):
-            mlir_model = build_mlir_lora_model(*config)
+            mlir_model = build_mlir_lora_model(*config, lora_dim=lora_dim)
             if DEBUG:
               print(mlir_model)
-            raw_kernel_secs = $(echo @(mlir_model) | tpp-run @(RUNNER_FLAGS))
+            raw_kernel_secs = $(@(lambda: print(mlir_model)) | tpp-run @(RUNNER_FLAGS) --lower-pack-unpack-without-transpose)
             return float(raw_kernel_secs) * 1000
         manual_mlir_averages.append(run_manual_mlir(""))
 
     print("CONFIGS", CONFIGS)
     print("OV NO-MLIR", no_mlir_averages)
     print("OV MLIR", mlir_averages)
-    print("NO-OV MLIR", no_ov_averages)
-    print("MANUAL MLIR", manual_mlir_averages)
+    print("NO-OV MLIR", list(round(x, 2) for x in no_ov_averages))
+    print("MANUAL MLIR", list(round(x, 2) for x in manual_mlir_averages))
+
+
+def main():
+    for lora_dim in LORA_DIMS:
+        print("lora_dim =", lora_dim)
+        full_run(lora_dim)
 
 
 if __name__ == "__main__":
