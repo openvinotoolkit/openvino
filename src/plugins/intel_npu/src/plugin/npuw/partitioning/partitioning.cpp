@@ -1603,11 +1603,13 @@ void Partitioner::optimize(const std::string& func_name) {
         rewr.add_matcher<ov::npuw::patterns::opt::DQParMMGQ>(std::ref(ctx));
         rewr.run_on_model(f._model);
 
-        // For some reason, HostGather matches only after the above rewrite is done.
-        ov::pass::GraphRewrite rewr2;
-        rewr2.add_matcher<ov::npuw::patterns::opt::HostGather>(std::ref(ctx));
-        rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherDQ>(std::ref(ctx));
-        rewr2.run_on_model(f._model);
+        // Move Gather to host, if required
+        if (cfg.get<::intel_npu::NPUW_HOST_GATHER>()) {
+            ov::pass::GraphRewrite rewr2;
+            rewr2.add_matcher<ov::npuw::patterns::opt::HostGather>(std::ref(ctx));
+            rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherDQ>(std::ref(ctx));
+            rewr2.run_on_model(f._model);
+        }
 
         // Run parallel matmul merge
         mergeParallelMatMuls(f._model, ctx);

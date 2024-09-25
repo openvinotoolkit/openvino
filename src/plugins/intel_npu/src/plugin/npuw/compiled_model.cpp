@@ -136,12 +136,15 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // FIXME: Find a better place to call this transformation
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(model);
 
-    // FIXME: This pass should only run when pipeline is REP w/ FOLDing is enabled.
-    ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW>();
-    rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymCW>();
-    rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymGQ>();
-    rewr.run_on_model(model);
+    if (m_cfg.get<::intel_npu::NPUW_FOLD>() && m_cfg.get<::intel_npu::NPUW_FUNCALL_FOR_ALL>()) {
+        // If there's folding enabled AND non-repeating graphs are forced to be
+        // functions, do extra lifting for gather (if any)
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW>();
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymCW>();
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymGQ>();
+        rewr.run_on_model(model);
+    }
 
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
@@ -808,6 +811,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::cwai, NPUW_CWAI),
                           BIND(npuw::partitioning::dyn_quant, NPUW_DQ),
                           BIND(npuw::partitioning::par_matmul_merge_dims, NPUW_PMM),
+                          BIND(npuw::partitioning::host_gather, NPUW_HOST_GATHER),
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
                           BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
