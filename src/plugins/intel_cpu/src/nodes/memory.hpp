@@ -56,7 +56,7 @@ public:
 
     ~MemoryOutputBase() override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-    void getSupportedDescriptors() override;
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
     void createPrimitive() override {}

@@ -154,9 +154,6 @@ MemoryInputBase& MemoryOutputBase::getInputNode() {
     return *inputNode;
 }
 
-void MemoryOutputBase::getSupportedDescriptors() {
-}
-
 void MemoryOutputBase::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
