@@ -174,7 +174,6 @@ def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_
                 "INFERENCE_NUM_THREADS":1}
     if infer_bf16 == True:
         device_config["INFERENCE_PRECISION_HINT"] = "bf16"
-        # device_config["ENFORCE_BF16"] = "YES"
     print("compiling model with {}".format(device_config))
     exec_net = core.compile_model(model, device_target, device_config)
     req = exec_net.create_infer_request()
