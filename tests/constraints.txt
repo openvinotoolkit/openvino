@@ -26,7 +26,11 @@ jax<=0.4.31
 jaxlib<=0.4.31
 kornia==0.7.0
 networkx<=3.3
+
+# PyTorch tests
 timm==1.0.8
+transformers~=4.44.0
+easyocr==1.7.2
 
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch~=2.4.0
