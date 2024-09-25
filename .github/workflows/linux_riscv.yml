@@ -15,6 +15,9 @@ concurrency:
 
 permissions: read-all
 
+env:
+  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref#'refs/heads/' || github.ref#'refs/heads/' }}
+
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
@@ -83,7 +86,6 @@ jobs:
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
-      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/${{ github.base_ref || github.ref_name }}
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 2G
@@ -110,7 +112,7 @@ jobs:
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
           cache-size: 10
           max-cache-size: 50
-          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
+          cache-path: /mount/caches/ccache/ubuntu22_riscv64/${{ env.TARGET_BRANCH }}
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
           restore-keys: |
