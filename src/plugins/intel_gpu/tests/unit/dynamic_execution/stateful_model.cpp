@@ -224,9 +224,28 @@ TEST(stateful_model, check_dynamic_pad_for_kv_cache) {
     auto pad = tensor(0);
     pad.batch[0] = 1;
 
-    ASSERT_EQ(read_value_inst->get_output_layout(0).data_padding.get_dynamic_pad_dims(), pad);
-    ASSERT_EQ(gather_inst->get_output_layout(0).data_padding.get_dynamic_pad_dims(), pad);
-    ASSERT_EQ(kv_cache_inst->get_output_layout(0).data_padding.get_dynamic_pad_dims(), pad);
+    
+    {
+        std::vector<tensor::value_type> dynamic_pad_mask;
+        const auto& dynamic_pad_dims = read_value_inst->get_output_layout(0).data_padding._dynamic_dims_mask;
+        for (size_t i = 0; i < dynamic_pad_dims.size(); i++)
+            dynamic_pad_mask.push_back(dynamic_pad_dims[i]);
+        ASSERT_EQ(tensor(dynamic_pad_mask, 0), pad);
+    }
+    {
+        std::vector<tensor::value_type> dynamic_pad_mask;
+        const auto& dynamic_pad_dims = gather_inst->get_output_layout(0).data_padding._dynamic_dims_mask;
+        for (size_t i = 0; i < dynamic_pad_dims.size(); i++)
+            dynamic_pad_mask.push_back(dynamic_pad_dims[i]);
+        ASSERT_EQ(tensor(dynamic_pad_mask, 0), pad);
+    }
+    {
+        std::vector<tensor::value_type> dynamic_pad_mask;
+        const auto& dynamic_pad_dims = kv_cache_inst->get_output_layout(0).data_padding._dynamic_dims_mask;
+        for (size_t i = 0; i < dynamic_pad_dims.size(); i++)
+            dynamic_pad_mask.push_back(dynamic_pad_dims[i]);
+        ASSERT_EQ(tensor(dynamic_pad_mask, 0), pad);
+    }
 }
 
 }  // stateful_model_tests

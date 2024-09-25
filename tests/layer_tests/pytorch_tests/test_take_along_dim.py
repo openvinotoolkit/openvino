@@ -5,12 +5,13 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestTakeAlongDim(PytorchLayerTest):
     def _prepare_input(self, m, n, max_val, out=False, flattenize=False):
         import numpy as np
-        index = np.random.randint(0, max_val, (m, n) if not flattenize else (m*n, ))
+        shape = (m, n) if not flattenize else (m * n,)
+        index = np.random.randint(0, max_val, shape).astype(np.int64)
         inp = np.random.randn(m, n).astype(np.float32)
         if out:
             axis = int(max_val == n)
             if flattenize:
-                out =  np.zeros_like(np.take(inp, index))
+                out = np.zeros_like(np.take(inp, index))
             else:
                 out = np.zeros_like(np.take(inp, index, axis))
             return (inp, index, out)
@@ -40,9 +41,7 @@ class TestTakeAlongDim(PytorchLayerTest):
             def forward_no_dim_out(self, x, index, out):
                 return torch.take_along_dim(x, index, out=out)
 
-        ref_net = None
-
-        return aten_take_along_dim(axis, out), ref_net, "aten::take_along_dim"
+        return aten_take_along_dim(axis, out), None, "aten::take_along_dim"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

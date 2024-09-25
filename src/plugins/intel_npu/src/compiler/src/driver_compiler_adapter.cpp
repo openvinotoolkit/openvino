@@ -26,20 +26,20 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<IEngineBacken
         OPENVINO_THROW("LevelZeroCompilerAdapter init failed to cast zeroBackend, zeroBackend is a nullptr");
     }
 
-    uint32_t driverExtVersion = zeroBackend->getDriverExtVersion();
-
     ze_context_handle_t zeContext = static_cast<ze_context_handle_t>(zeroBackend->getContext());
     ze_driver_handle_t driverHandle = static_cast<ze_driver_handle_t>(zeroBackend->getDriverHandle());
     ze_device_handle_t deviceHandle = static_cast<ze_device_handle_t>(zeroBackend->getDeviceHandle());
-    ze_graph_dditable_ext_last_t* graph_ddi_table_ext = zeroBackend->getGraphDDITableExt();
+    ze_graph_dditable_ext_curr_t& graph_ddi_table_ext = zeroBackend->getGraphDdiTable();
+
+    uint32_t graphExtVersion = graph_ddi_table_ext.version();
 
     if (driverHandle == nullptr) {
         OPENVINO_THROW("LevelZeroCompilerAdapter failed to get properties about zeDriver");
     }
 
-    _logger.info("LevelZeroCompilerAdapter creating adapter using driverExtVersion");
+    _logger.info("LevelZeroCompilerAdapter creating adapter using graphExtVersion");
 
-    switch (driverExtVersion) {
+    switch (graphExtVersion) {
     case ZE_GRAPH_EXT_VERSION_1_3:
         apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_3_t>>(driverHandle,
                                                                                               deviceHandle,
@@ -72,9 +72,9 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<IEngineBacken
         break;
     }
 
-    _logger.info("initialize LevelZeroCompilerAdapter complete, using driverExtVersion: %d.%d",
-                 ZE_MAJOR_VERSION(driverExtVersion),
-                 ZE_MINOR_VERSION(driverExtVersion));
+    _logger.info("initialize LevelZeroCompilerAdapter complete, using graphExtVersion: %d.%d",
+                 ZE_MAJOR_VERSION(graphExtVersion),
+                 ZE_MINOR_VERSION(graphExtVersion));
 }
 
 uint32_t LevelZeroCompilerAdapter::getSupportedOpsetVersion() const {
@@ -106,13 +106,13 @@ std::vector<ov::ProfilingInfo> LevelZeroCompilerAdapter::process_profiling_outpu
 
 void LevelZeroCompilerAdapter::release(std::shared_ptr<const NetworkDescription> networkDescription) {
     _logger.info("release - using adapter to release networkDescription");
-    apiAdapter->release(networkDescription);
+    apiAdapter->release(std::move(networkDescription));
 }
 
 std::vector<uint8_t> LevelZeroCompilerAdapter::getCompiledNetwork(
     std::shared_ptr<const NetworkDescription> networkDescription) {
     _logger.info("getCompiledNetwork - using adapter to perform getCompiledNetwork(networkDescription)");
-    return apiAdapter->getCompiledNetwork(networkDescription);
+    return apiAdapter->getCompiledNetwork(std::move(networkDescription));
 }
 
 }  // namespace driverCompilerAdapter

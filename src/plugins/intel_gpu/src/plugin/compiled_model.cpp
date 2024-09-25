@@ -140,7 +140,8 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                                                                                      i);
                     }
                     manager.register_pass<ov::intel_gpu::MLPTensorParallelFusion>(config.get_context_for_tp().size(), i);
-                    manager.register_pass<ov::intel_gpu::RemainFCParallelFusion>(config.get_context_for_tp().size(), i);
+                    if (getenv("OV_ENABLE_LAST_FC"))
+                        manager.register_pass<ov::intel_gpu::RemainFCParallelFusion>(config.get_context_for_tp().size(), i);
                     manager.run_passes(model_clone);
                 }
                 m_sub_compiled_models.push_back(std::make_shared<CompiledModel>(

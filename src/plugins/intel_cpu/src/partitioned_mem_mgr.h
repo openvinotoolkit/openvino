@@ -10,15 +10,14 @@ namespace ov {
 namespace intel_cpu {
 
 /**
- * This is a memory manager that represents a view on a partition inside a continuous memory block controlled by
- * another memory manager.
+ * This is a memory block that represents a view on a subblock inside another continuous dynamic memory block
  * 
  */
-class PartitionedMemoryMngr : public IMemoryMngrObserver {
+class PartitionedMemoryBlock : public IMemoryBlockObserver {
 public:
-    PartitionedMemoryMngr(MemoryMngrPtr pMngr, size_t total_blocks = 1, ptrdiff_t offset_blocks = 0, size_t size_blocks = 1)
-        : m_pMngr(pMngr), m_total_blocks(total_blocks), m_offset_blocks(offset_blocks), m_size_blocks(size_blocks) {
-        OPENVINO_ASSERT(m_pMngr, "Memory manager is uninitialized");
+    PartitionedMemoryBlock(MemoryBlockPtr pBlock, size_t total_chunks = 1, ptrdiff_t offset_chunks = 0, size_t size_chunks = 1)
+        : m_pBlock(pBlock), m_total_chunks(total_chunks), m_offset_chunks(offset_chunks), m_size_chunks(size_chunks) {
+        OPENVINO_ASSERT(m_pBlock, "Memory block is uninitialized");
     }
 
     void* getRawPtr() const noexcept override;
@@ -29,10 +28,10 @@ public:
     void unregisterMemory(Memory* memPtr) override;
 
 private:
-    MemoryMngrPtr m_pMngr;
-    size_t m_total_blocks = 1; // size of the parent memory in abstract blocks
-    ptrdiff_t m_offset_blocks = 0; // offset from the beginning of the external memory in abstract blocks
-    size_t m_size_blocks = 1; // size of the viewed partition in abstract blocks
+    MemoryBlockPtr m_pBlock;
+    size_t m_total_chunks = 1; // size of the parent memory in abstract chunks
+    ptrdiff_t m_offset_chunks = 0; // offset from the beginning of the external memory in abstract chunks
+    size_t m_size_chunks = 1; // size of the viewed partition in abstract chunks
     size_t m_size = 0; // size of the viewed partition in bytes
 };
 

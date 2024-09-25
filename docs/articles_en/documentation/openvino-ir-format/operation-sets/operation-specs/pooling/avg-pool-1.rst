@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_pooling_AvgPool_1}
-
 AvgPool
 =======
 
 
 .. meta::
-  :description: Learn about AvgPool-1 - a pooling operation, which can 
+  :description: Learn about AvgPool-1 - a pooling operation, which can
                 be performed on a 3D, 4D or 5D input tensor.
 
 **Versioned name**: *AvgPool-1*
@@ -65,7 +63,7 @@ AvgPool
 
   * **Description**: *rounding_type* is a type of rounding to be applied.
   * **Range of values**:
-    
+
     * *ceil*
     * *floor*
   * **Type**: string
@@ -75,7 +73,7 @@ AvgPool
 * *auto_pad*
 
   * **Description**: *auto_pad* how the padding is calculated. Possible values:
-    
+
     * *explicit*: use explicit padding values from `pads_begin` and `pads_end`.
     * *same_upper (same_lower)* the input is padded to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
     * *valid* - do not use padding.
@@ -89,20 +87,20 @@ AvgPool
 * **1**: 3D, 4D or 5D input tensor. **Required.**
 
 **Outputs**:
-  
+
 * **1**: Input shape can be either ``[N,C,H]``, ``[N,C,H,W]`` or ``[N,C,H,W,D]``. Then the corresponding output shape is ``[N,C,H_out]``, ``[N,C,H_out,W_out]`` or ``[N,C,H_out,W_out,D_out]``.
 
 **Mathematical Formulation**
 
 .. math::
-   
+
    output_{j} = \frac{\sum_{i = 0}^{n}x_{i}}{n}
 
 **Examples**
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="AvgPool" ... >
        <data auto_pad="same_upper" exclude-pad="true" kernel="2,2" pads_begin="0,0" pads_end="1,1" strides="2,2"/>
        <input>
@@ -122,7 +120,7 @@ AvgPool
            </port>
        </output>
    </layer>
-   
+
    <layer ... type="AvgPool" ... >
        <data auto_pad="same_upper" exclude-pad="false" kernel="5,5" pads_begin="0,0" pads_end="1,1" strides="2,2"/>
        <input>
@@ -142,7 +140,7 @@ AvgPool
            </port>
        </output>
    </layer>
-   
+
    <layer ... type="AvgPool" ... >
        <data auto_pad="explicit" exclude-pad="true" kernel="5,5" pads_begin="1,1" pads_end="1,1" strides="3,3"/>
        <input>
@@ -162,7 +160,7 @@ AvgPool
            </port>
        </output>
    </layer>
-   
+
    <layer ... type="AvgPool" ... >
        <data auto_pad="explicit" exclude-pad="false" kernel="5,5" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
        <input>
@@ -182,7 +180,7 @@ AvgPool
            </port>
        </output>
    </layer>
-   
+
    <layer ... type="AvgPool" ... >
        <data auto_pad="valid" exclude-pad="true" kernel="5,5" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
        <input>
