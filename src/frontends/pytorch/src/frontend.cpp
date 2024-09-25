@@ -287,7 +287,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::frontend::pytorch::pass::IRFFTNComplexReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::PrimTupleUnpackReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::DecomposeListTupleResults>();
-        manager.register_pass<ov::frontend::pytorch::pass::DecomposeUnpackParameters>();  //
+        manager.register_pass<ov::frontend::pytorch::pass::DecomposeUnpackParameters>();
         manager.register_pass<ov::frontend::pytorch::pass::DictParameterResolver>();
         manager.register_pass<ov::frontend::pytorch::pass::DictResultResolver>();
         manager.register_pass<ov::frontend::pytorch::pass::QuantizedNodeRemover>();
@@ -295,6 +295,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::frontend::pytorch::pass::ReversepropResolver>();
         manager.register_pass<ov::frontend::pytorch::pass::MovePackThroughLstm>();
         manager.register_pass<ov::frontend::pytorch::pass::RemovePackingOps>();
+        manager.register_pass<ov::pass::ConvertConvertLike>();
         bool is_changed = manager.run_passes(model);
 
         // make validation after previously non-validated passes
@@ -304,14 +305,14 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 
     ov::pass::Manager manager("Frontend:Pytorch:normalize");
     manager.register_pass<ov::pass::UnrollIf>();
-    manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();  //
-    manager.register_pass<ov::frontend::pytorch::pass::AtenGetItemReplacer>();     //
-    manager.register_pass<ov::frontend::pytorch::pass::ListConstructReplacer>();   //
+    manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::AtenGetItemReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::ListConstructReplacer>();
     // TODO: remove AtenIndexToSelect when problem with  dynamic input rank is gone.
-    manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();     //
-    manager.register_pass<ov::frontend::pytorch::pass::AtenIndexPutReplacer>();  //
+    manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
+    manager.register_pass<ov::frontend::pytorch::pass::AtenIndexPutReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimListConstructPadReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();  //
+    manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
 
     // Check if model is symmetrically quantized
     bool sym = false;
@@ -319,12 +320,11 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         sym = model->get_rt_info()["symmetric_quantization"].as<bool>();
         model->get_rt_info().erase("symmetric_quantization");
     }
-    manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>(sym);  //
+    manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>(sym);
 
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);
-    manager.register_pass<ov::pass::ConvertConvertLike>();
     manager.run_passes(model);
 
     // Usually if nn.Module.forward is given as a source model for conversion, there is the first Parameter
