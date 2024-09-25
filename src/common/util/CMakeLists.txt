@@ -39,31 +39,33 @@ set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME util)
 
 file(
     WRITE ${CMAKE_CURRENT_BINARY_DIR}/main.cpp
-    "#include <filesystem>\nint main(int argc, char ** argv) {\n  std::filesystem::path p(argv[0]);\n  return p.string().length();\n}"
+    "#include <experimental/filesystem>\nint main(int argc, char ** argv) {\n  std::experimental::filesystem::path p(argv[0]);\n  return p.string().length();\n}"
   )
   try_compile(
     STD_FS_NO_LIB_NEEDED ${CMAKE_CURRENT_BINARY_DIR}
     SOURCES ${CMAKE_CURRENT_BINARY_DIR}/main.cpp
-    COMPILE_DEFINITIONS -std=c++17)
+    COMPILE_DEFINITIONS -std=c++11)
   try_compile(
     STD_FS_NEEDS_STDCXXFS ${CMAKE_CURRENT_BINARY_DIR}
     SOURCES ${CMAKE_CURRENT_BINARY_DIR}/main.cpp
-    COMPILE_DEFINITIONS -std=c++17
+    COMPILE_DEFINITIONS -std=c++11
     LINK_LIBRARIES stdc++fs)
   try_compile(
     STD_FS_NEEDS_CXXFS ${CMAKE_CURRENT_BINARY_DIR}
     SOURCES ${CMAKE_CURRENT_BINARY_DIR}/main.cpp
-    COMPILE_DEFINITIONS -std=c++17
+    COMPILE_DEFINITIONS -std=c++11
     LINK_LIBRARIES c++fs)
 
-if(${STD_FS_NEEDS_STDCXXFS})
+if(MSVC)
+  set(STD_FS_LIB stdc++fs)
+elseif(${STD_FS_NEEDS_STDCXXFS})
   set(STD_FS_LIB stdc++fs)
 elseif(${STD_FS_NEEDS_CXXFS})
   set(STD_FS_LIB c++fs)
 elseif(${STD_FS_NO_LIB_NEEDED})
   set(STD_FS_LIB "")
 else()
-  message(WARNING "Unknown C++17 compiler - not passing -lstdc++fs")
+  message(WARNING "Unknown C++ compiler - not passing -lstdc++fs")
   set(STD_FS_LIB stdc++fs)
 endif()
 
