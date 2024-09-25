@@ -3091,7 +3091,10 @@ void GraphOptimizer::ReplaceMemoryOutputWithMemoryOutputStub(Graph& graph) {
 
         CPU_GRAPH_OPTIMIZER_SCOPE(ReplaceMemoryOutputWithMemoryOutputStub);
 
-        auto memInputWithSubgraph = std::dynamic_pointer_cast<node::MemoryInput>(node);
+        auto memoryNode = std::dynamic_pointer_cast<node::MemoryNode>(node);
+        if (nullptr == memoryNode) {
+            continue;
+        }
 
         // Find sibling MemoryOutput
         std::shared_ptr<MemoryOutput> memOutput = nullptr;
@@ -3100,12 +3103,12 @@ void GraphOptimizer::ReplaceMemoryOutputWithMemoryOutputStub(Graph& graph) {
             auto child = edge->getChild();
             if (Type::MemoryOutput == child->getType()) {
                 memOutput = std::dynamic_pointer_cast<MemoryOutput>(child);
-                if (memOutput && memOutput->getId() == memInputWithSubgraph->getId()) {
+                if (memOutput && memOutput->getId() == memoryNode->getId()) {
                     break;
                 }
 
                 auto memOutputStub = std::dynamic_pointer_cast<MemoryOutputStub>(child);
-                if (memOutputStub && memOutputStub->getId() == memInputWithSubgraph->getId()) {
+                if (memOutputStub && memOutputStub->getId() == memoryNode->getId()) {
                     isReplaced = true;
                     break;
                 }
