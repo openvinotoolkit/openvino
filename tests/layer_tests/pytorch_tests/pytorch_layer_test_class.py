@@ -76,7 +76,7 @@ class PytorchLayerTest:
             try:
                 return self._test_impl(model, ref_net, kind, ie_device, precision, ir_version, infer_timeout, dynamic_shapes, **kwargs)
             except RuntimeError as e:
-                if "builtin cannot be used as a value" in e:
+                if "builtin cannot be used as a value" in str(e):
                     # This is a potentially sporadic issue
                     print(f"An error occurred: {e}. Retrying...")
                     retries += 1
