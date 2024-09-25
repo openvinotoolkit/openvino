@@ -39,17 +39,15 @@ bool compatible_axes(const std::vector<int64_t>& fst_axes_vector, const std::vec
 bool shape_calculation_mode_can_use_constant_inputs(const std::shared_ptr<ov::op::v4::Interpolate>& interpolate) {
     const auto& attrs = interpolate->get_attrs();
     if (attrs.shape_calculation_mode == ov::op::v4::Interpolate::ShapeCalcMode::SIZES) {
-        return std::dynamic_pointer_cast<ov::op::v0::Constant>(interpolate->input_value(1).get_node_shared_ptr()) !=
-               nullptr;
+        return ov::as_type_ptr<ov::op::v0::Constant>(interpolate->input_value(1).get_node_shared_ptr()) != nullptr;
     }
-    return std::dynamic_pointer_cast<ov::op::v0::Constant>(interpolate->input_value(2).get_node_shared_ptr()) !=
-           nullptr;
+    return ov::as_type_ptr<ov::op::v0::Constant>(interpolate->input_value(2).get_node_shared_ptr()) != nullptr;
 }
 
 bool is_candidate_for_fusion(const std::shared_ptr<ov::op::v4::Interpolate>& interpolate) {
     return (interpolate->get_input_partial_shape(0).rank().is_static()) &&
            (interpolate->inputs().size() != 4 ||
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(interpolate->input_value(3).get_node_shared_ptr())) &&
+            ov::as_type_ptr<ov::op::v0::Constant>(interpolate->input_value(3).get_node_shared_ptr())) &&
            shape_calculation_mode_can_use_constant_inputs(interpolate);
 }
 
@@ -62,7 +60,7 @@ std::vector<int64_t> get_interpolated_axes(const std::shared_ptr<ov::op::v4::Int
 
         return default_value;
     }
-    return std::dynamic_pointer_cast<ov::op::v0::Constant>(interpolate->input_value(3).get_node_shared_ptr())
+    return ov::as_type_ptr<ov::op::v0::Constant>(interpolate->input_value(3).get_node_shared_ptr())
         ->cast_vector<int64_t>();
 }
 
@@ -89,10 +87,8 @@ ov::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<ov::op:
                                                    pass::MatcherPass* matcherPass) {
     const auto fst_axes = get_interpolated_axes(fst);
     const auto snd_axes = get_interpolated_axes(snd);
-    const auto fst_sizes_node =
-        std::dynamic_pointer_cast<ov::op::v0::Constant>(fst->input_value(1).get_node_shared_ptr());
-    const auto snd_sizes_node =
-        std::dynamic_pointer_cast<ov::op::v0::Constant>(snd->input_value(1).get_node_shared_ptr());
+    const auto fst_sizes_node = ov::as_type_ptr<ov::op::v0::Constant>(fst->input_value(1).get_node_shared_ptr());
+    const auto snd_sizes_node = ov::as_type_ptr<ov::op::v0::Constant>(snd->input_value(1).get_node_shared_ptr());
     if (!fst_sizes_node || !snd_sizes_node)
         return {};
 
@@ -148,10 +144,8 @@ ov::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<ov::op
                                                     pass::MatcherPass* matcherPass) {
     const auto fst_axes = get_interpolated_axes(fst);
     const auto snd_axes = get_interpolated_axes(snd);
-    const auto fst_scales_node =
-        std::dynamic_pointer_cast<ov::op::v0::Constant>(fst->input_value(2).get_node_shared_ptr());
-    const auto snd_scales_node =
-        std::dynamic_pointer_cast<ov::op::v0::Constant>(snd->input_value(2).get_node_shared_ptr());
+    const auto fst_scales_node = ov::as_type_ptr<ov::op::v0::Constant>(fst->input_value(2).get_node_shared_ptr());
+    const auto snd_scales_node = ov::as_type_ptr<ov::op::v0::Constant>(snd->input_value(2).get_node_shared_ptr());
     if (!fst_scales_node || !snd_scales_node)
         return {};
 
@@ -213,12 +207,12 @@ ov::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
     MATCHER_SCOPE(InterpolateSequenceFusion);
     auto interpolate_pattern = ov::pass::pattern::wrap_type<ov::op::v4::Interpolate>();
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        auto snd_interpolate = std::dynamic_pointer_cast<ov::op::v4::Interpolate>(m.get_match_root());
+        auto snd_interpolate = ov::as_type_ptr<ov::op::v4::Interpolate>(m.get_match_root());
         if (!snd_interpolate)
             return false;
 
         auto fst_interpolate =
-            std::dynamic_pointer_cast<ov::op::v4::Interpolate>(snd_interpolate->input_value(0).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v4::Interpolate>(snd_interpolate->input_value(0).get_node_shared_ptr());
         if (!fst_interpolate)
             return false;
 

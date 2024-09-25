@@ -5,6 +5,7 @@
 #include "input.h"
 
 #include "cpu/x64/jit_generator.hpp"
+#include "nodes/node_config.h"
 #include "openvino/core/parallel.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
 
@@ -419,6 +420,22 @@ Input::Input(MemoryDescPtr memDesc, const std::string& name, const std::string& 
     extMemDesc = memDesc;
 }
 
+Input::Input(const std::shared_ptr<ov::Node>& op,
+             const GraphContext::CPtr context,
+             InputConfig config)
+    : Input(op, context) {
+    extMemDesc = config.desc;
+    m_isInPlace = config.inPlace;
+}
+
+Input::Input(const std::shared_ptr<ov::Node>& op,
+             const GraphContext::CPtr context,
+             OutputConfig config)
+    : Input(op, context) {
+    m_useParentMemoryDescForOutput = config.useParentMemoryDescForOutput;
+    m_isInPlace = config.inPlace;
+}
+
 MemoryCPtr Input::getMemoryPtr() const {
     return memoryPtr;
 }
@@ -446,6 +463,27 @@ void Input::initSupportedPrimitiveDescriptors() {
     } else {
         initSupportedPdDefault();
     }
+}
+
+void Input::initOptimalPrimitiveDescriptor() {
+    if (m_useParentMemoryDescForOutput || extMemDesc)
+        return;
+
+    Node::initOptimalPrimitiveDescriptor();
+}
+
+void Input::selectOptimalPrimitiveDescriptor() {
+    if (!(m_useParentMemoryDescForOutput && getType() == Type::Output))
+        return Node::selectOptimalPrimitiveDescriptor();
+
+    // ignore previous configuration
+    supportedPrimitiveDescriptors.clear();
+
+    // and just use parent memory descriptor for Output node to avoid reorders insertion
+    NodeConfig config({PortConfig(getParentOutputMemDesc(getParentEdgeAt(0)), BlockedMemoryDesc::FULL_MASK, 0)}, {});
+
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+    selectPrimitiveDescriptorByIndex(0);
 }
 
 void Input::createPrimitive() {
@@ -495,15 +533,14 @@ void Input::initSupportedPdDefault() {
 
 void Input::initSupportedPdFromMemDesc() {
     NodeConfig config;
-    PortConfig portConfig;
-    portConfig.inPlace(-1);
-    portConfig.constant(false);
-    portConfig.setMemDesc(extMemDesc);
+    PortConfig portConfig(extMemDesc, BlockedMemoryDesc::FULL_MASK, m_isInPlace ? 0 : -1, false);
+
     if (getType() == Type::Input || getType() == Type::MemoryInput) {
         config.outConfs.push_back(portConfig);
     } else if (getType() == Type::Output) {
         config.inConfs.push_back(portConfig);
     }
+
     supportedPrimitiveDescriptors.emplace_back(std::move(config), impl_desc_type::unknown);
 }
 

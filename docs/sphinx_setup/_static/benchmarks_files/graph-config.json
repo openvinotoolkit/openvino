@@ -1,8 +1,8 @@
 
 {
     "PrecisionsMap": {
-        "OV-INT8 (reference)": "ovmsint8",
-        "OV-FP32 (reference)": "ovmsfp32",
+        "OVMSINT8": "ovmsint8",
+        "OVMSFP32": "ovmsfp32",
         "INT4": "int4",
         "INT8": "int8",
         "FP16": "fp16",
@@ -28,27 +28,37 @@
         "int4": {
             "data": null,
             "color": "#5bd0f0",
-            "label": "int4"
+            "label": "INT4"
         },
         "int8": {
             "data": null,
             "color": "#00C7FD",
-            "label": "int8"
+            "label": "INT8"
         },
         "fp16": {
             "data": null,
             "color": "#009fca",
-            "label": "fp16"
+            "label": "FP16"
         },
         "fp32": {
             "data": null,
             "color": "#007797",
-            "label": "fp32"
+            "label": "FP32"
         },
         "bf16": {
             "data": null,
             "color": "#00536a",
-            "label": "bf16"
+            "label": "BF16"
+        },
+        "ovmsint8": {
+            "data": null,
+            "color": "#009fca",
+            "label": "FPS( OV Ref. INT8)"
+        },
+        "ovmsfp32": {
+            "data": null,
+            "color": "#00536a",
+            "label": "BF16"
         }
     },
     "Filters": [
