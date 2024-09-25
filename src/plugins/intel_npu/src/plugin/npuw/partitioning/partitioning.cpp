@@ -459,12 +459,21 @@ void Partitioner::identifySubgraphs() {
         LOG_VERB("Populating _parameters...");
         group.sg._parameters.clear();
 
+        // Stabilize input order - sort layers based on names
+        using PairNodePtr = std::pair<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>;
+        std::vector<PairNodePtr> input_mapping_sorted(input_mapping.begin(), input_mapping.end());
+        std::sort(input_mapping_sorted.begin(), input_mapping_sorted.end(), [](const PairNodePtr& p1, const PairNodePtr& p2) {
+            // Sanity check
+            NPUW_ASSERT(p1.first->get_friendly_name() != p2.first->get_friendly_name());
+            return p1.first->get_friendly_name() < p2.first->get_friendly_name();
+        });
+
         // Now (after unknown slices/converts were introduced) params may be referred to
         // from multiple places in the model - so may be added multiple times to the
         // input mapping. This is a w/a, better they're added only once (TODO).
         // This set handles it.
         std::set<std::shared_ptr<ov::Node>> unique_params;
-        for (auto&& im : input_mapping) {
+        for (auto&& im : input_mapping_sorted) {
             LOG_BLOCK();
             auto& src_node = im.first;
             auto& maybe_param = im.second;
@@ -485,7 +494,7 @@ void Partitioner::identifySubgraphs() {
             } else {
                 // assert is_constant(), there's no other way
             }
-        }  // for(input_mapping)
+        }  // for(input_mapping_sorted)
 
         // The same logic for group's final layers: replace their direct
         // connections with Result stubs (but remember where these outputs
