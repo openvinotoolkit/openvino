@@ -71,8 +71,9 @@ struct network {
 public:
     using ptr = std::shared_ptr<network>;
 
-    explicit network(program::ptr program, const ExecutionConfig& config, stream::ptr stream, bool is_internal = false, bool is_primary_stream = true,
-                    ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager = nullptr);
+    network(program::ptr program, stream::ptr stream, bool is_internal, bool is_primary_stream,
+            ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager = nullptr);
+    network(program::ptr program, bool is_internal, bool is_primary_stream, ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager = nullptr);
     network(engine& engine,
             const topology& topo,
             const ExecutionConfig& config = {},

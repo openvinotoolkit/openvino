@@ -1,5 +1,3 @@
-.. {#openvino_docs_performance_int8_vs_fp32}
-
 Model Accuracy
 ==============
 
@@ -31,78 +29,78 @@ the table for more information.
      - spearman@cosine
      - 3.33%
      - 3.22%
-     - 3.69%
-     - 3.28%
+     - 3.05%
+     - 2.88%
    * - bert-large-uncased-whole-word-masking-squad-0001
      - SQUAD_v1_1_bert_msl384_mql64_ds128_lowercase
      - F1
-     - 0.19%
-     - 0.06%
+     - 0.12%
      - 0.03%
-     - 0.11%
+     - 0.03%
+     - 0.28%
    * - efficientdet-d0
      - COCO2017_detection_91cl
      - coco_precision
-     - -0.9%
-     - -0.63%
-     - -0.61%
-     - -0.62%
+     - 0.00%
+     - -0.52%
+     - -0.54%
+     - -0.60%
    * - mask_rcnn_resnet50_atrous_coco
      - COCO2017_detection_91cl_bkgr
      - coco_orig_precision
-     - -5.64%
-     - -0.30%
-     - -0.21%
-     - -0.28%
+     - 0.05%
+     - 0.03%
+     - 0.08%
+     - -0.09%
    * - mobilenet-v2
      - ImageNet2012
      - accuracy @ top1
+     -
      - -0.87%
-     - -0.87%
-     - -0.89%
-     - -0.95%
+     - -0.88%
+     - -0.88%
    * - resnet-50
      - ImageNet2012
      - accuracy @ top1
-     - -0.2%
+     - -0.17%
      - -0.18%
      - -0.18%
-     - -0.13%
+     - -0.16%
    * - ssd-resnet34-1200
      - COCO2017_detection_80cl_bkgr
      - map
      - -0.03%
      - -0.02%
      - -0.03%
-     - -0.0%
+     - 0.02%
    * - ssd-mobilenet-v1-coco
      - COCO2017_detection_80cl_bkgr
      - coco-precision
-     - -2.75%
+     - -2.74%
      - -0.11%
-     - -0.11%
-     - -0.08%
+     - -0.13%
+     - -0.12%
    * - unet-camvid-onnx-0001
      - CamVid_12cl
      - mean_iou @ mean
      - -6.28%
      - 6.45%
      - 6.46%
-     - 6.40%
-   * - yolo_v3_tiny
+     - 6.43%
+   * - yolo_v5m
      - COCO2017_detection_80cl
      - map
-     - -0.30%
-     - -0.43%
-     - -0.43%
-     - -0.87%
+     - -0.40%
+     - -0.32%
+     - -0.32%
+     - -0.31%
    * - yolo_v8n
      - COCO2017_detection_80cl
      - map
      - -0.01%
      - -0.04%
-     - 0.04%
-     - -0.08%
+     - -0.07%
+     - 0.05%
 
 .. list-table:: Model Accuracy for BF16, FP32 and FP16 (FP16: Flex-170 only. BF16: Xeon(R) 8480+ only)
    :header-rows: 1
@@ -121,32 +119,32 @@ the table for more information.
      - 0.00%
      - 0.00%
      - 0.00%
-     - -0.03%
+     - -0.01%
      - 0.01%
    * - bert-large-uncased-whole-word-masking-squad-0001
      - SQUAD_v1_1_bert_msl384_mql64_ds128_lowercase
      - F1
      - 0.04%
      - 0.04%
-     - 0.04%
      - 0.06%
-     - %
+     - 0.06%
+     - 0.04%
    * - efficientdet-d0
      - COCO2017_detection_91cl
      - coco_precision
+     - 0.01%
      - -0.02%
+     - 0.01%
+     - 0.00%
      - -0.02%
-     - -0.02%
-     - -0.02%
-     - 0.04%
    * - mask_rcnn_resnet50_atrous_coco
      - COCO2017_detection_91cl_bkgr
      - coco_orig_precision
+     - -0.01%
+     - -0.01%
+     - -0.01%
+     - -0.05%
      - 0.00%
-     - 0.00%
-     - 0.00%
-     - 0.01%
-     - -0.02%
    * - mobilenet-v2
      - ImageNet2012
      - accuracy @ top1
@@ -166,19 +164,19 @@ the table for more information.
    * - ssd-resnet34-1200
      - COCO2017_detection_80cl_bkgr
      - map
-     - 0.00%
+     - 0.02%
      - 0.00%
      - 0.00%
      - -0.02%
-     - 0.02%
+     - 0.04%
    * - ssd-mobilenet-v1-coco
      - COCO2017_detection_80cl_bkgr
      - coco-precision
+     - -0.08%
      - 0.01%
      - 0.01%
+     - 0.08%
      - 0.01%
-     - 0.04%
-     - -0.02%
    * - unet-camvid-onnx-0001
      - CamVid_12cl
      - mean_iou @ mean
@@ -187,68 +185,75 @@ the table for more information.
      - 0.00%
      - -0.03%
      - -0.03%
-   * - yolo_v3_tiny
+   * - yolo_v5m
      - COCO2017_detection_80cl
      - map
      - 0.00%
-     - 0.00%
-     - 0.00%
-     - 0.25%
-     - -0.01%
+     - 0.05%
+     - 0.05%
+     - 0.07%
+     - 0.07%
    * - yolo_v8n
      - COCO2017_detection_80cl
      - map
      - 0.00%
      - 0.00%
+     - 0.01%
+     - 0.05%
      - 0.00%
-     - 0.04%
-     - -0.02%
 
-.. list-table:: Model Accuracy for VNNI-FP16, VNNI-INT8, VNNI-INT4 and MTL-INT4 (Core Ultra)
+.. list-table:: Model Accuracy for VNNI-FP16, VNNI-INT4, AMX-FP16 and MTL-INT4 (Core Ultra iGPU)
    :header-rows: 1
-   
+
    * - OpenVINO™  Model name
      - dataset
      - Metric Name
      - A, VNNI-FP16
-     - B, VNNI-INT8
-     - C, VNNI-INT4
+     - B, VNNI-INT4
+     - C, FAMX-FP16
      - D, MTL-INT4
    * - chatGLM2-6b
      - Wikiset
      - ppl
-     - 5,24
-     - 5.17
-     - 6.86
-     - 6.87
+     - 5.24
+     - 6.03
+     - 5.24
+     - 6.03
    * - Falcon-7b-instruct
      - Wikitext
      - ppl
      - 1.65
+     - 1.76
      - 1.65
-     - 1.82
-     - 1.82
+     - 1.76
    * - Llama-2-7b-chat
      - Wikiset
      - ppl
-     - 1.54
      - 1.58
      - 1.59
+     - 1.91
      - 1.59
+   * - Llama-3-8b
+     - Wikiset
+     - ppl
+     - 1.54
+     - 1.56
+     - 1.17
+     - 1.57
    * - Mistral-7b
      - Wikitext
      - ppl
      - 1.48
-     - 1.48
      - 1.49
+     - 1.39
      - 1.49
-   * - Stable-Diffusion-V2-1
-     - LIAON-5B
-     - CLIP
-     - 
-     - 
-     - 
-     - 
+   * - Phi3-mini-4k-instruct
+     - Wikitext
+     - ppl
+     - 1.52
+     - 1.56
+     - 1.52
+     - 1.56
 
 Notes: For all accuracy metrics a "-", (minus sign), indicates an accuracy drop.
 For perplexity (ppl) the values do not indicate a deviation from a reference but are the actual measured

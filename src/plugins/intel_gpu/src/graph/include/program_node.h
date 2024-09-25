@@ -53,8 +53,6 @@ struct program_node {
     friend class pre_replace_deconv;                // to be removed when possible
     friend class prepare_primitive_fusing;          // to be removed when possible
     friend class prepare_quantization;              // to be removed when possible
-    friend class prepare_conv_eltw_fusing;          // to be removed when possible
-    friend class prepare_conv_eltw_read_write_opt;  // to be removed when possible
     friend class propagate_constants;               // to be removed when possible
 
     template <class PType>

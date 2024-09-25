@@ -538,10 +538,10 @@ void MatMul::prepareParams() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto src0MemPtr = getSrcMemoryAtPort(0);
     auto src1MemPtr = getSrcMemoryAtPort(1);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
-    if (!src0MemPtr || !src0MemPtr->isAllocated() || !src1MemPtr || !src1MemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined destination memory");
+    if (!src0MemPtr || !src0MemPtr->isDefined() || !src1MemPtr || !src1MemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined input memory");
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
@@ -576,8 +576,8 @@ void MatMul::prepareParams() {
     DnnlMemoryDescPtr dnnlBiasMemDesc = nullptr;
     if (withBiases) {
         auto biasMemory = getSrcMemoryAtPort(2);
-        if (!biasMemory || !biasMemory->isAllocated())
-            OPENVINO_THROW(errorPrefix, " did not allocate bias memory");
+        if (!biasMemory || !biasMemory->isDefined())
+            OPENVINO_THROW(errorPrefix, " has undefined bias memory");
         dnnlBiasMemDesc = biasMemory->getDescWithType<DnnlMemoryDesc>();
     }
 

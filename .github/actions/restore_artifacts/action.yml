@@ -19,12 +19,19 @@ inputs:
   artifacts_key:
     description: "A key under which to upload the artifacts to storage, product type by default"
     required: false
+  to_restore:
+    description: "Comma-separated list of packages to restore, all available by default"
+    required: false
+  unpack_archives:
+    description: "Whether to unpack all artifact archives once retrieved"
+    required: false
+    default: 'true'
 
 
 outputs:
-  artifacts_storage_path:
-    description: "Path on a shared drive where the artifacts are stored"
-    value: ${{ steps.restore.outputs.artifacts_storage_path }}
+  artifacts_workspace_path:
+    description: "Path within the workspace where the artifacts are stored"
+    value: ${{ steps.restore.outputs.artifacts_workspace_path }}
   restored_artifacts_key:
     description: "Key under which the restored artifacts, if any, were uploaded to GitHub"
     value: ${{ steps.restore.outputs.restored_artifacts_key }}
@@ -41,13 +48,16 @@ runs:
         -t "${{ env.GITHUB_WORKSPACE }}/${{ inputs.storage_dir }}"
         --storage_dir "${{ inputs.storage_dir }}" --storage_root "${{ inputs.storage_root }}"
         -s "${{ inputs.trigger_repo_sha || github.event.pull_request.head.sha || github.sha }}"
+        ${{ inputs.unpack_archives == 'true' && '--unpack_archives' || '' }}
         ${{ inputs.branch_name && env.BRANCH_PARAM || '' }}
         ${{ inputs.event_name && env.EVENT_PARAM || '' }}
+        ${{ inputs.to_restore && env.TO_RESTORE || '' }}
       env:
         ACTION_PATH: ${{ runner.os == 'Windows' && '$env:GITHUB_ACTION_PATH' || '$GITHUB_ACTION_PATH' }}
         GITHUB_WORKSPACE: ${{ runner.os == 'Windows' && '$env:GITHUB_WORKSPACE' || '$GITHUB_WORKSPACE' }}
         BRANCH_PARAM: "-b ${{ inputs.branch_name }}"
         EVENT_PARAM: "-e ${{ inputs.event_name }}"
+        TO_RESTORE: "-r ${{ inputs.to_restore }}"
 
     - name: Upload artifacts
       if: "!inputs.artifacts"

@@ -15,6 +15,7 @@ class TRANSFORMATIONS_API EliminateConvert;
 class TRANSFORMATIONS_API EliminateConvertNonZero;
 class TRANSFORMATIONS_API EliminateEltwise;
 class TRANSFORMATIONS_API EliminateScatterUpdate;
+class TRANSFORMATIONS_API EliminateReduceReshape;
 class TRANSFORMATIONS_API EliminatePad;
 class TRANSFORMATIONS_API EliminateSplit;
 class TRANSFORMATIONS_API EliminateSplitConcat;
@@ -31,6 +32,16 @@ class TRANSFORMATIONS_API PrepareShapeOpsForEliminationAroundBE;
 
 }  // namespace pass
 }  // namespace ov
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief EliminateReduceReshape eliminates Reshape from Reduce -> Reshape pattern
+ */
+class ov::pass::EliminateReduceReshape : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("EliminateReduceReshape", "0");
+    EliminateReduceReshape();
+};
 
 /**
  * @ingroup ov_transformation_common_api

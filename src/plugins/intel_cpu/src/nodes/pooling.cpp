@@ -394,10 +394,10 @@ void Pooling::prepareParams() {
     if (useACL) {
         auto dstMemPtr = getDstMemoryAtPort(0);
         auto srcMemPtr = getSrcMemoryAtPort(0);
-        if (!dstMemPtr || !dstMemPtr->isAllocated())
-            OPENVINO_THROW("Destination memory didn't allocate.");
-        if (!srcMemPtr || !srcMemPtr->isAllocated())
-            OPENVINO_THROW("Input memory didn't allocate.");
+        if (!dstMemPtr || !dstMemPtr->isDefined())
+            OPENVINO_THROW("Destination memory is undefined.");
+        if (!srcMemPtr || !srcMemPtr->isDefined())
+            OPENVINO_THROW("Input memory is undefined.");
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {

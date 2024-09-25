@@ -22,7 +22,7 @@ ov::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto reduce_l1_node =
-            std::dynamic_pointer_cast<ov::op::v4::ReduceL1>(pattern_to_output.at(reduce_l1).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v4::ReduceL1>(pattern_to_output.at(reduce_l1).get_node_shared_ptr());
 
         if (reduce_l1_node == nullptr || transformation_callback(reduce_l1_node)) {
             return false;

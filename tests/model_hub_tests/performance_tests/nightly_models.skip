@@ -267,4 +267,5 @@ albert_lite_base,https://www.kaggle.com/models/tensorflow/albert/frameworks/tens
 mask_rcnn/inception_resnet_v2_1024x1024,https://www.kaggle.com/models/tensorflow/mask-rcnn-inception-resnet-v2/frameworks/tensorFlow2/variations/1024x1024/versions/1
 ganeval-cifar10-convnet,https://www.kaggle.com/models/deepmind/ganeval-cifar10-convnet/frameworks/tensorFlow1/variations/ganeval-cifar10-convnet/versions/1
 efficientdet/d4,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/d4/versions/1
+cientnet/b2/feature-vector,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b2-feature-vector/versions/1
 
