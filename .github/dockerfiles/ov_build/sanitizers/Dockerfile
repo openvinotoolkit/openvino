@@ -23,8 +23,8 @@ RUN apt-get update && \
         gpg-agent \
         tzdata \
         # Compiler \
-        clang \
-        lld \
+        gcc-10 \
+        g++-10 \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -33,3 +33,7 @@ ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && \
     /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
+
+# Set gcc-10 as a default compiler
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
