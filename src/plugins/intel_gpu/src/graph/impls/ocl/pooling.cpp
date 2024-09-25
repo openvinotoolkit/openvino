@@ -167,6 +167,7 @@ attach_pooling_impl::attach_pooling_impl() {
                      format::b_fs_yx_fsv4,
                      format::b_fs_yx_fsv16,
                      format::b_fs_yx_fsv32,
+                     format::fs_b_yx_fsv32,
                      format::bs_fs_yx_bsv16_fsv16,
                      format::bs_fs_yx_bsv16_fsv32,
                      format::bs_fs_yx_bsv32_fsv16,
@@ -181,8 +182,6 @@ attach_pooling_impl::attach_pooling_impl() {
                      format::bs_fs_zyx_bsv32_fsv32 };
 
     auto keys = implementation_map<pooling>::combine(types, formats);
-    keys.emplace(data_types::f16, format::fs_b_yx_fsv32);
-    keys.emplace(data_types::f32, format::fs_b_yx_fsv32);
 
     implementation_map<pooling>::add(impl_types::ocl, typed_primitive_impl_ocl<pooling>::create<pooling_impl>, keys);
 }

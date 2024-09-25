@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "fully_connected_onednn.hpp"
 #include "fully_connected_inst.h"
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 #include "primitive_onednn_base.h"
-#include "impls/registry/implementation_map.hpp"
-
-#include "impls/ocl/kernel_selector_helper.h"
+#include "impls/registry/implementation_manager.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -412,22 +413,11 @@ public:
     }
 };
 
-namespace detail {
-
-attach_fully_connected_onednn::attach_fully_connected_onednn() {
-    std::vector<data_types> dt = {
-        data_types::f32,
-        data_types::f16,
-        data_types::u8,
-        data_types::i8,
-    };
-    std::vector<format::type> fmt = {
-        format::bfyx,
-    };
-    implementation_map<fully_connected>::add(impl_types::onednn, fully_connected_onednn::create, dt, fmt);
+std::unique_ptr<primitive_impl> FullyConnectedImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<fully_connected>());
+    return onednn::fully_connected_onednn::create(static_cast<const fully_connected_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
 

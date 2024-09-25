@@ -56,7 +56,7 @@ void remove_redundant_reorders::run(program& p) {
             return;
 
         node.set_unique_id();
-        node.set_selected_impl(node.type()->choose_impl(node));
+        node.set_selected_impl(node.type()->create_impl(node));
         if (auto impl = node.get_selected_impl()) {
             auto params = node.get_kernel_impl_params();
             p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
@@ -448,7 +448,7 @@ void remove_redundant_reorders::run(program& p) {
 
             auto old_output_layout_of_input = input.get_output_layout();
             input.set_output_layout(output_layout, false);
-            if (input.type()->does_possible_implementation_exist(input)) {
+            if (input.type()->has_impl_for(input)) {
                 // Add fused_primitive_desc of reorder to the previous node which propagates original output layout
                 // during shape inference
                 if (input.is_type<mvn>() || input.is_type<concatenation>() || input.is_type<gather>() ||
@@ -604,7 +604,7 @@ void remove_redundant_reorders::run(program& p) {
         auto old_output_layout_of_input = input.get_output_layout();
         auto output_layout = node->get_output_layout();
         input.set_output_layout(output_layout, false);
-        if (input.type()->does_possible_implementation_exist(input)) {
+        if (input.type()->has_impl_for(input)) {
             input.set_output_padding(node->get_output_layout().data_padding);
 
             // Add fused_primitive_desc of reorder to convolution which propagate original output layout to jitter
@@ -727,11 +727,6 @@ void remove_redundant_reorders::run(program& p) {
         if (n->is_in_data_flow() && n->is_type<reorder>()) {
             auto preferred_impl = lo.get_preferred_impl_type(*n, n->get_input_layout(0).format);
             n->set_preferred_impl_type(preferred_impl);
-        }
-
-        // Validate fused layout when onednn is enable in post_optimize_graph
-        if (!enable_reorder_fusing && n->get_preferred_impl_type() == impl_types::onednn && !lo.are_layouts_suitable_for_onednn(*n)) {
-            throw std::runtime_error("Onednn doesnot support padded input or output");
         }
     }
 

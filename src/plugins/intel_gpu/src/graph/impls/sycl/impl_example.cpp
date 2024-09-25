@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impl_example.hpp"
 #include "fully_connected_inst.h"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "ocl/ocl_event.hpp"
@@ -257,6 +258,11 @@ struct fully_connected_sycl_example : typed_primitive_sycl_impl<fully_connected>
         return cldnn::make_unique<fully_connected_sycl_example>(engine, config, get_weights_reorder(impl_params));
     }
 };
+
+std::unique_ptr<primitive_impl> ExampleImplementationManagerSYCL::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<fully_connected>());
+    return sycl::fully_connected_sycl_example::create(static_cast<const fully_connected_node&>(node), params);
+}
 
 }  // namespace sycl
 }  // namespace cldnn

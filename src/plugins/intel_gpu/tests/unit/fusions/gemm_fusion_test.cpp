@@ -235,9 +235,6 @@ TEST_P(gemm_2in_quantize_float_in, basic) {
         reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
-    ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "gemm_tiled_opt" };
-    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemm_impl } }));
-
     tolerance = default_tolerance(data_types::u8);
     execute(p, false);
 }

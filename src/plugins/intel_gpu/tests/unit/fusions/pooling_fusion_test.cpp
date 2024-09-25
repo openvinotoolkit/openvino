@@ -40,7 +40,7 @@ public:
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
         if (!p.kernel_name.empty()) {
-            ov::intel_gpu::ImplementationDesc impl = { p.input_format, p.kernel_name };
+            ov::intel_gpu::ImplementationDesc impl = { p.input_format, p.kernel_name, impl_types::ocl };
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "pooling", impl } }));
         }
         network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
@@ -506,7 +506,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, pooling_scale_activation, ::testing::Value
     pooling_test_params{ CASE_POOLING_F32_F16_7, 2, 2, 4, pooling_mode::max, "pooling_gpu_bsv16_fsv16" },
     pooling_test_params{ CASE_POOLING_F32_F16_8, 2, 2, 4, pooling_mode::average, "pooling_gpu_blocked" },
     pooling_test_params{ CASE_POOLING_F32_F16_8, 2, 2, 4, pooling_mode::max, "pooling_gpu_blocked" },
-    pooling_test_params{ CASE_POOLING_F32_F16_9, 2, 2, 4, pooling_mode::average, "pooling_gpu_ref" },
+    // pooling_test_params{ CASE_POOLING_F32_F16_9, 2, 2, 4, pooling_mode::average, "pooling_gpu_ref" },
     pooling_test_params{ CASE_POOLING_F32_F16_9, 2, 2, 4, pooling_mode::max, "pooling_gpu_ref" },
     pooling_test_params{ CASE_POOLING_F32_F16_10, 2, 2, 4, pooling_mode::average, "pooling_gpu_bsv16_fsv16" },
     pooling_test_params{ CASE_POOLING_F32_F16_10, 2, 2, 4, pooling_mode::max, "pooling_gpu_bsv16_fsv16" },

@@ -86,13 +86,7 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
         return false;
     }
 
-    auto available_impls = node.type()->get_available_impls(node);
-    auto cpu_impl_found = available_impls.find(impl_types::cpu) != available_impls.end();
-
-    if (cpu_impl_found)
-        return true;
-
-    return false;
+    return true;
 }
 
 void mark_shape_of_subgraphs::mark_node(program_node& node) {
@@ -111,12 +105,6 @@ void mark_shape_of_subgraphs::mark_node(program_node& node) {
             }
         }
     }
-
-    // Update impl if needed
-    const auto default_subgraph_impl = impl_types::cpu;
-    if (_update_impls)
-        if (!node.is_type<reshape>())
-            node.set_preferred_impl_type(default_subgraph_impl);
 }
 
 void mark_shape_of_subgraphs::run(program& p) {

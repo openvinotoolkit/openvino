@@ -938,6 +938,7 @@ TEST(reorder_gpu, basic_convert_int8) {
 
     ExecutionConfig cfg = get_test_default_config(engine);
     cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2"}));
+    cfg.set_property(ov::intel_gpu::optimize_data(true)); // to enable onednn
     network network(engine, topology, cfg);
 
     network.set_input_data("input", input_memory);
@@ -987,6 +988,7 @@ TEST(reorder_gpu, basic_convert_uint8) {
 
     ExecutionConfig cfg = get_test_default_config(engine);
     cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2" }));
+    cfg.set_property(ov::intel_gpu::optimize_data(true)); // to enable onednn
     network network(engine, topology, cfg);
 
     network.set_input_data("input", input_memory);

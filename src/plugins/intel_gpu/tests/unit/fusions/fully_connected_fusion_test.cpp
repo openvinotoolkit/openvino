@@ -93,7 +93,7 @@ public:
         if (!engine.get_device_info().supports_immad)
             return;
 
-        auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
+        auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p), -1, 1);
 
         auto impl_forcing = cfg_fused.get_property(ov::intel_gpu::force_implementations);
         auto forcing_format = p.input_format;
@@ -551,8 +551,8 @@ public:
         auto p = GetParam();
         create_topologies(
             input_layout("input", get_input_layout(p)),
-            data("weights", get_mem(get_weights_layout(p))),
-            data("bias", get_mem(get_bias_layout(p))),
+            data("weights", get_mem(get_weights_layout(p), -1, 1)),
+            data("bias", get_mem(get_bias_layout(p), -2, 2)),
             data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
             fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p)),
             eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sum),
@@ -618,9 +618,9 @@ TEST_P(fc_fp16_eltwise_prod_unfused_dynamic, basic) {
     auto data_layout = layout{ ov::PartialShape{p.out_shape[0], 1}, p.default_type, p.default_format };
     create_topologies(
         input_layout("input", dynamic_input_layout),
-        data("weights", get_mem(get_weights_layout(p), -10, 10)),
-        data("bias", get_mem(get_bias_layout(p), -10, 10)),
-        data("eltwise_data", get_mem(data_layout, -10, 10)),
+        data("weights", get_mem(get_weights_layout(p), -1, 1)),
+        data("bias", get_mem(get_bias_layout(p), -2, 2)),
+        data("eltwise_data", get_mem(data_layout, -1, 1)),
         fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p)),
         eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::prod),
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
@@ -628,7 +628,7 @@ TEST_P(fc_fp16_eltwise_prod_unfused_dynamic, basic) {
 
     bool is_dynamic = true;
     cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
-    tolerance = 1e-2f;
+    tolerance = 0.5f;
     execute(p, false, is_dynamic);
 }
 
@@ -687,12 +687,12 @@ TEST_P(fc_compressed_int8_bias_prod_unfused_dynamic_onednn, basic) {
     fc_prim.decompression_zero_point_scalar = 8.0f;
 
     // onednn FC supports scalar ZP for int4 compressed weight.
-    auto dcomp_zp_layout = layout{ {1, 1, 1, 1}, data_types::u8, format::bfyx };
+    auto dcomp_zp_layout = layout{ {1, 1}, data_types::u8, format::bfyx };
 
     create_topologies(
         input_layout("input", dynamic_input_layout),
         data("weights", get_mem(get_weights_layout(p))),
-        data("scale", get_mem(get_scale_layout(p))),
+        data("scale", get_mem(get_scale_layout(p, 128))),
         data("bias", get_mem(get_bias_layout(p))),
         data("dcomp_zp", get_mem(dcomp_zp_layout, 8.0f)),
         data("mul_data", get_mem(data_layout, -10, 10)),

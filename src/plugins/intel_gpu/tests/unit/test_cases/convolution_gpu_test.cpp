@@ -5542,7 +5542,7 @@ TEST(convolution_f16_fsv_gpu, convolution_f16_fsv_gpu_padding) {
     topology.add(conv_fsv);
 
     ExecutionConfig config = get_test_default_config(engine);
-    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "convolution_gpu_bfyx_to_fs_byx_fsv32" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "convolution_gpu_bfyx_to_fs_byx_fsv32", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
@@ -10439,7 +10439,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_no_bias_swap_xy) {
 
     auto inst = network.get_primitive("conv");
     const auto& node = inst->get_node();
-    auto selected_impl = node.type()->choose_impl(node);
+    auto selected_impl = node.type()->create_impl(node);
     bool found_define = false;
     for (auto& s : selected_impl->get_kernels_source()) {
         if (s != nullptr && !s->get_str().empty()

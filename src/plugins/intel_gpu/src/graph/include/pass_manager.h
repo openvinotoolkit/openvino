@@ -53,6 +53,7 @@ public:
 private:
     void run(program& p) override;
     void add_reorder(program& p, program_node* node, program_node* usr, bool keep_original_dt = false);
+    bool test_format(cldnn::program_node& node, format requested_format);
 };
 
 class compile_graph : public base_pass {
@@ -94,20 +95,14 @@ class mark_shape_of_subgraphs : public base_pass {
     // - Node type is shape_of OR
     // - All node's dependencies are marked as members of shape_of subgraphs OR
     // - Node is a shape infer dependency of any user
-    // Also, there is some additional requirement:
-    // - Primitive must have CPU implementation (this requirement is ignored for reshape
-    //   primitives, since currently ocl optimized_out implementation is used for reshape execution in such subgraphs)
 public:
-    mark_shape_of_subgraphs(bool update_impls = false) :
-        base_pass("mark_shape_of_subgraphs"), _update_impls(update_impls) {}
+    mark_shape_of_subgraphs() : base_pass("mark_shape_of_subgraphs") {}
 
 private:
     void run(program& p) override;
     void look_for_shape_of_subgraph(program_node& node);
     bool can_mark_node(const program_node& node);
     void mark_node(program_node& node);
-
-    bool _update_impls;
 };
 
 class prepare_buffer_fusing : public base_pass {
