@@ -57,3 +57,24 @@ jobs:
           cache-path: ${{ env.CCACHE_PATH }}
           recursive: true
           key: '.'
+          
+          
+  Cleanup_CCACHE_win:
+    runs-on: 'aks-win-4-cores-8gb'
+    env:
+      CCACHE_PATH: C:\\mount\\caches\\ccache
+
+    steps:
+      - name: Checkout cach action
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          sparse-checkout: .github/actions/cache
+
+      - name: Cleanup ccache
+        uses: ./.github/actions/cache/cleanup
+        with:
+          cache-size: 300
+          max-cache-size: 750
+          cache-path: ${{ env.CCACHE_PATH }}
+          recursive: true
+          key: '.'
