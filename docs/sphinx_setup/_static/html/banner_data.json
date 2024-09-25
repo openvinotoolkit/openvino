@@ -1,5 +1,6 @@
 {
     "p": "",
     "version": "1",
-    "style": "warning"
+    "style": "warning",
+    "styles": "warning info critical"
 }

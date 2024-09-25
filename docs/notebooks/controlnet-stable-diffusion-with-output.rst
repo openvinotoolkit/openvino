@@ -141,6 +141,7 @@ of the target in the image:
 This tutorial focuses mainly on conditioning by pose. However, the
 discussed steps are also applicable to other annotation modes.
 
+
 **Table of contents:**
 
 
@@ -199,6 +200,13 @@ Prerequisites
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1" "torchvision"
     %pip install -q "diffusers>=0.14.0" "transformers>=4.30.2" "controlnet-aux>=0.0.6" "gradio>=3.36" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.1.0" "datasets>=2.14.6" "nncf>=2.7.0"
+    
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
 
 Instantiating Generation Pipeline
 ---------------------------------
@@ -230,7 +238,7 @@ controlnet model and ``stable-diffusion-v1-5``:
     from diffusers import StableDiffusionControlNetPipeline, ControlNetModel
     
     controlnet = ControlNetModel.from_pretrained("lllyasviel/control_v11p_sd15_openpose", torch_dtype=torch.float32)
-    pipe = StableDiffusionControlNetPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", controlnet=controlnet)
+    pipe = StableDiffusionControlNetPipeline.from_pretrained("botp/stable-diffusion-v1-5", controlnet=controlnet)
 
 OpenPose
 ~~~~~~~~
@@ -412,6 +420,7 @@ model with the OpenVINO model, using the following code:
         def __init__(self, core, model_path, device="AUTO"):
             self.core = core
             self.model = core.read_model(model_path)
+            self._device = device
             self.compiled_model = core.compile_model(self.model, device)
     
         def __call__(self, input_tensor: torch.Tensor):
@@ -441,7 +450,7 @@ model with the OpenVINO model, using the following code:
               None
             """
             self.model.reshape({0: [1, 3, height, width]})
-            self.compiled_model = self.core.compile_model(self.model)
+            self.compiled_model = self.core.compile_model(self.model, self._device)
     
         def parameters(self):
             Device = namedtuple("Device", ["device"])
@@ -459,14 +468,9 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    from notebook_utils import device_widget
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -1006,7 +1010,7 @@ on OpenVINO.
             self.register_to_config(controlnet=core.compile_model(controlnet, device))
             self.register_to_config(unet=core.compile_model(unet, device))
             self.unet_out = self.unet.output(0)
-            self.vae_decoder = core.compile_model(vae_decoder)
+            self.vae_decoder = core.compile_model(vae_decoder, device)
             self.vae_decoder_out = self.vae_decoder.output(0)
     
         def __call__(
@@ -1328,16 +1332,9 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
     core = ov.Core()
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget("CPU")
     
     device
 
@@ -1419,7 +1416,9 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(value=True, description="Quantization")
+    from notebook_utils import quantization_widget
+    
+    to_quantize = quantization_widget()
     
     to_quantize
 
@@ -1760,6 +1759,8 @@ launch the interactive demo.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
     quantized_model_present = int8_pipe is not None
     
     use_quantized_model = widgets.Checkbox(
