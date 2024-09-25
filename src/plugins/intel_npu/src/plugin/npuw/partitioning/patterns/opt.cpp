@@ -364,7 +364,9 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
             auto rshp_ccat = std::make_shared<ov::op::v1::Reshape>(scaled, rshp_ccat_c, false);
 
             auto reduce_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1);
-            auto reduce = std::make_shared<ov::op::v1::ReduceSum>(rshp_ccat, reduce_axis, true);
+            // Make reduceSum not to keep axis because then it will convert to poolings in compiler.
+            // Otherwise reduceSum will convert to the convolution which is less efficient than poolings.
+            auto reduce = std::make_shared<ov::op::v1::ReduceSum>(rshp_ccat, reduce_axis, false);
 
             auto rshp_out_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, out_shape);
             auto rshp_out = std::make_shared<ov::op::v1::Reshape>(reduce, rshp_out_c, false);
