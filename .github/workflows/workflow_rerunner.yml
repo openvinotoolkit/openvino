@@ -21,7 +21,8 @@ permissions: read-all
 jobs:
   rerun:
     name: Rerun Workflow
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}  # Run only for the failed workflows
+    # Run only for the failed workflows in openvinotoolkit org
+    if: ${{ github.event.workflow_run.conclusion == 'failure' && github.repository_owner == 'openvinotoolkit' }}
     runs-on: aks-linux-2-cores-8gb
     permissions:
       actions: write

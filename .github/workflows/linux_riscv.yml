@@ -44,6 +44,7 @@ jobs:
   Docker:
     needs: Smart_CI
     runs-on: aks-linux-4-cores-16gb-docker-build
+    if: "!needs.smart_ci.outputs.skip_workflow"
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -88,7 +89,7 @@ jobs:
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 2G
 
-    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
+    if: ${{ github.event_name != 'merge_group' }}
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7

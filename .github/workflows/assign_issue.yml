@@ -15,6 +15,7 @@ jobs:
     permissions:
       issues: write
     timeout-minutes: 10
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     steps:
       - name: take an issue
         uses: bdougie/take-action@1439165ac45a7461c2d89a59952cd7d941964b87 # v1.6.1

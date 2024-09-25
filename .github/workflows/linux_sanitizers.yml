@@ -25,6 +25,7 @@ jobs:
       run:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
