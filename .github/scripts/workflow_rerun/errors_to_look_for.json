@@ -78,5 +78,9 @@
     {
         "error_text": "lost communication with the server",
         "ticket": 152565
+    },
+    {
+        "error_text": "Upload progress stalled",
+        "ticket": 152933
     }
 ]
