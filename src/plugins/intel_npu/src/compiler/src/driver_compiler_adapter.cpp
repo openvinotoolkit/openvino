@@ -117,7 +117,7 @@ void LevelZeroCompilerAdapter::release(std::shared_ptr<const NetworkDescription>
 
 CompiledNetwork LevelZeroCompilerAdapter::getCompiledNetwork(const NetworkDescription& networkDescription) {
     _logger.info("getCompiledNetwork - using adapter to perform getCompiledNetwork(networkDescription)");
-    return apiAdapter->getCompiledNetwork(std::move(networkDescription));
+    return apiAdapter->getCompiledNetwork(networkDescription);
 }
 
 }  // namespace driverCompilerAdapter
