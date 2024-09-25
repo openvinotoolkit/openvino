@@ -23,7 +23,10 @@ public:
     bool created() const override {
         return getType() == Type::QKVProjection;
     }
-    void prepareParams() override;
+    bool needPrepareParams() const override {
+        return false;
+    }    
+    void createPrimitive() override;
     void executeDynamicImpl(dnnl::stream strm) override {
         execute(strm);
     }
@@ -32,8 +35,13 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage, int concurrency = 0) noexcept;
 
 private:
-    struct Impl;
-    std::shared_ptr<Impl> m_pimpl;
+
+    struct ExecutorBase {
+        virtual void execute() = 0;
+        virtual ~ExecutorBase() = default;
+    };
+    std::shared_ptr<ExecutorBase> m_executor;
+    template <typename T> struct Executor;
 
     QKVProjectionNode::Config m_config;
 };

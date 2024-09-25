@@ -830,7 +830,12 @@ void Transformations::PostLpt() {
 
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
     auto can_use_amx_bf16_int8 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) && (config.inferencePrecision == element::bf16);
-    if (can_use_amx_bf16_int8) {
+    auto can_use_amx_fp16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) && (config.inferencePrecision == element::f16);
+    if (std::getenv("NO_MLP")) {
+        can_use_amx_fp16 = false;
+        can_use_amx_bf16_int8 = false;
+    }
+    if (can_use_amx_bf16_int8 || can_use_amx_fp16) {
         int allow_dyn_quant = std::getenv("LLM_DQ") ? atoi(std::getenv("LLM_DQ")) : 0; // config.fcDynamicQuantizationGroupSize > 0
 
         CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion, allow_dyn_quant & 0x2);
@@ -852,6 +857,8 @@ void Transformations::PostLpt() {
                 return node::QKVProjection::isSupportedOperation(node, errorMsg, concurrency);
             },
             QKVProjFusion);
+        
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::PrintModel, "_xxx.cpp");
     }
 
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);

@@ -23,7 +23,8 @@ void llm_mlp_transpose_epi32_16x16(void* dst, void* src, int stride) {
                            stride / sizeof(uint32_t));
 }
 
-void llm_mlp_quantize_bf16_i8(ov::bfloat16* psrc,
+template<typename T>
+void llm_mlp_quantize_to_i8(T* psrc,
                               int src_stride,
                               int8_t* pdst,
                               int dst_stride,
@@ -110,11 +111,37 @@ void llm_mlp_quantize_bf16_i8(ov::bfloat16* psrc,
     }
 }
 
-void llm_mlp_dequantize_i32_bf16(int Batch,
+void llm_mlp_quantize_bf16_i8(ov::bfloat16* psrc,
+                              int src_stride,
+                              int8_t* pdst,
+                              int dst_stride,
+                              int rows,
+                              int cols,
+                              float* p_scales,
+                              float* p_zp,
+                              bool asym) {
+    llm_mlp_quantize_to_i8(psrc, src_stride, pdst, dst_stride, rows, cols, p_scales, p_zp, asym);
+}
+
+void llm_mlp_quantize_f16_i8(ov::float16* psrc,
+                              int src_stride,
+                              int8_t* pdst,
+                              int dst_stride,
+                              int rows,
+                              int cols,
+                              float* p_scales,
+                              float* p_zp,
+                              bool asym) {
+    llm_mlp_quantize_to_i8(psrc, src_stride, pdst, dst_stride, rows, cols, p_scales, p_zp, asym);
+}
+
+/*
+template<typename T>
+void llm_mlp_dequantize_i32(int Batch,
                                  int OC,
                                  int32_t* src,
                                  int stride_src,
-                                 ov::bfloat16* dst,
+                                 T* dst,
                                  int stride_dst,
                                  float* p_src_scale_per_row,
                                  float* p_src_zp_per_row,
@@ -169,6 +196,36 @@ void llm_mlp_dequantize_i32_bf16(int Batch,
         }
     }
 }
+
+void llm_mlp_dequantize_i32_bf16(int Batch,
+                                 int OC,
+                                 int32_t* src,
+                                 int stride_src,
+                                 ov::bfloat16* dst,
+                                 int stride_dst,
+                                 float* p_src_scale_per_row,
+                                 float* p_src_zp_per_row,
+                                 float* p_wsum_per_oc,
+                                 float* p_wscale_per_oc,
+                                 bool asym) {
+    llm_mlp_dequantize_i32<ov::bfloat16>(Batch, OC, src, stride_src, dst, stride_dst, p_src_scale_per_row, p_src_zp_per_row, p_wsum_per_oc, p_wscale_per_oc, asym);
+}
+
+void llm_mlp_dequantize_i32_f16(int Batch,
+                                 int OC,
+                                 int32_t* src,
+                                 int stride_src,
+                                 ov::float16* dst,
+                                 int stride_dst,
+                                 float* p_src_scale_per_row,
+                                 float* p_src_zp_per_row,
+                                 float* p_wsum_per_oc,
+                                 float* p_wscale_per_oc,
+                                 bool asym) {
+    llm_mlp_dequantize_i32<ov::float16>(Batch, OC, src, stride_src, dst, stride_dst, p_src_scale_per_row, p_src_zp_per_row, p_wsum_per_oc, p_wscale_per_oc, asym);
+}
+
+*/
 
 void llm_mlp_dequantize_i32_f32(int Batch,
                                  int OC,

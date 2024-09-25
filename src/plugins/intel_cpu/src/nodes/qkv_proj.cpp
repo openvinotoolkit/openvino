@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "common/primitive_hashing_utils.hpp"
 #include "common/bfloat16.hpp"
 #include "common/cpu_memcpy.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
@@ -21,6 +22,9 @@
 #include "openvino/core/parallel.hpp"
 
 #include "nodes/linux_perf.hpp"
+
+using namespace dnnl::impl;
+using namespace dnnl::impl::utils;
 
 namespace ov {
 namespace intel_cpu {
@@ -50,7 +54,8 @@ static std::vector<int> allocate_workers(const std::vector<int>& grouped_works, 
     return g_workers;
 }
 
-struct QKVProjection::Impl {
+template <typename T>
+struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
     std::vector<Work> works;
     QKVProjection * m_node;
     DnnlScratchPadPtr m_scrachPad;
@@ -62,7 +67,7 @@ struct QKVProjection::Impl {
 
     WeightBuffer wbuffer;
 
-    Impl(QKVProjection * pnode, DnnlScratchPadPtr scrachPad) : m_node(pnode), m_scrachPad(scrachPad) {
+    Executor(QKVProjection * pnode, DnnlScratchPadPtr scrachPad) : m_node(pnode), m_scrachPad(scrachPad) {
         PlainTensor w0(pnode->getSrcMemoryAtPort(1));
         PlainTensor w1(pnode->getSrcMemoryAtPort(2));
         PlainTensor w2(pnode->getSrcMemoryAtPort(3));
@@ -108,6 +113,7 @@ struct QKVProjection::Impl {
                     work.output_id = output_id;
                     work.p_raw_weights = pw;
                     work.quant_i8 = quantized_int8;
+                    work.is_f16 = std::is_same<T, ov::float16>::value;
                 }
                 start_blkN += blkN;
             }
@@ -133,7 +139,7 @@ struct QKVProjection::Impl {
                 if (quantized_int8)
                     work.setup(wbuffer.get<int8_t>(ithr), reinterpret_cast<int8_t*>(work.p_raw_weights), stride_in_bytes, true);
                 else
-                    work.setup(wbuffer.get<ov::bfloat16>(ithr), reinterpret_cast<ov::float16*>(work.p_raw_weights), stride_in_bytes);
+                    work.setup(wbuffer.get<T>(ithr), reinterpret_cast<ov::float16*>(work.p_raw_weights), stride_in_bytes);
             }
         });
     }
@@ -172,15 +178,16 @@ struct QKVProjection::Impl {
         }
     }
 
-    void execute() {
-        static ReduceAdd2bh jit_2bh(false);
+    void execute() override {
+        static ReduceAdd2bh jit_cvt(false, std::is_same<T, ov::float16>::value);
+
         auto input = m_node->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();
         uint8_t* psrc0 = input->getDataAs<uint8_t>();
         int M = shape_size(ishape) / ishape[ishape.size() - 1];
-        auto* dst0 = m_node->getDstMemoryAtPort(0)->getDataAs<ov::bfloat16>();
-        auto* dst1 = m_node->getDstMemoryAtPort(1)->getDataAs<ov::bfloat16>();
-        auto* dst2 = m_node->getDstMemoryAtPort(2)->getDataAs<ov::bfloat16>();
+        auto* dst0 = m_node->getDstMemoryAtPort(0)->getDataAs<T>();
+        auto* dst1 = m_node->getDstMemoryAtPort(1)->getDataAs<T>();
+        auto* dst2 = m_node->getDstMemoryAtPort(2)->getDataAs<T>();
 
         float* w_scale[3];
 
@@ -195,7 +202,7 @@ struct QKVProjection::Impl {
         const auto& dstStrides1 = m_node->getDstMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto& dstStrides2 = m_node->getDstMemoryAtPort(2)->getDescWithType<BlockedMemoryDesc>()->getStrides();
 
-        int stride_src = srcStrides[1] * sizeof(ov::bfloat16);
+        int stride_src = srcStrides[1] * sizeof(T);
         auto stride_dst_0 = dstStrides0[1];
         auto stride_dst_1 = dstStrides1[1];
         auto stride_dst_2 = dstStrides2[1];
@@ -216,7 +223,7 @@ struct QKVProjection::Impl {
             if (m_node->m_config.quantized) {
                 // quantize psrc0 into m_quantized_act buffer
                 // per-token asym
-                m_quant_act.quantize(BM, reinterpret_cast<ov::bfloat16*>(psrc0), srcStrides[1]);
+                m_quant_act.quantize(BM, reinterpret_cast<T*>(psrc0), srcStrides[1]);
                 pA = reinterpret_cast<uint8_t*>(m_quant_act.data);
                 strideA = m_quant_act.K;
             }
@@ -230,7 +237,7 @@ struct QKVProjection::Impl {
                     }
 
                     // determine destination buffer
-                    ov::bfloat16* dst = nullptr;
+                    T* dst = nullptr;
                     int stride_dst = 0;
 
                     if (work.output_id == 0) {
@@ -265,11 +272,12 @@ struct QKVProjection::Impl {
                             asym);
                     }
                     // compress accumulation result into target
+                    //jit_cvt.call(src, stride_src, dst, stride_dst, BM, work.BN);
                     for (int mi = 0; mi < BM; mi++, src += stride_src, dst += stride_dst) {
                         // the prefetch distance is increased to ensure by the time store happens
                         // prefetch has done and no HW prefetcher is triggered
                         auto* prefetch_dst = (mi + 2 < BM) ? (dst + 2 * stride_dst) : (dst);
-                        jit_2bh(src, dst, prefetch_dst, work.BN);
+                        jit_cvt(src, dst, prefetch_dst, work.BN);
                     }
                 }
             });
@@ -282,21 +290,35 @@ struct QKVProjection::Impl {
     }
 };
 #else
-struct QKVProjection::Impl {
-    Impl(QKVProjection * pnode, DnnlScratchPadPtr scrachPad) {}
-    void execute() {}
+template <typename T>
+struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
+    QKVProjection * m_pnode;
+    Executor(QKVProjection * pnode) : m_pnode(pnode) {
+
+    }
+    void execute() override {
+
+    }
 };
 #endif
 
-void QKVProjection::prepareParams() {
-    if (!m_pimpl) {
-        m_pimpl = std::make_shared<Impl>(this, context->getScratchPad());
+void QKVProjection::createPrimitive() {
+    auto rtPrecision = getOriginalInputPrecisionAtPort(0);
+#ifdef OPENVINO_ARCH_X86_64
+    if (rtPrecision == ov::element::bf16) {
+        m_executor = std::make_shared<Executor<ov::bfloat16>>(this, context->getScratchPad());
+    } else if (rtPrecision == ov::element::f16) {
+        m_executor = std::make_shared<Executor<ov::float16>>(this, context->getScratchPad());
+    }
+#endif
+    if (!m_executor) {
+        OPENVINO_THROW("QKVProjection Executor creation fails with precision " + rtPrecision.to_string());
     }
 }
 
 void QKVProjection::execute(dnnl::stream strm) {
     MAYBE_UNUSED(strm);
-    m_pimpl->execute();
+    m_executor->execute();
 }
 
 QKVProjection::QKVProjection(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
@@ -316,8 +338,11 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inPortConfigs;
     std::vector<PortConfigurator> outPortConfigs;
 
+    auto rtPrecision = getOriginalInputPrecisionAtPort(0);
+
+    OPENVINO_ASSERT(rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16);
+
     if (m_config.quantized) {
-        auto rtPrecision = ov::element::bf16;
         auto weightPrecision = ov::element::i8;
         auto wScalePrecision = ov::element::f32;
 
@@ -334,7 +359,6 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
         outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(1), false, -1);
         outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(2), false, -1);
     } else {
-        auto rtPrecision = ov::element::bf16;
         auto weightPrecision = ov::element::f16;
 
         // initialize input ports

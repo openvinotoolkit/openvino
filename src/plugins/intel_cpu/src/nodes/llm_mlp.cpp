@@ -29,6 +29,7 @@ namespace node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 
+template<typename T>
 class LinearKsplit2 {
 public:
     std::vector<Work> works;
@@ -40,13 +41,12 @@ public:
     LinearKsplit2() {}
 
     ReduceAdd2bh * p_jit_reduce2bh;
+
     // weight [N, K]
     // Gate & Up are interleaved in N dimension: 16-gate / 16-up
     // and post-ops will compute  silu(gate)*up in unit of 16 elements
     // and store out as bfloat16.
     void setup(void* p_weight, int stride, int N, int K, const LLMMLPNode::Config& config) {
-        static ReduceAdd2bh jit_reduce2bh_2(true);
-
         bool is_quantized = config.down_quantized;
 
         auto reg_blk_K_size = is_quantized ? REG_BLK_K_SIZE_I8 : REG_BLK_K_SIZE;
@@ -58,8 +58,6 @@ public:
         auto nthr = parallel_get_max_threads();
         auto num_blk_N = N / REG_BLK_N_SIZE;
         works.resize(nthr);
-
-        p_jit_reduce2bh = &jit_reduce2bh_2;
 
         auto K_splits = 2;
         // split task on more cores is better on TBB
@@ -96,6 +94,7 @@ public:
                     work.k0 = start_blkK * reg_blk_K_size;
                     work.k1 = (start_blkK + blk_K) * reg_blk_K_size;
                     work.quant_i8 = is_quantized;
+                    work.is_f16 = std::is_same<T, ov::float16>::value;
 
                     start_blkK += blk_K;
                     used_nthr++;
@@ -115,17 +114,19 @@ public:
                 if (is_quantized) {
                     work.setup(wbuffer.get<int8_t>(ithr), reinterpret_cast<int8_t*>(p_weight), stride, true);
                 } else {
-                    work.setup(wbuffer.get<ov::bfloat16>(ithr), reinterpret_cast<ov::float16*>(p_weight), stride);
+                    work.setup(wbuffer.get<T>(ithr), reinterpret_cast<ov::float16*>(p_weight), stride);
                 }
             }
         });
         DEBUG_LOG("   setup is done. weight @ ", static_cast<void*>(p_weight));
     }
 
-    void run(uint8_t* pA, int strideA, int M, ov::bfloat16* dstC, int strideC,
+    void run(uint8_t* pA, int strideA, int M, T* dstC, int strideC,
              const LLMMLPNode::Config& config,
              MatrixDynQuantPerRow& src_dq,
              float * w_scale) {
+        static ReduceAdd2bh jit_reduce2cvt(true, std::is_same<T, ov::float16>::value);
+
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             auto& workC = work.m_C;
@@ -156,7 +157,7 @@ public:
                     auto peer_ithr = (ithr & 1) ? (ithr - 1) : (ithr + 1);
                     auto& peerC = works[peer_ithr].m_C;
                     // the other one has finished, we can do the reduce sum
-                    p_jit_reduce2bh->call(workC.ptr<float>(), peerC.ptr<float>(), workC.stride(0),
+                    jit_reduce2cvt.call(workC.ptr<float>(), peerC.ptr<float>(), workC.stride(0),
                                             dstC + work.n0, strideC / sizeof(*dstC),
                                             M, work.BN);
                 }
@@ -165,6 +166,7 @@ public:
     }
 };
 
+template<typename T>
 class LinearGateUp {
 public:
     std::vector<Work> works;
@@ -182,8 +184,8 @@ public:
     // and post-ops will compute  silu(gate)*up in unit of 16 elements
     // and store out as bfloat16.
     void setup(void* p_weight_gate, void* p_weight_up, int stride, int N, int K, const LLMMLPNode::Config& config) {
-        static GateUpCombine jit_gateup_silu(dnnl_eltwise_swish);
-        static GateUpCombine jit_gateup_gelu(dnnl_eltwise_gelu_tanh);
+        static GateUpCombine jit_gateup_silu(dnnl_eltwise_swish, std::is_same<T, ov::float16>::value);
+        static GateUpCombine jit_gateup_gelu(dnnl_eltwise_gelu_tanh, std::is_same<T, ov::float16>::value);
 
         if (config.act == LLMMLPNode::ACT_FN::GELU)
             jit_gateup = &jit_gateup_gelu;
@@ -231,6 +233,7 @@ public:
                 work.k0 = 0;
                 work.k1 = K;
                 work.quant_i8 = quantized_int8;
+                work.is_f16 = std::is_same<T, ov::float16>::value;
                 used_nthr++;
             }
 
@@ -248,7 +251,7 @@ public:
                                reinterpret_cast<int8_t*>(p_weight_up),
                                stride, true);
                 else
-                    work.setup(wbuffer.get<ov::bfloat16>(ithr),
+                    work.setup(wbuffer.get<T>(ithr),
                                reinterpret_cast<ov::float16*>(p_weight_gate),
                                reinterpret_cast<ov::float16*>(p_weight_up),
                                stride);
@@ -259,7 +262,7 @@ public:
 
     // gate & up are interleaved: 16 gates + 16 up
     void runGateUp(uint8_t* pA, int strideA_in_bytes, int M,
-                   ov::bfloat16* dstC, int strideC,
+                   T* dstC, int strideC,
                    const LLMMLPNode::Config& config,
                    MatrixDynQuantPerRow& src_dq,
                    float * w_scale) {
@@ -304,14 +307,16 @@ public:
     }
 };
 
-struct LLMMLP::Impl {
+template<typename T>
+struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
+    LLMMLP* m_pnode;
     const LLMMLPNode::Config m_config;
     DnnlScratchPadPtr m_scrachPad;
     MemoryPtr m_scratchMem;
     uint8_t* m_scratch_base = nullptr;
 
-    LinearGateUp gate_up;
-    LinearKsplit2 down;
+    LinearGateUp<T> gate_up;
+    LinearKsplit2<T> down;
     int m_N;
     int m_M = 0;
 
@@ -324,14 +329,19 @@ struct LLMMLP::Impl {
 
     PlainTensor m_w_scale_gateup;
 
+    bool m_rt_prec_f16;
+
     // [M, K] x [N, K] => [M, N] x [K, N] => [M, K]
     // w_gate/w_up : [N, K]
     //     w_down  : [K, N]
-    Impl(LLMMLP* pnode, const LLMMLPNode::Config& config, DnnlScratchPadPtr scrachPad)
-         : m_config(config), m_scrachPad(scrachPad) {
+    Executor(LLMMLP* pnode, const LLMMLPNode::Config& config, DnnlScratchPadPtr scrachPad)
+         : m_pnode(pnode), m_config(config), m_scrachPad(scrachPad) {
         PlainTensor w_gate(pnode->getSrcMemoryAtPort(1));
         PlainTensor w_up(pnode->getSrcMemoryAtPort(2));
         PlainTensor w_down(pnode->getSrcMemoryAtPort(3));
+        
+        m_rt_prec_f16 = std::is_same<T, ov::float16>::value;
+
         // [N, K] [N, K] interleave (16-16-...) into [2*N, K]
         auto K = w_gate.size(1);
         auto N = w_gate.size(0);
@@ -363,9 +373,9 @@ struct LLMMLP::Impl {
         if (m_M < M || cur_scratch_base != m_scratch_base) {
             ScratchBuffAllocator allocator;
 
-            allocator.register_allocation(M * m_N * sizeof(ov::bfloat16), [&](void* ptr) {
-                m_actUp.resize<ov::bfloat16>({static_cast<size_t>(M), static_cast<size_t>(m_N)},
-                                             reinterpret_cast<ov::bfloat16*>(ptr));
+            allocator.register_allocation(M * m_N * sizeof(T), [&](void* ptr) {
+                m_actUp.resize<T>({static_cast<size_t>(M), static_cast<size_t>(m_N)},
+                                             reinterpret_cast<T*>(ptr));
             });
 
             auto nthr = parallel_get_max_threads();
@@ -405,24 +415,24 @@ struct LLMMLP::Impl {
         }
     }
 
-    void execute(LLMMLP* pnode) {
-        auto input = pnode->getSrcMemoryAtPort(0);
+    void execute() override {
+        auto input = m_pnode->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();
         uint8_t* pA = input->getDataAs<uint8_t>();
         const auto& srcStrides = input->getDescWithType<BlockedMemoryDesc>()->getStrides();
 
         int strideA = srcStrides[srcStrides.size() - 2];
-        int strideA_in_bytes = strideA * sizeof(ov::bfloat16);
+        int strideA_in_bytes = strideA * sizeof(T);
         int M = shape_size(ishape) / ishape[ishape.size() - 1];
 
-        auto output = pnode->getDstMemoryAtPort(0);
-        auto* dstC = output->getDataAs<ov::bfloat16>();
+        auto output = m_pnode->getDstMemoryAtPort(0);
+        auto* dstC = output->getDataAs<T>();
         const auto& dstStrides = output->getDescWithType<BlockedMemoryDesc>()->getStrides();
-        int strideC = dstStrides[dstStrides.size() - 2] * sizeof(ov::bfloat16);
+        int strideC = dstStrides[dstStrides.size() - 2] * sizeof(T);
 
         float* p_w_scale_down = nullptr;
         if (m_config.down_quantized) {
-            p_w_scale_down = pnode->getSrcMemoryAtPort(6)->getDataAs<float>();
+            p_w_scale_down = m_pnode->getSrcMemoryAtPort(6)->getDataAs<float>();
         }
 
         for (int m = 0; m < M;) {
@@ -431,10 +441,10 @@ struct LLMMLP::Impl {
 
             uint8_t* psrc = pA;
             auto stride_src_in_bytes = strideA_in_bytes;
-            auto strideA_in_bytes = strideA * sizeof(ov::bfloat16);
+            auto strideA_in_bytes = strideA * sizeof(T);
             if (m_config.gate_up_quantized) {
                 auto prof = LinuxPerf::Profile("gu-quant");
-                m_quant_act.quantize(BM, reinterpret_cast<ov::bfloat16*>(pA), strideA);
+                m_quant_act.quantize(BM, reinterpret_cast<T*>(pA), strideA);
                 psrc = reinterpret_cast<uint8_t*>(m_quant_act.data);
                 stride_src_in_bytes = m_quant_act.K;
             }
@@ -443,16 +453,16 @@ struct LLMMLP::Impl {
             gate_up.runGateUp(psrc,
                               stride_src_in_bytes,
                               BM,
-                              m_actUp.ptr<ov::bfloat16>(),
+                              m_actUp.ptr<T>(),
                               m_actUp.stride_bytes(0),
                               m_config,
                               m_quant_act,
                               m_w_scale_gateup.ptr<float>());
 
-            uint8_t * p_up_act = reinterpret_cast<uint8_t*>(m_actUp.ptr<ov::bfloat16>());
+            uint8_t * p_up_act = reinterpret_cast<uint8_t*>(m_actUp.ptr<T>());
             size_t stride_up_act = m_actUp.stride_bytes(0);
             if (m_config.down_quantized) {
-                m_quant_up_act.quantize(BM, m_actUp.ptr<ov::bfloat16>(), m_actUp.stride(0));
+                m_quant_up_act.quantize(BM, m_actUp.ptr<T>(), m_actUp.stride(0));
                 p_up_act = reinterpret_cast<uint8_t*>(m_quant_up_act.data);
                 stride_up_act = m_quant_up_act.stride();
             }
@@ -464,14 +474,15 @@ struct LLMMLP::Impl {
 
             m += BM;
             pA += BM * strideA_in_bytes;
-            dstC += BM * strideC / sizeof(ov::bfloat16);
+            dstC += BM * strideC / sizeof(T);
         }
     }
 };
 #else
-struct LLMMLP::Impl {
-    Impl(LLMMLP* pnode, const LLMMLPNode::Config& config, DnnlScratchPadPtr scrachPad) {}
-    void execute(LLMMLP* pnode) {}
+template<typename T>
+struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
+    Executor(LLMMLP* pnode, const LLMMLPNode::Config& config, DnnlScratchPadPtr scrachPad) {}
+    void execute() {}
 };
 #endif
 
@@ -492,8 +503,9 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inPortConfigs;
     std::vector<PortConfigurator> outPortConfigs;
 
+    auto rtPrecision = getOriginalInputPrecisionAtPort(0);
+
     if (m_mlp_config.gate_up_quantized) {
-        auto rtPrecision = ov::element::bf16;
         auto weightPrecision = ov::element::i8;
 
         // initialize input ports
@@ -509,7 +521,6 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
         // initialize output port
         outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);
     } else {
-        auto rtPrecision = ov::element::bf16;
         auto weightPrecision = ov::element::f16;
 
         // initialize input ports
@@ -524,17 +535,23 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
-void LLMMLP::prepareParams() {
-    if (!m_pimpl) {
-        m_pimpl = std::make_shared<Impl>(this,
-                                         m_mlp_config,
-                                         context->getScratchPad());
+void LLMMLP::createPrimitive() {
+    auto rtPrecision = getOriginalInputPrecisionAtPort(0);
+#ifdef OPENVINO_ARCH_X86_64
+    if (rtPrecision == ov::element::bf16) {
+        m_executor = std::make_shared<Executor<ov::bfloat16>>(this, m_mlp_config, context->getScratchPad());
+    } else if (rtPrecision == ov::element::f16) {
+        m_executor = std::make_shared<Executor<ov::float16>>(this, m_mlp_config, context->getScratchPad());
     }
+#endif
+    if (!m_executor) {
+        OPENVINO_THROW("LLMMLP Executor creation fails with precision " + rtPrecision.to_string());
+    }    
 }
 
 void LLMMLP::execute(dnnl::stream strm) {
     MAYBE_UNUSED(strm);
-    m_pimpl->execute(this);
+    m_executor->execute();
 }
 
 bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {

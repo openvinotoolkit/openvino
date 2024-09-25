@@ -130,11 +130,15 @@ public:
         size_t Bpair_rows;
         size_t Bpair_cols;
 
-        // convert 
-        void setup(ov::bfloat16* ext_buff, ov::float16* p_weight, int stride, int N, int K);
+        // convert
+        template<typename Tdst>
+        void setup(Tdst* ext_buff, ov::float16* p_weight, int stride, int N, int K);
+
         void setup(int8_t* ext_buff, int8_t* p_weight, int stride, int N, int K);
         // two B tiles in each pair (B0 & B1) comes from different raw weight matrix
-        void setup(ov::bfloat16* ext_buff, ov::float16* p_weight_B0, ov::float16* p_weight_B1, int stride, int N, int K);
+        template<typename Tdst>
+        void setup(Tdst* ext_buff, ov::float16* p_weight_B0, ov::float16* p_weight_B1, int stride, int N, int K);
+
         void setup(int8_t* ext_buff, int8_t* p_weight_B0, int8_t* p_weight_B1, int stride, int N, int K);
     };
 
@@ -212,19 +216,24 @@ struct Work {
     }
 
     bool quant_i8 = false;
+    bool is_f16 = false;
 
     MKernel& get_MKernel() {
         constexpr int BM = 256;
         static MKernel jit_amx_bf16(BM, TMUL_TYPE::BF16);
+        static MKernel jit_amx_f16(BM, TMUL_TYPE::FP16);
         static MKernel jit_amx_i8(BM, TMUL_TYPE::SSD);
         if (quant_i8) return jit_amx_i8;
+        if (is_f16) return jit_amx_f16;
         return jit_amx_bf16;
     }
 
     MKernel_1x2& get_MKernel_1x2() {
         static MKernel_1x2 jit_amx_bf16(TMUL_TYPE::BF16);
+        static MKernel_1x2 jit_amx_f16(TMUL_TYPE::FP16);
         static MKernel_1x2 jit_amx_i8(TMUL_TYPE::SSD);
         if (quant_i8) return jit_amx_i8;
+        if (is_f16) return jit_amx_f16;
         return jit_amx_bf16;
     }
 
@@ -236,7 +245,7 @@ struct Work {
         auto* pw = p_weight + n0 * stride_in_bytes / sizeof(Tsrc);
 
         if (do_sum_per_oc) {
-            w_sum_per_oc.resize<float>({n1 - n0});
+            w_sum_per_oc.resize<float>({static_cast<size_t>(n1 - n0)});
             auto * p_wsum_per_oc = w_sum_per_oc.ptr<float>();
             auto* pw_temp = pw;
             for(int n = n0; n < n1; n++, pw_temp += stride_in_bytes / sizeof(Tsrc)) {
@@ -272,7 +281,7 @@ struct Work {
         auto* pw2 = p_weight2 + (n0/2) * stride_in_bytes / sizeof(Tsrc);
 
         if (do_sum_per_oc) {
-            w_sum_per_oc.resize<float>({n1 - n0});
+            w_sum_per_oc.resize<float>({static_cast<size_t>(n1 - n0)});
             auto * p_wsum_per_oc = w_sum_per_oc.ptr<float>();
             auto* pw1_temp = pw1;
             auto* pw2_temp = pw2;
@@ -474,6 +483,7 @@ struct MatrixDynQuantPerRow {
     }
 
     void quantize(size_t BM, ov::bfloat16* psrc, int src_stride);
+    void quantize(size_t BM, ov::float16* psrc, int src_stride);
 };
 
 // combine gate_proj & up_proj using activation algo, then convert to bf16
@@ -483,13 +493,16 @@ public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(GateUpCombine)
 
     const dnnl_alg_kind_t m_act_alg;
-    GateUpCombine(dnnl_alg_kind_t act_alg) : jit_generator(jit_name()), m_act_alg(act_alg) {
+    const bool m_to_f16;
+
+    GateUpCombine(dnnl_alg_kind_t act_alg, bool to_f16) : jit_generator(jit_name()), m_act_alg(act_alg), m_to_f16(to_f16) {
         create_kernel();
     }
 
     void generate() override;
 
-    void call(float* src, size_t src_stride, ov::bfloat16 * dst, size_t dst_stride, int num_rows, int num_cols) {
+    void call(float* src, size_t src_stride, void * pv_dst, size_t dst_stride, int num_rows, int num_cols) {
+        auto* dst = reinterpret_cast<int16_t*>(pv_dst);
         for (int m = 0; m < num_rows; m++, src += src_stride, dst += dst_stride) {
             auto* prefetch_dst = (m + 1 < num_rows) ? (dst + dst_stride) : (dst);
 
@@ -512,15 +525,17 @@ class ReduceAdd2bh : public dnnl::impl::cpu::x64::jit_generator {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(ReduceAdd2bh)
 
-    bool m_do_reduce2;
-    ReduceAdd2bh(bool do_reduce2) : jit_generator(jit_name()), m_do_reduce2(do_reduce2) {
+    const bool m_do_reduce2;
+    const bool m_to_f16;
+    ReduceAdd2bh(bool do_reduce2, bool to_f16) : jit_generator(jit_name()), m_do_reduce2(do_reduce2), m_to_f16(to_f16) {
         create_kernel();
     }
 
     void generate() override;
 
     // add two float input eltwise and convert to bf16 : ConvertFP32toBF16(src0 + src1)
-    void call(float * src0, float * src1, size_t src_stride, ov::bfloat16 * dst, size_t dst_stride, int num_rows, int num_cols) {
+    void call(float * src0, float * src1, size_t src_stride, void * pf16_dst, size_t dst_stride, int num_rows, int num_cols) {
+        auto* dst = reinterpret_cast<int16_t*>(pf16_dst);
         for (int m = 0; m < num_rows; m++, src0 += src_stride, src1 += src_stride, dst += dst_stride) {
             // the prefetch distance is increased to ensure by the time store happens
             // prefetch has done and no HW prefetcher is triggered
@@ -530,7 +545,8 @@ public:
     }
 
     // convert tensor to bf16: ConvertFP32toBF16(src0)
-    void call(float * src0, size_t src_stride, ov::bfloat16 * dst, size_t dst_stride, int num_rows, int num_cols) {
+    void call(float * src0, size_t src_stride, void * pf16_dst, size_t dst_stride, int num_rows, int num_cols) {
+        auto* dst = reinterpret_cast<int16_t*>(pf16_dst);
         for (int m = 0; m < num_rows; m++, src0 += src_stride, dst += dst_stride) {
             // the prefetch distance is increased to ensure by the time store happens
             // prefetch has done and no HW prefetcher is triggered

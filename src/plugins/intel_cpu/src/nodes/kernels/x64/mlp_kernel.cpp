@@ -278,27 +278,29 @@ public:
     }
 };
 
-static void repackB(ov::bfloat16* dst, ov::float16* src, int N_stride, int N, int K) {
+template<typename Tdst>
+static void repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
+    static_assert(std::is_same<ov::bfloat16, Tdst>::value || std::is_same<ov::float16, Tdst>::value);
     static FP16ToBF16Kernel fp16_to_bf16;
     if (N == 16 && K == 32) {
         // SIMD optimized version
-        ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst, src, N_stride * sizeof(ov::bfloat16));
-        fp16_to_bf16(dst);
+        ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst, src, N_stride * sizeof(Tdst));
+        if (std::is_same<ov::bfloat16, Tdst>::value)  fp16_to_bf16(dst);
         return;
     }
 
     assert(K <= 32);
     assert(N <= 16);
     int k = 0;
-    ov::bfloat16 bf16zero(0.0f);
+    Tdst zero(0.0f);
     for (; k < 32; k += 2) {
         int n = 0;
         bool is_k0_valid = (k) < K;
         bool is_k1_valid = (k + 1) < K;
         auto* psrc = src + k;
         for (; n < 16 && n < N; n++, psrc += N_stride) {
-            *dst++ = is_k0_valid ? ov::bfloat16(psrc[0]) : bf16zero;
-            *dst++ = is_k1_valid ? ov::bfloat16(psrc[1]) : bf16zero;
+            *dst++ = is_k0_valid ? static_cast<Tdst>(psrc[0]) : zero;
+            *dst++ = is_k1_valid ? static_cast<Tdst>(psrc[1]) : zero;
         }
         for (; n < 16; n++) {
             *dst++ = 0;
@@ -338,7 +340,8 @@ static void repackB(int8_t* dst, int8_t* src, int N_stride, int N, int K) {
     }
 }
 
-void MKernel::BMatrix::setup(ov::bfloat16* ext_buff, ov::float16* p_weight, int weight_stride_in_bytes, int N, int K) {
+template<typename Tdst>
+void MKernel::BMatrix::setup(Tdst* ext_buff, ov::float16* p_weight, int weight_stride_in_bytes, int N, int K) {
     OPENVINO_ASSERT((N % 32) == 0);
     OPENVINO_ASSERT((K % 32) == 0);
 
@@ -347,7 +350,7 @@ void MKernel::BMatrix::setup(ov::bfloat16* ext_buff, ov::float16* p_weight, int 
     this->Bpair_cols = N/32;
 
     const int k_step = 32;
-    auto N_stride = weight_stride_in_bytes / sizeof(ov::float16);
+    auto N_stride = weight_stride_in_bytes / sizeof(Tdst);
     auto* pdst = reinterpret_cast<int8_t*>(ext_buff);
     for (int n = 0; n < N; n += 32) {
         auto* src0 = p_weight + n * N_stride;
@@ -356,13 +359,16 @@ void MKernel::BMatrix::setup(ov::bfloat16* ext_buff, ov::float16* p_weight, int 
         auto valid_n1 = std::min((N - (n + 16)), 16);
         for (int k = 0, blkk = 0; k < K; k += k_step, blkk++) {
             auto valid_k = std::min((K - k), k_step);
-            repackB(reinterpret_cast<ov::bfloat16*>(pdst), src0 + k, N_stride, valid_n0, valid_k);
+            repackB(reinterpret_cast<Tdst*>(pdst), src0 + k, N_stride, valid_n0, valid_k);
             pdst += 1024;
-            repackB(reinterpret_cast<ov::bfloat16*>(pdst), src1 + k, N_stride, valid_n1, valid_k);
+            repackB(reinterpret_cast<Tdst*>(pdst), src1 + k, N_stride, valid_n1, valid_k);
             pdst += 1024;
         }
     }
 }
+
+template void MKernel::BMatrix::setup<ov::bfloat16>(ov::bfloat16*, ov::float16*, int, int, int);
+template void MKernel::BMatrix::setup<ov::float16>(ov::float16*, ov::float16*, int, int, int);
 
 void MKernel::BMatrix::setup(int8_t* ext_buff, int8_t* p_weight, int weight_stride_in_bytes, int N, int K) {
     OPENVINO_ASSERT((N % 32) == 0);
@@ -391,7 +397,8 @@ void MKernel::BMatrix::setup(int8_t* ext_buff, int8_t* p_weight, int weight_stri
 }
 
 // interleaving two weights into one in unit of 16-column
-void MKernel::BMatrix::setup(ov::bfloat16* ext_buff,
+template<typename Tdst>
+void MKernel::BMatrix::setup(Tdst* ext_buff,
                              ov::float16* p_weight_B0,
                              ov::float16* p_weight_B1,
                              int weight_stride_in_bytes,
@@ -405,20 +412,22 @@ void MKernel::BMatrix::setup(ov::bfloat16* ext_buff,
     this->Bpair_cols = N / 32;
 
     const int k_step = 32;
-    auto N_stride = weight_stride_in_bytes / sizeof(ov::float16);
+    auto N_stride = weight_stride_in_bytes / sizeof(Tdst);
     auto N2 = N / 2;
     auto* pdst = reinterpret_cast<int8_t*>(ext_buff);
     for (int n = 0; n < N2; n += 16) {
         auto valid_n0 = std::min((N2 - n), 16);
         for (int k = 0; k < K; k += k_step) {
             auto valid_k = std::min((K - k), k_step);
-            repackB(reinterpret_cast<ov::bfloat16*>(pdst), p_weight_B0 + n * N_stride + k, N_stride, valid_n0, valid_k);
+            repackB(reinterpret_cast<Tdst*>(pdst), p_weight_B0 + n * N_stride + k, N_stride, valid_n0, valid_k);
             pdst += 1024;
-            repackB(reinterpret_cast<ov::bfloat16*>(pdst), p_weight_B1 + n * N_stride + k, N_stride, valid_n0, valid_k);
+            repackB(reinterpret_cast<Tdst*>(pdst), p_weight_B1 + n * N_stride + k, N_stride, valid_n0, valid_k);
             pdst += 1024;
         }
     }
 }
+template void MKernel::BMatrix::setup<ov::bfloat16>(ov::bfloat16*, ov::float16*, ov::float16*, int, int, int);
+template void MKernel::BMatrix::setup<ov::float16>(ov::float16*, ov::float16*, ov::float16*, int, int, int);
 
 void MKernel::BMatrix::setup(int8_t* ext_buff,
                              int8_t* p_weight_B0,
@@ -508,6 +517,24 @@ void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_strid
     });
 }
 
+void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride) {
+    assert(BM <= M);
+    parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
+        size_t start{0}, end{0};
+        splitter(BM, nthr, ithr, start, end);
+        //auto prof = LinuxPerf::Profile("quant", start, end);
+        ov::Extensions::Cpu::XARCH::llm_mlp_quantize_f16_i8(psrc + start * src_stride,
+                                                            src_stride,
+                                                            data + start * K,
+                                                            K,
+                                                            end - start,
+                                                            K,
+                                                            scale + start,
+                                                            zp + start,
+                                                            asym);
+    });
+}
+
 void GateUpCombine::generate() {
     Xbyak::Label loop_begin;
 
@@ -550,7 +577,11 @@ void GateUpCombine::generate() {
         injector->compute_vector(zmm_silu.getIdx());
         vmovups(zmm_up, ptr[src + loop_i * 8 + 16 * 4]);
         vmulps(zmm_up, zmm_up, zmm_silu);
-        vcvtneps2bf16(ymm_dst, zmm_up);
+        if (m_to_f16) {
+            vcvtps2ph(ymm_dst, zmm_up, 0x4);
+        } else {
+            vcvtneps2bf16(ymm_dst, zmm_up);
+        }
         prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
         vmovdqu(ptr[dst + loop_i * 2], ymm_dst);
     }
@@ -586,9 +617,15 @@ void ReduceAdd2bh::generate() {
             vmovups(zmm3, ptr[src1 + loop_i * 4 + 16 * 4]);
             vaddps(zmm0, zmm0, zmm1);
             vaddps(zmm2, zmm2, zmm3);
-            vcvtne2ps2bf16(zmm4, zmm2, zmm0);
-            prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
-            vmovups(ptr[dst + loop_i * 2], zmm4);
+            if (m_to_f16) {
+                vcvtps2ph(ptr[dst + loop_i * 2], zmm0, 0x4);
+                vcvtps2ph(ptr[dst + loop_i * 2 + 32], zmm2, 0x4);
+                prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
+           } else {
+                vcvtne2ps2bf16(zmm4, zmm2, zmm0);
+                prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
+                vmovups(ptr[dst + loop_i * 2], zmm4);
+            }
         }
         add(loop_i, 32);
         cmp(loop_i, BN);
@@ -611,9 +648,15 @@ void ReduceAdd2bh::generate() {
         {
             vmovups(zmm0, ptr[src0 + loop_i * 4]);
             vmovups(zmm2, ptr[src0 + loop_i * 4 + 16 * 4]);
-            vcvtne2ps2bf16(zmm4, zmm2, zmm0);
-            prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
-            vmovups(ptr[dst + loop_i * 2], zmm4);
+            if (m_to_f16) {
+                vcvtps2ph(ptr[dst + loop_i * 2], zmm0, 0x4);
+                vcvtps2ph(ptr[dst + loop_i * 2 + 32], zmm2, 0x4);
+                prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
+            } else {
+                vcvtne2ps2bf16(zmm4, zmm2, zmm0);
+                prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
+                vmovups(ptr[dst + loop_i * 2], zmm4);
+            }
         }
         add(loop_i, 32);
         cmp(loop_i, BN);
