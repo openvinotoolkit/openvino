@@ -1636,6 +1636,49 @@ auto test_backward_reshape_unsqueeze = []() {
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeUnsqueezeBackward,
                          TSTestFixture,
                          test_backward_reshape_unsqueeze());
+
+auto test_backward_unsqueeze_dyn_rank = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TSUnsqueezeBackward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {
+        parameter(element::f32, PartialShape::dynamic()),
+        constant<int64_t>(element::i32, {2}, {-1}),
+    };
+
+    auto dyn_transpose = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector result = out_vec;
+        for (const auto& idx : idxs) {
+            const auto& out = out_vec[idx];
+            /*auto rank = out.get_partial_shape().rank().get_length();
+            vector<int64_t> axes(rank);
+            iota(axes.begin(), axes.end(), 0);
+            reverse(axes.begin(), axes.end());*/
+            // fill order with stub values {-1, -2}
+            auto order = make_shared<Constant>(element::i32, Shape{2}, vector<int64_t>{-1, -2});
+            auto transpose = make_shared<Transpose>(out, order);
+            result[idx] = transpose;
+        }
+        return result;
+    };
+
+    // Test model description:
+    test_case.model.main_op = {CREATE_BINARY_FACTORY(Unsqueeze)};
+    test_case.model.preprocess_outputs_of_main = {{dyn_transpose}, {{0}}};
+    test_case.model.model_template = create_model;
+
+    // Ref model description
+    test_case.model_ref.main_op = {CREATE_BINARY_FACTORY(Unsqueeze)};
+    test_case.model_ref.preprocess_outputs_of_main = {{dyn_transpose}, {{0}}};
+    test_case.model_ref.model_template = create_model;
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnsqueezeBackwardDynRank,
+                         TSTestFixture,
+                         test_backward_unsqueeze_dyn_rank());
 }  // namespace common
 }  // namespace testing
 }  // namespace transpose_sinking
