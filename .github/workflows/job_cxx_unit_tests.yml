@@ -84,6 +84,9 @@ jobs:
       # Tests
       #
 
+      - name: Sleep
+        run: sleep 18000
+
       - name: OpenVINO Core Unit Tests
         if: always()
         run: |
