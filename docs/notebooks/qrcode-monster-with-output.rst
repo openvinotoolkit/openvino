@@ -29,6 +29,7 @@ If you want to learn more about ControlNet and particularly on
 conditioning by pose, please refer to this
 `tutorial <controlnet-stable-diffusion-with-output.html>`__
 
+
 **Table of contents:**
 
 
@@ -80,7 +81,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q accelerate diffusers transformers "torch>=2.1" "gradio>=4.19" qrcode opencv-python "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q accelerate "diffusers>=0.24.0" transformers "torch>=2.1" "gradio>=4.19" qrcode opencv-python "peft>=0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.1.0" "nncf>=2.7.0"
 
 Instantiating Generation Pipeline
@@ -117,7 +118,7 @@ controlnet model and ``stable-diffusion-v1-5``:
     controlnet = ControlNetModel.from_pretrained("monster-labs/control_v1p_sd15_qrcode_monster")
     
     pipe = StableDiffusionControlNetPipeline.from_pretrained(
-        "runwayml/stable-diffusion-v1-5",
+        "botp/stable-diffusion-v1-5",
         controlnet=controlnet,
     )
 
@@ -428,16 +429,16 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
     
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -911,6 +912,8 @@ on OpenVINO.
     tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14")
     scheduler = EulerAncestralDiscreteScheduler.from_config(pipe.scheduler.config)
     
+    core = ov.Core()
+    
     ov_pipe = OVContrlNetStableDiffusionPipeline(
         tokenizer,
         scheduler,
@@ -984,8 +987,10 @@ improve model inference speed.
 
 .. code:: ipython3
 
+    from notebook_utils import quantization_widget
+    
     skip_for_device = "GPU" in device.value
-    to_quantize = widgets.Checkbox(value=not skip_for_device, description="Quantization", disabled=skip_for_device)
+    to_quantize = quantization_widget(not skip_for_device)
     to_quantize
 
 
@@ -1375,6 +1380,8 @@ launch the interactive demo.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
     quantized_model_present = int8_pipe is not None
     
     use_quantized_model = widgets.Checkbox(
@@ -1422,61 +1429,26 @@ launch the interactive demo.
             guidance_scale=guidance_scale,
             controlnet_conditioning_scale=controlnet_conditioning_scale,
         )[0]
+
+.. code:: ipython3
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/qrcode-monster/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo
     
-    demo = gr.Interface(
-        _generate,
-        inputs=[
-            gr.Textbox(label="QR Code content"),
-            gr.Textbox(label="Text Prompt"),
-            gr.Textbox(label="Negative Text Prompt"),
-            gr.Number(
-                minimum=-1,
-                maximum=9999999999,
-                step=1,
-                value=42,
-                label="Seed",
-                info="Seed for the random number generator",
-            ),
-            gr.Slider(
-                minimum=0.0,
-                maximum=25.0,
-                step=0.25,
-                value=7,
-                label="Guidance Scale",
-                info="Controls the amount of guidance the text prompt guides the image generation",
-            ),
-            gr.Slider(
-                minimum=0.5,
-                maximum=2.5,
-                step=0.01,
-                value=1.5,
-                label="Controlnet Conditioning Scale",
-                info="""Controls the readability/creativity of the QR code.
-                High values: The generated QR code will be more readable.
-                Low values: The generated QR code will be more creative.
-                """,
-            ),
-            gr.Slider(label="Steps", step=1, value=5, minimum=1, maximum=50),
-        ],
-        outputs=["image"],
-        examples=[
-            [
-                "Hi OpenVINO",
-                "cozy town on snowy mountain slope 8k",
-                "blurry unreal occluded",
-                42,
-                7.7,
-                1.4,
-                25,
-            ],
-        ],
-    )
+    demo = make_demo(fn=_generate)
+    
     try:
         demo.queue().launch(debug=False)
     except Exception:
         demo.queue().launch(share=True, debug=False)
-    
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()
