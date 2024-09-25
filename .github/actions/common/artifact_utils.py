@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
-from .constants import EventType, ProductType
+from .constants import EventType, ProductType, PlatformKey
 
 
 def add_common_args(parser: argparse.ArgumentParser):
@@ -12,10 +12,14 @@ def add_common_args(parser: argparse.ArgumentParser):
                         default=os.getenv('GITHUB_BASE_REF') or os.getenv('GITHUB_REF_NAME'))
     parser.add_argument('-e', '--event_name', help='Name of GitHub event', required=False,
                         default=os.getenv('GITHUB_EVENT_NAME'))
-    parser.add_argument('--storage_dir', help='Subdirectory name for artifacts, same as product type', required=True,
-                        choices=[product_type.value for product_type in ProductType])
     parser.add_argument('--storage_root', help='Root path of the artifacts storage', required=False,
                         default=os.getenv('ARTIFACTS_SHARE'))
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('-d', '--storage_dir', help='Subdirectory name for artifacts, same as product type',
+                       choices=[platform_key.value for platform_key in ProductType])
+    group.add_argument('-p', '--platform', type=str,
+                       help='Platform for which to restore artifacts. Used if storage_dir is not set',
+                       choices=[product_type.value for product_type in PlatformKey])
 
 
 def get_event_type(event_name: str = os.getenv('GITHUB_EVENT_NAME')) -> str:
